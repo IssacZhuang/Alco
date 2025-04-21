@@ -4,17 +4,33 @@ using Alco.IO;
 
 namespace Alco.Project;
 
+/// <summary>
+/// Represents an Alco game engine project and handles asset system integration.
+/// This class manages project files, watches for file changes, and provides access to the asset system.
+/// </summary>
 public partial class AlcoProject: AutoDisposable, IAssetSystemHost
 {
     private readonly TypeDatabase _typeDatabase;
     private readonly FileSystemWatcher _projectWatcher;
+    private readonly FileSystemWatcher? _assetsWatcher;
     //individual asset system for this project
     private readonly AssetSystem _assetSystem;
     private readonly AssetDatabase _assetDatabase;
     private readonly GameEngine _engine;
 
+    /// <summary>
+    /// Gets the full path to the project file.
+    /// </summary>
     public string ProjectFilePath { get; }
+
+    /// <summary>
+    /// Gets the directory containing the project.
+    /// </summary>
     public string ProjectDirectory { get; }
+
+    /// <summary>
+    /// Gets the configuration for the Alco project.
+    /// </summary>
     public AlcoProjectConfig Config { get; }
 
     /// <summary>
@@ -33,14 +49,29 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
 
         // add file sources from this project
 
-        string fullPath = Path.Combine(ProjectDirectory, Config.AssetPath);
-        if (Directory.Exists(fullPath))
+        string assetsPath = Path.Combine(ProjectDirectory, Config.AssetPath);
+        if (Directory.Exists(assetsPath))
         {
-            _assetSystem.AddFileSource(new DirectoryFileSource(fullPath));
+            _assetSystem.AddFileSource(new DirectoryFileSource(assetsPath));
+
+            // Setup assets watcher
+            _assetsWatcher = new FileSystemWatcher
+            {
+                Path = assetsPath,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
+                Filter = "*.*",
+                IncludeSubdirectories = true,
+                EnableRaisingEvents = true
+            };
+
+            _assetsWatcher.Created += OnAssetFileChanged;
+            _assetsWatcher.Deleted += OnAssetFileDeleted;
+            _assetsWatcher.Changed += OnAssetFileChanged;
+            _assetsWatcher.Renamed += OnAssetFileRenamed;
         }
         else
         {
-            Log.Error($"Asset path {fullPath} not found");
+            Log.Error($"Asset path {assetsPath} not found");
         }
 
         foreach (var fileSource in engine.CreateDefaultFileSources())
@@ -73,12 +104,17 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
         _projectWatcher.Renamed += OnProjectFileChanged;
     }
 
-    
 
+
+    /// <summary>
+    /// Opens the C# project associated with this Alco project.
+    /// </summary>
+    /// <returns>A CSharpProject instance representing the opened project.</returns>
+    /// <exception cref="FileNotFoundException">Thrown if the C# project file is not found.</exception>
     public CSharpProject OpenCSharpProject()
     {
         //get same filename that ends with .csproj in same directory
-        string csharpProjectPath = Path.Combine(ProjectFilePath, $"{Path.GetFileNameWithoutExtension(ProjectFilePath)}.csproj");
+        string csharpProjectPath = Path.Combine(ProjectDirectory, $"{Path.GetFileNameWithoutExtension(ProjectFilePath)}.csproj");
 
         if (!File.Exists(csharpProjectPath))
         {
@@ -87,12 +123,19 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
 
         return new CSharpProject(csharpProjectPath);
     }
+
     protected override void Dispose(bool disposing)
     {
         _onDispose?.Invoke();
         _typeDatabase.Dispose();
         _projectWatcher.EnableRaisingEvents = false;
         _projectWatcher.Dispose();
+
+        if (_assetsWatcher != null)
+        {
+            _assetsWatcher.EnableRaisingEvents = false;
+            _assetsWatcher.Dispose();
+        }
     }
 
     private void OnProjectFileChanged(object sender, FileSystemEventArgs e)
@@ -100,6 +143,36 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
         OnFilesInProjectUpdated?.Invoke(e);
     }
 
+    private void OnAssetFileChanged(object sender, FileSystemEventArgs e)
+    {
+        string relativePath = GetRelativeAssetPath(e.FullPath);
+        Log.Info($"Asset file modified: {relativePath}");
+        _assetDatabase.MarkAsChanged(relativePath);
+    }
+
+    private void OnAssetFileDeleted(object sender, FileSystemEventArgs e)
+    {
+        string relativePath = GetRelativeAssetPath(e.FullPath);
+        Log.Info($"Asset file deleted: {relativePath}");
+        _assetSystem.MarkEntriesDirty();
+        _assetDatabase.MarkAsDelete(relativePath);
+    }
+
+    private void OnAssetFileRenamed(object sender, RenamedEventArgs e)
+    {
+        string oldRelativePath = GetRelativeAssetPath(e.OldFullPath);
+        string newRelativePath = GetRelativeAssetPath(e.FullPath);
+        Log.Info($"Asset file renamed: {oldRelativePath} to {newRelativePath}");
+        _assetSystem.MarkEntriesDirty();
+        _assetDatabase.MarkAsDelete(oldRelativePath);
+        _assetDatabase.MarkAsCreate(newRelativePath);
+    }
+
+    private string GetRelativeAssetPath(string fullPath)
+    {
+        string assetsPath = Path.Combine(ProjectDirectory, Config.AssetPath);
+        return fullPath.Replace(assetsPath, "").TrimStart(Path.DirectorySeparatorChar).Replace('\\', '/');
+    }
 
     // asset system intergration
     // impl IAssetSystemHost

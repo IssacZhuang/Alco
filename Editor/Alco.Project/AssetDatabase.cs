@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -17,7 +16,9 @@ namespace Alco.Project;
 public class AssetDatabase
 {
     private readonly AssetSystem _assetSystem;
-    private volatile Dictionary<string, ConfigMeta> _configMetas = [];
+    private readonly ConcurrentDictionary<string, ConfigMeta> _configMetas = [];
+    private readonly object _configExtensionsLock = new();
+    private readonly object _textureExtensionsLock = new();
 
     private readonly TypeHelper _typeHelper;
 
@@ -32,34 +33,66 @@ public class AssetDatabase
         _typeHelper = new TypeHelper(true);
         UpdateConfigFileExtensions();
         UpdateTextureFileExtensions();
-        UpdateConfigMeta(CancellationToken.None);
+        UpdateConfigMetas();
     }
 
-    public void UpdateConfigMeta(CancellationToken token)
+    public void MarkAsChanged(string path)
+    {
+        //todo update meta in deffered mode
+        if (!TryUpdateConfigMeta(path))
+        {
+            Log.Error($"Failed to get config type for {path}");
+        }
+    }
+
+    public void MarkAsCreate(string path)
+    {
+        // Similar to MarkAsChanged, try to update the config meta
+        // We don't need to log an error if it fails, as it might not be a config file
+        if (!TryUpdateConfigMeta(path))
+        {
+            Log.Error($"Failed to get config type for {path}");
+        }
+    }
+
+    public void MarkAsDelete(string path)
+    {
+        RemoveAssetMeta(path);
+    }
+
+    private void UpdateConfigMetas()
     {
         IEnumerable<string> allAssetPaths = _assetSystem.AllFileNames;
-        Dictionary<string, ConfigMeta> configMetas = new();
-        foreach (var assetPath in allAssetPaths)
+        // foreach (var assetPath in allAssetPaths)
+        Parallel.ForEach(allAssetPaths, assetPath =>
         {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-
             try
             {
                 if (TryGetConfigType(assetPath, out Type? type))
                 {
-                    configMetas.TryAdd(assetPath, new ConfigMeta(assetPath, type));
+                    _configMetas.AddOrUpdate(assetPath, new ConfigMeta(assetPath, type), (_, _) => new ConfigMeta(assetPath, type));
+                }
+                else
+                {
+                    Log.Error($"Failed to get config type for {assetPath}");
                 }
             }
             catch (Exception e)
             {
                 Log.Error($"error loading config meta for {assetPath}: {e.Message}");
             }
-        };
+        });
+    }
 
-        _configMetas = configMetas;
+    private bool TryUpdateConfigMeta(string path)
+    {
+        if (TryGetConfigType(path, out Type? type))
+        {
+            _configMetas.AddOrUpdate(path, new ConfigMeta(path, type), (_, _) => new ConfigMeta(path, type));
+            return true;
+        }
+
+        return false;
     }
 
     private bool TryGetConfigType(string assetPath, [NotNullWhen(true)] out Type? type)
@@ -84,34 +117,45 @@ public class AssetDatabase
 
     private void UpdateConfigFileExtensions()
     {
-        HashSet<string> configFileExtensions = new();
-        foreach (var loader in _assetSystem.AllAssetLoaders)
+        lock (_configExtensionsLock)
         {
-            if (loader.CanHandleType(typeof(Configable)))
+            HashSet<string> configFileExtensions = new();
+            foreach (var loader in _assetSystem.AllAssetLoaders)
             {
-                foreach (var extension in loader.FileExtensions)
+                if (loader.CanHandleType(typeof(Configable)))
                 {
-                    configFileExtensions.Add(extension);
+                    foreach (var extension in loader.FileExtensions)
+                    {
+                        configFileExtensions.Add(extension);
+                    }
                 }
             }
+            _configFileExtensions = configFileExtensions;
         }
-        _configFileExtensions = configFileExtensions;
     }
 
     private void UpdateTextureFileExtensions()
     {
-        HashSet<string> textureFileExtensions = new();
-        foreach (var loader in _assetSystem.AllAssetLoaders)
+        lock (_textureExtensionsLock)
         {
-            if (loader.CanHandleType(typeof(Texture2D)))
+            HashSet<string> textureFileExtensions = new();
+            foreach (var loader in _assetSystem.AllAssetLoaders)
             {
-                foreach (var extension in loader.FileExtensions)
+                if (loader.CanHandleType(typeof(Texture2D)))
                 {
-                    textureFileExtensions.Add(extension);
+                    foreach (var extension in loader.FileExtensions)
+                    {
+                        textureFileExtensions.Add(extension);
+                    }
                 }
             }
+            _textureFileExtensions = textureFileExtensions;
         }
-        _textureFileExtensions = textureFileExtensions;
+    }
+
+    private void RemoveAssetMeta(string assetPath)
+    {
+        _configMetas.TryRemove(assetPath, out _);
     }
 }
 
