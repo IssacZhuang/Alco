@@ -64,7 +64,7 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
                 EnableRaisingEvents = true
             };
 
-            _assetsWatcher.Created += OnAssetFileChanged;
+            _assetsWatcher.Created += OnAssetFileCreated;
             _assetsWatcher.Deleted += OnAssetFileDeleted;
             _assetsWatcher.Changed += OnAssetFileChanged;
             _assetsWatcher.Renamed += OnAssetFileRenamed;
@@ -148,6 +148,15 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
         string relativePath = GetRelativeAssetPath(e.FullPath);
         Log.Info($"Asset file modified: {relativePath}");
         _assetDatabase.MarkAsChanged(relativePath);
+    }
+
+    private void OnAssetFileCreated(object sender, FileSystemEventArgs e)
+    {
+        string relativePath = GetRelativeAssetPath(e.FullPath);
+        Log.Info($"Asset file created: {relativePath}");
+        //force refresh entries because it will be used immediately in _assetDatabase.MarkAsCreate
+        _assetSystem.ForceRefreshEntries();
+        _assetDatabase.MarkAsCreate(relativePath);
     }
 
     private void OnAssetFileDeleted(object sender, FileSystemEventArgs e)
