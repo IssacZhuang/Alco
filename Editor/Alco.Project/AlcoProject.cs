@@ -58,7 +58,7 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
             _assetsWatcher = new FileSystemWatcher
             {
                 Path = assetsPath,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
                 Filter = "*.*",
                 IncludeSubdirectories = true,
                 EnableRaisingEvents = true
@@ -146,14 +146,14 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
     private void OnAssetFileChanged(object sender, FileSystemEventArgs e)
     {
         string relativePath = GetRelativeAssetPath(e.FullPath);
-        Log.Info($"Asset file modified: {relativePath}");
+        // Log.Info($"Asset file modified: {relativePath}");
         _assetDatabase.MarkAsChanged(relativePath);
     }
 
     private void OnAssetFileCreated(object sender, FileSystemEventArgs e)
     {
         string relativePath = GetRelativeAssetPath(e.FullPath);
-        Log.Info($"Asset file created: {relativePath}");
+        // Log.Info($"Asset file created: {relativePath}");
         //force refresh entries because it will be used immediately in _assetDatabase.MarkAsCreate
         _assetSystem.ForceRefreshEntries();
         _assetDatabase.MarkAsCreate(relativePath);
@@ -162,7 +162,7 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
     private void OnAssetFileDeleted(object sender, FileSystemEventArgs e)
     {
         string relativePath = GetRelativeAssetPath(e.FullPath);
-        Log.Info($"Asset file deleted: {relativePath}");
+        // Log.Info($"Asset file deleted: {relativePath}");
         _assetSystem.MarkEntriesDirty();
         _assetDatabase.MarkAsDelete(relativePath);
     }
@@ -171,7 +171,7 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
     {
         string oldRelativePath = GetRelativeAssetPath(e.OldFullPath);
         string newRelativePath = GetRelativeAssetPath(e.FullPath);
-        Log.Info($"Asset file renamed: {oldRelativePath} to {newRelativePath}");
+        // Log.Info($"Asset file renamed: {oldRelativePath} to {newRelativePath}");
         _assetSystem.MarkEntriesDirty();
         _assetDatabase.MarkAsDelete(oldRelativePath);
         _assetDatabase.MarkAsCreate(newRelativePath);

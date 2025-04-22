@@ -17,8 +17,8 @@ public class AssetDatabase
 {
     private readonly AssetSystem _assetSystem;
     private readonly ConcurrentDictionary<string, ConfigMeta> _configMetas = [];
-    private readonly object _configExtensionsLock = new();
-    private readonly object _textureExtensionsLock = new();
+    private readonly Lock _configExtensionsLock = new();
+    private readonly Lock _textureExtensionsLock = new();
 
     private readonly TypeHelper _typeHelper;
 
@@ -38,6 +38,11 @@ public class AssetDatabase
 
     public void MarkAsChanged(string path)
     {
+        if (!IsConfigFile(path))
+        {
+            return;
+        }
+
         //todo update meta in deffered mode
         if (!TryUpdateConfigMeta(path))
         {
@@ -47,6 +52,10 @@ public class AssetDatabase
 
     public void MarkAsCreate(string path)
     {
+        if (!IsConfigFile(path))
+        {
+            return;
+        }
         // Similar to MarkAsChanged, try to update the config meta
         // We don't need to log an error if it fails, as it might not be a config file
         if (!TryUpdateConfigMeta(path))
@@ -68,6 +77,11 @@ public class AssetDatabase
         {
             try
             {
+                if (!IsConfigFile(assetPath))
+                {
+                    return;
+                }
+
                 if (TryGetConfigType(assetPath, out Type? type))
                 {
                     _configMetas.AddOrUpdate(assetPath, new ConfigMeta(assetPath, type), (_, _) => new ConfigMeta(assetPath, type));
@@ -79,7 +93,7 @@ public class AssetDatabase
             }
             catch (Exception e)
             {
-                Log.Error($"error loading config meta for {assetPath}: {e.Message}");
+                Log.Error($"error loading config meta for {assetPath}: {e}");
             }
         });
     }
@@ -95,14 +109,14 @@ public class AssetDatabase
         return false;
     }
 
-    private bool TryGetConfigType(string assetPath, [NotNullWhen(true)] out Type? type)
+    private bool IsConfigFile(string assetPath)
     {
         string extension = Path.GetExtension(assetPath);
-        if (!_configFileExtensions.Contains(extension))
-        {
-            type = null;
-            return false;
-        }
+        return _configFileExtensions.Contains(extension);
+    }
+
+    private bool TryGetConfigType(string assetPath, [NotNullWhen(true)] out Type? type)
+    {
         if (_assetSystem.TryLoadRaw(assetPath, out SafeMemoryHandle handle))
         {
             string json = Encoding.UTF8.GetString(handle.Span);
