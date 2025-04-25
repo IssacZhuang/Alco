@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Alco.IO;
+namespace Alco.Engine;
+
 public interface IConfigReferenceResolver
 {
     public bool TryResolve(

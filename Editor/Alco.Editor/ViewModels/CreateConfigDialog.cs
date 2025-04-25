@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Alco.Editor.Models;
 using Alco.IO;
+using Alco.Engine;
 
 namespace Alco.Editor.ViewModels;
 

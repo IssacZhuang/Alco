@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json;
 
-namespace Alco.IO;
+namespace Alco.Engine;
 
 /// <summary>
 /// JSON converter for Alco.uint3 type.

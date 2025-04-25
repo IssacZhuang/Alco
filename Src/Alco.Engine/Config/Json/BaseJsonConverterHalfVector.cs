@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Alco.IO;
+namespace Alco.Engine;
 
 /// <summary>
 /// Base JSON converter for Half vector types.

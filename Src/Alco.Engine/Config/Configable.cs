@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Alco.IO;
+namespace Alco.Engine;
 
 public class Configable
 {

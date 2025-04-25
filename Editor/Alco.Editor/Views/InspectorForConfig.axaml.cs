@@ -13,6 +13,7 @@ using AvaloniaEdit;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
 using Avalonia.Interactivity;
+using Alco.Engine;
 
 namespace Alco.Editor.Views;
 

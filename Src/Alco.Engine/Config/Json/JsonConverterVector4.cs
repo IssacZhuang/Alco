@@ -1,7 +1,8 @@
 using System;
 using System.Numerics;
 using System.Text.Json;
-namespace Alco.IO;
+
+namespace Alco.Engine;
 
 /// <summary>
 /// JSON converter for System.Numerics.Vector4 type.
