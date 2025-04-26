@@ -9,12 +9,12 @@
     1
   ],
   "MeshScale": [
-    1,
-    1
+    122,
+    122
   ],
   "UvScale": [
-    1,
-    1
+    111,
+    111
   ],
   "HeightOffsetFactor": [
     0,
@@ -23,5 +23,5 @@
   "BlendPriority": 0,
   "BlendFactor": 0.35,
   "EdgeSmoothFactor": 0.15,
-  "Id": ""
+  "Id": "Assets\\test.json"
 }

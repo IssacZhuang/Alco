@@ -7,6 +7,7 @@ using Alco.Rendering;
 using Alco.IO;
 using System.Text;
 using Alco.Audio;
+using System.Text.Json;
 
 
 namespace Alco.Engine;
@@ -35,6 +36,9 @@ IDisposable
     private readonly InputSystem _input;
     private readonly View _mainView;
     private readonly ViewRenderTarget _mainRenderTarget;
+
+    private readonly JsonSerializerOptions _configSerializeOption;
+    private readonly IConfigReferenceResolver _configReferenceResolver;
 
     #endregion
 
@@ -172,6 +176,16 @@ IDisposable
     /// </summary>
     public GameEngineSetting Setting => _setting;
 
+    /// <summary>
+    /// The json serializer options for the game engine, which is used for the config loading
+    /// </summary>
+    public JsonSerializerOptions ConfigSerializeOption => _configSerializeOption;
+ 
+    /// <summary>
+    /// The reference resolver, which is used for the config to reference other configs assets
+    /// </summary>
+    public IConfigReferenceResolver ConfigReferenceResolver => _configReferenceResolver;
+
     #endregion
 
     public GameEngine(GameEngineSetting setting)
@@ -193,6 +207,9 @@ IDisposable
         _builtInAssets = new BuiltInAssets(_assets);
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
+
+        _configSerializeOption = CreateConfigSerializeOption();
+        _configReferenceResolver = CreateConfigReferenceResolver();
 
         foreach (var fileSource in CreateDefaultFileSources())
         {

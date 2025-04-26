@@ -1,6 +1,7 @@
 using System.Text;
 using Alco.Rendering;
 using Alco.IO;
+using System.Text.Json;
 
 namespace Alco.Engine;
 
@@ -22,10 +23,7 @@ public partial class GameEngine
         yield return new AssetLoaderAudioFlac(AudioDevice);
 
         // config
-        var configReferenceResolver = new ConfigReferenceResolver(Assets);
-        var jsonSerializerOptions = Configable.BuildJsonSerializerOptions(configReferenceResolver);
-        jsonSerializerOptions.WriteIndented = true;
-        yield return new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver);
+        yield return new AssetLoaderConfig(ConfigSerializeOption, ConfigReferenceResolver);
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
@@ -44,15 +42,45 @@ public partial class GameEngine
 
     public virtual IEnumerable<IAssetEncoder> CreateDefaultAssetEncoders()
     {
-        var configReferenceResolver = new ConfigReferenceResolver(Assets);
-        var jsonSerializerOptions = Configable.BuildJsonSerializerOptions(configReferenceResolver);
-        jsonSerializerOptions.WriteIndented = true;
-        yield return new AssetEncoderConfig(jsonSerializerOptions);
+        yield return new AssetEncoderConfig(CreateConfigSerializeOption());
     }
 
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()
     {
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
+    }
+
+    protected virtual IConfigReferenceResolver CreateConfigReferenceResolver()
+    {
+        return new ConfigReferenceResolver(Assets);
+    }
+
+    protected virtual JsonSerializerOptions CreateConfigSerializeOption()
+    {
+        IConfigReferenceResolver resolver = CreateConfigReferenceResolver();
+        return new JsonSerializerOptions()
+        {
+            TypeInfoResolver = new ConfigJsonTypeResolver(resolver),
+            WriteIndented = true,
+            Converters = {
+                new JsonConverterType(),
+                new JsonConverterVector2(),
+                new JsonConverterVector3(),
+                new JsonConverterVector4(),
+                new JsonConverterHalf2(),
+                new JsonConverterHalf3(),
+                new JsonConverterHalf4(),
+                new JsonConverterInt2(),
+                new JsonConverterInt3(),
+                new JsonConverterInt4(),
+                new JsonConverterUInt2(),
+                new JsonConverterUInt3(),
+                new JsonConverterUInt4(),
+                new JsonConverterQuaternion(),
+                new JsonConverterColor32(),
+                new JsonConverterColorFloat(),
+            }
+        }; ;
     }
 
 

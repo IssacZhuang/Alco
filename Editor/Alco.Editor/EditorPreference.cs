@@ -22,7 +22,7 @@ public class EditorPreference
     {
         _engine = engine;
         _preferenceFilePath = Path.Combine(_tmpDirectory, PreferenceFileName);
-        _jsonSerializerOptions = Configable.BuildJsonSerializerOptions();
+        _jsonSerializerOptions = engine.ConfigSerializeOption;
 
         if (!Directory.Exists(_tmpDirectory))
         {

@@ -23,6 +23,21 @@ public class TestJsonReference
             _configs[config.Id] = config;
         }
 
+        public void AddLoadingConfig(string id, Configable config)
+        {
+            
+        }
+
+        public void RemoveLoadingConfig(string id)
+        {
+            
+        }
+
+        public void ResolveReferenceFor(Configable config) 
+        {
+            
+        }
+
         public bool TryResolve(string id, string propertyName, Type propertyType, out Configable config)
         {
             return _configs.TryGetValue(id, out config);

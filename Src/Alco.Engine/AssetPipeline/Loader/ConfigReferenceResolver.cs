@@ -59,7 +59,7 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         _loadingConfigs.TryRemove(filename, out _);
     }
 
-    public void ResolveRealReference(Configable asset)
+    public void ResolveReferenceFor(Configable asset)
     {
         AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(asset.GetType());
         foreach (var accessMember in accessTypeInfo.Members)

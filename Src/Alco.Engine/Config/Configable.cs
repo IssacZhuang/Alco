@@ -27,7 +27,7 @@ public class Configable
                 new JsonConverterUInt4(),
                 new JsonConverterQuaternion(),
             }
-        }; ;
+        };
     }
 }
 

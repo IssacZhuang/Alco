@@ -9,5 +9,12 @@ public interface IConfigReferenceResolver
         string propertyName,
         Type propertyType,
         [NotNullWhen(true)] out Configable? config);
+
+    public void AddLoadingConfig(string id, Configable config);
+    public void RemoveLoadingConfig(string id);
+
+    public void ResolveReferenceFor(Configable config);
+
+
 }
 
