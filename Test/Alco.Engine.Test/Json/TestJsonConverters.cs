@@ -31,7 +31,8 @@ public class TestJsonConverters
                 new JsonConverterVector2(),
                 new JsonConverterVector3(),
                 new JsonConverterVector4(),
-                new JsonConverterQuaternion()
+                new JsonConverterQuaternion(),
+                new JsonConverterColorFloat()
             }
         };
     }
@@ -375,5 +376,121 @@ public class TestJsonConverters
 
         Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize<Configable>(invalidJson, options));
+    }
+
+    [Test(Description = "Test ColorFloat JSON conversion")]
+    public void TestColorFloatConversion()
+    {
+        var original = new Graphics.ColorFloat(0.5f, 0.6f, 0.7f, 0.8f);
+        string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"ColorFloat JSON: {json}");
+        Assert.That(json, Is.EqualTo("[0.5,0.6,0.7,0.8]"));
+
+        var deserialized = JsonSerializer.Deserialize<Graphics.ColorFloat>(json, _options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.R, Is.EqualTo(original.R));
+            Assert.That(deserialized.G, Is.EqualTo(original.G));
+            Assert.That(deserialized.B, Is.EqualTo(original.B));
+            Assert.That(deserialized.A, Is.EqualTo(original.A));
+        });
+    }
+
+    [Test(Description = "Test ColorFloat JSON conversion with default alpha")]
+    public void TestColorFloatConversionDefaultAlpha()
+    {
+        var original = new Graphics.ColorFloat(0.5f, 0.6f, 0.7f);
+        string json = JsonSerializer.Serialize(original, _options);
+        TestContext.WriteLine($"ColorFloat JSON with default alpha: {json}");
+        Assert.That(json, Is.EqualTo("[0.5,0.6,0.7,1]"));
+
+        // Test deserialization of RGB only (alpha should default to 1.0)
+        var rgbJson = "[0.5,0.6,0.7]";
+        var deserialized = JsonSerializer.Deserialize<Graphics.ColorFloat>(rgbJson, _options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.R, Is.EqualTo(original.R));
+            Assert.That(deserialized.G, Is.EqualTo(original.G));
+            Assert.That(deserialized.B, Is.EqualTo(original.B));
+            Assert.That(deserialized.A, Is.EqualTo(1.0f));
+        });
+    }
+
+    [Test(Description = "Test ColorFloat JSON invalid format")]
+    public void TestColorFloatInvalidFormat()
+    {
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Graphics.ColorFloat>("[0.5,0.6]", _options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Graphics.ColorFloat>("[0.5,0.6,0.7,0.8,0.9]", _options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Graphics.ColorFloat>("\"not an array\"", _options));
+    }
+
+    [Test(Description = "Test Color32 JSON conversion")]
+    public void TestColor32Conversion()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new JsonConverterColor32()
+            }
+        };
+
+        var original = new Graphics.Color32(128, 64, 32, 255);
+        string json = JsonSerializer.Serialize(original, options);
+        TestContext.WriteLine($"Color32 JSON: {json}");
+        Assert.That(json, Is.EqualTo("[128,64,32,255]"));
+
+        var deserialized = JsonSerializer.Deserialize<Graphics.Color32>(json, options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.R, Is.EqualTo(original.R));
+            Assert.That(deserialized.G, Is.EqualTo(original.G));
+            Assert.That(deserialized.B, Is.EqualTo(original.B));
+            Assert.That(deserialized.A, Is.EqualTo(original.A));
+        });
+    }
+
+    [Test(Description = "Test Color32 JSON conversion with default alpha")]
+    public void TestColor32ConversionDefaultAlpha()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new JsonConverterColor32()
+            }
+        };
+
+        var original = new Graphics.Color32(128, 64, 32);
+        string json = JsonSerializer.Serialize(original, options);
+        TestContext.WriteLine($"Color32 JSON with default alpha: {json}");
+        Assert.That(json, Is.EqualTo("[128,64,32,255]"));
+
+        // Test deserialization of RGB only (alpha should default to 255)
+        var rgbJson = "[128,64,32]";
+        var deserialized = JsonSerializer.Deserialize<Graphics.Color32>(rgbJson, options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.R, Is.EqualTo(original.R));
+            Assert.That(deserialized.G, Is.EqualTo(original.G));
+            Assert.That(deserialized.B, Is.EqualTo(original.B));
+            Assert.That(deserialized.A, Is.EqualTo(255));
+        });
+    }
+
+    [Test(Description = "Test Color32 JSON invalid format")]
+    public void TestColor32InvalidFormat()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new JsonConverterColor32()
+            }
+        };
+
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Graphics.Color32>("[128,64]", options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Graphics.Color32>("[128,64,32,255,0]", options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Graphics.Color32>("\"not an array\"", options));
     }
 }
