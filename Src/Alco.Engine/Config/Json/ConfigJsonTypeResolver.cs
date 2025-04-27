@@ -38,7 +38,6 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
             if (property.PropertyType.IsAssignableTo(typeof(Configable)))
             {
                 property.CustomConverter = new JsonConverterConfigReference(
-                    property.Name,
                     property.PropertyType,
                     _configResolver
                 );
