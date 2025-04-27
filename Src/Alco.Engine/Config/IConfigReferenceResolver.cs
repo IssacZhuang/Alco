@@ -12,7 +12,6 @@ public interface IConfigReferenceResolver
 
     public void AddLoadingConfig(string id, Configable config);
     public void RemoveLoadingConfig(string id);
-
     public void ResolveReferenceFor(Configable config);
 
 

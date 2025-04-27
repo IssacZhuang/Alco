@@ -25,7 +25,9 @@ public class JsonConverterConfigReference : JsonConverter<Configable>
     {
         if (reader.TokenType != JsonTokenType.String)
         {
-            throw new JsonException("The reference of config must be a string id.");
+            Configable configable = JsonSerializer.Deserialize<Configable>(ref reader, options)!; 
+            configable.IsSubResource = true;
+            return configable;
         }
 
         string id = reader.GetString() ?? throw new JsonException("The reference of config must be a string id.");
@@ -39,6 +41,13 @@ public class JsonConverterConfigReference : JsonConverter<Configable>
 
     public override void Write(Utf8JsonWriter writer, Configable value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.Id);
+        if (value.IsSubResource)
+        {
+            JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        }
+        else
+        {
+            writer.WriteStringValue(value.Id);
+        }
     }
 }
