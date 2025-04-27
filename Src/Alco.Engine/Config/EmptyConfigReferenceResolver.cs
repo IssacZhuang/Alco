@@ -20,7 +20,7 @@ public class EmptyConfigReferenceResolver : IConfigReferenceResolver
         throw new NotImplementedException();
     }
 
-    public bool TryResolve(string id, string propertyName, Type propertyType, [NotNullWhen(true)] out Configable? config)
+    public bool TryResolve(string id, Type propertyType, [NotNullWhen(true)] out Configable? config)
     {
         throw new NotImplementedException("EmptyConfigReferenceResolver does not resolve any config.");
     }

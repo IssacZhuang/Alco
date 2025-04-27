@@ -31,7 +31,7 @@ public class JsonConverterConfigReference : JsonConverter<Configable>
         }
 
         string id = reader.GetString() ?? throw new JsonException("The reference of config must be a string id.");
-        if (!_configResolver.TryResolve(id, _propertyName, _propertyType, out var config))
+        if (!_configResolver.TryResolve(id, _propertyType, out var config))
         {
             throw new JsonException($"The config with id {id} is not found.");
         }

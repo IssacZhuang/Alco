@@ -38,7 +38,7 @@ public class TestJsonReference
             
         }
 
-        public bool TryResolve(string id, string propertyName, Type propertyType, out Configable config)
+        public bool TryResolve(string id, Type propertyType, out Configable config)
         {
             return _configs.TryGetValue(id, out config);
         }
@@ -164,4 +164,52 @@ public class TestJsonReference
         Assert.That(deserializedConfig.Name, Is.EqualTo("Main Config"));
         Assert.That(deserializedConfig.Reference, Is.Null);
     }
+
+    // [Test]
+    // public void TestSubResource()
+    // {
+    //     var resolver = new TestConfigReferenceResolver();
+    //     var typeResolver = new ConfigJsonTypeResolver(resolver);
+
+    //     var options = new JsonSerializerOptions
+    //     {
+    //         TypeInfoResolver = typeResolver,
+    //         Converters = {
+    //             new JsonConverterConfigReference()
+    //         }
+    //     };
+
+    //     var config = new TestConfig
+    //     {
+    //         Id = "main",
+    //         Name = "Main Config",
+    //         Reference = new TestConfig(){
+    //             Id = "sub",
+    //             Name = "Sub Config",
+    //             IsSubResource = true
+    //         }
+    //     };
+
+    //     // only id will be serialized but content will be ignored
+    //     string json = JsonSerializer.Serialize(config, options);
+    //     TestContext.WriteLine(json);
+    //     var deserializedConfig = JsonSerializer.Deserialize<TestConfig>(json, options);
+
+    //     TestConfig subConfig = (TestConfig)deserializedConfig.Reference;
+
+    //     // Assert
+    //     Assert.That(deserializedConfig, Is.Not.Null);
+    //     Assert.That(deserializedConfig.Id, Is.EqualTo("main"));
+    //     Assert.Multiple(() =>
+    //     {
+    //         Assert.That(deserializedConfig.Name, Is.EqualTo("Main Config"));
+    //         Assert.That(deserializedConfig.Reference, Is.Not.Null);
+    //     });
+    //     Assert.Multiple(() =>
+    //     {
+    //         Assert.That(subConfig.Id, Is.EqualTo("sub"));
+    //         Assert.That(subConfig.Name, Is.EqualTo("Sub Config"));
+    //         Assert.That(subConfig.IsSubResource, Is.True);
+    //     });
+    // }
 }
