@@ -208,8 +208,8 @@ IDisposable
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
-        _configSerializeOption = CreateConfigSerializeOption();
         _configReferenceResolver = CreateConfigReferenceResolver();
+        _configSerializeOption = CreateConfigSerializeOption();
 
         foreach (var fileSource in CreateDefaultFileSources())
         {

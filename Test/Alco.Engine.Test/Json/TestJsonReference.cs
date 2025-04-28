@@ -174,9 +174,6 @@ public class TestJsonReference
     //     var options = new JsonSerializerOptions
     //     {
     //         TypeInfoResolver = typeResolver,
-    //         Converters = {
-    //             new JsonConverterConfigReference()
-    //         }
     //     };
 
     //     var config = new TestConfig

@@ -57,10 +57,9 @@ public partial class GameEngine
 
     protected virtual JsonSerializerOptions CreateConfigSerializeOption()
     {
-        IConfigReferenceResolver resolver = CreateConfigReferenceResolver();
         return new JsonSerializerOptions()
         {
-            TypeInfoResolver = new ConfigJsonTypeResolver(resolver),
+            TypeInfoResolver = new ConfigJsonTypeResolver(ConfigReferenceResolver),
             WriteIndented = true,
             Converters = {
                 new JsonConverterType(),
