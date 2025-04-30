@@ -21,10 +21,9 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
     {
         var typeInfo = base.GetTypeInfo(type, options);
-        if (typeInfo.Type == typeof(Configable))
+        if (typeInfo.Type.IsAssignableTo(typeof(Configable)))
         {
             SetAllDerivedType(typeInfo);
-            return typeInfo;
         }
 
         SetPropertiesToUseReferenceConverter(typeInfo);
@@ -45,7 +44,7 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         }
     }
 
-    private void SetAllDerivedType(JsonTypeInfo typeInfo)
+    private static void SetAllDerivedType(JsonTypeInfo typeInfo)
     {
         typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
         {
@@ -67,7 +66,7 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
                     return Array.Empty<Type>();
                 }
             })
-            .Where(t => typeof(Configable).IsAssignableFrom(t) &&
+            .Where(t => typeInfo.Type.IsAssignableFrom(t) &&
                        !t.IsInterface &&
                        !t.IsAbstract)
             .ToArray();
