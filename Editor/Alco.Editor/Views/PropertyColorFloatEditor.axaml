@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="32" x:Class="Alco.Editor.Views.PropertyColorFloatEditor">
+
+    <Grid ColumnDefinitions="Auto,Auto,*,Auto,*,Auto,*,Auto,*">
+        <!-- Color Preview Rectangle -->
+        <Border Grid.Column="0" x:Name="ColorRect" Width="24" Height="24" CornerRadius="4" BorderBrush="Gray" BorderThickness="1" Margin="0,0,10,0">
+            <Rectangle x:Name="ColorDisplay" />
+        </Border>
+
+        <!-- R Value -->
+        <TextBlock Grid.Column="1" x:Name="TextR" Text="R" VerticalAlignment="Center" Margin="0,0,5,0" />
+        <NumericUpDown Grid.Column="2" x:Name="InputR" ShowButtonSpinner="False" FormatString="F2" Margin="0,0,10,0" />
+
+        <!-- G Value -->
+        <TextBlock Grid.Column="3" x:Name="TextG" Text="G" VerticalAlignment="Center" Margin="0,0,5,0" />
+        <NumericUpDown Grid.Column="4" x:Name="InputG" ShowButtonSpinner="False"  FormatString="F2" Margin="0,0,10,0" />
+
+        <!-- B Value -->
+        <TextBlock Grid.Column="5" x:Name="TextB" Text="B" VerticalAlignment="Center" Margin="0,0,5,0" />
+        <NumericUpDown Grid.Column="6" x:Name="InputB" ShowButtonSpinner="False" FormatString="F2" Margin="0,0,10,0" />
+
+        <!-- A Value -->
+        <TextBlock Grid.Column="7" x:Name="TextA" Text="A" VerticalAlignment="Center" Margin="0,0,5,0" />
+        <NumericUpDown Grid.Column="8" x:Name="InputA" ShowButtonSpinner="False" FormatString="F2" />
+    </Grid>
+
+</UserControl> 
