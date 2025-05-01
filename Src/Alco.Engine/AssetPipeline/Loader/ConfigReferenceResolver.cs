@@ -6,7 +6,7 @@ using Alco.IO;
 
 namespace Alco.Engine;
 
-public class ConfigReferenceResolver : IConfigReferenceResolver
+public class ConfigReferenceResolver
 {
     private class ConfigReference
     {
@@ -24,11 +24,12 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
     private readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
     private readonly ConditionalWeakTable<Configable, ConfigReference> _configReferences = new();
     private readonly ConcurrentDictionary<string, Configable> _loadingConfigs = new();
-    private readonly AssetSystem _assetSystem;
+    private readonly Func<string, Type, object?> _funcLoadConfig;
 
-    public ConfigReferenceResolver(AssetSystem assetSystem)
+    public ConfigReferenceResolver(Func<string, Type, object?> funcLoadConfig)
     {
-        _assetSystem = assetSystem;
+        ArgumentNullException.ThrowIfNull(funcLoadConfig);
+        _funcLoadConfig = funcLoadConfig;
     }
 
     public bool TryResolve(string id, Type propertyType, [NotNullWhen(true)] out Configable? config)
@@ -75,9 +76,9 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
 
         if (TryGetReference(config, out var reference))
         {
-            object resolvedConfig = _loadingConfigs.TryGetValue(reference.Id, out var loadingConfig)
+            object? resolvedConfig = _loadingConfigs.TryGetValue(reference.Id, out var loadingConfig)
                 ? loadingConfig
-                : _assetSystem.Load(reference.Id, reference.PropertyType);
+                : _funcLoadConfig(reference.Id, reference.PropertyType);
 
             accessMember.SetValue(asset, resolvedConfig);
         }

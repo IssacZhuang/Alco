@@ -38,7 +38,7 @@ IDisposable
     private readonly ViewRenderTarget _mainRenderTarget;
 
     private readonly JsonSerializerOptions _configSerializeOption;
-    private readonly IConfigReferenceResolver _configReferenceResolver;
+    private readonly ConfigReferenceResolver _configReferenceResolver;
 
     #endregion
 
@@ -184,7 +184,7 @@ IDisposable
     /// <summary>
     /// The reference resolver, which is used for the config to reference other configs assets
     /// </summary>
-    public IConfigReferenceResolver ConfigReferenceResolver => _configReferenceResolver;
+    public ConfigReferenceResolver ConfigReferenceResolver => _configReferenceResolver;
 
     #endregion
 

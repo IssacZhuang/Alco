@@ -42,7 +42,7 @@ public partial class GameEngine
 
     public virtual IEnumerable<IAssetEncoder> CreateDefaultAssetEncoders()
     {
-        yield return new AssetEncoderConfig(CreateConfigSerializeOption());
+        yield return new AssetEncoderConfig(ConfigSerializeOption);
     }
 
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()
@@ -50,14 +50,14 @@ public partial class GameEngine
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
     }
 
-    protected virtual IConfigReferenceResolver CreateConfigReferenceResolver()
+    protected virtual ConfigReferenceResolver CreateConfigReferenceResolver()
     {
-        return new ConfigReferenceResolver(Assets);
+        return new ConfigReferenceResolver((id, type) => Assets.Load(id, type));  
     }
 
     protected virtual JsonSerializerOptions CreateConfigSerializeOption()
     {
-        return new JsonSerializerOptions()
+        var options = new JsonSerializerOptions()
         {
             TypeInfoResolver = new ConfigJsonTypeResolver(ConfigReferenceResolver),
             WriteIndented = true,
@@ -79,7 +79,11 @@ public partial class GameEngine
                 new JsonConverterColor32(),
                 new JsonConverterColorFloat(),
             }
-        }; ;
+        };
+
+        options.MakeReadOnly();
+
+        return options;
     }
 
 

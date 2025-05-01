@@ -14,41 +14,14 @@ public class TestJsonReference
         public Configable Reference { get; set; }
     }
 
-    private class TestConfigReferenceResolver : IConfigReferenceResolver
-    {
-        private readonly Dictionary<string, Configable> _configs = new();
-
-        public void AddConfig(Configable config)
-        {
-            _configs[config.Id] = config;
-        }
-
-        public void AddLoadingConfig(string id, Configable config)
-        {
-            
-        }
-
-        public void RemoveLoadingConfig(string id)
-        {
-            
-        }
-
-        public void ResolveReferenceFor(Configable config) 
-        {
-            
-        }
-
-        public bool TryResolve(string id, Type propertyType, out Configable config)
-        {
-            return _configs.TryGetValue(id, out config);
-        }
-    }
 
     [Test]
     public void TestBasicReference()
     {
         // Arrange
-        var resolver = new TestConfigReferenceResolver();
+
+        Dictionary<string, Configable> configs = new();
+        var resolver = new ConfigReferenceResolver((id, type) => configs[id]);
         var typeResolver = new ConfigJsonTypeResolver(resolver);
         var options = new JsonSerializerOptions
         {
@@ -60,7 +33,7 @@ public class TestJsonReference
             Id = "config1",
             Name = "Referenced Config"
         };
-        resolver.AddConfig(referencedConfig);
+        configs["config1"] = referencedConfig;
 
         var mainConfig = new TestConfig
         {
@@ -72,6 +45,7 @@ public class TestJsonReference
         // Act
         string json = JsonSerializer.Serialize(mainConfig, options);
         var deserializedConfig = JsonSerializer.Deserialize<TestConfig>(json, options);
+        resolver.ResolveReferenceFor(deserializedConfig);
 
         // Assert
         Assert.That(deserializedConfig, Is.Not.Null);
@@ -87,7 +61,7 @@ public class TestJsonReference
     public void TestReferenceNotFound()
     {
         // Arrange
-        var resolver = new TestConfigReferenceResolver();
+        var resolver = new ConfigReferenceResolver((id, type) => throw new JsonException($"The config with id {id} is not found."));
         var typeResolver = new ConfigJsonTypeResolver(resolver);
         var options = new JsonSerializerOptions
         {
@@ -96,7 +70,8 @@ public class TestJsonReference
 
         // Act & Assert
         var json = @"{""Id"":""main"",""Name"":""Main Config"",""Reference"":""nonexistent""}";
-        Assert.That(() => JsonSerializer.Deserialize<TestConfig>(json, options),
+        var obj = JsonSerializer.Deserialize<TestConfig>(json, options);
+        Assert.That(() => resolver.ResolveReferenceFor(obj),
             Throws.TypeOf<JsonException>());
     }
 
@@ -104,7 +79,8 @@ public class TestJsonReference
     public void TestCircularReference()
     {
         // Arrange
-        var resolver = new TestConfigReferenceResolver();
+        Dictionary<string, Configable> configs = new();
+        var resolver = new ConfigReferenceResolver((id, type) => configs[id]);
         var typeResolver = new ConfigJsonTypeResolver(resolver);
 
         var options = new JsonSerializerOptions
@@ -118,13 +94,14 @@ public class TestJsonReference
         config1.Reference = config2;
         config2.Reference = config1;
 
-        resolver.AddConfig(config1);
-        resolver.AddConfig(config2);
+        configs["config1"] = config1;
+        configs["config2"] = config2;
 
         // Act
         string json = JsonSerializer.Serialize(config1, options);
         TestContext.WriteLine(json);
         var deserializedConfig = JsonSerializer.Deserialize<TestConfig>(json, options);
+        resolver.ResolveReferenceFor(deserializedConfig);
 
         // Assert
         Assert.That(deserializedConfig, Is.Not.Null);
@@ -139,7 +116,8 @@ public class TestJsonReference
     public void TestNullReference()
     {
         // Arrange
-        var resolver = new TestConfigReferenceResolver();
+        Dictionary<string, Configable> configs = new();
+        var resolver = new ConfigReferenceResolver((id, type) => configs[id]);
         var typeResolver = new ConfigJsonTypeResolver(resolver);
 
         var options = new JsonSerializerOptions
@@ -168,7 +146,8 @@ public class TestJsonReference
     [Test]
     public void TestSubResource()
     {
-        var resolver = new TestConfigReferenceResolver();
+        Dictionary<string, Configable> configs = new();
+        var resolver = new ConfigReferenceResolver((id, type) => configs[id]);
         var typeResolver = new ConfigJsonTypeResolver(resolver);
 
         var options = new JsonSerializerOptions

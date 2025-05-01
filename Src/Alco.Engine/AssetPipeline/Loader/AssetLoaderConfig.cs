@@ -11,9 +11,9 @@ public class AssetLoaderConfig : IAssetLoader
 {
     private readonly JsonSerializerOptions _options;
 
-    private readonly IConfigReferenceResolver _configReferenceResolver;
+    private readonly ConfigReferenceResolver _configReferenceResolver;
 
-    public AssetLoaderConfig(JsonSerializerOptions options, IConfigReferenceResolver configReferenceResolver)
+    public AssetLoaderConfig(JsonSerializerOptions options, ConfigReferenceResolver configReferenceResolver)
     {
         _options = options;
         _configReferenceResolver = configReferenceResolver;

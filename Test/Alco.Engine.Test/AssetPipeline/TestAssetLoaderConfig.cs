@@ -61,7 +61,7 @@ public class TestAssetLoaderConfig
     {
         var lifeCycleProvider = new LifeCycleProvider();
         _assetSystem = new AssetSystem(lifeCycleProvider);
-        var configReferenceResolver = new ConfigReferenceResolver(_assetSystem);
+        var configReferenceResolver = new ConfigReferenceResolver((id, type)=>_assetSystem.Load(id, type));
         var jsonSerializerOptions = BuildJsonSerializerOptions(configReferenceResolver);
         _configLoader = new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver);
         _fileSource = new TestFileSource();
@@ -270,7 +270,7 @@ public class TestAssetLoaderConfig
         }
     }
 
-    public static JsonSerializerOptions BuildJsonSerializerOptions(IConfigReferenceResolver configReferenceResolver = null)
+    public static JsonSerializerOptions BuildJsonSerializerOptions(ConfigReferenceResolver configReferenceResolver = null)
     {
         return new JsonSerializerOptions()
         {

@@ -10,12 +10,11 @@ namespace Alco.Engine;
 
 public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
 {
-    private readonly IConfigReferenceResolver _configResolver;
+    private readonly ConfigReferenceResolver _configResolver;
 
-    public ConfigJsonTypeResolver(IConfigReferenceResolver configResolver)
+    public ConfigJsonTypeResolver(ConfigReferenceResolver? configResolver = null)
     {
-        ArgumentNullException.ThrowIfNull(configResolver);
-        _configResolver = configResolver;
+        _configResolver = configResolver ?? new ConfigReferenceResolver((id, type) => null);
     }
 
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)

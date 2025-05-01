@@ -6,12 +6,12 @@ namespace Alco.Engine;
 
 public class JsonConverterConfigReference : JsonConverter<Configable>
 {
-    private readonly IConfigReferenceResolver _configResolver;
+    private readonly ConfigReferenceResolver _configResolver;
     private readonly Type _propertyType;// the real type of the property or field
 
     public JsonConverterConfigReference(
         Type realType,
-        IConfigReferenceResolver configResolver
+        ConfigReferenceResolver configResolver
     )
     {
         _configResolver = configResolver;

@@ -10,7 +10,6 @@ namespace Alco.Engine.Test;
 
 public class TestJsonConverters
 {
-    private EmptyConfigReferenceResolver _emptyConfigReferenceResolver = new();
 
     private class TestObject
     {
@@ -321,7 +320,7 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig basic serialization")]
     public void TestConfigConversion()
     {
-        var typeResolver = new ConfigJsonTypeResolver(_emptyConfigReferenceResolver);
+        var typeResolver = new ConfigJsonTypeResolver();
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -349,7 +348,7 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig with null value")]
     public void TestConfigNull()
     {
-        var typeResolver = new ConfigJsonTypeResolver(_emptyConfigReferenceResolver);
+        var typeResolver = new ConfigJsonTypeResolver();
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -366,7 +365,7 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig with invalid type")]
     public void TestConfigInvalidType()
     {
-        var typeResolver = new ConfigJsonTypeResolver(_emptyConfigReferenceResolver);
+        var typeResolver = new ConfigJsonTypeResolver();
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver

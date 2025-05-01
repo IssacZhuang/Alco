@@ -18,9 +18,14 @@ public partial class ProjectPage : UserControl
     public ProjectPage()
     {
         InitializeComponent();
-        var configReferenceResolver = new ConfigReferenceResolver(App.Main.Engine.Assets);
-        _jsonSerializerOptions = Configable.BuildJsonSerializerOptions(configReferenceResolver);
-        _jsonSerializerOptions.WriteIndented = true;
+
+        EditorEngine engine = App.Main.Engine;
+
+        var configReferenceResolver = new ConfigReferenceResolver((id, type) =>
+        {
+            return engine.Assets.Load<Configable>(id);
+        });
+        _jsonSerializerOptions = engine.ConfigSerializeOption;
 
         if (App.Main.Engine.IsProjectOpen)
         {
