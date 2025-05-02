@@ -35,7 +35,7 @@ public partial class PropertyColorFloatEditor : UserControl
         }
 
         // Bind the rectangle's fill to the color in the view model
-        ColorDisplay.Bind(Rectangle.FillProperty, new Binding(nameof(viewModel.ColorBrush))
+        BtnColorDisplay.Bind(Button.BackgroundProperty, new Binding(nameof(viewModel.ColorBrush))
         {
             Source = viewModel,
         });
