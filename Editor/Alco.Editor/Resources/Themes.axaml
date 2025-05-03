@@ -87,4 +87,9 @@
     <SolidColorBrush x:Key="Brush.Diff.DeletedHighlight"
         Color="{DynamicResource Color.Diff.DeletedHighlight}" />
     <SolidColorBrush x:Key="Brush.Link" Color="{DynamicResource Color.Link}" />
+
+
+    <SolidColorBrush x:Key="LoadingPrimaryBrush" Color="#CCCCCC" />
+
+    <SolidColorBrush x:Key="LoadingAccentBrush" Color="#FFFFFF" />
 </ResourceDictionary>

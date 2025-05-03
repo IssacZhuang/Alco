@@ -106,14 +106,16 @@ public partial class ExplorerPage : UserControl
                 }
             }
 
-            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
-
             // Add the new tab and select it
-            var tabItem = new ViewModels.InspectorTabItem(inspector, file.Path);
+            var tabItem = new ViewModels.InspectorTabItem(file.Path);
             _tabItems.Add(tabItem);
             DocumentTabs.SelectedItem = tabItem;
 
             RemoveUnpinnedTabs(tabItem);
+
+            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
+
+            tabItem.SetInspector(inspector);
         };
 
         vmFileTree.OnFileDoubleTapped += async (file) =>
@@ -129,14 +131,15 @@ public partial class ExplorerPage : UserControl
                 }
             }
 
-            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
-
             // Add the new tab and select it
-            var tabItem = new ViewModels.InspectorTabItem(inspector, file.Path);
+            var tabItem = new ViewModels.InspectorTabItem(file.Path);
             _tabItems.Add(tabItem);
             DocumentTabs.SelectedItem = tabItem;
 
             RemoveUnpinnedTabs(tabItem);
+
+            Inspector inspector = await ViewModel.OpenFile(engine, file.Path);
+            tabItem.SetInspector(inspector);
         };
     }
 
