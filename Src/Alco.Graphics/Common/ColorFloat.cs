@@ -69,6 +69,22 @@ public struct ColorFloat
         return new Color32((byte)(color.R * 255), (byte)(color.G * 255), (byte)(color.B * 255), (byte)(color.A * 255));
     }
 
+    /// <summary>
+    /// Decompose the HDR color into a SDR color and an intensity
+    /// </summary>
+    /// <param name="sdrColor">The color</param>
+    /// <param name="intensity">The intensity</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Decompose(out Color32 sdrColor, out float intensity)
+    {
+        intensity = MathF.Max(MathF.Max(1, R), MathF.Max(G, B));
+        ColorFloat sdr = this.value;
+        sdr.R /= intensity;
+        sdr.G /= intensity;
+        sdr.B /= intensity;
+        sdrColor = sdr.ToColor32();
+    }
+
     //overload operator
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

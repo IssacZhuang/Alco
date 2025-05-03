@@ -43,6 +43,12 @@ public class PropertyColorFloatEditor : PropertyEditor
         set => SetColorValue(new ColorFloat(R, G, B, value));
     }
 
+    public ColorFloat ColorFloat
+    {
+        get => GetColorValue();
+        set => SetColorValue(value);
+    }
+
     /// <summary>
     /// Convert the ColorFloat to an Avalonia Color for display
     /// </summary>

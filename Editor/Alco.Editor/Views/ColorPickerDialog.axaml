@@ -9,10 +9,13 @@
 
     <StackPanel Orientation="Vertical" Margin="20,15,20,15">
         <TextBlock x:Name="TextTitle" Text="Select Color" Margin="0,0,0,8" FontSize="14" />
-
-        <Border Height="400" Background="#2D2D2D" Margin="0,8,0,8">
-            <colorpicker:StandardColorPicker x:Name="ColorPicker" ColorState="{Binding Path=ColorState, Mode=TwoWay}" />
-        </Border>
+        <colorpicker:StandardColorPicker x:Name="ColorPicker" Height="500" ColorState="{Binding Path=ColorState, Mode=TwoWay}" PickerType="HSV" />
+        <TextBlock Text="Intensity" Margin="0,0,10,0" />
+        <Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
+            <NumericUpDown Grid.Column="0" x:Name="InputIntensity" Value="{Binding Intensity}" ShowButtonSpinner="False" Margin="0,0,10,0" Height="24" Width="64" />
+            <Slider Grid.Column="1"  x:Name="SliderIntensity" Minimum="1" Maximum="10" Value="{Binding Intensity}" />
+        </Grid>
+        
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
             <Button x:Name="BtnConfirm" Content="OK" Click="OnBtnConfirmClick" Width="80" />

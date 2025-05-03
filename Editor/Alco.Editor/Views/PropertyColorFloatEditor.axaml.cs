@@ -1,4 +1,6 @@
 using System;
+using System.Runtime.InteropServices;
+using Alco.Graphics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -89,10 +91,15 @@ public partial class PropertyColorFloatEditor : UserControl
             viewModel.A = color.A;
         };
 
+        viewModel.ColorFloat.Decompose(out Color32 color, out float intensity);
+        vm.Intensity = intensity;
+
         dialog.ShowDialog(editorWindow);
-        dialog.ColorPicker.Color.RGB_R = viewModel.R * 255;
-        dialog.ColorPicker.Color.RGB_G = viewModel.G * 255;
-        dialog.ColorPicker.Color.RGB_B = viewModel.B * 255;
-        dialog.ColorPicker.Color.A = viewModel.A * 255;
+        
+        dialog.ColorPicker.Color.RGB_R = color.R;
+        dialog.ColorPicker.Color.RGB_G = color.G;
+        dialog.ColorPicker.Color.RGB_B = color.B;
+        dialog.ColorPicker.Color.A = color.A;
+        
     }
 }
