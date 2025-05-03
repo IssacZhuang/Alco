@@ -12,7 +12,10 @@ namespace Alco.Editor.Views
 
         private void OnBtnConfirmClick(object sender, RoutedEventArgs e)
         {
-            // TODO: Handle color selection confirmation
+            if (DataContext is ViewModels.ColorPickerDialog viewModel)
+            {
+                viewModel.DoColorPicked();
+            }
             Close(true);
         }
 

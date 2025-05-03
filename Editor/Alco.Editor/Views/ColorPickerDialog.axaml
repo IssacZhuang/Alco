@@ -4,13 +4,14 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d"
     xmlns:vm="using:Alco.Editor.ViewModels"
+    xmlns:colorpicker="clr-namespace:ColorPicker;assembly=ColorPicker.AvaloniaUI"
     xmlns:views="using:Alco.Editor.Views" x:Class="Alco.Editor.Views.ColorPickerDialog" x:DataType="vm:ColorPickerDialog" Title="Color Picker" WindowStartupLocation="CenterOwner" Width="400" SizeToContent="Height">
 
     <StackPanel Orientation="Vertical" Margin="20,15,20,15">
         <TextBlock x:Name="TextTitle" Text="Select Color" Margin="0,0,0,8" FontSize="14" />
 
-        <Border Height="200" Background="#2D2D2D" Margin="0,8,0,8">
-            <TextBlock Text="ColorPicker will be added here" VerticalAlignment="Center" HorizontalAlignment="Center" />
+        <Border Height="400" Background="#2D2D2D" Margin="0,8,0,8">
+            <colorpicker:StandardColorPicker x:Name="ColorPicker" ColorState="{Binding Path=ColorState, Mode=TwoWay}" />
         </Border>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">

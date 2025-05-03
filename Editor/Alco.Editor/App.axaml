@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Alco.Editor.App"
              xmlns:local="using:Alco.Editor"
+             xmlns:templates="clr-namespace:ColorPicker.AvaloniaUI.Templates;assembly=ColorPicker.AvaloniaUI"
              RequestedThemeVariant="Dark">
     <Application.Resources>
         <ResourceDictionary>
@@ -18,6 +19,7 @@
   
     <Application.Styles>
         <FluentTheme />
+        <templates:PixiPerfectColorPickerTheme />
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <StyleInclude Source="/Resources/Styles.axaml" />
     </Application.Styles>

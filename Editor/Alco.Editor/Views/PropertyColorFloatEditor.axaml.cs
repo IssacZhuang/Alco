@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Data;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 
@@ -35,7 +36,7 @@ public partial class PropertyColorFloatEditor : UserControl
         }
 
         // Bind the rectangle's fill to the color in the view model
-        BtnColorDisplay.Bind(Button.BackgroundProperty, new Binding(nameof(viewModel.ColorBrush))
+        BtnColor.Bind(Button.BackgroundProperty, new Binding(nameof(viewModel.ColorBrush))
         {
             Source = viewModel,
         });
@@ -62,5 +63,33 @@ public partial class PropertyColorFloatEditor : UserControl
         });
 
 
+    }
+
+    private void OnBtnColorClick(object sender, RoutedEventArgs e)
+    {
+        Views.Editor? editorWindow = App.Main.EditorWindow;
+        if (editorWindow == null)
+        {
+            return;
+        }
+
+        if (DataContext is not ViewModels.PropertyColorFloatEditor viewModel)
+        {
+            return;
+        }
+
+        var dialog = new ColorPickerDialog();
+        var vm = new ViewModels.ColorPickerDialog();
+        dialog.DataContext = vm;
+        vm.ColorPicked += (sender, color) =>
+        {
+            viewModel.R = color.R;
+            viewModel.G = color.G;
+            viewModel.B = color.B;
+            viewModel.A = color.A;
+        };
+
+        vm.ColorState.SetARGB(viewModel.A, viewModel.R, viewModel.G, viewModel.B);
+        dialog.ShowDialog(editorWindow);
     }
 }
