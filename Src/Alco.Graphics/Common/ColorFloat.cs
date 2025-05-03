@@ -4,6 +4,9 @@ using System.Runtime.InteropServices;
 
 namespace Alco.Graphics;
 
+/// <summary>
+/// A color in the float format, which can be used for HDR color
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct ColorFloat
 {

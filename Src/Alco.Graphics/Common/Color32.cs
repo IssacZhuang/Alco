@@ -4,6 +4,9 @@ using System.Runtime.InteropServices;
 
 namespace Alco.Graphics;
 
+/// <summary>
+/// A color in the 8-bit format, which can only be used for SDR color
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct Color32
 {
