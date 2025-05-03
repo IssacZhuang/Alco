@@ -89,7 +89,10 @@ public partial class PropertyColorFloatEditor : UserControl
             viewModel.A = color.A;
         };
 
-        vm.ColorState.SetARGB(viewModel.A, viewModel.R, viewModel.G, viewModel.B);
         dialog.ShowDialog(editorWindow);
+        dialog.ColorPicker.Color.RGB_R = viewModel.R * 255;
+        dialog.ColorPicker.Color.RGB_G = viewModel.G * 255;
+        dialog.ColorPicker.Color.RGB_B = viewModel.B * 255;
+        dialog.ColorPicker.Color.A = viewModel.A * 255;
     }
 }
