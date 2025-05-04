@@ -12,6 +12,7 @@
     <Folder Include="Models\" />
     <AvaloniaResource Include="AppLogo.ico" />
     <AvaloniaResource Include="Resources\**" />
+    <AvaloniaResource Include="Images\**" />
   </ItemGroup>
 
   <ItemGroup>

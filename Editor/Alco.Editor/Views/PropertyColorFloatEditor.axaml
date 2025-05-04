@@ -5,7 +5,16 @@
 
     <Grid ColumnDefinitions="Auto,Auto,*,Auto,*,Auto,*,Auto,*">
         <!-- Color Preview Rectangle -->
-        <Button x:Name="BtnColor" Grid.Column="0" Width="24" Height="24" Margin="0,0,10,0" Click="OnBtnColorClick" />
+        <Grid Grid.Column="0" ColumnDefinitions="Auto" Width="24" Height="24" Margin="0,0,10,0">
+            <Border Grid.Column="0" Width="24" Height="24" CornerRadius="4" BorderThickness="2"  RenderOptions.BitmapInterpolationMode="None">
+                <Border.Background>
+                    <ImageBrush Source="avares://Alco.Editor/Images/TransparentBackground.png" TileMode="Tile" DestinationRect="0,0,8,8"/>
+                </Border.Background>
+            </Border>
+
+            <Button x:Name="BtnColor" Grid.Column="0" Width="24" Height="24" Margin="0,0,0,0" Click="OnBtnColorClick" />
+        </Grid>
+                
 
         <!-- R Value -->
         <TextBlock Grid.Column="1" x:Name="TextR" Text="R" VerticalAlignment="Center" Margin="0,0,5,0" />

@@ -25,7 +25,9 @@ namespace Alco.Editor.ViewModels
         public void DoColorPicked()
         {
             ColorFloat color = new ColorFloat((float)ColorState.RGB_R, (float)ColorState.RGB_G, (float)ColorState.RGB_B, (float)ColorState.A);
-            color.value *= Intensity;
+            color.R *= Intensity;
+            color.G *= Intensity;
+            color.B *= Intensity;
             ColorPicked?.Invoke(this, color);
         }
         

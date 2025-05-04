@@ -57,11 +57,13 @@ public class PropertyColorFloatEditor : PropertyEditor
         get
         {
             _colorBrush ??= new SolidColorBrush();
+            ColorFloat color = GetColorValue();
+            color.Decompose(out Color32 color32, out float _);
             _colorBrush.Color = Color.FromArgb(
-                (byte)(GetColorValue().A * 255),
-                (byte)(GetColorValue().R * 255),
-                (byte)(GetColorValue().G * 255),
-                (byte)(GetColorValue().B * 255)
+                (byte)(color32.A),
+                (byte)(color32.R),
+                (byte)(color32.G),
+                (byte)(color32.B)
             );
             return _colorBrush;
         }
