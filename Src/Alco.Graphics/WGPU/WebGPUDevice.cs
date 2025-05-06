@@ -55,12 +55,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
         wgpuCommandBufferRelease(buffer);//just decrement the reference count
     }
 
-    protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
-    {
-        WebGPUResuableRenderBuffer buffer = (WebGPUResuableRenderBuffer)renderBuffer;
-        buffer.ExecuteBundle(Queue);
-    }
-
     protected override void DisposeCore()
     {
         // _surfaceFrameBuffer.Destroy();
@@ -100,9 +94,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
         return new WebGPUCommandBuffer(this, descriptor);
     }
 
-    protected override GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
+    protected override GPURenderBundle CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
     {
-        return new WebGPUResuableRenderBuffer(this, descriptor);
+        return new WebGPURenderBundle(this, descriptor);
     }
 
     protected override GPUTexture CreateTextureCore(in TextureDescriptor descriptor)

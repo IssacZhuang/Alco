@@ -6,7 +6,7 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The context of the render object. It is a high level encapsulation of the rendering process.
+/// The context of the render object. It is a high level encapsulation of the <see cref="GPUCommandBuffer"/>.
 /// All APIs in this class are not thread safe, but you can create multiple instances on different threads.
 /// </summary>
 public sealed class RenderContext : AutoDisposable

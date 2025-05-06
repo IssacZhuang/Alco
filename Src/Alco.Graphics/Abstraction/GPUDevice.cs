@@ -216,7 +216,7 @@ public abstract class GPUDevice
     /// </summary>
     /// <param name="descriptor">The descriptor for the GPU resuable render buffer.</param>
     /// <returns>The created GPU resuable render buffer.</returns>
-    public GPUResuableRenderBuffer CreateResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor = null)
+    public GPURenderBundle CreateResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor = null)
     {
         return CreateResuableRenderBufferCore(descriptor);
     }
@@ -388,20 +388,6 @@ public abstract class GPUDevice
         if (!commandBuffer.HasBuffer)
         {
             throw new GraphicsException($"Command buffer:{commandBuffer.Name} is empty, try use GPUCommandBuffer.Begin() and GPUCommandBuffer.End() to record commands.");
-        }
-
-        SubmitCore(commandBuffer);
-    }
-
-    /// <summary>
-    /// Submits the GPU resuable render buffer to the GPU for execution.
-    /// </summary>
-    /// <param name="commandBuffer">The GPU resuable render buffer to submit.</param>
-    public void Submit(GPUResuableRenderBuffer commandBuffer)
-    {
-        if (!commandBuffer.HasBuffer)
-        {
-            throw new GraphicsException($"Reuseable render buffer:{commandBuffer.Name} is empty, try use GPUResuableRenderBuffer.Begin() and GPUResuableRenderBuffer.End() to record commands.");
         }
 
         SubmitCore(commandBuffer);
@@ -610,7 +596,7 @@ public abstract class GPUDevice
     protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
 
     /// <exclude />
-    protected abstract GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor);
+    protected abstract GPURenderBundle CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor);
 
     /// <exclude />
     protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
@@ -641,9 +627,6 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
-    
-    /// <exclude />
-    protected abstract void SubmitCore(GPUResuableRenderBuffer renderBuffer);
 
     /// <exclude />
     protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);

@@ -2,7 +2,11 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Graphics;
 
-public abstract class GPUResuableRenderBuffer : BaseGPUObject
+
+/// <summary>
+/// The reusable sub command buffer for rendering.
+/// </summary>
+public unsafe abstract class GPURenderBundle : BaseGPUObject
 {
     protected bool _isRecording = false;
     //API
@@ -13,15 +17,15 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
         get => _isRecording;
     }
 
-    protected GPUResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor): base(descriptor?.Name ?? "unnamed_reusable_render_buffer")
+    protected GPURenderBundle(in ResuableRenderBufferDescriptor? descriptor) : base(descriptor?.Name ?? "unnamed_reusable_render_buffer")
     {
     }
 
-    public void Begin(GPUFrameBuffer frameBuffer)
+    public void Begin(GPURenderPass renderPass)
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
         _isRecording = true;
-        BeginCore(frameBuffer);
+        BeginCore(renderPass);
     }
 
     public void End()
@@ -81,6 +85,24 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
+    public void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    {
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while PushGraphicsConstants, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        PushGraphicsConstantsCore(stage, bufferOffset, data, size);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void PushGraphicsConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+    {
+        PushGraphicsConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe void PushGraphicsConstants<T>(ShaderStage stage, T data) where T : unmanaged
+    {
+        PushGraphicsConstants(stage, 0, data);
+    }
+
 
 
     // polymorphism
@@ -98,7 +120,7 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
     }
 
     // need to be implemented for each backend
-    protected abstract void BeginCore(GPUFrameBuffer frameBuffer);
+    protected abstract void BeginCore(GPURenderPass renderPass);
     protected abstract void EndCore();
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);
@@ -108,4 +130,5 @@ public abstract class GPUResuableRenderBuffer : BaseGPUObject
     protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup);
+    protected abstract void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
 }

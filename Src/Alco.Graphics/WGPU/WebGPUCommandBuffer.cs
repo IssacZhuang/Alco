@@ -381,6 +381,24 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     }
 
+    protected override void ExecuteBundleCore(GPURenderBundle bundle)
+    {
+        WebGPURenderBundle nativeBundle = (WebGPURenderBundle)bundle;
+        WGPURenderBundle native = nativeBundle.Native;
+        wgpuRenderPassEncoderExecuteBundles(_renderPass, 1, &native);
+    }
+
+    protected override void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundle)
+    {
+        WGPURenderBundle* nativeBundles = stackalloc WGPURenderBundle[bundle.Length];
+        for (int i = 0; i < bundle.Length; i++)
+        {
+            WebGPURenderBundle nativeBundle = (WebGPURenderBundle)bundle[i];
+            nativeBundles[i] = nativeBundle.Native;
+        }
+        wgpuRenderPassEncoderExecuteBundles(_renderPass, (nuint)bundle.Length, nativeBundles);
+    }
+
 
 
 

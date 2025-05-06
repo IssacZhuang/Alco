@@ -125,6 +125,18 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
+    protected override void ExecuteBundleCore(GPURenderBundle bundle)
+    {
+
+    }
+
+    protected override void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundle)
+    {
+
+
+    }
+
+
     protected override void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
         

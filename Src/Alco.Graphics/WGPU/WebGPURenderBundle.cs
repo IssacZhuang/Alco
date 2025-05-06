@@ -5,7 +5,7 @@ using static WebGPU.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
-internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffer
+internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
 {
     private static readonly Exception ExceptionNoFramebuffer = new("No framebuffer is set before set the graphics pipeline");
     private static readonly Exception ExceptionNoGraphicsPipeline = new("No graphics pipeline is set before drawing or set resources");
@@ -17,7 +17,6 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
     private WGPURenderBundle _bundle;
 
     private WGPURenderPipeline _graphicsPipeline;
-    private WebGPUFrameBufferBase? _frameBuffer;
 
 
     //release on dispose
@@ -34,13 +33,19 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
         get => _bundle != WGPURenderBundle.Null;
     }
 
+    internal WGPURenderBundle Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get=> _bundle;
+    }
+
     protected override GPUDevice Device { get; }
 
     protected override void Dispose(bool disposing)
     {
         // the buffer will not be released if the End() is not called
         // do check here to prevent memory leak
-        
+
         ReleaseRenderBundle();
         ReleaseRenderBunleEncoder();
 
@@ -48,17 +53,17 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
     }
 
     // begin the encoder
-    protected unsafe override void BeginCore(GPUFrameBuffer frameBuffer)
+    protected unsafe override void BeginCore(GPURenderPass renderPass)
     {
         ReleaseRenderBunleEncoder();
-        _frameBuffer = (WebGPUFrameBufferBase)frameBuffer;
+        WebGPURenderPass nativeRenderPass = (WebGPURenderPass)renderPass;
 
-        int colorCount = _frameBuffer.NativeColorFormats.Length;
+        int colorCount = nativeRenderPass.WebGPUColorInfos.Length;
         WGPUTextureFormat* colors = stackalloc WGPUTextureFormat[colorCount];
         for (int i = 0; i < colorCount; i++)
         {
 
-            colors[i] = _frameBuffer.NativeColorFormats[i];
+            colors[i] = nativeRenderPass.WebGPUColorInfos[i].format;
         }
 
         WGPURenderBundleEncoderDescriptor descriptor = new WGPURenderBundleEncoderDescriptor
@@ -66,7 +71,7 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
             label = _nativeNameView,
             colorFormatCount = (nuint)colorCount,
             colorFormats = colors,
-            depthStencilFormat = _frameBuffer.NativeDepthFormat.HasValue? _frameBuffer.NativeDepthFormat.Value : WGPUTextureFormat.Undefined,
+            depthStencilFormat = nativeRenderPass.WebGPUDepthInfo?.format ?? WGPUTextureFormat.Undefined,
             sampleCount = 1,
         };
         _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, &descriptor);
@@ -155,16 +160,21 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
         wgpuRenderBundleEncoderDrawIndexedIndirect(_renderBundleEncoder, nativeBuffer.Native, offset);
     }
 
+    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    {
+        throw new NotImplementedException();
+    }
+
 
     #endregion
 
     #region WebGPU Implementation
 
-    public unsafe WebGPUResuableRenderBuffer(WebGPUDevice device, in ResuableRenderBufferDescriptor? descriptor): base(descriptor)
+    public unsafe WebGPURenderBundle(WebGPUDevice device, in ResuableRenderBufferDescriptor? descriptor) : base(descriptor)
     {
         Device = device;
         WGPUDevice nativeDevice = device.Native;
-        
+
         _nativeDevice = nativeDevice;
 
         ReadOnlySpan<byte> nameSpan = Name.GetUtf8Span();
@@ -198,33 +208,6 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
     }
 
 
-    internal void ExecuteBundle(WGPUQueue queue)
-    {
-        if (_bundle == WGPURenderBundle.Null)
-        {
-            throw new InvalidOperationException("No render bundle is set before drawing");
-        }
-
-        if(_frameBuffer == null)
-        {
-            throw ExceptionNoFramebuffer;
-        }
-
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, null);
-        WGPURenderPassDescriptor descriptor = _frameBuffer.Native;
-        WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &descriptor);
-        
-        WGPURenderBundle bundle = _bundle;
-        wgpuRenderPassEncoderExecuteBundles(renderPass, 1, &bundle);
-        wgpuRenderPassEncoderEnd(renderPass);
-        WGPUCommandBuffer buffer = wgpuCommandEncoderFinish(encoder, null);
-        wgpuQueueSubmit(queue, 1, &buffer);
-
-        wgpuCommandBufferRelease(buffer);
-        wgpuRenderPassEncoderRelease(renderPass);
-        wgpuCommandEncoderRelease(encoder);
-    }
-
 
     //debug validate
 
@@ -237,6 +220,8 @@ internal unsafe sealed class WebGPUResuableRenderBuffer : GPUResuableRenderBuffe
             throw ExceptionNoGraphicsPipeline;
         }
     }
+
+
 
     #endregion
 }

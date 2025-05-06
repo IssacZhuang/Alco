@@ -1,16 +1,16 @@
 namespace Alco.Graphics.NoGPU;
 
-internal class NoResuableRenderBuffer : GPUResuableRenderBuffer
+internal class NoRenderBundle : GPURenderBundle
 {
     public override bool HasBuffer => true;
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public NoResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor): base(descriptor)
+    public NoRenderBundle(in ResuableRenderBufferDescriptor? descriptor) : base(descriptor)
     {
     }
 
-    protected override void BeginCore(GPUFrameBuffer frameBuffer)
+    protected override void BeginCore(GPURenderPass frameBuffer)
     {
         
     }
@@ -63,5 +63,10 @@ internal class NoResuableRenderBuffer : GPUResuableRenderBuffer
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         
+    }
+
+    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    {
+
     }
 }

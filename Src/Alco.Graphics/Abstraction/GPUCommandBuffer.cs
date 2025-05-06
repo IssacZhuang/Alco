@@ -217,6 +217,18 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         PushComputeConstantsCore(bufferOffset, data, size);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ExecuteBundle(GPURenderBundle bundle)
+    {
+        ExecuteBundleCore(bundle);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ExecuteBundle(ReadOnlySpan<GPURenderBundle> bundles)
+    {
+        ExecuteBundleCore(bundles);
+    }
+    
 
     public void CopyBuffer(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
@@ -269,6 +281,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
     protected abstract unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size);
+
+    protected abstract void ExecuteBundleCore(GPURenderBundle bundle);
+    protected abstract void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundle);
 
     protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
     protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect);

@@ -151,9 +151,9 @@ internal class NoDevice : GPUDevice
         return new NoResourceGroup(descriptor);
     }
 
-    protected override GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
+    protected override GPURenderBundle CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
     {
-        return new NoResuableRenderBuffer(descriptor);
+        return new NoRenderBundle(descriptor);
     }
 
     protected override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
@@ -199,10 +199,6 @@ internal class NoDevice : GPUDevice
         
     }
 
-    protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
-    {
-        
-    }
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         
