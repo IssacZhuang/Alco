@@ -216,9 +216,9 @@ public abstract class GPUDevice
     /// </summary>
     /// <param name="descriptor">The descriptor for the GPU resuable render buffer.</param>
     /// <returns>The created GPU resuable render buffer.</returns>
-    public GPURenderBundle CreateResuableRenderBuffer(in ResuableRenderBufferDescriptor? descriptor = null)
+    public GPURenderBundle CreateRenderBundle(in RenderBundleDescriptor? descriptor = null)
     {
-        return CreateResuableRenderBufferCore(descriptor);
+        return CreateRenderBundleCore(descriptor);
     }
 
 
@@ -596,7 +596,7 @@ public abstract class GPUDevice
     protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
 
     /// <exclude />
-    protected abstract GPURenderBundle CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor);
+    protected abstract GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor);
 
     /// <exclude />
     protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);

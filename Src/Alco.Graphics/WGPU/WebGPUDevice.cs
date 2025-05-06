@@ -94,7 +94,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         return new WebGPUCommandBuffer(this, descriptor);
     }
 
-    protected override GPURenderBundle CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
+    protected override GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor)
     {
         return new WebGPURenderBundle(this, descriptor);
     }

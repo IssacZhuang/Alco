@@ -1,8 +1,8 @@
 namespace Alco.Graphics;
 
-public struct ResuableRenderBufferDescriptor
+public struct RenderBundleDescriptor
 {
-    public ResuableRenderBufferDescriptor(string name)
+    public RenderBundleDescriptor(string name)
     {
         Name = name;
     }

@@ -4,7 +4,7 @@ namespace Alco.Graphics;
 
 
 /// <summary>
-/// The reusable sub command buffer for rendering.
+/// The reusable sub command buffer for rendering. Can be executed by <see cref="GPUCommandBuffer.ExecuteBundle(GPURenderBundle)"/> or <see cref="GPUCommandBuffer.ExecuteBundle(ReadOnlySpan{GPURenderBundle})"/>.
 /// </summary>
 public unsafe abstract class GPURenderBundle : BaseGPUObject
 {
@@ -17,7 +17,7 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
         get => _isRecording;
     }
 
-    protected GPURenderBundle(in ResuableRenderBufferDescriptor? descriptor) : base(descriptor?.Name ?? "unnamed_reusable_render_buffer")
+    protected GPURenderBundle(in RenderBundleDescriptor? descriptor) : base(descriptor?.Name ?? "unnamed_reusable_render_buffer")
     {
     }
 

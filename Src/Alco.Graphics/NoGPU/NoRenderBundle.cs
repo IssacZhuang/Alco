@@ -6,7 +6,7 @@ internal class NoRenderBundle : GPURenderBundle
 
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public NoRenderBundle(in ResuableRenderBufferDescriptor? descriptor) : base(descriptor)
+    public NoRenderBundle(in RenderBundleDescriptor? descriptor) : base(descriptor)
     {
     }
 

@@ -162,7 +162,10 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
 
     protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
-        throw new NotImplementedException();
+        ValidateGraphicsPipeline();
+
+        WGPUShaderStage shaderStage = UtilsWebGPU.ConvertShaderStage(stage);
+        wgpuRenderBundleEncoderSetPushConstants(_renderBundleEncoder, shaderStage, bufferOffset, size, data);
     }
 
 
@@ -170,7 +173,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
 
     #region WebGPU Implementation
 
-    public unsafe WebGPURenderBundle(WebGPUDevice device, in ResuableRenderBufferDescriptor? descriptor) : base(descriptor)
+    public unsafe WebGPURenderBundle(WebGPUDevice device, in RenderBundleDescriptor? descriptor) : base(descriptor)
     {
         Device = device;
         WGPUDevice nativeDevice = device.Native;

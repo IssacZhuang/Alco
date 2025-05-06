@@ -151,7 +151,7 @@ internal class NoDevice : GPUDevice
         return new NoResourceGroup(descriptor);
     }
 
-    protected override GPURenderBundle CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
+    protected override GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor)
     {
         return new NoRenderBundle(descriptor);
     }
