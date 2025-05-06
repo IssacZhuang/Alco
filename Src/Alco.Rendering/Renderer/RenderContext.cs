@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// The context of the render object. It is a high level encapsulation of the <see cref="GPUCommandBuffer"/>.
 /// All APIs in this class are not thread safe, but you can create multiple instances on different threads.
 /// </summary>
-public sealed class RenderContext : AutoDisposable
+public sealed class RenderContext : AutoDisposable, IRenderContext, IMaterialResourceCollector
 {
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
@@ -295,5 +295,17 @@ public sealed class RenderContext : AutoDisposable
     protected override void Dispose(bool disposing)
     {
         _command.Dispose();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
+    {
+        _command.SetGraphicsResources(slot, resourceGroup);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetStencilReference(uint value)
+    {
+        _command.SetStencilReference(value);
     }
 }
