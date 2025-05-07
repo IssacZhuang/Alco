@@ -27,8 +27,6 @@ public class Game : GameEngine
 
     private readonly GPUCommandBuffer _commandClearScreen;
 
-    private string[] _operationNames = new string[] { "Translate", "Rotate", "Scale" };
-    private int _currentOperation = 0;
     private OPERATION _currentOperationEnum = OPERATION.TRANSLATE;
 
     private Vector3 _rotationAngles = Vector3.Zero;
@@ -91,22 +89,17 @@ public class Game : GameEngine
 
         ImGui.Begin("Transform");
         ImGui.Text("Hold mouse middle button to rotate camera");
-        ImGui.Text($"Mouse position: {Input.MousePosition}");
+
+        //zero allocation string build
+        FixedString64 strMousePosition = new();
+        strMousePosition.Append($"Mouse position: ");
+        strMousePosition.Append(Input.MousePosition.X);
+        strMousePosition.Append(", ");
+        strMousePosition.Append(Input.MousePosition.Y);
+        ImGui.Text(strMousePosition);
+
         ImGui.EditTransform3D(ref _cube.transform);
-        if (ImGui.Combo("Operation", ref _currentOperation, _operationNames, 3))
-        {
-            switch (_currentOperation){
-                case 0:
-                    _currentOperationEnum = OPERATION.TRANSLATE;
-                    break;
-                case 1:
-                    _currentOperationEnum = OPERATION.ROTATE;
-                    break;
-                case 2:
-                    _currentOperationEnum = OPERATION.SCALE;
-                    break;
-            }
-        }
+        ImGui.Combo("Operation", ref _currentOperationEnum);
 
         ImGui.End();
 
