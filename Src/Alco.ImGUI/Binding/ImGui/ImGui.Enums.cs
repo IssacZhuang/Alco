@@ -6,81 +6,103 @@ namespace Alco.ImGUI;
 
 public static unsafe partial class ImGui
 {
-    private static readonly ConcurrentDictionary<Type, string[]> _cache = new();
-
-    private static string[] GetEnumNames(Type enumType)
+    private struct EnumInfo
     {
-        return _cache.GetOrAdd(enumType, static (Type type) =>
-        {
-            if (type.IsEnum)
-            {
-                return Enum.GetNames(type);
-            }
+        public string[] Names;
+        public int[] Values;
 
-            return Array.Empty<string>();
+        public EnumInfo(string[] names, int[] values)
+        {
+            Names = names;
+            Values = values;
+        }
+    }
+    private static readonly ConcurrentDictionary<Type, EnumInfo> _cache = new();
+
+    private static EnumInfo GetEnumInfos<TEnum>() where TEnum : struct,Enum
+    {
+        return _cache.GetOrAdd(typeof(TEnum), static (Type type) =>
+        {
+            var names = Enum.GetNames(type);
+            var values = Enum.GetValues<TEnum>();
+            int[] intValues = new int[values.Length];
+            for (int i = 0; i < values.Length; i++)
+            {
+                intValues[i] = ConvertEnumValue(values[i]);
+            }
+            return new EnumInfo(names, intValues);
         });
     }
 
-    public static bool Combo<TEnum>(string label, ref TEnum currentItem) where TEnum : Enum
+    public static bool Combo<TEnum>(string label, ref TEnum currentItem) where TEnum : struct, Enum
+    {
+        var infos = GetEnumInfos<TEnum>();
+
+        int value = ConvertEnumValue(currentItem);
+        //the enum values are always sorted
+        int index = Array.BinarySearch(infos.Values, value);
+        if (index < 0)
+        {
+            index = 0;
+        }
+        bool result = Combo(label, ref index, infos.Names, infos.Names.Length);
+        currentItem = ConvertEnumValue<TEnum>(infos.Values[index]);
+        return result;
+    }
+
+    public static bool Combo<TEnum>(ReadOnlySpan<char> label, ref TEnum currentItem) where TEnum : struct, Enum
+    {
+        var infos = GetEnumInfos<TEnum>();
+        int value = ConvertEnumValue(currentItem);
+        //the enum values are always sorted
+        int index = Array.BinarySearch(infos.Values, value);
+        if (index < 0)
+        {
+            index = 0;
+        }
+        bool result = Combo(label, ref index, infos.Names, infos.Names.Length);
+        currentItem = ConvertEnumValue<TEnum>(infos.Values[index]);
+        return result;
+    }
+
+    private static int ConvertEnumValue<TEnum>(TEnum value) where TEnum : struct, Enum
     {
         Type underlyingType = Enum.GetUnderlyingType(typeof(TEnum));
         if (underlyingType == typeof(int))
         {
-            var names = GetEnumNames(typeof(TEnum));
-            int value = Unsafe.As<TEnum, int>(ref currentItem);
-            bool result = Combo(label, ref value, names, names.Length);
-            currentItem = Unsafe.As<int, TEnum>(ref value);
-            return result;
+            return Unsafe.As<TEnum, int>(ref value);
         }
         else if (underlyingType == typeof(byte))
         {
-            var names = GetEnumNames(typeof(TEnum));
-            int value = (int)Unsafe.As<TEnum, byte>(ref currentItem);
-            bool result = Combo(label, ref value, names, names.Length);
-            currentItem = Unsafe.As<int, TEnum>(ref value);
-            return result;
+            return (int)Unsafe.As<TEnum, byte>(ref value);
         }
         else if (underlyingType == typeof(short))
         {
-            var names = GetEnumNames(typeof(TEnum));
-            int value = (int)Unsafe.As<TEnum, short>(ref currentItem);
-            bool result = Combo(label, ref value, names, names.Length);
-            currentItem = Unsafe.As<int, TEnum>(ref value);
-            return result;
+            return (int)Unsafe.As<TEnum, short>(ref value);
         }
 
         // unsupported enum type
-        return false;
+        return 0;
     }
 
-    public static bool Combo<TEnum>(ReadOnlySpan<char> label, ref TEnum currentItem, TEnum[] items) where TEnum : Enum
+    private static TEnum ConvertEnumValue<TEnum>(int value) where TEnum : struct, Enum
     {
         Type underlyingType = Enum.GetUnderlyingType(typeof(TEnum));
         if (underlyingType == typeof(int))
         {
-            var names = GetEnumNames(typeof(TEnum));
-            int value = Unsafe.As<TEnum, int>(ref currentItem);
-            bool result = Combo(label, ref value, names, names.Length);
-            currentItem = Unsafe.As<int, TEnum>(ref value);
-            return result;
+            return Unsafe.As<int, TEnum>(ref value);
         }
         else if (underlyingType == typeof(byte))
         {
-            var names = GetEnumNames(typeof(TEnum));
-            int value = (int)Unsafe.As<TEnum, byte>(ref currentItem);
-            bool result = Combo(label, ref value, names, names.Length);
-            currentItem = Unsafe.As<int, TEnum>(ref value);
-            return result;
+            return Unsafe.As<int, TEnum>(ref value);
         }
         else if (underlyingType == typeof(short))
         {
-            var names = GetEnumNames(typeof(TEnum));
-            int value = (int)Unsafe.As<TEnum, short>(ref currentItem);
-            bool result = Combo(label, ref value, names, names.Length);
-            currentItem = Unsafe.As<int, TEnum>(ref value);
-            return result;
+            return Unsafe.As<int, TEnum>(ref value);
         }
 
-        return false;
+        // unsupported enum type
+        return default;
     }
+
 }
