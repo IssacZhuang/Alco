@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// The context of the render object. It is a high level encapsulation of the <see cref="GPUCommandBuffer"/>.
 /// All APIs in this class are not thread safe, but you can create multiple instances on different threads.
 /// </summary>
-public sealed class RenderContext : AutoDisposable, IRenderContext, IMaterialResourceCollector
+public sealed class RenderContext : AutoDisposable, IRenderContext
 {
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
@@ -205,6 +205,22 @@ public sealed class RenderContext : AutoDisposable, IRenderContext, IMaterialRes
         _command.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
+
+    /// <summary>
+    /// Execute the commands recorded in the <see cref="SubRenderContext"/>.
+    /// </summary>
+    /// <param name="subContext">The sub context to execute.</param>
+    public void ExecuteSubContext(SubRenderContext subContext)
+    {
+        GPURenderBundle renderBundle = subContext.RenderBundle;
+        if (!renderBundle.HasBuffer)
+        {
+            throw new InvalidOperationException("The render bundle of SubRenderContext is not been recorded, try use RenderContext.Begin(GPURenderPass) to record render commands.");
+        }
+
+        _command.ExecuteBundle(renderBundle);
+    }
+
     /// <summary>
     /// End the render context.
     /// </summary>
@@ -221,11 +237,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext, IMaterialRes
         return exceptions;
     }
 
-    /// <summary>
-    /// Sets the mesh for rendering.
-    /// </summary>
-    /// <param name="mesh">The mesh to set.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to use.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetMesh(in Mesh mesh, in int subMeshIndex)
     {
@@ -295,17 +306,5 @@ public sealed class RenderContext : AutoDisposable, IRenderContext, IMaterialRes
     protected override void Dispose(bool disposing)
     {
         _command.Dispose();
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
-    {
-        _command.SetGraphicsResources(slot, resourceGroup);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetStencilReference(uint value)
-    {
-        _command.SetStencilReference(value);
     }
 }

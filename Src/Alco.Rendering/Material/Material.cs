@@ -116,6 +116,7 @@ public abstract class Material: AutoDisposable
 
     /// <summary>
     /// The stencil reference value which used in <see cref="GPUCommandBuffer.SetStencilReference"/>.
+    /// <br/> [Note] This value is only available for <see cref="GPUCommandBuffer"/> but not <see cref="GPURenderBundle"/>
     /// </summary>
     public uint? StencilReference;
 

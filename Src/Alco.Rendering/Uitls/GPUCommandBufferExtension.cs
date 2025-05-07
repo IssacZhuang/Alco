@@ -18,7 +18,7 @@ public static class GPUCommandBufferExtension
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetGraphicsPipeline(this GPUCommandBuffer command, GraphicsPipelineContext pipelineInfo)
+    public static void SetGraphicsPipeline(this IGPUGraphicsCommandRecorder command, GraphicsPipelineContext pipelineInfo)
     {
         command.SetGraphicsPipeline(pipelineInfo.Pipeline!);
     }
@@ -31,7 +31,7 @@ public static class GPUCommandBufferExtension
     /// <param name="subMeshIndex"> The index of the sub mesh to set. </param>
     /// <returns> The index count of the sub mesh. </returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static uint SetMesh(this GPUCommandBuffer command, Mesh mesh, int subMeshIndex = 0)
+    public static uint SetMesh(this IGPUGraphicsCommandRecorder command, Mesh mesh, int subMeshIndex = 0)
     {
         SubMeshData subMeshData = mesh.GetSubMesh(subMeshIndex);
         command.SetVertexBuffer(0, mesh.VertexBuffer, subMeshData.VertexOffset, subMeshData.VertexSize);
