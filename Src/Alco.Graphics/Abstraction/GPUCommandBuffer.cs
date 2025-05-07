@@ -6,7 +6,7 @@ namespace Alco.Graphics;
 /// <summary>
 /// The buffer to record GPU commands which used for rendering and compute.
 /// </summary> 
-public abstract class GPUCommandBuffer : BaseGPUObject
+public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecorder
 {
     protected bool _isRecording = false;
     //API
