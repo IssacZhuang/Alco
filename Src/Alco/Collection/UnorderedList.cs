@@ -10,7 +10,7 @@ namespace Alco;
 /// <br/> It is faster than List<T> when removing elements.
 /// </summary>
 /// <typeparam name="T">The type of elements in the list.</typeparam>
-public class UnorderedList<T> : IList<T>
+public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
 {
     private static readonly bool IsReferenceType = RuntimeHelpers.IsReferenceOrContainsReferences<T>();
     private T[] _items;
@@ -51,10 +51,7 @@ public class UnorderedList<T> : IList<T>
         }
         set
         {
-            if (value < _size)
-            {
-                throw new ArgumentOutOfRangeException("The target capacity is smaller than the current count.");
-            }
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, _size);
             if (value == _items.Length)
             {
                 return;
