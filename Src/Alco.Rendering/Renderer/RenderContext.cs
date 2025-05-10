@@ -219,6 +219,9 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         }
 
         _command.ExecuteBundle(renderBundle);
+        // the binding of vertex buffer and index buffer will be reset after executing the bundle
+        // so we need to clear the cache to rebind the vertex buffer and index buffer
+        ClearCache();
     }
 
     /// <summary>
