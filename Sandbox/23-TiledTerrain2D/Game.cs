@@ -7,9 +7,18 @@ using Alco.Graphics;
 using Alco.IO;
 
 using SandboxUtils;
+using Alco.ImGUI;
 
 public class Game : GameEngine
 {
+    private enum EditMode
+    {
+        None,
+        Water,
+        Surface,
+        Plant
+    }
+
     private readonly RenderContext _renderer;
     private readonly Camera2D _camera;
     private readonly Material _blitMaterial;
@@ -36,12 +45,10 @@ public class Game : GameEngine
     private float _blendFactor = 0.35f;
     private float _edgeSmoothFactor = 0.15f;
 
-    private bool _editSurface = true;
-    private bool _editWater = false;
-    private bool _editPlant = false;
-    private uint _surfaceTileId = 1;
-    private uint _waterTileId = 1;
-    private uint _plantTileId = 0;
+    private EditMode _editMode = EditMode.Surface;
+    private int _surfaceTileId = 1;
+    private int _waterTileId = 1;
+    private int _plantTileId = 0;
 
     private float _hight = 0.2f;
     private float _brushSize = 1;
@@ -51,6 +58,8 @@ public class Game : GameEngine
     private List<int2> _brushCells = [];
 
     private Color32 _waterColor = new Color32(128, 161, 168, 100);
+
+    private bool _isEditWindowOpen = true;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -155,66 +164,36 @@ public class Game : GameEngine
     {
         DebugGUI.Text(FrameRate);
         bool isDebugClicked = false;
-        if (DebugGUI.SliderWithText("Brush Size", ref _brushSize, 0.1f, 5f))
+
+        ImGui.Begin("Edit", ref _isEditWindowOpen);
+        if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
             UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Surface Tile", ref _surfaceTileId, 0, (uint)_surfaceTileSet.ItemCount - 1))
+        if (ImGui.SliderInt("Surface Tile", ref _surfaceTileId, 0, _surfaceTileSet.ItemCount - 1))
         {
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Water Tile", ref _waterTileId, 0, (uint)_waterTileSet.ItemCount - 1))
+        if (ImGui.SliderInt("Water Tile", ref _waterTileId, 0, _waterTileSet.ItemCount - 1))
         {
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Plant Tile", ref _plantTileId, 0, (uint)_plantTileSet.ItemCount - 1))
+        if (ImGui.SliderInt("Plant Tile", ref _plantTileId, 0, _plantTileSet.ItemCount - 1))
         {
             isDebugClicked = true;
         }
 
-        if (DebugGUI.Button("Edit Water"))
+        if (ImGui.Combo("Edit Mode", ref _editMode))
         {
-            _editWater = true;
-            _editSurface = false;
-            _editPlant = false;
             isDebugClicked = true;
         }
 
-        DebugGUI.SameLine();
-        if (DebugGUI.Button("Edit Surface"))
-        {
-            _editWater = false;
-            _editSurface = true;
-            _editPlant = false;
-            isDebugClicked = true;
-        }
 
-        DebugGUI.SameLine();
-        if (DebugGUI.Button("Edit Plant"))
-        {
-            _editWater = false;
-            _editSurface = false;
-            _editPlant = true;
-            isDebugClicked = true;
-        }
-
-        DebugGUI.SameLine();
-        if(_editWater)
-        {
-            DebugGUI.Text("Edit Water");
-        }else if(_editSurface)
-        {
-            DebugGUI.Text("Edit Surface");
-        }else if(_editPlant)
-        {
-            DebugGUI.Text("Edit Plant");
-        }
-
-        if (DebugGUI.SliderWithText("Blend Width", ref _blendFactor, 0.01f, 0.5f))
+        if (ImGui.SliderFloat("Blend Width", ref _blendFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
             for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
@@ -223,12 +202,12 @@ public class Game : GameEngine
             }
         }
 
-        if (DebugGUI.SliderWithText("Height", ref _hight, -1f, 1f))
+        if (ImGui.SliderFloat("Height", ref _hight, -1f, 1f))
         {
             isDebugClicked = true;
         }
 
-        if (DebugGUI.SliderWithText("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
+        if (ImGui.SliderFloat("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
         {
             isDebugClicked = true;
             for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
@@ -236,6 +215,8 @@ public class Game : GameEngine
                 _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
             }
         }
+
+        ImGui.End();
 
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -298,18 +279,18 @@ public class Game : GameEngine
 
                 if (Input.IsMousePressing(Mouse.Left))
                 {
-                    if (_editWater)
+                    if (_editMode == EditMode.Water)
                     {
-                        _waterBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _waterTileId);
+                        _waterBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_waterTileId);
                     }
-                    else if (_editSurface)
+                    else if (_editMode == EditMode.Surface)
                     {
-                        _surfaceBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
-                        _cliffBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
+                        _surfaceBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_surfaceTileId);
+                        _cliffBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_surfaceTileId);
                     }
-                    else if (_editPlant)
+                    else if (_editMode == EditMode.Plant)
                     {
-                        _plantBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _plantTileId);
+                        _plantBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_plantTileId);
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
