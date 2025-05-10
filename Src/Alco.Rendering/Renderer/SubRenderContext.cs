@@ -37,6 +37,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     public void End()
     {
         _renderBundle.End();
+        ClearCache();
     }
 
     /// <summary>

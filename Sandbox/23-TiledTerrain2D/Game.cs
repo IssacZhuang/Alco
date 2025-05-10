@@ -16,7 +16,8 @@ public class Game : GameEngine
         None,
         Water,
         Surface,
-        Plant
+        Plant,
+        Wall
     }
 
     private readonly RenderContext _renderer;
@@ -31,10 +32,12 @@ public class Game : GameEngine
     private SurfaceTileSet<int> _cliffTileSet;
     private WaterTileSet<int> _waterTileSet;
     private PlantTileSet<int> _plantTileSet;
+    private ConnectableTileData _wallData;
     private readonly SurfaceTileBlock2D<int> _surfaceBlock;
     private readonly SurfaceTileBlock2D<int> _cliffBlock;
     private readonly WaterTileBlock2D<int> _waterBlock;
     private readonly PlantTileBlock2D<int> _plantBlock;
+    private readonly ConnectableTileBlock2D _connectableBlock;
     private readonly FloodFillLightMap _lightMap;
     private readonly TileMapHeightBuffer _heightBuffer;
     private float _zoom = 4f;
@@ -135,7 +138,9 @@ public class Game : GameEngine
         _brushMaterial.SetTexture(ShaderResourceId.Texture, Rendering.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
+        _wallData = BuildWallData();
 
+        _connectableBlock = Rendering.CreateConnectableTileBlock2D(width, height, "connectable_tile_block_2d");
 
         _brushTransform = new Transform3D();
         _brushTransform.Scale = new Vector3(0.8f);
@@ -216,7 +221,7 @@ public class Game : GameEngine
             }
         }
 
-        ImGui.End();
+        
 
 
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -251,6 +256,7 @@ public class Game : GameEngine
         _cliffBlock.OnRender(_renderer);
         _plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
+        _connectableBlock.OnRender(_renderer);
 
 
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
@@ -259,6 +265,7 @@ public class Game : GameEngine
             Vector2 tileLocalPosition = _surfaceBlock.TilePositionToLocalPosition(tilePosition);
             //DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
+            ImGui.Text($"Tile Position: {tilePosition}");
 
             for (int i = 0; i < _brushCells.Count; i++)
             {
@@ -292,6 +299,10 @@ public class Game : GameEngine
                     {
                         _plantBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_plantTileId);
                     }
+                    else if (_editMode == EditMode.Wall)
+                    {
+                        _connectableBlock.SetTileData(tilePosition.X, tilePosition.Y, _wallData);
+                    }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {
@@ -301,6 +312,8 @@ public class Game : GameEngine
             }
         }
         _renderer.End();
+
+        ImGui.End();
     }
 
     private void OnHotReload(string filename, object cachedAsset)
@@ -447,5 +460,15 @@ public class Game : GameEngine
         items.Add(item1);
 
         return Rendering.CreatePlantTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
+    }
+
+    private ConnectableTileData BuildWallData()
+    {
+        Texture2D textureWall = Assets.Load<Texture2D>("Textures/Wall.png");
+        
+        Material material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileConnectable);
+        material.SetTexture(ShaderResourceId.Texture, textureWall);
+        
+        return new ConnectableTileData(material, null);
     }
 }

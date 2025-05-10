@@ -202,5 +202,10 @@ public partial class RenderingSystem
         return new FloodFillLightMap(this, material, width, height, name);
     }
 
+    public ConnectableTileBlock2D CreateConnectableTileBlock2D(int width, int height, string name = "connectable_tile_block_2d")
+    {
+        return new ConnectableTileBlock2D(this, width, height, name);
+    }
+
 
 }

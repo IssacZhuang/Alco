@@ -24,10 +24,13 @@ public class ConnectableTileBlock2D : AutoDisposable
 
     public Action<Exception>? OnRenderError;
 
+    public string Name { get; }
+
     internal ConnectableTileBlock2D(
         RenderingSystem renderingSystem,
         int width,
-        int height)
+        int height,
+        string name)
     {
         _width = width;
         _height = height;
@@ -37,6 +40,7 @@ public class ConnectableTileBlock2D : AutoDisposable
         _isRenderDataDirty = true;
 
         _mesh = renderingSystem.MeshCenteredSprite;
+        Name = name;
     }
 
     public void OnRender(RenderContext renderer)
@@ -90,7 +94,7 @@ public class ConnectableTileBlock2D : AutoDisposable
                     Model = matrix,
                     Color = Vector4.One,
                     UvRect = uvRect,
-                    Offset = new int2(info.X, info.Y)
+                    Offset = new int2(info.X, -info.Y)
                 };
                 _subRenderContext.DrawWithConstant(_mesh, info.Data.Material, constant);
             }
