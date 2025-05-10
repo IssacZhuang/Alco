@@ -88,6 +88,7 @@ V2F VertexMain(Vertex input)
     float3 pos = input.position * float3(data.meshScale, 0);
 
 #if defined(IS_CLIFF)
+    //make it render as a facade
     offsetY += 1;
     gridY += 1;
     pos.z = 0.5f - pos.y;

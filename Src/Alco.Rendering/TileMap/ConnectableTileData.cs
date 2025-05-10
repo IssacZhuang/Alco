@@ -3,29 +3,29 @@ namespace Alco.Rendering;
 
 public class ConnectableTileData
 {
-    private readonly Sprite[] _connectedSprites;
+    private static readonly Rect[] _connectedSprites = new Rect[16];
 
-    public object? UserData;
-
-    public ConnectableTileData(Texture2D texture, object? userData)
+    static ConnectableTileData()
     {
-        UserData = userData;
-        _connectedSprites = new Sprite[16];
         for (int i = 0; i < 16; i++)
         {
-            Rect uvRect = UtilsUV.CalculateFrameUVRect(4, 4, i);
-            _connectedSprites[i] = new Sprite($"sprite_{i}", texture, uvRect);
+            _connectedSprites[i] = UtilsUV.CalculateFrameUVRect(4, 4, i);
         }
     }
 
-    public Sprite GetConnectedSprite(int index)
+    public Material Material { get; }
+    public object? UserData { get; }
+
+    public ConnectableTileData(Material material, object? userData)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+        UserData = userData;
+        Material = material;
+    }
+
+    public static Rect GetConnectUVRect(int index)
     {
         return _connectedSprites[index];
     }
-
-    public Sprite GetConnectedSprite(ConnectDirection direction)
-    {
-        return _connectedSprites[(int)direction];
-    }
-
+    
 }

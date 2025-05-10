@@ -8,7 +8,7 @@ namespace Alco;
 /// Represents a 2D grid collection storing elements of type T
 /// </summary>
 /// <typeparam name="T">The type of elements in the grid, must be a reference type</typeparam>
-public class Grid2DCollection<T> 
+public class Grid2DCollection<T> where T : class
 {
     /// <summary>
     /// Structure containing grid cell information
@@ -90,6 +90,7 @@ public class Grid2DCollection<T>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when coordinates are out of grid bounds</exception>
     public void Set(int x, int y, T data)
     {
+        ArgumentNullException.ThrowIfNull(data);
         if (x < 0 || x >= _width || y < 0 || y >= _height)
         {
             throw new ArgumentOutOfRangeException($"x: {x}, y: {y} is out of range: {_width}x{_height}");
