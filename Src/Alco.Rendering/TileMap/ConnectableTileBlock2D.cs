@@ -45,49 +45,13 @@ public class ConnectableTileBlock2D : AutoDisposable
 
     public void OnRender(RenderContext renderer)
     {
-        // if (_isRenderDataDirty)
-        // {
-        //     BuildRenderCommand(renderer.Framebuffer!.RenderPass);
-        //     _isRenderDataDirty = false;
-        // }
-
-        // renderer.ExecuteSubContext(_subRenderContext);
-
-        Matrix4x4 matrix = Transform.Matrix;
-        var tiles = _tileData.Infos;
-
-        float halfWidth = (_width - 1) * 0.5f;
-        float halfHeight = (_height - 1) * 0.5f;
-        for (int i = 0; i < tiles.Count; i++)
+        if (_isRenderDataDirty)
         {
-            try
-            {
-                Grid2DCollection<ConnectableTileData>.Info info = tiles[i];
-                int direction = _connectDirections[info.Y * _width + info.X];
-                Rect uvRect = ConnectableTileData.GetConnectUVRect(direction);
-                ConntectableTileConstant constant = new()
-                {
-                    Model = matrix,
-                    Color = Vector4.One,
-                    UvRect = uvRect,
-                    Size = info.Data.Size,
-                    Offset = new Vector2(info.X - halfWidth, -info.Y + halfHeight) + info.Data.Offset
-                };
-                renderer.DrawWithConstant(_mesh, info.Data.Material, constant);
-            }
-            catch (Exception e)
-            {
-                if (OnRenderError != null)
-                {
-                    OnRenderError(e);
-                }
-                else
-                {
-                    Log.Error(e);
-                }
-            }
+            BuildRenderCommand(renderer.Framebuffer!.RenderPass);
+            _isRenderDataDirty = false;
         }
 
+        renderer.ExecuteSubContext(_subRenderContext);
     }
 
     public void SetTileData(int x, int y, ConnectableTileData data)
@@ -116,8 +80,11 @@ public class ConnectableTileBlock2D : AutoDisposable
     private void BuildRenderCommand(GPURenderPass renderPass)
     {
         _subRenderContext.Begin(renderPass);
-        Matrix4x4 matrix = Transform.Matrix;
-        var tiles = _tileData.Infos;    
+       Matrix4x4 matrix = Transform.Matrix;
+        var tiles = _tileData.Infos;
+
+        float halfWidth = (_width - 1) * 0.5f;
+        float halfHeight = (_height - 1) * 0.5f;
         for (int i = 0; i < tiles.Count; i++)
         {
             try
@@ -130,7 +97,8 @@ public class ConnectableTileBlock2D : AutoDisposable
                     Model = matrix,
                     Color = Vector4.One,
                     UvRect = uvRect,
-                    Offset = new Vector2(info.X, -info.Y)
+                    Size = info.Data.Size,
+                    Offset = new Vector2(info.X - halfWidth, -info.Y + halfHeight) + info.Data.Offset
                 };
                 _subRenderContext.DrawWithConstant(_mesh, info.Data.Material, constant);
             }
