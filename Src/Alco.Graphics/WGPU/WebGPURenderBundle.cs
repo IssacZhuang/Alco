@@ -47,7 +47,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         // do check here to prevent memory leak
 
         ReleaseRenderBundle();
-        ReleaseRenderBunleEncoder();
+        ReleaseRenderBundleEncoder();
 
         UtilsInterop.Free(_nativeName);
     }
@@ -55,7 +55,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     // begin the encoder
     protected unsafe override void BeginCore(GPURenderPass renderPass)
     {
-        ReleaseRenderBunleEncoder();
+        ReleaseRenderBundleEncoder();
         WebGPURenderPass nativeRenderPass = (WebGPURenderPass)renderPass;
 
         int colorCount = nativeRenderPass.WebGPUColorInfos.Length;
@@ -86,7 +86,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
             label = _nativeNameView
         };
         _bundle = wgpuRenderBundleEncoderFinish(_renderBundleEncoder, &descriptor);
-        ReleaseRenderBunleEncoder();
+        ReleaseRenderBundleEncoder();
         _graphicsPipeline = WGPURenderPipeline.Null;
 
     }
@@ -201,7 +201,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ReleaseRenderBunleEncoder()
+    private void ReleaseRenderBundleEncoder()
     {
         if (_renderBundleEncoder != WGPURenderBundleEncoder.Null)
         {
