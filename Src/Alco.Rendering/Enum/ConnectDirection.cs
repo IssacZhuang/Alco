@@ -2,7 +2,7 @@
 namespace Alco.Rendering;
 
 [Flags]
-public enum LinkDirection
+public enum ConnectDirection
 {
     None = 0,
     Up = 1 << 0,

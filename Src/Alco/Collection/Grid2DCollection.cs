@@ -8,7 +8,7 @@ namespace Alco;
 /// Represents a 2D grid collection storing elements of type T
 /// </summary>
 /// <typeparam name="T">The type of elements in the grid, must be a reference type</typeparam>
-public class Grid2DCollection<T> where T : class
+public class Grid2DCollection<T> 
 {
     /// <summary>
     /// Structure containing grid cell information
@@ -123,7 +123,7 @@ public class Grid2DCollection<T> where T : class
     {
         if (x < 0 || x >= _width || y < 0 || y >= _height)
         {
-            data = null;
+            data = default;
             return false;
         }
 
@@ -142,7 +142,7 @@ public class Grid2DCollection<T> where T : class
     {
         if (x < 0 || x >= _width || y < 0 || y >= _height)
         {
-            data = null;
+            data = default;
             return false;
         }
 
@@ -152,7 +152,7 @@ public class Grid2DCollection<T> where T : class
             return false;
         }
 
-        _data[y * _width + x] = null;
+        _data[y * _width + x] = default;
         for (int i = 0; i < _infos.Count; i++)
         {
             if (_infos[i].X == x && _infos[i].Y == y)
