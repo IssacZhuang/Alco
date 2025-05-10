@@ -111,7 +111,7 @@ public class Grid2DCollection<T> where T : class
 
         _data[y * _width + x] = data;
         _infos.Add(new Info(x, y, data));
-    }
+    } 
 
     /// <summary>
     /// Attempts to get data from the specified grid position

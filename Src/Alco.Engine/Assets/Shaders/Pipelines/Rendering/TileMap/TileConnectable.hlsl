@@ -14,7 +14,8 @@ struct Constants {
   float4x4 model;
   float4 color;
   float4 uvRect;
-  int2 offset;
+  float2 size;
+  float2 offset;
 };
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
@@ -27,9 +28,11 @@ PUSH_CONSTANT Constants constants;
 V2F MainVS(Vertex input) {
   V2F output = (V2F)0;
 
-  float3 pos = input.position * float3(1, 1, 0);
+  float3 pos = input.position;
   //make it render as a facade
+  pos.xy *= constants.size;
   pos.z = 0.5f - pos.y;
+  pos.xy += constants.offset;
   output.position = mul(constants.model, float4(pos, 1.0f));
   output.position = mul(viewProjection, output.position);
   output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;

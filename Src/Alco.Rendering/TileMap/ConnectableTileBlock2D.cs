@@ -45,13 +45,49 @@ public class ConnectableTileBlock2D : AutoDisposable
 
     public void OnRender(RenderContext renderer)
     {
-        if (_isRenderDataDirty)
+        // if (_isRenderDataDirty)
+        // {
+        //     BuildRenderCommand(renderer.Framebuffer!.RenderPass);
+        //     _isRenderDataDirty = false;
+        // }
+
+        // renderer.ExecuteSubContext(_subRenderContext);
+
+        Matrix4x4 matrix = Transform.Matrix;
+        var tiles = _tileData.Infos;
+
+        float halfWidth = (_width - 1) * 0.5f;
+        float halfHeight = (_height - 1) * 0.5f;
+        for (int i = 0; i < tiles.Count; i++)
         {
-            BuildRenderCommand(renderer.Framebuffer!.RenderPass);
-            _isRenderDataDirty = false;
+            try
+            {
+                Grid2DCollection<ConnectableTileData>.Info info = tiles[i];
+                int direction = _connectDirections[info.Y * _width + info.X];
+                Rect uvRect = ConnectableTileData.GetConnectUVRect(direction);
+                ConntectableTileConstant constant = new()
+                {
+                    Model = matrix,
+                    Color = Vector4.One,
+                    UvRect = uvRect,
+                    Size = info.Data.Size,
+                    Offset = new Vector2(info.X - halfWidth, -info.Y + halfHeight) + info.Data.Offset
+                };
+                renderer.DrawWithConstant(_mesh, info.Data.Material, constant);
+            }
+            catch (Exception e)
+            {
+                if (OnRenderError != null)
+                {
+                    OnRenderError(e);
+                }
+                else
+                {
+                    Log.Error(e);
+                }
+            }
         }
 
-        renderer.ExecuteSubContext(_subRenderContext);
     }
 
     public void SetTileData(int x, int y, ConnectableTileData data)
@@ -94,7 +130,7 @@ public class ConnectableTileBlock2D : AutoDisposable
                     Model = matrix,
                     Color = Vector4.One,
                     UvRect = uvRect,
-                    Offset = new int2(info.X, -info.Y)
+                    Offset = new Vector2(info.X, -info.Y)
                 };
                 _subRenderContext.DrawWithConstant(_mesh, info.Data.Material, constant);
             }
@@ -134,11 +170,11 @@ public class ConnectableTileBlock2D : AutoDisposable
         {
             direction |= ConnectDirection.Left;
         }
-        if (_tileData.TryGet(x, y + 1, out _))
+        if (_tileData.TryGet(x, y - 1, out _))
         {
             direction |= ConnectDirection.Up;
         }
-        if (_tileData.TryGet(x, y - 1, out _))
+        if (_tileData.TryGet(x, y + 1, out _))
         {
             direction |= ConnectDirection.Down;
         }

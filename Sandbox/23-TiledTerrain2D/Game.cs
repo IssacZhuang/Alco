@@ -82,6 +82,8 @@ public class Game : GameEngine
         computeMaterial.SetBuffer(ShaderResourceId.HeightData, _heightBuffer);
         _lightMap = Rendering.CreateTileLightMap(computeMaterial, width, height);
         _lightMap.SetLight((int)width / 2, (int)height / 2, new Half4(1, 1, 1, 1));
+
+        _lightMap.SetLight(0, 0, new Half4(1, 1, 1, 1));
         _lightMap.Render();
 
         _surfaceTileSet = BuildSurfaceTileSet();
@@ -111,7 +113,7 @@ public class Game : GameEngine
         _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _heightBuffer, _surfaceMaterial, width, height);
         _surfaceBlock.UseLightMap = true;
         _surfaceBlock.SetAllItemIds(1);
-        _surfaceBlock.LightMap = _lightMap.Texture;
+        // _surfaceBlock.LightMap = _lightMap.Texture;
 
         _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
         _cliffBlock.UseLightMap = true;
@@ -138,9 +140,20 @@ public class Game : GameEngine
         _brushMaterial.SetTexture(ShaderResourceId.Texture, Rendering.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
-        _wallData = BuildWallData();
+        Texture2D textureWall = Assets.Load<Texture2D>("Textures/Wall.png");
+
+        Material material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileConnectable);
+        material.BlendState = BlendState.Opaque;
+        material.DepthStencilState = DepthStencilState.Write;
+        material.SetBuffer(ShaderResourceId.Camera, _camera);
+        material.SetTexture(ShaderResourceId.Texture, textureWall);
+
+
+        _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), null);
+        
 
         _connectableBlock = Rendering.CreateConnectableTileBlock2D(width, height, "connectable_tile_block_2d");
+        _connectableBlock.Transform.Position.Z = -1.5f;
 
         _brushTransform = new Transform3D();
         _brushTransform.Scale = new Vector3(0.8f);
@@ -460,15 +473,5 @@ public class Game : GameEngine
         items.Add(item1);
 
         return Rendering.CreatePlantTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
-    }
-
-    private ConnectableTileData BuildWallData()
-    {
-        Texture2D textureWall = Assets.Load<Texture2D>("Textures/Wall.png");
-        
-        Material material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileConnectable);
-        material.SetTexture(ShaderResourceId.Texture, textureWall);
-        
-        return new ConnectableTileData(material, null);
     }
 }

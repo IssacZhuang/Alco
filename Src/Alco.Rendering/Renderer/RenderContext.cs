@@ -138,10 +138,10 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
-        if (pipelineInfo.PushConstantsSize != sizeof(T))
-        {
-            throw new ArgumentException("The size of the constant does not match the push constants size");
-        }
+        // if (pipelineInfo.PushConstantsSize != sizeof(T))
+        // {
+        //     throw new ArgumentException("The size of the constant does not match the push constants size");
+        // }
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
