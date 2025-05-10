@@ -6,11 +6,13 @@ using static WebGPU.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
-internal sealed class WebGPUGraphicsPipeline : GPUPipeline
+internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
 {
     #region Properties
     private readonly WGPURenderPipeline _graphicsipeline;
     private readonly ShaderStage _stages;
+    private readonly byte* _nativeName;
+    private WGPUStringView _nativeNameView;
 
     #endregion
 
@@ -20,6 +22,7 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
     protected override void Dispose(bool disposing)
     {
+        UtilsInterop.Free(_nativeName);
         wgpuRenderPipelineRelease(_graphicsipeline);
     }
 
@@ -40,6 +43,14 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
         Device = device;
 
         WGPUDevice nativeDevice = device.Native;
+
+        ReadOnlySpan<byte> nameSpan = Name.GetUtf8Span();
+        fixed (byte* ptr = nameSpan)
+        {
+            _nativeName = UtilsInterop.Alloc<byte>(nameSpan.Length + 1);
+            UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            _nativeNameView = new WGPUStringView(_nativeName, nameSpan.Length);
+        }
 
         // === Create shader modules ===============================
 
@@ -119,7 +130,6 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
                 };
             }
 
-            // TODO: color targets
             WGPUFragmentState fragmentState = new WGPUFragmentState()
             {
                 module = pixelShader,
@@ -158,7 +168,7 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
             WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor = new WGPUPipelineLayoutDescriptor
             {
                 nextInChain = null,
-                label = WGPUStringView.Empty,
+                label = _nativeNameView,
                 bindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
                 bindGroupLayouts = bindGroupLayouts,
             };
@@ -223,6 +233,7 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
             WGPURenderPipelineDescriptor pipelineDescriptor = new WGPURenderPipelineDescriptor()
             {
+                label = _nativeNameView,
                 vertex = vertexState,
                 fragment = &fragmentState,
                 layout = pipelineLayout,
@@ -258,8 +269,11 @@ internal sealed class WebGPUGraphicsPipeline : GPUPipeline
 
             _graphicsipeline = wgpuDeviceCreateRenderPipeline(nativeDevice, &pipelineDescriptor);
 
+            wgpuPipelineLayoutRelease(pipelineLayout);
+
         }
 
+        
         wgpuShaderModuleRelease(vertexShader);
         wgpuShaderModuleRelease(pixelShader);
     }
