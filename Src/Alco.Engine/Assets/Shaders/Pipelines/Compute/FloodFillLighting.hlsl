@@ -9,10 +9,10 @@ struct Constants {
 DEFINE_TEX2D_STORAGE(0, _frontBuffer, float4, "rgba16f");
 DEFINE_TEX2D_STORAGE(1, _backBuffer, float4, "rgba16f");
 
+// opacity map texture
+DEFINE_TEX2D_READ(2, _opacityMap);
+
 PUSH_CONSTANT Constants constants;
-
-
-
 
 
 float GetLightPassingFactor(uint2 pos) {

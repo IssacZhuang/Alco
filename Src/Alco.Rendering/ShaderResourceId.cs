@@ -8,6 +8,7 @@ public static class ShaderResourceId
     public const string Camera = "_camera";
     public const string Texture = "_texture";
     public const string LightMap = "_lightMap";
+    public const string OpacityMap = "_opacityMap";
     public const string Data = "_data";
     public const string Font = "_font";
     public const string TextBuffer = "_textBuffer";

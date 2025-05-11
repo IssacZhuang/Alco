@@ -11,6 +11,9 @@ public class FloodFillLightMap : AutoDisposable
     private readonly DoubleBuffer<RenderTexture> _lightMaps;
     private readonly BitmapFloat16RGBA _lightMapCPU;
 
+    private readonly RenderTexture _opacityMap;
+    private readonly BitmapUIntRGBA _opacityMapCPU;
+
     private readonly ComputeMaterial _material;
     private readonly GPUCommandBuffer _command;
 
@@ -56,6 +59,9 @@ public class FloodFillLightMap : AutoDisposable
         _lightMapCPU = new BitmapFloat16RGBA(width, height);
         _material = computeDispatcher.CreateInstance();
 
+        _opacityMap = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedRGBATexturePass, (uint)width, (uint)height, "tile_opacity_map");
+        _opacityMapCPU = new BitmapUIntRGBA(width, height);
+
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer();
 
@@ -68,15 +74,20 @@ public class FloodFillLightMap : AutoDisposable
         _shaderId_front = _material.GetResourceId(ShaderResourceId.FrontBuffer);
         _shaderId_back = _material.GetResourceId(ShaderResourceId.BackBuffer);
 
+        _material.TrySetRenderTexture(ShaderResourceId.OpacityMap, _opacityMap);
+
         Name = name;
 
     }
 
-
-
-    public void Reset()
+    public void ResetLights()
     {
         _lightMapCPU.Clear();
+    }
+
+    public void ResetOpacity()
+    {
+        _opacityMapCPU.Clear(Color32.White);
     }
 
     public void AddLight(int x, int y, Half4 light)
@@ -87,6 +98,11 @@ public class FloodFillLightMap : AutoDisposable
     public void SetLight(int x, int y, Half4 light)
     {
         _lightMapCPU[x, y] = light;
+    }
+
+    public void SetOpacity(int x, int y, Color32 opacity)
+    {
+        _opacityMapCPU[x, y] = opacity;
     }
 
     public void Render()

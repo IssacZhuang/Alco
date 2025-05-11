@@ -1,7 +1,9 @@
 
+using Alco.Graphics;
+
 namespace Alco.Rendering
 {
-    public class BitmapUIntRGBA : Bitmap<uint>
+    public class BitmapUIntRGBA : Bitmap<Color32>
     {
         public BitmapUIntRGBA(int width, int height, bool clear = true) : base(width, height, clear)
         {
