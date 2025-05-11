@@ -150,8 +150,7 @@ public class Game : GameEngine
         material.SetTexture(ShaderResourceId.Texture, textureWall);
 
 
-        _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), null);
-        
+        _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f), null);
 
         _connectableBlock = Rendering.CreateConnectableTileBlock2D(width, height, "connectable_tile_block_2d");
         _connectableBlock.Transform.Position.Z = -1.5f;
@@ -330,7 +329,10 @@ public class Game : GameEngine
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        _connectableBlock.TrySetTileData(tilePosition.X, tilePosition.Y, _wallData);
+                        if (_connectableBlock.TrySetTileData(tilePosition.X, tilePosition.Y, _wallData))
+                        {
+                            // _lightMap.SetOpacity(tilePosition.X, tilePosition.Y, _wallData.LightMapOpacity);
+                        }
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))

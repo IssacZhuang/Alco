@@ -1,5 +1,6 @@
 
 using System.Numerics;
+using Alco.Graphics;
 
 namespace Alco.Rendering;
 
@@ -18,7 +19,7 @@ public class ConnectableTileData
     public Material Material { get; }
     public Vector2 Size { get; }
     public Vector2 Offset { get; }
-    public Vector4 LightMapOpacity { get; }
+    public ColorFloat LightMapOpacity { get; }
     public object? UserData { get; }
 
     public ConnectableTileData(Material material, object? userData)
@@ -37,6 +38,17 @@ public class ConnectableTileData
         Material = material;
         Size = size;
         Offset = offset;
+        LightMapOpacity = new ColorFloat(1, 1, 1, 1);
+    }
+    
+    public ConnectableTileData(Material material, Vector2 size, Vector2 offset, ColorFloat lightMapOpacity, object? userData)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+        UserData = userData;
+        Material = material;
+        Size = size;
+        Offset = offset;
+        LightMapOpacity = lightMapOpacity;
     }
 
     public static Rect GetConnectUVRect(int index)
