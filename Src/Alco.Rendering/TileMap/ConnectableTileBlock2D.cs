@@ -54,18 +54,23 @@ public class ConnectableTileBlock2D : AutoDisposable
         renderer.ExecuteSubContext(_subRenderContext);
     }
 
-    public void SetTileData(int x, int y, ConnectableTileData data)
+    public bool TrySetTileData(int x, int y, ConnectableTileData data)
     {
-        _tileData.Set(x, y, data);
+        if (_tileData.TryGet(x, y, out var oldData) && oldData == data)
+        {
+            return false;
+        }
+        _tileData.AddOrUpdate(x, y, data);
         UpdateConnectDirection(x, y);
         UpdateConnectDirection(x + 1, y);
         UpdateConnectDirection(x - 1, y);
         UpdateConnectDirection(x, y + 1);
         UpdateConnectDirection(x, y - 1);
         _isRenderDataDirty = true;
+        return true;
     }
 
-    public void RemoveTileData(int x, int y)
+    public bool TryRemoveTileData(int x, int y)
     {
         if (_tileData.TryRemove(x, y, out _))
         {
@@ -74,7 +79,9 @@ public class ConnectableTileBlock2D : AutoDisposable
             UpdateConnectDirection(x, y + 1);
             UpdateConnectDirection(x, y - 1);
             _isRenderDataDirty = true;
+            return true;
         }
+        return false;
     }
 
     private void BuildRenderCommand(GPURenderPass renderPass)

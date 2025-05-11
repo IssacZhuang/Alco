@@ -56,11 +56,11 @@ public class FloodFillLightMap : AutoDisposable
         _lightMapFront = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
         _lightMapBack = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
         _lightMaps = new DoubleBuffer<RenderTexture>(_lightMapFront, _lightMapBack);
-        _lightMapCPU = new BitmapFloat16RGBA(width, height);
+        _lightMapCPU = new BitmapFloat16RGBA(width, height, new Half4(0, 0, 0, 0));
         _material = computeDispatcher.CreateInstance();
 
         _opacityMap = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedRGBATexturePass, (uint)width, (uint)height, "tile_opacity_map");
-        _opacityMapCPU = new BitmapUIntRGBA(width, height);
+        _opacityMapCPU = new BitmapUIntRGBA(width, height, Color32.White);
 
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer();
@@ -109,7 +109,9 @@ public class FloodFillLightMap : AutoDisposable
     {
 
         _lightMaps.Reset();
+        //todo: dirty check
         _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
+        _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
         _command.Begin();
         _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
         for (int i = 0; i < Iteration; i++)

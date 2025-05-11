@@ -16,6 +16,9 @@ DEFINE_STORAGE(2, float, _heightData);
 //     int2 size;
 // };
 
+// opacity map texture
+DEFINE_TEX2D_STORAGE(3, _opacityMap, float4, "rgba8");
+
 PUSH_CONSTANT TileLightingData constants;
 
 
@@ -72,7 +75,8 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     color = max(color, colors[6] * GetLightPassingFactor(height, neighborHeight[6]) - attenuationCorner);
     color = max(color, colors[7] * GetLightPassingFactor(height, neighborHeight[7]) - attenuationCorner);
 
-
+    float4 opacity = _opacityMap[id.xy];
+    color = color * opacity;
 
     _backBuffer[id.xy] = color;
 }

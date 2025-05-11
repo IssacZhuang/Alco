@@ -21,7 +21,7 @@ public class TestGrid2DCollection
         var grid = new Grid2DCollection<string>(3, 3);
 
         // Test valid set
-        bool result = grid.TrySet(1, 1, "center");
+        bool result = grid.TryAdd(1, 1, "center");
         Assert.That(result, Is.True);
         Assert.That(grid.Infos.Count, Is.EqualTo(1));
         Assert.That(grid.Infos[0].X, Is.EqualTo(1));
@@ -29,21 +29,21 @@ public class TestGrid2DCollection
         Assert.That(grid.Infos[0].Data, Is.EqualTo("center"));
 
         // Test set to already occupied position
-        result = grid.TrySet(1, 1, "another");
+        result = grid.TryAdd(1, 1, "another");
         Assert.That(result, Is.False);
         Assert.That(grid.Infos.Count, Is.EqualTo(1));
 
         // Test out of bounds
-        result = grid.TrySet(-1, 0, "invalid");
+        result = grid.TryAdd(-1, 0, "invalid");
         Assert.That(result, Is.False);
 
-        result = grid.TrySet(0, -1, "invalid");
+        result = grid.TryAdd(0, -1, "invalid");
         Assert.That(result, Is.False);
 
-        result = grid.TrySet(3, 0, "invalid");
+        result = grid.TryAdd(3, 0, "invalid");
         Assert.That(result, Is.False);
 
-        result = grid.TrySet(0, 3, "invalid");
+        result = grid.TryAdd(0, 3, "invalid");
         Assert.That(result, Is.False);
     }
 
@@ -53,11 +53,11 @@ public class TestGrid2DCollection
         var grid = new Grid2DCollection<string>(3, 3);
 
         // Test valid set
-        grid.Set(1, 1, "center");
+        grid.AddOrUpdate(1, 1, "center");
         Assert.That(grid.Infos.Count, Is.EqualTo(1));
 
         // Test overwrite existing value
-        grid.Set(1, 1, "updated");
+        grid.AddOrUpdate(1, 1, "updated");
         Assert.That(grid.Infos.Count, Is.EqualTo(1));
 
         // Verify the data was updated
@@ -66,17 +66,17 @@ public class TestGrid2DCollection
         Assert.That(data, Is.EqualTo("updated"));
 
         // Test out of bounds
-        Assert.Throws<ArgumentOutOfRangeException>(() => grid.Set(-1, 0, "invalid"));
-        Assert.Throws<ArgumentOutOfRangeException>(() => grid.Set(0, -1, "invalid"));
-        Assert.Throws<ArgumentOutOfRangeException>(() => grid.Set(3, 0, "invalid"));
-        Assert.Throws<ArgumentOutOfRangeException>(() => grid.Set(0, 3, "invalid"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => grid.AddOrUpdate(-1, 0, "invalid"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => grid.AddOrUpdate(0, -1, "invalid"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => grid.AddOrUpdate(3, 0, "invalid"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => grid.AddOrUpdate(0, 3, "invalid"));
     }
 
     [Test]
     public void TestTryGet()
     {
         var grid = new Grid2DCollection<string>(3, 3);
-        grid.Set(1, 1, "center");
+        grid.AddOrUpdate(1, 1, "center");
 
         // Test valid get
         bool result = grid.TryGet(1, 1, out string data);
@@ -110,7 +110,7 @@ public class TestGrid2DCollection
     public void TestTryRemove()
     {
         var grid = new Grid2DCollection<string>(3, 3);
-        grid.Set(1, 1, "center");
+        grid.AddOrUpdate(1, 1, "center");
 
         // Test valid remove
         bool result = grid.TryRemove(1, 1, out string data);
@@ -145,8 +145,8 @@ public class TestGrid2DCollection
     public void TestClear()
     {
         var grid = new Grid2DCollection<string>(3, 3);
-        grid.Set(0, 0, "topLeft");
-        grid.Set(2, 2, "bottomRight");
+        grid.AddOrUpdate(0, 0, "topLeft");
+        grid.AddOrUpdate(2, 2, "bottomRight");
 
         Assert.That(grid.Infos.Count, Is.EqualTo(2));
 

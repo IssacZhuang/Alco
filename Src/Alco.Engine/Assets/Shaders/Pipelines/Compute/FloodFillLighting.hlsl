@@ -10,7 +10,7 @@ DEFINE_TEX2D_STORAGE(0, _frontBuffer, float4, "rgba16f");
 DEFINE_TEX2D_STORAGE(1, _backBuffer, float4, "rgba16f");
 
 // opacity map texture
-DEFINE_TEX2D_READ(2, _opacityMap);
+DEFINE_TEX2D_STORAGE(2, _opacityMap, float4, "rgba8");
 
 PUSH_CONSTANT Constants constants;
 
@@ -49,7 +49,8 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     color = max(color, colors[6] - attenuationCorner);
     color = max(color, colors[7] - attenuationCorner);
 
-
+    float4 opacity = _opacityMap[id.xy];
+    color = color * opacity;
 
     _backBuffer[id.xy] = color * GetLightPassingFactor(id.xy);
 }

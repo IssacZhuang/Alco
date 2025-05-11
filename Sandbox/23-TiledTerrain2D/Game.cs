@@ -262,7 +262,7 @@ public class Game : GameEngine
 
         _camera.UpdateMatrixToGPU();
 
-
+        _lightMap.Render();
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.OnRender(_renderer);
@@ -314,7 +314,7 @@ public class Game : GameEngine
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        _connectableBlock.SetTileData(tilePosition.X, tilePosition.Y, _wallData);
+                        _connectableBlock.TrySetTileData(tilePosition.X, tilePosition.Y, _wallData);
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))

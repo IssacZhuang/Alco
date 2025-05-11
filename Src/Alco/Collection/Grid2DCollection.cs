@@ -65,8 +65,13 @@ public class Grid2DCollection<T> where T : class
     /// <param name="y">Y coordinate (0-based)</param>
     /// <param name="data">Data to store in the grid cell</param>
     /// <returns>True if data was successfully set, false if position is invalid or cell already occupied</returns>
-    public bool TrySet(int x, int y, T data)
+    public bool TryAdd(int x, int y, T? data)
     {
+        if (data == null)
+        {
+            return false;
+        }
+
         if (x < 0 || x >= _width || y < 0 || y >= _height)
             return false;
 
@@ -88,7 +93,7 @@ public class Grid2DCollection<T> where T : class
     /// <param name="y">Y coordinate (0-based)</param>
     /// <param name="data">Data to store in the grid cell</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when coordinates are out of grid bounds</exception>
-    public void Set(int x, int y, T data)
+    public void AddOrUpdate(int x, int y, T? data)
     {
         ArgumentNullException.ThrowIfNull(data);
         if (x < 0 || x >= _width || y < 0 || y >= _height)

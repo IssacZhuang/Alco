@@ -18,6 +18,7 @@ public class ConnectableTileData
     public Material Material { get; }
     public Vector2 Size { get; }
     public Vector2 Offset { get; }
+    public Vector4 LightMapOpacity { get; }
     public object? UserData { get; }
 
     public ConnectableTileData(Material material, object? userData)
