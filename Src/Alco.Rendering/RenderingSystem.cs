@@ -109,6 +109,8 @@ public partial class RenderingSystem
         get => _bufferPool;
     }
 
+    public GraphicsBuffer? MainCamera { get; set; }
+
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,

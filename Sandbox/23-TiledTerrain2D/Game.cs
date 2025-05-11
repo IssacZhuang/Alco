@@ -69,11 +69,14 @@ public class Game : GameEngine
         int width = 64;
         int height = 64;
 
+        float aspectRatio = MainView.Width / (float)MainView.Height;
+        _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
+        Rendering.MainCamera = _camera;
+
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
-        float aspectRatio = MainView.Width / (float)MainView.Height;
-
-        _camera = Rendering.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
+        
+        
         _renderer = Rendering.CreateRenderContext();
 
         _heightBuffer = Rendering.CreateTileMapHeightBuffer(width, height);
@@ -94,19 +97,16 @@ public class Game : GameEngine
         _plantTileSet = BuildPlantTileSet();
 
         _surfaceMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
-        _surfaceMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
        
         _cliffMaterial = _surfaceMaterial.CreateInstance();
 
         _waterMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWater);
-        _waterMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
         _plantMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TilePlant);
-        _plantMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _plantMaterial.BlendState = BlendState.Opaque;
         _plantMaterial.DepthStencilState = DepthStencilState.Write;
 
@@ -136,7 +136,6 @@ public class Game : GameEngine
 
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-        _brushMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _brushMaterial.SetTexture(ShaderResourceId.Texture, Rendering.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
@@ -145,7 +144,6 @@ public class Game : GameEngine
         Material material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileConnectable);
         material.BlendState = BlendState.Opaque;
         material.DepthStencilState = DepthStencilState.Write;
-        material.SetBuffer(ShaderResourceId.Camera, _camera);
         material.SetTexture(ShaderResourceId.Texture, textureWall);
 
 
