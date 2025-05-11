@@ -51,7 +51,8 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
     {
         _surfaceHeightData = surfaceHeightData;
         _material.TrySetBuffer(ShaderResourceId.HeightData, _surfaceHeightData);
-        _material.TrySetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
+        // the global render data is set when the material is created
+        // _material.TrySetBuffer(ShaderResourceId.GlobalRenderData, renderingSystem.GlobalRenderData);
     }
 
 

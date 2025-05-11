@@ -1,6 +1,8 @@
+using System.Numerics;
+
 namespace Alco.Rendering;
 
-public struct TimeData
+public struct GlobalRenderData
 {
     public float Time;
     public float DeltaTime;

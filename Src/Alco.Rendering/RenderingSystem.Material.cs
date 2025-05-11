@@ -11,6 +11,7 @@ public partial class RenderingSystem
     {
         Debug.Assert(shader != null);
         GraphicsMaterial material = new GraphicsMaterial(this, shader, name);
+        material.TrySetBuffer(ShaderResourceId.GlobalRenderData, _globalRenderData);
         return material;
     }
 }

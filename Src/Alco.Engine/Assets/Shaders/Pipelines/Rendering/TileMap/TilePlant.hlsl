@@ -1,5 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
-#include "Shaders/Libs/Time.hlsli"
+#include "Shaders/Libs/GlobalRenderData.hlsli"
 
 struct Vertex {
   float3 position : POSITION;
@@ -36,7 +36,7 @@ struct TileData{
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_UNIFORM(1, _timeData) { TimeData timeData; };
+DEFINE_UNIFORM(1, _globalRenderData) { GlobalRenderData globalRenderData; };
 
 DEFINE_TEX2D_SAMPLE(2, _texture);
 
@@ -82,8 +82,8 @@ V2F VertexMain(Vertex input)
     //     new(new Vector3(-0.5f, 0, 0), new Vector2(0, 1))
     // };
     float3 pos = input.position * float3(data.scale, 0);
-    float waveOffeetX = pos.y * (sin((timeData.time + pos.x + offsetX * offsetY) * 8) * 0.02);
-    float waveOffeetY = cos((timeData.time + pos.y + offsetX * offsetY) * 8) * 0.02;
+    float waveOffeetX = pos.y * (sin((globalRenderData.time + pos.x + offsetX * offsetY) * 8) * 0.02);
+    float waveOffeetY = cos((globalRenderData.time + pos.y + offsetX * offsetY) * 8) * 0.02;
     pos.x += waveOffeetX;
     pos.y *= (1+waveOffeetY);
     pos.z = -pos.y;

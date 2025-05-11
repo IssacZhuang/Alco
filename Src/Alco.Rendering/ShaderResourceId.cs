@@ -16,7 +16,7 @@ public static class ShaderResourceId
     public const string FrontBuffer = "_frontBuffer";
     public const string BackBuffer = "_backBuffer";
 
-    public const string TimeData = "_timeData";
+    public const string GlobalRenderData = "_globalRenderData";
     public const string SpriteData = "_spriteData";
     public const string TileData = "_tileData";
     public const string ColorData = "_colorData";

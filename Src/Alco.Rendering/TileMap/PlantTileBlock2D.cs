@@ -48,7 +48,8 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
     {
         _heightData = heightData;
         _material.SetBuffer(ShaderResourceId.HeightData, _heightData);
-        _material.SetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
+        // the global render data is set when the material is created
+        // _material.TrySetBuffer(ShaderResourceId.GlobalRenderData, renderingSystem.GlobalRenderData);
     }
 
 

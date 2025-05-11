@@ -1,4 +1,4 @@
-struct TimeData {
+struct GlobalRenderData {
     float time;
     float deltaTime;
     float sinTime;
