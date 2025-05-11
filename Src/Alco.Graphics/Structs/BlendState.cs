@@ -42,6 +42,12 @@ namespace Alco.Graphics
             Alpha = new BlendComponent(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add)
         };
 
+        public static readonly BlendState Multiply = new BlendState
+        {
+            Color = new BlendComponent(BlendFactor.Dst,BlendFactor.Zero,BlendOperation.Add),
+            Alpha = new BlendComponent(BlendFactor.One,BlendFactor.Zero, BlendOperation.Add)
+        };
+
         //operator ==
         public static bool operator ==(BlendState left, BlendState right)
         {

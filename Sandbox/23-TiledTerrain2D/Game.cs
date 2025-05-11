@@ -60,6 +60,9 @@ public class Game : GameEngine
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
+    private Material _materialLightOverlay;
+    private SpriteConstant _lightOverlayConstant;
+
     private Color32 _waterColor = new Color32(128, 161, 168, 100);
 
     private bool _isEditWindowOpen = true;
@@ -111,12 +114,12 @@ public class Game : GameEngine
         _plantMaterial.DepthStencilState = DepthStencilState.Write;
 
         _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _heightBuffer, _surfaceMaterial, width, height);
-        _surfaceBlock.UseLightMap = true;
+        // _surfaceBlock.UseLightMap = true;
         _surfaceBlock.SetAllItemIds(1);
-        // _surfaceBlock.LightMap = _lightMap.Texture;
+        _surfaceBlock.LightMap = _lightMap.Texture;
 
         _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
-        _cliffBlock.UseLightMap = true;
+        // _cliffBlock.UseLightMap = true;
         _cliffBlock.SetAllItemIds(1);
         _cliffBlock.IsCliff = true;
         _cliffBlock.LightMap = _lightMap.Texture;
@@ -124,14 +127,14 @@ public class Game : GameEngine
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
         _waterBlock.Transform.Position = new Vector3(0, -0.1f, 0.1f);
-        _waterBlock.UseLightMap = true;
+        // _waterBlock.UseLightMap = true;
         _waterBlock.LightMap = _lightMap.Texture;
 
 
         _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _heightBuffer, _plantMaterial, width, height);
         _plantBlock.SetAllItemIds(0);
         _plantBlock.Transform.Position = new Vector3(0, 0, 0);
-        _plantBlock.UseLightMap = true;
+        // _plantBlock.UseLightMap = true;
         _plantBlock.LightMap = _lightMap.Texture;
 
 
@@ -162,6 +165,19 @@ public class Game : GameEngine
         };
 
         UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
+
+        _materialLightOverlay = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightMap.Texture);
+        _materialLightOverlay.BlendState = BlendState.Multiply;
+
+        Transform2D lightOverlayTransform = new Transform2D();
+        lightOverlayTransform.Scale = new Vector2(width, height);
+        _lightOverlayConstant = new SpriteConstant()
+        {
+            Color = new ColorFloat(1, 1, 1, 0.5f),
+            UvRect = new Rect(0, 0, 1, 1),
+            Model = lightOverlayTransform.Matrix
+        };
 
         Assets.OnHotReload += OnHotReload;
     }
@@ -268,6 +284,8 @@ public class Game : GameEngine
         _plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
         _connectableBlock.OnRender(_renderer);
+
+        _renderer.DrawWithConstant(Rendering.MeshCenteredSprite, _materialLightOverlay, _lightOverlayConstant);
 
 
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
