@@ -21,6 +21,16 @@ public unsafe struct GridMap<T> : IDisposable where T : unmanaged
         get => _data.UnsafePointer;
     }
 
+    public Span<T> AsSpan()
+    {
+        return new Span<T>(UnsafePointer, _data.Length);
+    }
+
+    public ReadOnlySpan<T> AsReadOnlySpan()
+    {
+        return new ReadOnlySpan<T>(UnsafePointer, _data.Length);
+    }
+
     public GridMap(int width, int height, T defaultValue = default(T))
     {
         _size = new int2(width, height);

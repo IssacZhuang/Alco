@@ -19,7 +19,6 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
     /// <param name="y">The y coordinate of the pixel.</param>
     /// <returns>The pixel at the specified coordinates.</returns>
     public T this[int x, int y]
-
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _data[x, y];
@@ -27,6 +26,29 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         set => _data[x, y] = value;
     }
 
+    /// <summary>
+    /// Gets a <see cref="Span{T}"/> representation of the bitmap's pixel data.
+    /// </summary>
+    /// <remarks>
+    /// The span represents the entire bitmap buffer in row-major order.
+    /// </remarks>
+    /// <returns>A writable span covering the bitmap's pixel data.</returns>
+    public Span<T> AsSpan()
+    {
+        return _data.AsSpan();
+    }
+
+    /// <summary>
+    /// Gets a <see cref="ReadOnlySpan{T}"/> representation of the bitmap's pixel data.
+    /// </summary>
+    /// <remarks>
+    /// The span represents the entire bitmap buffer in row-major order.
+    /// </remarks>
+    /// <returns>A read-only span covering the bitmap's pixel data.</returns>
+    public ReadOnlySpan<T> AsReadOnlySpan()
+    {
+        return _data.AsReadOnlySpan();
+    }
 
     /// <summary>
     /// Get the width of the bitmap.
@@ -39,8 +61,12 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
     public int Height => _data.Height;
 
     /// <summary>
-    /// Get the pointer to the data of the bitmap.
+    /// Gets a pointer to the underlying bitmap data buffer for unsafe operations.
     /// </summary>
+    /// <remarks>
+    /// The pointer provides direct access to the bitmap's internal buffer. Use with caution
+    /// and ensure proper bounds checking when using this pointer.
+    /// </remarks>
     public T* UnsafePointer => _data.UnsafePointer;
 
 
@@ -54,10 +80,7 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         _data = new GridMap<T>(width, height);
         if (defaultValue.HasValue)
         {
-            for (int i = 0; i < width * height; i++)
-            {
-                UnsafePointer[i] = defaultValue.Value;
-            }
+            Clear(defaultValue.Value);
         }
     }
 
@@ -66,19 +89,21 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         _data = new GridMap<T>((int)width, (int)height);
         if (defaultValue.HasValue)
         {
-            for (int i = 0; i < width * height; i++)
-            {
-                UnsafePointer[i] = defaultValue.Value;
-            }
+            Clear(defaultValue.Value);
         }
     }
 
+    /// <summary>
+    /// Sets all pixels in the bitmap to the specified value.
+    /// </summary>
+    /// <param name="value">The value to initialize all pixels with.</param>
+    /// <remarks>
+    /// This operation is optimized using SIMD instructions when available.
+    /// </remarks>
     public void Clear(T value = default)
     {
-        for (int i = 0; i < _data.Width * _data.Height; i++)
-        {
-            UnsafePointer[i] = value;
-        }
+        //the Span.Fill has been optimized for SIMD
+        _data.AsSpan().Fill(value);
     }
 
 
