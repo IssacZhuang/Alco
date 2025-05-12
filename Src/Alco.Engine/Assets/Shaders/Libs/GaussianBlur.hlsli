@@ -1,16 +1,11 @@
 
 // Helper function to get 1D index from 2D kernel position
-uint GaussianBlur_GetKernelIndex(int x, int y, int2 kernelSize) {
+uint GetGaussianKernelIndex(int x, int y, int2 kernelSize) {
   int halfKernelX = kernelSize.x / 2;
   int halfKernelY = kernelSize.y / 2;
   int row = y + halfKernelY;
   int col = x + halfKernelX;
   return row * kernelSize.x + col;
-}
-
-// Helper function to get half kernel size
-int2 GaussianBlur_GetHalfKernelSize(int2 kernelSize) {
-  return int2(kernelSize.x / 2, kernelSize.y / 2);
 }
 
 // Apply Gaussian blur to a given pixel position
@@ -21,7 +16,7 @@ int2 GaussianBlur_GetHalfKernelSize(int2 kernelSize) {
 // pixelPos: The position of the pixel to blur
 // texSize: The dimensions of the texture
 // Returns: The blurred color value
-float4 GaussianBlur_Apply(RWTexture2D<float4> inputTexture,
+float4 GaussianBlur(RWTexture2D<float4> inputTexture,
                           RWStructuredBuffer<float> kernelData, int2 kernelSize,
                           float kernelSum, int2 pixelPos, int2 texSize) {
   // Skip pixels outside texture bounds
@@ -29,7 +24,7 @@ float4 GaussianBlur_Apply(RWTexture2D<float4> inputTexture,
     return float4(0, 0, 0, 0);
   }
 
-  int2 halfKernel = GaussianBlur_GetHalfKernelSize(kernelSize);
+  int2 halfKernel = int2(kernelSize.x / 2, kernelSize.y / 2);
   float4 blurredColor = float4(0, 0, 0, 0);
 
   // Apply Gaussian blur
@@ -40,8 +35,7 @@ float4 GaussianBlur_Apply(RWTexture2D<float4> inputTexture,
                             clamp(pixelPos.y + y, 0, texSize.y - 1));
 
       // Get kernel weight for this sample
-      float kernelWeight =
-          kernelData[GaussianBlur_GetKernelIndex(x, y, kernelSize)];
+      float kernelWeight = kernelData[GetGaussianKernelIndex(x, y, kernelSize)];
 
       // Sample the texture and apply weight
       float4 sampleColor = inputTexture[samplePos];

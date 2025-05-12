@@ -22,7 +22,7 @@ PUSH_CONSTANT Constants constants;
 [numthreads(16, 16, 1)]
 void MainCS(uint3 id: SV_DispatchThreadID) {
     // Apply Gaussian blur and write the result to output texture
-    float4 blurredColor = GaussianBlur_Apply(
+    float4 blurredColor = GaussianBlur(
         _inputTexture,
         _gaussianKernel, 
         constants.kernelSize, 
