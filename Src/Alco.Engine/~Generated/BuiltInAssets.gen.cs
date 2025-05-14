@@ -18,6 +18,12 @@ public partial class BuiltInAssets
 
     public Shader Shader_FloodFillLighting => GetShader("Shaders/Pipelines/Compute/FloodFillLighting.hlsl");
 
+    public Shader Shader_GaussianBlurRGBA16F => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA16F.hlsl");
+
+    public Shader Shader_GaussianBlurRGBA32F => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA32F.hlsl");
+
+    public Shader Shader_GaussianBlurRGBA8 => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl");
+
     public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
 
     public Shader Shader_TextureCompressBC3 => GetShader("Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl");
