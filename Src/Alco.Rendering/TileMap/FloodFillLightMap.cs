@@ -47,7 +47,7 @@ public class FloodFillLightMap : AutoDisposable
 
     internal FloodFillLightMap(
         RenderingSystem renderingSystem,
-        ComputeMaterial computeDispatcher,
+        ComputeMaterial material,
         int width,
         int height,
         string name = "tile_light_map"
@@ -57,7 +57,7 @@ public class FloodFillLightMap : AutoDisposable
         _lightMapBack = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
         _lightMaps = new DoubleBuffer<RenderTexture>(_lightMapFront, _lightMapBack);
         _lightMapCPU = new BitmapFloat16RGBA(width, height, new Half4(0, 0, 0, 0));
-        _material = computeDispatcher.CreateInstance();
+        _material = material.CreateInstance();
 
         _opacityMap = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedRGBATexturePass, (uint)width, (uint)height, "tile_opacity_map");
         _opacityMapCPU = new BitmapUIntRGBA(width, height, Color32.White);

@@ -40,6 +40,10 @@ public class Game : GameEngine
     private readonly ConnectableTileBlock2D _connectableBlock;
     private readonly FloodFillLightMap _lightMap;
     private readonly TileMapHeightBuffer _heightBuffer;
+
+    private readonly RenderTexture _blurTexture;
+    private readonly GaussianBlur _gaussianBlur;
+
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -60,7 +64,7 @@ public class Game : GameEngine
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
-    private Material _materialLightOverlay;
+    private readonly Material _materialLightOverlay;
     private SpriteConstant _lightOverlayConstant;
 
     private Color32 _waterColor = new Color32(128, 161, 168, 100);
@@ -163,10 +167,18 @@ public class Game : GameEngine
             UvRect = new Rect(0, 0, 1, 1)
         };
 
+        ComputeMaterial gaussianBlurMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_GaussianBlurRGBA16F);
+        _blurTexture = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, (uint)width, (uint)height);
+        _gaussianBlur = Rendering.CreateGaussianBlur(gaussianBlurMaterial, 3, 3, [
+            1, 2, 1,
+            2, 4, 2,
+            1, 2, 1
+        ]);
+
         UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
 
         _materialLightOverlay = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-        _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightMap.Texture);
+        _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _blurTexture);
         _materialLightOverlay.BlendState = BlendState.Multiply;
 
         Transform2D lightOverlayTransform = new Transform2D();
@@ -247,9 +259,6 @@ public class Game : GameEngine
             }
         }
 
-        
-
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -276,6 +285,7 @@ public class Game : GameEngine
         _camera.UpdateMatrixToGPU();
 
         _lightMap.Render();
+        _gaussianBlur.Blit(_lightMap.Texture, _blurTexture);
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.OnRender(_renderer);
@@ -331,7 +341,7 @@ public class Game : GameEngine
                     {
                         if (_connectableBlock.TrySetTileData(tilePosition.X, tilePosition.Y, _wallData))
                         {
-                            // _lightMap.SetOpacity(tilePosition.X, tilePosition.Y, _wallData.LightMapOpacity);
+                            _lightMap.SetOpacity(tilePosition.X, tilePosition.Y, _wallData.LightMapOpacity);
                         }
                     }
                 }

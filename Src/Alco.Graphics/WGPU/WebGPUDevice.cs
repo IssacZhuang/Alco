@@ -41,6 +41,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     //default bind groups
     public override GPUBindGroup BindGroupUniformBuffer { get; }
     public override GPUBindGroup BindGroupStorageBuffer { get; }
+    public override GPUBindGroup BindGroupStorageBufferWithCounter { get; }
     public override GPUBindGroup BindGroupTexture2DSampled { get; }
     public override GPUBindGroup BindGroupTexture2DRead { get; }
     public override GPUBindGroup BindGroupTexture2DStorage { get; }
@@ -70,6 +71,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         BindGroupUniformBuffer.Destroy();
         BindGroupStorageBuffer.Destroy();
+        BindGroupStorageBufferWithCounter.Destroy();
         BindGroupTexture2DSampled.Destroy();
         BindGroupTexture2DRead.Destroy();
         BindGroupTexture2DStorage.Destroy();
@@ -467,6 +469,16 @@ internal sealed partial class WebGPUDevice : GPUDevice
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+            },
+        });
+
+        BindGroupStorageBufferWithCounter = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_storage_buffer_with_counter",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.StorageBuffer),
             },
         });
 

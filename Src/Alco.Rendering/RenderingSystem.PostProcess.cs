@@ -8,4 +8,9 @@ public partial class RenderingSystem
     {
         return new Bloom(this, blitShader, clampShader, downSampleShader, upSampleShader, targetDownSampleHeight);
     }
+
+    public GaussianBlur CreateGaussianBlur(ComputeMaterial material, int kernelSizeX, int kernelSizeY, ReadOnlySpan<float> kernel)
+    {
+        return new GaussianBlur(this, material, kernelSizeX, kernelSizeY, kernel);
+    }
 }

@@ -104,6 +104,59 @@ public static class UtilsMaterial
         return bindings[0].Type == BindingType.StorageBuffer;
     }
 
+
+
+    /// <summary>
+    /// Check if the bind group layout is a storage buffer with counter group.
+    /// The binding 0 must be a storage buffer and binding 1 must be a storage buffer.
+    /// </summary>
+    /// <param name="bindings">The bindings to check</param>
+    /// <returns>True if the bind group layout is a storage buffer with counter group, false otherwise</returns>
+    public static bool IsStorageBufferWithCounterGroup(Span<BindGroupEntryInfo> bindings)
+    {
+        if (bindings.Length != 2)
+        {
+            return false;
+        }
+
+        return bindings[0].Entry.Type == BindingType.StorageBuffer &&
+        bindings[1].Entry.Type == BindingType.StorageBuffer;
+    }
+
+    /// <summary>
+    /// Check if the bind group layout is a storage buffer with counter group.
+    /// The binding 0 must be a storage buffer and binding 1 must be a storage buffer.
+    /// </summary>
+    /// <param name="bindings">The bindings to check</param>
+    /// <returns>True if the bind group layout is a storage buffer with counter group, false otherwise</returns>
+    public static bool IsStorageBufferWithCounterGroup(IReadOnlyList<BindGroupEntryInfo> bindings)
+    {
+        if (bindings.Count != 2)
+        {
+            return false;
+        }
+
+        return bindings[0].Entry.Type == BindingType.StorageBuffer &&
+        bindings[1].Entry.Type == BindingType.StorageBuffer;
+    }
+
+    /// <summary>
+    /// Check if the bind group layout is a storage buffer with counter group.
+    /// The binding 0 must be a storage buffer and binding 1 must be a storage buffer.
+    /// </summary>
+    /// <param name="bindings">The bindings to check</param>
+    /// <returns>True if the bind group layout is a storage buffer with counter group, false otherwise</returns>
+    public static bool IsStorageBufferWithCounterGroup(Span<BindGroupEntry> bindings)
+    {
+        if (bindings.Length != 2)
+        {
+            return false;
+        }
+
+        return bindings[0].Type == BindingType.StorageBuffer &&
+        bindings[1].Type == BindingType.StorageBuffer;
+    }
+
     /// <summary>
     /// Check if the bind group layout is a texture sampler group.
     /// The binding 0 must be a texture and binding 1 must be a sampler.

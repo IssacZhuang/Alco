@@ -126,6 +126,12 @@ public abstract class GPUDevice
     /// The <see cref="GPUBindGroup"/> for the storage buffer, which only contains a entry of the storage buffer.
     /// </summary>
     public abstract GPUBindGroup BindGroupStorageBuffer { get; }
+
+    /// <summary>
+    /// The <see cref="GPUBindGroup"/> for the storage buffer with counter, which contains two entries of the storage buffer and a counter.
+    /// </summary>
+    public abstract GPUBindGroup BindGroupStorageBufferWithCounter { get; }
+
     /// <summary>
     /// The <see cref="GPUBindGroup"/> for the sampled 2D texture, which contains a texture view and a sampler.
     /// </summary> 

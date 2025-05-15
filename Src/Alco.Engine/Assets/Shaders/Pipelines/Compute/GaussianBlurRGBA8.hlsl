@@ -10,8 +10,8 @@ struct Constants {
 };
 
 // Input and output textures
-DEFINE_TEX2D_STORAGE(0, _inputTexture, float4, "rgba8");
-DEFINE_TEX2D_STORAGE(1, _outputTexture, float4, "rgba8");
+DEFINE_TEX2D_STORAGE(0, _input, float4, "rgba8");
+DEFINE_TEX2D_STORAGE(1, _output, float4, "rgba8");
 
 // Gaussian kernel buffer (precomputed on CPU)
 DEFINE_STORAGE(2, float, _gaussianKernel);
@@ -23,7 +23,7 @@ PUSH_CONSTANT Constants constants;
 void MainCS(uint3 id: SV_DispatchThreadID) {
     // Apply Gaussian blur and write the result to output texture
     float4 blurredColor = GaussianBlur(
-        _inputTexture,
+        _input,
         _gaussianKernel, 
         constants.kernelSize, 
         constants.kernelSum, 
@@ -31,5 +31,5 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
         constants.texSize
     );
     
-    _outputTexture[id.xy] = blurredColor;
+    _output[id.xy] = blurredColor;
 } 

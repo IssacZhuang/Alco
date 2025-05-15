@@ -30,4 +30,6 @@ public static class ShaderResourceId
     public const string Output = "_output";
 
     public const string Particles = "_particles";
+
+    public const string GaussianKernel = "_gaussianKernel";
 }
