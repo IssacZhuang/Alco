@@ -42,7 +42,7 @@ public class Game : GameEngine
     private readonly TileMapHeightBuffer _heightBuffer;
 
     private readonly RenderTexture _blurTexture;
-    private readonly GaussianBlur _gaussianBlur;
+    private GaussianBlur _gaussianBlur;
 
     private float _zoom = 4f;
     private float _targetZoom = 4f;
@@ -51,6 +51,10 @@ public class Game : GameEngine
 
     private float _blendFactor = 0.35f;
     private float _edgeSmoothFactor = 0.15f;
+
+    private float _blurCenter = 4;
+    private float _blurSide = 3;
+    private float _blurCorner = 2;
 
     private EditMode _editMode = EditMode.Surface;
     private int _surfaceTileId = 1;
@@ -169,10 +173,11 @@ public class Game : GameEngine
 
         ComputeMaterial gaussianBlurMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_GaussianBlurRGBA16F);
         _blurTexture = Rendering.CreateRenderTexture(Rendering.PrefferedLightMapPass, (uint)width, (uint)height);
+
         _gaussianBlur = Rendering.CreateGaussianBlur(gaussianBlurMaterial, 3, 3, [
-            1, 2, 1,
-            2, 4, 2,
-            1, 2, 1
+            _blurCorner, _blurSide, _blurCorner,
+            _blurSide, _blurCenter, _blurSide,
+            _blurCorner, _blurSide, _blurCorner
         ]);
 
         UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
@@ -257,6 +262,18 @@ public class Game : GameEngine
             {
                 _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
             }
+        }
+
+        if (ImGui.SliderFloat("Blur Center", ref _blurCenter, 1, 10) ||
+            ImGui.SliderFloat("Blur Side", ref _blurSide, 1, 5) ||
+            ImGui.SliderFloat("Blur Corner", ref _blurCorner, 0, 3))
+        {
+            _gaussianBlur.SetKernel([
+                _blurCorner, _blurSide, _blurCorner,
+                _blurSide, _blurCenter, _blurSide,
+                _blurCorner, _blurSide, _blurCorner
+            ]);
+            isDebugClicked = true;
         }
 
         if (Input.IsKeyDown(KeyCode.Escape))
