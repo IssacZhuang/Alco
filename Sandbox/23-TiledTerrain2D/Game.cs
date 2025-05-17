@@ -37,9 +37,10 @@ public class Game : GameEngine
     private readonly SurfaceTileBlock2D<int> _cliffBlock;
     private readonly WaterTileBlock2D<int> _waterBlock;
     private readonly PlantTileBlock2D<int> _plantBlock;
-    private readonly ConnectableTileBlock2D _connectableBlock;
-    private readonly FloodFillLightMap _lightMap;
     private readonly TileMapHeightBuffer _heightBuffer;
+
+    private readonly LightingManager _lightingManager;
+    private readonly WallManager _wallManager;
 
     private readonly RenderTexture _blurTexture;
     private GaussianBlur _gaussianBlur;
@@ -86,19 +87,20 @@ public class Game : GameEngine
 
         _blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
-        
-        
         _renderer = Rendering.CreateRenderContext();
 
         _heightBuffer = Rendering.CreateTileMapHeightBuffer(width, height);
 
         ComputeMaterial computeMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_TileLighting);
         computeMaterial.SetBuffer(ShaderResourceId.HeightData, _heightBuffer);
-        _lightMap = Rendering.CreateTileLightMap(computeMaterial, width, height);
-        _lightMap.SetLight((int)width / 2, (int)height / 2, new Half4(1, 1, 1, 1));
 
-        _lightMap.SetLight(0, 0, new Half4(1, 1, 1, 1));
-        _lightMap.Render();
+        _lightingManager = new LightingManager(this, _heightBuffer, width, height);
+        _wallManager = new WallManager(this, _lightingManager, width, height);
+
+        _lightingManager.AddLight(new Light(new Vector2(width / 2, height / 2), new ColorFloat(1, 1, 1, 1)));
+        _lightingManager.AddLight(new Light(new Vector2(0, 0), new ColorFloat(1, 1, 1, 1)));
+        _lightingManager.SetLightMapDirty();
+        _lightingManager.SetOpacityMapDirty();
 
         _surfaceTileSet = BuildSurfaceTileSet();
         _surfaceTileSet.SetAllTileColor(_color);
@@ -124,26 +126,20 @@ public class Game : GameEngine
         _surfaceBlock = Rendering.CreateSurfaceBlock2D(_surfaceTileSet, _heightBuffer, _surfaceMaterial, width, height);
         // _surfaceBlock.UseLightMap = true;
         _surfaceBlock.SetAllItemIds(1);
-        _surfaceBlock.LightMap = _lightMap.Texture;
 
         _cliffBlock = Rendering.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
-        // _cliffBlock.UseLightMap = true;
         _cliffBlock.SetAllItemIds(1);
         _cliffBlock.IsCliff = true;
-        _cliffBlock.LightMap = _lightMap.Texture;
+
 
         _waterBlock = Rendering.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
         _waterBlock.SetAllItemIds(1);
         _waterBlock.Transform.Position = new Vector3(0, -0.1f, 0.1f);
-        // _waterBlock.UseLightMap = true;
-        _waterBlock.LightMap = _lightMap.Texture;
 
 
         _plantBlock = Rendering.CreatePlantTileBlock2D(_plantTileSet, _heightBuffer, _plantMaterial, width, height);
         _plantBlock.SetAllItemIds(0);
         _plantBlock.Transform.Position = new Vector3(0, 0, 0);
-        // _plantBlock.UseLightMap = true;
-        _plantBlock.LightMap = _lightMap.Texture;
 
 
         _brushMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
@@ -160,8 +156,6 @@ public class Game : GameEngine
 
         _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f), null);
 
-        _connectableBlock = Rendering.CreateConnectableTileBlock2D(width, height, "connectable_tile_block_2d");
-        _connectableBlock.Transform.Position.Z = -1.5f;
 
         _brushTransform = new Transform3D();
         _brushTransform.Scale = new Vector3(0.8f);
@@ -301,15 +295,18 @@ public class Game : GameEngine
 
         _camera.UpdateMatrixToGPU();
 
-        _lightMap.Render();
-        _gaussianBlur.Blit(_lightMap.Texture, _blurTexture);
+        // _lightingManager.SetLightMapDirty();
+        // _lightingManager.SetOpacityMapDirty();
+
+        _lightingManager.Render();
+        _gaussianBlur.Blit(_lightingManager.LightMap, _blurTexture);
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.OnRender(_renderer);
         _cliffBlock.OnRender(_renderer);
         _plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
-        _connectableBlock.OnRender(_renderer);
+        _wallManager.Render(_renderer);
 
         _renderer.DrawWithConstant(Rendering.MeshCenteredSprite, _materialLightOverlay, _lightOverlayConstant);
 
@@ -356,10 +353,7 @@ public class Game : GameEngine
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        if (_connectableBlock.TrySetTileData(tilePosition.X, tilePosition.Y, _wallData))
-                        {
-                            _lightMap.SetOpacity(tilePosition.X, tilePosition.Y, _wallData.LightMapOpacity);
-                        }
+                        _wallManager.AddWall(new Wall(tilePosition, _wallData));
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
