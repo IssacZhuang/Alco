@@ -22,6 +22,8 @@ public class FloodFillLightMap : AutoDisposable
 
     private FloodFillLightingConstant _data;
 
+    private bool _isDirty = false;
+
 
     public int Iteration { get; set; } = 32;
     public float AttenuationSide
@@ -80,9 +82,14 @@ public class FloodFillLightMap : AutoDisposable
 
     }
 
-    public void ResetLights()
+    public void ClearLightMap(Vector4 color)
     {
-        _lightMapCPU.Clear();
+        _lightMapCPU.Clear(color);
+    }
+
+    public void SetDirty()
+    {
+        _isDirty = true;
     }
 
     public void ResetOpacity()
@@ -100,6 +107,12 @@ public class FloodFillLightMap : AutoDisposable
         _lightMapCPU[x, y] = light;
     }
 
+    public void ClearOpacityMap()
+    {
+        _opacityMapCPU.Clear(Color32.White);
+    }
+
+
     public void SetOpacity(int x, int y, Color32 opacity)
     {
         _opacityMapCPU[x, y] = opacity;
@@ -107,11 +120,16 @@ public class FloodFillLightMap : AutoDisposable
 
     public void Render()
     {
+        if (!_isDirty)
+        {
+            return;
+        }
 
         _lightMaps.Reset();
-        //todo: dirty check
+
         _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
         _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
+
         _command.Begin();
         _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
         for (int i = 0; i < Iteration; i++)

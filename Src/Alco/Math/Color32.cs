@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Alco.Graphics;
+namespace Alco;
 
 /// <summary>
 /// A color in the 8-bit format, which can only be used for SDR color

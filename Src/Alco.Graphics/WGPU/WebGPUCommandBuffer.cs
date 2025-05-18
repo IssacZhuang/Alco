@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
@@ -132,7 +133,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    protected override void ClearColorCore(ColorFloat color, uint index)
+    protected override void ClearColorCore(Vector4 color, uint index)
     {
 
         if (_frameBuffer == null)
@@ -155,10 +156,10 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         attachment.storeOp = WGPUStoreOp.Store;
         attachment.clearValue = new WGPUColor
         {
-            r = color.R,
-            g = color.G,
-            b = color.B,
-            a = color.A
+            r = color.X,
+            g = color.Y,
+            b = color.Z,
+            a = color.W
         };
         _colorAttachmentsCache[index] = attachment;
     }

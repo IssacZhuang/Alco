@@ -46,7 +46,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ClearColor(ColorFloat color, uint index = 0)
+    public void ClearColor(Vector4 color, uint index = 0)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearColor, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         ClearColorCore(color, index);
@@ -259,7 +259,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     protected abstract void BeginCore();
     protected abstract void EndCore();
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
-    protected abstract void ClearColorCore(ColorFloat color, uint index);
+    protected abstract void ClearColorCore(Vector4 color, uint index);
 
 
 
