@@ -232,7 +232,7 @@ public static partial class UtilsShader
             defines = new string[definesArray.Count];
             for (int i = 0; i < definesArray.Count; i++)
             {
-                if (definesArray.TryGetString(i, out string define))
+                if (definesArray.TryGetString(i, out string? define))
                 {
                     defines[i] = define;
                 }
