@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace Alco.Graphics.NoGPU;
 
 internal class NoCommandBuffer : GPUCommandBuffer
@@ -15,7 +17,7 @@ internal class NoCommandBuffer : GPUCommandBuffer
         _hasBuffer = false;
     }
 
-    protected override void ClearColorCore(ColorFloat color, uint index)
+    protected override void ClearColorCore(Vector4 color, uint index)
     {
         
     }

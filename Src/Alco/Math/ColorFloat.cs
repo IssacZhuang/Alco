@@ -1,8 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System;
 
-namespace Alco.Graphics;
+namespace Alco;
 
 /// <summary>
 /// A color in the float format, which can be used for HDR color

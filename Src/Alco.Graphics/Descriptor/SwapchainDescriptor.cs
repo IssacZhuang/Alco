@@ -1,8 +1,10 @@
+using System.Numerics;
+
 namespace Alco.Graphics;
 
 public struct SwapchainDescriptor
 {
-    public SwapchainDescriptor(SurfaceSource source, PixelFormat colorFormat, PixelFormat? depthFormat, ColorFloat clearColor, uint width, uint height, bool isVSyncEnabled, string name = "unnamed swapchain")
+    public SwapchainDescriptor(SurfaceSource source, PixelFormat colorFormat, PixelFormat? depthFormat, Vector4 clearColor, uint width, uint height, bool isVSyncEnabled, string name = "unnamed swapchain")
     {
         SurfaceSource = source;
         ColorFormat = colorFormat;
@@ -19,7 +21,7 @@ public struct SwapchainDescriptor
         SurfaceSource = source;
         ColorFormat = colorFormat;
         DepthFormat = depthFormat;
-        ClearColor = new ColorFloat(0.0f, 0.0f, 0.0f, 1.0f);
+        ClearColor = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
         Width = width;
         Height = height;
         IsVSyncEnabled = isVSyncEnabled;
@@ -29,7 +31,7 @@ public struct SwapchainDescriptor
     public SurfaceSource SurfaceSource { get; init; }
     public PixelFormat ColorFormat { get; init; }
     public PixelFormat? DepthFormat { get; init; }
-    public ColorFloat ClearColor { get; init; } = new ColorFloat(0.0f, 0.0f, 0.0f, 1.0f);
+    public Vector4 ClearColor { get; init; } = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 
     public uint Width { get; init; }
     public uint Height { get; init; }
