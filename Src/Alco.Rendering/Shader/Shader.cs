@@ -50,7 +50,7 @@ public sealed class Shader : AutoDisposable
 
         //default permutation
         int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
-        ShaderModulesInfo modulesInfo = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
+        ShaderModulesInfo modulesInfo = UtilsShader.CompileHLSL(shaderText, name, ReadOnlySpan<string>.Empty);
         _modulesCache[hash] = modulesInfo;
         IsComputeShader = modulesInfo.IsComputeShader;
 
@@ -224,7 +224,7 @@ public sealed class Shader : AutoDisposable
                 return modulesInfo2;
             }
 
-            modulesInfo = UtilsShaderHLSL.Compile(_shaderText, Name, defines);
+            modulesInfo = UtilsShader.CompileHLSL(_shaderText, Name, defines);
             _modulesCache[hash] = modulesInfo;
 
             return modulesInfo;
@@ -238,7 +238,7 @@ public sealed class Shader : AutoDisposable
     public void Precompile(params ReadOnlySpan<string> defines)
     {
         int hash = GetDefinesHash(defines);
-        _modulesCache[hash] = UtilsShaderHLSL.Compile(_shaderText, Name, defines);
+        _modulesCache[hash] = UtilsShader.CompileHLSL(_shaderText, Name, defines);
     }
 
     private int GetDefinesHash(ReadOnlySpan<string> defines)
@@ -420,7 +420,7 @@ public sealed class Shader : AutoDisposable
     public void UnsafeHotReload(string shaderText)
     {
         //it might throw exception if the shader code is not valid
-        ShaderModulesInfo shaderModule = UtilsShaderHLSL.Compile(shaderText, Name, ReadOnlySpan<string>.Empty);
+        ShaderModulesInfo shaderModule = UtilsShader.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty);
         
         _shaderText = shaderText;
 

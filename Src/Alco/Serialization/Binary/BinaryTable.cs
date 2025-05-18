@@ -67,6 +67,15 @@ namespace Alco
             return false;
         }
 
+        public string GetString(string key)
+        {
+            if (TryGetString(key, out string? value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{key}' not found in table.");
+        }
+
         public bool TryGetValue<T>(string key, [NotNullWhen(true)] out T value) where T : unmanaged
         {
             if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
@@ -75,6 +84,15 @@ namespace Alco
             }
             value = default;
             return false;
+        }
+
+        public T GetValue<T>(string key) where T : unmanaged
+        {
+            if (TryGetValue(key, out T value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{key}' not found in table.");
         }
 
         public bool TryGetNullableValue<T>(string key, [NotNullWhen(true)] out T? value) where T : unmanaged
@@ -87,6 +105,15 @@ namespace Alco
             return false;
         }
 
+        public T? GetNullableValue<T>(string key) where T : unmanaged
+        {
+            if (TryGetNullableValue(key, out T? value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{key}' not found in table.");
+        }
+
         public bool TryGetTable(string key, [NotNullWhen(true)] out BinaryTable? value)
         {
             if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryTable binaryTable)
@@ -96,6 +123,15 @@ namespace Alco
             }
             value = null;
             return false;
+        }
+
+        public BinaryTable GetTable(string key)
+        {
+            if (TryGetTable(key, out BinaryTable? value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{key}' not found in table.");
         }
 
         public bool TryGetArray(string key, [NotNullWhen(true)] out BinaryArray? value)
@@ -110,6 +146,15 @@ namespace Alco
             return false;
         }
 
+        public BinaryArray GetArray(string key)
+        {
+            if (TryGetArray(key, out BinaryArray? value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{key}' not found in table.");
+        }
+
         public bool TryGetBinary(string key, [NotNullWhen(true)] out byte[]? value)
         {
             if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
@@ -121,9 +166,33 @@ namespace Alco
             return false;
         }
 
-        public bool TryGetValue(string key, [NotNullWhen(true)] out BaseBinaryValue? value)
+        public byte[] GetBinary(string key)
         {
-            return _map.TryGetValue(key, out value);
+            if (TryGetBinary(key, out byte[]? value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{key}' not found in table.");
+        }
+
+
+        public bool TryGetEnum<T>(string key, [NotNullWhen(true)] out T value) where T : struct, Enum
+        {
+            if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
+            {
+                return binaryValue.TryGetEnum(out value);
+            }
+            value = default;
+            return false;
+        }
+
+        public T GetEnum<T>(string key) where T : struct, Enum
+        {
+            if (TryGetEnum(key, out T value))
+            {
+                return value;
+            }
+            throw new InvalidOperationException($"Key '{key}' not found in table.");
         }
 
 
@@ -137,6 +206,11 @@ namespace Alco
         public void Add(string key, BaseBinaryValue value)
         {
             _map.Add(key, value);
+        }
+
+        public void Add<T>(string key, T value) where T : struct, Enum
+        {
+            _map.Add(key, BinaryValue.CreateValueEnum(value));
         }
 
 

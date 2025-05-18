@@ -7,7 +7,7 @@ using Alco.ShaderCompiler;
 
 namespace Alco.Rendering;
 
- public static partial class UtilsShaderHLSL
+public static partial class UtilsShader
 {
 
     /// <summary>
@@ -23,7 +23,7 @@ namespace Alco.Rendering;
     /// <param name="multiCompileDefines">The multi-compile defines to use for the shader.</param>
     /// <param name="includeResolver">The function to resolve the include statements.</param>
     /// <returns>The compiled shader result.</returns>
-    public static ShaderModulesInfo Compile(string shaderText, string filename, ReadOnlySpan<string> defines, FileIncludeHandler? includeResolver = null)
+    public static ShaderModulesInfo CompileHLSL(string shaderText, string filename, ReadOnlySpan<string> defines, FileIncludeHandler? includeResolver = null)
     {
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 
@@ -34,7 +34,7 @@ namespace Alco.Rendering;
 
         string[] defineArray = defines.ToArray();
 
-        List<HlslFunctionInfo> functions = GetFunctionInfo(shaderText);
+        List<HlslFunctionInfo> functions = GetHLSLFunctionInfo(shaderText);
         HlslFunctionInfo? functionVertex = null;
         HlslFunctionInfo? functionPixel = null;
         HlslFunctionInfo? functionCompute = null;
@@ -61,7 +61,7 @@ namespace Alco.Rendering;
             throw new ShaderValidationException("No entry point defined in the shader.");
         }
 
-        if(stage.HasFlag(ShaderStage.Vertex) && !stage.HasFlag(ShaderStage.Fragment))
+        if (stage.HasFlag(ShaderStage.Vertex) && !stage.HasFlag(ShaderStage.Fragment))
         {
             throw new ShaderValidationException("Missing pixel entry point in the shader.");
         }
@@ -79,7 +79,7 @@ namespace Alco.Rendering;
 
         if (stage.HasFlag(ShaderStage.Vertex) && stage.HasFlag(ShaderStage.Fragment))
         {
-            
+
 
             ShaderModule vertex = ShaderCompilerDxc.CrearteSpirvShaderModule(
                 shaderText,
@@ -109,9 +109,10 @@ namespace Alco.Rendering;
                 );
 
             return modulesInfo;
-        }else if(stage.HasFlag(ShaderStage.Compute))
+        }
+        else if (stage.HasFlag(ShaderStage.Compute))
         {
-            
+
 
             //add shader modules with zero defines
             ShaderModule compute = ShaderCompilerDxc.CrearteSpirvShaderModule(
@@ -129,7 +130,7 @@ namespace Alco.Rendering;
                 compute,
                 reflectionInfo
                 );
-            
+
             return modulesInfo;
         }
         else
@@ -140,11 +141,11 @@ namespace Alco.Rendering;
 
     public static readonly Regex RegexFunction = new Regex(@"(\[[^]]*\]\s*)*\s*(\w+)\s+(\w+)\s*\(([^)]*)\)", RegexOptions.Compiled);
 
-    public static List<HlslFunctionInfo> GetFunctionInfo(string code)
+    public static List<HlslFunctionInfo> GetHLSLFunctionInfo(string code)
     {
         var functions = new List<HlslFunctionInfo>();
         //var functionPattern = new Regex(@"(\[\s*shader\s*\(\s*""\w+""\s*\)\s*\])*\s*(\w+)\s+(\w+)\s*\(([^)]*)\)\s*{", RegexOptions.Compiled);
-        
+
         var matches = RegexFunction.Matches(code);
         foreach (Match match in matches)
         {
@@ -167,6 +168,26 @@ namespace Alco.Rendering;
         }
 
         return functions;
+    }
+
+    public static byte[] EncodeShaderModule(ShaderModule shaderModule)
+    {
+        BinaryTable table = new BinaryTable();
+        table.Add(nameof(shaderModule.Stage), shaderModule.Stage);
+        table.Add(nameof(shaderModule.Language), shaderModule.Language);
+        table.Add(nameof(shaderModule.Source), shaderModule.Source);
+        table.Add(nameof(shaderModule.EntryPoint), shaderModule.EntryPoint);
+        return BinaryParser.EncodeTable(table);
+    }
+
+    public static ShaderModule DecodeShaderModule(byte[] data)
+    {
+        BinaryTable table = BinaryParser.DecodeTable(data);
+        return new ShaderModule(
+            table.GetEnum<ShaderStage>(nameof(ShaderModule.Stage)), 
+            table.GetEnum<ShaderLanguage>(nameof(ShaderModule.Language)), 
+            table.GetBinary(nameof(ShaderModule.Source)), 
+            table.GetString(nameof(ShaderModule.EntryPoint)));
     }
 
     private static string NoIncludeResolver(string includeName)

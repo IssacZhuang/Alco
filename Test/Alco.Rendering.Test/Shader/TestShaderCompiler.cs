@@ -35,7 +35,7 @@ float4 MainPS(PixelInput input) : SV_TARGET {
 }
 ";
 
-        var funtions = UtilsShaderHLSL.GetFunctionInfo(shaderText);
+        var funtions = UtilsShader.GetHLSLFunctionInfo(shaderText);
         
         Assert.That(funtions.Count, Is.EqualTo(2));
         Assert.That(funtions[0].Name, Is.EqualTo("MainVS"));
@@ -70,7 +70,7 @@ float4 MainPS(PixelInput input) : SV_TARGET {
 }
 ";
 
-        funtions = UtilsShaderHLSL.GetFunctionInfo(shaderText);
+        funtions = UtilsShader.GetHLSLFunctionInfo(shaderText);
         
         Assert.That(funtions.Count, Is.EqualTo(2));
         Assert.That(funtions[0].Name, Is.EqualTo("MainVS"));
@@ -111,7 +111,7 @@ Texture2D inputTexture : register(t0, space0);
 
         ";
 
-        funtions = UtilsShaderHLSL.GetFunctionInfo(shaderText);
+        funtions = UtilsShader.GetHLSLFunctionInfo(shaderText);
         
         Assert.That(funtions.Count, Is.EqualTo(1));
         Assert.That(funtions[0].Name, Is.EqualTo("MainCS"));
@@ -150,7 +150,7 @@ Texture2D inputTexture : register(t0, space0);
 
         ";
 
-        funtions = UtilsShaderHLSL.GetFunctionInfo(shaderText);
+        funtions = UtilsShader.GetHLSLFunctionInfo(shaderText);
 
         Assert.That(funtions.Count, Is.EqualTo(1));
         Assert.That(funtions[0].Name, Is.EqualTo("MainCS"));
