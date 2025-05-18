@@ -190,6 +190,101 @@ public static partial class UtilsShader
             table.GetString(nameof(ShaderModule.EntryPoint)));
     }
 
+    public static byte[] EncodeShaderModulesInfo(ShaderModulesInfo modulesInfo)
+    {
+        BinaryTable table = new BinaryTable();
+        table.Add(nameof(modulesInfo.Name), modulesInfo.Name);
+
+        // Create a BinaryArray for the defines
+        BinaryArray definesArray = new BinaryArray();
+        foreach (string define in modulesInfo.Defines)
+        {
+            definesArray.Add(define);
+        }
+        table.Add(nameof(modulesInfo.Defines), definesArray);
+
+        if (modulesInfo.VertexShader.HasValue)
+        {
+            table.Add(nameof(modulesInfo.VertexShader), EncodeShaderModule(modulesInfo.VertexShader.Value));
+        }
+
+        if (modulesInfo.FragmentShader.HasValue)
+        {
+            table.Add(nameof(modulesInfo.FragmentShader), EncodeShaderModule(modulesInfo.FragmentShader.Value));
+        }
+
+        if (modulesInfo.ComputeShader.HasValue)
+        {
+            table.Add(nameof(modulesInfo.ComputeShader), EncodeShaderModule(modulesInfo.ComputeShader.Value));
+        }
+
+        return BinaryParser.EncodeTable(table);
+    }
+
+    public static ShaderModulesInfo DecodeShaderModulesInfo(byte[] data)
+    {
+        BinaryTable table = BinaryParser.DecodeTable(data);
+        string name = table.GetString(nameof(ShaderModulesInfo.Name));
+        string[] defines = Array.Empty<string>();
+
+        if (table.TryGetArray(nameof(ShaderModulesInfo.Defines), out BinaryArray? definesArray))
+        {
+            defines = new string[definesArray.Count];
+            for (int i = 0; i < definesArray.Count; i++)
+            {
+                if (definesArray.TryGetString(i, out string define))
+                {
+                    defines[i] = define;
+                }
+                else
+                {
+                    defines[i] = string.Empty;
+                }
+            }
+        }
+
+        ShaderModule? vertexShader = null;
+        if (table.TryGetBinary(nameof(ShaderModulesInfo.VertexShader), out byte[]? vertexData))
+        {
+            vertexShader = DecodeShaderModule(vertexData);
+        }
+
+        ShaderModule? fragmentShader = null;
+        if (table.TryGetBinary(nameof(ShaderModulesInfo.FragmentShader), out byte[]? fragmentData))
+        {
+            fragmentShader = DecodeShaderModule(fragmentData);
+        }
+
+        ShaderModule? computeShader = null;
+        if (table.TryGetBinary(nameof(ShaderModulesInfo.ComputeShader), out byte[]? computeData))
+        {
+            computeShader = DecodeShaderModule(computeData);
+        }
+
+        // Reconstruct reflection info based on the available shader modules
+        ShaderReflectionInfo reflectionInfo;
+        if (vertexShader.HasValue && fragmentShader.HasValue)
+        {
+            reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertexShader.Value.Source, fragmentShader.Value.Source, true);
+        }
+        else if (computeShader.HasValue)
+        {
+            reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Value.Source, true);
+        }
+        else
+        {
+            throw new InvalidOperationException("Invalid shader module data: no valid shader modules found.");
+        }
+
+        return new ShaderModulesInfo(
+            name,
+            defines,
+            vertexShader,
+            fragmentShader,
+            computeShader,
+            reflectionInfo);
+    }
+
     private static string NoIncludeResolver(string includeName)
     {
         throw new InvalidOperationException($"Include statement found in the shader but no include resolver is provided.");
