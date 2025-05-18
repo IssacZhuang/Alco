@@ -21,9 +21,20 @@ namespace Alco
 
         public static BinaryTable DecodeTable(byte[] bytes)
         {
-            using (MemoryStream stream = new MemoryStream(bytes))
+            using (Stream stream = new MemoryStream(bytes))
             {
                 return DecodeTable(stream);
+            }
+        }
+
+        public unsafe static BinaryTable DecodeTable(ReadOnlySpan<byte> bytes)
+        {
+            fixed(byte* ptr = bytes)
+            {
+                using (Stream stream = new UnmanagedMemoryStream(ptr, bytes.Length))
+                {
+                    return DecodeTable(stream);
+                }
             }
         }
 
@@ -53,7 +64,7 @@ namespace Alco
 
         
 
-        private static void EncodeTableElement(MemoryStream stream, string name, BaseBinaryValue value)
+        private static void EncodeTableElement(Stream stream, string name, BaseBinaryValue value)
         {
             switch (value)
             {
@@ -77,7 +88,7 @@ namespace Alco
             };
         }
 
-        private static BaseBinaryValue DecodeTableElement(MemoryStream stream, out string name)
+        private static BaseBinaryValue DecodeTableElement(Stream stream, out string name)
         {
             BinaryValueType type = ReadType(stream);
             name = DecodeFieldName(stream);
@@ -93,7 +104,7 @@ namespace Alco
             throw new Exception(string.Format("Don't know elementType={0}", type));
         }
 
-        private static void EncodeTable(MemoryStream stream, BinaryTable table)
+        private static void EncodeTable(Stream stream, BinaryTable table)
         {
             int positionLength = (int)stream.Position;
             WriteLength(stream, 0);
@@ -115,7 +126,7 @@ namespace Alco
             stream.Position = positionEnd;
         }
 
-        private static BinaryTable DecodeTable(MemoryStream stream)
+        private static BinaryTable DecodeTable(Stream stream)
         {
             int length = ReadLength(stream);
 
@@ -131,7 +142,7 @@ namespace Alco
             return table;
         }
 
-        private static void EncodeArrayElement(MemoryStream stream, BaseBinaryValue value)
+        private static void EncodeArrayElement(Stream stream, BaseBinaryValue value)
         {
             switch (value)
             {
@@ -152,7 +163,7 @@ namespace Alco
             };
         }
 
-        private static BaseBinaryValue DecodeArrayElement(MemoryStream stream)
+        private static BaseBinaryValue DecodeArrayElement(Stream stream)
         {
             BinaryValueType type = ReadType(stream);
             switch(type){
@@ -167,7 +178,7 @@ namespace Alco
             throw new Exception(string.Format("Don't know elementType={0}", type));
         }
 
-        private static void EncodeArray(MemoryStream stream, BinaryArray list)
+        private static void EncodeArray(Stream stream, BinaryArray list)
         {
             int positionLength = (int)stream.Position;
             WriteLength(stream, 0);
@@ -183,7 +194,7 @@ namespace Alco
             stream.Position = positionEnd;
         }
 
-        private static BinaryArray DecodeArray(MemoryStream stream)
+        private static BinaryArray DecodeArray(Stream stream)
         {
 
             BinaryArray array = new BinaryArray();
@@ -199,51 +210,51 @@ namespace Alco
             return array;
         }
 
-        private static void EncodeBinary(MemoryStream stream, byte[] bytes)
+        private static void EncodeBinary(Stream stream, byte[] bytes)
         {
             WriteBinary(stream, bytes);
         }
 
-        private static BinaryValue DecodeBinary(MemoryStream stream)
+        private static BinaryValue DecodeBinary(Stream stream)
         {
             return new BinaryValue(ReadBinary(stream));
         }
 
-        private static void EncodeFieldName(MemoryStream stream, string value)
+        private static void EncodeFieldName(Stream stream, string value)
         {
             WriteString(stream, value);
         }
 
-        private static string DecodeFieldName(MemoryStream stream)
+        private static string DecodeFieldName(Stream stream)
         {
             return ReadString(stream);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void WriteType(MemoryStream stream, BinaryValueType type)
+        private static void WriteType(Stream stream, BinaryValueType type)
         {
             stream.WriteByte((byte)type);
         }
 
-        private static BinaryValueType ReadType(MemoryStream stream)
+        private static BinaryValueType ReadType(Stream stream)
         {
             return (BinaryValueType)stream.ReadByte();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void WriteLength(MemoryStream stream, int length)
+        private static void WriteLength(Stream stream, int length)
         {
             stream.WriteInt32(length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int ReadLength(MemoryStream stream)
+        private static int ReadLength(Stream stream)
         {
             return stream.ReadInt32();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void WriteBinary(MemoryStream stream, byte[] bytes)
+        private static void WriteBinary(Stream stream, byte[] bytes)
         {
             WriteLength(stream, bytes.Length);
             stream.Write(bytes, 0, bytes.Length);
@@ -251,21 +262,21 @@ namespace Alco
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static byte[] ReadBinary(MemoryStream stream)
+        private static byte[] ReadBinary(Stream stream)
         {
             int length = ReadLength(stream);
             return stream.ReadBytes(length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void WriteString(MemoryStream stream, string str)
+        private static void WriteString(Stream stream, string str)
         {
             byte[] bytes = UtilsBinary.FastStringToBytes(str);
             WriteBinary(stream, bytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static string ReadString(MemoryStream stream)
+        private static string ReadString(Stream stream)
         {
             byte[] bytes = ReadBinary(stream);
             return UtilsBinary.FastBytesToString(bytes);
