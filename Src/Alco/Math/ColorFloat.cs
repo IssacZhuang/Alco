@@ -124,6 +124,12 @@ public struct ColorFloat
         );
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static implicit operator Half4(ColorFloat color)
+    {
+        return new Half4(color.R, color.G, color.B, color.A);
+    }
+
     public static ColorFloat Lerp(ColorFloat a, ColorFloat b, float t)
     {
         return new ColorFloat
@@ -138,4 +144,5 @@ public struct ColorFloat
     public static ColorFloat operator *(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value * b.value };
     public static ColorFloat operator /(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value / b.value };
 
+    
 }
