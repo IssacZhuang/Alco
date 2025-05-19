@@ -24,15 +24,8 @@ public sealed unsafe class FontAtlasPacker : AutoDisposable
 
     public FontAtlasPacker(int width, int height)
     {
-        if (width <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(width));
-        }
-
-        if (height <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(height));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
 
         _width = width;
         _height = height;
@@ -40,6 +33,7 @@ public sealed unsafe class FontAtlasPacker : AutoDisposable
         _bitmap = new NativeBuffer<byte>(width * height);
         _glyphs = new GlyphInfo[MaxArrayLength];
         _context = new stbtt_pack_context();
+
         stbtt_PackBegin(_context, _bitmap.UnsafePointer, width, height, width, 1, null);
     }
 
@@ -50,15 +44,8 @@ public sealed unsafe class FontAtlasPacker : AutoDisposable
             throw new ArgumentNullException(nameof(ttf));
         }
 
-        if (fontSize <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(fontSize));
-        }
-
-        if (unicodeRanges == null)
-        {
-            throw new ArgumentNullException(nameof(unicodeRanges));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(fontSize);
+        ArgumentNullException.ThrowIfNull(unicodeRanges);
 
         if (!TryCreateFont(ttf, 0, out stbtt_fontinfo font))
         {
