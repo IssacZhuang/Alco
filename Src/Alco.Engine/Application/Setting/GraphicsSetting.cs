@@ -61,7 +61,7 @@ public struct GraphicsSetting
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,
         IsShaderCacheEnabled = true,
-        ShaderCachePath = ".ShaderCache",
+        ShaderCachePath = ".cache/shader",
     };
 
     /// <summary>
@@ -76,7 +76,7 @@ public struct GraphicsSetting
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = true,
         IsShaderCacheEnabled = true,
-        ShaderCachePath = ".ShaderCache",
+        ShaderCachePath = ".cache/shader",
     };
 
 

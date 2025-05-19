@@ -240,7 +240,7 @@ public sealed class Shader : AutoDisposable
             _modulesCache[hash] = modulesInfo;
 
             //save shader cache into disk
-            shaderCache?.AddOrUpdate(Name, _shaderText, defines, modulesInfo);
+            _ = shaderCache?.AddOrUpdateAsync(Name, _shaderText, defines, modulesInfo);
 
             return modulesInfo;
         }

@@ -17,21 +17,36 @@ public unsafe class ShaderCache : IShaderCache
         }
     }
 
-    public void AddOrUpdate(string path, string shaderText, ReadOnlySpan<string> defines, ShaderModulesInfo modulesInfo)
+    public Task<Exception?> AddOrUpdateAsync(string path, string shaderText, ReadOnlySpan<string> defines, ShaderModulesInfo modulesInfo)
     {
         string cachePath = GetCachePath(path, defines);
-        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 
-        using FileStream stream = File.Create(cachePath);
-        using BinaryWriter writer = new(stream);
+        return Task.Run(() =>
+        {
+            Exception? exception = null;
 
-        ulong hash = GetHash(shaderText);
-        writer.Write(hash);
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 
-        byte[] bytes = UtilsShader.EncodeShaderModulesInfo(modulesInfo);
-        writer.Write(bytes);
+                using FileStream stream = File.Create(cachePath);
+                using BinaryWriter writer = new(stream);
 
-        Log.Info("Shader save to cache: ", cachePath);
+                ulong hash = GetHash(shaderText);
+                writer.Write(hash);
+
+                byte[] bytes = UtilsShader.EncodeShaderModulesInfo(modulesInfo);
+                writer.Write(bytes);
+
+                Log.Info("Shader save to cache: ", cachePath);
+            }
+            catch (Exception e)
+            {
+                exception = e;
+            }
+            
+            return exception;
+        });
     }
 
     public bool TryGetModules(string path, string shaderText, ReadOnlySpan<string> defines, [NotNullWhen(true)] out ShaderModulesInfo? modulesInfo)

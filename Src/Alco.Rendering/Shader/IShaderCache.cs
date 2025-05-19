@@ -24,5 +24,5 @@ public interface IShaderCache
     /// <param name="shaderText">The source text of the shader.</param>
     /// <param name="defines">Compilation defines used for the shader.</param>
     /// <param name="modulesInfo">The shader modules information to cache.</param>
-    public void AddOrUpdate(string path, string shaderText, ReadOnlySpan<string> defines, ShaderModulesInfo modulesInfo);
+    public Task<Exception?> AddOrUpdateAsync(string path, string shaderText, ReadOnlySpan<string> defines, ShaderModulesInfo modulesInfo);
 }
