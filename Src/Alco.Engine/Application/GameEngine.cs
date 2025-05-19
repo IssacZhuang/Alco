@@ -201,7 +201,8 @@ IDisposable
             _graphicsDevice,
             _setting.Graphics.PreferredSDRFormat,
             _setting.Graphics.PreferredHDRFormat,
-            _setting.Graphics.PreferredDepthStencilFormat
+            _setting.Graphics.PreferredDepthStencilFormat,
+            CreateShaderCache(_setting.Graphics)
             );
 
         _builtInAssets = new BuiltInAssets(_assets);

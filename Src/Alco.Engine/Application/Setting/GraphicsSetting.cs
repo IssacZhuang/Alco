@@ -60,6 +60,8 @@ public struct GraphicsSetting
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,
+        IsShaderCacheEnabled = true,
+        ShaderCachePath = ".ShaderCache",
     };
 
     /// <summary>
@@ -73,6 +75,8 @@ public struct GraphicsSetting
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = true,
+        IsShaderCacheEnabled = true,
+        ShaderCachePath = ".ShaderCache",
     };
 
 
@@ -83,5 +87,7 @@ public struct GraphicsSetting
     {
         Backend = GraphicsBackend.None,
         DebugInfo = false,
+        IsShaderCacheEnabled = false,
+        ShaderCachePath = null,
     };
 }

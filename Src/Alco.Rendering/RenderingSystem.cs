@@ -111,12 +111,15 @@ public partial class RenderingSystem
 
     public GraphicsBuffer? MainCamera { get; set; }
 
+    public IShaderCache? ShaderCache { get; }
+
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
         PixelFormat prefferedSDRFormat, 
         PixelFormat prefferedHDRFormat,
-        PixelFormat prefferedDepthStencilFormat
+        PixelFormat prefferedDepthStencilFormat,
+        IShaderCache? shaderCache = null
     )
     {
         _device = device;
@@ -190,6 +193,8 @@ public partial class RenderingSystem
             null,
             "light_map_pass"
         ));
+
+        ShaderCache = shaderCache;
 
         _host.OnUpdate += OnUpdate;
         _host.OnDispose += OnDispose;

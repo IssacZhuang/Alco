@@ -180,7 +180,7 @@ public static partial class UtilsShader
         return BinaryParser.EncodeTable(table);
     }
 
-    public static ShaderModule DecodeShaderModule(byte[] data)
+    public static ShaderModule DecodeShaderModule(ReadOnlySpan<byte> data)
     {
         BinaryTable table = BinaryParser.DecodeTable(data);
         return new ShaderModule(
@@ -221,7 +221,7 @@ public static partial class UtilsShader
         return BinaryParser.EncodeTable(table);
     }
 
-    public static ShaderModulesInfo DecodeShaderModulesInfo(byte[] data)
+    public static ShaderModulesInfo DecodeShaderModulesInfo(ReadOnlySpan<byte> data)
     {
         BinaryTable table = BinaryParser.DecodeTable(data);
         string name = table.GetString(nameof(ShaderModulesInfo.Name));

@@ -49,9 +49,7 @@ public sealed class Shader : AutoDisposable
         Name = name;
 
         //default permutation
-        int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
-        ShaderModulesInfo modulesInfo = UtilsShader.CompileHLSL(shaderText, name, ReadOnlySpan<string>.Empty);
-        _modulesCache[hash] = modulesInfo;
+        ShaderModulesInfo modulesInfo = GetShaderModules(ReadOnlySpan<string>.Empty);
         IsComputeShader = modulesInfo.IsComputeShader;
 
         _customVertexLayouts = customVertexLayouts;
@@ -217,8 +215,22 @@ public sealed class Shader : AutoDisposable
         }
 
         //throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
+
+        
         using (_lockCreateModules.EnterScope())
         {
+            IShaderCache? shaderCache = _renderingSystem.ShaderCache;
+            if (shaderCache != null)
+            {
+                //load shader cache from disk
+                if (shaderCache.TryGetModules(Name, _shaderText, defines, out modulesInfo))
+                {
+                    //save shader cache into memory
+                    _modulesCache[hash] = modulesInfo;
+                    return modulesInfo;
+                }
+            }
+
             if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
             {
                 return modulesInfo2;
@@ -226,6 +238,9 @@ public sealed class Shader : AutoDisposable
 
             modulesInfo = UtilsShader.CompileHLSL(_shaderText, Name, defines);
             _modulesCache[hash] = modulesInfo;
+
+            //save shader cache into disk
+            shaderCache?.AddOrUpdate(Name, _shaderText, defines, modulesInfo);
 
             return modulesInfo;
         }
@@ -237,8 +252,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="defines">Optional shader defines to customize compilation</param>
     public void Precompile(params ReadOnlySpan<string> defines)
     {
-        int hash = GetDefinesHash(defines);
-        _modulesCache[hash] = UtilsShader.CompileHLSL(_shaderText, Name, defines);
+        _ = GetShaderModules(defines);
     }
 
     private int GetDefinesHash(ReadOnlySpan<string> defines)
