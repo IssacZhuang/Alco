@@ -6,8 +6,8 @@ namespace Alco.Rendering;
 
 public partial class RenderingSystem
 {
-    public SurfaceTileBlock2D<TUserData> CreateSurfaceBlock2D<TUserData>(
-        SurfaceTileSet<TUserData> tileSet,
+    public SurfaceTileBlock2D CreateSurfaceBlock2D(
+        SurfaceTileSet tileSet,
         TileMapHeightBuffer heightData,
         Material material,
         int width,
@@ -15,7 +15,7 @@ public partial class RenderingSystem
         string name = "tiled_terrain_block_2d"
     )
     {
-        return new SurfaceTileBlock2D<TUserData>(
+        return new SurfaceTileBlock2D(
             this,
             tileSet,
             heightData,
@@ -26,50 +26,50 @@ public partial class RenderingSystem
     }
 
 
-    public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
+    public SurfaceTileSet CreateSurfaceTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<SurfaceTileData>> items,
         string name = "tile_set"
     )
     {
         GPUSampler sampler = _device.SamplerLinearClamp;
-        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
+        return new SurfaceTileSet(this, items, material, sampler, name);
     }
 
-    public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
+    public SurfaceTileSet CreateSurfaceTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<SurfaceTileData>> items,
         FilterMode filterMode,
         string name = "tile_set"
     ){
         GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
-        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
+        return new SurfaceTileSet(this, items, material, sampler, name);
     }
 
-    public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
+    public SurfaceTileSet CreateSurfaceTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<SurfaceTileData>> items,
         FilterMode filterMode,
         AddressMode addressMode,
         string name = "tile_set"
     ){
         GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
-        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
+        return new SurfaceTileSet(this, items, material, sampler, name);
     }
 
-    public SurfaceTileSet<TUserData> CreateSurfaceTileSet<TUserData>(
+    public SurfaceTileSet CreateSurfaceTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<SurfaceTileData>> items,
         GPUSampler sampler,
         string name = "tile_set"
     )
     {
-        return new SurfaceTileSet<TUserData>(this, items, material, sampler, name);
+        return new SurfaceTileSet(this, items, material, sampler, name);
     }
 
 
-    public WaterTileBlock2D<TUserData> CreateWaterTileBlock2D<TUserData>(
-        WaterTileSet<TUserData> tileSet,
+    public WaterTileBlock2D CreateWaterTileBlock2D(
+        WaterTileSet tileSet,
         TileMapHeightBuffer surfaceHeightData,
         Material material,
         int width,
@@ -77,7 +77,7 @@ public partial class RenderingSystem
         string name = "water_tile_block_2d"
     )
     {
-        return new WaterTileBlock2D<TUserData>(
+        return new WaterTileBlock2D(
             this,
             tileSet,
             surfaceHeightData,
@@ -87,51 +87,51 @@ public partial class RenderingSystem
             name);
     }
 
-    public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
+    public WaterTileSet CreateWaterTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<WaterTileData>> items,
         string name = "water_tile_set"
     )
     {
         GPUSampler sampler = _device.SamplerLinearClamp;
-        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
+        return new WaterTileSet(this, items, material, sampler, name);
     }
 
-    public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
+    public WaterTileSet CreateWaterTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<WaterTileData>> items,
         FilterMode filterMode,
         string name = "water_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
-        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
+        return new WaterTileSet(this, items, material, sampler, name);
     }
 
-    public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
+    public WaterTileSet CreateWaterTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<WaterTileData>> items,
         FilterMode filterMode,
         AddressMode addressMode,
         string name = "water_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
-        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
+        return new WaterTileSet(this, items, material, sampler, name);
     }
 
-    public WaterTileSet<TUserData> CreateWaterTileSet<TUserData>(
+    public WaterTileSet CreateWaterTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<WaterTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<WaterTileData>> items,
         GPUSampler sampler,
         string name = "water_tile_set"
     )
     {
-        return new WaterTileSet<TUserData>(this, items, material, sampler, name);
+        return new WaterTileSet(this, items, material, sampler, name);
     }
 
-    public PlantTileBlock2D<TUserData> CreatePlantTileBlock2D<TUserData>(
-        PlantTileSet<TUserData> tileSet,
+    public PlantTileBlock2D CreatePlantTileBlock2D(
+        PlantTileSet tileSet,
         TileMapHeightBuffer heightData,
         Material material,
         int width,
@@ -140,7 +140,7 @@ public partial class RenderingSystem
     )
 
     {
-        return new PlantTileBlock2D<TUserData>(
+        return new PlantTileBlock2D(
             this,
             tileSet,
             heightData,
@@ -149,47 +149,47 @@ public partial class RenderingSystem
             height, name);
     }
 
-    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+    public PlantTileSet CreatePlantTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<PlantTileData>> items,
         string name = "plant_tile_set"
     )
     {
         GPUSampler sampler = _device.SamplerLinearClamp;
-        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
+        return new PlantTileSet(this, items, material, sampler, name);
     }
 
-    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+    public PlantTileSet CreatePlantTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<PlantTileData>> items,
         FilterMode filterMode,
         string name = "plant_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
-        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
+        return new PlantTileSet(this, items, material, sampler, name);
     }
 
-    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+    public PlantTileSet CreatePlantTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<PlantTileData>> items,
         FilterMode filterMode,
         AddressMode addressMode,
         string name = "plant_tile_set"
     )
     {
         GPUSampler sampler = _device.GetSampler(filterMode, addressMode);
-        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
+        return new PlantTileSet(this, items, material, sampler, name);
     }
 
-    public PlantTileSet<TUserData> CreatePlantTileSet<TUserData>(
+    public PlantTileSet CreatePlantTileSet(
         Material material,
-        IReadOnlyList<BaseTileItem<PlantTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<PlantTileData>> items,
         GPUSampler sampler,
         string name = "plant_tile_set"
     )
     {
-        return new PlantTileSet<TUserData>(this, items, material, sampler, name);
+        return new PlantTileSet(this, items, material, sampler, name);
     }
 
     public TileMapHeightBuffer CreateTileMapHeightBuffer(int width, int height, string name = "tile_map_height_buffer")

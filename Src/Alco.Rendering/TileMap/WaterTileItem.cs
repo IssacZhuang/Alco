@@ -1,8 +1,8 @@
 namespace Alco.Rendering;
 
-public class WaterTileItem<TUserData> : BaseTileItem<WaterTileData, TUserData>
+public class WaterTileItem : BaseTileItem<WaterTileData>
 {
-    public WaterTileItem(string name, WaterTileData tileData, TUserData userData, params ReadOnlySpan<Texture2D> textures) : base(name, tileData, userData, textures)
+    public WaterTileItem(string name, WaterTileData tileData, object? userData, params ReadOnlySpan<Texture2D> textures) : base(name, tileData, userData, textures)
     {
     }
 }

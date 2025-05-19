@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Alco.Rendering;
 
-public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserData>
+public class PlantTileBlock2D : BaseTileBlock2D<PlantTileData>
 {
     public const string ShaderDefine_LightMap = "USE_LIGHT_MAP";
 
@@ -38,7 +38,7 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
 
     internal PlantTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet<PlantTileData, TUserData> tileSet,
+        BaseTileSet<PlantTileData> tileSet,
         TileMapHeightBuffer heightData,
         Material material,
         int width,

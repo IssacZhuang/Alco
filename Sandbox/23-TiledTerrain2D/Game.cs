@@ -28,15 +28,15 @@ public class Game : GameEngine
     private readonly Material _cliffMaterial;
     private readonly Material _waterMaterial;
     private readonly Material _plantMaterial;
-    private SurfaceTileSet<int> _surfaceTileSet;
-    private SurfaceTileSet<int> _cliffTileSet;
-    private WaterTileSet<int> _waterTileSet;
-    private PlantTileSet<int> _plantTileSet;
+    private SurfaceTileSet _surfaceTileSet;
+    private SurfaceTileSet _cliffTileSet;
+    private WaterTileSet _waterTileSet;
+    private PlantTileSet _plantTileSet;
     private ConnectableTileData _wallData;
-    private readonly SurfaceTileBlock2D<int> _surfaceBlock;
-    private readonly SurfaceTileBlock2D<int> _cliffBlock;
-    private readonly WaterTileBlock2D<int> _waterBlock;
-    private readonly PlantTileBlock2D<int> _plantBlock;
+    private readonly SurfaceTileBlock2D _surfaceBlock;
+    private readonly SurfaceTileBlock2D _cliffBlock;
+    private readonly WaterTileBlock2D _waterBlock;
+    private readonly PlantTileBlock2D _plantBlock;
     private readonly TileMapHeightBuffer _heightBuffer;
 
     private readonly LightingManager _lightingManager;
@@ -377,7 +377,7 @@ public class Game : GameEngine
         }
     }
 
-    private SurfaceTileSet<int> BuildSurfaceTileSet()
+    private SurfaceTileSet BuildSurfaceTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsync<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsync<Texture2D>("Textures/Grass.png");
@@ -389,18 +389,18 @@ public class Game : GameEngine
 
         Task.WaitAll(grid, grass, sand);
 
-        List<SurfaceTileItem<int>> items = new();
-        var item1 = new SurfaceTileItem<int>("grid", new SurfaceTileData(){
+        List<SurfaceTileItem> items = new();
+        var item1 = new SurfaceTileItem("grid", new SurfaceTileData(){
             BlendPriority = 0,
         }, 0, grid.Result);
 
 
-        var item2 = new SurfaceTileItem<int>("grass", new SurfaceTileData(){
+        var item2 = new SurfaceTileItem("grass", new SurfaceTileData(){
             BlendPriority = 1,
         }, 1, grass.Result, grass2.Result, grass3.Result, grass4.Result);
 
 
-        var item3 = new SurfaceTileItem<int>("sand", new SurfaceTileData(){
+        var item3 = new SurfaceTileItem("sand", new SurfaceTileData(){
             BlendPriority = 2,
         }, 2, sand.Result);
 
@@ -410,7 +410,7 @@ public class Game : GameEngine
         return Rendering.CreateSurfaceTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
     }
 
-    private SurfaceTileSet<int> BuildCliffTileSet()
+    private SurfaceTileSet BuildCliffTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsync<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = Assets.LoadAsync<Texture2D>("Textures/GrassCliff.png");
@@ -418,16 +418,16 @@ public class Game : GameEngine
 
         Task.WaitAll(grid, grass, sand);
 
-        List<SurfaceTileItem<int>> items = new();
-        var item1 = new SurfaceTileItem<int>("grid", new SurfaceTileData(){
+        List<SurfaceTileItem> items = new();
+        var item1 = new SurfaceTileItem("grid", new SurfaceTileData(){
             BlendPriority = 0,
         }, 0, grid.Result);
 
-        var item2 = new SurfaceTileItem<int>("grass", new SurfaceTileData(){
+        var item2 = new SurfaceTileItem("grass", new SurfaceTileData(){
             BlendPriority = 1,
         }, 1, grass.Result);
 
-        var item3 = new SurfaceTileItem<int>("sand", new SurfaceTileData(){
+        var item3 = new SurfaceTileItem("sand", new SurfaceTileData(){
             BlendPriority = 2,
         }, 2, sand.Result);
 
@@ -438,7 +438,7 @@ public class Game : GameEngine
         return Rendering.CreateSurfaceTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
     }
 
-    private WaterTileSet<int> BuildWaterTileSet()
+    private WaterTileSet BuildWaterTileSet()
     {
         Task<Texture2D> grid = Assets.LoadAsync<Texture2D>("Textures/Grid.png");
         Task.WaitAll(grid);
@@ -458,21 +458,21 @@ public class Game : GameEngine
         //     BlendPriority = 2
         // });
 
-        List<WaterTileItem<int>> items = new();
-        var item1 = new WaterTileItem<int>("grid", new WaterTileData()
+        List<WaterTileItem> items = new();
+        var item1 = new WaterTileItem("grid", new WaterTileData()
         {
             BlendPriority = 0
         }, 0, grid.Result);
         items.Add(item1);
 
-        var item2 = new WaterTileItem<int>("water", new WaterTileData()
+        var item2 = new WaterTileItem("water", new WaterTileData()
         {
             Color = _waterColor,
             BlendPriority = 1
         }, 1, Rendering.TextureWhite);
         items.Add(item2);
 
-        var item3 = new WaterTileItem<int>("water2", new WaterTileData()
+        var item3 = new WaterTileItem("water2", new WaterTileData()
         {
             Color = new ColorFloat(1, 1, 1, 0.5f),
             BlendPriority = 2
@@ -483,7 +483,7 @@ public class Game : GameEngine
     }
 
 
-    private PlantTileSet<int> BuildPlantTileSet()
+    private PlantTileSet BuildPlantTileSet()
     {
         Task<Texture2D> highGrass1 = Assets.LoadAsync<Texture2D>("Textures/HighGrass1.png");
         Task<Texture2D> highGrass2 = Assets.LoadAsync<Texture2D>("Textures/HighGrass2.png");
@@ -498,15 +498,15 @@ public class Game : GameEngine
             
         // });
 
-        List<PlantTileItem<int>> items = new();
+        List<PlantTileItem> items = new();
         //add empty item
-        var item0 = new PlantTileItem<int>("empty", new PlantTileData()
+        var item0 = new PlantTileItem("empty", new PlantTileData()
         {
             HasContent = 0
         }, 0, Rendering.TextureWhite);
         items.Add(item0);
 
-        var item1 = new PlantTileItem<int>("highGrass1", new PlantTileData()
+        var item1 = new PlantTileItem("highGrass1", new PlantTileData()
         {
         }, 0, highGrass1.Result, highGrass2.Result);
         items.Add(item1);

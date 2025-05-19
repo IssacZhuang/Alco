@@ -5,13 +5,13 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public sealed class SurfaceTileSet<TUserData> : BaseTileSet<SurfaceTileData, TUserData>
+public sealed class SurfaceTileSet : BaseTileSet<SurfaceTileData>
 {
     public SurfaceTileSet(
         RenderingSystem renderingSystem,
-        IReadOnlyList<BaseTileItem<SurfaceTileData, TUserData>> items, 
-        Material material, 
-        GPUSampler sampler, 
+        IReadOnlyList<BaseTileItem<SurfaceTileData>> items,
+        Material material,
+        GPUSampler sampler,
         string name
         ) : base(renderingSystem, @items, material, sampler, name)
     {
