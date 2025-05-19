@@ -16,7 +16,7 @@ public abstract class Texture : AutoDisposable
     protected GPUTextureView _textureView;
 
     // from outside
-    protected readonly GPUSampler _sampler;
+    protected GPUSampler _sampler;
 
     public string Name { get; }
 
@@ -89,6 +89,11 @@ public abstract class Texture : AutoDisposable
             throw new InvalidOperationException("Can not set pixels to a readonly texture");
         }
         _device.WriteTexture(_texture, data, size, pixelSize);
+    }
+
+    public virtual void SetSampler(GPUSampler sampler)
+    {
+        _sampler = sampler;
     }
 
     protected override void Dispose(bool disposing)

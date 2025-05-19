@@ -63,7 +63,7 @@ public class Game : GameEngine
     private int _plantTileId = 0;
 
     private float _hight = 0.2f;
-    private float _brushSize = 1;
+    private float _brushSize = 0.3f;
     private Material _brushMaterial;
     private Transform3D _brushTransform;
     private SpriteConstant _brushConstant;
@@ -147,12 +147,12 @@ public class Game : GameEngine
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         Texture2D textureWall = Assets.Load<Texture2D>("Textures/Wall.png");
+        textureWall.SetSampler(GraphicsDevice.SamplerNearestClamp);
 
         Material material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_TileConnectable);
         material.BlendState = BlendState.Opaque;
         material.DepthStencilState = DepthStencilState.Write;
         material.SetTexture(ShaderResourceId.Texture, textureWall);
-
 
         _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f), null);
 
