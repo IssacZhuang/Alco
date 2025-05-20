@@ -62,7 +62,10 @@ namespace Alco
             return TableToObject<T>(DecodeTable(bytes));
         }
 
-        
+        public static T Decode<T>(ReadOnlySpan<byte> bytes) where T : ISerializable, new()
+        {
+            return TableToObject<T>(DecodeTable(bytes));
+        }
 
         private static void EncodeTableElement(Stream stream, string name, BaseBinaryValue value)
         {
