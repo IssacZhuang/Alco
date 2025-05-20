@@ -30,6 +30,11 @@ public partial class RenderingSystem
         return new RenderContext(this, name);
     }
 
+    public SubRenderContext CreateSubRenderContext(string name = "sub_render_context")
+    {
+        return new SubRenderContext(this, name);
+    }
+
     public CanvasRenderer CreateCanvasRenderer(GraphicsBuffer camera, Shader shaderSprite, Shader shaderText)
     {
         return new CanvasRenderer(this, camera, shaderSprite, shaderText);

@@ -341,6 +341,11 @@ public partial class Canvas : AutoDisposable
 
     private void OnMouseDown(UINode? node, Vector2 mousePosition)
     {
+        if (node == null || !CheckMask(node, mousePosition))
+        {
+            return;
+        }
+
         _holded = node;
 
         node?.OnPressDown(this, mousePosition);
@@ -381,10 +386,10 @@ public partial class Canvas : AutoDisposable
                 maskContext = new MaskContext
                 {
                     texture = maskNode.MaskTexture,
-                    matrix = maskNode.MaskTransform,
+                    matrix = maskNode.MaskTransform.Matrix,
                     uvRect = maskNode.MaskTextureUvRect
                 };
-                IncreaceStencil(maskNode.MaskTexture, maskNode.MaskTransform, maskNode.MaskTextureUvRect);
+                IncreaceStencil(maskNode.MaskTexture, maskNode.MaskTransform.Matrix, maskNode.MaskTextureUvRect);
             }
 
             try
@@ -445,5 +450,24 @@ public partial class Canvas : AutoDisposable
         {
             TickNode(node.Children[i], delta);
         }
+    }
+
+    private static bool CheckMask(UINode node, Vector2 mousePosition)
+    {
+        UINode? parent = node.Parent;
+        while (parent != null)
+        {
+            if (parent is IUIMask maskNode)
+            {
+                Transform2D maskTransform = maskNode.MaskTransform;
+                ShapeBox2D shape = new ShapeBox2D(maskTransform.Position, maskTransform.Rotation, maskTransform.Scale);
+                if (!UtilsCollision2D.PointBox(mousePosition, shape))
+                {
+                    return false;
+                }
+            }
+            parent = parent.Parent;
+        }
+        return true;
     }
 }

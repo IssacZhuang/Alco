@@ -58,6 +58,18 @@ namespace Alco
             return true;
         }
 
+        public bool TryGetEnum<T>(out T v) where T : struct, Enum
+        {
+            if (_binary.Length != Unsafe.SizeOf<T>())
+            {
+                v = default;
+                return false;
+            }
+
+            v = Unsafe.ReadUnaligned<T>(ref _binary[0]);
+            return true;
+        }
+
         public bool TryGetString([NotNullWhen(true)] out string? v)
         {
             v = UtilsBinary.DecodeToString(_binary);
@@ -72,6 +84,11 @@ namespace Alco
         public static BinaryValue CreateValueNullable<T>(T? value) where T : unmanaged
         {
             return new BinaryValue(UtilsBinary.EncodeNullableValue(value));
+        }
+
+        public static BinaryValue CreateValueEnum<T>(T value) where T : struct, Enum
+        {
+            return new BinaryValue(UtilsBinary.EncodeEnum(value));
         }
     }
 

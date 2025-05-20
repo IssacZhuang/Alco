@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Alco.Rendering;
 
-public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData, TUserData>
+public sealed class WaterTileBlock2D : BaseTileBlock2D<WaterTileData>
 {
     public const string ShaderDefine_LightMap = "USE_LIGHT_MAP";
 
@@ -40,7 +40,7 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
 
     internal WaterTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet<WaterTileData, TUserData> tileSet,
+        BaseTileSet<WaterTileData> tileSet,
         TileMapHeightBuffer surfaceHeightData,
         Material material,
         int width,
@@ -51,7 +51,8 @@ public sealed class WaterTileBlock2D<TUserData> : BaseTileBlock2D<WaterTileData,
     {
         _surfaceHeightData = surfaceHeightData;
         _material.TrySetBuffer(ShaderResourceId.HeightData, _surfaceHeightData);
-        _material.TrySetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
+        // the global render data is set when the material is created
+        // _material.TrySetBuffer(ShaderResourceId.GlobalRenderData, renderingSystem.GlobalRenderData);
     }
 
 

@@ -7,6 +7,7 @@ using Alco.Rendering;
 using Alco.IO;
 using System.Text;
 using Alco.Audio;
+using System.Text.Json;
 
 
 namespace Alco.Engine;
@@ -35,6 +36,9 @@ IDisposable
     private readonly InputSystem _input;
     private readonly View _mainView;
     private readonly ViewRenderTarget _mainRenderTarget;
+
+    private readonly JsonSerializerOptions _configSerializeOption;
+    private readonly ConfigReferenceResolver _configReferenceResolver;
 
     #endregion
 
@@ -167,6 +171,21 @@ IDisposable
     /// </summary>
     public bool IsDisposed => _disposed != 0;
 
+    /// <summary>
+    /// The setting of the game engine
+    /// </summary>
+    public GameEngineSetting Setting => _setting;
+
+    /// <summary>
+    /// The json serializer options for the game engine, which is used for the config loading
+    /// </summary>
+    public JsonSerializerOptions ConfigSerializeOption => _configSerializeOption;
+ 
+    /// <summary>
+    /// The reference resolver, which is used for the config to reference other configs assets
+    /// </summary>
+    public ConfigReferenceResolver ConfigReferenceResolver => _configReferenceResolver;
+
     #endregion
 
     public GameEngine(GameEngineSetting setting)
@@ -182,15 +201,36 @@ IDisposable
             _graphicsDevice,
             _setting.Graphics.PreferredSDRFormat,
             _setting.Graphics.PreferredHDRFormat,
-            _setting.Graphics.PreferredDepthStencilFormat
+            _setting.Graphics.PreferredDepthStencilFormat,
+            CreateShaderCache(_setting.Graphics)
             );
 
         _builtInAssets = new BuiltInAssets(_assets);
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
-        _assets.AddFileSource(new DirectoryFileSource(setting.Assets.AssetsPath));
-        InitializeDefaultAssetLoader(setting);
+        _configReferenceResolver = CreateConfigReferenceResolver();
+        _configSerializeOption = CreateConfigSerializeOption();
+
+        foreach (var fileSource in CreateDefaultFileSources())
+        {
+            _assets.AddFileSource(fileSource);
+        }
+
+        foreach (var assetLoader in CreateDefaultAssetLoaders())
+        {
+            _assets.RegisterAssetLoader(assetLoader);
+        }
+
+        foreach (var assetHotReloader in CreateDefaultAssetHotReloaders())
+        {
+            _assets.RegisterAssetHotReloader(assetHotReloader);
+        }
+
+        foreach (var assetEncoder in CreateDefaultAssetEncoders())
+        {
+            _assets.RegisterAssetEncoder(assetEncoder);
+        }
 
         Task<Shader> shaderBlit = _assets.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
 

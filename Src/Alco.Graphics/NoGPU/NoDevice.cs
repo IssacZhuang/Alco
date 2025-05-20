@@ -44,6 +44,8 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupStorageBuffer {get;}
 
+    public override GPUBindGroup BindGroupStorageBufferWithCounter {get;}
+
     public override GPUBindGroup BindGroupTexture2DSampled {get;}
 
     public override GPUBindGroup BindGroupTexture2DRead {get;}
@@ -79,6 +81,16 @@ internal class NoDevice : GPUDevice
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+            },
+        });
+
+        BindGroupStorageBufferWithCounter = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_storage_buffer_with_counter",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.StorageBuffer),
             },
         });
 
@@ -151,9 +163,9 @@ internal class NoDevice : GPUDevice
         return new NoResourceGroup(descriptor);
     }
 
-    protected override GPUResuableRenderBuffer CreateResuableRenderBufferCore(in ResuableRenderBufferDescriptor? descriptor)
+    protected override GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor)
     {
-        return new NoResuableRenderBuffer(descriptor);
+        return new NoRenderBundle(descriptor);
     }
 
     protected override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
@@ -199,10 +211,6 @@ internal class NoDevice : GPUDevice
         
     }
 
-    protected override void SubmitCore(GPUResuableRenderBuffer renderBuffer)
-    {
-        
-    }
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         

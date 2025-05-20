@@ -6,7 +6,7 @@ namespace Alco.Graphics;
 /// <summary>
 /// The buffer to record GPU commands which used for rendering and compute.
 /// </summary> 
-public abstract class GPUCommandBuffer : BaseGPUObject
+public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecorder
 {
     protected bool _isRecording = false;
     //API
@@ -46,7 +46,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ClearColor(ColorFloat color, uint index = 0)
+    public void ClearColor(Vector4 color, uint index = 0)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while ClearColor, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         ClearColorCore(color, index);
@@ -217,6 +217,18 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         PushComputeConstantsCore(bufferOffset, data, size);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ExecuteBundle(GPURenderBundle bundle)
+    {
+        ExecuteBundleCore(bundle);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ExecuteBundle(ReadOnlySpan<GPURenderBundle> bundles)
+    {
+        ExecuteBundleCore(bundles);
+    }
+    
 
     public void CopyBuffer(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
@@ -247,7 +259,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void BeginCore();
     protected abstract void EndCore();
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
-    protected abstract void ClearColorCore(ColorFloat color, uint index);
+    protected abstract void ClearColorCore(Vector4 color, uint index);
 
 
 
@@ -269,6 +281,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
     protected abstract unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size);
+
+    protected abstract void ExecuteBundleCore(GPURenderBundle bundle);
+    protected abstract void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundle);
 
     protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
     protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect);

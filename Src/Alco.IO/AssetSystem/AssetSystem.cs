@@ -9,7 +9,7 @@ namespace Alco.IO
     /// <summary>
     /// Represents an asset manager for managing runtime assets and file sources.
     /// </summary> 
-    public sealed partial  class AssetSystem
+    public sealed partial class AssetSystem
     {
         private readonly ThreadLocal<AssetProfiler> Profiler = new ThreadLocal<AssetProfiler>(() => new AssetProfiler());
 
@@ -33,6 +33,8 @@ namespace Alco.IO
         private readonly IAssetSystemHost _host;
 
         public bool IsProfileEnabled { get; set; } = false;
+
+        public IReadOnlyList<IFileSource> AllFileSources => _fileSources;
 
         public AssetSystem(IAssetSystemHost host, bool isProfileEnabled = false)
         {

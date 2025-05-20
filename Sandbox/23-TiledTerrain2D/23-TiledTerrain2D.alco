@@ -1,5 +1,3 @@
 {
-    "AssetsPaths": [
-        "Assets"
-    ]
+    "AssetsPaths": "Assets"
 }

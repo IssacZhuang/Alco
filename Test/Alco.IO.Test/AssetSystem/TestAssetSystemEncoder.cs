@@ -36,6 +36,11 @@ public class TestAssetSystemEncoder
         {
             Console.WriteLine($"[Warning] {message}");
         }
+
+        public void PostToMainThread(Action action)
+        {
+            action();
+        }
     }
 
     private class TestWriteableAsset

@@ -182,6 +182,83 @@ namespace Alco.Test
             Assert.IsTrue(value4 == "value4");
         }
 
+        [Test(Description = "Test BinaryParser decode from span")]
+        public void TestDecodeFromSpan()
+        {
+            // Create a test table with various data types
+            BinaryTable originalTable = new BinaryTable
+            {
+                ["string"] = "test string value",
+                ["integer"] = 12345,
+                ["float"] = 123.456f,
+                ["boolean"] = true,
+                ["null"] = null
+            };
+
+            // Add a nested array to test complex structures
+            BinaryArray nestedArray = new BinaryArray();
+            nestedArray.Add("item1");
+            nestedArray.Add("item2");
+            nestedArray.Add(42);
+            originalTable["array"] = nestedArray;
+
+            // Add a nested table
+            BinaryTable nestedTable = new BinaryTable
+            {
+                ["nestedKey"] = "nested value",
+                ["nestedNumber"] = 789
+            };
+            originalTable["table"] = nestedTable;
+
+            // Encode the table to a byte array
+            byte[] encodedBytes = BinaryParser.EncodeTable(originalTable);
+
+            // Create a ReadOnlySpan from the byte array
+            ReadOnlySpan<byte> bytesSpan = encodedBytes.AsSpan();
+
+            // Decode using the Span-based method
+            BinaryTable decodedTable = BinaryParser.DecodeTable(bytesSpan);
+
+            // Verify the decoded table matches the original
+            Assert.IsTrue(decodedTable.TryGetString("string", out string stringValue));
+            Assert.IsTrue(stringValue == "test string value");
+
+            Assert.IsTrue(decodedTable.TryGetValue<int>("integer", out int intValue));
+            Assert.IsTrue(intValue == 12345);
+
+            Assert.IsTrue(decodedTable.TryGetValue<float>("float", out float floatValue));
+            Assert.IsTrue(Math.Abs(floatValue - 123.456f) < 0.0001f);
+
+            Assert.IsTrue(decodedTable.TryGetValue<bool>("boolean", out bool boolValue));
+            Assert.IsTrue(boolValue);
+
+            Assert.IsTrue(decodedTable.TryGetString("null", out string nullValue));
+            Assert.IsTrue(nullValue == "");
+
+            // Verify nested array
+            Assert.IsTrue(decodedTable["array"] is BinaryArray);
+            BinaryArray decodedArray = decodedTable["array"] as BinaryArray;
+
+            Assert.IsTrue(decodedArray.TryGetString(0, out string arrayItem1));
+            Assert.IsTrue(arrayItem1 == "item1");
+
+            Assert.IsTrue(decodedArray.TryGetString(1, out string arrayItem2));
+            Assert.IsTrue(arrayItem2 == "item2");
+
+            Assert.IsTrue(decodedArray.TryGetValue<int>(2, out int arrayItem3));
+            Assert.IsTrue(arrayItem3 == 42);
+
+            // Verify nested table
+            Assert.IsTrue(decodedTable["table"] is BinaryTable);
+            BinaryTable decodedNestedTable = decodedTable["table"] as BinaryTable;
+
+            Assert.IsTrue(decodedNestedTable.TryGetString("nestedKey", out string nestedStringValue));
+            Assert.IsTrue(nestedStringValue == "nested value");
+
+            Assert.IsTrue(decodedNestedTable.TryGetValue<int>("nestedNumber", out int nestedIntValue));
+            Assert.IsTrue(nestedIntValue == 789);
+        }
+
         struct StructForSerialize
         {
             public int intVal;

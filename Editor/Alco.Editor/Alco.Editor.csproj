@@ -12,28 +12,30 @@
     <Folder Include="Models\" />
     <AvaloniaResource Include="AppLogo.ico" />
     <AvaloniaResource Include="Resources\**" />
+    <AvaloniaResource Include="Images\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.2.3" />
-    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.1.0" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+    <PackageReference Include="Avalonia" Version="11.3.0" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.2.3">
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.0">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
-    <PackageReference Include="AvaloniaEdit.TextMate" Version="11.1.0" />
-  
-  
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="AvaloniaEdit.TextMate" Version="11.2.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.1.0-preview.10" />
+    <PackageReference Include="PixiEditor.ColorPicker.AvaloniaUI" Version="1.0.7" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
     <ProjectReference Include="..\Alco.Project\Alco.Project.csproj" />
+    <ProjectReference Include="..\Alco.Project.Mcp\Alco.Project.Mcp.csproj" />
     <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
   </ItemGroup>
 

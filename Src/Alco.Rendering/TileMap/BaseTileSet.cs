@@ -5,10 +5,10 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where TTileData : unmanaged, ITileData
+public abstract class BaseTileSet<TTileData> : AutoDisposable where TTileData : unmanaged, ITileData
 {
     protected readonly RenderingSystem _renderingSystem;
-    protected readonly TUserData[] _userDataList;
+    protected readonly object?[] _userDataList;
     protected readonly Dictionary<uint, TileSpriteData[]> _spriteData;
     protected readonly GraphicsArrayBuffer<TTileData> _tileData;
     protected readonly uint[] _tileIdToItemId;
@@ -41,7 +41,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
 
     internal BaseTileSet(
         RenderingSystem renderingSystem,
-        IReadOnlyList<BaseTileItem<TTileData, TUserData>> items,
+        IReadOnlyList<BaseTileItem<TTileData>> items,
         Material material,
         GPUSampler sampler,
         string name)
@@ -85,7 +85,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
         _atlas = packer.BuildTextureAtlas(sampler);
 
         _spriteData = new Dictionary<uint, TileSpriteData[]>();
-        _userDataList = new TUserData[itemCount];
+        _userDataList = new object?[itemCount];
         _tileIdToItemId = new uint[tileCount];
 
         int currentTileIndex = 0;
@@ -95,7 +95,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
             int textureCount = item.Textures.Count;
             var itemSprites = new TileSpriteData[textureCount];
 
-            TUserData userData = item.UserData;
+            _userDataList[i] = item.UserData;
             TTileData tileData = item.TileData;
 
             for (int j = 0; j < textureCount; j++)
@@ -127,7 +127,7 @@ public abstract class BaseTileSet<TTileData, TUserData> : AutoDisposable where T
         return _tileIdToItemId[tileId];
     }
 
-    public TUserData GetUserData(uint itemId)
+    public object? GetUserData(uint itemId)
     {
         return _userDataList[itemId];
     }

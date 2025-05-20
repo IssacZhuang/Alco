@@ -6,7 +6,7 @@ using static Alco.math;
 
 namespace Alco.Rendering;
 
-public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable where TTileData : unmanaged, ITileData
+public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileData : unmanaged, ITileData
 {
     protected readonly RenderingSystem _renderingSystem;
 
@@ -20,18 +20,18 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     protected readonly Mesh _mesh;
     protected bool _isTileIdDirty;
 
-    protected BaseTileSet<TTileData, TUserData> _tileSet;
+    protected BaseTileSet<TTileData> _tileSet;
 
     public Transform3D Transform;
     public int2 Size => _size;
 
-    public BaseTileSet<TTileData, TUserData> TileSet => _tileSet;
+    public BaseTileSet<TTileData> TileSet => _tileSet;
 
 
 
     protected BaseTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet<TTileData, TUserData> tileSet,
+        BaseTileSet<TTileData> tileSet,
         Material material,
         int width,
         int height,
@@ -121,7 +121,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
         _isTileIdDirty = true;
     }
 
-    public bool TryGetTileUserData(int x, int y, out TUserData userData)
+    public bool TryGetTileUserData(int x, int y, out object? userData)
     {
         if (!TryGetItemId(x, y, out uint itemId))
         {
@@ -144,7 +144,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// Update the tile set and clear the tile id data
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void SetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
+    public void SetTileSet(BaseTileSet<TTileData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;
@@ -162,7 +162,7 @@ public abstract class BaseTileBlock2D<TTileData, TUserData> : AutoDisposable whe
     /// <br/>[Warning] This it might cause some unexpected behavior if the new tile set has less tiles than the old one.
     /// </summary>
     /// <param name="tileSet">The new tile set</param>
-    public void UnsafeSetTileSet(BaseTileSet<TTileData, TUserData> tileSet)
+    public void UnsafeSetTileSet(BaseTileSet<TTileData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
         _tileSet = tileSet;

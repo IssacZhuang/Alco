@@ -1,6 +1,7 @@
 namespace Alco.Rendering;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
@@ -26,7 +27,7 @@ public partial class RenderingSystem
     private readonly PixelFormat _prefferedHDRFormat;
     private readonly PixelFormat _prefferedDepthStencilFormat;
 
-    private GraphicsValueBuffer<TimeData> _timeData;
+    private readonly GraphicsValueBuffer<GlobalRenderData> _globalRenderData;
 
     private readonly ConcurrentGraphicsBufferPool _bufferPool;
 
@@ -36,10 +37,10 @@ public partial class RenderingSystem
         get => _device;
     }
 
-    public GraphicsValueBuffer<TimeData> TimeData
+    public GraphicsValueBuffer<GlobalRenderData> GlobalRenderData
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _timeData;
+        get => _globalRenderData;
     }
 
     public PixelFormat PrefferedSDRFormat
@@ -108,12 +109,17 @@ public partial class RenderingSystem
         get => _bufferPool;
     }
 
+    public GraphicsBuffer? MainCamera { get; set; }
+
+    public IShaderCache? ShaderCache { get; }
+
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
         PixelFormat prefferedSDRFormat, 
         PixelFormat prefferedHDRFormat,
-        PixelFormat prefferedDepthStencilFormat
+        PixelFormat prefferedDepthStencilFormat,
+        IShaderCache? shaderCache = null
     )
     {
         _device = device;
@@ -123,7 +129,7 @@ public partial class RenderingSystem
         _prefferedHDRFormat = prefferedHDRFormat;
         _prefferedDepthStencilFormat = prefferedDepthStencilFormat;
 
-        _timeData = CreateGraphicsValueBuffer<TimeData>();
+        _globalRenderData = CreateGraphicsValueBuffer<GlobalRenderData>();
 
         //2kb, 4kb, 8kb, 16kb, 32kb, 64kb, 128kb, 256kb, 512kb
         _bufferPool = new ConcurrentGraphicsBufferPool(
@@ -188,6 +194,8 @@ public partial class RenderingSystem
             "light_map_pass"
         ));
 
+        ShaderCache = shaderCache;
+
         _host.OnUpdate += OnUpdate;
         _host.OnDispose += OnDispose;
 
@@ -199,20 +207,21 @@ public partial class RenderingSystem
         _device.Submit(commandBuffer);
     }
 
+
     private void OnUpdate(float deltaTime)
     {
-        TimeData timeData = _timeData.Value;
-        timeData.Time += deltaTime;
-        timeData.DeltaTime = deltaTime;
-        timeData.SinTime = math.sin(timeData.Time);
-        timeData.CosTime = math.cos(timeData.Time);
-        _timeData.Value = timeData;
-        _timeData.UpdateBuffer();
+        GlobalRenderData globleRenderData = _globalRenderData.Value;
+        globleRenderData.Time += deltaTime;
+        globleRenderData.DeltaTime = deltaTime;
+        globleRenderData.SinTime = math.sin(globleRenderData.Time);
+        globleRenderData.CosTime = math.cos(globleRenderData.Time);
+        _globalRenderData.Value = globleRenderData;
+        _globalRenderData.UpdateBuffer();
     }
 
     private void OnDispose()
     {
-        _timeData.Dispose();
+        _globalRenderData.Dispose();
         _bufferPool.Dispose();
         _host.OnUpdate -= OnUpdate;
         _host.OnDispose -= OnDispose;

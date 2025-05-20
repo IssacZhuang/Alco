@@ -13,6 +13,12 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_FloodFillLighting = "Shaders/Pipelines/Compute/FloodFillLighting.hlsl";
 
+   public const string Shader_GaussianBlurRGBA16F = "Shaders/Pipelines/Compute/GaussianBlurRGBA16F.hlsl";
+
+   public const string Shader_GaussianBlurRGBA32F = "Shaders/Pipelines/Compute/GaussianBlurRGBA32F.hlsl";
+
+   public const string Shader_GaussianBlurRGBA8 = "Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl";
+
    public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
 
    public const string Shader_TextureCompressBC3 = "Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl";
@@ -42,6 +48,8 @@ public static partial class BuiltInAssetsPath
    public const string Shader_Text = "Shaders/Pipelines/Rendering/Text/Text.hlsl";
 
    public const string Shader_TextMasked = "Shaders/Pipelines/Rendering/Text/TextMasked.hlsl";
+
+   public const string Shader_TileConnectable = "Shaders/Pipelines/Rendering/TileMap/TileConnectable.hlsl";
 
    public const string Shader_TileLighting = "Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl";
 

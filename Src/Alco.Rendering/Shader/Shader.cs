@@ -49,9 +49,7 @@ public sealed class Shader : AutoDisposable
         Name = name;
 
         //default permutation
-        int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
-        ShaderModulesInfo modulesInfo = UtilsShaderHLSL.Compile(shaderText, name, ReadOnlySpan<string>.Empty);
-        _modulesCache[hash] = modulesInfo;
+        ShaderModulesInfo modulesInfo = GetShaderModules(ReadOnlySpan<string>.Empty);
         IsComputeShader = modulesInfo.IsComputeShader;
 
         _customVertexLayouts = customVertexLayouts;
@@ -217,15 +215,32 @@ public sealed class Shader : AutoDisposable
         }
 
         //throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
+
+        
         using (_lockCreateModules.EnterScope())
         {
+            IShaderCache? shaderCache = _renderingSystem.ShaderCache;
+            if (shaderCache != null)
+            {
+                //load shader cache from disk
+                if (shaderCache.TryGetModules(Name, _shaderText, defines, out modulesInfo))
+                {
+                    //save shader cache into memory
+                    _modulesCache[hash] = modulesInfo;
+                    return modulesInfo;
+                }
+            }
+
             if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
             {
                 return modulesInfo2;
             }
 
-            modulesInfo = UtilsShaderHLSL.Compile(_shaderText, Name, defines);
+            modulesInfo = UtilsShader.CompileHLSL(_shaderText, Name, defines);
             _modulesCache[hash] = modulesInfo;
+
+            //save shader cache into disk
+            _ = shaderCache?.AddOrUpdateAsync(Name, _shaderText, defines, modulesInfo);
 
             return modulesInfo;
         }
@@ -237,8 +252,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="defines">Optional shader defines to customize compilation</param>
     public void Precompile(params ReadOnlySpan<string> defines)
     {
-        int hash = GetDefinesHash(defines);
-        _modulesCache[hash] = UtilsShaderHLSL.Compile(_shaderText, Name, defines);
+        _ = GetShaderModules(defines);
     }
 
     private int GetDefinesHash(ReadOnlySpan<string> defines)
@@ -420,7 +434,7 @@ public sealed class Shader : AutoDisposable
     public void UnsafeHotReload(string shaderText)
     {
         //it might throw exception if the shader code is not valid
-        ShaderModulesInfo shaderModule = UtilsShaderHLSL.Compile(shaderText, Name, ReadOnlySpan<string>.Empty);
+        ShaderModulesInfo shaderModule = UtilsShader.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty);
         
         _shaderText = shaderText;
 

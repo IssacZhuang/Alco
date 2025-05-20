@@ -11,6 +11,8 @@
     <ProjectReference Include="..\Alco\Alco.csproj" />
     <ProjectReference Include="..\Alco.Graphics\Alco.Graphics.csproj" />
     <ProjectReference Include="..\Alco.ShaderCompiler\Alco.ShaderCompiler.csproj" />
+    <PackageReference Include="System.IO.Hashing" Version="9.0.0" />
+
   </ItemGroup>
    <ItemGroup>
     <Content

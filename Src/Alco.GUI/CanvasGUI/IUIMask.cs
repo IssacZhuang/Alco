@@ -6,7 +6,7 @@ namespace Alco.GUI;
 public interface IUIMask
 {
     Texture2D? MaskTexture { get; }
-    Matrix4x4 MaskTransform { get; }
+    Transform2D MaskTransform { get; }
     Rect MaskTextureUvRect { get; }
 }
 

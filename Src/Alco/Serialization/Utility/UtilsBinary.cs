@@ -7,16 +7,12 @@ using System;
 
 namespace Alco
 {
-    internal static class SizeOf<T>
-    {
-        public static readonly int Value = Marshal.SizeOf(typeof(T));
-    }
     public static class UtilsBinary
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static byte[] EncodeValue<T>(T value) where T : unmanaged
         {
-            byte[] bytes = new byte[SizeOf<T>.Value];
+            byte[] bytes = new byte[sizeof(T)];
             fixed (byte* ptr = bytes)
             {
                 *(T*)ptr = value;
@@ -122,6 +118,61 @@ namespace Alco
                 }
             }
             return text;
+        }
+
+        /// <summary>
+        /// Encodes an enum value into a byte array
+        /// </summary>
+        /// <typeparam name="T">Enum type</typeparam>
+        /// <param name="value">Enum value to encode</param>
+        /// <returns>Byte array containing the enum value</returns>
+        public static unsafe byte[] EncodeEnum<T>(T value) where T : struct, Enum
+        {
+            // Use underlying type of enum for encoding
+            Type underlyingType = Enum.GetUnderlyingType(typeof(T));
+            int size = Unsafe.SizeOf<T>();
+
+            byte[] bytes = new byte[size];
+            fixed (byte* ptr = bytes)
+            {
+                if (underlyingType == typeof(Int32))
+                {
+                    *(int*)ptr = Unsafe.As<T, int>(ref value);
+                }
+                else if (underlyingType == typeof(UInt32))
+                {   
+                    *(uint*)ptr = Unsafe.As<T, uint>(ref value);
+                }
+                else if (underlyingType == typeof(Int16))
+                {
+                    *(short*)ptr = Unsafe.As<T, short>(ref value);
+                }
+                else if (underlyingType == typeof(UInt16))
+                {
+                    *(ushort*)ptr = Unsafe.As<T, ushort>(ref value);
+                }
+                else if (underlyingType == typeof(Byte))
+                {
+                    *(byte*)ptr = Unsafe.As<T, byte>(ref value);
+                }
+                else if (underlyingType == typeof(SByte))
+                {
+                    *(sbyte*)ptr = Unsafe.As<T, sbyte>(ref value);
+                }
+                else if (underlyingType == typeof(Int64))
+                {
+                    *(long*)ptr = Unsafe.As<T, long>(ref value);
+                }
+                else if (underlyingType == typeof(UInt64))
+                {
+                    *(ulong*)ptr = Unsafe.As<T, ulong>(ref value);
+                }
+                else
+                {
+                    throw new NotSupportedException($"Unsupported enum underlying type: {underlyingType.Name}");
+                }
+            }
+            return bytes;
         }
     }
 }

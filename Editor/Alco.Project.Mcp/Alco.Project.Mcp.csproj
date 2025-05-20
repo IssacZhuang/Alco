@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup> 
+    <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
+    <ProjectReference Include="..\Alco.Project\Alco.Project.csproj" />
+    <PackageReference Include="ModelContextProtocol" Version="0.1.0-preview.9" />
+
+  </ItemGroup>
+
+</Project>

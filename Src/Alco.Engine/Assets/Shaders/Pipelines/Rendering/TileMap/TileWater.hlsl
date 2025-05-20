@@ -1,6 +1,6 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Libs/Noise.hlsli"
-#include "Shaders/Libs/Time.hlsli"
+#include "Shaders/Libs/GlobalRenderData.hlsli"
 
 struct Vertex {
   float3 position : POSITION;
@@ -35,7 +35,7 @@ struct TileData {
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
-DEFINE_UNIFORM(1, _timeData) { TimeData timeData; };
+DEFINE_UNIFORM(1, _globalRenderData) { GlobalRenderData globalRenderData; };
 
 DEFINE_TEX2D_SAMPLE(2, _texture);
 
@@ -173,7 +173,7 @@ float4 PixelMain(V2F input) : SV_TARGET
         saturate(((1 - uv.x) + (1 - uv.y)) * invEdgeSmoothFactor) // bottom-right
     };
 
-    float time = timeData.time*0.8;
+    float time = globalRenderData.time*0.8;
 
     fnl_state state = fnlCreateState(1337);
     state.noise_type = FNL_NOISE_CELLULAR;

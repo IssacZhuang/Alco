@@ -61,8 +61,8 @@ public class TestAssetLoaderConfig
     {
         var lifeCycleProvider = new LifeCycleProvider();
         _assetSystem = new AssetSystem(lifeCycleProvider);
-        var configReferenceResolver = new ConfigReferenceResolver(_assetSystem);
-        var jsonSerializerOptions = Configable.BuildJsonSerializerOptions(configReferenceResolver);
+        var configReferenceResolver = new ConfigReferenceResolver((id, type)=>_assetSystem.Load(id, type));
+        var jsonSerializerOptions = BuildJsonSerializerOptions(configReferenceResolver);
         _configLoader = new AssetLoaderConfig(jsonSerializerOptions, configReferenceResolver);
         _fileSource = new TestFileSource();
         _assetSystem.RegisterAssetLoader(_configLoader);
@@ -244,6 +244,11 @@ public class TestAssetLoaderConfig
             }
         }
 
+        public void PostToMainThread(Action action)
+        {
+            action();
+        }
+
         void IAssetSystemHost.LogError(ReadOnlySpan<char> message)
         {
             TestContext.WriteLine($"[Error] {message}");
@@ -263,5 +268,29 @@ public class TestAssetLoaderConfig
         {
             TestContext.WriteLine($"[Warning] {message}");
         }
+    }
+
+    public static JsonSerializerOptions BuildJsonSerializerOptions(ConfigReferenceResolver configReferenceResolver = null)
+    {
+        return new JsonSerializerOptions()
+        {
+            TypeInfoResolver = configReferenceResolver != null ? new ConfigJsonTypeResolver(configReferenceResolver) : null,
+            Converters = {
+                new JsonConverterType(),
+                new JsonConverterVector2(),
+                new JsonConverterVector3(),
+                new JsonConverterVector4(),
+                new JsonConverterHalf2(),
+                new JsonConverterHalf3(),
+                new JsonConverterHalf4(),
+                new JsonConverterInt2(),
+                new JsonConverterInt3(),
+                new JsonConverterInt4(),
+                new JsonConverterUInt2(),
+                new JsonConverterUInt3(),
+                new JsonConverterUInt4(),
+                new JsonConverterQuaternion(),
+            }
+        };
     }
 }

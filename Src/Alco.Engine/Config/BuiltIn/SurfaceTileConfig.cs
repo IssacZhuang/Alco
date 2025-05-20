@@ -1,4 +1,5 @@
 using System.Numerics;
+using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
 
@@ -23,7 +24,7 @@ public class TileConfig : Configable, IValidatableConfig
     /// <summary>
     /// Color tint applied to the tile (RGBA).
     /// </summary>
-    public Vector4 Color { get; set; } = Vector4.One;
+    public ColorFloat Color { get; set; } = ColorFloat.White;
 
     /// <summary>
     /// Scale factor applied to the tile mesh.

@@ -1,8 +1,8 @@
 namespace Alco.Rendering;
 
-public sealed class SurfaceTileItem<TUserData> : BaseTileItem<SurfaceTileData, TUserData>
+public sealed class SurfaceTileItem : BaseTileItem<SurfaceTileData>
 {
-    public SurfaceTileItem(string name, SurfaceTileData tileData, TUserData userData, params ReadOnlySpan<Texture2D> textures) : base(name, tileData, userData, textures)
+    public SurfaceTileItem(string name, SurfaceTileData tileData, object? userData, params ReadOnlySpan<Texture2D> textures) : base(name, tileData, userData, textures)
     {
     }
 }

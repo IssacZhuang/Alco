@@ -10,8 +10,31 @@ public class GraphicsBuffer : AutoDisposable
 {
     protected readonly GPUDevice _device;
     protected readonly GPUBuffer _buffer;
-    private GPUResourceGroup? _resourcesReadOnly; // for uniform buffer
-    private GPUResourceGroup? _resourcesReadWrite; // for storage buffer, optional
+
+    protected GPUBuffer? _bufferCounter;
+
+    protected GPUResourceGroup? _resourcesReadOnly; // for uniform buffer
+    protected GPUResourceGroup? _resourcesReadWrite; // for storage buffer, optional
+    protected GPUResourceGroup? _resourcesReadWriteWithCounter; // for storage buffer with counter, optional
+
+    protected GPUBuffer BufferCounter
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_bufferCounter == null)
+            {
+                _bufferCounter = _device.CreateBuffer(new BufferDescriptor
+                {
+                    Usage = BufferUsage.Storage,
+                    Size = sizeof(uint),// todo: impl the real counter struct
+                    Name = $"{Name}_counter"
+                });
+            }
+
+            return _bufferCounter;
+        }
+    }
 
     /// <summary>
     /// The name of the buffer.
@@ -54,6 +77,16 @@ public class GraphicsBuffer : AutoDisposable
         {
             _resourcesReadWrite ??= CreateResourceReadWrite();
             return _resourcesReadWrite;
+        }
+    }
+
+    public virtual GPUResourceGroup EntryReadWriteWithCounter
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            _resourcesReadWriteWithCounter ??= CreateResourceReadWriteWithCounter();
+            return _resourcesReadWriteWithCounter;
         }
     }
 
@@ -139,6 +172,19 @@ public class GraphicsBuffer : AutoDisposable
             Resources = new ResourceBindingEntry[]
             {
                 new ResourceBindingEntry(0, _buffer),
+            }
+        });
+    }
+
+    private GPUResourceGroup CreateResourceReadWriteWithCounter()
+    {
+        return _device.CreateResourceGroup(new ResourceGroupDescriptor
+        {
+            Layout = _device.BindGroupStorageBufferWithCounter,
+            Resources = new ResourceBindingEntry[]
+            {
+                new ResourceBindingEntry(0, _buffer),
+                new ResourceBindingEntry(1, BufferCounter),
             }
         });
     }

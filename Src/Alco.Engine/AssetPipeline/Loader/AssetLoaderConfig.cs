@@ -13,7 +13,7 @@ public class AssetLoaderConfig : IAssetLoader
 
     private readonly ConfigReferenceResolver _configReferenceResolver;
 
-    public AssetLoaderConfig(JsonSerializerOptions options, ConfigReferenceResolver configReferenceResolver    )
+    public AssetLoaderConfig(JsonSerializerOptions options, ConfigReferenceResolver configReferenceResolver)
     {
         _options = options;
         _configReferenceResolver = configReferenceResolver;
@@ -41,7 +41,7 @@ public class AssetLoaderConfig : IAssetLoader
 
         try
         {
-            _configReferenceResolver.ResolveRealReference(asset);
+            _configReferenceResolver.ResolveReferenceFor(asset);
             return asset;
         }
         catch

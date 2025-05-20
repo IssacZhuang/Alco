@@ -16,6 +16,21 @@ public partial class GameEngine
         return new ViewRenderTarget(this, view, renderPass, blitShader);
     }
 
+    public virtual IShaderCache? CreateShaderCache(GraphicsSetting setting)
+    {
+        if (setting.IsShaderCacheEnabled)
+        {
+            if (setting.ShaderCachePath == null)
+            {
+                Log.Warning("Shader cache is enabled but path is not set");
+                return null;
+            }
+            Log.Info("Shader cache is enabled, path: ", setting.ShaderCachePath);
+            return new ShaderCache(setting.ShaderCachePath);
+        }
+        return null;
+    }
+
     private GPUDevice CreateGraphicsDevice(GraphicsSetting setting, uint disposeDelay)
     {
         if (setting.Backend == GraphicsBackend.None)

@@ -11,8 +11,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// A fixed size 2D tiled terrain surface block. The top left corner is (0, 0).
 /// </summary>
-/// <typeparam name="TUserData">The type of the user data.</typeparam>
-public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileData, TUserData>
+public sealed class SurfaceTileBlock2D : BaseTileBlock2D<SurfaceTileData>
 {
     public const string ShaderDefine_IS_Cliff = "IS_CLIFF";
     public const string ShaderDefine_USE_LIGHT_MAP = "USE_LIGHT_MAP";
@@ -71,7 +70,7 @@ public sealed class SurfaceTileBlock2D<TUserData> : BaseTileBlock2D<SurfaceTileD
 
     internal SurfaceTileBlock2D(
         RenderingSystem renderingSystem,
-        SurfaceTileSet<TUserData> tileSet,
+        SurfaceTileSet tileSet,
         TileMapHeightBuffer heightData,
         Material material,
         int width,

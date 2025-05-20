@@ -29,12 +29,12 @@ public sealed class MaterialInstance : Material
             );
     }
 
-    protected override void SetPipelineResources(MaterialCommandContext context)
+    public override void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
     {
         if(StencilReference.HasValue){
-            context.SetStencilReference(StencilReference.Value);
+            commandBuffer.SetStencilReference(StencilReference.Value);
         }else if(_parent.StencilReference.HasValue){
-            context.SetStencilReference(_parent.StencilReference.Value);
+            commandBuffer.SetStencilReference(_parent.StencilReference.Value);
         }
 
         int length = ResourceGroupCount;
@@ -44,7 +44,30 @@ public sealed class MaterialInstance : Material
             GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
             if (resourceGroup != null)
             {
-                context.SetGraphicsResources(i, resourceGroup);
+                commandBuffer.SetGraphicsResources(i, resourceGroup);
+                continue;
+            }
+
+            throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
+        }
+    }
+
+    public override void PushResourceToRenderBundle(GPURenderBundle renderBundle)
+    {
+        // the stencil value is dynamic state which is not supported in render bundle
+        // if(StencilReference.HasValue){
+        //     renderBundle.SetStencilReference(StencilReference.Value);
+        // }else if(_parent.StencilReference.HasValue){
+        //     renderBundle.SetStencilReference(_parent.StencilReference.Value);
+        // }
+
+        int length = ResourceGroupCount;
+        for (uint i = 0; i < length; i++)
+        {
+            GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
+            if (resourceGroup != null)
+            {
+                renderBundle.SetGraphicsResources(i, resourceGroup);
                 continue;
             }
 

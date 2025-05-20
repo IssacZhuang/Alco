@@ -248,7 +248,12 @@ public class Game : GameEngine
             _layout.RemoveAllChildren();
             for (int i = 0; i < _itemCount; i++)
             {
+                int index = i;
                 UIButton button = _factory.CreateButton("Button " + i);
+                button.EventOnClick += (canvas, mousePosition) =>
+                {
+                    Log.Info("Button " + index   + " clicked");
+                };
                 _layout.Add(button, false);
             }
 

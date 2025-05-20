@@ -93,6 +93,14 @@ public sealed class Texture2D : Texture
         _resourcesStorage = null;
     }
 
+    public override void SetSampler(GPUSampler sampler)
+    {
+        base.SetSampler(sampler);
+        _resourcesSample = null;
+        _resourcesRead = null;
+        _resourcesStorage = null;
+    }
+
     private GPUResourceGroup CreateResourcesSample()
     {
         ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(

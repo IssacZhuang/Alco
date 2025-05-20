@@ -4,7 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Web;
 using Alco.Editor.Models;
-using Alco.IO;
+using Alco.Engine;
 
 namespace Alco.Editor;
 
@@ -22,7 +22,7 @@ public class EditorPreference
     {
         _engine = engine;
         _preferenceFilePath = Path.Combine(_tmpDirectory, PreferenceFileName);
-        _jsonSerializerOptions = Configable.BuildJsonSerializerOptions();
+        _jsonSerializerOptions = engine.ConfigSerializeOption;
 
         if (!Directory.Exists(_tmpDirectory))
         {
@@ -103,7 +103,7 @@ public class EditorPreference
 
     public void Save()
     {
-        string projectPath = _engine.Project?.FullPath ?? string.Empty;
+        string projectPath = _engine.Project?.ProjectFilePath ?? string.Empty;
         Config.OpenedProject = projectPath;
         
         string json = JsonSerializer.Serialize(Config, _jsonSerializerOptions);

@@ -14,7 +14,7 @@ public class UIMask : UINode, IUIMask
 
     Texture2D? IUIMask.MaskTexture => Texture;
 
-    Matrix4x4 IUIMask.MaskTransform => RenderTransform.Matrix;
+    Transform2D IUIMask.MaskTransform => RenderTransform;
 
     Rect IUIMask.MaskTextureUvRect => Rect.One;
 }

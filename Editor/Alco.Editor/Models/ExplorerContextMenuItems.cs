@@ -6,6 +6,7 @@ using Alco.Editor.Attributes;
 using Avalonia.Controls;
 using System.Linq;
 using Alco.IO;
+using Alco.Project;
 
 namespace Alco.Editor.Models;
 
@@ -15,25 +16,22 @@ public static class ExplorerContextMenuItems
     public static void CreateConfig(string localPath)
     {
         var engine = App.Main.Engine;
-        var types = App.Main.TypeDatabase.ConfigTypes;
-        var dialog = new ViewModels.CreateConfigDialog(types.ToArray());
+        AlcoProject? project = App.CurrentProject;
+        if (project == null)
+        {
+            return;
+        }
 
         if (engine.ProjectDirectory == null)
         {
             return;
         }
-
-
         string path = Path.Combine(engine.ProjectDirectory, localPath);
         path = File.Exists(path) ? Path.GetDirectoryName(path) ?? string.Empty : path;
 
-        dialog.OnTypeConfirmed += (filename, type) =>
-        {
-            Configable? instance = Activator.CreateInstance(type) as Configable ?? throw new Exception($"The type {type.Name} is not a valid config type.");
-            SafeMemoryHandle handle = engine.Assets.EncodeToBinary(instance);
-            path = Path.Combine(path, filename + ".json");
-            File.WriteAllBytes(path, handle.Span);
-        };
+        var types = project.ConfigTypes;
+        var dialog = new ViewModels.CreateConfigDialog(path, types.ToArray());
+
         var window = dialog.CreateControl();
         ShowDialog(window);
     }

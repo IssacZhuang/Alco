@@ -3,6 +3,8 @@
 using Alco.Editor.ViewModels;
 using Alco.Editor.Views;
 using Alco.Engine;
+using Alco.Project;
+using Alco.Project.Mcp;
 using Avalonia;
 
 using Avalonia.Controls;
@@ -13,6 +15,8 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Rendering.Composition;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,16 +27,23 @@ namespace Alco.Editor
 {
     public partial class App : Application
     {
-        private EditorPlatform _platform;
+        private readonly EditorPlatform _platform;
+        private readonly WebApplication? _mcpServer;
+
         public static App Main
         {
             get => Current as App ?? throw new InvalidOperationException("App is not initialized");
         }
 
+        public static AlcoProject? CurrentProject
+        {
+            get => Main.Engine?.Project;
+        }
+
         public Views.Editor EditorWindow { get; private set; }
         public EditorEngine Engine { get; private set; }
         public EditorPreference Preference { get; private set; }
-        public TypeDatabase TypeDatabase { get; private set; }
+
 
 
         public App()
@@ -44,14 +55,39 @@ namespace Alco.Editor
                 setting.Platform = _platform;
                 Engine = new EditorEngine(setting);
                 Preference = new EditorPreference(Engine);
-                TypeDatabase = new TypeDatabase();
             }
             else
             {
                 Engine = null!;
                 Preference = null!;
-                TypeDatabase = null!;
             }
+
+            try
+            {
+                AlcoProjectMcpTools.SetContext(Engine);
+
+                var builder = WebApplication.CreateBuilder();
+                builder.Services.AddMcpServer().
+                WithTools<AlcoProjectMcpTools>().
+                WithPrompts<AlcoProjectMcpPrompts>().
+                WithHttpTransport();
+
+                _mcpServer = builder.Build();
+                _mcpServer.MapMcp();
+                // not block main thread
+                StartMcpServer(_mcpServer);
+            }
+            catch (Exception e)
+            {
+                Log.Error("Failed to start Mcp server", e);
+            }
+        }
+
+        private async void StartMcpServer(WebApplication mcpServer)
+        {
+            Log.Info($"Running Mcp server on {string.Join(", ", mcpServer.Urls)}");
+            await mcpServer.RunAsync();
+            Log.Info("Mcp server stoped");
         }
 
         public override void Initialize()
@@ -123,16 +159,35 @@ namespace Alco.Editor
         {
             Preference?.Save();
             Engine?.Dispose();
-            TypeDatabase?.Dispose();
+            _mcpServer?.StopAsync();
         }
 
         private void OnEditorKeyDown(object? sender, KeyEventArgs e)
         {
             if (e.Key == Key.F11)
             {
-                OpenTestGpuWindow();
+                // OpenTestGpuWindow();
+                OpenSelectConfigDialog();
                 e.Handled = true;
             }
+        }
+
+        public void OpenSelectConfigDialog()
+        {
+            ConfigMeta[] metas = CurrentProject?.ConfigMetas.ToArray() ?? [];
+            if (metas.Length == 0)
+            {
+                Log.Error("No config found");
+                return;
+            }
+
+            ViewModels.SelectConfigDialog dataContext = new ViewModels.SelectConfigDialog(metas);
+            Views.SelectConfigDialog dialog = new Views.SelectConfigDialog()
+            {
+
+                DataContext = dataContext
+            };
+            dialog.ShowDialog(EditorWindow);
         }
 
         public void OpenTestGpuWindow()

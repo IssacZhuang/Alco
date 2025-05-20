@@ -6,10 +6,10 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The context of the render object. It is a high level encapsulation of the rendering process.
+/// The context of the render object. It is a high level encapsulation of the <see cref="GPUCommandBuffer"/>.
 /// All APIs in this class are not thread safe, but you can create multiple instances on different threads.
 /// </summary>
-public sealed class RenderContext : AutoDisposable
+public sealed class RenderContext : AutoDisposable, IRenderContext
 {
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
@@ -138,10 +138,10 @@ public sealed class RenderContext : AutoDisposable
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
-        if (pipelineInfo.PushConstantsSize != sizeof(T))
-        {
-            throw new ArgumentException("The size of the constant does not match the push constants size");
-        }
+        // if (pipelineInfo.PushConstantsSize != sizeof(T))
+        // {
+        //     throw new ArgumentException("The size of the constant does not match the push constants size");
+        // }
         _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResourceToCommandBuffer(_command);
@@ -205,6 +205,25 @@ public sealed class RenderContext : AutoDisposable
         _command.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
+
+    /// <summary>
+    /// Execute the commands recorded in the <see cref="SubRenderContext"/>.
+    /// </summary>
+    /// <param name="subContext">The sub context to execute.</param>
+    public void ExecuteSubContext(SubRenderContext subContext)
+    {
+        GPURenderBundle renderBundle = subContext.RenderBundle;
+        if (!renderBundle.HasBuffer)
+        {
+            throw new InvalidOperationException("The render bundle of SubRenderContext is not been recorded, try use RenderContext.Begin(GPURenderPass) to record render commands.");
+        }
+
+        _command.ExecuteBundle(renderBundle);
+        // the binding of vertex buffer and index buffer will be reset after executing the bundle
+        // so we need to clear the cache to rebind the vertex buffer and index buffer
+        ClearCache();
+    }
+
     /// <summary>
     /// End the render context.
     /// </summary>
@@ -221,11 +240,6 @@ public sealed class RenderContext : AutoDisposable
         return exceptions;
     }
 
-    /// <summary>
-    /// Sets the mesh for rendering.
-    /// </summary>
-    /// <param name="mesh">The mesh to set.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to use.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetMesh(in Mesh mesh, in int subMeshIndex)
     {

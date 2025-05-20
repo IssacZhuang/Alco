@@ -8,6 +8,7 @@ public static class ShaderResourceId
     public const string Camera = "_camera";
     public const string Texture = "_texture";
     public const string LightMap = "_lightMap";
+    public const string OpacityMap = "_opacityMap";
     public const string Data = "_data";
     public const string Font = "_font";
     public const string TextBuffer = "_textBuffer";
@@ -15,7 +16,7 @@ public static class ShaderResourceId
     public const string FrontBuffer = "_frontBuffer";
     public const string BackBuffer = "_backBuffer";
 
-    public const string TimeData = "_timeData";
+    public const string GlobalRenderData = "_globalRenderData";
     public const string SpriteData = "_spriteData";
     public const string TileData = "_tileData";
     public const string ColorData = "_colorData";
@@ -29,4 +30,6 @@ public static class ShaderResourceId
     public const string Output = "_output";
 
     public const string Particles = "_particles";
+
+    public const string GaussianKernel = "_gaussianKernel";
 }

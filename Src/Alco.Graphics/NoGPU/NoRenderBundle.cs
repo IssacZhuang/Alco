@@ -1,0 +1,72 @@
+namespace Alco.Graphics.NoGPU;
+
+internal class NoRenderBundle : GPURenderBundle
+{
+    public override bool HasBuffer => true;
+
+    protected override GPUDevice Device => NoDevice.noDevice;
+
+    public NoRenderBundle(in RenderBundleDescriptor? descriptor) : base(descriptor)
+    {
+    }
+
+    protected override void BeginCore(GPURenderPass frameBuffer)
+    {
+        
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        
+    }
+
+    protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+    {
+        
+    }
+
+    protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+    {
+        
+    }
+
+    protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset)
+    {
+        
+    }
+
+    protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
+    {
+        
+    }
+
+    protected override void EndCore()
+    {
+        
+    }
+
+    protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
+    {
+        
+    }
+
+    protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
+    {
+        
+    }
+
+    protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
+    {
+        
+    }
+
+    protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
+    {
+        
+    }
+
+    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    {
+
+    }
+}

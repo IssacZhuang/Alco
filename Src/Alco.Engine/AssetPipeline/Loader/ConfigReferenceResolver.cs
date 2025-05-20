@@ -6,18 +6,16 @@ using Alco.IO;
 
 namespace Alco.Engine;
 
-public class ConfigReferenceResolver : IConfigReferenceResolver
+public class ConfigReferenceResolver
 {
     private class ConfigReference
     {
         public string Id { get; }
-        public string PropertyName { get; }
         public Type PropertyType { get; }
 
-        public ConfigReference(string id, string propertyName, Type propertyType)
+        public ConfigReference(string id, Type propertyType)
         {
             Id = id;
-            PropertyName = propertyName;
             PropertyType = propertyType;
         }
     }
@@ -26,14 +24,15 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
     private readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
     private readonly ConditionalWeakTable<Configable, ConfigReference> _configReferences = new();
     private readonly ConcurrentDictionary<string, Configable> _loadingConfigs = new();
-    private readonly AssetSystem _assetSystem;
+    private readonly Func<string, Type, object?> _funcLoadConfig;
 
-    public ConfigReferenceResolver(AssetSystem assetSystem)
+    public ConfigReferenceResolver(Func<string, Type, object?> funcLoadConfig)
     {
-        _assetSystem = assetSystem;
+        ArgumentNullException.ThrowIfNull(funcLoadConfig);
+        _funcLoadConfig = funcLoadConfig;
     }
 
-    public bool TryResolve(string id, string propertyName, Type propertyType, [NotNullWhen(true)] out Configable? config)
+    public bool TryResolve(string id, Type propertyType, [NotNullWhen(true)] out Configable? config)
     {
         if (_loadingConfigs.TryGetValue(id, out var loadingConfig))
         {
@@ -44,7 +43,7 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         //it might be loop loading if resolve the reference immediately
         //so just create a placeholder config to store the reference
         Configable placeHolder = Activator.CreateInstance(propertyType) as Configable ?? throw new InvalidOperationException($"Failed to create an instance of {propertyType}");
-        SetReference(placeHolder, new ConfigReference(id, propertyName, propertyType));
+        SetReference(placeHolder, new ConfigReference(id, propertyType));
         config = placeHolder;
         return true;
     }
@@ -59,7 +58,7 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
         _loadingConfigs.TryRemove(filename, out _);
     }
 
-    public void ResolveRealReference(Configable asset)
+    public void ResolveReferenceFor(Configable asset)
     {
         AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(asset.GetType());
         foreach (var accessMember in accessTypeInfo.Members)
@@ -77,9 +76,9 @@ public class ConfigReferenceResolver : IConfigReferenceResolver
 
         if (TryGetReference(config, out var reference))
         {
-            object resolvedConfig = _loadingConfigs.TryGetValue(reference.Id, out var loadingConfig)
+            object? resolvedConfig = _loadingConfigs.TryGetValue(reference.Id, out var loadingConfig)
                 ? loadingConfig
-                : _assetSystem.Load(reference.Id, reference.PropertyType);
+                : _funcLoadConfig(reference.Id, reference.PropertyType);
 
             accessMember.SetValue(asset, resolvedConfig);
         }

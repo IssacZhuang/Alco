@@ -116,6 +116,7 @@ public abstract class Material: AutoDisposable
 
     /// <summary>
     /// The stencil reference value which used in <see cref="GPUCommandBuffer.SetStencilReference"/>.
+    /// <br/> [Note] This value is only available for <see cref="GPUCommandBuffer"/> but not <see cref="GPURenderBundle"/>
     /// </summary>
     public uint? StencilReference;
 
@@ -452,18 +453,15 @@ public abstract class Material: AutoDisposable
     /// Set the resources to the command buffer.
     /// </summary>
     /// <param name="commandBuffer">The command buffer to set the resources.</param>
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
-    {
-        SetPipelineResources(new MaterialCommandContext(commandBuffer));
-    }
+    public abstract void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer);
 
     /// <summary>
-    /// Set the resources to the command buffer.
+    /// Set the resources to the render bundle.
     /// </summary>
-    /// <param name="context">The wrapper of the GPU command buffer to limit the usage of the GPU command buffer.</param>
-    protected abstract void SetPipelineResources(MaterialCommandContext context);
+    /// <param name="renderBundle">The render bundle to set the resources.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public abstract void PushResourceToRenderBundle(GPURenderBundle renderBundle);
 
     /// <summary>
     /// Create a instance of the material. The instance can override part of the parameters of the parent material.

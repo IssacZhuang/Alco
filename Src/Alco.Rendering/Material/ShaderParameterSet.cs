@@ -18,7 +18,8 @@ public sealed class ShaderParameterSet
         TextureRead,
         TextureStorage,
         UniformBuffer,
-        StorageBuffer
+        StorageBuffer,
+        StorageBufferWithCounter
     }
 
     private struct Slot
@@ -116,6 +117,12 @@ public sealed class ShaderParameterSet
             _resourceGroups.Set(id, buffer.EntryReadWrite);
             return true;
         }
+        else if (slot.type == ResourceType.StorageBufferWithCounter)
+        {
+            slot.buffer = buffer;
+            _resourceGroups.Set(id, buffer.EntryReadWriteWithCounter);
+            return true;
+        }
 
         return false;
     }
@@ -158,9 +165,14 @@ public sealed class ShaderParameterSet
             slot.buffer = buffer;
             _resourceGroups.Set(id, buffer.EntryReadWrite);
         }
+        else if (slot.type == ResourceType.StorageBufferWithCounter)
+        {
+            slot.buffer = buffer;
+            _resourceGroups.Set(id, buffer.EntryReadWriteWithCounter);
+        }
         else
         {
-            throw new InvalidOperationException($"The bind group {id} is not for a buffer but {slot.type}.");
+            throw new InvalidOperationException($"The bind group {id}({_reflectionInfo.GetResourceName(id)}) is not for a buffer but {slot.type}.");
         }
 
 
@@ -202,7 +214,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer)
+        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer || slot.type == ResourceType.StorageBufferWithCounter)
         {
             buffer = slot.buffer;
             return buffer != null;
@@ -240,7 +252,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots.GetRef(id);
-        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer)
+        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer || slot.type == ResourceType.StorageBufferWithCounter)
         {
             return slot.buffer;
         }
@@ -761,6 +773,10 @@ public sealed class ShaderParameterSet
             else if (UtilsMaterial.IsStorageBufferGroup(bindGroupLayout.Bindings))
             {
                 slot.type = ResourceType.StorageBuffer;
+            }
+            else if (UtilsMaterial.IsStorageBufferWithCounterGroup(bindGroupLayout.Bindings))
+            {
+                slot.type = ResourceType.StorageBufferWithCounter;
             }
             else if (UtilsMaterial.IsStorageTextureGroup(bindGroupLayout.Bindings))
             {

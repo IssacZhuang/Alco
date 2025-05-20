@@ -109,6 +109,11 @@ public sealed partial class AssetSystem
         UpdateEntries(true);
     }
 
+    public void MarkEntriesDirty()
+    {
+        _isEntryDirty = true;
+    }
+
     private void UpdateEntries(bool forced = false)
     {
         if (!_isEntryDirty && !forced)

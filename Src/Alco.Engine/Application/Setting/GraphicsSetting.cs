@@ -18,8 +18,19 @@ public struct GraphicsSetting
     /// </summary>
     public bool DebugInfo { get; set; }
 
+    /// <summary>
+    /// The preferred pixel format for swap chain surface presentation
+    /// </summary>
     public PixelFormat PreferredSurfaceFormat { get; set; }
+
+    /// <summary>
+    /// The preferred pixel format for standard dynamic range (SDR) rendering targets
+    /// </summary>
     public PixelFormat PreferredSDRFormat { get; set; }
+
+    /// <summary>
+    /// The preferred pixel format for high dynamic range (HDR) rendering targets
+    /// </summary>
     public PixelFormat PreferredHDRFormat { get; set; }
 
     /// <summary>
@@ -29,10 +40,14 @@ public struct GraphicsSetting
     public PixelFormat PreferredDepthStencilFormat { get; set; }
 
     /// <summary>
-    /// The number of render threads.
+    /// Whether to enable shader cache
     /// </summary>
-    public int RenderThreadCount { get; set; }
+    public bool IsShaderCacheEnabled { get; set; }
 
+    /// <summary>
+    /// The path to the shader cache
+    /// </summary>
+    public string? ShaderCachePath { get; set; }
 
     /// <summary>
     /// The default graphics setting
@@ -44,8 +59,9 @@ public struct GraphicsSetting
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
-        RenderThreadCount = Environment.ProcessorCount,
         DebugInfo = false,
+        IsShaderCacheEnabled = true,
+        ShaderCachePath = ".cache/shader",
     };
 
     /// <summary>
@@ -58,8 +74,9 @@ public struct GraphicsSetting
         PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
-        RenderThreadCount = Environment.ProcessorCount,
         DebugInfo = true,
+        IsShaderCacheEnabled = true,
+        ShaderCachePath = ".cache/shader",
     };
 
 
@@ -69,7 +86,8 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting NoGPU = new GraphicsSetting
     {
         Backend = GraphicsBackend.None,
-        RenderThreadCount = Environment.ProcessorCount,
         DebugInfo = false,
+        IsShaderCacheEnabled = false,
+        ShaderCachePath = null,
     };
 }

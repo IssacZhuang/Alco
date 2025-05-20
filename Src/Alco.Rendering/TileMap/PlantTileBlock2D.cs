@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Alco.Rendering;
 
-public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserData>
+public class PlantTileBlock2D : BaseTileBlock2D<PlantTileData>
 {
     public const string ShaderDefine_LightMap = "USE_LIGHT_MAP";
 
@@ -38,7 +38,7 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
 
     internal PlantTileBlock2D(
         RenderingSystem renderingSystem,
-        BaseTileSet<PlantTileData, TUserData> tileSet,
+        BaseTileSet<PlantTileData> tileSet,
         TileMapHeightBuffer heightData,
         Material material,
         int width,
@@ -48,7 +48,8 @@ public class PlantTileBlock2D<TUserData> : BaseTileBlock2D<PlantTileData, TUserD
     {
         _heightData = heightData;
         _material.SetBuffer(ShaderResourceId.HeightData, _heightData);
-        _material.SetBuffer(ShaderResourceId.TimeData, renderingSystem.TimeData);
+        // the global render data is set when the material is created
+        // _material.TrySetBuffer(ShaderResourceId.GlobalRenderData, renderingSystem.GlobalRenderData);
     }
 
 
