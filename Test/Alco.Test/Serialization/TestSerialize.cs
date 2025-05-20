@@ -5,6 +5,14 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Alco.Test;
 
+public enum TestEnum
+{
+    None,
+    One,
+    Two,
+    Three
+}
+
 public class TestSerialize
 {
     private class TestObject1 : ISerializable
@@ -81,6 +89,24 @@ public class TestSerialize
         }
     }
 
+    private class TestObjectEnum : ISerializable
+    {
+        public TestEnum enumValue;
+        public List<TestEnum> enumList;
+
+        public TestObjectEnum()
+        {
+            enumValue = TestEnum.None;
+            enumList = new List<TestEnum>();
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindEnum("enumValue", ref enumValue);
+            node.BindCollection("enumList", enumList);
+        }
+    }
+
     [Test]
     public void TestSerializeNormal()
     {
@@ -154,5 +180,24 @@ public class TestSerialize
             Assert.That(obj2.listStruct[i].intValue, Is.EqualTo(ints[i]));
             Assert.That(obj2.listStruct[i].str, Is.EqualTo(ints[i].ToString()));
         }
+    }
+
+    [Test]
+    public void TestSerializeEnum()
+    {
+        TestObjectEnum obj = new TestObjectEnum();
+        obj.enumValue = TestEnum.Two;
+        obj.enumList.Add(TestEnum.One);
+        obj.enumList.Add(TestEnum.Two);
+        obj.enumList.Add(TestEnum.Three);
+
+        byte[] data = BinaryParser.Encode(obj);
+        TestObjectEnum obj2 = BinaryParser.Decode<TestObjectEnum>(data);
+
+        Assert.That(obj2.enumValue, Is.EqualTo(TestEnum.Two));
+        Assert.That(obj2.enumList.Count, Is.EqualTo(3));
+        Assert.That(obj2.enumList[0], Is.EqualTo(TestEnum.One));
+        Assert.That(obj2.enumList[1], Is.EqualTo(TestEnum.Two));
+        Assert.That(obj2.enumList[2], Is.EqualTo(TestEnum.Three));
     }
 }

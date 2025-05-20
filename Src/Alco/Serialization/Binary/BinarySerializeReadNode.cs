@@ -21,7 +21,6 @@ public class BinarySerializeReadNode : SerializeNode
 
     public override void BindDeep<T>(string key, ref T value) 
     {
-        value = new T();
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
             value.OnSerialize(new BinarySerializeReadNode(table), SerializeMode.Load);
@@ -44,6 +43,18 @@ public class BinarySerializeReadNode : SerializeNode
     public override void BindValue<T>(string key, ref T value, T @default = default)
     {
         if (_content.TryGetValue(key, out T v))
+        {
+            value = v;
+        }
+        else
+        {
+            value = @default;
+        }
+    }
+
+    public override void BindEnum<T>(string key, ref T value, T @default = default)
+    {
+        if (_content.TryGetEnum(key, out T v))
         {
             value = v;
         }

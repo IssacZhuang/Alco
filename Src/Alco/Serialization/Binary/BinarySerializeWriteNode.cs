@@ -31,6 +31,11 @@ public class BinarySerializeWriteNode : SerializeNode
         _content.Add(key, BinaryValue.CreateValue(value));
     }
 
+    public override void BindEnum<T>(string key, ref T value, T @default = default)
+    {
+        _content.Add(key, BinaryValue.CreateValueEnum(value));
+    }
+
     public override void BindCollection<T>(string key, IList<T> value)
     {
         BinaryArray array = new BinaryArray();
