@@ -5,7 +5,7 @@ public sealed partial class AssetSystem
     /// <summary>
     /// Get all the file names of the assets
     /// </summary>
-    public IEnumerable<string> AllFileNames
+    public IEnumerable<string> AllAssetNames
     {
         get
         {
@@ -17,7 +17,7 @@ public sealed partial class AssetSystem
     /// <summary>
     /// The asset names without the extension
     /// </summary>
-    public IEnumerable<string> AllFileAliases
+    public IEnumerable<string> AllAssetAliases
     {
         get
         {
@@ -34,7 +34,7 @@ public sealed partial class AssetSystem
     {
         get
         {
-            return AllFileNames.Select(x => new AssetInfo(this, x));
+            return AllAssetNames.Select(x => new AssetInfo(this, x));
         }
     }
 
@@ -109,9 +109,44 @@ public sealed partial class AssetSystem
         UpdateEntries(true);
     }
 
+    /// <summary>
+    /// Mark the file entries as dirty
+    /// </summary>
     public void MarkEntriesDirty()
     {
         _isEntryDirty = true;
+    }
+
+    /// <summary>
+    /// List all the assets in the given path
+    /// </summary>
+    /// <param name="path">The path to list the assets</param>
+    /// <returns>The list of assets in the given path</returns>
+    public IEnumerable<string> ListAssetsInPath(string path)
+    {
+        TryRefreshEntries();
+        if (path == null || path.Equals(string.Empty))
+        {
+            foreach (var asset in AllAssetNames)
+            {
+                yield return asset;
+            }
+            yield break;
+        }
+
+        path = ParseEntry(path);
+        if (!path.EndsWith('/'))
+        {
+            path += '/';
+        }
+
+        foreach (string assetPath in AllAssetNames)
+        {
+            if (assetPath.StartsWith(path))
+            {
+                yield return assetPath;
+            }
+        }
     }
 
     private void UpdateEntries(bool forced = false)

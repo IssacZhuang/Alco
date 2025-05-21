@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
 using Alco.IO;
+using System.Collections.Concurrent;
+using System.Text;
 
 namespace Alco.IO.Test;
 
@@ -368,5 +370,106 @@ public class TestAssetSystem
         //assetSystem.Dispose();
     }
 
- 
+    private class VirtualFileSource : IFileSource
+    {
+        private readonly ConcurrentDictionary<string, string> _files = new();
+
+        public int Priority => 0;
+
+        public IEnumerable<string> AllFileNames => _files.Keys;
+
+        public bool IsWriteable => false;
+
+        public void SetFile(string key, string text)
+        {
+            _files[key] = text;
+        }
+
+        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string failureReason)
+        {
+            if (_files.TryGetValue(path, out var content))
+            {
+                data = new SafeMemoryHandle(Encoding.UTF8.GetBytes(content));
+                failureReason = string.Empty;
+                return true;
+            }
+            data = default;
+            failureReason = "File not found";
+            return false;
+        }
+
+        public bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string failureReason)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    private class TestAssetLoader : IAssetLoader
+    {
+        public string Name => "Text loader";
+
+        public IReadOnlyList<string> FileExtensions => [".txt"];
+
+        public bool CanHandleType(Type type)
+        {
+            return type == typeof(string);
+        }
+
+        public object CreateAsset(in AssetLoadContext context)
+        {
+            return Encoding.UTF8.GetString(context.Data);
+        }
+    }
+
+    [Test]
+    public void TestListAssets()
+    {
+        AssetSystem assetSystem = new AssetSystem(new LifeCycleProvider());
+        VirtualFileSource fileSource = new VirtualFileSource();
+        fileSource.SetFile("test.txt", "test");
+        fileSource.SetFile("path1.txt", "test");
+        fileSource.SetFile("path1/test.txt", "test");
+        fileSource.SetFile("path1/test2.txt", "test");
+        fileSource.SetFile("path1/subPath/test.txt", "test");
+        fileSource.SetFile("path2/test.txt", "test");
+        fileSource.SetFile("path2/test2.txt", "test");
+        assetSystem.AddFileSource(fileSource);
+
+        assetSystem.RegisterAssetLoader(new TestAssetLoader());
+
+        Assert.That(assetSystem.ListAssetsInPath("").Count(), Is.EqualTo(7));
+
+        List<string> files = new();
+        foreach (var file in assetSystem.ListAssetsInPath("path1"))
+        {
+            files.Add(file);
+        }
+        Assert.That(files.Count, Is.EqualTo(3));
+        Assert.That(files.Contains("test.txt"), Is.False);
+        Assert.That(files.Contains("path1.txt"), Is.False);
+        Assert.That(files.Contains("path1/test.txt"), Is.True);
+        Assert.That(files.Contains("path1/test2.txt"), Is.True);
+        Assert.That(files.Contains("path1/subPath/test.txt"), Is.True);
+        Assert.That(files.Contains("path2/test.txt"), Is.False);
+        Assert.That(files.Contains("path2/test2.txt"), Is.False);
+
+        files.Clear();
+        foreach (var file in assetSystem.ListAssetsInPath("path1/"))
+        {
+            files.Add(file);
+        }
+        Assert.That(files.Count, Is.EqualTo(3));
+        Assert.That(files.Contains("test.txt"), Is.False);
+        Assert.That(files.Contains("path1.txt"), Is.False);
+        Assert.That(files.Contains("path1/test.txt"), Is.True);
+        Assert.That(files.Contains("path1/test2.txt"), Is.True);
+        Assert.That(files.Contains("path1/subPath/test.txt"), Is.True);
+        Assert.That(files.Contains("path2/test.txt"), Is.False);
+        Assert.That(files.Contains("path2/test2.txt"), Is.False);
+
+
+
+    }
+
+
 }

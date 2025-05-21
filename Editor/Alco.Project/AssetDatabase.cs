@@ -67,7 +67,7 @@ public class AssetDatabase
 
     private void UpdateConfigMetas()
     {
-        IEnumerable<string> allAssetPaths = _assetSystem.AllFileNames;
+        IEnumerable<string> allAssetPaths = _assetSystem.AllAssetNames;
         // foreach (var assetPath in allAssetPaths)
         Parallel.ForEach(allAssetPaths, assetPath =>
         {
