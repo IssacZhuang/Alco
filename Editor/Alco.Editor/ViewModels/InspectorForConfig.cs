@@ -76,7 +76,14 @@ public partial class InspectorForConfig : Inspector<Configable>
     {
         if (_asset is IValidatableConfig validatableConfig)
         {
-            return validatableConfig.ValidateSafely(engine);
+            try
+            {
+                return validatableConfig.Validate(engine);
+            }
+            catch (Exception e)
+            {
+                return [e.Message];
+            }
         }
         return [];
     }
