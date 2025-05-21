@@ -60,11 +60,6 @@ namespace Alco
             get => new MemoryRef<T>((T*)_ptrBuffer, _length);
         }
 
-        public ReadOnlySpan<T> ReadOnlySpan
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
-        }
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -120,6 +115,16 @@ namespace Alco
             FreeMemory();
             _ptrBuffer = ptr;
             _length = size;
+        }
+
+        public ReadOnlySpan<T> AsReadOnlySpan()
+        {
+            return new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
+        }
+
+        public Span<T> AsSpan()
+        {
+            return new Span<T>((T*)_ptrBuffer, _length);
         }
 
         private void FreeMemory()

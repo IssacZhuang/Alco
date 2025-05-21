@@ -89,6 +89,11 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
         _device.WriteBuffer(_buffer, (uint)byteOffset, (byte*)_data.UnsafePointer + byteOffset, (uint)(count * sizeof(T)));
     }
 
+    public Span<T> AsSpan()
+    {
+        return _data.AsSpan();
+    }
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
