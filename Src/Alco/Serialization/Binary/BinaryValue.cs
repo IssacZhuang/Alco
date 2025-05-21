@@ -76,19 +76,27 @@ namespace Alco
             return true;
         }
 
-        public static BinaryValue CreateValue<T>(T value) where T : unmanaged
+        public static BinaryValue CreateByValue<T>(T value) where T : unmanaged
         {
             return new BinaryValue(UtilsBinary.EncodeValue(value));
         }
 
-        public static BinaryValue CreateValueNullable<T>(T? value) where T : unmanaged
+        public static BinaryValue CreateByNullableValue<T>(T? value) where T : unmanaged
         {
             return new BinaryValue(UtilsBinary.EncodeNullableValue(value));
         }
 
-        public static BinaryValue CreateValueEnum<T>(T value) where T : struct, Enum
+        public static BinaryValue CreateByEnum<T>(T value) where T : struct, Enum
         {
             return new BinaryValue(UtilsBinary.EncodeEnum(value));
+        }
+
+        public unsafe static BinaryValue CreateByMemory<T>(Span<T> memory) where T : unmanaged
+        {
+            fixed (T* ptrMemory = memory)
+            {
+                return new BinaryValue(new Span<byte>(ptrMemory, memory.Length * sizeof(T)).ToArray());
+            }
         }
     }
 

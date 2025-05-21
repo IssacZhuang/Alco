@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 
@@ -22,12 +23,16 @@ public class TestSerialize
         public string str;
         public List<int> listInt;
         public List<string> listStr;
+
+        public int[] intArray;
+
         public TestObject1()
         {
             intValue = 0;
             str = "";
             listInt = new List<int>();
             listStr = new List<string>();
+            intArray = new int[10];
         }
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
@@ -35,6 +40,7 @@ public class TestSerialize
             node.BindString("str", ref str);
             node.BindCollection("listInt", listInt);
             node.BindCollection("listStr", listStr);
+            node.BindMemory("intArray", intArray);
         }
     }
 
@@ -113,10 +119,16 @@ public class TestSerialize
         TestObject1 obj = new TestObject1();
         obj.intValue = 10;
         obj.str = "Hello";
+        obj.intArray[0] = 1;
+        obj.intArray[5] = 2;
+        obj.intArray[9] = 3;
         byte[] data = BinaryParser.Encode(obj);
         TestObject1 obj2 = BinaryParser.Decode<TestObject1>(data);
         Assert.That(obj2.intValue, Is.EqualTo(10));
         Assert.That(obj2.str, Is.EqualTo("Hello"));
+        Assert.That(obj2.intArray[0], Is.EqualTo(1));
+        Assert.That(obj2.intArray[5], Is.EqualTo(2));
+        Assert.That(obj2.intArray[9], Is.EqualTo(3));
 
     }
 

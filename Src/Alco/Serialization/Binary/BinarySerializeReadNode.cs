@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -10,13 +11,6 @@ public class BinarySerializeReadNode : SerializeNode
     public BinarySerializeReadNode(BinaryTable content)
     {
         _content = content;
-    }
-    public override void BindBinary(string key, ref byte[] value)
-    {
-        if (_content.TryGetBinary(key, out byte[]? binaryValue))
-        {
-            value = binaryValue;
-        }
     }
 
     public override void BindDeep<T>(string key, ref T value) 
@@ -61,6 +55,19 @@ public class BinarySerializeReadNode : SerializeNode
         else
         {
             value = @default;
+        }
+    }
+
+    public unsafe override void BindMemory<T>(string key, Span<T> memory)
+    {
+        if (_content.TryGetBinary(key, out byte[]? binaryValue))
+        {
+            int length = Math.Min(memory.Length * sizeof(T), binaryValue.Length);
+            fixed (T* ptrMemory = memory)
+            {
+                Span<byte> span = new Span<byte>(ptrMemory, length);
+                binaryValue.AsSpan().CopyTo(span);
+            }
         }
     }
 
