@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Alco;
 
-public class BinarySerializeWriteNode : SerializeNode
+public class BinarySerializeWriteNode : SerializeWriteNode
 {
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
@@ -16,7 +16,7 @@ public class BinarySerializeWriteNode : SerializeNode
         _content.Add(key, node._content);
     }
 
-    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeNode, T> onCreate) where T : default
+    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
         if (value == null)
         {
@@ -30,21 +30,6 @@ public class BinarySerializeWriteNode : SerializeNode
         }
     }
 
-    public override void BindString(string key, ref string value, string @default = "")
-    {
-        _content.Add(key, value);
-    }
-
-
-    public override void BindValue<T>(string key, ref T value, T @default = default)
-    {
-        _content.Add(key, BinaryValue.CreateByValue(value));
-    }
-
-    public override void BindEnum<T>(string key, ref T value, T @default = default)
-    {
-        _content.Add(key, BinaryValue.CreateByEnum(value));
-    }
     public override void BindMemory<T>(string key, Span<T> memory)
     {
         _content.Add(key, BinaryValue.CreateByMemory(memory));
@@ -85,5 +70,18 @@ public class BinarySerializeWriteNode : SerializeNode
         _content.Add(key, array);
     }
 
+    public override void SetValue<T>(string key, T value)
+    {
+        _content.Add(key, BinaryValue.CreateByValue(value));
+    }
 
+    public override void SetEnum<T>(string key, T value)
+    {
+        _content.Add(key, BinaryValue.CreateByEnum(value));
+    }
+
+    public override void SetString(string key, string value)
+    {
+        _content.Add(key, value);
+    }
 }

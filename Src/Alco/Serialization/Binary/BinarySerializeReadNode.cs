@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Alco;
 
-public class BinarySerializeReadNode : SerializeNode
+public class BinarySerializeReadNode : SerializeReadNode
 {
     protected BinaryTable _content;
     public BinaryTable Content => _content;
@@ -21,50 +21,13 @@ public class BinarySerializeReadNode : SerializeNode
         }
     }
 
-    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeNode, T> onCreate) where T : default
+    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
             BinarySerializeReadNode subNode = new BinarySerializeReadNode(table);
             value ??= onCreate(subNode);
             value.OnSerialize(subNode, SerializeMode.Load);
-        }
-    }
-
-    public override void BindString(string key, ref string value, string @default = "")
-    {
-        if (_content.TryGetString(key, out string? stringValue))
-        {
-            value = stringValue;
-        }
-        else
-        {
-            value = @default;
-        }
-    }
-
-
-    public override void BindValue<T>(string key, ref T value, T @default = default)
-    {
-        if (_content.TryGetValue(key, out T v))
-        {
-            value = v;
-        }
-        else
-        {
-            value = @default;
-        }
-    }
-
-    public override void BindEnum<T>(string key, ref T value, T @default = default)
-    {
-        if (_content.TryGetEnum(key, out T v))
-        {
-            value = v;
-        }
-        else
-        {
-            value = @default;
         }
     }
 
@@ -125,6 +88,42 @@ public class BinarySerializeReadNode : SerializeNode
                     value.Add(item);
                 }
             }
+        }
+    }
+
+    public override T GetValue<T>(string key, T @default = default)
+    {
+        if (_content.TryGetValue(key, out T v))
+        {
+            return v;
+        }
+        else
+        {
+            return @default;
+        }
+    }
+
+    public override T GetEnum<T>(string key, T @default = default)
+    {
+        if (_content.TryGetEnum(key, out T v))
+        {
+            return v;
+        }
+        else
+        {
+            return @default;
+        }
+    }
+
+    public override string GetString(string key, string @default = "")
+    {
+        if (_content.TryGetString(key, out string? stringValue))
+        {
+            return stringValue;
+        }
+        else
+        {
+            return @default;
         }
     }
 }

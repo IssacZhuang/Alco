@@ -69,12 +69,10 @@ public class TestSerialize
             node.BindCollection("listInt", listInt);
             node.BindCollection("listStr", listStr);
             node.BindMemory("intArray", intArray);
-            node.BindDeepNullable("bitmap", ref bitmap, (SerializeNode subNode) =>
+            node.BindDeepNullable("bitmap", ref bitmap, static (SerializeReadNode subNode) =>
             {
-                int width = 0;
-                int height = 0;
-                subNode.BindValue("width", ref width);
-                subNode.BindValue("height", ref height);
+                int width = subNode.GetValue<int>("width");
+                int height = subNode.GetValue<int>("height");
                 return new TestBitmap(width, height);
             });
         }
