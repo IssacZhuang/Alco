@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.CompilerServices;
 
 using Alco;
@@ -53,13 +53,6 @@ namespace Alco
                 }
             }
         }
-
-        public MemoryRef<T> MemoryRef
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new MemoryRef<T>((T*)_ptrBuffer, _length);
-        }
-
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

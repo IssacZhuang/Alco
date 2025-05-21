@@ -20,8 +20,8 @@ public partial class RenderingSystem
         using ImageResultBuffer image = ImageResultBuffer.FromStream(stream, targetComponents);
 
         return CreateTexture2D(
-            image.Memory.Pointer,
-            (uint)image.Memory.Length,
+            image.UnsafePointer,
+            (uint)image.Data.Length,
             (uint)image.Width,
             (uint)image.Height,
             option
@@ -37,8 +37,8 @@ public partial class RenderingSystem
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
 
         return CreateTexture2D(
-            image.Memory.Pointer,
-            (uint)image.Memory.Length,
+            image.UnsafePointer,
+            (uint)image.Data.Length,
             (uint)image.Width,
             (uint)image.Height,
             option
@@ -54,8 +54,8 @@ public partial class RenderingSystem
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
 
         return CreateTexture2D(
-            image.Memory.Pointer,
-            (uint)image.Memory.Length,
+            image.UnsafePointer,
+            (uint)image.Data.Length,
             (uint)image.Width,
             (uint)image.Height,
             option
@@ -201,7 +201,7 @@ public partial class RenderingSystem
     public unsafe void WriteImageFileToTexture(ReadOnlySpan<byte> file, GPUTexture texture)
     {
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
-        _device.WriteTexture(texture, image.Memory.Pointer, (uint)image.Memory.Length);
+        _device.WriteTexture(texture, image.UnsafePointer, (uint)image.Data.Length);
     }
 
     public void CreateTextureCore(uint width, uint height, ImageLoadOption? option, out GPUTexture texture, out GPUTextureView textureView)

@@ -11,7 +11,7 @@ public class SpanStringBuilder : AutoDisposable
     public ReadOnlySpan<char> Buffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer.ReadOnlySpan;
+        get => _buffer.AsReadOnlySpan();
     }
 
     public unsafe char* UnsafePointer
@@ -132,7 +132,7 @@ public class SpanStringBuilder : AutoDisposable
 
     public override string ToString()
     {
-        return new string(_buffer.ReadOnlySpan);
+        return new string(_buffer.AsReadOnlySpan());
     }
 
     protected override void Dispose(bool disposing)

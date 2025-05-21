@@ -116,7 +116,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// </summary>
     public void BuildTree()
     {
-        _bvh.BuildTree(_targetColliders.MemoryRef);
+        _bvh.BuildTree(_targetColliders.AsReadOnlySpan());
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
         {
             return;
         }
-        MemoryRef<NativeArrayList<ColliderCastResult3D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.MemoryRef);
+        ReadOnlySpan<NativeArrayList<ColliderCastResult3D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.AsReadOnlySpan());
         for (int i = 0; i < _casters.Count; i++)
         {
             NativeArrayList<ColliderCastResult3D> hitTargets = result[i];
@@ -152,7 +152,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="userData">The custom data that is passed to the caster when the target is hit. </param>
     public void CastCollider(ICollisionCaster caster, ColliderRef3D collider, int userData = 0)
     {
-        MemoryRef<ColliderCastResult3D> result = _bvh.CastColliderRefCollector(collider);
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastColliderRefCollector(collider);
         for (int i = 0; i < result.Length; i++)
         {
             ColliderCastResult3D target = result[i];
@@ -181,7 +181,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <param name="userData">The custom data that is passed to the caster when the target is hit. </param>
     public void CastPoint(ICollisionCaster caster, Vector3 point, int userData = 0)
     {
-        MemoryRef<ColliderCastResult3D> result = _bvh.CastPointRefCollector(point);
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastPointRefCollector(point);
         for (int i = 0; i < result.Length; i++)
         {
             ColliderCastResult3D target = result[i];
