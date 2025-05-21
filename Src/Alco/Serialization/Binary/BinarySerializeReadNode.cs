@@ -13,11 +13,21 @@ public class BinarySerializeReadNode : SerializeNode
         _content = content;
     }
 
-    public override void BindDeep<T>(string key, ref T value) 
+    public override void BindDeep<T>(string key, ref T value)
     {
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
             value.OnSerialize(new BinarySerializeReadNode(table), SerializeMode.Load);
+        }
+    }
+
+    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeNode, T> onCreate) where T : default
+    {
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            BinarySerializeReadNode subNode = new BinarySerializeReadNode(table);
+            value ??= onCreate(subNode);
+            value.OnSerialize(subNode, SerializeMode.Load);
         }
     }
 

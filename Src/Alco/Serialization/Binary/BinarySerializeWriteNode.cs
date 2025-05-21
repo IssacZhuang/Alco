@@ -16,6 +16,20 @@ public class BinarySerializeWriteNode : SerializeNode
         _content.Add(key, node._content);
     }
 
+    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeNode, T> onCreate) where T : default
+    {
+        if (value == null)
+        {
+            _content.Add(key, new BinaryValue());
+        }
+        else
+        {
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode();
+            value.OnSerialize(node, SerializeMode.Save);
+            _content.Add(key, node._content);
+        }
+    }
+
     public override void BindString(string key, ref string value, string @default = "")
     {
         _content.Add(key, value);
@@ -70,4 +84,6 @@ public class BinarySerializeWriteNode : SerializeNode
 
         _content.Add(key, array);
     }
+
+
 }
