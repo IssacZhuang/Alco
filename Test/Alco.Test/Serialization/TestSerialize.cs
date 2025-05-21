@@ -16,6 +16,32 @@ public enum TestEnum
 
 public class TestSerialize
 {
+    private class TestBitmap : ISerializable
+    {
+        private int _width;
+        private int _height;
+        private byte[] _data;
+
+        public int Width => _width;
+        public int Height => _height;
+
+        public byte[] Data => _data;
+
+        public TestBitmap(int width, int height)
+        {
+            _width = width;
+            _height = height;
+            _data = new byte[width * height];
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindValue("width", ref _width);
+            node.BindValue("height", ref _height);
+            node.BindMemory("data", _data);
+        }
+    }
+
     private class TestObject1 : ISerializable
     {
         public int intValue;
@@ -25,6 +51,8 @@ public class TestSerialize
         public List<string> listStr;
 
         public int[] intArray;
+
+        public TestBitmap? bitmap;
 
         public TestObject1()
         {
@@ -41,6 +69,14 @@ public class TestSerialize
             node.BindCollection("listInt", listInt);
             node.BindCollection("listStr", listStr);
             node.BindMemory("intArray", intArray);
+            node.BindDeepNullable("bitmap", ref bitmap, (SerializeNode subNode) =>
+            {
+                int width = 0;
+                int height = 0;
+                subNode.BindValue("width", ref width);
+                subNode.BindValue("height", ref height);
+                return new TestBitmap(width, height);
+            });
         }
     }
 
@@ -122,6 +158,9 @@ public class TestSerialize
         obj.intArray[0] = 1;
         obj.intArray[5] = 2;
         obj.intArray[9] = 3;
+
+        obj.bitmap = null;
+
         byte[] data = BinaryParser.Encode(obj);
         TestObject1 obj2 = BinaryParser.Decode<TestObject1>(data);
         Assert.That(obj2.intValue, Is.EqualTo(10));
@@ -129,6 +168,15 @@ public class TestSerialize
         Assert.That(obj2.intArray[0], Is.EqualTo(1));
         Assert.That(obj2.intArray[5], Is.EqualTo(2));
         Assert.That(obj2.intArray[9], Is.EqualTo(3));
+        Assert.That(obj2.bitmap, Is.Null);
+
+        obj.bitmap = new TestBitmap(10, 10);
+        data = BinaryParser.Encode(obj);
+        TestObject1 obj3 = BinaryParser.Decode<TestObject1>(data);
+        Assert.That(obj3.bitmap, Is.Not.Null);
+        Assert.That(obj3.bitmap.Width, Is.EqualTo(10));
+        Assert.That(obj3.bitmap.Height, Is.EqualTo(10));
+        Assert.That(obj3.bitmap.Data.Length, Is.EqualTo(10 * 10));
 
     }
 
