@@ -89,6 +89,7 @@ public class ConfigDatabase
             return;
         }
 
+        _configs.Clear();
         foreach (var fileSource in _fileSources)
         {
             foreach (var filename in fileSource.AllFileNames)
@@ -101,6 +102,7 @@ public class ConfigDatabase
                 }
             }
         }
+        _isDirty = false;
     }
 
     private bool TryGetLoader(string filename, [NotNullWhen(true)] out IConfigLoader? loader)

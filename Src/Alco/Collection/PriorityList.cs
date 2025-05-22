@@ -73,15 +73,7 @@ namespace Alco
 
         public bool Remove(T item)
         {
-            //binary search and remove
-            int index = AlgoBinarySearch.BinarySearch(_innerList, item, _comparer);
-            if (index == -1)
-            {
-                return false;
-            }
-
-            _innerList.RemoveAt(index);
-            return true;
+            return _innerList.Remove(item);
         }
 
         public bool Contains(T item)
