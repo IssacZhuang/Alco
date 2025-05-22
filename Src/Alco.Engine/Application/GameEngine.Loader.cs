@@ -21,9 +21,6 @@ public partial class GameEngine
         yield return new AssetLoaderAudioVorbis(AudioDevice);
         yield return new AssetLoaderAudioWave(AudioDevice);
         yield return new AssetLoaderAudioFlac(AudioDevice);
-
-        // config
-        yield return new AssetLoaderConfig(ConfigSerializeOption, ConfigReferenceResolver);
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
