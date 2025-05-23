@@ -1,14 +1,80 @@
 using System.Buffers;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Provides utilities for merging JSON documents with support for inheritance control.
+/// Supports both object and array merging with special directives for controlling merge behavior.
+/// </summary>
 public static class UtilsJson
 {
+    /// <summary>
+    /// The special property name used to control inheritance behavior in JSON objects and arrays.
+    /// When set to false, completely overrides the parent instead of merging.
+    /// </summary>
     public const string Keyword_Inherit = "$inherit";
 
+
+    /// <summary>
+    /// Array inheritance mode that appends target elements after parent elements.
+    /// This is the default behavior when no inheritance control is specified.
+    /// </summary>
+    public const string InheritMode_Append = "append";
+
+
+    /// <summary>
+    /// Array inheritance mode that prepends target elements before parent elements.
+    /// </summary>
+    public const string InheritMode_Prepend = "prepend";
+
+    /// <summary>
+    /// Merges two JSON documents with support for inheritance control directives.
+    /// </summary>
+    /// <param name="parent">The parent JSON document to merge content into.</param>
+    /// <param name="target">The target JSON document whose content will be merged into the parent.</param>
+    /// <returns>A JSON string representing the merged result.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when either document is not a container type (object or array) or when container types don't match.
+    /// </exception>
+    /// <remarks>
+    /// <para>For objects:</para>
+    /// <list type="bullet">
+    /// <item>Properties are recursively merged by default</item>
+    /// <item>If target contains "$inherit": false, completely overrides parent object</item>
+    /// <item>The "$inherit" property is always excluded from the final result</item>
+    /// </list>
+    /// <para>For arrays:</para>
+    /// <list type="bullet">
+    /// <item>Elements are concatenated by default (parent first, then target)</item>
+    /// <item>First element can be a control object with "$inherit" property:
+    ///   <list type="bullet">
+    ///   <item>false: Replace parent array entirely</item>
+    ///   <item>"prepend": Target elements first, then parent elements</item>
+    ///   <item>"append": Parent elements first, then target elements (default)</item>
+    ///   </list>
+    /// </item>
+    /// <item>Control objects are excluded from the final result</item>
+    /// </list>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Object merging with inheritance control
+    /// var parent = JsonDocument.Parse(@"{""name"": ""parent"", ""age"": 30}");
+    /// var target = JsonDocument.Parse(@"{""$inherit"": false, ""name"": ""child""}");
+    /// var result = UtilsJson.Merge(parent, target);
+    /// // Result: {"name": "child"}
+    /// 
+    /// // Array merging with prepend mode
+    /// var parent = JsonDocument.Parse(@"[""a"", ""b""]");
+    /// var target = JsonDocument.Parse(@"[{""$inherit"": ""prepend""}, ""x"", ""y""]");
+    /// var result = UtilsJson.Merge(parent, target);
+    /// // Result: ["x", "y", "a", "b"]
+    /// </code>
+    /// </example>
     public static string Merge(JsonDocument parent, JsonDocument target)
     {
         var outputBuffer = new ArrayBufferWriter<byte>();
@@ -41,6 +107,12 @@ public static class UtilsJson
         return Encoding.UTF8.GetString(outputBuffer.WrittenSpan);
     }
 
+    /// <summary>
+    /// Same as <see cref="Merge(JsonDocument, JsonDocument)"/>, but returns a <see cref="JsonDocument"/> instead of a string.
+    /// </summary>
+    /// <param name="target">The target JSON document whose content will be merged into the parent.</param>
+    /// <param name="parent">The parent JSON document to merge content into.</param>
+    /// <returns></returns>
     public static JsonDocument MergeToDocument(JsonDocument target, JsonDocument parent)
     {
         return JsonDocument.Parse(Merge(target, parent));
@@ -124,19 +196,72 @@ public static class UtilsJson
         jsonWriter.WriteEndObject();
     }
 
-    private static void MergeArrays(Utf8JsonWriter jsonWriter, JsonElement root1, JsonElement root2)
+    private static void MergeArrays(Utf8JsonWriter jsonWriter, JsonElement parent, JsonElement target)
     {
-        // Debug.Assert(root1.ValueKind == JsonValueKind.Array);
-        // Debug.Assert(root2.ValueKind == JsonValueKind.Array);
+        // Debug.Assert(parent.ValueKind == JsonValueKind.Array);
+        // Debug.Assert(target.ValueKind == JsonValueKind.Array);
 
         jsonWriter.WriteStartArray();
 
-        // Write all the elements from both JSON arrays
-        foreach (JsonElement element in root1.EnumerateArray())
+        // Check if target array has control object as first element
+        var targetArray = target.EnumerateArray().ToArray();
+        if (targetArray.Length > 0 && targetArray[0].ValueKind == JsonValueKind.Object)
+        {
+            var firstElement = targetArray[0];
+            if (firstElement.TryGetProperty(Keyword_Inherit, out JsonElement inheritValue))
+            {
+                // Handle different inheritance modes
+                if (inheritValue.ValueKind == JsonValueKind.False)
+                {
+                    // Replace mode: only write target elements (excluding control object)
+                    for (int i = 1; i < targetArray.Length; i++)
+                    {
+                        targetArray[i].WriteTo(jsonWriter);
+                    }
+                    jsonWriter.WriteEndArray();
+                    return;
+                }
+                else if (inheritValue.ValueKind == JsonValueKind.String)
+                {
+                    string? mode = inheritValue.GetString();
+                    if (mode == InheritMode_Prepend)
+                    {
+                        // Prepend mode: target elements first, then parent elements
+                        for (int i = 1; i < targetArray.Length; i++)
+                        {
+                            targetArray[i].WriteTo(jsonWriter);
+                        }
+                        foreach (JsonElement element in parent.EnumerateArray())
+                        {
+                            element.WriteTo(jsonWriter);
+                        }
+                        jsonWriter.WriteEndArray();
+                        return;
+                    }
+                    else if (mode == InheritMode_Append)
+                    {
+                        // Append mode: parent elements first, then target elements (same as default)
+                        foreach (JsonElement element in parent.EnumerateArray())
+                        {
+                            element.WriteTo(jsonWriter);
+                        }
+                        for (int i = 1; i < targetArray.Length; i++)
+                        {
+                            targetArray[i].WriteTo(jsonWriter);
+                        }
+                        jsonWriter.WriteEndArray();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Default behavior: append target to parent
+        foreach (JsonElement element in parent.EnumerateArray())
         {
             element.WriteTo(jsonWriter);
         }
-        foreach (JsonElement element in root2.EnumerateArray())
+        foreach (JsonElement element in target.EnumerateArray())
         {
             element.WriteTo(jsonWriter);
         }

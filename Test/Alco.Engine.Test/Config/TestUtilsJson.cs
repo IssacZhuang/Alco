@@ -528,4 +528,200 @@ public class TestUtilsJson
         Assert.That(resultDoc.RootElement.TryGetProperty("features", out _), Is.False);
         Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
     }
+
+    [Test]
+    public void Merge_ArrayInheritFalse_ShouldReplaceParentArray()
+    {
+        // Arrange
+        var parentJson = """["a", "b", "c"]""";
+        var targetJson = """[{"$inherit": false}, "x", "y"]""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var array = resultDoc.RootElement.EnumerateArray().ToArray();
+        Assert.That(array.Length, Is.EqualTo(2));
+        Assert.That(array[0].GetString(), Is.EqualTo("x"));
+        Assert.That(array[1].GetString(), Is.EqualTo("y"));
+    }
+
+    [Test]
+    public void Merge_ArrayInheritPrepend_ShouldPrependTargetToParent()
+    {
+        // Arrange
+        var parentJson = """["a", "b", "c"]""";
+        var targetJson = """[{"$inherit": "prepend"}, "x", "y"]""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var array = resultDoc.RootElement.EnumerateArray().ToArray();
+        Assert.That(array.Length, Is.EqualTo(5));
+        Assert.That(array[0].GetString(), Is.EqualTo("x"));
+        Assert.That(array[1].GetString(), Is.EqualTo("y"));
+        Assert.That(array[2].GetString(), Is.EqualTo("a"));
+        Assert.That(array[3].GetString(), Is.EqualTo("b"));
+        Assert.That(array[4].GetString(), Is.EqualTo("c"));
+    }
+
+    [Test]
+    public void Merge_ArrayInheritAppend_ShouldAppendTargetToParent()
+    {
+        // Arrange
+        var parentJson = """["a", "b", "c"]""";
+        var targetJson = """[{"$inherit": "append"}, "x", "y"]""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var array = resultDoc.RootElement.EnumerateArray().ToArray();
+        Assert.That(array.Length, Is.EqualTo(5));
+        Assert.That(array[0].GetString(), Is.EqualTo("a"));
+        Assert.That(array[1].GetString(), Is.EqualTo("b"));
+        Assert.That(array[2].GetString(), Is.EqualTo("c"));
+        Assert.That(array[3].GetString(), Is.EqualTo("x"));
+        Assert.That(array[4].GetString(), Is.EqualTo("y"));
+    }
+
+    [Test]
+    public void Merge_ArrayWithoutInheritControl_ShouldUseDefaultBehavior()
+    {
+        // Arrange
+        var parentJson = """["a", "b"]""";
+        var targetJson = """["x", "y"]""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var array = resultDoc.RootElement.EnumerateArray().ToArray();
+        Assert.That(array.Length, Is.EqualTo(4));
+        Assert.That(array[0].GetString(), Is.EqualTo("a"));
+        Assert.That(array[1].GetString(), Is.EqualTo("b"));
+        Assert.That(array[2].GetString(), Is.EqualTo("x"));
+        Assert.That(array[3].GetString(), Is.EqualTo("y"));
+    }
+
+    [Test]
+    public void Merge_ArrayInheritFalse_EmptyTargetArray_ShouldResultInEmptyArray()
+    {
+        // Arrange
+        var parentJson = """["a", "b", "c"]""";
+        var targetJson = """[{"$inherit": false}]""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var array = resultDoc.RootElement.EnumerateArray().ToArray();
+        Assert.That(array.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Merge_ArrayInheritInObject_ShouldControlNestedArrays()
+    {
+        // Arrange
+        var parentJson = """
+        {
+            "tags": ["tag1", "tag2"],
+            "items": ["item1", "item2"]
+        }
+        """;
+
+        var targetJson = """
+        {
+            "tags": [{"$inherit": "prepend"}, "new-tag"],
+            "items": [{"$inherit": false}, "new-item"]
+        }
+        """;
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var tagsArray = resultDoc.RootElement.GetProperty("tags").EnumerateArray().ToArray();
+        Assert.That(tagsArray.Length, Is.EqualTo(3));
+        Assert.That(tagsArray[0].GetString(), Is.EqualTo("new-tag"));
+        Assert.That(tagsArray[1].GetString(), Is.EqualTo("tag1"));
+        Assert.That(tagsArray[2].GetString(), Is.EqualTo("tag2"));
+
+        var itemsArray = resultDoc.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        Assert.That(itemsArray.Length, Is.EqualTo(1));
+        Assert.That(itemsArray[0].GetString(), Is.EqualTo("new-item"));
+    }
+
+    [Test]
+    public void Merge_ArrayInheritWithMixedTypes_ShouldHandleCorrectly()
+    {
+        // Arrange
+        var parentJson = """[1, "string", true]""";
+        var targetJson = """[{"$inherit": "prepend"}, {"key": "value"}, null]""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var array = resultDoc.RootElement.EnumerateArray().ToArray();
+        Assert.That(array.Length, Is.EqualTo(5));
+        Assert.That(array[0].ValueKind, Is.EqualTo(JsonValueKind.Object));
+        Assert.That(array[1].ValueKind, Is.EqualTo(JsonValueKind.Null));
+        Assert.That(array[2].GetInt32(), Is.EqualTo(1));
+        Assert.That(array[3].GetString(), Is.EqualTo("string"));
+        Assert.That(array[4].GetBoolean(), Is.True);
+    }
+
+    [Test]
+    public void Merge_ArrayInheritInvalidMode_ShouldFallbackToDefault()
+    {
+        // Arrange
+        var parentJson = """["a", "b"]""";
+        var targetJson = """[{"$inherit": "invalid_mode"}, "x", "y"]""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert - should fall back to default behavior (append all elements including control object)
+        var array = resultDoc.RootElement.EnumerateArray().ToArray();
+        Assert.That(array.Length, Is.EqualTo(5)); // parent(2) + target(3)
+        Assert.That(array[0].GetString(), Is.EqualTo("a"));
+        Assert.That(array[1].GetString(), Is.EqualTo("b"));
+        Assert.That(array[2].ValueKind, Is.EqualTo(JsonValueKind.Object)); // control object
+        Assert.That(array[3].GetString(), Is.EqualTo("x"));
+        Assert.That(array[4].GetString(), Is.EqualTo("y"));
+    }
 }
