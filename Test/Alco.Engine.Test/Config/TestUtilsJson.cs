@@ -329,8 +329,8 @@ public class TestUtilsJson
     public void Merge_SinglePropertyOverride_ShouldPreserveOtherProperties()
     {
         // Arrange
-        var parentJson = """{"a": 1, "b": 2, "c": 3, "d": 4}""";
-        var targetJson = """{"b": 999}""";
+        var parentJson = """{"name": "John", "age": 30, "city": "Boston"}""";
+        var targetJson = """{"age": 25}""";
 
         using var parentDoc = JsonDocument.Parse(parentJson);
         using var targetDoc = JsonDocument.Parse(targetJson);
@@ -340,9 +340,192 @@ public class TestUtilsJson
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
-        Assert.That(resultDoc.RootElement.GetProperty("a").GetInt32(), Is.EqualTo(1));
-        Assert.That(resultDoc.RootElement.GetProperty("b").GetInt32(), Is.EqualTo(999)); // overridden
-        Assert.That(resultDoc.RootElement.GetProperty("c").GetInt32(), Is.EqualTo(3));
-        Assert.That(resultDoc.RootElement.GetProperty("d").GetInt32(), Is.EqualTo(4));
+        Assert.That(resultDoc.RootElement.GetProperty("name").GetString(), Is.EqualTo("John"));
+        Assert.That(resultDoc.RootElement.GetProperty("age").GetInt32(), Is.EqualTo(25));
+        Assert.That(resultDoc.RootElement.GetProperty("city").GetString(), Is.EqualTo("Boston"));
+    }
+
+    [Test]
+    public void Merge_InheritFalse_ShouldCompletelyOverrideParent()
+    {
+        // Arrange
+        var parentJson = """{"name": "parent", "age": 30, "city": "Boston"}""";
+        var targetJson = """{"$inherit": false, "name": "child", "version": "1.0"}""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        Assert.That(resultDoc.RootElement.GetProperty("name").GetString(), Is.EqualTo("child"));
+        Assert.That(resultDoc.RootElement.GetProperty("version").GetString(), Is.EqualTo("1.0"));
+        Assert.That(resultDoc.RootElement.TryGetProperty("age", out _), Is.False);
+        Assert.That(resultDoc.RootElement.TryGetProperty("city", out _), Is.False);
+        Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
+    }
+
+    [Test]
+    public void Merge_InheritFalse_NestedObject_ShouldOverrideParentNested()
+    {
+        // Arrange
+        var parentJson = """
+        {
+            "config": {
+                "database": {
+                    "host": "localhost",
+                    "port": 5432,
+                    "timeout": 30
+                },
+                "cache": true
+            },
+            "version": "1.0"
+        }
+        """;
+
+        var targetJson = """
+        {
+            "config": {
+                "database": {
+                    "$inherit": false,
+                    "host": "remote",
+                    "ssl": true
+                }
+            }
+        }
+        """;
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var config = resultDoc.RootElement.GetProperty("config");
+        var database = config.GetProperty("database");
+
+        Assert.That(database.GetProperty("host").GetString(), Is.EqualTo("remote"));
+        Assert.That(database.GetProperty("ssl").GetBoolean(), Is.True);
+        Assert.That(database.TryGetProperty("port", out _), Is.False);
+        Assert.That(database.TryGetProperty("timeout", out _), Is.False);
+        Assert.That(database.TryGetProperty("$inherit", out _), Is.False);
+
+        // Other properties should still be merged normally
+        Assert.That(config.GetProperty("cache").GetBoolean(), Is.True);
+        Assert.That(resultDoc.RootElement.GetProperty("version").GetString(), Is.EqualTo("1.0"));
+    }
+
+    [Test]
+    public void Merge_InheritTrue_ShouldMergeNormally()
+    {
+        // Arrange
+        var parentJson = """{"name": "parent", "age": 30}""";
+        var targetJson = """{"$inherit": true, "name": "child", "version": "1.0"}""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        Assert.That(resultDoc.RootElement.GetProperty("name").GetString(), Is.EqualTo("child"));
+        Assert.That(resultDoc.RootElement.GetProperty("age").GetInt32(), Is.EqualTo(30));
+        Assert.That(resultDoc.RootElement.GetProperty("version").GetString(), Is.EqualTo("1.0"));
+        Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
+    }
+
+    [Test]
+    public void Merge_InheritString_ShouldMergeNormally()
+    {
+        // Arrange
+        var parentJson = """{"name": "parent", "age": 30}""";
+        var targetJson = """{"$inherit": "some_value", "name": "child", "version": "1.0"}""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        Assert.That(resultDoc.RootElement.GetProperty("name").GetString(), Is.EqualTo("child"));
+        Assert.That(resultDoc.RootElement.GetProperty("age").GetInt32(), Is.EqualTo(30));
+        Assert.That(resultDoc.RootElement.GetProperty("version").GetString(), Is.EqualTo("1.0"));
+        Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
+    }
+
+    [Test]
+    public void Merge_InheritFalse_EmptyTargetObject_ShouldResultInEmptyObject()
+    {
+        // Arrange
+        var parentJson = """{"name": "parent", "age": 30, "city": "Boston"}""";
+        var targetJson = """{"$inherit": false}""";
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        Assert.That(resultDoc.RootElement.ValueKind, Is.EqualTo(JsonValueKind.Object));
+        Assert.That(resultDoc.RootElement.EnumerateObject().Count(), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Merge_InheritFalse_ComplexTarget_ShouldOnlyContainTargetProperties()
+    {
+        // Arrange
+        var parentJson = """
+        {
+            "database": {
+                "host": "localhost",
+                "port": 5432
+            },
+            "cache": {
+                "enabled": true,
+                "ttl": 3600
+            },
+            "features": ["auth", "logging"]
+        }
+        """;
+
+        var targetJson = """
+        {
+            "$inherit": false,
+            "database": {
+                "host": "remote",
+                "ssl": true
+            },
+            "newFeature": "enabled"
+        }
+        """;
+
+        using var parentDoc = JsonDocument.Parse(parentJson);
+        using var targetDoc = JsonDocument.Parse(targetJson);
+
+        // Act
+        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        using var resultDoc = JsonDocument.Parse(result);
+
+        // Assert
+        var database = resultDoc.RootElement.GetProperty("database");
+        Assert.That(database.GetProperty("host").GetString(), Is.EqualTo("remote"));
+        Assert.That(database.GetProperty("ssl").GetBoolean(), Is.True);
+
+        Assert.That(resultDoc.RootElement.GetProperty("newFeature").GetString(), Is.EqualTo("enabled"));
+
+        // Parent properties should not exist
+        Assert.That(resultDoc.RootElement.TryGetProperty("cache", out _), Is.False);
+        Assert.That(resultDoc.RootElement.TryGetProperty("features", out _), Is.False);
+        Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
     }
 }

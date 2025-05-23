@@ -7,6 +7,8 @@ namespace Alco.Engine;
 
 public static class UtilsJson
 {
+    public const string Keyword_Inherit = "$inherit";
+
     public static string Merge(JsonDocument parent, JsonDocument target)
     {
         var outputBuffer = new ArrayBufferWriter<byte>();
@@ -51,6 +53,24 @@ public static class UtilsJson
 
         jsonWriter.WriteStartObject();
 
+        // Check if target has $inherit property set to false
+        if (target.TryGetProperty(Keyword_Inherit, out JsonElement inheritValue) &&
+
+            inheritValue.ValueKind == JsonValueKind.False)
+        {
+            // If $inherit is false, write all properties from target except $inherit itself
+            foreach (JsonProperty property in target.EnumerateObject())
+            {
+                if (property.Name != Keyword_Inherit)
+                {
+                    property.WriteTo(jsonWriter);
+                }
+            }
+            jsonWriter.WriteEndObject();
+            return;
+        }
+
+        // Original merging logic when $inherit is not false
         // Write all the properties of the first document.
         // If a property exists in both documents, either:
         // * Merge them, if the value kinds match (e.g. both are objects or arrays),
@@ -93,7 +113,11 @@ public static class UtilsJson
         {
             if (!parent.TryGetProperty(property.Name, out _))
             {
-                property.WriteTo(jsonWriter);
+                // Skip the $inherit property when writing unique properties
+                if (property.Name != Keyword_Inherit)
+                {
+                    property.WriteTo(jsonWriter);
+                }
             }
         }
 
