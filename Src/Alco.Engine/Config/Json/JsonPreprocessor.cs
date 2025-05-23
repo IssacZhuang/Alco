@@ -48,6 +48,27 @@ public partial class JsonPreprocessor
         _fileSources.Remove(fileSource);
     }
 
+    public JsonDocument GetJsonDocument(string id)
+    {
+        if (_jsonItems.TryGetValue(id, out var jsonItem))
+        {
+            return jsonItem.Document;
+        }
+
+        throw new Exception($"Json document with id {id} not found");
+    }
+
+    public bool TryGetJsonDocument(string id, [NotNullWhen(true)] out JsonDocument? document)
+    {
+        if (_jsonItems.TryGetValue(id, out var jsonItem))
+        {
+            document = jsonItem.Document;
+            return true;
+        }
+        document = null;
+        return false;
+    }
+
     public void Preprocess()
     {
         LoadJsonItems();
@@ -56,7 +77,7 @@ public partial class JsonPreprocessor
 
     private void LoadJsonItems()
     {
-        List<string> jsonFiles = new();
+        List<(string filePath, IFileSource fileSource)> jsonFiles = new();
         //all .json file in all file sources
         foreach (var fileSource in _fileSources)
         {
@@ -64,24 +85,44 @@ public partial class JsonPreprocessor
             {
                 if (filePath.EndsWith(FileExt.TextJSON))
                 {
-                    jsonFiles.Add(filePath);
+                    jsonFiles.Add((filePath, fileSource));
                 }
             }
         }
 
-        Parallel.ForEach(jsonFiles, filePath =>
+        Parallel.ForEach(jsonFiles, fileInfo =>
         {
-            var json = File.ReadAllText(filePath);
-            JsonDocument document = JsonDocument.Parse(json);
+            var (filePath, fileSource) = fileInfo;
 
-            //check if the json file is abstract
-            if (document.RootElement.TryGetProperty(Keyward_Abstract, out var abstractProperty) && abstractProperty.GetBoolean())
+            if (fileSource.TryGetData(filePath, out var data, out var failureReason))
             {
-                AddAbstractJsonItem(document, filePath);
+                try
+                {
+                    var json = System.Text.Encoding.UTF8.GetString(data.Span);
+                    JsonDocument document = JsonDocument.Parse(json);
+
+                    //check if the json file is abstract
+                    if (document.RootElement.TryGetProperty(Keyward_Abstract, out var abstractProperty) && abstractProperty.GetBoolean())
+                    {
+                        AddAbstractJsonItem(document, filePath);
+                    }
+                    else
+                    {
+                        AddJsonItem(document, filePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to parse JSON file {filePath}: {ex.Message}");
+                }
+                finally
+                {
+                    data.Dispose();
+                }
             }
             else
             {
-                AddJsonItem(document, filePath);
+                AddError($"Failed to read file {filePath}: {failureReason}");
             }
         });
     }
@@ -216,8 +257,6 @@ public partial class JsonPreprocessor
             AddError($"Abstract json file {filePath} has no id");
         }
     }
-
-
 
     private static bool TryGetId(JsonElement element, [NotNullWhen(true)] out string? id)
     {
