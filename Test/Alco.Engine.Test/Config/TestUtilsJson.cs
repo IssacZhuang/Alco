@@ -51,7 +51,7 @@ public class TestUtilsJson
     }
 
     [Test]
-    public void Merge_Arrays_ShouldConcatenate()
+    public void Merge_Arrays_ShouldReplaceByDefault()
     {
         // Arrange
         var parentJson = """[1, 2, 3]""";
@@ -66,17 +66,14 @@ public class TestUtilsJson
 
         // Assert
         var array = resultDoc.RootElement.EnumerateArray().ToArray();
-        Assert.That(array.Length, Is.EqualTo(6));
-        Assert.That(array[0].GetInt32(), Is.EqualTo(1));
-        Assert.That(array[1].GetInt32(), Is.EqualTo(2));
-        Assert.That(array[2].GetInt32(), Is.EqualTo(3));
-        Assert.That(array[3].GetInt32(), Is.EqualTo(4));
-        Assert.That(array[4].GetInt32(), Is.EqualTo(5));
-        Assert.That(array[5].GetInt32(), Is.EqualTo(6));
+        Assert.That(array.Length, Is.EqualTo(3));
+        Assert.That(array[0].GetInt32(), Is.EqualTo(4));
+        Assert.That(array[1].GetInt32(), Is.EqualTo(5));
+        Assert.That(array[2].GetInt32(), Is.EqualTo(6));
     }
 
     [Test]
-    public void Merge_ObjectsWithArrays_ShouldMergeArraysCorrectly()
+    public void Merge_ObjectsWithArrays_ShouldReplaceArraysByDefault()
     {
         // Arrange
         var parentJson = """{"tags": ["tag1", "tag2"], "name": "parent"}""";
@@ -91,11 +88,9 @@ public class TestUtilsJson
 
         // Assert
         var tagsArray = resultDoc.RootElement.GetProperty("tags").EnumerateArray().ToArray();
-        Assert.That(tagsArray.Length, Is.EqualTo(4));
-        Assert.That(tagsArray[0].GetString(), Is.EqualTo("tag1"));
-        Assert.That(tagsArray[1].GetString(), Is.EqualTo("tag2"));
-        Assert.That(tagsArray[2].GetString(), Is.EqualTo("tag3"));
-        Assert.That(tagsArray[3].GetString(), Is.EqualTo("tag4"));
+        Assert.That(tagsArray.Length, Is.EqualTo(2));
+        Assert.That(tagsArray[0].GetString(), Is.EqualTo("tag3"));
+        Assert.That(tagsArray[1].GetString(), Is.EqualTo("tag4"));
         Assert.That(resultDoc.RootElement.GetProperty("name").GetString(), Is.EqualTo("parent"));
         Assert.That(resultDoc.RootElement.GetProperty("description").GetString(), Is.EqualTo("target"));
     }
@@ -223,10 +218,8 @@ public class TestUtilsJson
         Assert.That(databaseElement.GetProperty("name").GetString(), Is.EqualTo("mydb"));
 
         var featuresArray = configElement.GetProperty("features").EnumerateArray().ToArray();
-        Assert.That(featuresArray.Length, Is.EqualTo(3));
-        Assert.That(featuresArray[0].GetString(), Is.EqualTo("auth"));
-        Assert.That(featuresArray[1].GetString(), Is.EqualTo("logging"));
-        Assert.That(featuresArray[2].GetString(), Is.EqualTo("cache"));
+        Assert.That(featuresArray.Length, Is.EqualTo(1));
+        Assert.That(featuresArray[0].GetString(), Is.EqualTo("cache"));
 
         Assert.That(configElement.GetProperty("timeout").GetInt32(), Is.EqualTo(30));
         Assert.That(resultDoc.RootElement.GetProperty("version").GetString(), Is.EqualTo("1.0"));
@@ -301,7 +294,7 @@ public class TestUtilsJson
     }
 
     [Test]
-    public void Merge_ArrayWithMixedTypes_ShouldConcatenateAll()
+    public void Merge_ArrayWithMixedTypes_ShouldReplaceByDefault()
     {
         // Arrange
         var parentJson = """[1, "string", true]""";
@@ -316,13 +309,10 @@ public class TestUtilsJson
 
         // Assert
         var array = resultDoc.RootElement.EnumerateArray().ToArray();
-        Assert.That(array.Length, Is.EqualTo(6));
-        Assert.That(array[0].GetInt32(), Is.EqualTo(1));
-        Assert.That(array[1].GetString(), Is.EqualTo("string"));
-        Assert.That(array[2].GetBoolean(), Is.True);
-        Assert.That(array[3].ValueKind, Is.EqualTo(JsonValueKind.Null));
-        Assert.That(array[4].ValueKind, Is.EqualTo(JsonValueKind.Object));
-        Assert.That(array[5].ValueKind, Is.EqualTo(JsonValueKind.Array));
+        Assert.That(array.Length, Is.EqualTo(3));
+        Assert.That(array[0].ValueKind, Is.EqualTo(JsonValueKind.Null));
+        Assert.That(array[1].ValueKind, Is.EqualTo(JsonValueKind.Object));
+        Assert.That(array[2].ValueKind, Is.EqualTo(JsonValueKind.Array));
     }
 
     [Test]
@@ -614,11 +604,9 @@ public class TestUtilsJson
 
         // Assert
         var array = resultDoc.RootElement.EnumerateArray().ToArray();
-        Assert.That(array.Length, Is.EqualTo(4));
-        Assert.That(array[0].GetString(), Is.EqualTo("a"));
-        Assert.That(array[1].GetString(), Is.EqualTo("b"));
-        Assert.That(array[2].GetString(), Is.EqualTo("x"));
-        Assert.That(array[3].GetString(), Is.EqualTo("y"));
+        Assert.That(array.Length, Is.EqualTo(2));
+        Assert.That(array[0].GetString(), Is.EqualTo("x"));
+        Assert.That(array[1].GetString(), Is.EqualTo("y"));
     }
 
     [Test]
@@ -715,13 +703,11 @@ public class TestUtilsJson
         var result = UtilsJson.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
-        // Assert - should fall back to default behavior (append all elements including control object)
+        // Assert - should fall back to default behavior (replace with all target elements including control object)
         var array = resultDoc.RootElement.EnumerateArray().ToArray();
-        Assert.That(array.Length, Is.EqualTo(5)); // parent(2) + target(3)
-        Assert.That(array[0].GetString(), Is.EqualTo("a"));
-        Assert.That(array[1].GetString(), Is.EqualTo("b"));
-        Assert.That(array[2].ValueKind, Is.EqualTo(JsonValueKind.Object)); // control object
-        Assert.That(array[3].GetString(), Is.EqualTo("x"));
-        Assert.That(array[4].GetString(), Is.EqualTo("y"));
+        Assert.That(array.Length, Is.EqualTo(3)); // all target elements
+        Assert.That(array[0].ValueKind, Is.EqualTo(JsonValueKind.Object)); // control object
+        Assert.That(array[1].GetString(), Is.EqualTo("x"));
+        Assert.That(array[2].GetString(), Is.EqualTo("y"));
     }
 }

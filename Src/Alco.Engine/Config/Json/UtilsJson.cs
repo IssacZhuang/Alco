@@ -49,12 +49,13 @@ public static class UtilsJson
     /// </list>
     /// <para>For arrays:</para>
     /// <list type="bullet">
-    /// <item>Elements are concatenated by default (parent first, then target)</item>
-    /// <item>First element can be a control object with "$inherit" property:
+    /// <item>Target array replaces parent array by default (no merging)</item>
+    /// <item>First element can be a control object with "$inherit" property to enable merging:
     ///   <list type="bullet">
-    ///   <item>false: Replace parent array entirely</item>
+    ///   <item>false: Replace parent array entirely (same as default)</item>
+    ///   <item>true: Append target elements after parent elements</item>
     ///   <item>"prepend": Target elements first, then parent elements</item>
-    ///   <item>"append": Parent elements first, then target elements (default)</item>
+    ///   <item>"append": Parent elements first, then target elements</item>
     ///   </list>
     /// </item>
     /// <item>Control objects are excluded from the final result</item>
@@ -68,11 +69,17 @@ public static class UtilsJson
     /// var result = UtilsJson.Merge(parent, target);
     /// // Result: {"name": "child"}
     /// 
-    /// // Array merging with prepend mode
+    /// // Array merging with explicit inheritance control
     /// var parent = JsonDocument.Parse(@"[""a"", ""b""]");
-    /// var target = JsonDocument.Parse(@"[{""$inherit"": ""prepend""}, ""x"", ""y""]");
+    /// var target = JsonDocument.Parse(@"[{""$inherit"": ""append""}, ""x"", ""y""]");
     /// var result = UtilsJson.Merge(parent, target);
-    /// // Result: ["x", "y", "a", "b"]
+    /// // Result: ["a", "b", "x", "y"]
+    /// 
+    /// // Array replacement (default behavior)
+    /// var parent = JsonDocument.Parse(@"[""a"", ""b""]");
+    /// var target = JsonDocument.Parse(@"[""x"", ""y""]");
+    /// var result = UtilsJson.Merge(parent, target);
+    /// // Result: ["x", "y"]
     /// </code>
     /// </example>
     public static string Merge(JsonDocument parent, JsonDocument target)
@@ -240,7 +247,7 @@ public static class UtilsJson
                     }
                     else if (mode == InheritMode_Append)
                     {
-                        // Append mode: parent elements first, then target elements (same as default)
+                        // Append mode: parent elements first, then target elements
                         foreach (JsonElement element in parent.EnumerateArray())
                         {
                             element.WriteTo(jsonWriter);
@@ -253,14 +260,24 @@ public static class UtilsJson
                         return;
                     }
                 }
+                else if (inheritValue.ValueKind == JsonValueKind.True)
+                {
+                    // True mode: append target to parent (backward compatibility)
+                    foreach (JsonElement element in parent.EnumerateArray())
+                    {
+                        element.WriteTo(jsonWriter);
+                    }
+                    for (int i = 1; i < targetArray.Length; i++)
+                    {
+                        targetArray[i].WriteTo(jsonWriter);
+                    }
+                    jsonWriter.WriteEndArray();
+                    return;
+                }
             }
         }
 
-        // Default behavior: append target to parent
-        foreach (JsonElement element in parent.EnumerateArray())
-        {
-            element.WriteTo(jsonWriter);
-        }
+        // Default behavior: replace parent with target (no merging)
         foreach (JsonElement element in target.EnumerateArray())
         {
             element.WriteTo(jsonWriter);
