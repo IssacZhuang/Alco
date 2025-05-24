@@ -27,6 +27,9 @@ public sealed partial class AssetSystem
 
         _isRecongizedExtensionsDirty = true;
         _isEntryDirty = true;
+
+        // Invalidate type extension cache since new loader is registered
+        _typeExtensionLookup.Clear();
     }
 
     /// <summary>
@@ -47,6 +50,9 @@ public sealed partial class AssetSystem
         }
         _isRecongizedExtensionsDirty = true;
         _isEntryDirty = true;
+
+        // Invalidate type extension cache since loader is unregistered
+        _typeExtensionLookup.Clear();
     }
 
     private bool TryGetLoader(string filename, Type type, [NotNullWhen(true)] out IAssetLoader? loader)

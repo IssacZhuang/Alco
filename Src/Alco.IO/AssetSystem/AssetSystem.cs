@@ -24,6 +24,8 @@ namespace Alco.IO
         private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Priority.CompareTo(b.Priority));
         private readonly HashSet<string> _recongizedExtensions = new HashSet<string>();
 
+        private readonly ConcurrentDictionary<Type, HashSet<string>> _typeExtensionLookup = new ConcurrentDictionary<Type, HashSet<string>>();
+
         private readonly object _lockEntry = new object();
         private readonly object _lockExtensions = new object();
 

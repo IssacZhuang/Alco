@@ -22,11 +22,6 @@ public class TileConfig : Configable, IValidatableConfig
     public List<string> Textures { get; set; } = new();
 
     /// <summary>
-    /// Whether to search texture in the directory of the config file.
-    /// </summary>
-    public bool SearchTexturesInCurrentDirectory { get; set; } = false;
-
-    /// <summary>
     /// Color tint applied to the tile (RGBA).
     /// </summary>
     public ColorFloat Color { get; set; } = ColorFloat.White;

@@ -149,6 +149,80 @@ public sealed partial class AssetSystem
         }
     }
 
+    /// <summary>
+    /// List all the assets in the given path that can be loaded as the specified type
+    /// </summary>
+    /// <param name="path">The path to list the assets</param>
+    /// <param name="type">The type to filter assets by</param>
+    /// <returns>The list of assets in the given path that can be loaded as the specified type</returns>
+    public IEnumerable<string> ListAssetsInPath(string path, Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        // Get all supported extensions for the type
+        IReadOnlySet<string> supportedExtensions = GetExtensionsForType(type);
+
+        if (supportedExtensions.Count == 0)
+        {
+            // No loaders support this type, return empty
+            yield break;
+        }
+
+        // Get all assets in the path and filter by supported extensions
+        foreach (string assetPath in ListAssetsInPath(path))
+        {
+            string extension = Path.GetExtension(assetPath).ToLowerInvariant();
+            if (supportedExtensions.Contains(extension))
+            {
+                yield return assetPath;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the file extensions that can load the specified type.
+    /// This method is thread-safe and uses caching for performance.
+    /// </summary>
+    /// <param name="type">The type to get extensions for</param>
+    /// <returns>A set of file extensions that can load the specified type</returns>
+    public IReadOnlySet<string> GetExtensionsForType(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        return _typeExtensionLookup.AddOrUpdate(
+            type,
+            ComputeExtensionsForType, // addValue factory
+            (keyType, existingValue) => existingValue  // updateValue factory - return existing value
+        );
+    }
+
+    /// <summary>
+    /// Compute the file extensions that can load the specified type
+    /// </summary>
+    /// <param name="type">The type to compute extensions for</param>
+    /// <returns>A set of file extensions that can load the specified type</returns>
+    private HashSet<string> ComputeExtensionsForType(Type type)
+    {
+        HashSet<string> extensions = new HashSet<string>();
+
+        lock (_lockExtensions)
+        {
+            // Find all loaders that can handle this type
+            foreach (var loader in _assetLoaders.Values)
+            {
+                if (loader.CanHandleType(type))
+                {
+                    foreach (var extension in loader.FileExtensions)
+                    {
+                        extensions.Add(extension);
+                    }
+                }
+            }
+        }
+
+        return extensions;
+    }
+
     private void UpdateEntries(bool forced = false)
     {
         if (!_isEntryDirty && !forced)
