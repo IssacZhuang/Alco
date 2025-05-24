@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Alco.IO;
 
 namespace Alco.Engine;
@@ -8,15 +10,33 @@ public class ConfigDatabase
 {
     private readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, Configable>> _configs = new();
 
-    // key extension, value config loader
-    private readonly ConcurrentDictionary<string, IConfigLoader> _configLoaders = new();
-    private readonly PriorityList<IFileSource> _fileSources = new PriorityList<IFileSource>((a, b) => a.Priority.CompareTo(b.Priority));
+    private readonly JsonPreprocessor _jsonPreprocessor;
+    private readonly JsonSerializerOptions _jsonSerializerOptions;
+
+    private readonly Action<string> _onError;
 
     private volatile bool _isDirty = false;
 
-    public ConfigDatabase()
+    public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
+        ArgumentNullException.ThrowIfNull(onInfo);
+        ArgumentNullException.ThrowIfNull(onWarning);
+        ArgumentNullException.ThrowIfNull(onError);
+        _onError = onError;
 
+        _jsonSerializerOptions = new JsonSerializerOptions
+        {
+            TypeInfoResolver = new ConfigJsonTypeResolver(),
+            WriteIndented = true,
+        };
+        foreach (var converter in converters)
+        {
+            _jsonSerializerOptions.Converters.Add(converter);
+        }
+
+        _jsonSerializerOptions.MakeReadOnly();
+
+        _jsonPreprocessor = new JsonPreprocessor(onInfo, onWarning, onError);
     }
 
     public Configable GetConfig(string id, Type type)
@@ -47,37 +67,13 @@ public class ConfigDatabase
 
     public void AddFileSource(IFileSource fileSource)
     {
-        _fileSources.Add(fileSource);
+        _jsonPreprocessor.AddFileSource(fileSource);
         _isDirty = true;
     }
 
     public void RemoveFileSource(IFileSource fileSource)
     {
-        _fileSources.Remove(fileSource);
-        _isDirty = true;
-    }
-
-    public void RegisterConfigLoader(IConfigLoader configLoader)
-    {
-        foreach (var extension in configLoader.FileExtensions)
-        {
-            _configLoaders.TryAdd(extension, configLoader);
-        }
-        _isDirty = true;
-    }
-
-    public void UnregisterConfigLoader(IConfigLoader configLoader)
-    {
-        foreach (var extension in configLoader.FileExtensions)
-        {
-            if (_configLoaders.TryGetValue(extension, out var loader))
-            {
-                if (loader == configLoader)
-                {
-                    _configLoaders.TryRemove(extension, out _);
-                }
-            }
-        }
+        _jsonPreprocessor.RemoveFileSource(fileSource);
         _isDirty = true;
     }
 
@@ -90,31 +86,34 @@ public class ConfigDatabase
         }
 
         _configs.Clear();
-        foreach (var fileSource in _fileSources)
+        _jsonPreprocessor.Preprocess();
+
+        Parallel.ForEach(_jsonPreprocessor.AllDocuments, document =>
         {
-            foreach (var filename in fileSource.AllFileNames)
+            try
             {
-                if (TryGetLoader(filename, out var loader) && fileSource.TryGetData(filename, out var data, out _))
+                var config = JsonSerializer.Deserialize<Configable>(document, _jsonSerializerOptions);
+                if (config != null)
                 {
-                    var config = loader.CreateConfig(filename, data.Span);
                     AddConfig(config);
-                    data.Dispose();
                 }
             }
-        }
+            catch (Exception ex)
+            {
+                _onError($"Error deserializing config: {ex.Message}");
+            }
+        });
         _isDirty = false;
-    }
-
-    private bool TryGetLoader(string filename, [NotNullWhen(true)] out IConfigLoader? loader)
-    {
-        var extension = Path.GetExtension(filename);
-        return _configLoaders.TryGetValue(extension, out loader);
     }
 
     private void AddConfig(Configable config)
     {
-        ConcurrentDictionary<string, Configable> typeConfigs = _configs.GetOrAdd(config.GetType(), _ => new());
+        ConcurrentDictionary<string, Configable> typeConfigs = _configs.GetOrAdd(config.GetType(), static type => new());
         typeConfigs.TryAdd(config.Id, config);
     }
 
+    internal string[] DebugListAllConfigs()
+    {
+        return _configs.SelectMany(type => type.Value.Select(config => $"{type.Key}: {config.Value.Id} ({config.Value.GetType().Name})")).ToArray();
+    }
 }

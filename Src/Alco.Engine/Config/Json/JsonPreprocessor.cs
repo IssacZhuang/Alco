@@ -31,6 +31,8 @@ public partial class JsonPreprocessor
     private readonly Action<string> _onWarning;
     private readonly Action<string> _onError;
 
+    public IEnumerable<JsonDocument> AllDocuments => _jsonItems.Values.Select(item => item.Document);
+
     public JsonPreprocessor(Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
         _onInfo = onInfo;
@@ -89,6 +91,9 @@ public partial class JsonPreprocessor
                 }
             }
         }
+
+        _abstractJsonItems.Clear();
+        _jsonItems.Clear();
 
         Parallel.ForEach(jsonFiles, fileInfo =>
         {
