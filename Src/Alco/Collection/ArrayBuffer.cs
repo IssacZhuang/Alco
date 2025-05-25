@@ -96,6 +96,11 @@ public class ArrayBuffer<T>
         }
     }
 
+    public void Clear()
+    {
+        _buffer.AsSpan().Clear();
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<T> Slice(int start, int length)
     {

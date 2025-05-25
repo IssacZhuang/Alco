@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
@@ -23,15 +24,17 @@ public partial class JsonPreprocessor
         }
     }
 
-    private readonly ConcurrentDictionary<string, JsonItem> _abstractJsonItems = new();
-    private readonly ConcurrentDictionary<string, JsonItem> _jsonItems = new();
+    private readonly Dictionary<string, JsonItem> _abstractJsonItems = new();
+    private readonly Dictionary<string, JsonItem> _jsonItems = new();
+    private readonly List<JsonDocument> _jsonItemsList = new();
     private readonly List<IFileSource> _fileSources = new();
+    private readonly ArrayBuffer<JsonDocument?> _tempJsonDocuments = new();
 
     private readonly Action<string> _onInfo;
     private readonly Action<string> _onWarning;
     private readonly Action<string> _onError;
 
-    public IEnumerable<JsonDocument> AllDocuments => _jsonItems.Values.Select(item => item.Document);
+    public IReadOnlyList<JsonDocument> AllDocuments => _jsonItemsList;
 
     public JsonPreprocessor(Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
@@ -92,10 +95,13 @@ public partial class JsonPreprocessor
             }
         }
 
-        JsonDocument?[] jsonDocuments = new JsonDocument?[jsonFiles.Count];
+        //JsonDocument?[] jsonDocuments = new JsonDocument?[jsonFiles.Count];
+        _tempJsonDocuments.EnsureSizeWithoutCopy(jsonFiles.Count);
+        _tempJsonDocuments.Clear();
 
         _abstractJsonItems.Clear();
         _jsonItems.Clear();
+        _jsonItemsList.Clear();
 
         //parallel load json documents
         Parallel.For(0, jsonFiles.Count, i =>
@@ -109,7 +115,7 @@ public partial class JsonPreprocessor
                     var json = System.Text.Encoding.UTF8.GetString(data.Span);
                     JsonDocument document = JsonDocument.Parse(json);
 
-                    jsonDocuments[i] = document;
+                    _tempJsonDocuments[i] = document;
                 }
                 catch (Exception ex)
                 {
@@ -130,14 +136,15 @@ public partial class JsonPreprocessor
         for (int i = 0; i < jsonFiles.Count; i++)
         {
             var (filePath, fileSource) = jsonFiles[i];
-            JsonDocument? document = jsonDocuments[i];
+            JsonDocument? document = _tempJsonDocuments[i];
             if (document == null)
             {
                 continue;
             }
 
-            if (document.RootElement.ValueKind == JsonValueKind.Null)
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
+                AddError($"Json file {filePath} is not a valid object");
                 continue;
             }
             //check if the json file is abstract
@@ -253,9 +260,13 @@ public partial class JsonPreprocessor
             {
                 AddError($"Json file {filePath} and {jsonItem.Path} have duplicate id {id}");
             }
+            else if (_jsonItems.TryAdd(id, new JsonItem(filePath, document)))
+            {
+                _jsonItemsList.Add(document);
+            }
             else
             {
-                _jsonItems.TryAdd(id, new JsonItem(filePath, document));
+                AddError($"Failed to add json item {id} from {filePath}");
             }
         }
         else

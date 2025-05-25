@@ -6,9 +6,13 @@ using Alco.IO;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Thread-safe configuration database that manages config objects from multiple file sources
+/// </summary>
 public class ConfigDatabase
 {
-    private readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, Configable>> _configs = new();
+    private readonly Dictionary<Type, Dictionary<string, Configable>> _configs = new();
+    private readonly ArrayBuffer<Configable?> _tempConfigs = new();
 
     private readonly JsonPreprocessor _jsonPreprocessor;
     private readonly JsonSerializerOptions _jsonSerializerOptions;
@@ -16,6 +20,7 @@ public class ConfigDatabase
     private readonly Action<string> _onError;
 
     private volatile bool _isDirty = false;
+    private readonly Lock _updateLock = new();
 
     public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
@@ -77,43 +82,80 @@ public class ConfigDatabase
         _isDirty = true;
     }
 
-
-    private void TryUpdateConfigs()
+    /// <summary>
+    /// Thread-safely updates the configuration cache if needed
+    /// </summary>
+    public void TryUpdateConfigs()
     {
+        // First check without lock (performance optimization)
         if (!_isDirty)
         {
             return;
         }
 
-        _configs.Clear();
-        _jsonPreprocessor.Preprocess();
-
-        Parallel.ForEach(_jsonPreprocessor.AllDocuments, document =>
+        // Enter critical section with double-checked locking
+        lock (_updateLock)
         {
-            try
+            // Second check inside lock to ensure only one thread updates
+            if (!_isDirty)
             {
-                var config = JsonSerializer.Deserialize<Configable>(document, _jsonSerializerOptions);
+                return;
+            }
+
+            _configs.Clear();
+            _jsonPreprocessor.Preprocess();
+
+            _tempConfigs.EnsureSizeWithoutCopy(_jsonPreprocessor.AllDocuments.Count);
+            _tempConfigs.Clear();
+            
+            IReadOnlyList<JsonDocument> documents = _jsonPreprocessor.AllDocuments;
+
+            Parallel.For(0, documents.Count, i =>
+            {
+                try
+                {
+                    var config = JsonSerializer.Deserialize<Configable>(documents[i], _jsonSerializerOptions);
+                    if (config != null)
+                    {
+                        _tempConfigs[i] = config;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _onError($"Error deserializing config: {ex.Message}");
+                }
+            });
+
+            for (int i = 0; i < _tempConfigs.Length; i++)
+            {
+                var config = _tempConfigs[i];
                 if (config != null)
                 {
                     AddConfig(config);
                 }
             }
-            catch (Exception ex)
-            {
-                _onError($"Error deserializing config: {ex.Message}");
-            }
-        });
-        _isDirty = false;
+            _isDirty = false;
+        }
     }
 
     private void AddConfig(Configable config)
     {
-        ConcurrentDictionary<string, Configable> typeConfigs = _configs.GetOrAdd(config.GetType(), static type => new());
+        if (!_configs.TryGetValue(config.GetType(), out var typeConfigs))
+        {
+            typeConfigs = new();
+            _configs[config.GetType()] = typeConfigs;
+        }
         typeConfigs.TryAdd(config.Id, config);
     }
 
+    /// <summary>
+    /// Returns debug information about all loaded configurations
+    /// </summary>
+    /// <returns>Array of strings describing all loaded configurations</returns>
     internal string[] DebugListAllConfigs()
     {
         return _configs.SelectMany(type => type.Value.Select(config => $"{type.Key}: {config.Value.Id} ({config.Value.GetType().Name})")).ToArray();
     }
 }
+
+
