@@ -107,7 +107,7 @@ public class ConfigDatabase
 
             _tempConfigs.EnsureSizeWithoutCopy(_jsonPreprocessor.AllDocuments.Count);
             _tempConfigs.Clear();
-            
+
             IReadOnlyList<JsonDocument> documents = _jsonPreprocessor.AllDocuments;
 
             Parallel.For(0, documents.Count, i =>
@@ -122,7 +122,7 @@ public class ConfigDatabase
                 }
                 catch (Exception ex)
                 {
-                    _onError($"Error deserializing config: {ex.Message}");
+                    _onError($"Error deserializing config: {ex}");
                 }
             });
 
