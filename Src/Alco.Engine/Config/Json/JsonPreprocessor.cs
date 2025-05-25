@@ -92,12 +92,15 @@ public partial class JsonPreprocessor
             }
         }
 
+        JsonDocument?[] jsonDocuments = new JsonDocument?[jsonFiles.Count];
+
         _abstractJsonItems.Clear();
         _jsonItems.Clear();
 
-        Parallel.ForEach(jsonFiles, fileInfo =>
+        //parallel load json documents
+        Parallel.For(0, jsonFiles.Count, i =>
         {
-            var (filePath, fileSource) = fileInfo;
+            var (filePath, fileSource) = jsonFiles[i];
 
             if (fileSource.TryGetData(filePath, out var data, out var failureReason))
             {
@@ -106,15 +109,7 @@ public partial class JsonPreprocessor
                     var json = System.Text.Encoding.UTF8.GetString(data.Span);
                     JsonDocument document = JsonDocument.Parse(json);
 
-                    //check if the json file is abstract
-                    if (document.RootElement.TryGetProperty(Keyward_Abstract, out var abstractProperty) && abstractProperty.GetBoolean())
-                    {
-                        AddAbstractJsonItem(document, filePath);
-                    }
-                    else
-                    {
-                        AddJsonItem(document, filePath);
-                    }
+                    jsonDocuments[i] = document;
                 }
                 catch (Exception ex)
                 {
@@ -130,6 +125,31 @@ public partial class JsonPreprocessor
                 AddError($"Failed to read file {filePath}: {failureReason}");
             }
         });
+
+
+        for (int i = 0; i < jsonFiles.Count; i++)
+        {
+            var (filePath, fileSource) = jsonFiles[i];
+            JsonDocument? document = jsonDocuments[i];
+            if (document == null)
+            {
+                continue;
+            }
+
+            if (document.RootElement.ValueKind == JsonValueKind.Null)
+            {
+                continue;
+            }
+            //check if the json file is abstract
+            if (document.RootElement.TryGetProperty(Keyward_Abstract, out var abstractProperty) && abstractProperty.GetBoolean())
+            {
+                AddAbstractJsonItem(document, filePath);
+            }
+            else
+            {
+                AddJsonItem(document, filePath);
+            }
+        }
     }
 
     private void ProcessJsonItems()
