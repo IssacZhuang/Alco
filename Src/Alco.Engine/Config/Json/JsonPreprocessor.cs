@@ -6,7 +6,7 @@ using Alco.IO;
 
 namespace Alco.Engine;
 
-public partial class JsonPreprocessor
+public class JsonPreprocessor
 {
     public const string Keyward_Abstract = "$abstract";
     public const string Keyward_Parent = "$parent";

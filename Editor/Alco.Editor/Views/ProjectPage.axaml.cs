@@ -21,10 +21,6 @@ public partial class ProjectPage : UserControl
 
         EditorEngine engine = App.Main.Engine;
 
-        var configReferenceResolver = new ConfigReferenceResolver((id, type) =>
-        {
-            return engine.Assets.Load<Configable>(id);
-        });
         _jsonSerializerOptions = engine.ConfigSerializeOption;
 
         if (App.Main.Engine.IsProjectOpen)

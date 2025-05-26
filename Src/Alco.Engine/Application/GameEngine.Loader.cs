@@ -47,11 +47,6 @@ public partial class GameEngine
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
     }
 
-    protected virtual ConfigReferenceResolver CreateConfigReferenceResolver()
-    {
-        return new ConfigReferenceResolver((id, type) => Assets.Load(id, type));  
-    }
-
     protected virtual JsonSerializerOptions CreateConfigSerializeOption()
     {
         var options = new JsonSerializerOptions()

@@ -13,6 +13,9 @@ namespace Alco.Engine;
 /// </summary>
 public class ConfigDatabase
 {
+    private static readonly MemberAccessor s_memberAccessor = MemberAccessor.CreateCompatibleCachedAccessor();
+    private readonly ConcurrentLruCache<Type, AccessTypeInfo> _accessTypeInfos = new(64);
+
     private readonly ConcurrentDictionary<Type, FrozenDictionary<string, Configable>> _configs = new();
     private readonly List<Configable> _configsList = new();
     private readonly ArrayBuffer<Configable?> _tempConfigs = new();
@@ -238,10 +241,51 @@ public class ConfigDatabase
         return table.ToFrozenDictionary();
     }
 
-    /// <summary>
-    /// Returns debug information about all loaded configurations
-    /// </summary>
-    /// <returns>Array of strings describing all loaded configurations</returns>
+    private void ResolveReferences(Configable config)
+    {
+        AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(config.GetType());
+        foreach (var accessMember in accessTypeInfo.Members)
+        {
+            if (accessMember.MemberType.IsAssignableTo(typeof(Configable)))
+            {
+                ResolveConfigProperty(config, accessMember.Name, accessMember);
+            }
+        }
+    }
+
+    private void ResolveConfigProperty(Configable asset, string propertyName, AccessMemberInfo accessMember)
+    {
+        try
+        {
+            var config = accessMember.GetValue<Configable>(asset);
+
+            if (config == null)
+            {
+                _onError($"Config reference for property {propertyName} is null");
+                return;
+            }
+
+            if (TryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
+            {
+                accessMember.SetValue(asset, resolvedConfig);
+            }
+            else
+            {
+                _onError($"Config reference(id: {config.Id}) for property {propertyName} is not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            _onError($"Error resolving config reference for property {propertyName} : {ex}");
+        }
+    }
+
+    private AccessTypeInfo GetAccessTypeInfo(Type type)
+    {
+        return _accessTypeInfos.GetOrAdd(type, static (t) => new AccessTypeInfo(t, s_memberAccessor));
+    }
+
+
     internal string[] DebugListAllConfigs()
     {
         return _configs.SelectMany(type => type.Value.Select(config => $"{type.Key}: {config.Value.Id} ({config.Value.GetType().Name})")).ToArray();
