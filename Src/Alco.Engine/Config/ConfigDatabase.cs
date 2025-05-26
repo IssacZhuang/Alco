@@ -211,6 +211,11 @@ public class ConfigDatabase
                     _configsList.Add(config);
                 }
             }
+
+            for (int i = 0; i < _configsList.Count; i++)
+            {
+                ResolveReferences(_configsList[i]);
+            }
             _isDirty = false;
         }
     }
@@ -265,7 +270,10 @@ public class ConfigDatabase
                 return;
             }
 
-            if (TryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
+            Type type = config.GetType();
+            FrozenDictionary<string, Configable> typeConfigs = GetTypedConfigsDictionary(type);
+
+            if (typeConfigs.TryGetValue(config.Id, out var resolvedConfig))
             {
                 accessMember.SetValue(asset, resolvedConfig);
             }
