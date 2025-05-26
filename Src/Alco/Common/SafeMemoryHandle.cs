@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 using Alco;
 
 namespace Alco;
@@ -17,29 +19,6 @@ public unsafe class SafeMemoryHandle : AutoDisposable
     private readonly byte[]? _buffer;
 
     public static readonly SafeMemoryHandle Empty = new SafeMemoryHandle(Array.Empty<byte>());
-
-    /// <summary>
-    /// Gets a span representing the memory managed by this handle.
-    /// If using unmanaged memory, returns a span over the unsafe pointer.
-    /// If using managed memory, returns a span over the managed buffer.
-    /// Returns an empty span if no memory is allocated.
-    /// </summary>
-    public Span<byte> Span
-    {
-        get
-        {
-            if (_unsafePointer != null)
-            {
-                return new Span<byte>(_unsafePointer, _length);
-            }
-            if (_buffer != null)
-            {
-                return _buffer;
-            }
-
-            return Span<byte>.Empty;
-        }
-    }
 
     /// <summary>
     /// Initializes a new instance of the SafeMemoryHandle class by allocating unmanaged memory of the specified size.
@@ -106,5 +85,46 @@ public unsafe class SafeMemoryHandle : AutoDisposable
         {
             UtilsMemory.Free(_unsafePointer);
         }
+    }
+
+    /// <summary>
+    /// Gets a span representing the memory managed by this handle.
+    /// If using unmanaged memory, returns a span over the unsafe pointer.
+    /// If using managed memory, returns a span over the managed buffer.
+    /// Returns an empty span if no memory is allocated.
+    /// </summary>
+    public Span<byte> AsSpan()
+    {
+        if (_unsafePointer != null)
+        {
+            return new Span<byte>(_unsafePointer, _length);
+        }
+        if (_buffer != null)
+        {
+            return _buffer;
+        }
+
+        return Span<byte>.Empty;
+    }
+
+    /// <summary>
+    /// Gets a read-only span representing the memory managed by this handle.
+    /// If using unmanaged memory, returns a span over the unsafe pointer.
+    /// If using managed memory, returns a span over the managed buffer.
+    /// Returns an empty read-only span if no memory is allocated.
+    /// </summary>
+    public ReadOnlySpan<byte> AsReadOnlySpan()
+    {
+        if (_unsafePointer != null)
+        {
+            return new ReadOnlySpan<byte>(_unsafePointer, _length);
+        }
+
+        if (_buffer != null)
+        {
+            return _buffer;
+        }
+
+        return ReadOnlySpan<byte>.Empty;
     }
 }

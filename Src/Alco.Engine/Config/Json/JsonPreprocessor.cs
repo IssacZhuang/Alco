@@ -112,7 +112,7 @@ public partial class JsonPreprocessor
             {
                 try
                 {
-                    var json = System.Text.Encoding.UTF8.GetString(data.Span);
+                    var json = System.Text.Encoding.UTF8.GetString(data.AsReadOnlySpan());
                     JsonDocument document = JsonDocument.Parse(json);
 
                     _tempJsonDocuments[i] = document;

@@ -93,7 +93,7 @@ public class ZipFileSource : AutoDisposable, IFileSource
                 using var stream = entry.Open();
                 long uncompressedSize = entry.Length;
                 data = new SafeMemoryHandle(uncompressedSize);
-                stream.ReadExactly(data.Span);
+                stream.ReadExactly(data.AsSpan());
                 failureReason = null;
                 return true;
             }

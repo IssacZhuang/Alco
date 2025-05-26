@@ -29,7 +29,7 @@ public partial class GameEngine
         {
             if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
             {
-                return Encoding.UTF8.GetString(data.Span);
+                return Encoding.UTF8.GetString(data.AsReadOnlySpan());
             }
             throw new Exception($"Can not find the include file: {includeName}");
         });
