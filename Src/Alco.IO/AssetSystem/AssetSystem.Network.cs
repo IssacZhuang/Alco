@@ -88,7 +88,7 @@ public sealed partial class AssetSystem
                 // Create the asset
                 try
                 {
-                    asset = loader.CreateAsset(new AssetLoadContext(this, url, safeMemory.Span, type));
+                    asset = loader.CreateAsset(new AssetLoadContext(this, url, safeMemory.AsReadOnlySpan(), type));
                     safeMemory.Dispose();
                 }
                 catch (Exception ex)

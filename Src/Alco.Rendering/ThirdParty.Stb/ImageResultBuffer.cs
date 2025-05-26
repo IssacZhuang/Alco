@@ -19,7 +19,8 @@ namespace StbImageSharp
         public ColorComponents SourceComp { get; }
         public ColorComponents Comp { get; }
         private readonly NativeBuffer<byte> _buffer;
-        public MemoryRef<byte> Memory => _buffer.MemoryRef;
+        public Span<byte> Data => _buffer.AsSpan();
+        public byte* UnsafePointer => _buffer.UnsafePointer;
 
         internal ImageResultBuffer(byte* data, int size, int width, int height, ColorComponents comp, ColorComponents sourceComp)
         {

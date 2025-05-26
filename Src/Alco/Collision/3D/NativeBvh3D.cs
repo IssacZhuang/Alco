@@ -146,7 +146,7 @@ namespace Alco
             return CastRayFirstHit(ref ray, _root);
         }
 
-        public MemoryRef<RayCastResult3D> CastBatchRayFirstHit(MemoryRef<Ray3D> rays)
+        public ReadOnlySpan<RayCastResult3D> CastBatchRayFirstHit(ReadOnlySpan<Ray3D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
             if (_nodeSize == 0)
@@ -155,17 +155,21 @@ namespace Alco
                 {
                     _batchRayCastResult[i] = RayCastResult3D.none;
                 }
-                return _batchRayCastResult.MemoryRef;
+                return _batchRayCastResult.AsReadOnlySpan();
             }
 
-            _jobCastRayFast.rays = rays.Pointer;
-            _jobCastRayFast.results = _batchRayCastResult.UnsafePointer;
-            _scheduler.Run(_jobCastRayFast, rays.Length);
+            fixed (Ray3D* raysPtr = rays)
+            {
+                _jobCastRayFast.rays = raysPtr;
+                _jobCastRayFast.results = _batchRayCastResult.UnsafePointer;
+                _scheduler.Run(_jobCastRayFast, rays.Length);
+            }
 
-            return _batchRayCastResult.MemoryRef;
+
+            return _batchRayCastResult.AsReadOnlySpan();
         }
 
-        public MemoryRef<RayCastResult3D> CastBatchRay(MemoryRef<Ray3D> rays)
+        public ReadOnlySpan<RayCastResult3D> CastBatchRay(ReadOnlySpan<Ray3D> rays)
         {
             _batchRayCastResult.EnsureSizeWithoutCopy(rays.Length);
             if (_nodeSize == 0)
@@ -174,16 +178,19 @@ namespace Alco
                 {
                     _batchRayCastResult[i] = RayCastResult3D.none;
                 }
-                return _batchRayCastResult.MemoryRef;
+                return _batchRayCastResult.AsReadOnlySpan();
             }
 
-            _jobCastRay.rays = rays.Pointer;
-            _jobCastRay.results = _batchRayCastResult.UnsafePointer;
-            _scheduler.Run(_jobCastRay, rays.Length);
-            return _batchRayCastResult.MemoryRef;
+            fixed (Ray3D* raysPtr = rays)
+            {
+                _jobCastRay.rays = raysPtr;
+                _jobCastRay.results = _batchRayCastResult.UnsafePointer;
+                _scheduler.Run(_jobCastRay, rays.Length);
+            }
+            return _batchRayCastResult.AsReadOnlySpan();
         }
 
-        public MemoryRef<ColliderCastResult3D> CastBatchColliderRef(MemoryRef<ColliderRef3D> colliders)
+        public ReadOnlySpan<ColliderCastResult3D> CastBatchColliderRef(ReadOnlySpan<ColliderRef3D> colliders)
         {
             _batchColliderCastResult.EnsureSizeWithoutCopy(colliders.Length);
 
@@ -193,17 +200,20 @@ namespace Alco
                 {
                     _batchColliderCastResult[i] = ColliderCastResult3D.None;
                 }
-                return _batchColliderCastResult.MemoryRef;
+                return _batchColliderCastResult.AsReadOnlySpan();
             }
 
-            _jobCastColliderRef.colliders = colliders.Pointer;
-            _jobCastColliderRef.results = _batchColliderCastResult.UnsafePointer;
-            _scheduler.Run(_jobCastColliderRef, colliders.Length);
+            fixed (ColliderRef3D* collidersPtr = colliders)
+            {
+                _jobCastColliderRef.colliders = collidersPtr;
+                _jobCastColliderRef.results = _batchColliderCastResult.UnsafePointer;
+                _scheduler.Run(_jobCastColliderRef, colliders.Length);
+            }
 
-            return _batchColliderCastResult.MemoryRef;
+            return _batchColliderCastResult.AsReadOnlySpan();
         }
 
-        public MemoryRef<NativeArrayList<ColliderCastResult3D>> CastBatchColliderRefCollector(MemoryRef<ColliderRef3D> colliders)
+        public ReadOnlySpan<NativeArrayList<ColliderCastResult3D>> CastBatchColliderRefCollector(ReadOnlySpan<ColliderRef3D> colliders)
         {
             int lengthBefore = _batchColliderCastResultCollector.Length;
             _batchColliderCastResultCollector.EnsureSize(colliders.Length);
@@ -215,7 +225,7 @@ namespace Alco
                 {
                     _batchColliderCastResultCollector.UnsafePointer[i].Clear();
                 }
-                return _batchColliderCastResultCollector.MemoryRef;
+                return _batchColliderCastResultCollector.AsReadOnlySpan();
             }
 
             for (int i = 0; i < allocCount; i++)
@@ -229,14 +239,17 @@ namespace Alco
                 collector->Clear();
             }
 
-            _jobCastColliderRefCollector.colliders = colliders.Pointer;
-            _jobCastColliderRefCollector.results = _batchColliderCastResultCollector.UnsafePointer;
-            _scheduler.Run(_jobCastColliderRefCollector, colliders.Length);
+            fixed (ColliderRef3D* collidersPtr = colliders)
+            {
+                _jobCastColliderRefCollector.colliders = collidersPtr;
+                _jobCastColliderRefCollector.results = _batchColliderCastResultCollector.UnsafePointer;
+                _scheduler.Run(_jobCastColliderRefCollector, colliders.Length);
+            }
 
-            return _batchColliderCastResultCollector.MemoryRef;
+            return _batchColliderCastResultCollector.AsReadOnlySpan();
         }
 
-        public void BuildTree(MemoryRef<ColliderRef3D> colliders)
+        public void BuildTree(ReadOnlySpan<ColliderRef3D> colliders)
         {
             _nodes.EnsureSizeWithoutCopy(colliders.Length * 2 + (int)math.sqrt(colliders.Length) + 2);
             BuildBottomTop(colliders);
@@ -378,7 +391,7 @@ namespace Alco
 
         //cast collision for multiple result
 
-        public MemoryRef<ColliderCastResult3D> CastPointRefCollector(Vector3 point)
+        public ReadOnlySpan<ColliderCastResult3D> CastPointRefCollector(Vector3 point)
         {
             _castResultCollector.Clear();
             NativeArrayList<ColliderCastResult3D> tmpResult = _castResultCollector;
@@ -387,10 +400,10 @@ namespace Alco
                 CastPointCollectorCore(point, _root, &tmpResult);
                 _castResultCollector = tmpResult;
             }
-            return _castResultCollector.MemoryRef;
+            return _castResultCollector.AsReadOnlySpan();
         }
 
-        public MemoryRef<ColliderCastResult3D> CastColliderRefCollector(ColliderRef3D collider)
+        public ReadOnlySpan<ColliderCastResult3D> CastColliderRefCollector(ColliderRef3D collider)
         {
             _castResultCollector.Clear();
             NativeArrayList<ColliderCastResult3D> tmpResult = _castResultCollector;
@@ -400,7 +413,7 @@ namespace Alco
                 _castResultCollector = tmpResult;
             }
 
-            return _castResultCollector.MemoryRef;
+            return _castResultCollector.AsReadOnlySpan();
         }
 
         // cast collider implementation
@@ -540,7 +553,7 @@ namespace Alco
         }
 
 
-        private void BuildBottomTop(MemoryRef<ColliderRef3D> colliders)
+        private void BuildBottomTop(ReadOnlySpan<ColliderRef3D> colliders)
         {
             _nodeSize = 0;
 
@@ -628,7 +641,7 @@ namespace Alco
             };
         }
 
-        private void StartJobBuildLeaf(MemoryRef<ColliderRef3D> colliders)
+        private void StartJobBuildLeaf(ReadOnlySpan<ColliderRef3D> colliders)
         {
             Node* ptr = _nodes.UnsafePointer;
 

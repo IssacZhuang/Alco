@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
 using Alco.IO;
+using System.Collections.Concurrent;
+using System.Text;
 
 namespace Alco.IO.Test;
 
@@ -368,5 +370,305 @@ public class TestAssetSystem
         //assetSystem.Dispose();
     }
 
- 
+    private class VirtualFileSource : IFileSource
+    {
+        private readonly ConcurrentDictionary<string, string> _files = new();
+
+        public int Priority => 0;
+
+        public IEnumerable<string> AllFileNames => _files.Keys;
+
+        public bool IsWriteable => false;
+
+        public void SetFile(string key, string text)
+        {
+            _files[key] = text;
+        }
+
+        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string failureReason)
+        {
+            if (_files.TryGetValue(path, out var content))
+            {
+                data = new SafeMemoryHandle(Encoding.UTF8.GetBytes(content));
+                failureReason = string.Empty;
+                return true;
+            }
+            data = default;
+            failureReason = "File not found";
+            return false;
+        }
+
+        public bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string failureReason)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    private class TestAssetLoader : IAssetLoader
+    {
+        public string Name => "Text loader";
+
+        public IReadOnlyList<string> FileExtensions => [".txt"];
+
+        public bool CanHandleType(Type type)
+        {
+            return type == typeof(string);
+        }
+
+        public object CreateAsset(in AssetLoadContext context)
+        {
+            return Encoding.UTF8.GetString(context.Data);
+        }
+    }
+
+    [Test]
+    public void TestListAssets()
+    {
+        AssetSystem assetSystem = new AssetSystem(new LifeCycleProvider());
+        VirtualFileSource fileSource = new VirtualFileSource();
+        fileSource.SetFile("test.txt", "test");
+        fileSource.SetFile("path1.txt", "test");
+        fileSource.SetFile("path1/test.txt", "test");
+        fileSource.SetFile("path1/test2.txt", "test");
+        fileSource.SetFile("path1/subPath/test.txt", "test");
+        fileSource.SetFile("path2/test.txt", "test");
+        fileSource.SetFile("path2/test2.txt", "test");
+        assetSystem.AddFileSource(fileSource);
+
+        assetSystem.RegisterAssetLoader(new TestAssetLoader());
+
+        Assert.That(assetSystem.ListAssetsInPath("").Count(), Is.EqualTo(7));
+
+        List<string> files = new();
+        foreach (var file in assetSystem.ListAssetsInPath("path1"))
+        {
+            files.Add(file);
+        }
+        Assert.That(files.Count, Is.EqualTo(3));
+        Assert.That(files.Contains("test.txt"), Is.False);
+        Assert.That(files.Contains("path1.txt"), Is.False);
+        Assert.That(files.Contains("path1/test.txt"), Is.True);
+        Assert.That(files.Contains("path1/test2.txt"), Is.True);
+        Assert.That(files.Contains("path1/subPath/test.txt"), Is.True);
+        Assert.That(files.Contains("path2/test.txt"), Is.False);
+        Assert.That(files.Contains("path2/test2.txt"), Is.False);
+
+        files.Clear();
+        foreach (var file in assetSystem.ListAssetsInPath("path1/"))
+        {
+            files.Add(file);
+        }
+        Assert.That(files.Count, Is.EqualTo(3));
+        Assert.That(files.Contains("test.txt"), Is.False);
+        Assert.That(files.Contains("path1.txt"), Is.False);
+        Assert.That(files.Contains("path1/test.txt"), Is.True);
+        Assert.That(files.Contains("path1/test2.txt"), Is.True);
+        Assert.That(files.Contains("path1/subPath/test.txt"), Is.True);
+        Assert.That(files.Contains("path2/test.txt"), Is.False);
+        Assert.That(files.Contains("path2/test2.txt"), Is.False);
+
+
+
+    }
+
+    [Test]
+    public void TestGetExtensionsForType()
+    {
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
+
+        // Setup loaders
+        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());    // .fast for TestFastAsset
+        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());    // .slow for TestSlowAsset  
+        assetSystem.RegisterAssetLoader(new TestAssetLoader());        // .txt for string
+
+        // Test getting extensions for TestFastAsset
+        var fastExtensions = assetSystem.GetExtensionsForType(typeof(TestFastAsset));
+        Assert.That(fastExtensions.Count, Is.EqualTo(1));
+        Assert.That(fastExtensions.Contains(".fast"), Is.True);
+
+        // Test getting extensions for TestSlowAsset
+        var slowExtensions = assetSystem.GetExtensionsForType(typeof(TestSlowAsset));
+        Assert.That(slowExtensions.Count, Is.EqualTo(1));
+        Assert.That(slowExtensions.Contains(".slow"), Is.True);
+
+        // Test getting extensions for string
+        var stringExtensions = assetSystem.GetExtensionsForType(typeof(string));
+        Assert.That(stringExtensions.Count, Is.EqualTo(1));
+        Assert.That(stringExtensions.Contains(".txt"), Is.True);
+
+        // Test getting extensions for unsupported type
+        var unsupportedExtensions = assetSystem.GetExtensionsForType(typeof(int));
+        Assert.That(unsupportedExtensions.Count, Is.EqualTo(0));
+
+        // Test caching - calling again should return same instance
+        var fastExtensions2 = assetSystem.GetExtensionsForType(typeof(TestFastAsset));
+        Assert.That(fastExtensions2, Is.SameAs(fastExtensions));
+
+        // Test null argument
+        Assert.Throws<ArgumentNullException>(() => assetSystem.GetExtensionsForType(null!));
+    }
+
+    [Test]
+    public void TestGetExtensionsForTypeCacheInvalidation()
+    {
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
+
+        // Initially no extensions for TestFastAsset
+        var extensions1 = assetSystem.GetExtensionsForType(typeof(TestFastAsset));
+        Assert.That(extensions1.Count, Is.EqualTo(0));
+
+        // Register a loader - use the same instance for register and unregister
+        var testLoader = new TestFastAssetLoader();
+        assetSystem.RegisterAssetLoader(testLoader);
+
+        // Cache should be invalidated, now should find extensions
+        var extensions2 = assetSystem.GetExtensionsForType(typeof(TestFastAsset));
+        Assert.That(extensions2.Count, Is.EqualTo(1));
+        Assert.That(extensions2.Contains(".fast"), Is.True);
+        Assert.That(extensions2, Is.Not.SameAs(extensions1));
+
+        // Unregister the same loader instance
+        assetSystem.UnregisterAssetLoader(testLoader);
+
+        // Cache should be invalidated again, should be empty
+        var extensions3 = assetSystem.GetExtensionsForType(typeof(TestFastAsset));
+        Assert.That(extensions3.Count, Is.EqualTo(0));
+        Assert.That(extensions3, Is.Not.SameAs(extensions2));
+    }
+
+    [Test]
+    public void TestListAssetsInPathWithType()
+    {
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
+
+        // Setup file source with various file types
+        VirtualFileSource fileSource = new VirtualFileSource();
+        fileSource.SetFile("root.txt", "test");
+        fileSource.SetFile("root.fast", "test");
+        fileSource.SetFile("root.slow", "test");
+        fileSource.SetFile("root.unknown", "test");
+        fileSource.SetFile("path1/test.txt", "test");
+        fileSource.SetFile("path1/test.fast", "test");
+        fileSource.SetFile("path1/test.slow", "test");
+        fileSource.SetFile("path1/subPath/nested.txt", "test");
+        fileSource.SetFile("path1/subPath/nested.fast", "test");
+        fileSource.SetFile("path2/another.txt", "test");
+        fileSource.SetFile("path2/another.fast", "test");
+        assetSystem.AddFileSource(fileSource);
+
+        // Setup loaders
+        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());    // .fast for TestFastAsset
+        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());    // .slow for TestSlowAsset
+        assetSystem.RegisterAssetLoader(new TestAssetLoader());        // .txt for string
+
+        // Test listing all string assets (*.txt) in root
+        var stringAssets = assetSystem.ListAssetsInPath("", typeof(string)).ToList();
+        Assert.That(stringAssets.Count, Is.EqualTo(4));
+        Assert.That(stringAssets.Contains("root.txt"), Is.True);
+        Assert.That(stringAssets.Contains("path1/test.txt"), Is.True);
+        Assert.That(stringAssets.Contains("path1/subPath/nested.txt"), Is.True);
+        Assert.That(stringAssets.Contains("path2/another.txt"), Is.True);
+        Assert.That(stringAssets.Contains("root.fast"), Is.False);
+        Assert.That(stringAssets.Contains("root.slow"), Is.False);
+        Assert.That(stringAssets.Contains("root.unknown"), Is.False);
+
+        // Test listing TestFastAsset assets (*.fast) in path1
+        var fastAssets = assetSystem.ListAssetsInPath("path1", typeof(TestFastAsset)).ToList();
+        Assert.That(fastAssets.Count, Is.EqualTo(2));
+        Assert.That(fastAssets.Contains("path1/test.fast"), Is.True);
+        Assert.That(fastAssets.Contains("path1/subPath/nested.fast"), Is.True);
+        Assert.That(fastAssets.Contains("path1/test.txt"), Is.False);
+        Assert.That(fastAssets.Contains("path1/test.slow"), Is.False);
+
+        // Test listing TestSlowAsset assets (*.slow) in path1
+        var slowAssets = assetSystem.ListAssetsInPath("path1", typeof(TestSlowAsset)).ToList();
+        Assert.That(slowAssets.Count, Is.EqualTo(1));
+        Assert.That(slowAssets.Contains("path1/test.slow"), Is.True);
+
+        // Test listing unsupported type - should return empty
+        var unsupportedAssets = assetSystem.ListAssetsInPath("", typeof(int)).ToList();
+        Assert.That(unsupportedAssets.Count, Is.EqualTo(0));
+
+        // Test with empty path
+        var allFastAssets = assetSystem.ListAssetsInPath("", typeof(TestFastAsset)).ToList();
+        Assert.That(allFastAssets.Count, Is.EqualTo(4));
+        Assert.That(allFastAssets.Contains("root.fast"), Is.True);
+        Assert.That(allFastAssets.Contains("path1/test.fast"), Is.True);
+        Assert.That(allFastAssets.Contains("path1/subPath/nested.fast"), Is.True);
+        Assert.That(allFastAssets.Contains("path2/another.fast"), Is.True);
+
+        // Test with non-existent path
+        var nonExistentAssets = assetSystem.ListAssetsInPath("nonexistent", typeof(string)).ToList();
+        Assert.That(nonExistentAssets.Count, Is.EqualTo(0));
+
+        // Test null type argument
+        Assert.Throws<ArgumentNullException>(() => assetSystem.ListAssetsInPath("", null!).ToList());
+    }
+
+    [Test]
+    public void TestListAssetsInPathWithTypeThreadSafety()
+    {
+        using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
+        AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
+
+        // Setup file source
+        VirtualFileSource fileSource = new VirtualFileSource();
+        for (int i = 0; i < 100; i++)
+        {
+            fileSource.SetFile($"test{i}.txt", "test");
+            fileSource.SetFile($"test{i}.fast", "test");
+        }
+        assetSystem.AddFileSource(fileSource);
+
+        // Setup loaders
+        assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
+        assetSystem.RegisterAssetLoader(new TestAssetLoader());
+
+        // Test concurrent access
+        var tasks = new List<Task>();
+        var results = new ConcurrentBag<List<string>>();
+
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                var stringAssets = assetSystem.ListAssetsInPath("", typeof(string)).ToList();
+                results.Add(stringAssets);
+            }));
+
+            tasks.Add(Task.Run(() =>
+            {
+                var fastAssets = assetSystem.ListAssetsInPath("", typeof(TestFastAsset)).ToList();
+                results.Add(fastAssets);
+            }));
+        }
+
+        Task.WaitAll(tasks.ToArray());
+
+        // Verify all results are consistent
+        var stringResults = results.Where(r => r.Count > 0 && r[0].EndsWith(".txt")).ToList();
+        var fastResults = results.Where(r => r.Count > 0 && r[0].EndsWith(".fast")).ToList();
+
+        Assert.That(stringResults.Count, Is.EqualTo(10));
+        Assert.That(fastResults.Count, Is.EqualTo(10));
+
+        // All string results should be identical
+        for (int i = 1; i < stringResults.Count; i++)
+        {
+            Assert.That(stringResults[i].Count, Is.EqualTo(stringResults[0].Count));
+            Assert.That(stringResults[i], Is.EquivalentTo(stringResults[0]));
+        }
+
+        // All fast results should be identical
+        for (int i = 1; i < fastResults.Count; i++)
+        {
+            Assert.That(fastResults[i].Count, Is.EqualTo(fastResults[0].Count));
+            Assert.That(fastResults[i], Is.EquivalentTo(fastResults[0]));
+        }
+    }
+
+
 }

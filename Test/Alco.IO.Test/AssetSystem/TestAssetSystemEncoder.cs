@@ -161,7 +161,7 @@ public class TestAssetSystemEncoder
 
         // Verify written data
         Assert.True(_fileSource.TryGetData(path, out var data, out _));
-        Assert.That(Encoding.UTF8.GetString(data.Span), Is.EqualTo("test data"));
+        Assert.That(Encoding.UTF8.GetString(data.AsReadOnlySpan()), Is.EqualTo("test data"));
     }
 
     [Test]

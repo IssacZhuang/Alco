@@ -23,6 +23,7 @@ public class Game : GameEngine
     //hdr
     private ReinhardToneMapData _toneMapData;
     private readonly Material _toneMapMaterial;
+    private readonly GraphicsValueBuffer<ReinhardToneMapData> _toneMapDataBuffer;
 
     //bloom
     private readonly BloomSystem _bloomSystem1;
@@ -60,7 +61,9 @@ public class Game : GameEngine
 
         _toneMapData = ReinhardToneMapData.Default;
         _toneMapMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
-        _toneMapMaterial.SetValue(ShaderResourceId.Data, _toneMapData);
+
+        _toneMapDataBuffer = Rendering.CreateGraphicsValueBuffer(_toneMapData, "tonemap_data_buffer");
+        _toneMapMaterial.SetBuffer(ShaderResourceId.Data, _toneMapDataBuffer);
 
         MainRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMapMaterial);
         _windowRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMapMaterial);
@@ -108,7 +111,7 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-        
+        _toneMapDataBuffer?.Dispose();
     }
 
     private void Render(Camera2D camera, ViewRenderTarget renderTarget)

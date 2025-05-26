@@ -6,10 +6,17 @@ using System.Runtime.InteropServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// Provides functionality for serializing and deserializing objects to and from binary format.
+    /// Handles conversion between C# objects, binary tables, and raw byte arrays.
+    /// </summary>
     public class BinaryParser
     {
-        public readonly static int SizeInt32 = Marshal.SizeOf<int>();
-
+        /// <summary>
+        /// Encodes a BinaryTable into a byte array.
+        /// </summary>
+        /// <param name="data">The BinaryTable to encode</param>
+        /// <returns>A byte array containing the serialized data</returns>
         public static byte[] EncodeTable(BinaryTable data)
         {
             using (MemoryStream stream = new MemoryStream())
@@ -19,6 +26,11 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Decodes a byte array into a BinaryTable.
+        /// </summary>
+        /// <param name="bytes">The byte array to decode</param>
+        /// <returns>A BinaryTable containing the deserialized data</returns>
         public static BinaryTable DecodeTable(byte[] bytes)
         {
             using (Stream stream = new MemoryStream(bytes))
@@ -27,6 +39,11 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Decodes a ReadOnlySpan of bytes into a BinaryTable.
+        /// </summary>
+        /// <param name="bytes">The bytes to decode</param>
+        /// <returns>A BinaryTable containing the deserialized data</returns>
         public unsafe static BinaryTable DecodeTable(ReadOnlySpan<byte> bytes)
         {
             fixed(byte* ptr = bytes)
@@ -38,6 +55,12 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Converts an ISerializable object to a BinaryTable.
+        /// </summary>
+        /// <typeparam name="T">The type of the object, which must implement ISerializable</typeparam>
+        /// <param name="obj">The object to convert</param>
+        /// <returns>A BinaryTable representing the object's serialized state</returns>
         public static BinaryTable ObjectToTable<T>(T obj) where T : ISerializable
         {
             BinarySerializeWriteNode node = new BinarySerializeWriteNode();
@@ -45,6 +68,12 @@ namespace Alco
             return node.Content;
         }
 
+        /// <summary>
+        /// Creates a new instance of type T and populates it from a BinaryTable.
+        /// </summary>
+        /// <typeparam name="T">The type to create, which must implement ISerializable and have a parameterless constructor</typeparam>
+        /// <param name="content">The BinaryTable containing the serialized data</param>
+        /// <returns>A new instance of T populated from the BinaryTable</returns>
         public static T TableToObject<T>(BinaryTable content) where T : ISerializable, new()
         {
             T obj = new T();
@@ -52,17 +81,77 @@ namespace Alco
             return obj;
         }
 
+        /// <summary>
+        /// Creates an instance of type T using a factory method and populates it from a BinaryTable.
+        /// </summary>
+        /// <typeparam name="T">The type to create, which must implement ISerializable</typeparam>
+        /// <param name="content">The BinaryTable containing the serialized data</param>
+        /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <returns>An instance of T populated from the BinaryTable</returns>
+        public static T TableToObject<T>(BinaryTable content, Func<SerializeReadNode, T> onCreate) where T : ISerializable
+        {
+            BinarySerializeReadNode node = new BinarySerializeReadNode(content);
+            T obj = onCreate(node);
+            obj.OnSerialize(node, SerializeMode.Load);
+            return obj;
+        }
+
+        /// <summary>
+        /// Serializes an object to a byte array.
+        /// </summary>
+        /// <typeparam name="T">The type of the object, which must implement ISerializable</typeparam>
+        /// <param name="obj">The object to serialize</param>
+        /// <returns>A byte array containing the serialized object</returns>
         public static byte[] Encode<T>(T obj) where T : ISerializable
         {
             return EncodeTable(ObjectToTable(obj));
         }
 
+        /// <summary>
+        /// Deserializes a byte array into a new instance of type T.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable and have a parameterless constructor</typeparam>
+        /// <param name="bytes">The byte array to deserialize</param>
+        /// <returns>A new instance of T deserialized from the byte array</returns>
         public static T Decode<T>(byte[] bytes) where T : ISerializable, new()
         {
             return TableToObject<T>(DecodeTable(bytes));
         }
 
-        
+        /// <summary>
+        /// Deserializes a ReadOnlySpan of bytes into a new instance of type T.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable and have a parameterless constructor</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <returns>A new instance of T deserialized from the bytes</returns>
+        public static T Decode<T>(ReadOnlySpan<byte> bytes) where T : ISerializable, new()
+        {
+            return TableToObject<T>(DecodeTable(bytes));
+        }
+
+        /// <summary>
+        /// Deserializes a byte array into an instance of type T created using a factory method.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable</typeparam>
+        /// <param name="bytes">The byte array to deserialize</param>
+        /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <returns>An instance of T deserialized from the byte array</returns>
+        public static T Decode<T>(byte[] bytes, Func<SerializeReadNode, T> onCreate) where T : ISerializable
+        {
+            return TableToObject<T>(DecodeTable(bytes), onCreate);
+        }
+
+        /// <summary>
+        /// Deserializes a ReadOnlySpan of bytes into an instance of type T created using a factory method.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <returns>An instance of T deserialized from the bytes</returns>
+        public static T Decode<T>(ReadOnlySpan<byte> bytes, Func<SerializeReadNode, T> onCreate) where T : ISerializable
+        {
+            return TableToObject<T>(DecodeTable(bytes), onCreate);
+        }
 
         private static void EncodeTableElement(Stream stream, string name, BaseBinaryValue value)
         {
@@ -109,10 +198,6 @@ namespace Alco
             int positionLength = (int)stream.Position;
             WriteLength(stream, 0);
 
-            // foreach (string str in table.Keys)
-            // {
-            //     EncodeElement(stream, str, table[str]);
-            // }
 
             foreach (var entry in table.Entries)
             {
@@ -122,7 +207,7 @@ namespace Alco
             int positionEnd = (int)stream.Position;
 
             stream.Position = positionLength;
-            WriteLength(stream, positionEnd - positionLength - SizeInt32);
+            WriteLength(stream, positionEnd - positionLength - sizeof(int));
             stream.Position = positionEnd;
         }
 
@@ -190,7 +275,7 @@ namespace Alco
 
             int positionEnd = (int)stream.Position;
             stream.Position = positionLength;
-            WriteLength(stream, positionEnd - positionLength - SizeInt32);
+            WriteLength(stream, positionEnd - positionLength - sizeof(int));
             stream.Position = positionEnd;
         }
 

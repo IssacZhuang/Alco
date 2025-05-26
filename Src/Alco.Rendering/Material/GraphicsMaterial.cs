@@ -10,11 +10,10 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class GraphicsMaterial : Material
 {
-    private readonly HashSet<AutoDisposable> _managedResources = new();
     
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name) : base(system, shader, name)
     {
-        _managedResources = new HashSet<AutoDisposable>();
+        
     }
 
     /// <inheritdoc/>
@@ -65,31 +64,7 @@ public sealed class GraphicsMaterial : Material
         {
 
             BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[(int)i];
-            if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
-            {
-                BindGroupEntryInfo info = bindGroupLayout.Bindings[0];
-                if (!_parameters.TryGetBuffer(i, out GraphicsBuffer? buffer))
-                {
-
-                    buffer = _system.CreateGraphicsBuffer(
-                        info.Size,
-                        $"material_{Name}: {info.Entry.Name}"
-                    );
-                    _parameters.SetBuffer(i, buffer);
-                    _managedResources.Add(buffer);
-                }
-                else if (buffer.Size < info.Size)
-                {
-                    buffer.Dispose();
-                    buffer = _system.CreateGraphicsBuffer(
-                        info.Size,
-                        $"material_{Name}: {info.Entry.Name}"
-                    );
-                    _parameters.SetBuffer(i, buffer);
-                    _managedResources.Add(buffer);
-                }
-            }
-            else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
+            if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
                 if (!_parameters.TryGetTexture(i, out Texture2D? _) &&
                     !_parameters.TryGetRenderTexture(i, out RenderTexture? _))
@@ -106,12 +81,6 @@ public sealed class GraphicsMaterial : Material
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            foreach (AutoDisposable resource in _managedResources)
-            {
-                resource.Dispose();
-            }
-        }
+
     }
 }

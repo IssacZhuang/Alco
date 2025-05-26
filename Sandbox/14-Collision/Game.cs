@@ -18,6 +18,7 @@ public class Game : GameEngine
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
     private readonly GraphicsMaterial _material;
+    private readonly GraphicsValueBuffer<Matrix4x4> _cameraBuffer;
 
     private readonly Cube _entity;
 
@@ -38,8 +39,8 @@ public class Game : GameEngine
         _renderer = Rendering.CreateRenderContext();
         _material = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
 
-        _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
-        //_material["_texture"] = Rendering.TextureWhite;
+        _cameraBuffer = Rendering.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
+        _material.SetBuffer("_camera", _cameraBuffer);
 
         _plane = new Plane3D(new Vector3(1, 0, 0), 0);
 
@@ -97,7 +98,7 @@ public class Game : GameEngine
         if (DebugGUI.Slider(ref fov, 30, 110))
         {
             _camera.FieldOfView = fov / 100f;
-            _material.SetValue("_camera", _camera.Data.ViewProjectionMatrix);
+            _cameraBuffer.UpdateBuffer(_camera.Data.ViewProjectionMatrix);
         }
 
         DebugGUI.SameLine();

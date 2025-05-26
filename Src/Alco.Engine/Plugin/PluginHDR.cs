@@ -7,7 +7,9 @@ public class PluginHDR : BaseEnginePlugin
 {
     private Shader? _shader;
     private Material? _material;
-    private ReinhardToneMapData _data;
+    private GraphicsBuffer? _dataBuffer;
+
+    private ReinhardToneMapData _data = ReinhardToneMapData.Default;
 
     public override int Order => -900;
 
@@ -16,7 +18,7 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _data.MaxLuminance = value;
-            _material?.SetValue(ShaderResourceId.Data, _data);
+            _dataBuffer?.UpdateBuffer(_data);
         }
     }
 
@@ -25,7 +27,7 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _data.Gamma = value;
-            _material?.SetValue(ShaderResourceId.Data, _data);
+            _dataBuffer?.UpdateBuffer(_data);
         }
     }
 
@@ -41,12 +43,15 @@ public class PluginHDR : BaseEnginePlugin
         _data.Gamma = gamma;
     }
 
-    public override void OnPostInitialize(GameEngine engine)
+    public unsafe override void OnPostInitialize(GameEngine engine)
     {
         RenderingSystem rendering = engine.Rendering;
         _shader = engine.Assets.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardLuminanceTonemap);
         _material = rendering.CreateGraphicsMaterial(_shader);
-        _material.SetValue(ShaderResourceId.Data, _data);
+
+        _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ReinhardToneMapData), "hdr_tonemap_data");
+        _dataBuffer.UpdateBuffer(_data);
+        _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
         
         engine.MainRenderTarget.SetRenderPass(rendering.PrefferedHDRPass, _material);
     }
@@ -55,6 +60,6 @@ public class PluginHDR : BaseEnginePlugin
     {
         _shader?.Dispose();
         _material?.Dispose();
-
+        _dataBuffer?.Dispose();
     }
 }

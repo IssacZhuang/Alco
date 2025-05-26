@@ -1,9 +1,10 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
 namespace Alco;
 
-public class BinarySerializeReadNode : SerializeNode
+public class BinarySerializeReadNode : SerializeReadNode
 {
     protected BinaryTable _content;
     public BinaryTable Content => _content;
@@ -11,45 +12,35 @@ public class BinarySerializeReadNode : SerializeNode
     {
         _content = content;
     }
-    public override void BindBinary(string key, ref byte[] value)
-    {
-        if (_content.TryGetBinary(key, out byte[]? binaryValue))
-        {
-            value = binaryValue;
-        }
-    }
 
-    public override void BindDeep<T>(string key, ref T value) 
+    public override void BindDeep<T>(string key, ref T value)
     {
-        value = new T();
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
             value.OnSerialize(new BinarySerializeReadNode(table), SerializeMode.Load);
         }
     }
 
-    public override void BindString(string key, ref string value, string @default = "")
+    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
-        if (_content.TryGetString(key, out string? stringValue))
+        if (_content.TryGetTable(key, out BinaryTable? table))
         {
-            value = stringValue;
-        }
-        else
-        {
-            value = @default;
+            BinarySerializeReadNode subNode = new BinarySerializeReadNode(table);
+            value ??= onCreate(subNode);
+            value.OnSerialize(subNode, SerializeMode.Load);
         }
     }
 
-
-    public override void BindValue<T>(string key, ref T value, T @default = default)
+    public unsafe override void BindMemory<T>(string key, Span<T> memory)
     {
-        if (_content.TryGetValue(key, out T v))
+        if (_content.TryGetBinary(key, out byte[]? binaryValue))
         {
-            value = v;
-        }
-        else
-        {
-            value = @default;
+            int length = Math.Min(memory.Length * sizeof(T), binaryValue.Length);
+            fixed (T* ptrMemory = memory)
+            {
+                Span<byte> span = new Span<byte>(ptrMemory, length);
+                binaryValue.AsSpan().CopyTo(span);
+            }
         }
     }
 
@@ -97,6 +88,42 @@ public class BinarySerializeReadNode : SerializeNode
                     value.Add(item);
                 }
             }
+        }
+    }
+
+    public override T GetValue<T>(string key, T @default = default)
+    {
+        if (_content.TryGetValue(key, out T v))
+        {
+            return v;
+        }
+        else
+        {
+            return @default;
+        }
+    }
+
+    public override T GetEnum<T>(string key, T @default = default)
+    {
+        if (_content.TryGetEnum(key, out T v))
+        {
+            return v;
+        }
+        else
+        {
+            return @default;
+        }
+    }
+
+    public override string GetString(string key, string @default = "")
+    {
+        if (_content.TryGetString(key, out string? stringValue))
+        {
+            return stringValue;
+        }
+        else
+        {
+            return @default;
         }
     }
 }

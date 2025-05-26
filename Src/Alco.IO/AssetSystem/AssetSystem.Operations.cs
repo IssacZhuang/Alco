@@ -305,7 +305,7 @@ public sealed partial class AssetSystem
 
         try
         {
-            var context = new AssetLoadContext(this, filename, data.Span, type);
+            var context = new AssetLoadContext(this, filename, data.AsReadOnlySpan(), type);
             asset = loader.CreateAsset(in context);
             data.Dispose();
         }

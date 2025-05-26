@@ -21,9 +21,6 @@ public partial class GameEngine
         yield return new AssetLoaderAudioVorbis(AudioDevice);
         yield return new AssetLoaderAudioWave(AudioDevice);
         yield return new AssetLoaderAudioFlac(AudioDevice);
-
-        // config
-        yield return new AssetLoaderConfig(ConfigSerializeOption, ConfigReferenceResolver);
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
@@ -32,7 +29,7 @@ public partial class GameEngine
         {
             if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
             {
-                return Encoding.UTF8.GetString(data.Span);
+                return Encoding.UTF8.GetString(data.AsReadOnlySpan());
             }
             throw new Exception($"Can not find the include file: {includeName}");
         });
@@ -50,16 +47,11 @@ public partial class GameEngine
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
     }
 
-    protected virtual ConfigReferenceResolver CreateConfigReferenceResolver()
-    {
-        return new ConfigReferenceResolver((id, type) => Assets.Load(id, type));  
-    }
-
     protected virtual JsonSerializerOptions CreateConfigSerializeOption()
     {
         var options = new JsonSerializerOptions()
         {
-            TypeInfoResolver = new ConfigJsonTypeResolver(ConfigReferenceResolver),
+            TypeInfoResolver = new ConfigJsonTypeResolver(),
             WriteIndented = true,
             Converters = {
                 new JsonConverterType(),

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.CompilerServices;
 
 using Alco;
@@ -52,18 +52,6 @@ namespace Alco
                     ((T*)_ptrBuffer)[index] = value;
                 }
             }
-        }
-
-        public MemoryRef<T> MemoryRef
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new MemoryRef<T>((T*)_ptrBuffer, _length);
-        }
-
-        public ReadOnlySpan<T> ReadOnlySpan
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
         }
 
 
@@ -120,6 +108,16 @@ namespace Alco
             FreeMemory();
             _ptrBuffer = ptr;
             _length = size;
+        }
+
+        public ReadOnlySpan<T> AsReadOnlySpan()
+        {
+            return new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
+        }
+
+        public Span<T> AsSpan()
+        {
+            return new Span<T>((T*)_ptrBuffer, _length);
         }
 
         private void FreeMemory()

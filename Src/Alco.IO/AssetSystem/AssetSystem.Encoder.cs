@@ -92,7 +92,7 @@ public sealed partial class AssetSystem
         try
         {
             using var handle = EncodeToBinary(asset, type);
-            if (!fileSource.TryWriteData(path, handle.Span, out failureReason))
+            if (!fileSource.TryWriteData(path, handle.AsReadOnlySpan(), out failureReason))
             {
                 return false;
             }

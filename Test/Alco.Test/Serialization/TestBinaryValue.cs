@@ -12,7 +12,7 @@ namespace Alco.Test
             SerializeMode originalValue = SerializeMode.Save;
 
             // Create a BinaryValue from the enum
-            BinaryValue binaryValue = BinaryValue.CreateValueEnum(originalValue);
+            BinaryValue binaryValue = BinaryValue.CreateByEnum(originalValue);
 
             // Verify it's not null
             Assert.That(binaryValue, Is.Not.Null);
@@ -27,7 +27,7 @@ namespace Alco.Test
 
             // Test with a different enum value
             SerializeMode anotherValue = SerializeMode.Load;
-            BinaryValue anotherBinaryValue = BinaryValue.CreateValueEnum(anotherValue);
+            BinaryValue anotherBinaryValue = BinaryValue.CreateByEnum(anotherValue);
 
             bool anotherSuccess = anotherBinaryValue.TryGetEnum(out SerializeMode anotherRetrievedValue);
 
@@ -64,7 +64,7 @@ namespace Alco.Test
 
             // Test with byte-based enum
             TestByteEnum byteEnumValue = TestByteEnum.Value2;
-            BinaryValue byteEnumBinaryValue = BinaryValue.CreateValueEnum(byteEnumValue);
+            BinaryValue byteEnumBinaryValue = BinaryValue.CreateByEnum(byteEnumValue);
 
             bool byteEnumSuccess = byteEnumBinaryValue.TryGetEnum(out TestByteEnum retrievedByteEnum);
 
@@ -73,7 +73,7 @@ namespace Alco.Test
 
             // Test with int-based enum
             TestIntEnum intEnumValue = TestIntEnum.Value3;
-            BinaryValue intEnumBinaryValue = BinaryValue.CreateValueEnum(intEnumValue);
+            BinaryValue intEnumBinaryValue = BinaryValue.CreateByEnum(intEnumValue);
 
             bool intEnumSuccess = intEnumBinaryValue.TryGetEnum(out TestIntEnum retrievedIntEnum);
 
@@ -86,7 +86,7 @@ namespace Alco.Test
         {
             // Create a BinaryValue from an int-based enum
             TestIntEnum intEnumValue = TestIntEnum.Value1; // Value 0
-            BinaryValue intEnumBinaryValue = BinaryValue.CreateValueEnum(intEnumValue);
+            BinaryValue intEnumBinaryValue = BinaryValue.CreateByEnum(intEnumValue);
 
             // Try to get a byte-based enum from it
             // This should fail if the sizes are different, but might succeed if the binary representation is compatible
@@ -102,7 +102,7 @@ namespace Alco.Test
 
             // Create a BinaryValue from a byte-based enum with value 1
             TestByteEnum byteEnum = TestByteEnum.Value2; // Value 1
-            BinaryValue byteEnumBinaryValue = BinaryValue.CreateValueEnum(byteEnum);
+            BinaryValue byteEnumBinaryValue = BinaryValue.CreateByEnum(byteEnum);
 
             // Try to read it as BinaryValueType enum (which is also byte-based)
             bool sameTypeSuccess = byteEnumBinaryValue.TryGetEnum(out BinaryValueType bvtValue);

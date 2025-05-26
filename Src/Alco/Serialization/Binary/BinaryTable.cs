@@ -210,7 +210,7 @@ namespace Alco
 
         public void Add<T>(string key, T value) where T : struct, Enum
         {
-            _map.Add(key, BinaryValue.CreateValueEnum(value));
+            _map.Add(key, BinaryValue.CreateByEnum(value));
         }
 
 

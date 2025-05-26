@@ -73,7 +73,7 @@ namespace Alco.Test
             NativeBvh2D bvh = new NativeBvh2D(scheduler);
             Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-2, 1.1f), new Vector2(200, 1.1f));
 
-            bvh.BuildTree(colliders.MemoryRef);
+            bvh.BuildTree(colliders.AsReadOnlySpan());
 
             //RayCastResult result = bvh.CastRay(ray);
 
@@ -135,7 +135,7 @@ namespace Alco.Test
             using ParallelScheduler scheduler = new ParallelScheduler();
             NativeBvh2D bvh = new NativeBvh2D(scheduler);
 
-            bvh.BuildTree(colliders.MemoryRef);
+            bvh.BuildTree(colliders.AsReadOnlySpan());
 
             ColliderBox2D boxCast1 = new ColliderBox2D
             {

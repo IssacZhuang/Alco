@@ -38,7 +38,6 @@ IDisposable
     private readonly ViewRenderTarget _mainRenderTarget;
 
     private readonly JsonSerializerOptions _configSerializeOption;
-    private readonly ConfigReferenceResolver _configReferenceResolver;
 
     #endregion
 
@@ -180,11 +179,6 @@ IDisposable
     /// The json serializer options for the game engine, which is used for the config loading
     /// </summary>
     public JsonSerializerOptions ConfigSerializeOption => _configSerializeOption;
- 
-    /// <summary>
-    /// The reference resolver, which is used for the config to reference other configs assets
-    /// </summary>
-    public ConfigReferenceResolver ConfigReferenceResolver => _configReferenceResolver;
 
     #endregion
 
@@ -209,7 +203,6 @@ IDisposable
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
-        _configReferenceResolver = CreateConfigReferenceResolver();
         _configSerializeOption = CreateConfigSerializeOption();
 
         foreach (var fileSource in CreateDefaultFileSources())

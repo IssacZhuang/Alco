@@ -4,14 +4,10 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Alco;
 
-public class BinarySerializeWriteNode : SerializeNode
+public class BinarySerializeWriteNode : SerializeWriteNode
 {
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
-    public override void BindBinary(string key, ref byte[] value)
-    {
-        _content.Add(key, value);
-    }
 
     public override void BindDeep<T>(string key, ref T value) 
     {
@@ -20,15 +16,23 @@ public class BinarySerializeWriteNode : SerializeNode
         _content.Add(key, node._content);
     }
 
-    public override void BindString(string key, ref string value, string @default = "")
+    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
-        _content.Add(key, value);
+        if (value == null)
+        {
+            _content.Add(key, new BinaryValue());
+        }
+        else
+        {
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode();
+            value.OnSerialize(node, SerializeMode.Save);
+            _content.Add(key, node._content);
+        }
     }
 
-
-    public override void BindValue<T>(string key, ref T value, T @default = default)
+    public override void BindMemory<T>(string key, Span<T> memory)
     {
-        _content.Add(key, BinaryValue.CreateValue(value));
+        _content.Add(key, BinaryValue.CreateByMemory(memory));
     }
 
     public override void BindCollection<T>(string key, IList<T> value)
@@ -36,7 +40,7 @@ public class BinarySerializeWriteNode : SerializeNode
         BinaryArray array = new BinaryArray();
         for (int i = 0; i < value.Count; i++)
         {
-            array.Add(BinaryValue.CreateValue(value[i]));
+            array.Add(BinaryValue.CreateByValue(value[i]));
         }
 
         _content.Add(key, array);
@@ -64,5 +68,20 @@ public class BinarySerializeWriteNode : SerializeNode
         }
 
         _content.Add(key, array);
+    }
+
+    public override void SetValue<T>(string key, T value)
+    {
+        _content.Add(key, BinaryValue.CreateByValue(value));
+    }
+
+    public override void SetEnum<T>(string key, T value)
+    {
+        _content.Add(key, BinaryValue.CreateByEnum(value));
+    }
+
+    public override void SetString(string key, string value)
+    {
+        _content.Add(key, value);
     }
 }

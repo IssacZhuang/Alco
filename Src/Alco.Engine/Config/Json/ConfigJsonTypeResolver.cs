@@ -14,7 +14,7 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
 
     public ConfigJsonTypeResolver(ConfigReferenceResolver? configResolver = null)
     {
-        _configResolver = configResolver ?? new ConfigReferenceResolver((id, type) => null);
+        _configResolver = configResolver ?? CreateConfigPlaceholder;
     }
 
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
@@ -74,5 +74,13 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         {
             typeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(derivedType, derivedType.FullName ?? derivedType.Name));
         }
+    }
+
+    private static Configable CreateConfigPlaceholder(string id, Type type)
+    {
+        Configable? config = Activator.CreateInstance(type) as Configable
+        ?? throw new Exception($"Failed to create config placeholder for type {type.Name}");
+        config.Id = id;
+        return config;
     }
 }

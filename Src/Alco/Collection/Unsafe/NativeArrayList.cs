@@ -28,22 +28,14 @@ namespace Alco
             get => (T*)_ptrBuffer;
         }
 
-        public readonly MemoryRef<T> MemoryRef
+        public ReadOnlySpan<T> AsReadOnlySpan()
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new MemoryRef<T>((T*)_ptrBuffer, _length);
+            return new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
         }
 
-        public readonly ReadOnlySpan<T> ReadOnlySpan
+        public Span<T> AsSpan()
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
-        }
-
-        public readonly Span<T> Span
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Span<T>((T*)_ptrBuffer, _length);
+            return new Span<T>((T*)_ptrBuffer, _length);
         }
 
         public int Stride => sizeof(T);

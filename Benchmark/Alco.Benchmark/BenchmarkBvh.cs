@@ -89,8 +89,8 @@ public class BenchmarkBvh
         scheduler3D = new ParallelScheduler();
         bvh3D = new NativeBvh3D(scheduler3D);
 
-        bvh3D.BuildTree(colliders3D.MemoryRef);
-        bvh3D.CastBatchRay(rays3D.MemoryRef);
+        bvh3D.BuildTree(colliders3D.AsReadOnlySpan());
+        bvh3D.CastBatchRay(rays3D.AsReadOnlySpan());
     }
 
     private unsafe void Setup2D()
@@ -151,8 +151,8 @@ public class BenchmarkBvh
         scheduler2D = new ParallelScheduler();
         bvh2D = new NativeBvh2D(scheduler2D);
 
-        bvh2D.BuildTree(colliders2D.MemoryRef);
-        bvh2D.CastBatchRay(rays2D.MemoryRef);
+        bvh2D.BuildTree(colliders2D.AsReadOnlySpan());
+        bvh2D.CastBatchRay(rays2D.AsReadOnlySpan());
     }
 
     [GlobalCleanup]
@@ -176,24 +176,24 @@ public class BenchmarkBvh
     [Benchmark(Description = "BVH 3D Build tree: ")]
     public void BuildBvh3D()
     {
-        bvh3D.BuildTree(colliders3D.MemoryRef);
+        bvh3D.BuildTree(colliders3D.AsReadOnlySpan());
     }
 
     [Benchmark(Description = "BVH 3D Cast ray: ")]
     public void CastRay3D()
     {
-        bvh3D.CastBatchRay(rays3D.MemoryRef);
+        bvh3D.CastBatchRay(rays3D.AsReadOnlySpan());
     }
 
     [Benchmark(Description = "BVH 2D Build tree: ")]
     public void BuildBvh2D()
     {
-        bvh2D.BuildTree(colliders2D.MemoryRef);
+        bvh2D.BuildTree(colliders2D.AsReadOnlySpan());
     }
 
     [Benchmark(Description = "BVH 2D Cast ray: ")]
     public void CastRay2D()
     {
-        bvh2D.CastBatchRay(rays2D.MemoryRef);
+        bvh2D.CastBatchRay(rays2D.AsReadOnlySpan());
     }
 }

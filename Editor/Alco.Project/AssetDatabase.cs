@@ -67,7 +67,7 @@ public class AssetDatabase
 
     private void UpdateConfigMetas()
     {
-        IEnumerable<string> allAssetPaths = _assetSystem.AllFileNames;
+        IEnumerable<string> allAssetPaths = _assetSystem.AllAssetNames;
         // foreach (var assetPath in allAssetPaths)
         Parallel.ForEach(allAssetPaths, assetPath =>
         {
@@ -115,7 +115,7 @@ public class AssetDatabase
     {
         if (_assetSystem.TryLoadRaw(assetPath, out SafeMemoryHandle handle))
         {
-            string json = Encoding.UTF8.GetString(handle.Span);
+            string json = Encoding.UTF8.GetString(handle.AsReadOnlySpan());
             using JsonDocument doc = JsonDocument.Parse(json);
             string strType = doc.RootElement.GetProperty("$type").GetString() ?? throw new Exception("type is null");
             type = _typeHelper.FindType(strType);

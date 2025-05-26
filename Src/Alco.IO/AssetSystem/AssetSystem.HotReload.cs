@@ -154,7 +154,7 @@ public sealed partial class AssetSystem
 
         if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out IAssetHotReloader? hotReloader))
         {
-            hotReloader.HotReload(cachedAsset, data.Span);
+            hotReloader.HotReload(cachedAsset, data.AsReadOnlySpan());
             OnHotReload?.Invoke(filename, cachedAsset);
             _hotReloadTasks.TryRemove(filename, out _);
             _host.LogSuccess($"Hot reload asset {filename} success");

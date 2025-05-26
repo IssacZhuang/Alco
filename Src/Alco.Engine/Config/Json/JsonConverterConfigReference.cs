@@ -4,17 +4,19 @@ using System.Text.Json.Serialization;
 
 namespace Alco.Engine;
 
+
+
 public class JsonConverterConfigReference : JsonConverter<Configable>
 {
-    private readonly ConfigReferenceResolver _configResolver;
+    private readonly ConfigReferenceResolver _configReferenceResolver;
     private readonly Type _propertyType;// the real type of the property or field
 
     public JsonConverterConfigReference(
         Type realType,
-        ConfigReferenceResolver configResolver
+        ConfigReferenceResolver configReferenceResolver
     )
     {
-        _configResolver = configResolver;
+        _configReferenceResolver = configReferenceResolver;
         _propertyType = realType;
     }
 
@@ -28,10 +30,9 @@ public class JsonConverterConfigReference : JsonConverter<Configable>
         }
 
         string id = reader.GetString() ?? throw new JsonException("The reference of config must be a string id.");
-        if (!_configResolver.TryResolve(id, _propertyType, out var config))
-        {
-            throw new JsonException($"The config with id {id} is not found.");
-        }
+
+        Configable config = _configReferenceResolver(id, _propertyType)
+        ?? throw new JsonException($"The config with id {id} is not found.");
 
         return config;
     }
