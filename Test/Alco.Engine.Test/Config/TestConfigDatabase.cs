@@ -1050,8 +1050,8 @@ namespace Alco.Engine.Test
                 "Id": "player-001",
                 "PlayerName": "Hero",
                 "Level": 10,
-                "Weapon": "sword-001",
-                "Armor": "armor-001"
+                "Weapon": { "Id": "sword-001" },
+                "Armor": { "Id": "armor-001" }
             }
             """;
 
@@ -1103,7 +1103,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
                 "Id": "config-with-refs-001",
                 "Name": "Config With References",
-                "ReferencedBaseConfig": "derived-001"
+                "ReferencedBaseConfig": { "Id": "derived-001" }
             }
             """;
 
@@ -1135,7 +1135,7 @@ namespace Alco.Engine.Test
                 "Id": "player-001",
                 "PlayerName": "Hero",
                 "Level": 10,
-                "Weapon": "non-existent-weapon"
+                "Weapon": { "Id": "non-existent-weapon" }
             }
             """;
 
@@ -1193,7 +1193,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+CircularConfigA",
                 "Id": "circular-a",
                 "Name": "Config A",
-                "RefToB": "circular-b"
+                "RefToB": { "Id": "circular-b" }
             }
             """;
 
@@ -1202,7 +1202,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+CircularConfigB",
                 "Id": "circular-b",
                 "Name": "Config B",
-                "RefToA": "circular-a"
+                "RefToA": { "Id": "circular-a" }
             }
             """;
 
@@ -1241,7 +1241,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+SelfReferencingConfig",
                 "Id": "self-ref",
                 "Name": "Self Referencing Config",
-                "SelfReference": "self-ref"
+                "SelfReference": { "Id": "self-ref" }
             }
             """;
 
@@ -1296,8 +1296,8 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
                 "Id": "multi-refs",
                 "Name": "Config With Multiple References",
-                "ReferencedTestConfig": "test-1",
-                "ReferencedBaseConfig": "derived-1"
+                "ReferencedTestConfig": { "Id": "test-1" },
+                "ReferencedBaseConfig": { "Id": "derived-1" }
             }
             """;
 
@@ -1340,7 +1340,7 @@ namespace Alco.Engine.Test
                 "Id": "player-001",
                 "PlayerName": "Hero",
                 "Level": 10,
-                "Weapon": "sword-001"
+                "Weapon": { "Id": "sword-001" }
             }
             """;
 
@@ -1398,7 +1398,7 @@ namespace Alco.Engine.Test
                 "Id": "player-config",
                 "PlayerName": "Hero",
                 "Level": 10,
-                "Weapon": "weapon-config"
+                "Weapon": { "Id": "weapon-config" }
             }
             """;
 
@@ -1407,7 +1407,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
                 "Id": "config-with-refs",
                 "Name": "Config With References",
-                "ReferencedTestConfig": "test-config"
+                "ReferencedTestConfig": { "Id": "test-config" }
             }
             """;
 
@@ -1462,7 +1462,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
                 "Id": "config-1",
                 "Name": "Config 1",
-                "ReferencedTestConfig": "shared-config"
+                "ReferencedTestConfig": { "Id": "shared-config" }
             }
             """;
 
@@ -1471,7 +1471,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
                 "Id": "config-2",
                 "Name": "Config 2",
-                "ReferencedTestConfig": "shared-config"
+                "ReferencedTestConfig": { "Id": "shared-config" }
             }
             """;
 
@@ -1514,7 +1514,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
                 "Id": "invalid-ref-config",
                 "Name": "Invalid Ref Config",
-                "ReferencedTestConfig": "non-existent-config"
+                "ReferencedTestConfig": { "Id": "non-existent-config" }
             }
             """;
 
@@ -1536,6 +1536,128 @@ namespace Alco.Engine.Test
             Assert.That(_errors.Count, Is.GreaterThan(0));
             Assert.That(_errors.Any(error => error.Contains("Config reference(id: non-existent-config) for property ReferencedTestConfig is not found")), Is.True);
         }
+
+        #endregion
+
+        #region List Reference Resolution Tests
+
+        [Test]
+        public void ResolveReferences_ListReference_ShouldResolveAllItems()
+        {
+            // Arrange
+            var testConfig1Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "list-test-1",
+                "Name": "List Test Config 1",
+                "Value": 10
+            }
+            """;
+
+            var testConfig2Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "list-test-2",
+                "Name": "List Test Config 2",
+                "Value": 20
+            }
+            """;
+
+            var testConfig3Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "list-test-3",
+                "Name": "List Test Config 3",
+                "Value": 30
+            }
+            """;
+
+            var configWithListRefsJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
+                "Id": "config-with-list",
+                "Name": "Config With List References",
+                "ReferencedTestConfigs": [
+                    { "Id": "list-test-1" },
+                    { "Id": "list-test-2" },
+                    { "Id": "list-test-3" }
+                ]
+            }
+            """;
+
+            _fileSource.AddFile("list-test-1.json", testConfig1Json);
+            _fileSource.AddFile("list-test-2.json", testConfig2Json);
+            _fileSource.AddFile("list-test-3.json", testConfig3Json);
+            _fileSource.AddFile("config-with-list.json", configWithListRefsJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var configWithListRefs = _configDatabase.GetConfig<ConfigWithReferences>("config-with-list");
+
+            // Assert
+            Assert.That(configWithListRefs, Is.Not.Null);
+            Assert.That(configWithListRefs.ReferencedTestConfigs, Is.Not.Null);
+            Assert.That(configWithListRefs.ReferencedTestConfigs.Count, Is.EqualTo(3));
+
+            // Verify all list items are resolved correctly
+            var listItem1 = configWithListRefs.ReferencedTestConfigs[0];
+            var listItem2 = configWithListRefs.ReferencedTestConfigs[1];
+            var listItem3 = configWithListRefs.ReferencedTestConfigs[2];
+
+            Assert.That(listItem1.Id, Is.EqualTo("list-test-1"));
+            Assert.That(listItem1.Name, Is.EqualTo("List Test Config 1"));
+            Assert.That(listItem1.Value, Is.EqualTo(10));
+
+            Assert.That(listItem2.Id, Is.EqualTo("list-test-2"));
+            Assert.That(listItem2.Name, Is.EqualTo("List Test Config 2"));
+            Assert.That(listItem2.Value, Is.EqualTo(20));
+
+            Assert.That(listItem3.Id, Is.EqualTo("list-test-3"));
+            Assert.That(listItem3.Name, Is.EqualTo("List Test Config 3"));
+            Assert.That(listItem3.Value, Is.EqualTo(30));
+
+            // Verify that the referenced configs are the same instances as when accessed directly
+            var directConfig1 = _configDatabase.GetConfig<TestConfig>("list-test-1");
+            var directConfig2 = _configDatabase.GetConfig<TestConfig>("list-test-2");
+            var directConfig3 = _configDatabase.GetConfig<TestConfig>("list-test-3");
+
+            Assert.That(listItem1, Is.SameAs(directConfig1));
+            Assert.That(listItem2, Is.SameAs(directConfig2));
+            Assert.That(listItem3, Is.SameAs(directConfig3));
+        }
+
+        [Test]
+        public void ResolveReferences_EmptyListReference_ShouldHandleGracefully()
+        {
+            // Arrange
+            var configWithEmptyListJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
+                "Id": "config-with-empty-list",
+                "Name": "Config With Empty List",
+                "ReferencedTestConfigs": []
+            }
+            """;
+
+            _fileSource.AddFile("config-with-empty-list.json", configWithEmptyListJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var configWithEmptyList = _configDatabase.GetConfig<ConfigWithReferences>("config-with-empty-list");
+
+            // Assert
+            Assert.That(configWithEmptyList, Is.Not.Null);
+            Assert.That(configWithEmptyList.ReferencedTestConfigs, Is.Not.Null);
+            Assert.That(configWithEmptyList.ReferencedTestConfigs.Count, Is.EqualTo(0));
+        }
+
+        
+
+        #endregion
+
+        #region Combined Reference Tests
+
+        // TODO: Add tests that combine single references, list references, and inheritance
 
         #endregion
     }
