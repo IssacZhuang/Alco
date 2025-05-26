@@ -97,6 +97,33 @@ namespace Alco.Engine.Test
             public float Score { get; set; }
         }
 
+        /// <summary>
+        /// Base config class for inheritance testing.
+        /// </summary>
+        private class BaseConfig : Configable
+        {
+            public string BaseProperty { get; set; } = string.Empty;
+            public int BaseValue { get; set; }
+        }
+
+        /// <summary>
+        /// Derived config class for inheritance testing.
+        /// </summary>
+        private class DerivedConfig : BaseConfig
+        {
+            public string DerivedProperty { get; set; } = string.Empty;
+            public double DerivedValue { get; set; }
+        }
+
+        /// <summary>
+        /// Another derived config class for inheritance testing.
+        /// </summary>
+        private class AnotherDerivedConfig : BaseConfig
+        {
+            public bool AnotherFlag { get; set; }
+            public string AnotherText { get; set; } = string.Empty;
+        }
+
         private ConfigDatabase _configDatabase;
         private ConcurrentBag<string> _infos;
         private ConcurrentBag<string> _warnings;
@@ -616,5 +643,310 @@ namespace Alco.Engine.Test
                 Assert.That(config, Is.Null);
             });
         }
+
+        #region Inheritance Tests
+
+        [Test]
+        public void ConfigInheritance_BaseTypeQuery_ShouldReturnDerivedInstances()
+        {
+            // Arrange
+            var derivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+DerivedConfig",
+                "Id": "derived-config-1",
+                "BaseProperty": "Base Value",
+                "BaseValue": 100,
+                "DerivedProperty": "Derived Value",
+                "DerivedValue": 3.14
+            }
+            """;
+
+            var anotherDerivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+AnotherDerivedConfig",
+                "Id": "another-derived-config-1",
+                "BaseProperty": "Another Base Value",
+                "BaseValue": 200,
+                "AnotherFlag": true,
+                "AnotherText": "Another Text"
+            }
+            """;
+
+            _fileSource.AddFile("derived-config-1.json", derivedConfigJson);
+            _fileSource.AddFile("another-derived-config-1.json", anotherDerivedConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act - Query using base type should return derived instances
+            var result1 = _configDatabase.TryGetConfig("derived-config-1", typeof(BaseConfig), out var config1);
+            var result2 = _configDatabase.TryGetConfig("another-derived-config-1", typeof(BaseConfig), out var config2);
+
+            // Assert
+            Assert.That(result1, Is.True);
+            Assert.That(result2, Is.True);
+            Assert.That(config1, Is.Not.Null);
+            Assert.That(config2, Is.Not.Null);
+
+            // Verify actual types are derived types
+            Assert.That(config1, Is.InstanceOf<DerivedConfig>());
+            Assert.That(config2, Is.InstanceOf<AnotherDerivedConfig>());
+
+            // Verify base properties are accessible
+            var derivedConfig = (DerivedConfig)config1;
+            var anotherDerivedConfig = (AnotherDerivedConfig)config2;
+
+            Assert.That(derivedConfig.BaseProperty, Is.EqualTo("Base Value"));
+            Assert.That(derivedConfig.BaseValue, Is.EqualTo(100));
+            Assert.That(derivedConfig.DerivedProperty, Is.EqualTo("Derived Value"));
+            Assert.That(derivedConfig.DerivedValue, Is.EqualTo(3.14));
+
+            Assert.That(anotherDerivedConfig.BaseProperty, Is.EqualTo("Another Base Value"));
+            Assert.That(anotherDerivedConfig.BaseValue, Is.EqualTo(200));
+            Assert.That(anotherDerivedConfig.AnotherFlag, Is.True);
+            Assert.That(anotherDerivedConfig.AnotherText, Is.EqualTo("Another Text"));
+        }
+
+        [Test]
+        public void ConfigInheritance_DerivedTypeQuery_ShouldReturnOnlySpecificDerivedType()
+        {
+            // Arrange
+            var derivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+DerivedConfig",
+                "Id": "derived-config-1",
+                "BaseProperty": "Base Value",
+                "BaseValue": 100,
+                "DerivedProperty": "Derived Value",
+                "DerivedValue": 3.14
+            }
+            """;
+
+            var anotherDerivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+AnotherDerivedConfig",
+                "Id": "another-derived-config-1",
+                "BaseProperty": "Another Base Value",
+                "BaseValue": 200,
+                "AnotherFlag": true,
+                "AnotherText": "Another Text"
+            }
+            """;
+
+            _fileSource.AddFile("derived-config-1.json", derivedConfigJson);
+            _fileSource.AddFile("another-derived-config-1.json", anotherDerivedConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act - Query using specific derived type should only return that type
+            var result1 = _configDatabase.TryGetConfig("derived-config-1", typeof(DerivedConfig), out var config1);
+            var result2 = _configDatabase.TryGetConfig("another-derived-config-1", typeof(DerivedConfig), out var config2);
+            var result3 = _configDatabase.TryGetConfig("another-derived-config-1", typeof(AnotherDerivedConfig), out var config3);
+
+            // Assert
+            Assert.That(result1, Is.True);
+            Assert.That(result2, Is.False); // AnotherDerivedConfig should not be found when searching for DerivedConfig
+            Assert.That(result3, Is.True);
+
+            Assert.That(config1, Is.InstanceOf<DerivedConfig>());
+            Assert.That(config2, Is.Null);
+            Assert.That(config3, Is.InstanceOf<AnotherDerivedConfig>());
+        }
+
+        [Test]
+        public void ConfigInheritance_GenericGetConfig_ShouldWorkWithInheritance()
+        {
+            // Arrange
+            var derivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+DerivedConfig",
+                "Id": "derived-config-1",
+                "BaseProperty": "Base Value",
+                "BaseValue": 100,
+                "DerivedProperty": "Derived Value",
+                "DerivedValue": 3.14
+            }
+            """;
+
+            _fileSource.AddFile("derived-config-1.json", derivedConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act & Assert - Generic method should work with base type
+            var baseConfig = _configDatabase.GetConfig<BaseConfig>("derived-config-1");
+            Assert.That(baseConfig, Is.Not.Null);
+            Assert.That(baseConfig, Is.InstanceOf<DerivedConfig>());
+
+            // Act & Assert - Generic method should work with derived type
+            var derivedConfig = _configDatabase.GetConfig<DerivedConfig>("derived-config-1");
+            Assert.That(derivedConfig, Is.Not.Null);
+            Assert.That(derivedConfig, Is.InstanceOf<DerivedConfig>());
+            Assert.That(derivedConfig.DerivedProperty, Is.EqualTo("Derived Value"));
+        }
+
+        [Test]
+        public void ConfigInheritance_TryGetConfigGeneric_ShouldWorkWithInheritance()
+        {
+            // Arrange
+            var derivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+DerivedConfig",
+                "Id": "derived-config-1",
+                "BaseProperty": "Base Value",
+                "BaseValue": 100,
+                "DerivedProperty": "Derived Value",
+                "DerivedValue": 3.14
+            }
+            """;
+
+            _fileSource.AddFile("derived-config-1.json", derivedConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act & Assert - Generic TryGet should work with base type
+            var result1 = _configDatabase.TryGetConfig<BaseConfig>("derived-config-1", out var baseConfig);
+            Assert.That(result1, Is.True);
+            Assert.That(baseConfig, Is.Not.Null);
+            Assert.That(baseConfig, Is.InstanceOf<DerivedConfig>());
+
+            // Act & Assert - Generic TryGet should work with derived type
+            var result2 = _configDatabase.TryGetConfig<DerivedConfig>("derived-config-1", out var derivedConfig);
+            Assert.That(result2, Is.True);
+            Assert.That(derivedConfig, Is.Not.Null);
+            Assert.That(derivedConfig.DerivedProperty, Is.EqualTo("Derived Value"));
+
+            // Act & Assert - Generic TryGet should fail with unrelated type
+            var result3 = _configDatabase.TryGetConfig<AnotherDerivedConfig>("derived-config-1", out var anotherConfig);
+            Assert.That(result3, Is.False);
+            Assert.That(anotherConfig, Is.Null);
+        }
+
+        [Test]
+        public void ConfigInheritance_MultipleInheritanceLevels_ShouldWork()
+        {
+            // This test would require adding a third inheritance level
+            // For now, testing with Configable as root level
+            var derivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+DerivedConfig",
+                "Id": "derived-config-1",
+                "BaseProperty": "Base Value",
+                "BaseValue": 100,
+                "DerivedProperty": "Derived Value",
+                "DerivedValue": 3.14
+            }
+            """;
+
+            _fileSource.AddFile("derived-config-1.json", derivedConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act - Query using root Configable type should also find derived instances
+            var result = _configDatabase.TryGetConfig("derived-config-1", typeof(Configable), out var config);
+
+            // Assert
+            Assert.That(result, Is.True);
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config, Is.InstanceOf<DerivedConfig>());
+            Assert.That(config.Id, Is.EqualTo("derived-config-1"));
+        }
+
+        [Test]
+        public void ConfigInheritance_MixedTypesInDatabase_ShouldFilterCorrectly()
+        {
+            // Arrange - Add configs of different types and inheritance levels
+            var testConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "test-config-1",
+                "Name": "Test Config",
+                "Value": 42
+            }
+            """;
+
+            var baseConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+BaseConfig",
+                "Id": "base-config-1",
+                "BaseProperty": "Base Value",
+                "BaseValue": 100
+            }
+            """;
+
+            var derivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+DerivedConfig",
+                "Id": "derived-config-1",
+                "BaseProperty": "Derived Base Value",
+                "BaseValue": 200,
+                "DerivedProperty": "Derived Value",
+                "DerivedValue": 3.14
+            }
+            """;
+
+            _fileSource.AddFile("test-config-1.json", testConfigJson);
+            _fileSource.AddFile("base-config-1.json", baseConfigJson);
+            _fileSource.AddFile("derived-config-1.json", derivedConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act & Assert - Query for Configable should find all configs
+            var configurableResult = _configDatabase.TryGetConfig("test-config-1", typeof(Configable), out var configurableConfig);
+            Assert.That(configurableResult, Is.True);
+            Assert.That(configurableConfig, Is.InstanceOf<TestConfig>());
+
+            // Act & Assert - Query for BaseConfig should find both base and derived
+            var baseResult1 = _configDatabase.TryGetConfig("base-config-1", typeof(BaseConfig), out var baseConfig1);
+            var baseResult2 = _configDatabase.TryGetConfig("derived-config-1", typeof(BaseConfig), out var baseConfig2);
+            var baseResult3 = _configDatabase.TryGetConfig("test-config-1", typeof(BaseConfig), out var baseConfig3);
+
+            Assert.That(baseResult1, Is.True);
+            Assert.That(baseResult2, Is.True);
+            Assert.That(baseResult3, Is.False); // TestConfig is not assignable to BaseConfig
+
+            Assert.That(baseConfig1, Is.InstanceOf<BaseConfig>());
+            Assert.That(baseConfig2, Is.InstanceOf<DerivedConfig>());
+            Assert.That(baseConfig3, Is.Null);
+
+            // Act & Assert - Query for DerivedConfig should find only derived
+            var derivedResult1 = _configDatabase.TryGetConfig("derived-config-1", typeof(DerivedConfig), out var derivedConfig1);
+            var derivedResult2 = _configDatabase.TryGetConfig("base-config-1", typeof(DerivedConfig), out var derivedConfig2);
+
+            Assert.That(derivedResult1, Is.True);
+            Assert.That(derivedResult2, Is.False); // BaseConfig is not assignable to DerivedConfig
+
+            Assert.That(derivedConfig1, Is.InstanceOf<DerivedConfig>());
+            Assert.That(derivedConfig2, Is.Null);
+        }
+
+        [Test]
+        public void ConfigInheritance_CachingBehavior_ShouldWorkCorrectlyWithInheritance()
+        {
+            // Arrange
+            var derivedConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+DerivedConfig",
+                "Id": "derived-config-1",
+                "BaseProperty": "Base Value",
+                "BaseValue": 100,
+                "DerivedProperty": "Derived Value",
+                "DerivedValue": 3.14
+            }
+            """;
+
+            _fileSource.AddFile("derived-config-1.json", derivedConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act - Access same config with different type queries multiple times
+            var result1 = _configDatabase.TryGetConfig("derived-config-1", typeof(BaseConfig), out var baseConfig1);
+            var result2 = _configDatabase.TryGetConfig("derived-config-1", typeof(DerivedConfig), out var derivedConfig1);
+            var result3 = _configDatabase.TryGetConfig("derived-config-1", typeof(BaseConfig), out var baseConfig2);
+            var result4 = _configDatabase.TryGetConfig("derived-config-1", typeof(DerivedConfig), out var derivedConfig2);
+
+            // Assert - All queries should succeed and return the same instance
+            Assert.That(result1, Is.True);
+            Assert.That(result2, Is.True);
+            Assert.That(result3, Is.True);
+            Assert.That(result4, Is.True);
+
+            Assert.That(baseConfig1, Is.SameAs(baseConfig2), "Same config queried with same type should return same instance");
+            Assert.That(derivedConfig1, Is.SameAs(derivedConfig2), "Same config queried with same type should return same instance");
+            Assert.That(baseConfig1, Is.SameAs(derivedConfig1), "Same config queried with different compatible types should return same instance");
+        }
+
+        #endregion
     }
 }

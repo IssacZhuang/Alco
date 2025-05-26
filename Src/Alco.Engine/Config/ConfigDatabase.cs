@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -7,11 +8,13 @@ using Alco.IO;
 namespace Alco.Engine;
 
 /// <summary>
-/// Thread-safe configuration database that manages config objects from multiple file sources
+/// Configuration database that manages config objects from multiple file sources.
+/// Provides fast lookup and automatic reloading of configurations when file sources are updated.
 /// </summary>
 public class ConfigDatabase
 {
-    private readonly Dictionary<Type, Dictionary<string, Configable>> _configs = new();
+    private readonly ConcurrentDictionary<Type, FrozenDictionary<string, Configable>> _configs = new();
+    private readonly List<Configable> _configsList = new();
     private readonly ArrayBuffer<Configable?> _tempConfigs = new();
 
     private readonly JsonPreprocessor _jsonPreprocessor;
@@ -22,6 +25,14 @@ public class ConfigDatabase
     private volatile bool _isDirty = false;
     private readonly Lock _updateLock = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConfigDatabase"/> class.
+    /// </summary>
+    /// <param name="converters">Custom JSON converters to use for deserialization</param>
+    /// <param name="onInfo">Callback for informational messages</param>
+    /// <param name="onWarning">Callback for warning messages</param>
+    /// <param name="onError">Callback for error messages</param>
+    /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
     public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
         ArgumentNullException.ThrowIfNull(onInfo);
@@ -44,48 +55,110 @@ public class ConfigDatabase
         _jsonPreprocessor = new JsonPreprocessor(onInfo, onWarning, onError);
     }
 
+    /// <summary>
+    /// [Thread-safe] Gets a configuration object by ID and type.
+    /// </summary>
+    /// <param name="id">The unique identifier of the configuration</param>
+    /// <param name="type">The type of the configuration to retrieve</param>
+    /// <returns>The configuration object matching the specified ID and type</returns>
+    /// <exception cref="Exception">Thrown when no configuration with the specified ID and type is found</exception>
     public Configable GetConfig(string id, Type type)
     {
-        TryUpdateConfigs();
-        if (_configs.TryGetValue(type, out var typeConfigs))
+        if (TryGetConfig(id, type, out var config))
         {
-            if (typeConfigs.TryGetValue(id, out var config))
-            {
-                return config;
-            }
+            return config;
         }
 
         throw new Exception($"Config with id {id} and type {type.Name} not found");
     }
 
+    /// <summary>
+    /// [Thread-safe] Gets a strongly-typed configuration object by ID.
+    /// </summary>
+    /// <typeparam name="T">The type of configuration to retrieve</typeparam>
+    /// <param name="id">The unique identifier of the configuration</param>
+    /// <returns>The configuration object of type T matching the specified ID</returns>
+    /// <exception cref="Exception">Thrown when no configuration with the specified ID and type is found, or when the found configuration is not of the expected type</exception>
+    public T GetConfig<T>(string id) where T : Configable
+    {
+        if (TryGetConfig(id, typeof(T), out var config))
+        {
+            if (config is T t)
+            {
+                return t;
+            }
+            else
+            {
+                throw new Exception($"Config with id {id} and type {typeof(T).Name} is not of type {typeof(T).Name}");
+            }
+        }
+
+        throw new Exception($"Config with id {id} and type {typeof(T).Name} not found");
+    }
+
+    /// <summary>
+    /// [Thread-safe] Attempts to get a configuration object by ID and type.
+    /// </summary>
+    /// <param name="id">The unique identifier of the configuration</param>
+    /// <param name="type">The type of the configuration to retrieve</param>
+    /// <param name="config">When this method returns, contains the configuration object if found; otherwise, null</param>
+    /// <returns>true if a configuration with the specified ID and type was found; otherwise, false</returns>
     public bool TryGetConfig(string id, Type type, [MaybeNullWhen(false)] out Configable config)
     {
         TryUpdateConfigs();
-        if (_configs.TryGetValue(type, out var typeConfigs))
-        {
-            return typeConfigs.TryGetValue(id, out config);
-        }
+        FrozenDictionary<string, Configable> typeConfigs = GetTypedConfigsDictionary(type);
+        return typeConfigs.TryGetValue(id, out config);
+    }
 
+    /// <summary>
+    /// [Thread-safe] Attempts to get a strongly-typed configuration object by ID.
+    /// </summary>
+    /// <typeparam name="T">The type of configuration to retrieve</typeparam>
+    /// <param name="id">The unique identifier of the configuration</param>
+    /// <param name="config">When this method returns, contains the configuration object if found and of the correct type; otherwise, null</param>
+    /// <returns>true if a configuration with the specified ID and type was found and is of the correct type; otherwise, false</returns>
+    public bool TryGetConfig<T>(string id, [MaybeNullWhen(false)] out T config) where T : Configable
+    {
+        if (TryGetConfig(id, typeof(T), out var tmpConfig))
+        {
+            if (tmpConfig is T t)
+            {
+                config = t;
+                return true;
+            }
+            else
+            {
+                config = null;
+                return false;
+            }
+        }
         config = null;
         return false;
     }
 
+    /// <summary>
+    /// [Not thread-safe] Adds a file source to the configuration database.
+    /// The database will automatically reload configurations when files from this source are updated.
+    /// </summary>
+    /// <param name="fileSource">The file source to add</param>
     public void AddFileSource(IFileSource fileSource)
     {
         _jsonPreprocessor.AddFileSource(fileSource);
         _isDirty = true;
     }
 
+    /// <summary>
+    /// [Not thread-safe] Removes a file source from the configuration database.
+    /// Configurations from this source will no longer be available after the next update.
+    /// </summary>
+    /// <param name="fileSource">The file source to remove</param>
     public void RemoveFileSource(IFileSource fileSource)
     {
         _jsonPreprocessor.RemoveFileSource(fileSource);
         _isDirty = true;
     }
 
-    /// <summary>
-    /// Thread-safely updates the configuration cache if needed
-    /// </summary>
-    public void TryUpdateConfigs()
+    private void TryUpdateConfigs()
     {
         // First check without lock (performance optimization)
         if (!_isDirty)
@@ -126,26 +199,27 @@ public class ConfigDatabase
                 }
             });
 
+            _configsList.Clear();
             for (int i = 0; i < _tempConfigs.Length; i++)
             {
                 var config = _tempConfigs[i];
                 if (config != null)
                 {
-                    AddConfig(config);
+                    _configsList.Add(config);
                 }
             }
             _isDirty = false;
         }
     }
 
-    private void AddConfig(Configable config)
+    private FrozenDictionary<string, Configable> GetTypedConfigsDictionary(Type type)
     {
-        if (!_configs.TryGetValue(config.GetType(), out var typeConfigs))
-        {
-            typeConfigs = new();
-            _configs[config.GetType()] = typeConfigs;
-        }
-        typeConfigs.TryAdd(config.Id, config);
+        return _configs.GetOrAdd(
+            type,
+            _ => _configsList
+                .Where(config => config.GetType().IsAssignableTo(type))
+                .ToFrozenDictionary(config => config.Id)
+        );
     }
 
     /// <summary>
