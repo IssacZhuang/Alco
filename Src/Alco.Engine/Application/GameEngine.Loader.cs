@@ -56,7 +56,7 @@ public partial class GameEngine
     {
         var options = new JsonSerializerOptions()
         {
-            TypeInfoResolver = new ConfigJsonTypeResolver(ConfigReferenceResolver),
+            TypeInfoResolver = new ConfigJsonTypeResolver(),
             WriteIndented = true,
             Converters = {
                 new JsonConverterType(),
