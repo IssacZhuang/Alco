@@ -216,10 +216,26 @@ public class ConfigDatabase
     {
         return _configs.GetOrAdd(
             type,
-            _ => _configsList
-                .Where(config => config.GetType().IsAssignableTo(type))
-                .ToFrozenDictionary(config => config.Id)
+            BuildTypedConfigsDictionary
         );
+    }
+
+    private FrozenDictionary<string, Configable> BuildTypedConfigsDictionary(Type type)
+    {
+        Dictionary<string, Configable> table = new();
+        for (int i = 0; i < _configsList.Count; i++)
+        {
+            var config = _configsList[i];
+            if (config.GetType().IsAssignableTo(type))
+            {
+                //duplicate check
+                if (!table.TryAdd(config.Id, config))
+                {
+                    _onError($"Duplicate config id {config.Id} for type {type.Name}");
+                }
+            }
+        }
+        return table.ToFrozenDictionary();
     }
 
     /// <summary>
