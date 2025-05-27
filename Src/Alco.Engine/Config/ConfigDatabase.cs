@@ -211,10 +211,14 @@ public class ConfigDatabase
                 }
             }
 
-            for (int i = 0; i < _configsList.Count; i++)
+            // for (int i = 0; i < _configsList.Count; i++)
+            // {
+            //     ResolveReferences(_configsList[i]);
+            // }
+            Parallel.ForEach(_configsList, config =>
             {
-                ResolveReferences(_configsList[i]);
-            }
+                ResolveReferences(config);
+            });
             _isDirty = false;
         }
     }
