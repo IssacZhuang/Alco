@@ -109,8 +109,7 @@ public class ConfigDatabase
     public bool TryGetConfig(string id, Type type, [MaybeNullWhen(false)] out Configable config)
     {
         TryUpdateConfigs();
-        FrozenDictionary<string, Configable> typeConfigs = GetTypedConfigsDictionary(type);
-        return typeConfigs.TryGetValue(id, out config);
+        return InternalTryGetConfig(id, type, out config);
     }
 
     /// <summary>
@@ -246,23 +245,52 @@ public class ConfigDatabase
         return table.ToFrozenDictionary();
     }
 
-    private void ResolveReferences(Configable config)
+    private void ResolveReferences(object? @object)
     {
-        AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(config.GetType());
+        if (@object == null)
+        {
+            return;
+        }
+
+        var type = @object.GetType();
+        if (type.IsPrimitive || type.IsEnum || type.IsValueType || !type.IsClass)
+        {
+            return;
+        }
+
+        if (@object is string)
+        {
+            return;
+        }
+
+        AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(@object.GetType());
         foreach (var accessMember in accessTypeInfo.Members)
         {
-            if (accessMember.MemberType.IsAssignableTo(typeof(Configable)))
+            var value = accessMember.GetValue<object>(@object);
+            if (value is Configable)
             {
-                ResolveConfigProperty(config, accessMember.Name, accessMember);
+                ResolveConfigProperty(@object, accessMember.Name, accessMember);
+            }
+            else if (UtilsType.IsGenericList(accessMember.MemberType, out var genericType))
+            {
+                //todo
+            }
+            else if (UtilsType.IsGenericDictionary(accessMember.MemberType, out var keyType, out var valueType))
+            {
+                //todo
+            }
+            else
+            {
+                ResolveReferences(value);
             }
         }
     }
 
-    private void ResolveConfigProperty(Configable asset, string propertyName, AccessMemberInfo accessMember)
+    private void ResolveConfigProperty(object @object, string propertyName, AccessMemberInfo accessMember)
     {
         try
         {
-            var config = accessMember.GetValue<Configable>(asset);
+            var config = accessMember.GetValue<Configable>(@object);
 
             if (config == null)
             {
@@ -271,11 +299,10 @@ public class ConfigDatabase
             }
 
             Type type = config.GetType();
-            FrozenDictionary<string, Configable> typeConfigs = GetTypedConfigsDictionary(type);
 
-            if (typeConfigs.TryGetValue(config.Id, out var resolvedConfig))
+            if (InternalTryGetConfig(config.Id, type, out var resolvedConfig))
             {
-                accessMember.SetValue(asset, resolvedConfig);
+                accessMember.SetValue(@object, resolvedConfig);
             }
             else
             {
@@ -286,6 +313,11 @@ public class ConfigDatabase
         {
             _onError($"Error resolving config reference for property {propertyName} : {ex}");
         }
+    }
+
+    private bool InternalTryGetConfig(string id, Type type, [MaybeNullWhen(false)] out Configable config)
+    {
+        return GetTypedConfigsDictionary(type).TryGetValue(id, out config);
     }
 
     private AccessTypeInfo GetAccessTypeInfo(Type type)
