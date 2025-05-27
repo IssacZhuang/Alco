@@ -33,6 +33,34 @@ public class TestAccessTypeInfo
         public string Text { get; set; }
     }
 
+    /// <summary>
+    /// Test class with an indexer to verify that indexers are not included as regular members.
+    /// </summary>
+    private class TestClassWithIndexer
+    {
+        private string[] _items = new string[10];
+
+        public string Name { get; set; } = "Test";
+
+        /// <summary>
+        /// Indexer property - this should NOT be included in accessible members.
+        /// </summary>
+        public string this[int index]
+        {
+            get => _items[index];
+            set => _items[index] = value;
+        }
+
+        /// <summary>
+        /// Another indexer with string key - this should also NOT be included.
+        /// </summary>
+        public string this[string key]
+        {
+            get => _items[0];
+            set => _items[0] = value;
+        }
+    }
+
     private MemberAccessor _memberAccessor;
 
     [SetUp]
@@ -116,5 +144,37 @@ public class TestAccessTypeInfo
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => typeInfo.CreateInstance<string>());
+    }
+
+    /// <summary>
+    /// Test that indexers are not included as accessible members.
+    /// Indexers should be filtered out because they have parameters and are not regular properties.
+    /// </summary>
+    [Test]
+    public void TestAccessTypeInfoExcludesIndexers()
+    {
+        // Arrange
+        var typeInfo = new AccessTypeInfo(typeof(TestClassWithIndexer), _memberAccessor);
+
+        // Act
+        var members = typeInfo.Members;
+
+        // Assert
+        Assert.That(members, Is.Not.Null);
+
+        // Should only have the Name property, not the indexers
+        Assert.That(members.Length, Is.EqualTo(1), "Should only contain the Name property, not indexers");
+        Assert.That(members[0].Name, Is.EqualTo("Name"), "The only member should be the Name property");
+
+        // Verify that indexers are not included
+        // Indexers have the name "Item" in C#
+        Assert.That(members.Any(m => m.Name == "Item"), Is.False, "Indexers should not be included as accessible members");
+
+        // Verify we can access the Name property
+        var instance = typeInfo.CreateInstance<TestClassWithIndexer>();
+        Assert.That(members[0].GetValue<string>(instance), Is.EqualTo("Test"));
+
+        members[0].SetValue(instance, "Modified");
+        Assert.That(instance.Name, Is.EqualTo("Modified"));
     }
 }
