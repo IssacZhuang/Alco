@@ -249,8 +249,15 @@ public class ConfigDatabase
         return table.ToFrozenDictionary();
     }
 
-    private void ResolveReferences(object? @object, string path = "")
+    private void ResolveReferences(object? @object, string path = "", int depth = 0)
     {
+        // Check maximum recursion depth to prevent infinite recursion
+        if (depth >= 64)
+        {
+            _onError($"Maximum recursion depth (64) exceeded while resolving references at path: {path}");
+            return;
+        }
+
         if (@object == null)
         {
             return;
@@ -270,11 +277,11 @@ public class ConfigDatabase
 
         if (UtilsType.IsGenericList(type, out var genericType))
         {
-            ResolveListReferences(@object, path , genericType);
+            ResolveListReferences(@object, path, genericType, depth + 1);
         }
         else if (UtilsType.IsGenericDictionary(type, out var keyType, out var valueType))
         {
-            ResolveDictionaryReferences(@object, path, keyType, valueType);
+            ResolveDictionaryReferences(@object, path, keyType, valueType, depth + 1);
         }
 
         AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(@object.GetType());
@@ -287,7 +294,7 @@ public class ConfigDatabase
             }
             else
             {
-                ResolveReferences(value, path + "." + accessMember.Name);
+                ResolveReferences(value, path + "." + accessMember.Name, depth + 1);
             }
         }
     }
@@ -321,7 +328,14 @@ public class ConfigDatabase
         }
     }
 
-    private void ResolveListReferences(object list, string propertyName, Type genericType)
+    /// <summary>
+    /// Resolves configuration references within list objects.
+    /// </summary>
+    /// <param name="list">The list object to resolve references in</param>
+    /// <param name="propertyName">The property name for error reporting</param>
+    /// <param name="genericType">The generic type of the list elements</param>
+    /// <param name="depth">Current recursion depth</param>
+    private void ResolveListReferences(object list, string propertyName, Type genericType, int depth)
     {
         try
         {
@@ -372,7 +386,7 @@ public class ConfigDatabase
                 {
                     for (int i = 0; i < nonGenericList.Count; i++)
                     {
-                        ResolveReferences(nonGenericList[i]);
+                        ResolveReferences(nonGenericList[i], $"{propertyName}[{i}]", depth);
                     }
                 }
             }
@@ -383,7 +397,7 @@ public class ConfigDatabase
         }
     }
 
-    private void ResolveDictionaryReferences(object dictionary, string propertyName, Type keyType, Type valueType)
+    private void ResolveDictionaryReferences(object dictionary, string propertyName, Type keyType, Type valueType, int depth)
     {
         try
         {
@@ -453,7 +467,7 @@ public class ConfigDatabase
                 {
                     foreach (System.Collections.DictionaryEntry entry in nonGenericDict)
                     {
-                        ResolveReferences(entry.Value);
+                        ResolveReferences(entry.Value, $"{propertyName}[{entry.Key}]", depth);
                     }
                 }
             }
