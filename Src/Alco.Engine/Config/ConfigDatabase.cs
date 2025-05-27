@@ -245,7 +245,7 @@ public class ConfigDatabase
         return table.ToFrozenDictionary();
     }
 
-    private void ResolveReferences(object? @object)
+    private void ResolveReferences(object? @object, string path = "")
     {
         if (@object == null)
         {
@@ -260,7 +260,17 @@ public class ConfigDatabase
 
         if (@object is string)
         {
+            //string never has references
             return;
+        }
+
+        if (UtilsType.IsGenericList(type, out var genericType))
+        {
+            ResolveListReferences(@object, path , genericType);
+        }
+        else if (UtilsType.IsGenericDictionary(type, out var keyType, out var valueType))
+        {
+            ResolveDictionaryReferences(@object, path, keyType, valueType);
         }
 
         AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(@object.GetType());
@@ -271,17 +281,9 @@ public class ConfigDatabase
             {
                 ResolveConfigProperty(@object, accessMember.Name, accessMember);
             }
-            else if (UtilsType.IsGenericList(accessMember.MemberType, out var genericType))
-            {
-                //todo
-            }
-            else if (UtilsType.IsGenericDictionary(accessMember.MemberType, out var keyType, out var valueType))
-            {
-                //todo
-            }
             else
             {
-                ResolveReferences(value);
+                ResolveReferences(value, path + "." + accessMember.Name);
             }
         }
     }
@@ -312,6 +314,149 @@ public class ConfigDatabase
         catch (Exception ex)
         {
             _onError($"Error resolving config reference for property {propertyName} : {ex}");
+        }
+    }
+
+    private void ResolveListReferences(object list, string propertyName, Type genericType)
+    {
+        try
+        {
+            if (genericType.IsAssignableTo(typeof(Configable)))
+            {
+                // If the list contains Configable objects, resolve each element
+                if (list is IList<Configable> configList)
+                {
+                    for (int i = 0; i < configList.Count; i++)
+                    {
+                        var config = configList[i];
+                        if (config != null && InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
+                        {
+                            configList[i] = resolvedConfig;
+                        }
+                        else if (config != null)
+                        {
+                            _onError($"Config reference(id: {config.Id}) in list property {propertyName}[{i}] is not found");
+                        }
+                    }
+                }
+                else
+                {
+                    // Handle non-generic IList case using reflection
+                    if (list is System.Collections.IList nonGenericList)
+                    {
+                        for (int i = 0; i < nonGenericList.Count; i++)
+                        {
+                            if (nonGenericList[i] is Configable config)
+                            {
+                                if (InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
+                                {
+                                    nonGenericList[i] = resolvedConfig;
+                                }
+                                else
+                                {
+                                    _onError($"Config reference(id: {config.Id}) in list property {propertyName}[{i}] is not found");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // If the list contains non-Configable objects, recursively resolve references in each element
+                if (list is System.Collections.IList nonGenericList)
+                {
+                    for (int i = 0; i < nonGenericList.Count; i++)
+                    {
+                        ResolveReferences(nonGenericList[i]);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _onError($"Error resolving list references for property {propertyName} : {ex}");
+        }
+    }
+
+    private void ResolveDictionaryReferences(object dictionary, string propertyName, Type keyType, Type valueType)
+    {
+        try
+        {
+            if (valueType.IsAssignableTo(typeof(Configable)))
+            {
+                // If the dictionary values are Configable objects, resolve each value
+                if (dictionary is IDictionary<object, Configable> configDict)
+                {
+                    var keysToUpdate = new List<object>();
+                    foreach (var kvp in configDict)
+                    {
+                        if (kvp.Value != null && InternalTryGetConfig(kvp.Value.Id, kvp.Value.GetType(), out var resolvedConfig))
+                        {
+                            keysToUpdate.Add(kvp.Key);
+                        }
+                        else if (kvp.Value != null)
+                        {
+                            _onError($"Config reference(id: {kvp.Value.Id}) in dictionary property {propertyName}[{kvp.Key}] is not found");
+                        }
+                    }
+
+                    foreach (var key in keysToUpdate)
+                    {
+                        var originalConfig = configDict[key];
+                        if (originalConfig != null && InternalTryGetConfig(originalConfig.Id, originalConfig.GetType(), out var resolvedConfig))
+                        {
+                            configDict[key] = resolvedConfig;
+                        }
+                    }
+                }
+                else
+                {
+                    // Handle non-generic IDictionary case using reflection
+                    if (dictionary is System.Collections.IDictionary nonGenericDict)
+                    {
+                        var keysToUpdate = new List<object>();
+                        foreach (System.Collections.DictionaryEntry entry in nonGenericDict)
+                        {
+                            if (entry.Value is Configable config)
+                            {
+                                if (InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
+                                {
+                                    keysToUpdate.Add(entry.Key);
+                                }
+                                else
+                                {
+                                    _onError($"Config reference(id: {config.Id}) in dictionary property {propertyName}[{entry.Key}] is not found");
+                                }
+                            }
+                        }
+
+                        foreach (var key in keysToUpdate)
+                        {
+                            if (nonGenericDict[key] is Configable originalConfig &&
+                                InternalTryGetConfig(originalConfig.Id, originalConfig.GetType(), out var resolvedConfig))
+                            {
+                                nonGenericDict[key] = resolvedConfig;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // If the dictionary values are non-Configable objects, recursively resolve references in each value
+                if (dictionary is System.Collections.IDictionary nonGenericDict)
+                {
+                    foreach (System.Collections.DictionaryEntry entry in nonGenericDict)
+                    {
+                        ResolveReferences(entry.Value);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _onError($"Error resolving dictionary references for property {propertyName} : {ex}");
         }
     }
 

@@ -193,6 +193,48 @@ namespace Alco.Engine.Test
             public CircularConfigA RefToA { get; set; }
         }
 
+        /// <summary>
+        /// Nested object that contains references to other configs.
+        /// </summary>
+        private class NestedObjectWithReferences
+        {
+            public WeaponConfig PrimaryWeapon { get; set; }
+            public WeaponConfig SecondaryWeapon { get; set; }
+            public List<ArmorConfig> ArmorPieces { get; set; } = new();
+        }
+
+        /// <summary>
+        /// Config that contains nested objects with references.
+        /// </summary>
+        private class ConfigWithNestedObjectReferences : Configable
+        {
+            public string Name { get; set; } = string.Empty;
+            public NestedObjectWithReferences Equipment { get; set; }
+            public NestedObjectWithReferences BackupEquipment { get; set; }
+        }
+
+        /// <summary>
+        /// Config that contains dictionary with config references.
+        /// </summary>
+        private class ConfigWithDictionaryReferences : Configable
+        {
+            public string Name { get; set; } = string.Empty;
+            public Dictionary<string, WeaponConfig> WeaponsByType { get; set; } = new();
+            public Dictionary<string, List<ArmorConfig>> ArmorByCategory { get; set; } = new();
+            public Dictionary<int, TestConfig> ConfigsByLevel { get; set; } = new();
+        }
+
+        /// <summary>
+        /// Complex config that combines nested objects and dictionaries with references.
+        /// </summary>
+        private class ComplexConfigWithMixedReferences : Configable
+        {
+            public string Name { get; set; } = string.Empty;
+            public NestedObjectWithReferences MainEquipment { get; set; }
+            public Dictionary<string, NestedObjectWithReferences> EquipmentSets { get; set; } = new();
+            public Dictionary<string, List<WeaponConfig>> WeaponCollections { get; set; } = new();
+        }
+
         private ConfigDatabase _configDatabase;
         private ConcurrentBag<string> _infos;
         private ConcurrentBag<string> _warnings;
@@ -1651,7 +1693,544 @@ namespace Alco.Engine.Test
             Assert.That(configWithEmptyList.ReferencedTestConfigs.Count, Is.EqualTo(0));
         }
 
-        
+        #endregion
+
+        #region Nested Object Reference Resolution Tests
+
+        [Test]
+        public void ResolveReferences_NestedObjectReferences_ShouldResolveCorrectly()
+        {
+            // Arrange
+            var primaryWeaponJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+WeaponConfig",
+                "Id": "primary-sword",
+                "WeaponName": "Primary Steel Sword",
+                "Damage": 75,
+                "WeaponType": "Sword"
+            }
+            """;
+
+            var secondaryWeaponJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+WeaponConfig",
+                "Id": "secondary-dagger",
+                "WeaponName": "Secondary Dagger",
+                "Damage": 35,
+                "WeaponType": "Dagger"
+            }
+            """;
+
+            var armor1Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ArmorConfig",
+                "Id": "helmet-001",
+                "ArmorName": "Steel Helmet",
+                "Defense": 15,
+                "ArmorType": "Head"
+            }
+            """;
+
+            var armor2Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ArmorConfig",
+                "Id": "chestplate-001",
+                "ArmorName": "Steel Chestplate",
+                "Defense": 25,
+                "ArmorType": "Chest"
+            }
+            """;
+
+            var configWithNestedRefsJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithNestedObjectReferences",
+                "Id": "nested-refs-config",
+                "Name": "Config With Nested References",
+                "Equipment": {
+                    "PrimaryWeapon": { "Id": "primary-sword" },
+                    "SecondaryWeapon": { "Id": "secondary-dagger" },
+                    "ArmorPieces": [
+                        { "Id": "helmet-001" },
+                        { "Id": "chestplate-001" }
+                    ]
+                }
+            }
+            """;
+
+            _fileSource.AddFile("primary-sword.json", primaryWeaponJson);
+            _fileSource.AddFile("secondary-dagger.json", secondaryWeaponJson);
+            _fileSource.AddFile("helmet-001.json", armor1Json);
+            _fileSource.AddFile("chestplate-001.json", armor2Json);
+            _fileSource.AddFile("nested-refs-config.json", configWithNestedRefsJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var configWithNestedRefs = _configDatabase.GetConfig<ConfigWithNestedObjectReferences>("nested-refs-config");
+
+            // Assert
+            Assert.That(configWithNestedRefs, Is.Not.Null);
+            Assert.That(configWithNestedRefs.Name, Is.EqualTo("Config With Nested References"));
+            Assert.That(configWithNestedRefs.Equipment, Is.Not.Null);
+
+            // Verify nested object's primary weapon reference
+            Assert.That(configWithNestedRefs.Equipment.PrimaryWeapon, Is.Not.Null);
+            Assert.That(configWithNestedRefs.Equipment.PrimaryWeapon.Id, Is.EqualTo("primary-sword"));
+            Assert.That(configWithNestedRefs.Equipment.PrimaryWeapon.WeaponName, Is.EqualTo("Primary Steel Sword"));
+            Assert.That(configWithNestedRefs.Equipment.PrimaryWeapon.Damage, Is.EqualTo(75));
+
+            // Verify nested object's secondary weapon reference
+            Assert.That(configWithNestedRefs.Equipment.SecondaryWeapon, Is.Not.Null);
+            Assert.That(configWithNestedRefs.Equipment.SecondaryWeapon.Id, Is.EqualTo("secondary-dagger"));
+            Assert.That(configWithNestedRefs.Equipment.SecondaryWeapon.WeaponName, Is.EqualTo("Secondary Dagger"));
+            Assert.That(configWithNestedRefs.Equipment.SecondaryWeapon.Damage, Is.EqualTo(35));
+
+            // Verify nested object's armor list references
+            Assert.That(configWithNestedRefs.Equipment.ArmorPieces, Is.Not.Null);
+            Assert.That(configWithNestedRefs.Equipment.ArmorPieces.Count, Is.EqualTo(2));
+
+            var helmet = configWithNestedRefs.Equipment.ArmorPieces[0];
+            var chestplate = configWithNestedRefs.Equipment.ArmorPieces[1];
+
+            Assert.That(helmet.Id, Is.EqualTo("helmet-001"));
+            Assert.That(helmet.ArmorName, Is.EqualTo("Steel Helmet"));
+            Assert.That(helmet.Defense, Is.EqualTo(15));
+            Assert.That(helmet.ArmorType, Is.EqualTo("Head"));
+
+            Assert.That(chestplate.Id, Is.EqualTo("chestplate-001"));
+            Assert.That(chestplate.ArmorName, Is.EqualTo("Steel Chestplate"));
+            Assert.That(chestplate.Defense, Is.EqualTo(25));
+            Assert.That(chestplate.ArmorType, Is.EqualTo("Chest"));
+        }
+
+        [Test]
+        public void ResolveReferences_MultipleNestedObjectReferences_ShouldResolveAll()
+        {
+            // Arrange
+            var weaponJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+WeaponConfig",
+                "Id": "shared-weapon",
+                "WeaponName": "Shared Weapon",
+                "Damage": 50,
+                "WeaponType": "Sword"
+            }
+            """;
+
+            var armorJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ArmorConfig",
+                "Id": "shared-armor",
+                "ArmorName": "Shared Armor",
+                "Defense": 20,
+                "ArmorType": "Body"
+            }
+            """;
+
+            var configWithMultipleNestedRefsJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithNestedObjectReferences",
+                "Id": "multiple-nested-refs",
+                "Name": "Config With Multiple Nested References",
+                "Equipment": {
+                    "PrimaryWeapon": { "Id": "shared-weapon" },
+                    "ArmorPieces": [
+                        { "Id": "shared-armor" }
+                    ]
+                },
+                "BackupEquipment": {
+                    "PrimaryWeapon": { "Id": "shared-weapon" },
+                    "ArmorPieces": [
+                        { "Id": "shared-armor" }
+                    ]
+                }
+            }
+            """;
+
+            _fileSource.AddFile("shared-weapon.json", weaponJson);
+            _fileSource.AddFile("shared-armor.json", armorJson);
+            _fileSource.AddFile("multiple-nested-refs.json", configWithMultipleNestedRefsJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var config = _configDatabase.GetConfig<ConfigWithNestedObjectReferences>("multiple-nested-refs");
+
+            // Assert
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config.Equipment, Is.Not.Null);
+            Assert.That(config.BackupEquipment, Is.Not.Null);
+
+            // Verify that both nested objects reference the same shared weapon instance
+            Assert.That(config.Equipment.PrimaryWeapon, Is.Not.Null);
+            Assert.That(config.BackupEquipment.PrimaryWeapon, Is.Not.Null);
+            Assert.That(config.Equipment.PrimaryWeapon, Is.SameAs(config.BackupEquipment.PrimaryWeapon));
+
+            // Verify that both nested objects reference the same shared armor instance
+            Assert.That(config.Equipment.ArmorPieces.Count, Is.EqualTo(1));
+            Assert.That(config.BackupEquipment.ArmorPieces.Count, Is.EqualTo(1));
+            Assert.That(config.Equipment.ArmorPieces[0], Is.SameAs(config.BackupEquipment.ArmorPieces[0]));
+        }
+
+        [Test]
+        public void ResolveReferences_NestedObjectWithMissingReference_ShouldReportError()
+        {
+            // Arrange
+            var configWithMissingNestedRefJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithNestedObjectReferences",
+                "Id": "missing-nested-ref",
+                "Name": "Config With Missing Nested Reference",
+                "Equipment": {
+                    "PrimaryWeapon": { "Id": "non-existent-weapon" }
+                }
+            }
+            """;
+
+            _fileSource.AddFile("missing-nested-ref.json", configWithMissingNestedRefJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var config = _configDatabase.GetConfig<ConfigWithNestedObjectReferences>("missing-nested-ref");
+
+            // Assert
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config.Equipment, Is.Not.Null);
+            Assert.That(config.Equipment.PrimaryWeapon, Is.Not.Null);
+            Assert.That(config.Equipment.PrimaryWeapon.Id, Is.EqualTo("non-existent-weapon"));
+
+            // Should have error reported for missing reference in nested object
+            Assert.That(_errors.Count, Is.GreaterThan(0));
+            Assert.That(_errors.Any(error => error.Contains("Config reference(id: non-existent-weapon) for property PrimaryWeapon is not found")), Is.True);
+        }
+
+        #endregion
+
+        #region Dictionary Reference Resolution Tests
+
+        [Test]
+        public void ResolveReferences_DictionaryReferences_ShouldResolveCorrectly()
+        {
+            // Arrange
+            var swordJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+WeaponConfig",
+                "Id": "sword-weapon",
+                "WeaponName": "Steel Sword",
+                "Damage": 60,
+                "WeaponType": "Sword"
+            }
+            """;
+
+            var bowJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+WeaponConfig",
+                "Id": "bow-weapon",
+                "WeaponName": "Longbow",
+                "Damage": 45,
+                "WeaponType": "Bow"
+            }
+            """;
+
+            var helmetJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ArmorConfig",
+                "Id": "light-helmet",
+                "ArmorName": "Light Helmet",
+                "Defense": 10,
+                "ArmorType": "Head"
+            }
+            """;
+
+            var testConfig1Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "test-level-1",
+                "Name": "Level 1 Test",
+                "Value": 100
+            }
+            """;
+
+            var configWithDictRefsJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithDictionaryReferences",
+                "Id": "dict-refs-config",
+                "Name": "Config With Dictionary References",
+                "WeaponsByType": {
+                    "melee": { "Id": "sword-weapon" },
+                    "ranged": { "Id": "bow-weapon" }
+                },
+                "ArmorByCategory": {
+                    "light": [
+                        { "Id": "light-helmet" }
+                    ]
+                },
+                "ConfigsByLevel": {
+                    "1": { "Id": "test-level-1" }
+                }
+            }
+            """;
+
+            _fileSource.AddFile("sword-weapon.json", swordJson);
+            _fileSource.AddFile("bow-weapon.json", bowJson);
+            _fileSource.AddFile("light-helmet.json", helmetJson);
+            _fileSource.AddFile("test-level-1.json", testConfig1Json);
+            _fileSource.AddFile("dict-refs-config.json", configWithDictRefsJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var configWithDictRefs = _configDatabase.GetConfig<ConfigWithDictionaryReferences>("dict-refs-config");
+
+            // Assert
+            Assert.That(configWithDictRefs, Is.Not.Null);
+            Assert.That(configWithDictRefs.Name, Is.EqualTo("Config With Dictionary References"));
+
+            // Verify dictionary with simple config references
+            Assert.That(configWithDictRefs.WeaponsByType, Is.Not.Null);
+            Assert.That(configWithDictRefs.WeaponsByType.Count, Is.EqualTo(2));
+            Assert.That(configWithDictRefs.WeaponsByType.ContainsKey("melee"), Is.True);
+            Assert.That(configWithDictRefs.WeaponsByType.ContainsKey("ranged"), Is.True);
+
+            var meleeWeapon = configWithDictRefs.WeaponsByType["melee"];
+            var rangedWeapon = configWithDictRefs.WeaponsByType["ranged"];
+
+            Assert.That(meleeWeapon.Id, Is.EqualTo("sword-weapon"));
+            Assert.That(meleeWeapon.WeaponName, Is.EqualTo("Steel Sword"));
+            Assert.That(meleeWeapon.Damage, Is.EqualTo(60));
+
+            Assert.That(rangedWeapon.Id, Is.EqualTo("bow-weapon"));
+            Assert.That(rangedWeapon.WeaponName, Is.EqualTo("Longbow"));
+            Assert.That(rangedWeapon.Damage, Is.EqualTo(45));
+
+            // Verify dictionary with list of config references
+            Assert.That(configWithDictRefs.ArmorByCategory, Is.Not.Null);
+            Assert.That(configWithDictRefs.ArmorByCategory.Count, Is.EqualTo(1));
+            Assert.That(configWithDictRefs.ArmorByCategory.ContainsKey("light"), Is.True);
+
+            var lightArmors = configWithDictRefs.ArmorByCategory["light"];
+            Assert.That(lightArmors.Count, Is.EqualTo(1));
+            Assert.That(lightArmors[0].Id, Is.EqualTo("light-helmet"));
+            Assert.That(lightArmors[0].ArmorName, Is.EqualTo("Light Helmet"));
+            Assert.That(lightArmors[0].Defense, Is.EqualTo(10));
+
+            // Verify dictionary with integer keys
+            Assert.That(configWithDictRefs.ConfigsByLevel, Is.Not.Null);
+            Assert.That(configWithDictRefs.ConfigsByLevel.Count, Is.EqualTo(1));
+            Assert.That(configWithDictRefs.ConfigsByLevel.ContainsKey(1), Is.True);
+
+            var levelConfig = configWithDictRefs.ConfigsByLevel[1];
+            Assert.That(levelConfig.Id, Is.EqualTo("test-level-1"));
+            Assert.That(levelConfig.Name, Is.EqualTo("Level 1 Test"));
+            Assert.That(levelConfig.Value, Is.EqualTo(100));
+        }
+
+        [Test]
+        public void ResolveReferences_EmptyDictionaryReferences_ShouldHandleGracefully()
+        {
+            // Arrange
+            var configWithEmptyDictJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithDictionaryReferences",
+                "Id": "empty-dict-config",
+                "Name": "Config With Empty Dictionaries",
+                "WeaponsByType": {},
+                "ArmorByCategory": {},
+                "ConfigsByLevel": {}
+            }
+            """;
+
+            _fileSource.AddFile("empty-dict-config.json", configWithEmptyDictJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var configWithEmptyDict = _configDatabase.GetConfig<ConfigWithDictionaryReferences>("empty-dict-config");
+
+            // Assert
+            Assert.That(configWithEmptyDict, Is.Not.Null);
+            Assert.That(configWithEmptyDict.WeaponsByType, Is.Not.Null);
+            Assert.That(configWithEmptyDict.WeaponsByType.Count, Is.EqualTo(0));
+            Assert.That(configWithEmptyDict.ArmorByCategory, Is.Not.Null);
+            Assert.That(configWithEmptyDict.ArmorByCategory.Count, Is.EqualTo(0));
+            Assert.That(configWithEmptyDict.ConfigsByLevel, Is.Not.Null);
+            Assert.That(configWithEmptyDict.ConfigsByLevel.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ResolveReferences_DictionaryWithMissingReference_ShouldReportError()
+        {
+            // Arrange
+            var configWithMissingDictRefJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithDictionaryReferences",
+                "Id": "missing-dict-ref",
+                "Name": "Config With Missing Dictionary Reference",
+                "WeaponsByType": {
+                    "missing": { "Id": "non-existent-weapon" }
+                }
+            }
+            """;
+
+            _fileSource.AddFile("missing-dict-ref.json", configWithMissingDictRefJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var config = _configDatabase.GetConfig<ConfigWithDictionaryReferences>("missing-dict-ref");
+
+            // Assert
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config.WeaponsByType, Is.Not.Null);
+            Assert.That(config.WeaponsByType.ContainsKey("missing"), Is.True);
+            Assert.That(config.WeaponsByType["missing"], Is.Not.Null);
+            Assert.That(config.WeaponsByType["missing"].Id, Is.EqualTo("non-existent-weapon"));
+
+            // Should have error reported for missing reference in dictionary
+            Assert.That(_errors.Count, Is.GreaterThan(0));
+            Assert.That(_errors.Any(error => error.Contains("Config reference(id: non-existent-weapon)")), Is.True);
+        }
+
+        [Test]
+        public void ResolveReferences_DictionaryWithSameReference_ShouldUseSameInstance()
+        {
+            // Arrange
+            var sharedWeaponJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+WeaponConfig",
+                "Id": "shared-weapon",
+                "WeaponName": "Shared Weapon",
+                "Damage": 50,
+                "WeaponType": "Universal"
+            }
+            """;
+
+            var configWithSharedRefsJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithDictionaryReferences",
+                "Id": "shared-refs-config",
+                "Name": "Config With Shared References",
+                "WeaponsByType": {
+                    "primary": { "Id": "shared-weapon" },
+                    "secondary": { "Id": "shared-weapon" }
+                }
+            }
+            """;
+
+            _fileSource.AddFile("shared-weapon.json", sharedWeaponJson);
+            _fileSource.AddFile("shared-refs-config.json", configWithSharedRefsJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var config = _configDatabase.GetConfig<ConfigWithDictionaryReferences>("shared-refs-config");
+
+            // Assert
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config.WeaponsByType, Is.Not.Null);
+            Assert.That(config.WeaponsByType.Count, Is.EqualTo(2));
+
+            var primaryWeapon = config.WeaponsByType["primary"];
+            var secondaryWeapon = config.WeaponsByType["secondary"];
+
+            Assert.That(primaryWeapon, Is.Not.Null);
+            Assert.That(secondaryWeapon, Is.Not.Null);
+            Assert.That(primaryWeapon, Is.SameAs(secondaryWeapon), "Dictionary should reference the same weapon instance");
+        }
+
+        #endregion
+
+        #region Complex Mixed Reference Resolution Tests
+
+        [Test]
+        public void ResolveReferences_ComplexMixedReferences_ShouldResolveAll()
+        {
+            // Arrange - Create a complex scenario with nested objects inside dictionaries
+            var weaponJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+WeaponConfig",
+                "Id": "complex-weapon",
+                "WeaponName": "Complex Weapon",
+                "Damage": 80,
+                "WeaponType": "Magic"
+            }
+            """;
+
+            var armorJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ArmorConfig",
+                "Id": "complex-armor",
+                "ArmorName": "Complex Armor",
+                "Defense": 40,
+                "ArmorType": "Enchanted"
+            }
+            """;
+
+            var complexConfigJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ComplexConfigWithMixedReferences",
+                "Id": "complex-mixed-refs",
+                "Name": "Complex Config With Mixed References",
+                "MainEquipment": {
+                    "PrimaryWeapon": { "Id": "complex-weapon" },
+                    "ArmorPieces": [
+                        { "Id": "complex-armor" }
+                    ]
+                },
+                "EquipmentSets": {
+                    "set1": {
+                        "PrimaryWeapon": { "Id": "complex-weapon" },
+                        "ArmorPieces": [
+                            { "Id": "complex-armor" }
+                        ]
+                    }
+                },
+                "WeaponCollections": {
+                    "magic": [
+                        { "Id": "complex-weapon" }
+                    ]
+                }
+            }
+            """;
+
+            _fileSource.AddFile("complex-weapon.json", weaponJson);
+            _fileSource.AddFile("complex-armor.json", armorJson);
+            _fileSource.AddFile("complex-mixed-refs.json", complexConfigJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var complexConfig = _configDatabase.GetConfig<ComplexConfigWithMixedReferences>("complex-mixed-refs");
+
+            // Assert
+            Assert.That(complexConfig, Is.Not.Null);
+            Assert.That(complexConfig.Name, Is.EqualTo("Complex Config With Mixed References"));
+
+            // Verify main equipment (nested object references)
+            Assert.That(complexConfig.MainEquipment, Is.Not.Null);
+            Assert.That(complexConfig.MainEquipment.PrimaryWeapon, Is.Not.Null);
+            Assert.That(complexConfig.MainEquipment.PrimaryWeapon.Id, Is.EqualTo("complex-weapon"));
+            Assert.That(complexConfig.MainEquipment.ArmorPieces.Count, Is.EqualTo(1));
+            Assert.That(complexConfig.MainEquipment.ArmorPieces[0].Id, Is.EqualTo("complex-armor"));
+
+            // Verify equipment sets (dictionary of nested objects with references)
+            Assert.That(complexConfig.EquipmentSets, Is.Not.Null);
+            Assert.That(complexConfig.EquipmentSets.ContainsKey("set1"), Is.True);
+            var set1 = complexConfig.EquipmentSets["set1"];
+            Assert.That(set1, Is.Not.Null);
+            Assert.That(set1.PrimaryWeapon, Is.Not.Null);
+            Assert.That(set1.PrimaryWeapon.Id, Is.EqualTo("complex-weapon"));
+
+            // Verify weapon collections (dictionary of lists with references)
+            Assert.That(complexConfig.WeaponCollections, Is.Not.Null);
+            Assert.That(complexConfig.WeaponCollections.ContainsKey("magic"), Is.True);
+            var magicWeapons = complexConfig.WeaponCollections["magic"];
+            Assert.That(magicWeapons.Count, Is.EqualTo(1));
+            Assert.That(magicWeapons[0].Id, Is.EqualTo("complex-weapon"));
+
+            // Verify that all references point to the same instances (caching)
+            var directWeapon = _configDatabase.GetConfig<WeaponConfig>("complex-weapon");
+            var directArmor = _configDatabase.GetConfig<ArmorConfig>("complex-armor");
+
+            Assert.That(complexConfig.MainEquipment.PrimaryWeapon, Is.SameAs(directWeapon));
+            Assert.That(complexConfig.MainEquipment.ArmorPieces[0], Is.SameAs(directArmor));
+            Assert.That(set1.PrimaryWeapon, Is.SameAs(directWeapon));
+            Assert.That(set1.ArmorPieces[0], Is.SameAs(directArmor));
+            Assert.That(magicWeapons[0], Is.SameAs(directWeapon));
+        }
 
         #endregion
 
