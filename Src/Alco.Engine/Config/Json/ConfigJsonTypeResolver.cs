@@ -10,11 +10,10 @@ namespace Alco.Engine;
 
 public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
 {
-    private readonly ConfigReferenceResolver _configResolver;
 
-    public ConfigJsonTypeResolver(ConfigReferenceResolver? configResolver = null)
+    public ConfigJsonTypeResolver()
     {
-        _configResolver = configResolver ?? CreateConfigPlaceholder;
+
     }
 
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
@@ -25,23 +24,9 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
             SetAllDerivedType(typeInfo);
         }
 
-        SetPropertiesToUseReferenceConverter(typeInfo);
         return typeInfo;
     }
 
-    private void SetPropertiesToUseReferenceConverter(JsonTypeInfo typeInfo)
-    {
-        foreach (var property in typeInfo.Properties)
-        {
-            if (property.PropertyType.IsAssignableTo(typeof(Configable)))
-            {
-                property.CustomConverter = new JsonConverterConfigReference(
-                    property.PropertyType,
-                    _configResolver
-                );
-            }
-        }
-    }
 
     private static void SetAllDerivedType(JsonTypeInfo typeInfo)
     {

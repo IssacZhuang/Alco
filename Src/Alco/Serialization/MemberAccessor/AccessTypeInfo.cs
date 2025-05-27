@@ -45,6 +45,13 @@ public class AccessTypeInfo
 
         foreach (var property in properties)
         {
+            // Skip indexers (properties with parameters)
+            if (property.GetIndexParameters().Length > 0)
+            {
+                //filter out indexers
+                continue;
+            }
+
             if (property.GetMethod?.IsPublic == true ||
                 property.SetMethod?.IsPublic == true)
             {
