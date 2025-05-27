@@ -10,6 +10,12 @@ public class TestMemberAccessor
     {
         public int PublicProperty { get; set; }
         public string PublicField;
+
+        // Array fields and properties for testing
+        public int[] ValueTypeArray { get; set; }
+        public string[] ObjectTypeArray;
+        public object[] MixedObjectArray { get; set; }
+
         private int _privateProperty { get; set; }
         private string _privateField;
 
@@ -19,6 +25,11 @@ public class TestMemberAccessor
             PublicField = "Hello";
             _privateProperty = 100;
             _privateField = "Private";
+
+            // Initialize arrays
+            ValueTypeArray = new int[] { 1, 2, 3, 4, 5 };
+            ObjectTypeArray = new string[] { "First", "Second", "Third" };
+            MixedObjectArray = new object[] { 1, "String", 3.14, true };
         }
 
         public TestClass(int publicProperty, string publicField)
@@ -27,6 +38,11 @@ public class TestMemberAccessor
             PublicField = publicField;
             _privateProperty = 0;
             _privateField = string.Empty;
+
+            // Initialize arrays with default values
+            ValueTypeArray = new int[] { 0 };
+            ObjectTypeArray = new string[] { string.Empty };
+            MixedObjectArray = new object[] { null };
         }
     }
 
@@ -189,5 +205,152 @@ public class TestMemberAccessor
         // Test property getters
         Assert.That(reflectionPropertyGetter(instance), Is.EqualTo("Test"));
         Assert.That(reflectionEmitPropertyGetter(instance), Is.EqualTo("Test"));
+    }
+
+    [Test]
+    public void TestValueTypeArrayProperty()
+    {
+        var classType = typeof(TestClass);
+        var propertyInfo = classType.GetProperty(nameof(TestClass.ValueTypeArray))!;
+
+        var reflectionGetter = _reflectionAccessor.CreatePropertyGetter<int[]>(propertyInfo);
+        var reflectionEmitGetter = _reflectionEmitAccessor.CreatePropertyGetter<int[]>(propertyInfo);
+        var reflectionSetter = _reflectionAccessor.CreatePropertySetter<int[]>(propertyInfo);
+        var reflectionEmitSetter = _reflectionEmitAccessor.CreatePropertySetter<int[]>(propertyInfo);
+
+        var instance = new TestClass();
+
+        // Test getters
+        var reflectionArray = reflectionGetter(instance);
+        var reflectionEmitArray = reflectionEmitGetter(instance);
+
+        Assert.That(reflectionArray, Is.Not.Null);
+        Assert.That(reflectionEmitArray, Is.Not.Null);
+        Assert.That(reflectionArray, Is.EqualTo(new int[] { 1, 2, 3, 4, 5 }));
+        Assert.That(reflectionEmitArray, Is.EqualTo(new int[] { 1, 2, 3, 4, 5 }));
+
+        // Test setters
+        var newArray = new int[] { 10, 20, 30 };
+        reflectionSetter(instance, newArray);
+        Assert.That(instance.ValueTypeArray, Is.EqualTo(newArray));
+
+        var anotherArray = new int[] { 100, 200 };
+        reflectionEmitSetter(instance, anotherArray);
+        Assert.That(instance.ValueTypeArray, Is.EqualTo(anotherArray));
+    }
+
+    [Test]
+    public void TestObjectTypeArrayField()
+    {
+        var classType = typeof(TestClass);
+        var fieldInfo = classType.GetField(nameof(TestClass.ObjectTypeArray))!;
+
+        var reflectionGetter = _reflectionAccessor.CreateFieldGetter<string[]>(fieldInfo);
+        var reflectionEmitGetter = _reflectionEmitAccessor.CreateFieldGetter<string[]>(fieldInfo);
+        var reflectionSetter = _reflectionAccessor.CreateFieldSetter<string[]>(fieldInfo);
+        var reflectionEmitSetter = _reflectionEmitAccessor.CreateFieldSetter<string[]>(fieldInfo);
+
+        var instance = new TestClass();
+
+        // Test getters
+        var reflectionArray = reflectionGetter(instance);
+        var reflectionEmitArray = reflectionEmitGetter(instance);
+
+        Assert.That(reflectionArray, Is.Not.Null);
+        Assert.That(reflectionEmitArray, Is.Not.Null);
+        Assert.That(reflectionArray, Is.EqualTo(new string[] { "First", "Second", "Third" }));
+        Assert.That(reflectionEmitArray, Is.EqualTo(new string[] { "First", "Second", "Third" }));
+
+        // Test setters
+        var newArray = new string[] { "Apple", "Banana", "Cherry" };
+        reflectionSetter(instance, newArray);
+        Assert.That(instance.ObjectTypeArray, Is.EqualTo(newArray));
+
+        var anotherArray = new string[] { "Hello", "World" };
+        reflectionEmitSetter(instance, anotherArray);
+        Assert.That(instance.ObjectTypeArray, Is.EqualTo(anotherArray));
+    }
+
+    [Test]
+    public void TestMixedObjectArrayProperty()
+    {
+        var classType = typeof(TestClass);
+        var propertyInfo = classType.GetProperty(nameof(TestClass.MixedObjectArray))!;
+
+        var reflectionGetter = _reflectionAccessor.CreatePropertyGetter<object[]>(propertyInfo);
+        var reflectionEmitGetter = _reflectionEmitAccessor.CreatePropertyGetter<object[]>(propertyInfo);
+        var reflectionSetter = _reflectionAccessor.CreatePropertySetter<object[]>(propertyInfo);
+        var reflectionEmitSetter = _reflectionEmitAccessor.CreatePropertySetter<object[]>(propertyInfo);
+
+        var instance = new TestClass();
+
+        // Test getters
+        var reflectionArray = reflectionGetter(instance);
+        var reflectionEmitArray = reflectionEmitGetter(instance);
+
+        Assert.That(reflectionArray, Is.Not.Null);
+        Assert.That(reflectionEmitArray, Is.Not.Null);
+        Assert.That(reflectionArray.Length, Is.EqualTo(4));
+        Assert.That(reflectionEmitArray.Length, Is.EqualTo(4));
+        Assert.That(reflectionArray[0], Is.EqualTo(1));
+        Assert.That(reflectionArray[1], Is.EqualTo("String"));
+        Assert.That(reflectionArray[2], Is.EqualTo(3.14));
+        Assert.That(reflectionArray[3], Is.EqualTo(true));
+
+        // Test setters
+        var newArray = new object[] { "New", 42, false };
+        reflectionSetter(instance, newArray);
+        Assert.That(instance.MixedObjectArray, Is.EqualTo(newArray));
+
+        var anotherArray = new object[] { 99, "Test", null, 2.5 };
+        reflectionEmitSetter(instance, anotherArray);
+        Assert.That(instance.MixedObjectArray, Is.EqualTo(anotherArray));
+    }
+
+    [Test]
+    public void TestNullArrayHandling()
+    {
+        var classType = typeof(TestClass);
+        var propertyInfo = classType.GetProperty(nameof(TestClass.ValueTypeArray))!;
+
+        var reflectionSetter = _reflectionAccessor.CreatePropertySetter<int[]>(propertyInfo);
+        var reflectionEmitSetter = _reflectionEmitAccessor.CreatePropertySetter<int[]>(propertyInfo);
+        var reflectionGetter = _reflectionAccessor.CreatePropertyGetter<int[]>(propertyInfo);
+        var reflectionEmitGetter = _reflectionEmitAccessor.CreatePropertyGetter<int[]>(propertyInfo);
+
+        var instance = new TestClass();
+
+        // Test setting null arrays
+        reflectionSetter(instance, null);
+        Assert.That(instance.ValueTypeArray, Is.Null);
+        Assert.That(reflectionGetter(instance), Is.Null);
+
+        reflectionEmitSetter(instance, null);
+        Assert.That(instance.ValueTypeArray, Is.Null);
+        Assert.That(reflectionEmitGetter(instance), Is.Null);
+    }
+
+    [Test]
+    public void TestEmptyArrayHandling()
+    {
+        var classType = typeof(TestClass);
+        var fieldInfo = classType.GetField(nameof(TestClass.ObjectTypeArray))!;
+
+        var reflectionSetter = _reflectionAccessor.CreateFieldSetter<string[]>(fieldInfo);
+        var reflectionEmitSetter = _reflectionEmitAccessor.CreateFieldSetter<string[]>(fieldInfo);
+        var reflectionGetter = _reflectionAccessor.CreateFieldGetter<string[]>(fieldInfo);
+        var reflectionEmitGetter = _reflectionEmitAccessor.CreateFieldGetter<string[]>(fieldInfo);
+
+        var instance = new TestClass();
+
+        // Test setting empty arrays
+        var emptyArray = new string[0];
+        reflectionSetter(instance, emptyArray);
+        Assert.That(instance.ObjectTypeArray, Is.EqualTo(emptyArray));
+        Assert.That(reflectionGetter(instance), Is.EqualTo(emptyArray));
+
+        reflectionEmitSetter(instance, emptyArray);
+        Assert.That(instance.ObjectTypeArray, Is.EqualTo(emptyArray));
+        Assert.That(reflectionEmitGetter(instance), Is.EqualTo(emptyArray));
     }
 }
