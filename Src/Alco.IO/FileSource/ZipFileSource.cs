@@ -16,7 +16,6 @@ public class ZipFileSource : AutoDisposable, IFileSource
 {
     private readonly ConcurrentDictionary<string, ZipArchiveEntry> _entries = new ConcurrentDictionary<string, ZipArchiveEntry>();
     private readonly ZipArchive _zipArchive;
-    private readonly bool _isWriteable;
 
     public string Name { get; }
 
@@ -24,17 +23,13 @@ public class ZipFileSource : AutoDisposable, IFileSource
     /// Load zip with file
     /// </summary>
     /// <param name="zipFilePath">The path to the ZIP file.</param>
-    /// <param name="mode">The mode to open the ZIP file. Default is Read for backward compatibility.</param>
-    public ZipFileSource(string zipFilePath, ZipArchiveMode mode = ZipArchiveMode.Read)
+    public ZipFileSource(string zipFilePath)
     {
         Name = zipFilePath;
-        _isWriteable = mode == ZipArchiveMode.Update || mode == ZipArchiveMode.Create;
 
         try
         {
-            _zipArchive = mode == ZipArchiveMode.Read
-                ? ZipFile.OpenRead(zipFilePath)
-                : ZipFile.Open(zipFilePath, mode);
+            _zipArchive = ZipFile.OpenRead(zipFilePath);
             LoadZipEntries();
         }
         catch (Exception ex)
@@ -43,20 +38,12 @@ public class ZipFileSource : AutoDisposable, IFileSource
         }
     }
 
-    /// <summary>
-    /// Load zip from stream
-    /// </summary>
-    /// <param name="stream">The stream containing the ZIP data.</param>
-    /// <param name="mode">The mode to open the ZIP archive. Default is Read for backward compatibility.</param>
-    /// <param name="name">The name for this file source.</param>
-    public ZipFileSource(Stream stream, ZipArchiveMode mode = ZipArchiveMode.Read, string name = "unnamed_zip_stream")
+    public ZipFileSource(Stream stream, string name = "unnamed_zip_stream")
     {
         Name = name;
-        _isWriteable = mode == ZipArchiveMode.Update || mode == ZipArchiveMode.Create;
-
         try
         {
-            _zipArchive = new ZipArchive(stream, mode);
+            _zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
             LoadZipEntries();
         }
         catch (Exception ex)
@@ -93,7 +80,7 @@ public class ZipFileSource : AutoDisposable, IFileSource
     /// <summary>
     /// Gets a value indicating whether this file source is writeable.
     /// </summary>
-    public bool IsWriteable => _isWriteable;
+    public bool IsWriteable => false;
 
     /// <summary>
     /// Tries to get data from this file source.
@@ -147,45 +134,8 @@ public class ZipFileSource : AutoDisposable, IFileSource
     /// <returns>True if the data is successfully written, false otherwise.</returns>
     public bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string? failureReason)
     {
-        if (IsDisposed)
-        {
-            failureReason = "ZipFileSource has been disposed";
-            return false;
-        }
-
-        if (!_isWriteable)
-        {
-            failureReason = "ZIP archive is read-only";
-            return false;
-        }
-
-        try
-        {
-            // Normalize path separators
-            string normalizedPath = path.Replace('\\', '/');
-
-            if (!_entries.TryGetValue(normalizedPath, out var entry))
-            {
-                entry = _zipArchive.CreateEntry(normalizedPath, CompressionLevel.Optimal);
-            }
-
-            // Write data to the entry
-            using (var entryStream = entry.Open())
-            {
-                entryStream.Write(data);
-            }
-
-            // Update our cache
-            _entries[normalizedPath] = entry;
-
-            failureReason = null;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            failureReason = ex.ToString();
-            return false;
-        }
+        failureReason = "ZIP archives are read-only in this implementation";
+        return false;
     }
 
     /// <summary>
