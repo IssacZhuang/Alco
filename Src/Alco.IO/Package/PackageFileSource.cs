@@ -7,10 +7,14 @@ namespace Alco.IO;
 /// </summary>
 public class PackageFileSource : IFileSource
 {
+
+
     public int Priority => 0;
     private readonly Package _package;
     private readonly List<PackageEntry> _entries;
     private readonly Dictionary<string, PackageEntry> _entryLookup = new Dictionary<string, PackageEntry>();
+
+    public string Name { get; }
 
     public PackageFileSource(string packagePath)
     {
@@ -23,6 +27,8 @@ public class PackageFileSource : IFileSource
             _entries.Add(entry);
             _entryLookup[entry.FileName] = entry;
         }
+
+        Name = packagePath;
     }
 
     public IEnumerable<string> AllFileNames

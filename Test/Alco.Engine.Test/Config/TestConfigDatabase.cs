@@ -23,6 +23,8 @@ namespace Alco.Engine.Test
         /// </summary>
         private class TestFileSource : IFileSource
         {
+            public string Name => "Test File Source";
+
             private readonly Dictionary<string, byte[]> _files = new();
 
             public int Priority => 0;

@@ -72,6 +72,8 @@ public class TestAssetSystemEncoder
 
     private class WriteableTestFileSource : IFileSource
     {
+        public string Name => "Writeable Test File Source";
+
         private readonly Dictionary<string, byte[]> _files = new();
 
         public int Priority => 0;

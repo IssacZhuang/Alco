@@ -14,6 +14,12 @@ namespace Alco.IO;
 public interface IFileSource
 {
     /// <summary>
+    /// The name of this file source
+    /// </summary>
+    /// <value>The name of this file source</value>
+    string Name { get; }
+
+    /// <summary>
     /// The priority of this file source, the higher priority will be override the lower priority
     /// </summary>
     int Priority { get; }

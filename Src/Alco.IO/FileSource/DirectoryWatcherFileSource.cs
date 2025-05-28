@@ -10,6 +10,8 @@ public class DirectoryWatcherFileSource : IFileSource
     private readonly AssetSystem _assetSystem;
     private readonly FileSystemWatcher _watcher;
 
+    public string Name => _directoryPath;
+
     public DirectoryWatcherFileSource(string directoryPath, AssetSystem assetSystem)
     {
         _directoryPath = directoryPath;

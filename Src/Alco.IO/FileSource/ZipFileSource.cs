@@ -18,6 +18,8 @@ public class ZipFileSource : AutoDisposable, IFileSource
     private readonly ConcurrentDictionary<string, ZipArchiveEntry> _entries = new ConcurrentDictionary<string, ZipArchiveEntry>();
     private ZipArchive? _zipArchive;
 
+    public string Name => _zipFilePath;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ZipFileSource"/> class.
     /// </summary>

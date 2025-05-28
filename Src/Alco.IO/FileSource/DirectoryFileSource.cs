@@ -7,8 +7,11 @@ namespace Alco.IO;
 
 public class DirectoryFileSource : IFileSource
 {
-    private string _directoryPath;
+    private readonly string _directoryPath;
+    
     public string DirectoryPath => _directoryPath;
+
+    public string Name => _directoryPath;
 
     public DirectoryFileSource(string directoryPath)
     {
