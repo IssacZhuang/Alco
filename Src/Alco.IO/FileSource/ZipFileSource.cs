@@ -78,11 +78,6 @@ public class ZipFileSource : AutoDisposable, IFileSource
     public IEnumerable<string> AllFileNames => _entries.Keys;
 
     /// <summary>
-    /// Gets a value indicating whether this file source is writeable.
-    /// </summary>
-    public bool IsWriteable => false;
-
-    /// <summary>
     /// Tries to get data from this file source.
     /// </summary>
     /// <param name="path">The path of the file.</param>
@@ -123,19 +118,6 @@ public class ZipFileSource : AutoDisposable, IFileSource
             failureReason = ex.ToString();
             return false;
         }
-    }
-
-    /// <summary>
-    /// Tries to write data to this file source.
-    /// </summary>
-    /// <param name="path">The path of the file.</param>
-    /// <param name="data">The data of the file.</param>
-    /// <param name="failureReason">The failure reason.</param>
-    /// <returns>True if the data is successfully written, false otherwise.</returns>
-    public bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string? failureReason)
-    {
-        failureReason = "ZIP archives are read-only in this implementation";
-        return false;
     }
 
     /// <summary>

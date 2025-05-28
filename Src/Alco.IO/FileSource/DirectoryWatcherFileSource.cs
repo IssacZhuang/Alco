@@ -42,8 +42,6 @@ public class DirectoryWatcherFileSource : IFileSource
         }
     }
 
-    public bool IsWriteable => true;
-
     public unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason)
     {
         try
@@ -79,26 +77,5 @@ public class DirectoryWatcherFileSource : IFileSource
     public void Dispose()
     {
         _watcher.Dispose();
-    }
-
-    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
-    {
-        try
-        {
-            string fullPath = Path.Combine(_directoryPath, path);
-            string? directory = Path.GetDirectoryName(fullPath);
-            if (directory != null && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-            File.WriteAllBytes(fullPath, data);
-            failureReason = string.Empty;
-            return true;
-        }
-        catch (Exception e)
-        {
-            failureReason = e.ToString();
-            return false;
-        }
     }
 }

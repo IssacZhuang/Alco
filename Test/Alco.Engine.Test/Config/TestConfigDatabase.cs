@@ -29,7 +29,6 @@ namespace Alco.Engine.Test
 
             public int Priority => 0;
             public IEnumerable<string> AllFileNames => _files.Keys;
-            public bool IsWriteable => false;
 
             /// <summary>
             /// Add a JSON file to the test file source.
@@ -66,12 +65,6 @@ namespace Alco.Engine.Test
 
                 data = SafeMemoryHandle.Empty;
                 failureReason = $"File not found: {path}";
-                return false;
-            }
-
-            public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
-            {
-                failureReason = "Not supported";
                 return false;
             }
 

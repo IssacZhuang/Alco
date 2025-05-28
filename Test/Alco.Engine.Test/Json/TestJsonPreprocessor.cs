@@ -22,8 +22,6 @@ public class TestJsonPreprocessor
 
         public IEnumerable<string> AllFileNames => _files.Keys;
 
-        public bool IsWriteable => false;
-
         public void AddFile(string filename, string content)
         {
             _files[filename] = Encoding.UTF8.GetBytes(content);
@@ -40,12 +38,6 @@ public class TestJsonPreprocessor
 
             data = SafeMemoryHandle.Empty;
             failureReason = $"File not found: {path}";
-            return false;
-        }
-
-        public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
-        {
-            failureReason = "Not supported";
             return false;
         }
 
