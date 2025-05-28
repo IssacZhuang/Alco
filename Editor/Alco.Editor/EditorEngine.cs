@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Alco.Engine;
@@ -36,9 +37,15 @@ public class EditorEngine : GameEngine, IAlcoProjectContext
     /// </summary>
     public event Action<AlcoProject>? OnProjectClosed;
 
+    /// <summary>
+    /// The json serializer options for the game engine, which is used for the config loading
+    /// </summary>
+    public JsonSerializerOptions ConfigSerializeOption { get; } = new();
+
     public EditorEngine(GameEngineSetting setting) : base(setting)
     {
-        
+        ConfigSerializeOption = CreateConfigSerializeOption();
+        Assets.RegisterAssetEncoder(new AssetEncoderConfig(ConfigSerializeOption));
     }
 
     /// <summary>
@@ -130,6 +137,24 @@ public class EditorEngine : GameEngine, IAlcoProjectContext
     public override void PostToMainThread(SendOrPostCallback action, object? state)
     {
         Dispatcher.UIThread.Invoke(() => action(state));
+    }
+    protected virtual JsonSerializerOptions CreateConfigSerializeOption()
+    {
+        var options = new JsonSerializerOptions()
+        {
+            TypeInfoResolver = new ConfigJsonTypeResolver(),
+            WriteIndented = true,
+            Converters = { }
+        };
+
+        foreach (var converter in CreateDefaultJsonConverters())
+        {
+            options.Converters.Add(converter);
+        }
+
+        options.MakeReadOnly();
+
+        return options;
     }
 
 

@@ -37,8 +37,6 @@ IDisposable
     private readonly View _mainView;
     private readonly ViewRenderTarget _mainRenderTarget;
 
-    private readonly JsonSerializerOptions _configSerializeOption;
-
     #endregion
 
 
@@ -175,10 +173,7 @@ IDisposable
     /// </summary>
     public GameEngineSetting Setting => _setting;
 
-    /// <summary>
-    /// The json serializer options for the game engine, which is used for the config loading
-    /// </summary>
-    public JsonSerializerOptions ConfigSerializeOption => _configSerializeOption;
+    
 
     #endregion
 
@@ -203,8 +198,6 @@ IDisposable
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
-        _configSerializeOption = CreateConfigSerializeOption();
-
         foreach (var fileSource in CreateDefaultFileSources())
         {
             _assets.AddFileSource(fileSource);
@@ -218,11 +211,6 @@ IDisposable
         foreach (var assetHotReloader in CreateDefaultAssetHotReloaders())
         {
             _assets.RegisterAssetHotReloader(assetHotReloader);
-        }
-
-        foreach (var assetEncoder in CreateDefaultAssetEncoders())
-        {
-            _assets.RegisterAssetEncoder(assetEncoder);
         }
 
         Task<Shader> shaderBlit = _assets.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);

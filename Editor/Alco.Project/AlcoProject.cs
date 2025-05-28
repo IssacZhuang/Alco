@@ -84,10 +84,6 @@ public partial class AlcoProject: AutoDisposable, IAssetSystemHost
             _assetSystem.RegisterAssetLoader(assetLoader);
         }
 
-        foreach (var assetEncoder in engine.CreateDefaultAssetEncoders()){
-            _assetSystem.RegisterAssetEncoder(assetEncoder);
-        }
-
         _assetDatabase = new AssetDatabase(_assetSystem);
 
         _projectWatcher = new FileSystemWatcher

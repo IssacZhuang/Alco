@@ -2,6 +2,7 @@ using System.Text;
 using Alco.Rendering;
 using Alco.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Alco.Engine;
 
@@ -37,46 +38,28 @@ public partial class GameEngine
         yield return new AssetHotReloaderTexture2D(Rendering);
     }
 
-    public virtual IEnumerable<IAssetEncoder> CreateDefaultAssetEncoders()
-    {
-        yield return new AssetEncoderConfig(ConfigSerializeOption);
-    }
-
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()
     {
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
     }
 
-    protected virtual JsonSerializerOptions CreateConfigSerializeOption()
+    public virtual IEnumerable<JsonConverter> CreateDefaultJsonConverters()
     {
-        var options = new JsonSerializerOptions()
-        {
-            TypeInfoResolver = new ConfigJsonTypeResolver(),
-            WriteIndented = true,
-            Converters = {
-                new JsonConverterType(),
-                new JsonConverterVector2(),
-                new JsonConverterVector3(),
-                new JsonConverterVector4(),
-                new JsonConverterHalf2(),
-                new JsonConverterHalf3(),
-                new JsonConverterHalf4(),
-                new JsonConverterInt2(),
-                new JsonConverterInt3(),
-                new JsonConverterInt4(),
-                new JsonConverterUInt2(),
-                new JsonConverterUInt3(),
-                new JsonConverterUInt4(),
-                new JsonConverterQuaternion(),
-                new JsonConverterColor32(),
-                new JsonConverterColorFloat(),
-            }
-        };
-
-        options.MakeReadOnly();
-
-        return options;
+        yield return new JsonConverterType();
+        yield return new JsonConverterVector2();
+        yield return new JsonConverterVector3();
+        yield return new JsonConverterVector4();
+        yield return new JsonConverterHalf2();
+        yield return new JsonConverterHalf3();
+        yield return new JsonConverterHalf4();
+        yield return new JsonConverterInt2();
+        yield return new JsonConverterInt3();
+        yield return new JsonConverterInt4();
+        yield return new JsonConverterUInt2();
+        yield return new JsonConverterUInt3();
+        yield return new JsonConverterUInt4();
+        yield return new JsonConverterQuaternion();
+        yield return new JsonConverterColor32();
+        yield return new JsonConverterColorFloat();
     }
-
-
 }
