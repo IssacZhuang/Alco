@@ -29,6 +29,30 @@ public class ConfigDatabase
     private readonly Lock _updateLock = new();
 
     /// <summary>
+    /// [Thread-safe] All configs in the database.
+    /// </summary>
+    /// <value>All configs in the database.</value>
+    public IReadOnlyList<Configable> Configs
+    {
+        get
+        {
+            TryUpdateConfigs();
+            return _configsList;
+        }
+    }
+
+    /// <summary>
+    /// [Thread-safe] Get all configs of a specific type.
+    /// </summary>
+    /// <param name="type">The type of the configs to get.</param>
+    /// <returns>All configs of the specified type.</returns>
+    public IReadOnlyList<Configable> GetConfigs(Type type)
+    {
+        TryUpdateConfigs();
+        return GetTypedConfigsDictionary(type).Values;
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ConfigDatabase"/> class.
     /// </summary>
     /// <param name="converters">Custom JSON converters to use for deserialization</param>
