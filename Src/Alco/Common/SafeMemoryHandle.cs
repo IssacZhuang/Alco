@@ -20,6 +20,9 @@ public unsafe class SafeMemoryHandle : AutoDisposable
 
     public static readonly SafeMemoryHandle Empty = new SafeMemoryHandle(Array.Empty<byte>());
 
+
+    public int Size => _length;
+
     /// <summary>
     /// Initializes a new instance of the SafeMemoryHandle class by allocating unmanaged memory of the specified size.
     /// </summary>
