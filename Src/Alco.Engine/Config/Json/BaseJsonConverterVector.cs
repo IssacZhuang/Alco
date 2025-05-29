@@ -20,6 +20,16 @@ public unsafe abstract class BaseJsonConverterVector<T> : JsonConverter<T>
     /// <param name="setDefaultValue">If true, initialize all components to zero.</param>
     protected void ReadFloatObject(ref Utf8JsonReader reader, float* array, ReadOnlySpan<string> componentNames, bool setDefaultValue = true)
     {
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            float value = reader.GetSingle();
+            for (int i = 0; i < componentNames.Length; i++)
+            {
+                array[i] = value;
+            }
+            return;
+        }
+
         if (reader.TokenType != JsonTokenType.StartObject)
         {
             throw new JsonException("Expected start of object when reading VectorN");

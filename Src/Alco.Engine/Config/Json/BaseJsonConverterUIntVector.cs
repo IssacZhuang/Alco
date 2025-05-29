@@ -18,6 +18,16 @@ public unsafe abstract class BaseJsonConverterUIntVector<T> : JsonConverter<T>
     /// <param name="componentNames">The component names (e.g., ["x", "y", "z", "w"]).</param>
     protected void ReadUIntObject(ref Utf8JsonReader reader, uint* array, string[] componentNames)
     {
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            uint value = reader.GetUInt32();
+            for (int i = 0; i < componentNames.Length; i++)
+            {
+                array[i] = value;
+            }
+            return;
+        }
+
         if (reader.TokenType != JsonTokenType.StartObject)
         {
             throw new JsonException("Expected start of object when reading unsigned integer vector");

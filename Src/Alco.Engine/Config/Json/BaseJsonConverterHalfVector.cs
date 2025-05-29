@@ -19,6 +19,16 @@ public unsafe abstract class BaseJsonConverterHalfVector<T> : JsonConverter<T>
     /// <param name="componentNames">The component names (e.g., ["x", "y", "z", "w"]).</param>
     protected void ReadHalfObject(ref Utf8JsonReader reader, Half* array, string[] componentNames)
     {
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            Half value = (Half)reader.GetSingle();
+            for (int i = 0; i < componentNames.Length; i++)
+            {
+                array[i] = value;
+            }
+            return;
+        }
+
         if (reader.TokenType != JsonTokenType.StartObject)
         {
             throw new JsonException("Expected start of object when reading Half vector");
