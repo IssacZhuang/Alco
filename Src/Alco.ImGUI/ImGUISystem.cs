@@ -14,7 +14,7 @@ public class ImGUISystem: BaseEngineSystem
 
     public ImGUISystem(GameEngine engine, ViewRenderTarget mainRenderTarget)
     {
-        RenderingSystem renderingSystem = engine.Rendering;
+        RenderingSystem renderingSystem = engine.RenderingSystem;
 
         // Use embedded shader resource instead of built-in asset
         _shader = ImGUIResourceHelper.GetImGUIShader(renderingSystem);

@@ -26,21 +26,21 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _camera = Rendering.CreateCamera2D(640, 360, 100);
+        _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
-        _materialText = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
+        _materialText = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
         _materialText.SetBuffer(ShaderResourceId.Camera, _camera);
 
-        _materialSprite = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _materialSprite = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _materialSprite.BlendState = BlendState.AlphaBlend;
         _materialSprite.SetBuffer(ShaderResourceId.Camera, _camera);
 
         _font = BuiltInAssets.Font_Default;
-        _star = Assets.Load<Texture2D>("Star.png");
+        _star = AssetSystem.Load<Texture2D>("Star.png");
     
-        _renderContext = Rendering.CreateRenderContext();
-        _textRenderer = Rendering.CreateTextRenderer(_renderContext, _materialText);
-        _spriteRenderer = Rendering.CreateSpriteRenderer(_renderContext, _materialSprite);
+        _renderContext = RenderingSystem.CreateRenderContext();
+        _textRenderer = RenderingSystem.CreateTextRenderer(_renderContext, _materialText);
+        _spriteRenderer = RenderingSystem.CreateSpriteRenderer(_renderContext, _materialSprite);
 
 
         _positions = new Vector2[DrawCount];

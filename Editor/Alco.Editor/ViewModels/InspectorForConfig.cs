@@ -67,7 +67,7 @@ public partial class InspectorForConfig : Inspector<Configable>
 
     public void RefreshSerializedJson(EditorEngine engine)
     {
-        AssetSystem assetSystem = engine.Assets;
+        AssetSystem assetSystem = engine.AssetSystem;
         using SafeMemoryHandle memory = assetSystem.EncodeToBinary(_asset);
         SerializedJson = Encoding.UTF8.GetString(memory.AsSpan());
     }
@@ -93,7 +93,7 @@ public partial class InspectorForConfig : Inspector<Configable>
         _asset = asset;
         _path = path;
         _filename = Path.GetFileName(path);
-        AssetSystem assetSystem = engine.Assets;
+        AssetSystem assetSystem = engine.AssetSystem;
         using SafeMemoryHandle memory = assetSystem.EncodeToBinary(_asset);
         SerializedJson = Encoding.UTF8.GetString(memory.AsReadOnlySpan());
         PropertiesEditor = new(asset, asset.Id);
@@ -110,7 +110,7 @@ public partial class InspectorForConfig : Inspector<Configable>
         {
             throw new InvalidOperationException("Failed to save asset: Asset is null");
         }
-        using SafeMemoryHandle memory = engine.Assets.EncodeToBinary(_asset);
+        using SafeMemoryHandle memory = engine.AssetSystem.EncodeToBinary(_asset);
         File.WriteAllBytes(_path, memory.AsReadOnlySpan());
         _isModified = false;
         OnPropertyChanged(nameof(IsModified));

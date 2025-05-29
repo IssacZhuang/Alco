@@ -189,7 +189,7 @@ public class Game : GameEngine
     {
         byte[] data = LoadFile("test.png");
 
-        return Rendering.CreateTexture2DFromFile(data);
+        return RenderingSystem.CreateTexture2DFromFile(data);
     }
 
     private void UpdateColor(Vector3 color)

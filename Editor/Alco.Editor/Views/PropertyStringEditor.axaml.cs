@@ -42,7 +42,7 @@ public partial class PropertyStringEditor : UserControl
 
         // Set up the AutoCompleteBox with asset file names
         var engine = App.Main.Engine;
-        var assetSystem = engine.Assets;
+        var assetSystem = engine.AssetSystem;
 
         // Set the items source to all file names in the asset system
         InputText.ItemsSource = assetSystem.AllAssetAliases;

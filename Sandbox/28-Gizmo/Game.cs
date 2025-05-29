@@ -34,22 +34,22 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _shader = Assets.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
         // _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
         // _camaraChild.position.Z = -10;
         // _camera.tranform = math.transform(_camaraParent, _camaraChild);
 
-        _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
+        _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
         _camaraChild.Position.X = -10;
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
 
-        _renderer = Rendering.CreateRenderContext();
+        _renderer = RenderingSystem.CreateRenderContext();
 
-        _material = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
         _material.SetBuffer("_camera", _camera);
 
-        _cube = new Cube(Rendering.MeshCube, _material);
+        _cube = new Cube(RenderingSystem.MeshCube, _material);
         _cube.Color = Color2;
         _cube.transform.Position = new Vector3(0, 0, 0);
 
@@ -71,7 +71,7 @@ public class Game : GameEngine
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
         _commandClearScreen.ClearColor(new ColorFloat(0.2f, 0.2f, 0.2f, 1), 0);
         _commandClearScreen.End();
-        Rendering.ScheduleCommandBuffer(_commandClearScreen);
+        RenderingSystem.ScheduleCommandBuffer(_commandClearScreen);
 
 
         _renderer.Begin(MainFrameBuffer);

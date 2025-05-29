@@ -48,16 +48,16 @@ public class TextureGPUSurfaceView : GPUSurfaceView
         // Create camera
         uint width = (uint)Math.Max(1, Bounds.Width);
         uint height = (uint)Math.Max(1, Bounds.Height);
-        _camera = engine.Rendering.CreateCamera2D(width, height, 100);
+        _camera = engine.RenderingSystem.CreateCamera2D(width, height, 100);
 
         // Create sprite material
-        _material = engine.Rendering.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_Sprite);
+        _material = engine.RenderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_Sprite);
         _material.BlendState = BlendState.AlphaBlend;
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 
         // Create rendering context and get sprite mesh
-        _renderContext = engine.Rendering.CreateRenderContext();
-        _mesh = engine.Rendering.MeshCenteredSprite;
+        _renderContext = engine.RenderingSystem.CreateRenderContext();
+        _mesh = engine.RenderingSystem.MeshCenteredSprite;
     }
 
     protected override void OnSizeChanged(SizeChangedEventArgs e)

@@ -72,7 +72,7 @@ public class Game : GameEngine
         _image = LaodTexture();
         _renderTarget = CreateRenderTarget(_image.Width, _image.Height);
         //_iterationBuffer = RenderingService.CreateTypedVRamBuffer<int>(8);
-        _iterationBuffer = Rendering.CreateGraphicsValueBuffer<int>(8, "iteration_buffer");
+        _iterationBuffer = RenderingSystem.CreateGraphicsValueBuffer<int>(8, "iteration_buffer");
 
         //box blur texture
 
@@ -236,12 +236,12 @@ public class Game : GameEngine
     {
         byte[] data = LoadFile("test.jpg");
 
-        return Rendering.CreateTexture2DFromFile(data);
+        return RenderingSystem.CreateTexture2DFromFile(data);
     }
 
     private Texture2D CreateRenderTarget(uint width, uint height)
     {
-        return Rendering.CreateTexture2D(width, height, new ColorFloat(1, 1, 1, 1), new ImageLoadOption
+        return RenderingSystem.CreateTexture2D(width, height, new ColorFloat(1, 1, 1, 1), new ImageLoadOption
         {
             Format = PixelFormat.RGBA8Unorm,
             MipLevels = 1,

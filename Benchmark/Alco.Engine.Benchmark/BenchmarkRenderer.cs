@@ -22,7 +22,7 @@ public class BenchmarkRenderer
     public BenchmarkRenderer()
     {
         _engine = new GameEngine(GameEngineSetting.CreateGPUWithoutView());
-        RenderingSystem renderingSystem = _engine.Rendering;
+        RenderingSystem renderingSystem = _engine.RenderingSystem;
         _texture = renderingSystem.TextureWhite;
         _target = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedHDRPass, 1920, 1080);
     }
@@ -31,7 +31,7 @@ public class BenchmarkRenderer
     public void Setup()
     {
 
-        RenderingSystem renderingSystem = _engine.Rendering;
+        RenderingSystem renderingSystem = _engine.RenderingSystem;
         GraphicsBuffer camera = renderingSystem.CreateCamera2D(Vector2.One, 100, "camera");
         Shader shader = _engine.BuiltInAssets.Shader_Sprite;
         Material material = renderingSystem.CreateGraphicsMaterial(shader);

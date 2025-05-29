@@ -73,7 +73,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _view.OnMinimize += OnWindowMinimize;
         _view.OnRestore += OnWindowRestore;
 
-        _rendering = engine.Rendering;
+        _rendering = engine.RenderingSystem;
 
         _width = math.max(1, view.Size.X);
         _height = math.max(1, view.Size.Y);

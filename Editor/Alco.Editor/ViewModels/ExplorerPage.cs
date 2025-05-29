@@ -72,7 +72,7 @@ public class ExplorerPage : Page
                         //use unmanaged memory to avoid LOH
                         data = UnsafeIO.ReadFile(realPath, out int size);
 
-                        object asset = engine.Assets.Decode(filePath, attribute.AssetType, new ReadOnlySpan<byte>(data, size));
+                        object asset = engine.AssetSystem.Decode(filePath, attribute.AssetType, new ReadOnlySpan<byte>(data, size));
 
                         inspector.OnOpenAsset(engine, asset, realPath);
                         return inspector;

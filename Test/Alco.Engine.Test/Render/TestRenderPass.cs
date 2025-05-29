@@ -10,7 +10,7 @@ public class TestRenderPass
     public void TestRenderPassHash()
     {
         GameEngine engine = new GameEngine(GameEngineSetting.CreateNoGPU());
-        RenderingSystem renderingSystem = engine.Rendering;
+        RenderingSystem renderingSystem = engine.RenderingSystem;
         GPUDevice device = renderingSystem.GraphicsDevice;
         GPURenderPass pass1 = device.CreateRenderPass(new RenderPassDescriptor(
             [new(PixelFormat.RGBA8Unorm)],

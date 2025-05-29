@@ -45,7 +45,7 @@ public class EditorEngine : GameEngine, IAlcoProjectContext
     public EditorEngine(GameEngineSetting setting) : base(setting)
     {
         ConfigSerializeOption = CreateConfigSerializeOption();
-        Assets.RegisterAssetEncoder(new AssetEncoderConfig(ConfigSerializeOption));
+        AssetSystem.RegisterAssetEncoder(new AssetEncoderConfig(ConfigSerializeOption));
     }
 
     /// <summary>

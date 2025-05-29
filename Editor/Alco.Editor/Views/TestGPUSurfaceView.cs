@@ -14,7 +14,7 @@ public class TestGpuSurfaceView : GPUSurfaceView
     public TestGpuSurfaceView()
     {
         GameEngine engine = App.Main.Engine;
-        RenderingSystem renderingSystem = engine.Rendering;
+        RenderingSystem renderingSystem = engine.RenderingSystem;
 
         // Use embedded shader resource instead of built-in asset
         _shader = ImGUIResourceHelper.GetImGUIShader(renderingSystem);

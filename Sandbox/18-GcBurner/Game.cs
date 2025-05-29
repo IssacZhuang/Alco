@@ -122,9 +122,9 @@ public class Game : GameEngine
     {
         //test the garbage collector for both RAM and VRAM
         //load asset without cache
-        //Assets.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
-        Rendering.CreateGraphicsArrayBuffer<Vector3>(1000);
-        Rendering.CreateRenderTexture(Rendering.PrefferedSDRPass, 1280, 720);
+        //AssetSystem.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
+        RenderingSystem.CreateGraphicsArrayBuffer<Vector3>(1000);
+        RenderingSystem.CreateRenderTexture(RenderingSystem.PrefferedSDRPass, 1280, 720);
     }
 
     private void ParallelCallback(int index)

@@ -11,12 +11,12 @@ public partial class GameEngine
     public virtual IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         // texture
-        yield return new AssetLoaderFontTTF(Rendering);
-        yield return new AssetLoaderTexture2D(Rendering);
+        yield return new AssetLoaderFontTTF(RenderingSystem);
+        yield return new AssetLoaderTexture2D(RenderingSystem);
 
         // shader
         yield return new AssetLoaderShaderHLSLInclude();
-        yield return new AssetLoaderShaderHLSL(Rendering);
+        yield return new AssetLoaderShaderHLSL(RenderingSystem);
 
         // audio
         yield return new AssetLoaderAudioVorbis(AudioDevice);
@@ -28,14 +28,14 @@ public partial class GameEngine
     {
         yield return new AssetHotReloaderShaderHLSL((string includeName) =>
         {
-            if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
+            if (AssetSystem.TryLoadRaw(includeName, out SafeMemoryHandle data))
             {
                 return Encoding.UTF8.GetString(data.AsReadOnlySpan());
             }
             throw new Exception($"Can not find the include file: {includeName}");
         });
 
-        yield return new AssetHotReloaderTexture2D(Rendering);
+        yield return new AssetHotReloaderTexture2D(RenderingSystem);
     }
 
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()

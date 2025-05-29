@@ -21,7 +21,7 @@ public class ValidateShader
     public void ValidateAllShaders()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
-        var assets = engine.Assets;
+        var assets = engine.AssetSystem;
         //query all .hlsl files
         var files = assets.AllAssetNames.Where(x => x.EndsWith(".hlsl"));
 

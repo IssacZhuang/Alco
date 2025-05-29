@@ -25,19 +25,19 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         // Create camera
-        _camera = Rendering.CreateCamera2D(64, 36, 100);
+        _camera = RenderingSystem.CreateCamera2D(64, 36, 100);
          
         // Create material for particles
-        _materialParticle = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
+        _materialParticle = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
         _materialParticle.BlendState = BlendState.Additive;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 
         // Use default white texture if no specific texture is needed
-        _particleTexture = Assets.Load<Texture2D>("Droplet");
+        _particleTexture = AssetSystem.Load<Texture2D>("Droplet");
         _materialParticle.SetTexture(ShaderResourceId.Texture, _particleTexture);
 
         // Create render context
-        _renderContext = Rendering.CreateRenderContext();
+        _renderContext = RenderingSystem.CreateRenderContext();
 
         // Create particle emitter
         _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(0, 0));
@@ -52,7 +52,7 @@ public class Game : GameEngine
         _simulator = new ParticleSimulatorColorLerp2D();
 
         // Create particle system
-        _particleSystem = Rendering.CreateParticleSystem2DCPU(_materialParticle, _emitter, _simulator);
+        _particleSystem = RenderingSystem.CreateParticleSystem2DCPU(_materialParticle, _emitter, _simulator);
         _particleSystem.EmissionRateOverTime = 100;
         _particleSystem.ParticleLifetime = 1.0f;
         _particleSystem.MaxParticles = 100000;

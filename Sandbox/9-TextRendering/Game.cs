@@ -24,12 +24,12 @@ public class Game : GameEngine
         _shader = BuiltInAssets.Shader_Text;
         _font = BuiltInAssets.Font_Default;
 
-        _camera = Rendering.CreateCamera2D(640, 360, 100);
+        _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
-        _material = Rendering.CreateGraphicsMaterial(_shader);
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
-        _renderContext = Rendering.CreateRenderContext();
-        _textRenderer = Rendering.CreateTextRenderer(_renderContext, _material);
+        _renderContext = RenderingSystem.CreateRenderContext();
+        _textRenderer = RenderingSystem.CreateTextRenderer(_renderContext, _material);
     }
 
     protected override void OnUpdate(float delta)

@@ -26,9 +26,9 @@ IDisposable
     private readonly AudioDevice _audioDevice;
 
     private readonly BuiltInAssets _builtInAssets;
-    private readonly AssetSystem _assets;
+    private readonly AssetSystem _assetSystem;
 
-    private readonly RenderingSystem _rendering;
+    private readonly RenderingSystem _renderingSystem;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
 
@@ -113,10 +113,10 @@ IDisposable
     /// The asset manager of the game<br/>
     /// Which provides the asset loading and caching
     /// </summary>
-    public AssetSystem Assets
+    public AssetSystem AssetSystem
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _assets;
+        get => _assetSystem;
     }
 
     public BuiltInAssets BuiltInAssets
@@ -137,10 +137,10 @@ IDisposable
     /// <summary>
     /// The high-level graphics API of the game<br/>
     /// </summary>
-    public RenderingSystem Rendering
+    public RenderingSystem RenderingSystem
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _rendering;
+        get => _renderingSystem;
     }
 
     /// <summary>
@@ -181,11 +181,11 @@ IDisposable
     {
         _setting = setting;
         _synchronizationContext = new GameSynchronizationContext();
-        _assets = new AssetSystem(this, _setting.Assets.IsProfilingEnabled);
+        _assetSystem = new AssetSystem(this, _setting.Assets.IsProfilingEnabled);
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 0);
 
-        _rendering = new RenderingSystem(
+        _renderingSystem = new RenderingSystem(
             this,
             _graphicsDevice,
             _setting.Graphics.PreferredSDRFormat,
@@ -194,26 +194,26 @@ IDisposable
             CreateShaderCache(_setting.Graphics)
             );
 
-        _builtInAssets = new BuiltInAssets(_assets);
+        _builtInAssets = new BuiltInAssets(_assetSystem);
 
         _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
 
         foreach (var fileSource in CreateDefaultFileSources())
         {
-            _assets.AddFileSource(fileSource);
+            _assetSystem.AddFileSource(fileSource);
         }
 
         foreach (var assetLoader in CreateDefaultAssetLoaders())
         {
-            _assets.RegisterAssetLoader(assetLoader);
+            _assetSystem.RegisterAssetLoader(assetLoader);
         }
 
         foreach (var assetHotReloader in CreateDefaultAssetHotReloaders())
         {
-            _assets.RegisterAssetHotReloader(assetHotReloader);
+            _assetSystem.RegisterAssetHotReloader(assetHotReloader);
         }
 
-        Task<Shader> shaderBlit = _assets.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
+        Task<Shader> shaderBlit = _assetSystem.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
 
         _platform = _setting.Platform ?? new Sdl3Platform();
         _input = _platform.Input;
@@ -222,7 +222,7 @@ IDisposable
 
         //main view
         _mainView = CreateView(_setting.View);
-        _mainRenderTarget = CreateViewRenderTarget(_mainView, _rendering.PrefferedSDRPass, shaderBlit.Result);
+        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PrefferedSDRPass, shaderBlit.Result);
         AddSystem(_mainRenderTarget);
 
 
