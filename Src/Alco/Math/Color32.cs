@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -33,6 +35,40 @@ public struct Color32
         G = g;
         B = b;
         A = 255;
+    }
+
+    /// <summary>
+    /// Try to parse a hex color string to a ColorFloat
+    /// </summary>
+    /// <param name="hex">The hex color string</param>
+    /// <param name="color">The parsed color</param>
+    /// <returns>True if the parsing is successful, false otherwise</returns>
+    public static bool TryParse(ReadOnlySpan<char> hex, out Color32 color)
+    {
+        if (hex.Length <= 0)
+        {
+            color = default;
+            return false;
+        }
+        if (hex[0] == '#')
+        {
+            hex = hex.Slice(1);
+        }
+        if (hex.Length == 6)
+        {
+            uint uintColor = uint.Parse(hex, NumberStyles.HexNumber);
+            uintColor = (uintColor << 8) | 0xFF;
+            color = (Color32)uintColor;
+            return true;
+        }
+        if (hex.Length == 8)
+        {
+            uint uintColor = uint.Parse(hex, NumberStyles.HexNumber);
+            color = (Color32)uintColor;
+            return true;
+        }
+        color = default;
+        return false;
     }
 
     public static implicit operator uint (Color32 color)

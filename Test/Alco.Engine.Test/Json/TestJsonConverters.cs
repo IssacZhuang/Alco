@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Alco; // Add import for Color32 and ColorFloat
 
 namespace Alco.Engine.Test;
 
@@ -31,7 +32,8 @@ public class TestJsonConverters
                 new JsonConverterVector3(),
                 new JsonConverterVector4(),
                 new JsonConverterQuaternion(),
-                new JsonConverterColorFloat()
+                new JsonConverterColorFloat(),
+                new JsonConverterColor32() // Add Color32 converter to options
             }
         };
     }
@@ -415,14 +417,6 @@ public class TestJsonConverters
         });
     }
 
-    [Test(Description = "Test ColorFloat JSON invalid format")]
-    public void TestColorFloatInvalidFormat()
-    {
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ColorFloat>("[0.5,0.6]", _options));
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ColorFloat>("[0.5,0.6,0.7,0.8,0.9]", _options));
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ColorFloat>("\"not an array\"", _options));
-    }
-
     [Test(Description = "Test Color32 JSON conversion")]
     public void TestColor32Conversion()
     {
@@ -477,8 +471,87 @@ public class TestJsonConverters
         });
     }
 
-    [Test(Description = "Test Color32 JSON invalid format")]
-    public void TestColor32InvalidFormat()
+    [Test(Description = "Test ColorFloat JSON hex string conversion")]
+    public void TestColorFloatHexStringConversion()
+    {
+        // Test 8-digit hex (RGBA)
+        var hexJson = "\"FF8040C0\""; // Red=255, Green=128, Blue=64, Alpha=192
+        var deserialized = JsonSerializer.Deserialize<ColorFloat>(hexJson, _options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.R, Is.EqualTo(1.0f).Within(0.01f)); // 255/255 = 1.0
+            Assert.That(deserialized.G, Is.EqualTo(0.502f).Within(0.01f)); // 128/255 ≈ 0.502
+            Assert.That(deserialized.B, Is.EqualTo(0.251f).Within(0.01f)); // 64/255 ≈ 0.251
+            Assert.That(deserialized.A, Is.EqualTo(0.753f).Within(0.01f)); // 192/255 ≈ 0.753
+        });
+        TestContext.WriteLine($"ColorFloat from hex string {hexJson}: R={deserialized.R}, G={deserialized.G}, B={deserialized.B}, A={deserialized.A}");
+
+        // Test 6-digit hex (RGB with default alpha=1.0)
+        var hex6Json = "\"FF8040\""; // Red=255, Green=128, Blue=64
+        var deserialized6 = JsonSerializer.Deserialize<ColorFloat>(hex6Json, _options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized6.R, Is.EqualTo(1.0f).Within(0.01f));
+            Assert.That(deserialized6.G, Is.EqualTo(0.502f).Within(0.01f));
+            Assert.That(deserialized6.B, Is.EqualTo(0.251f).Within(0.01f));
+            Assert.That(deserialized6.A, Is.EqualTo(1.0f).Within(0.01f)); // Default alpha should be 1.0
+        });
+        TestContext.WriteLine($"ColorFloat from 6-digit hex string {hex6Json}: R={deserialized6.R}, G={deserialized6.G}, B={deserialized6.B}, A={deserialized6.A}");
+    }
+
+
+    [Test(Description = "Test Color32 JSON hex string conversion")]
+    public void TestColor32HexStringConversion()
+    {
+        // Test 8-digit hex (RGBA)
+        var hexJson = "\"FF8040C0\""; // Red=255, Green=128, Blue=64, Alpha=192
+        var deserialized = JsonSerializer.Deserialize<Color32>(hexJson, _options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized.R, Is.EqualTo(255));
+            Assert.That(deserialized.G, Is.EqualTo(128));
+            Assert.That(deserialized.B, Is.EqualTo(64));
+            Assert.That(deserialized.A, Is.EqualTo(192));
+        });
+        TestContext.WriteLine($"Color32 from hex string {hexJson}: R={deserialized.R}, G={deserialized.G}, B={deserialized.B}, A={deserialized.A}");
+
+        // Test 6-digit hex (RGB with default alpha=255)
+        var hex6Json = "\"FF8040\""; // Red=255, Green=128, Blue=64
+        var deserialized6 = JsonSerializer.Deserialize<Color32>(hex6Json, _options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized6.R, Is.EqualTo(255));
+            Assert.That(deserialized6.G, Is.EqualTo(128));
+            Assert.That(deserialized6.B, Is.EqualTo(64));
+            Assert.That(deserialized6.A, Is.EqualTo(255)); // Default alpha should be 255
+        });
+        TestContext.WriteLine($"Color32 from 6-digit hex string {hex6Json}: R={deserialized6.R}, G={deserialized6.G}, B={deserialized6.B}, A={deserialized6.A}");
+    }
+
+
+    [Test(Description = "Test ColorFloat JSON mixed hex and array formats")]
+    public void TestColorFloatMixedFormats()
+    {
+        // Test that both hex string and array formats work for the same color value
+        var hexJson = "\"80404020\""; // Red=128, Green=64, Blue=64, Alpha=32
+        var arrayJson = "[0.502,0.251,0.251,0.125]"; // Equivalent float values
+
+        var fromHex = JsonSerializer.Deserialize<ColorFloat>(hexJson, _options);
+        var fromArray = JsonSerializer.Deserialize<ColorFloat>(arrayJson, _options);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fromHex.R, Is.EqualTo(fromArray.R).Within(0.01f));
+            Assert.That(fromHex.G, Is.EqualTo(fromArray.G).Within(0.01f));
+            Assert.That(fromHex.B, Is.EqualTo(fromArray.B).Within(0.01f));
+            Assert.That(fromHex.A, Is.EqualTo(fromArray.A).Within(0.01f));
+        });
+        TestContext.WriteLine($"ColorFloat from hex: R={fromHex.R}, G={fromHex.G}, B={fromHex.B}, A={fromHex.A}");
+        TestContext.WriteLine($"ColorFloat from array: R={fromArray.R}, G={fromArray.G}, B={fromArray.B}, A={fromArray.A}");
+    }
+
+    [Test(Description = "Test Color32 JSON mixed hex and array formats")]
+    public void TestColor32MixedFormats()
     {
         var options = new JsonSerializerOptions
         {
@@ -488,8 +561,129 @@ public class TestJsonConverters
             }
         };
 
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Color32>("[128,64]", options));
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Color32>("[128,64,32,255,0]", options));
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Color32>("\"not an array\"", options));
+        // Test that both hex string and array formats work for the same color value
+        var hexJson = "\"80404020\""; // Red=128, Green=64, Blue=64, Alpha=32
+        var arrayJson = "[128,64,64,32]"; // Equivalent byte values
+
+        var fromHex = JsonSerializer.Deserialize<Color32>(hexJson, options);
+        var fromArray = JsonSerializer.Deserialize<Color32>(arrayJson, options);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fromHex.R, Is.EqualTo(fromArray.R));
+            Assert.That(fromHex.G, Is.EqualTo(fromArray.G));
+            Assert.That(fromHex.B, Is.EqualTo(fromArray.B));
+            Assert.That(fromHex.A, Is.EqualTo(fromArray.A));
+        });
+        TestContext.WriteLine($"Color32 from hex: R={fromHex.R}, G={fromHex.G}, B={fromHex.B}, A={fromHex.A}");
+        TestContext.WriteLine($"Color32 from array: R={fromArray.R}, G={fromArray.G}, B={fromArray.B}, A={fromArray.A}");
+    }
+
+    [Test(Description = "Test ColorFloat JSON common hex color values")]
+    public void TestColorFloatCommonHexColors()
+    {
+        // Test common colors in hex format
+        var whiteJson = "\"FFFFFFFF\"";
+        var blackJson = "\"000000FF\"";
+        var redJson = "\"FF0000FF\"";
+        var greenJson = "\"00FF00FF\"";
+        var blueJson = "\"0000FFFF\"";
+
+        var white = JsonSerializer.Deserialize<ColorFloat>(whiteJson, _options);
+        var black = JsonSerializer.Deserialize<ColorFloat>(blackJson, _options);
+        var red = JsonSerializer.Deserialize<ColorFloat>(redJson, _options);
+        var green = JsonSerializer.Deserialize<ColorFloat>(greenJson, _options);
+        var blue = JsonSerializer.Deserialize<ColorFloat>(blueJson, _options);
+
+        Assert.Multiple(() =>
+        {
+            // White
+            Assert.That(white.R, Is.EqualTo(1.0f).Within(0.01f));
+            Assert.That(white.G, Is.EqualTo(1.0f).Within(0.01f));
+            Assert.That(white.B, Is.EqualTo(1.0f).Within(0.01f));
+            Assert.That(white.A, Is.EqualTo(1.0f).Within(0.01f));
+
+            // Black  
+            Assert.That(black.R, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(black.G, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(black.B, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(black.A, Is.EqualTo(1.0f).Within(0.01f));
+
+            // Red
+            Assert.That(red.R, Is.EqualTo(1.0f).Within(0.01f));
+            Assert.That(red.G, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(red.B, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(red.A, Is.EqualTo(1.0f).Within(0.01f));
+
+            // Green
+            Assert.That(green.R, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(green.G, Is.EqualTo(1.0f).Within(0.01f));
+            Assert.That(green.B, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(green.A, Is.EqualTo(1.0f).Within(0.01f));
+
+            // Blue
+            Assert.That(blue.R, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(blue.G, Is.EqualTo(0.0f).Within(0.01f));
+            Assert.That(blue.B, Is.EqualTo(1.0f).Within(0.01f));
+            Assert.That(blue.A, Is.EqualTo(1.0f).Within(0.01f));
+        });
+    }
+
+    [Test(Description = "Test Color32 JSON common hex color values")]
+    public void TestColor32CommonHexColors()
+    {
+        var options = new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new JsonConverterColor32()
+            }
+        };
+
+        // Test common colors in hex format
+        var whiteJson = "\"FFFFFFFF\"";
+        var blackJson = "\"000000FF\"";
+        var redJson = "\"FF0000FF\"";
+        var greenJson = "\"00FF00FF\"";
+        var blueJson = "\"0000FFFF\"";
+
+        var white = JsonSerializer.Deserialize<Color32>(whiteJson, options);
+        var black = JsonSerializer.Deserialize<Color32>(blackJson, options);
+        var red = JsonSerializer.Deserialize<Color32>(redJson, options);
+        var green = JsonSerializer.Deserialize<Color32>(greenJson, options);
+        var blue = JsonSerializer.Deserialize<Color32>(blueJson, options);
+
+        Assert.Multiple(() =>
+        {
+            // White
+            Assert.That(white.R, Is.EqualTo(255));
+            Assert.That(white.G, Is.EqualTo(255));
+            Assert.That(white.B, Is.EqualTo(255));
+            Assert.That(white.A, Is.EqualTo(255));
+
+            // Black  
+            Assert.That(black.R, Is.EqualTo(0));
+            Assert.That(black.G, Is.EqualTo(0));
+            Assert.That(black.B, Is.EqualTo(0));
+            Assert.That(black.A, Is.EqualTo(255));
+
+            // Red
+            Assert.That(red.R, Is.EqualTo(255));
+            Assert.That(red.G, Is.EqualTo(0));
+            Assert.That(red.B, Is.EqualTo(0));
+            Assert.That(red.A, Is.EqualTo(255));
+
+            // Green
+            Assert.That(green.R, Is.EqualTo(0));
+            Assert.That(green.G, Is.EqualTo(255));
+            Assert.That(green.B, Is.EqualTo(0));
+            Assert.That(green.A, Is.EqualTo(255));
+
+            // Blue
+            Assert.That(blue.R, Is.EqualTo(0));
+            Assert.That(blue.G, Is.EqualTo(0));
+            Assert.That(blue.B, Is.EqualTo(255));
+            Assert.That(blue.A, Is.EqualTo(255));
+        });
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Alco.Graphics;
@@ -9,6 +10,16 @@ public unsafe class JsonConverterColor32 : BaseJsonConverterVector<Color32>
 {
     public override Color32 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            string? hex = reader.GetString();
+            if (hex != null && Color32.TryParse(hex, out Color32 color))
+            {
+                return color;
+            }
+            throw new JsonException("Invalid hex color string");
+        }
+
         if (reader.TokenType != JsonTokenType.StartArray)
         {
             throw new JsonException("Expected start of array when reading VectorN");
