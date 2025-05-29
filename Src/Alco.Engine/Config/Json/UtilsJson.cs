@@ -82,9 +82,14 @@ public static class UtilsJson
     /// // Result: ["x", "y"]
     /// </code>
     /// </example>
-    public static string Merge(JsonDocument parent, JsonDocument target)
+    public static string Merge(JsonDocument parent, JsonDocument target, ReadOnlySpan<string> ignoreProperties = default)
     {
         var outputBuffer = new ArrayBufferWriter<byte>();
+        HashSet<string> ignorePropertiesSet = new();
+        for (int i = 0; i < ignoreProperties.Length; i++)
+        {
+            ignorePropertiesSet.Add(ignoreProperties[i]);
+        }
 
         using (var jsonWriter = new Utf8JsonWriter(outputBuffer, new JsonWriterOptions { Indented = true }))
         {
@@ -107,7 +112,7 @@ public static class UtilsJson
             }
             else
             {
-                MergeObjects(jsonWriter, rootParent, rootTarget);
+                MergeObjects(jsonWriter, rootParent, rootTarget, ignorePropertiesSet);
             }
         }
 
@@ -125,7 +130,7 @@ public static class UtilsJson
         return JsonDocument.Parse(Merge(target, parent));
     }
 
-    private static void MergeObjects(Utf8JsonWriter jsonWriter, JsonElement parent, JsonElement target)
+    private static void MergeObjects(Utf8JsonWriter jsonWriter, JsonElement parent, JsonElement target, HashSet<string> ignoreProperties)
     {
         // Debug.Assert(root1.ValueKind == JsonValueKind.Object);
         // Debug.Assert(root2.ValueKind == JsonValueKind.Object);
@@ -140,10 +145,12 @@ public static class UtilsJson
             // If $inherit is false, write all properties from target except $inherit itself
             foreach (JsonProperty property in target.EnumerateObject())
             {
-                if (property.Name != Keyword_Inherit)
+                if (property.Name == Keyword_Inherit || ignoreProperties.Contains(property.Name))
                 {
-                    property.WriteTo(jsonWriter);
+                    continue;
                 }
+
+                property.WriteTo(jsonWriter);
             }
             jsonWriter.WriteEndObject();
             return;
@@ -170,7 +177,7 @@ public static class UtilsJson
 
                 if (newValueKind == JsonValueKind.Object && originalValueKind == JsonValueKind.Object)
                 {
-                    MergeObjects(jsonWriter, originalValue, newValue); // Recursive call
+                    MergeObjects(jsonWriter, originalValue, newValue, ignoreProperties); // Recursive call
                 }
                 else if (newValueKind == JsonValueKind.Array && originalValueKind == JsonValueKind.Array)
                 {
