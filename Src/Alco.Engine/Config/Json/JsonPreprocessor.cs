@@ -8,8 +8,6 @@ namespace Alco.Engine;
 
 public class JsonPreprocessor
 {
-    private static readonly string[] IgnoreProperties = { "$abstract", "$parent", "$inherit" };
-
     public const string Keyward_Abstract = "$abstract";
     public const string Keyward_Parent = "$parent";
     public const string Keyward_Id = "Id";
@@ -241,7 +239,7 @@ public class JsonPreprocessor
         try
         {
             // Merge parent with current document (current document overrides parent)
-            var mergedJson = UtilsJson.Merge(processedParent, document, IgnoreProperties);
+            var mergedJson = UtilsJson.Merge(processedParent, document);
             var mergedDocument = JsonDocument.Parse(mergedJson);
 
             AddInfo($"Merged JSON item {currentId} with parent {parentId}");
