@@ -46,10 +46,28 @@ public class ConfigDatabase
     /// </summary>
     /// <param name="type">The type of the configs to get.</param>
     /// <returns>All configs of the specified type.</returns>
-    public IReadOnlyList<Configable> GetConfigs(Type type)
+    public IEnumerable<Configable> GetConfigs(Type type)
     {
         TryUpdateConfigs();
         return GetTypedConfigsDictionary(type).Values;
+    }
+
+    /// <summary>
+    /// [Thread-safe] Get all configs of a specific type.
+    /// </summary>
+    /// <typeparam name="T">The type of the configs to get.</typeparam>
+    /// <returns>All configs of the specified type.</returns>
+    public IEnumerable<T> GetConfigs<T>() where T : Configable
+    {
+        TryUpdateConfigs();
+        var values = GetTypedConfigsDictionary(typeof(T)).Values;
+        foreach (var value in values)
+        {
+            if (value is T t)
+            {
+                yield return t;
+            }
+        }
     }
 
     /// <summary>
