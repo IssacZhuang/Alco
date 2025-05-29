@@ -417,4 +417,41 @@ public class TestJsonPreprocessor
         var expectedAbilities = new[] { "move", "attack", "block", "charge", "heal", "bless" };
         Assert.That(abilities, Is.EqualTo(expectedAbilities), "Should have all abilities in correct order");
     }
+
+    [Test]
+    public void TestSpecialPropertiesFiltering()
+    {
+        // Arrange
+        var preprocessor = CreatePreprocessor(out var infos, out var warnings, out var errors);
+        var fileSource = new TestFileSource();
+
+        fileSource.AddFile("abstract.json", @"{
+            ""$abstract"": true,
+            ""Id"": ""abstractParent"",
+            ""baseValue"": 100
+        }");
+
+        fileSource.AddFile("child.json", @"{
+            ""Id"": ""child"",
+            ""$parent"": ""abstractParent"",
+            ""childValue"": 200
+        }");
+
+        preprocessor.AddFileSource(fileSource);
+
+        // Act
+        preprocessor.Preprocess();
+
+        // Assert
+        Assert.That(errors, Is.Empty, "Should have no errors");
+
+        // Verify child document
+        Assert.That(preprocessor.TryGetJsonDocument("child", out var childDoc), Is.True);
+        var childRoot = childDoc.RootElement;
+        Assert.That(childRoot.TryGetProperty("$abstract", out _), Is.False, "Should remove $abstract");
+        Assert.That(childRoot.TryGetProperty("$parent", out _), Is.False, "Should remove $parent");
+
+        // Verify non-abstract parent document (if exists)
+        Assert.That(preprocessor.TryGetJsonDocument("abstractParent", out _), Is.False, "Abstract document should not be in final items");
+    }
 }
