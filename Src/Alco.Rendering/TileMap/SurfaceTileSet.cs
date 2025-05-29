@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 
 public sealed class SurfaceTileSet : BaseTileSet<SurfaceTileData>
 {
-    public SurfaceTileSet(
+    internal SurfaceTileSet(
         RenderingSystem renderingSystem,
         IReadOnlyList<BaseTileItem<SurfaceTileData>> items,
         Material material,
