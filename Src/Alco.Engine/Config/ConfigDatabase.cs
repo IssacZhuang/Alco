@@ -207,12 +207,13 @@ public class ConfigDatabase
             _configs.Clear();
             _jsonPreprocessor.Preprocess();
 
-            _tempConfigs.EnsureSizeWithoutCopy(_jsonPreprocessor.AllDocuments.Count);
+            var documents = _jsonPreprocessor.AllDocuments.ToArray();
+
+            _tempConfigs.EnsureSizeWithoutCopy(documents.Length);
             _tempConfigs.Clear();
 
-            IReadOnlyList<JsonDocument> documents = _jsonPreprocessor.AllDocuments;
 
-            Parallel.For(0, documents.Count, i =>
+            Parallel.For(0, documents.Length, i =>
             {
                 try
                 {

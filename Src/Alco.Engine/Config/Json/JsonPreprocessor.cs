@@ -34,7 +34,16 @@ public class JsonPreprocessor
     private readonly Action<string> _onWarning;
     private readonly Action<string> _onError;
 
-    public IReadOnlyList<JsonDocument> AllDocuments => _jsonItemsList;
+    public IEnumerable<JsonDocument> AllDocuments
+    {
+        get
+        {
+            foreach (var item in _jsonItems)
+            {
+                yield return item.Value.Document;
+            }
+        }
+    }
 
     public JsonPreprocessor(Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
