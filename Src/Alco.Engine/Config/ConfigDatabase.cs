@@ -184,7 +184,10 @@ public class ConfigDatabase
         _isDirty = true;
     }
 
-    private void TryUpdateConfigs()
+    /// <summary>
+    /// Try to update configs from all file sources if it is dirty.
+    /// </summary>
+    public void TryUpdateConfigs()
     {
         // First check without lock (performance optimization)
         if (!_isDirty)
