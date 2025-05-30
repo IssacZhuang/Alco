@@ -82,8 +82,14 @@ public class Game : GameEngine
         int height = 64;
 
         float aspectRatio = MainView.Width / (float)MainView.Height;
-        _camera = RenderingSystem.CreateCamera2D(new Vector2(_zoom * aspectRatio, _zoom), 5);
-        RenderingSystem.MainCamera = _camera;
+        _camera = new Camera2D()
+        {
+            Size = new Vector2(_zoom * aspectRatio, _zoom),
+            Near = -5,
+            Far = 5
+        };
+       
+       RenderingSystem.MainCamera = _camera;
 
         _blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
@@ -278,7 +284,7 @@ public class Game : GameEngine
         if (Input.IsMousePressing(Mouse.Middle))
         {
             float speed = _zoom / MainView.Height;
-            _camera.Position += new Vector2(-Input.MouseDelta.X * speed, Input.MouseDelta.Y * speed);
+            _camera.Transform.Position += new Vector2(-Input.MouseDelta.X * speed, Input.MouseDelta.Y * speed);
         }
 
         if (Input.IsMouseWheelScrolling(out float wheelDelta))
@@ -287,13 +293,11 @@ public class Game : GameEngine
             _targetZoom = math.clamp(_targetZoom, 2, 20);
         }
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainView.MousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, -100, 100);
+        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainView.MousePosition, MainView.Size, _camera.ViewProjectionMatrix, -100, 100);
 
         _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
-        _camera.Width = _zoom * MainView.AspectRatio;
-        _camera.Height = _zoom;
+        _camera.Size = new Vector2(_zoom * MainView.AspectRatio, _zoom);
 
-        _camera.UpdateMatrixToGPU();
 
         // _lightingManager.SetLightMapDirty();
         // _lightingManager.SetOpacityMapDirty();

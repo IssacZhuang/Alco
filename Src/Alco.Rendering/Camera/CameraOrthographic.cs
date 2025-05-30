@@ -1,85 +1,92 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Alco.Rendering;
 
 /// <summary>
-/// Represents an orthographic camera for 2D rendering with adjustable view dimensions.
+/// Represents a 3D orthographic camera for rendering 3D scenes with orthographic projection.
 /// </summary>
-public class CameraOrthographic : BaseCamera<CameraDataOrthographic>
+public class CameraOrthographic : BaseCameraObject<CameraDataOrthographic>
 {
-    internal CameraOrthographic(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CameraOrthographic"/> class.
+    /// </summary>
+    /// <param name="data">The camera data containing the camera's configuration.</param>
+    public CameraOrthographic() : base(new CameraDataOrthographic())
     {
-        _data.Transform = Transform3D.Identity;
     }
 
     /// <summary>
-    /// Gets or sets the size of the camera's view rectangle.
+    /// Gets a reference to the camera's 3D transformation data.
     /// </summary>
-    /// <value>A Vector2 where X represents width and Y represents height.</value>
-    public Vector2 ViewSize
+    /// <value>A reference to the <see cref="Transform3D"/> that defines the camera's position, rotation, and scale.</value>
+    public ref Transform3D Transform
     {
-        get => new Vector2(_data.Width, _data.Height);
-        set
-        {
-            _data.Width = value.X;
-            _data.Height = value.Y;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => ref Data.Transform;
     }
 
     /// <summary>
-    /// Gets or sets the width of the camera's view rectangle.
+    /// Gets or sets the width of the orthographic view.
     /// </summary>
-    /// <value>The width value of the orthographic camera.</value>
+    /// <value>The width of the orthographic camera's view area in world units.</value>
     public float Width
     {
-        get => _data.Width;
-        set
-        {
-            _data.Width = value;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.Width;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.Width = value;
     }
 
     /// <summary>
-    /// Gets or sets the height of the camera's view rectangle.
+    /// Gets or sets the height of the orthographic view.
     /// </summary>
-    /// <value>The height value of the orthographic camera.</value>
+    /// <value>The height of the orthographic camera's view area in world units.</value>
     public float Height
     {
-        get => _data.Height;
-        set
-        {
-            _data.Height = value;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.Height;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.Height = value;
     }
 
     /// <summary>
-    /// Gets or sets the far clipping plane distance.
+    /// Gets or sets the size of the orthographic view.
     /// </summary>
-    /// <value>The distance to the far clipping plane.</value>
-    public float Far
+    /// <value>A <see cref="Vector2"/> representing the width and height of the orthographic camera's view area.</value>
+    public Vector2 Size
     {
-        get => _data.Far;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => new Vector2(Data.Width, Data.Height);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            _data.Far = value;
-            _dirty = true;
+            Data.Width = value.X;
+            Data.Height = value.Y;
         }
     }
 
     /// <summary>
-    /// Gets or sets the near clipping plane distance.
+    /// Gets or sets the near clipping plane distance for the camera.
     /// </summary>
-    /// <value>The distance to the near clipping plane.</value>
+    /// <value>The distance to the near clipping plane. Objects closer than this distance will not be rendered.</value>
     public float Near
     {
-        get => _data.Near;
-        set
-        {
-            _data.Near = value;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.Near;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.Near = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the far clipping plane distance for the camera.
+    /// </summary>
+    /// <value>The distance to the far clipping plane. Objects farther than this distance will not be rendered.</value>
+    public float Far
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.Far;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.Far = value;
     }
 }

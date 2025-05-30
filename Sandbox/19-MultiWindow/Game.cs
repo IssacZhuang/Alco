@@ -13,8 +13,8 @@ public class Game : GameEngine
     private readonly View _window2;
     private readonly ViewRenderTarget _windowRenderTarget;
 
-    private readonly Camera2D _windowCamera1;
-    private readonly Camera2D _windowCamera2;
+    private readonly Camera2DBuffer _windowCamera1;
+    private readonly Camera2DBuffer _windowCamera2;
 
     private readonly Shader _shader;
     private readonly RenderContext _renderContext;
@@ -114,7 +114,7 @@ public class Game : GameEngine
         _toneMapDataBuffer?.Dispose();
     }
 
-    private void Render(Camera2D camera, ViewRenderTarget renderTarget)
+    private void Render(Camera2DBuffer camera, ViewRenderTarget renderTarget)
     {
         
     }

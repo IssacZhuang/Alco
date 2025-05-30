@@ -8,7 +8,7 @@ namespace Alco.Rendering;
 /// The mathmatical representation of a 2D camera. Can be used in 2D scenes and UI.
 /// It can also consider as a orthographic camera looking along the Z axis.
 /// </summary>
-public struct CameraData2D: ICameraData
+public struct CameraData2D : ICamera
 {
     /// <summary>
     /// The 2D transform data containing position, rotation and scale.

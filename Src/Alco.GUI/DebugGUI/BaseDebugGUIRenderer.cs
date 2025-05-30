@@ -13,8 +13,8 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly CanvasRenderer _canvasRenderer;
-    
-    private readonly Camera2D _camera;
+
+    private readonly Camera2DBuffer _camera;
     private readonly Texture2D _textureWhite;
     private RenderTexture _backBuffer;
     private BoundingBox2D _cameraMask;

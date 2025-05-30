@@ -9,7 +9,7 @@ using Alco.Graphics;
 public class Game : GameEngine
 {
     private int DrawCount = 10000;
-    private Camera2D _camera;
+    private Camera2DBuffer _camera;
     private Material _materialText;
     private Material _materialSprite;
     private Font _font;

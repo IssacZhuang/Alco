@@ -10,7 +10,7 @@ using Alco.GUI;
 public class Game : GameEngine
 {
     //scence
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
 
     private readonly Texture2D _quad;
     private readonly Shader _spriteShader;

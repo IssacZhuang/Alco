@@ -12,7 +12,7 @@ public class Game : GameEngine
 
     private readonly uint2 _size = new uint2(65, 65);
     private readonly RenderContext _materialRenderer;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
 

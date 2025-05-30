@@ -16,7 +16,7 @@ public class TextureGPUSurfaceView : GPUSurfaceView
     private Texture2D? _texture;
     private readonly Material _material;
     private readonly RenderContext _renderContext;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly Mesh _mesh;
 
     public BlendState BlendState

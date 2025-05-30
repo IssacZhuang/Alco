@@ -7,7 +7,7 @@ using Alco.IO;
 public class Game : GameEngine
 {
 
-    private Camera2D _camera;
+    private Camera2DBuffer _camera;
     private Shader _shader;
 
     private Material _material;

@@ -12,7 +12,7 @@ public class Game : GameEngine
 {
 
     private readonly RenderContext _materialRenderer;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     private readonly Material _materialCompressed;
     private readonly Texture2D _texture;

@@ -13,7 +13,7 @@ public class Game : GameEngine
     private static ColorFloat Color = new ColorFloat(1f, 0.5f, 0.5f, 1f);
     private static ColorFloat ColorHit = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
     //scence
-    private readonly CameraPerspective _camera;
+    private readonly CameraPerspectiveBuffer _camera;
 
     private readonly Shader _shader;
     private readonly RenderContext _renderer;

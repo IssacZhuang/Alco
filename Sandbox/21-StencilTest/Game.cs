@@ -19,7 +19,7 @@ public class Game : GameEngine
 
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
-    private readonly CameraPerspective _camera;
+    private readonly CameraPerspectiveBuffer _camera;
     private readonly GraphicsMaterial _materialStencilWrite;
     private readonly GraphicsMaterial _materialStencilTest;
 

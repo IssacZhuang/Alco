@@ -8,7 +8,7 @@ namespace Alco.Rendering
     /// <summary>
     /// The mathmatical representation of a 3D Orthographic camera.
     /// </summary>
-    public struct CameraDataOrthographic : ICameraData
+    public struct CameraDataOrthographic : ICamera
     {
         /// <summary>
         /// Default width value for the orthographic camera.

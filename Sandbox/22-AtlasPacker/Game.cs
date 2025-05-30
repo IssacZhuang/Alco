@@ -11,7 +11,7 @@ public class Game : GameEngine
 {
     private readonly TextureAtlas _atlas;
     private readonly RenderContext _materialRenderer;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     public Game(GameEngineSetting setting) : base(setting)
     {

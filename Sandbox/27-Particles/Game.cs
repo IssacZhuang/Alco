@@ -8,7 +8,7 @@ using Alco.ImGUI;
 
 public class Game : GameEngine
 {
-    private Camera2D _camera;
+    private Camera2DBuffer _camera;
     private Material _materialParticle;
     private ParticleEmitterBox2D _emitter;
     private ParticleSimulatorColorLerp2D _simulator;

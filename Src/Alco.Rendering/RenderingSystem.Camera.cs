@@ -12,9 +12,9 @@ public partial class RenderingSystem
     /// <param name="size">The size of the camera.</param>
     /// <param name="depth">The depth of the camera.</param>
     /// <returns>A new 2D camera.</returns>
-    public Camera2D CreateCamera2D(Vector2 size, float depth, string name = "camera_2d")
+    public Camera2DBuffer CreateCamera2D(Vector2 size, float depth, string name = "camera_2d")
     {
-        return new Camera2D(this, size, -depth, depth, name);
+        return new Camera2DBuffer(this, size, -depth, depth, name);
     }
 
     /// <summary>
@@ -24,9 +24,9 @@ public partial class RenderingSystem
     /// <param name="height">The height of the camera.</param>
     /// <param name="depth">The depth of the camera.</param>
     /// <returns>A new 2D camera.</returns>
-    public Camera2D CreateCamera2D(float width, float height, float depth, string name = "camera_2d")
+    public Camera2DBuffer CreateCamera2D(float width, float height, float depth, string name = "camera_2d")
     {
-        return new Camera2D(this, new Vector2(width, height), -depth, depth, name);
+        return new Camera2DBuffer(this, new Vector2(width, height), -depth, depth, name);
     }
 
     /// <summary>
@@ -38,9 +38,9 @@ public partial class RenderingSystem
     /// <param name="far">The far plane of the camera.</param>
     /// <param name="name">The name of the camera.</param>
     /// <returns></returns>
-    public Camera2D CreateCamera2D(float width, float height, float near, float far, string name = "camera_2d")
+    public Camera2DBuffer CreateCamera2D(float width, float height, float near, float far, string name = "camera_2d")
     {
-        return new Camera2D(this, new Vector2(width, height), near, far, name);
+        return new Camera2DBuffer(this, new Vector2(width, height), near, far, name);
     }
 
 
@@ -52,9 +52,9 @@ public partial class RenderingSystem
     /// <param name="near">The near plane of the camera.</param>
     /// <param name="far">The far plane of the camera.</param>
     /// <returns>A new perspective camera.</returns>
-    public CameraPerspective CreateCameraPerspective(float fov, float aspectRatio, float near, float far, string name = "camera_perspective")
+    public CameraPerspectiveBuffer CreateCameraPerspective(float fov, float aspectRatio, float near, float far, string name = "camera_perspective")
     {
-        return new CameraPerspective(this, name)
+        return new CameraPerspectiveBuffer(this, name)
         {
             FieldOfView = fov,
             AspectRatio = aspectRatio,
@@ -72,9 +72,9 @@ public partial class RenderingSystem
     /// <param name="near">The near plane of the camera.</param>
     /// <param name="far">The far plane of the camera.</param>
     /// <returns>A new orthographic camera.</returns>
-    public CameraOrthographic CreateCameraOrthographic(float width, float height, float near, float far, string name = "camera_orthographic")
+    public CameraOrthographicBuffer CreateCameraOrthographic(float width, float height, float near, float far, string name = "camera_orthographic")
     {
-            return new CameraOrthographic(this, name)
+        return new CameraOrthographicBuffer(this, name)
         {
             ViewSize = new Vector2(width, height),
             Near = near,
@@ -89,9 +89,9 @@ public partial class RenderingSystem
     /// <param name="near">The near plane of the camera.</param>
     /// <param name="far">The far plane of the camera.</param>
     /// <returns>A new orthographic camera.</returns>
-    public CameraOrthographic CreateCameraOrthographic(Vector2 size, float near, float far, string name = "camera_orthographic")
+    public CameraOrthographicBuffer CreateCameraOrthographic(Vector2 size, float near, float far, string name = "camera_orthographic")
     {
-        return new CameraOrthographic(this, name)
+        return new CameraOrthographicBuffer(this, name)
         {
             ViewSize = size,
             Near = near,
