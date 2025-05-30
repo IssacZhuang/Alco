@@ -68,7 +68,7 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     }
 
 
-    public abstract void OnRender(RenderContext renderer);
+    public abstract void OnRender(IRenderContext renderer);
 
     public bool TryGetItemId(int x, int y, out uint itemId)
     {

@@ -85,7 +85,7 @@ public sealed class SurfaceTileBlock2D : BaseTileBlock2D<SurfaceTileData>
 
     }
 
-    public override void OnRender(RenderContext renderer)
+    public override void OnRender(IRenderContext renderer)
     {
         if (_isTileIdDirty)
         {
