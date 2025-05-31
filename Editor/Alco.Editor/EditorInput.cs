@@ -8,7 +8,7 @@ using Avalonia.VisualTree;
 
 namespace Alco.Editor;
 
-public class EditorInputSystem : InputSystem, IDisposable
+public class EditorInput : Input, IDisposable
 {
     private const int MaxKeyCount = 512;
     private const int MaxMouseCount = 16;
@@ -59,7 +59,7 @@ public class EditorInputSystem : InputSystem, IDisposable
 
     public override float MouseWheelDelta => _mouseWheelDelta;
 
-    public EditorInputSystem(Window window)
+    public EditorInput(Window window)
     {
         _window = window;
         _topLevel = window.GetVisualRoot() as TopLevel;

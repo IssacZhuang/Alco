@@ -7,9 +7,9 @@ namespace Alco.Engine;
 
 public class DebugGUIRenderer : BaseDebugGUIRenderer
 {
-    private readonly InputSystem _input;
+    private readonly Input _input;
     private readonly View _window;
-    public DebugGUIRenderer(InputSystem input, View window, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Shader shaderBlit) : base(width, height, renderingSystem, shaderText, shaderSprite, shaderBlit)
+    public DebugGUIRenderer(Input input, View window, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Shader shaderBlit) : base(width, height, renderingSystem, shaderText, shaderSprite, shaderBlit)
     {
         _input = input;
         _window = window;

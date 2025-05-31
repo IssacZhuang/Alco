@@ -33,7 +33,7 @@ IDisposable
 
 
     private readonly Platform _platform;
-    private readonly InputSystem _input;
+    private readonly Input _input;
     private readonly View _mainView;
     private readonly ViewRenderTarget _mainRenderTarget;
 
@@ -128,7 +128,7 @@ IDisposable
     /// <summary>
     /// The input singleton of the game
     /// </summary>
-    public InputSystem Input
+    public Input Input
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input;

@@ -8,7 +8,7 @@ namespace Alco.ImGUI;
 
 public class ImGUIInputHandler: AutoDisposable
 {
-    private readonly InputSystem _inputSystem;
+    private readonly Input _inputSystem;
     private readonly View _view;
 
     /// <summary>
@@ -16,11 +16,11 @@ public class ImGUIInputHandler: AutoDisposable
     /// </summary>
     /// <param name="inputSystem">The input system.</param>
     /// <param name="getMousePosition">The function to get the mouse position. 
-    /// The <see cref="InputSystem.MousePosition"/> is used if the function is not provided.
+    /// The <see cref="Input.MousePosition"/> is used if the function is not provided.
     /// The default mouse position getter might not be correct because it is the position relative to the screen, not the window.
     /// It it better to provide a custom mouse position getter that returns the position relative to the window.
     /// </param>
-    public ImGUIInputHandler(InputSystem inputSystem, View view)
+    public ImGUIInputHandler(Input inputSystem, View view)
     {
         _inputSystem = inputSystem;
         _view = view;

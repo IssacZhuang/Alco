@@ -18,7 +18,7 @@ namespace Alco.Editor.Views;
 
 public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
 {
-    private readonly InputSystem _inputSystem;
+    private readonly Input _inputSystem;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandBuffer;
     private GPUSwapchain? _swapchain;
