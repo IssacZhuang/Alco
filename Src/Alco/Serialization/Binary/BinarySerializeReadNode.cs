@@ -13,7 +13,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         _content = content;
     }
 
-    public override void BindDeep<T>(string key, ref T value)
+    public override void BindDeep<T>(string key, T value)
     {
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
