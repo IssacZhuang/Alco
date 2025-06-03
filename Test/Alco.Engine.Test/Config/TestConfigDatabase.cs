@@ -244,7 +244,8 @@ namespace Alco.Engine.Test
             _errors = new ConcurrentBag<string>();
 
             _configDatabase = new ConfigDatabase(
-                [],
+                null,
+                null,
                 info => _infos.Add(info),
                 warning => _warnings.Add(warning),
                 error => _errors.Add(error)

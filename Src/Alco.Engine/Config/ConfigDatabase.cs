@@ -78,16 +78,23 @@ public class ConfigDatabase
     /// <param name="onWarning">Callback for warning messages</param>
     /// <param name="onError">Callback for error messages</param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
-    public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
+    public ConfigDatabase(ReadOnlySpan<Type> typesNeedDerived, ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
         ArgumentNullException.ThrowIfNull(onInfo);
         ArgumentNullException.ThrowIfNull(onWarning);
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
 
+        List<Type> typesNeedDerivedList = new();
+        for (int i = 0; i < typesNeedDerived.Length; i++)
+        {
+            typesNeedDerivedList.Add(typesNeedDerived[i]);
+        }
+        typesNeedDerivedList.Add(typeof(Configable));
+
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new ConfigJsonTypeResolver(),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver(typesNeedDerivedList.ToArray()),
             WriteIndented = true,
         };
         foreach (var converter in converters)

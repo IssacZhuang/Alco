@@ -319,7 +319,7 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig basic serialization")]
     public void TestConfigConversion()
     {
-        var typeResolver = new ConfigJsonTypeResolver();
+        var typeResolver = new PolymorphicJsonTypeResolver([typeof(Configable)]);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -347,7 +347,7 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig with null value")]
     public void TestConfigNull()
     {
-        var typeResolver = new ConfigJsonTypeResolver();
+        var typeResolver = new PolymorphicJsonTypeResolver([typeof(Configable)]);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver
@@ -364,7 +364,7 @@ public class TestJsonConverters
     [Test(Description = "Test JsonConverterConfig with invalid type")]
     public void TestConfigInvalidType()
     {
-        var typeResolver = new ConfigJsonTypeResolver();
+        var typeResolver = new PolymorphicJsonTypeResolver([typeof(Configable)]);
         var options = new JsonSerializerOptions
         {
             TypeInfoResolver = typeResolver

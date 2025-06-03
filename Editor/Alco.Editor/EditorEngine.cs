@@ -142,7 +142,7 @@ public class EditorEngine : GameEngine, IAlcoProjectContext
     {
         var options = new JsonSerializerOptions()
         {
-            TypeInfoResolver = new ConfigJsonTypeResolver(),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(Configable)]),
             WriteIndented = true,
             Converters = { }
         };
