@@ -45,7 +45,7 @@ public class Game : GameEngine
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
 
         _renderer = RenderingSystem.CreateRenderContext();
-        _materialStencilWrite = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
+        _materialStencilWrite = RenderingSystem.CreateMaterial(_shader, "Unlit");
         _materialStencilWrite.SetBuffer("_camera", _camera);
         _materialStencilWrite.DepthStencilState = new DepthStencilState
         {
@@ -59,7 +59,7 @@ public class Game : GameEngine
 
         _materialStencilWrite.StencilReference = 250;
 
-        _materialStencilTest = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
+        _materialStencilTest = RenderingSystem.CreateMaterial(_shader, "Unlit");
         _materialStencilTest.SetBuffer("_camera", _camera);
         _materialStencilTest.DepthStencilState = new DepthStencilState
         {

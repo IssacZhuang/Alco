@@ -52,7 +52,7 @@ public abstract class BaseDebugGUIRenderer: IDebugGUIRenderer, IDisposable
 
         _backBuffer = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");
 
-        _material = _renderingSystem.CreateGraphicsMaterial(shaderBlit);
+        _material = _renderingSystem.CreateMaterial(shaderBlit);
         _material.SetRenderTexture(ShaderResourceId.Texture, _backBuffer);
         _material.DepthStencilState = DepthStencilState.Default;
         _material.BlendState = BlendState.AlphaBlend;

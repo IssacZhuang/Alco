@@ -28,10 +28,10 @@ public class Game : GameEngine
     {
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
-        _materialText = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
+        _materialText = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Text);
         _materialText.SetBuffer(ShaderResourceId.Camera, _camera);
 
-        _materialSprite = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _materialSprite = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         _materialSprite.BlendState = BlendState.AlphaBlend;
         _materialSprite.SetBuffer(ShaderResourceId.Camera, _camera);
 

@@ -61,9 +61,9 @@ public class Game : GameEngine
 
         UIInputTracker inputTracker = new UIInputTracker(Input, MainView);
 
-        Material defaultSpriteMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        Material defaultSpriteMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         defaultSpriteMaterial.BlendState = BlendState.NonPremultipliedAlpha;
-        Material defaultTextMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
+        Material defaultTextMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Text);
         defaultTextMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
 

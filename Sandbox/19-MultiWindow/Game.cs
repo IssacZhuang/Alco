@@ -50,7 +50,7 @@ public class Game : GameEngine
         _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);
         _windowCamera2 = RenderingSystem.CreateCamera2D(720, 405, 100);
 
-        Material material = RenderingSystem.CreateGraphicsMaterial(_shader);
+        Material material = RenderingSystem.CreateMaterial(_shader);
         material.SetBuffer(ShaderResourceId.Camera, _windowCamera1);
         _renderContext = RenderingSystem.CreateRenderContext("renderer");
         _renderer = RenderingSystem.CreateSpriteRenderer(_renderContext, material);
@@ -60,7 +60,7 @@ public class Game : GameEngine
         _window2.Position = new Vector2(889, 410);
 
         _toneMapData = ReinhardToneMapData.Default;
-        _toneMapMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
+        _toneMapMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
 
         _toneMapDataBuffer = RenderingSystem.CreateGraphicsValueBuffer(_toneMapData, "tonemap_data_buffer");
         _toneMapMaterial.SetBuffer(ShaderResourceId.Data, _toneMapDataBuffer);

@@ -91,7 +91,7 @@ public class Game : GameEngine
        
        RenderingSystem.MainCamera = _camera;
 
-        _blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
 
         _renderer = RenderingSystem.CreateRenderContext();
 
@@ -115,17 +115,17 @@ public class Game : GameEngine
         _waterTileSet = BuildWaterTileSet();
         _plantTileSet = BuildPlantTileSet();
 
-        _surfaceMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileSurface);
+        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileSurface);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
        
         _cliffMaterial = _surfaceMaterial.CreateInstance();
 
-        _waterMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWater);
+        _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWater);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
-        _plantMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TilePlant);
+        _plantMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TilePlant);
         _plantMaterial.BlendState = BlendState.Opaque;
         _plantMaterial.DepthStencilState = DepthStencilState.Write;
 
@@ -148,14 +148,14 @@ public class Game : GameEngine
         _plantBlock.Transform.Position = new Vector3(0, 0, 0);
 
 
-        _brushMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _brushMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         _brushMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
         textureWall.SetSampler(GraphicsDevice.SamplerNearestClamp);
 
-        Material material = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileConnectable);
+        Material material = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileConnectable);
         material.BlendState = BlendState.Opaque;
         material.DepthStencilState = DepthStencilState.Write;
         material.SetTexture(ShaderResourceId.Texture, textureWall);
@@ -182,7 +182,7 @@ public class Game : GameEngine
 
         UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
 
-        _materialLightOverlay = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _blurTexture);
         _materialLightOverlay.BlendState = BlendState.Multiply;
 

@@ -23,7 +23,7 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
 
     {
-        Material blitMaterial = RenderingSystem.CreateGraphicsMaterial(AssetSystem.Load<Shader>("InverserGamma.hlsl"));
+        Material blitMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("InverserGamma.hlsl"));
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _materialRenderer = RenderingSystem.CreateRenderContext();

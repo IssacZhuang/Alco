@@ -427,6 +427,15 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
+    /// Create a new material that uses this shader
+    /// </summary>
+    /// <returns>The new material</returns>
+    public GraphicsMaterial CreateMaterial()
+    {
+        return _renderingSystem.CreateMaterial(this);
+    }
+
+    /// <summary>
     /// Unsafe hot reload the shader. It might break the material that uses this shader.
     /// So make sure the new shader has the same shader resource at the same slot.
     /// </summary>

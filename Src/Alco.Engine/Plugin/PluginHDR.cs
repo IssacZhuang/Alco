@@ -47,7 +47,7 @@ public class PluginHDR : BaseEnginePlugin
     {
         RenderingSystem rendering = engine.RenderingSystem;
         _shader = engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardLuminanceTonemap);
-        _material = rendering.CreateGraphicsMaterial(_shader);
+        _material = rendering.CreateMaterial(_shader);
 
         _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ReinhardToneMapData), "hdr_tonemap_data");
         _dataBuffer.UpdateBuffer(_data);

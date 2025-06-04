@@ -51,7 +51,7 @@ public class TextureGPUSurfaceView : GPUSurfaceView
         _camera = engine.RenderingSystem.CreateCamera2D(width, height, 100);
 
         // Create sprite material
-        _material = engine.RenderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_Sprite);
+        _material = engine.RenderingSystem.CreateMaterial(engine.BuiltInAssets.Shader_Sprite);
         _material.BlendState = BlendState.AlphaBlend;
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 

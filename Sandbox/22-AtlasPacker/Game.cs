@@ -32,7 +32,7 @@ public class Game : GameEngine
             textures.Add(texture);
         }
 
-        Material blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        Material blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         TextureAtlasPacker packer = RenderingSystem.CreateTextureAtlasPacker(blitMaterial);
         for (int i = 0; i < spriteCount; i++)
         {

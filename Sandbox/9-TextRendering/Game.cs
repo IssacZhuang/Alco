@@ -26,7 +26,7 @@ public class Game : GameEngine
 
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
-        _material = RenderingSystem.CreateGraphicsMaterial(_shader);
+        _material = RenderingSystem.CreateMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
         _renderContext = RenderingSystem.CreateRenderContext();
         _textRenderer = RenderingSystem.CreateTextRenderer(_renderContext, _material);

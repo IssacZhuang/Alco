@@ -46,7 +46,7 @@ public class Game : GameEngine
 
         _renderer = RenderingSystem.CreateRenderContext();
 
-        _material = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
+        _material = RenderingSystem.CreateMaterial(_shader, "Unlit");
         _material.SetBuffer("_camera", _camera);
 
         _cube = new Cube(RenderingSystem.MeshCube, _material);
