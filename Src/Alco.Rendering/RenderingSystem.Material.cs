@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 
 public partial class RenderingSystem
 {
-    public GraphicsMaterial CreateMaterial(Shader shader, string name = "unamed")
+    public GraphicsMaterial CreateMaterial(Shader shader, string name = "unamed_material")
     {
         Debug.Assert(shader != null);
         GraphicsMaterial material = new GraphicsMaterial(this, shader, name);
