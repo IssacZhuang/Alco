@@ -74,11 +74,11 @@ public partial class InspectorForConfig : Inspector<Configable>
 
     public IEnumerable<string> Validate(EditorEngine engine)
     {
-        if (_asset is IValidatableConfig validatableConfig)
+        if (_asset is Configable config)
         {
             try
             {
-                return validatableConfig.Validate(engine);
+                return config.Validate();
             }
             catch (Exception e)
             {
