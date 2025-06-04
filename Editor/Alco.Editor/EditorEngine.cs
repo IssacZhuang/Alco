@@ -138,7 +138,7 @@ public class EditorEngine : GameEngine, IAlcoProjectContext
     {
         Dispatcher.UIThread.Invoke(() => action(state));
     }
-    protected virtual JsonSerializerOptions CreateConfigSerializeOption()
+    private JsonSerializerOptions CreateConfigSerializeOption()
     {
         var options = new JsonSerializerOptions()
         {
