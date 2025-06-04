@@ -33,7 +33,7 @@ public sealed class IncludeHelper
             throw new InvalidOperationException($"Include recursion depth exceeds the maximum depth of {MaxRecursionDepth}. It might be looping include in the file.");
         }
 
-        using SpanStringBuilder builder = new SpanStringBuilder();
+        SpanStringBuilder builder = new SpanStringBuilder();
         using StringReader reader = new StringReader(shaderText);
         string? line;
         int lineCount = 0;

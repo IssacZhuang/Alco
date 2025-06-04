@@ -3,140 +3,130 @@ using System.Runtime.CompilerServices;
 
 namespace Alco;
 
-public class SpanStringBuilder : AutoDisposable
+public unsafe class SpanStringBuilder
 {
     public const int MinSize = 16;
-    private NativeArrayList<char> _buffer;
+    private char[] _array;
+    private int _length;
 
-    public ReadOnlySpan<char> Buffer
+    private Span<char> RemainingCurrentChunk
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer.AsReadOnlySpan();
-    }
-
-    public unsafe char* UnsafePointer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer.UnsafePointer;
+        get => new Span<char>(_array, _length, _array.Length - _length);
     }
 
     public int Length
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer.Length;
+        get => _length;
     }
 
     public SpanStringBuilder(int capacity = MinSize)
     {
-        if (capacity < MinSize)
-        {
-            capacity = MinSize;
-        }
+        capacity = Math.Max(capacity, MinSize);
+        _array = new char[capacity];
+        _length = 0;
+    }
 
-        _buffer = new NativeArrayList<char>(capacity);
+    public ReadOnlySpan<char> AsReadOnlySpan()
+    {
+        return new ReadOnlySpan<char>(_array, 0, _length);
     }
 
     public void Clear()
     {
-        _buffer.Clear();
+        _length = 0;
     }
 
-    public void Append(ReadOnlySpan<char> value)
+    private void EnsureCapacity(int required)
     {
-        if (value.Length == 0)
+        if (_array.Length < required)
         {
-            return;
-        }
-
-        for (int i = 0; i < value.Length; i++)
-        {
-            _buffer.Add(value[i]);
+            int newCapacity = _array.Length * 2;
+            Array.Resize(ref _array, Math.Max(newCapacity, required));
         }
     }
 
-    public void Append(char value)
+    public SpanStringBuilder Append(ReadOnlySpan<char> value)
     {
-        _buffer.Add(value);
+        if (value.Length == 0) return this;
+
+        EnsureCapacity(_length + value.Length);
+        value.CopyTo(RemainingCurrentChunk);
+        _length += value.Length;
+        return this;
     }
 
-    public void Append(string value)
+    public SpanStringBuilder Append(char value)
     {
-        if (value == null)
+        EnsureCapacity(_length + 1);
+        fixed (char* ptr = _array)
         {
-            return;
+            ptr[_length++] = value;
         }
-
-        for (int i = 0; i < value.Length; i++)
-        {
-            _buffer.Add(value[i]);
-        }
+        return this;
     }
 
-    public void Append<T>(T value) where T : unmanaged, ISpanFormattable
+    public SpanStringBuilder Append(string? value)
     {
-        Span<char> formatBuffer = stackalloc char[32];
-        value.TryFormat(formatBuffer, out int written, ReadOnlySpan<char>.Empty, null);
-        for (int i = 0; i < written; i++)
-        {
-            _buffer.Add(formatBuffer[i]);
-        }
+        if (value == null) return this;
+        return Append(value.AsSpan());
     }
 
-    public void Append(bool value)
+    public SpanStringBuilder Append<T>(T value) where T : unmanaged, ISpanFormattable
     {
-        if (value)
+        if (value.TryFormat(RemainingCurrentChunk, out int written, default, null))
         {
-            Append("True");
+            _length += written;
+            return this;
         }
-        else
-        {
-            Append("False");
-        }
+        return Append(value.ToString());
+    }
+
+    public SpanStringBuilder Append(bool value)
+    {
+        return Append(value ? "True" : "False");
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void AppendLine()
+    public SpanStringBuilder AppendLine()
     {
-        _buffer.Add('\n');
+        Append("\r\n");
+        return this;
     }
 
-    public void AppendLine(ReadOnlySpan<char> value)
+    public SpanStringBuilder AppendLine(ReadOnlySpan<char> value)
     {
         Append(value);
-        AppendLine();
+        return AppendLine();
     }
 
-    public void AppendLine(char value)
+    public SpanStringBuilder AppendLine(char value)
     {
         Append(value);
-        AppendLine();
+        return AppendLine();
     }
 
-    public void AppendLine(string value)
+    public SpanStringBuilder AppendLine(string value)
     {
         Append(value);
-        AppendLine();
+        return AppendLine();
     }
 
-    public void AppendLine<T>(T value) where T : unmanaged, ISpanFormattable
+    public SpanStringBuilder AppendLine<T>(T value) where T : unmanaged, ISpanFormattable
     {
         Append(value);
-        AppendLine();
+        return AppendLine();
     }
 
-    public void AppendLine(bool value)
+    public SpanStringBuilder AppendLine(bool value)
     {
         Append(value);
-        AppendLine();
+        return AppendLine();
     }
 
     public override string ToString()
     {
-        return new string(_buffer.AsReadOnlySpan());
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        _buffer.Dispose();
+        return new string(_array, 0, _length);
     }
 }
