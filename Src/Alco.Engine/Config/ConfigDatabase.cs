@@ -73,28 +73,29 @@ public class ConfigDatabase
     /// <summary>
     /// Initializes a new instance of the <see cref="ConfigDatabase"/> class.
     /// </summary>
+    /// <param name="polymorphicTypes">Types to support for polymorphic JSON serialization</param>
     /// <param name="converters">Custom JSON converters to use for deserialization</param>
     /// <param name="onInfo">Callback for informational messages</param>
     /// <param name="onWarning">Callback for warning messages</param>
     /// <param name="onError">Callback for error messages</param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
-    public ConfigDatabase(ReadOnlySpan<Type> typesNeedDerived, ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
+    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
         ArgumentNullException.ThrowIfNull(onInfo);
         ArgumentNullException.ThrowIfNull(onWarning);
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
 
-        List<Type> typesNeedDerivedList = new();
-        for (int i = 0; i < typesNeedDerived.Length; i++)
+        List<Type> polymorphicTypeList = new();
+        for (int i = 0; i < polymorphicTypes.Length; i++)
         {
-            typesNeedDerivedList.Add(typesNeedDerived[i]);
+            polymorphicTypeList.Add(polymorphicTypes[i]);
         }
-        typesNeedDerivedList.Add(typeof(Configable));
+        polymorphicTypeList.Add(typeof(Configable));
 
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new PolymorphicJsonTypeResolver(typesNeedDerivedList.ToArray()),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver(polymorphicTypeList.ToArray()),
             WriteIndented = true,
         };
         foreach (var converter in converters)
@@ -237,7 +238,7 @@ public class ConfigDatabase
             _tempConfigs.EnsureSizeWithoutCopy(documents.Length);
             _tempConfigs.Clear();
 
-
+            //serialize
             Parallel.For(0, documents.Length, i =>
             {
                 try
@@ -264,14 +265,28 @@ public class ConfigDatabase
                 }
             }
 
-            // for (int i = 0; i < _configsList.Count; i++)
-            // {
-            //     ResolveReferences(_configsList[i]);
-            // }
+            // resolve references
             Parallel.ForEach(_configsList, config =>
             {
                 ResolveReferences(config);
             });
+
+            //validate
+            Parallel.ForEach(_configsList, config =>
+            {
+                try
+                {
+                    foreach (var error in config.Validate())
+                    {
+                        _onError($"Error validating config {config.Id}: {error}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _onError($"Error validating config {config.Id}: {ex}");
+                }
+            });
+
             _isDirty = false;
         }
     }
