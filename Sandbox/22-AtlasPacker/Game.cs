@@ -11,7 +11,7 @@ public class Game : GameEngine
 {
     private readonly TextureAtlas _atlas;
     private readonly RenderContext _materialRenderer;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -24,7 +24,7 @@ public class Game : GameEngine
             uint width = random.NextUint(1, 128);
             uint height = random.NextUint(1, 128);
             spriteSizes.Add(new int2(width, height));
-            Texture2D texture = Rendering.CreateTexture2D(
+            Texture2D texture = RenderingSystem.CreateTexture2D(
                 width, 
                 height, 
                 new Color32(random.NextByte(), random.NextByte(), random.NextByte(), 255)
@@ -32,16 +32,16 @@ public class Game : GameEngine
             textures.Add(texture);
         }
 
-        Material blitMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
-        TextureAtlasPacker packer = Rendering.CreateTextureAtlasPacker(blitMaterial);
+        Material blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        TextureAtlasPacker packer = RenderingSystem.CreateTextureAtlasPacker(blitMaterial);
         for (int i = 0; i < spriteCount; i++)
         {
             packer.AddTexture($"sprite_{i}", textures[i]);
         }
         _atlas = packer.BuildTextureAtlas();
 
-        _camera = Rendering.CreateCamera2D(MainView.Size, 1000);
-        _materialRenderer = Rendering.CreateRenderContext();
+        _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
+        _materialRenderer = RenderingSystem.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer("_camera", _camera);
         _material.SetRenderTexture("_texture", _atlas.RenderTexture);
@@ -67,7 +67,7 @@ public class Game : GameEngine
 
         //draw atlas texture
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
-        _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _material, constant);
+        _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
 
     }

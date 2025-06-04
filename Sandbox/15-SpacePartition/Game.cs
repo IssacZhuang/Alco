@@ -10,7 +10,7 @@ using Alco.GUI;
 public class Game : GameEngine
 {
     //scence
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
 
     private readonly Shader _shaderSprite;
 
@@ -26,19 +26,19 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _shaderSprite = BuiltInAssets.Shader_Sprite;
-        _texDroplet = Assets.Load<Texture2D>("Droplet.png");
+        _texDroplet = AssetSystem.Load<Texture2D>("Droplet.png");
 
-        _camera = Rendering.CreateCamera2D(960, 540, 100f);
+        _camera = RenderingSystem.CreateCamera2D(960, 540, 100f);
 
         _camera.UpdateMatrixToGPU();
 
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
 
-        _dropletSystem = new DropletSystem(MainRenderTarget, Rendering, _camera, _shaderSprite, _texDroplet);
-        Material cubeMaterial = Rendering.CreateGraphicsMaterial(_shaderSprite, "Sprite");
+        _dropletSystem = new DropletSystem(MainRenderTarget, RenderingSystem, _camera, _shaderSprite, _texDroplet);
+        Material cubeMaterial = RenderingSystem.CreateMaterial(_shaderSprite, "Sprite");
         cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
-        _cubeSystem = new CubeSystem(Rendering, cubeMaterial, Rendering.TextureWhite);
+        _cubeSystem = new CubeSystem(RenderingSystem, cubeMaterial, RenderingSystem.TextureWhite);
     }
 
     protected override void OnTick(float delta)

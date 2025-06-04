@@ -8,12 +8,12 @@ namespace Alco.Rendering;
 /// The instance of a camera data in GPU.
 /// </summary>
 /// <typeparam name="T"> The type of the camera data. </typeparam>
-public abstract class BaseCamera<T> : GraphicsValueBuffer<Matrix4x4> where T : unmanaged, ICameraData
+public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where T : unmanaged, ICamera
 {
     protected T _data;
     protected bool _dirty;
 
-    public BaseCamera(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
+    public BaseCameraBuffer(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
     {
         _dirty = true;
     }

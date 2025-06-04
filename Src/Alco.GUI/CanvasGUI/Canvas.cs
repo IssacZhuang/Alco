@@ -34,7 +34,7 @@ public partial class Canvas : AutoDisposable
 
     // for rendering
 
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private Vector2 _invCameraSize;
     private BoundingBox2D _bound;
 

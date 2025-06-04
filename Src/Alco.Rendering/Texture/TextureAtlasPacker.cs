@@ -15,7 +15,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
     private readonly RectPacker<TextureItem> _packer;
     private readonly PixelFormat _format;
     private readonly Material _blitMaterial;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly GPUCommandBuffer _commandBuffer;
 
     internal TextureAtlasPacker(RenderingSystem rendering,

@@ -50,7 +50,7 @@ public unsafe abstract class View : AutoDisposable
     public abstract int2 Position { get; set; }
 
     /// <summary>
-    /// Gets the mouse position in the view. This is the local position of the mouse. Use <see cref="InputSystem.MousePosition"/> for global position.
+    /// Gets the mouse position in the view. This is the local position of the mouse. Use <see cref="Input.MousePosition"/> for global position.
     /// </summary>
     public abstract Vector2 MousePosition { get; }
 

@@ -73,7 +73,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _view.OnMinimize += OnWindowMinimize;
         _view.OnRestore += OnWindowRestore;
 
-        _rendering = engine.Rendering;
+        _rendering = engine.RenderingSystem;
 
         _width = math.max(1, view.Size.X);
         _height = math.max(1, view.Size.Y);
@@ -85,7 +85,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
 
         _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);
 
-        _blitMaterial = _rendering.CreateGraphicsMaterial(blitShader);
+        _blitMaterial = _rendering.CreateMaterial(blitShader);
         _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
 
         _viewSwapchain = view.Swapchain;

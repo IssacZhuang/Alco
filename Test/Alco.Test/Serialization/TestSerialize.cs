@@ -107,8 +107,8 @@ public class TestSerialize
 
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
-            node.BindDeep("obj", ref child);
-            node.BindDeep("struct", ref structChild);
+            node.BindDeep("obj", child);
+            node.BindDeep("struct", structChild);
 
         }
     }

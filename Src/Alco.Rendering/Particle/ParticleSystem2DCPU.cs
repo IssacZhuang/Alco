@@ -321,7 +321,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     /// Render the particle system.
     /// </summary>
     /// <param name="context">The render context.</param>
-    public unsafe void Render(RenderContext context)
+    public unsafe void Render(IRenderContext context)
     {
         if (!IsPlaying)
         {

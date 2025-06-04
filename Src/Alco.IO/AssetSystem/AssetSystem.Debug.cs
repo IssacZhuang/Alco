@@ -4,7 +4,7 @@ namespace Alco.IO;
 
 public sealed partial class AssetSystem
 {
-    private class AssetProfiler : Profiler, IDisposable
+    private class AssetProfiler : Profiler
     {
         public struct Scope : IDisposable
         {
@@ -37,7 +37,7 @@ public sealed partial class AssetSystem
             _builder.Append("(");
             _builder.Append(typeName);
             _builder.Append(")");
-            Start(new string(_builder.Buffer));
+            Start(new string(_builder.AsReadOnlySpan()));
         }
 
         public void EndProfile(bool print = true)
@@ -50,8 +50,7 @@ public sealed partial class AssetSystem
                 _builder.Append(" ");
                 _builder.Append(result.Miliseconds);
                 _builder.Append("ms");
-            
-                Log.Print(_builder.Buffer, ConsoleColor.Green);
+                Log.Success(_builder.AsReadOnlySpan());
             }
 
         }
@@ -60,11 +59,6 @@ public sealed partial class AssetSystem
         {
             StartProfile(assetName, typeName);
             return new Scope(this);
-        }
-
-        public void Dispose()
-        {
-            _builder.Dispose();
         }
     }
 

@@ -13,6 +13,7 @@ public struct SurfaceTileData : ITileData
         UVRect = new Rect(0, 0, 1, 1);
         MeshScale = Vector2.One;
         UVScale = Vector2.One;
+        Color = Vector4.One;
         HeightOffsetFactor = Vector2.UnitY;
         BlendPriority = 0;
         BlendFactor = 0.35f;

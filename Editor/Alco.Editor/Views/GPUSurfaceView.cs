@@ -18,7 +18,7 @@ namespace Alco.Editor.Views;
 
 public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
 {
-    private readonly InputSystem _inputSystem;
+    private readonly Input _inputSystem;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandBuffer;
     private GPUSwapchain? _swapchain;
@@ -53,7 +53,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
     {
         GameEngine engine = App.Main.Engine;
         _inputSystem = engine.Input;
-        _device = engine.Rendering.GraphicsDevice;
+        _device = engine.RenderingSystem.GraphicsDevice;
         _commandBuffer = _device.CreateCommandBuffer( "GPUSurfaceView_CommandBuffer");
         
     }

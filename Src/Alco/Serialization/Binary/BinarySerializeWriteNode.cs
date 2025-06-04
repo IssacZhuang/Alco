@@ -9,7 +9,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
 
-    public override void BindDeep<T>(string key, ref T value) 
+    public override void BindDeep<T>(string key, T value) 
     {
         BinarySerializeWriteNode node = new BinarySerializeWriteNode();
         value.OnSerialize(node, SerializeMode.Save);

@@ -12,7 +12,7 @@ public class Game : GameEngine
 
     private readonly uint2 _size = new uint2(65, 65);
     private readonly RenderContext _materialRenderer;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
 
@@ -23,17 +23,17 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
 
     {
-        Material blitMaterial = Rendering.CreateGraphicsMaterial(Assets.Load<Shader>("InverserGamma.hlsl"));
+        Material blitMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("InverserGamma.hlsl"));
 
-        _camera = Rendering.CreateCamera2D(MainView.Size, 1000);
-        _materialRenderer = Rendering.CreateRenderContext();
+        _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
+        _materialRenderer = RenderingSystem.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 
 
-        ComputeMaterial computeMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_FloodFillLighting);
+        ComputeMaterial computeMaterial = RenderingSystem.CreateComputeMaterial(BuiltInAssets.Shader_FloodFillLighting);
 
-        _tileLightMap = Rendering.CreateTileLightMap(computeMaterial, (int)_size.X, (int)_size.Y, "tile_light_map");
+        _tileLightMap = RenderingSystem.CreateTileLightMap(computeMaterial, (int)_size.X, (int)_size.Y, "tile_light_map");
 
 
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.Texture);
@@ -45,8 +45,8 @@ public class Game : GameEngine
         {
             yield return fileSource;
         }
-        yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), Assets);
-        yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), Assets);
+        yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), AssetSystem);
+        yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
     protected override void OnUpdate(float delta)
@@ -101,7 +101,7 @@ public class Game : GameEngine
 
         //draw atlas texture
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
-        _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _material, constant);
+        _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
     }
 

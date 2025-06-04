@@ -4,8 +4,8 @@ namespace Alco.Engine;
 
 public class ConsolePlatform : Platform
 {
-    private readonly NoInputSystem _input = new NoInputSystem();
-    public override InputSystem Input => _input;
+    private readonly NoInput _input = new NoInput();
+    public override Input Input => _input;
     private EngineTimer _timer;
     private bool _isStopped = false;
 

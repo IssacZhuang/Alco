@@ -23,7 +23,7 @@ public class BloomSystem : BaseEngineSystem
     {
         _renderTarget = renderTarget;
 
-        RenderingSystem rendering = engine.Rendering;
+        RenderingSystem rendering = engine.RenderingSystem;
         BuiltInAssets builtInAssets = engine.BuiltInAssets;
 
         _engine = engine;

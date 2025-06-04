@@ -36,6 +36,7 @@ public static class UtilsJson
     /// </summary>
     /// <param name="parent">The parent JSON document to merge content into.</param>
     /// <param name="target">The target JSON document whose content will be merged into the parent.</param>
+    /// <param name="ignoreProperties">A span of property names to ignore during merging.</param>
     /// <returns>A JSON string representing the merged result.</returns>
     /// <exception cref="InvalidOperationException">
     /// Thrown when either document is not a container type (object or array) or when container types don't match.
@@ -82,9 +83,10 @@ public static class UtilsJson
     /// // Result: ["x", "y"]
     /// </code>
     /// </example>
-    public static string Merge(JsonDocument parent, JsonDocument target)
+    public static string Merge(JsonDocument parent, JsonDocument target, HashSet<string>? ignoreProperties = null)
     {
         var outputBuffer = new ArrayBufferWriter<byte>();
+
 
         using (var jsonWriter = new Utf8JsonWriter(outputBuffer, new JsonWriterOptions { Indented = true }))
         {
@@ -107,7 +109,7 @@ public static class UtilsJson
             }
             else
             {
-                MergeObjects(jsonWriter, rootParent, rootTarget);
+                MergeObjects(jsonWriter, rootParent, rootTarget, ignoreProperties);
             }
         }
 
@@ -125,21 +127,22 @@ public static class UtilsJson
         return JsonDocument.Parse(Merge(target, parent));
     }
 
-    private static void MergeObjects(Utf8JsonWriter jsonWriter, JsonElement parent, JsonElement target)
+    private static void MergeObjects(
+        Utf8JsonWriter jsonWriter,
+        JsonElement parent,
+        JsonElement target,
+        HashSet<string>? ignoreProperties)
     {
-        // Debug.Assert(root1.ValueKind == JsonValueKind.Object);
-        // Debug.Assert(root2.ValueKind == JsonValueKind.Object);
-
         jsonWriter.WriteStartObject();
 
         // Check if target has $inherit property set to false
         if (target.TryGetProperty(Keyword_Inherit, out JsonElement inheritValue) &&
-
             inheritValue.ValueKind == JsonValueKind.False)
         {
             // If $inherit is false, write all properties from target except $inherit itself
             foreach (JsonProperty property in target.EnumerateObject())
             {
+                if (ignoreProperties != null && ignoreProperties.Contains(property.Name)) continue;
                 if (property.Name != Keyword_Inherit)
                 {
                     property.WriteTo(jsonWriter);
@@ -157,6 +160,7 @@ public static class UtilsJson
         // * Or favor the value of the first (regardless of what it may be), if the second one is null (i.e. don't override the first).
         foreach (JsonProperty property in parent.EnumerateObject())
         {
+            if (ignoreProperties != null && ignoreProperties.Contains(property.Name)) continue;
             string propertyName = property.Name;
 
             JsonValueKind newValueKind;
@@ -170,7 +174,7 @@ public static class UtilsJson
 
                 if (newValueKind == JsonValueKind.Object && originalValueKind == JsonValueKind.Object)
                 {
-                    MergeObjects(jsonWriter, originalValue, newValue); // Recursive call
+                    MergeObjects(jsonWriter, originalValue, newValue, ignoreProperties); // Recursive call
                 }
                 else if (newValueKind == JsonValueKind.Array && originalValueKind == JsonValueKind.Array)
                 {
@@ -190,6 +194,7 @@ public static class UtilsJson
         // Write all the properties of the second document that are unique to it.
         foreach (JsonProperty property in target.EnumerateObject())
         {
+            if (ignoreProperties != null && ignoreProperties.Contains(property.Name)) continue;
             if (!parent.TryGetProperty(property.Name, out _))
             {
                 // Skip the $inherit property when writing unique properties

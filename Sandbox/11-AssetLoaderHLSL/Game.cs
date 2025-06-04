@@ -57,16 +57,16 @@ public class Game : GameEngine
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
-        _shader = Assets.Load<Shader>("Shader.hlsl");
+        _shader = AssetSystem.Load<Shader>("Shader.hlsl");
         _pipelineInfo = _shader.GetGraphicsPipeline(
-            Rendering.PrefferedSDRPass,
+            RenderingSystem.PrefferedSDRPass,
             DepthStencilState.Default,
             BlendState.Additive
             );
 
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
-        _textureEmpty = Rendering.CreateTexture2D(16, 16, 0xffffffff);
+        _textureEmpty = RenderingSystem.CreateTexture2D(16, 16, 0xffffffff);
         _selected = _textureEmpty;
     }
 
@@ -100,7 +100,7 @@ public class Game : GameEngine
 
     private async void LoadTexture()
     {
-        Texture2D texture = await Assets.LoadAsync<Texture2D>("test.png");
+        Texture2D texture = await AssetSystem.LoadAsync<Texture2D>("test.png");
         _selected = texture;
     }
 

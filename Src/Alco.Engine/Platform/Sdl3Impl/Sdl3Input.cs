@@ -5,7 +5,7 @@ using static SDL3.SDL3;
 
 namespace Alco.Engine;
 
-public unsafe class Sdl3InputSystem : InputSystem
+public unsafe class Sdl3Input : Input
 {
     private const int MaxKeyCount = 512;
     private const int MaxMouseCount = 16;
@@ -52,7 +52,7 @@ public unsafe class Sdl3InputSystem : InputSystem
 
     public override float MouseWheelDelta => _mouseWheelDelta;
 
-    public Sdl3InputSystem()
+    public Sdl3Input()
     {
         
     }

@@ -5,21 +5,34 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Collections.Frozen;
 
 namespace Alco.Engine;
 
-public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
+public class PolymorphicJsonTypeResolver : DefaultJsonTypeInfoResolver
 {
+    private readonly FrozenSet<Type> _typeNeedDerived;
 
-    public ConfigJsonTypeResolver()
+    public PolymorphicJsonTypeResolver()
     {
+        HashSet<Type> typeNeedDerived = new();
+        _typeNeedDerived = typeNeedDerived.ToFrozenSet();
+    }
 
+    public PolymorphicJsonTypeResolver(ReadOnlySpan<Type> typesNeedDerived)
+    {
+        HashSet<Type> typeNeedDerived = new();
+        for (int i = 0; i < typesNeedDerived.Length; i++)
+        {
+            typeNeedDerived.Add(typesNeedDerived[i]);
+        }
+        _typeNeedDerived = typeNeedDerived.ToFrozenSet();
     }
 
     public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)
     {
         var typeInfo = base.GetTypeInfo(type, options);
-        if (typeInfo.Type.IsAssignableTo(typeof(Configable)))
+        if (_typeNeedDerived.Contains(type))
         {
             SetAllDerivedType(typeInfo);
         }
@@ -59,13 +72,5 @@ public class ConfigJsonTypeResolver : DefaultJsonTypeInfoResolver
         {
             typeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(derivedType, derivedType.FullName ?? derivedType.Name));
         }
-    }
-
-    private static Configable CreateConfigPlaceholder(string id, Type type)
-    {
-        Configable? config = Activator.CreateInstance(type) as Configable
-        ?? throw new Exception($"Failed to create config placeholder for type {type.Name}");
-        config.Id = id;
-        return config;
     }
 }

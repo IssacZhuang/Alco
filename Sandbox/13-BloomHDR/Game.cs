@@ -10,7 +10,7 @@ using Alco.GUI;
 public class Game : GameEngine
 {
     //scence
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
 
     private readonly Texture2D _quad;
     private readonly Shader _spriteShader;
@@ -26,14 +26,14 @@ public class Game : GameEngine
         //scence
         _spriteShader = BuiltInAssets.Shader_Sprite;
        
-        _quad = Rendering.CreateTexture2D(4,4, 0xffffff);
+        _quad = RenderingSystem.CreateTexture2D(4,4, 0xffffff);
 
-        _camera = Rendering.CreateCamera2D(640, 360, 100);
+        _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
-        Material material = Rendering.CreateGraphicsMaterial(_spriteShader);
+        Material material = RenderingSystem.CreateMaterial(_spriteShader);
         material.SetBuffer(ShaderResourceId.Camera, _camera);
-        _renderContext = Rendering.CreateRenderContext("renderer");
-        _renderer = Rendering.CreateSpriteRenderer(_renderContext, material);
+        _renderContext = RenderingSystem.CreateRenderContext("renderer");
+        _renderer = RenderingSystem.CreateSpriteRenderer(_renderContext, material);
     }
 
     protected override void OnUpdate(float delta)

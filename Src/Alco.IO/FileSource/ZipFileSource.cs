@@ -14,42 +14,57 @@ namespace Alco.IO;
 /// </summary>
 public class ZipFileSource : AutoDisposable, IFileSource
 {
-    private readonly string _zipFilePath;
     private readonly ConcurrentDictionary<string, ZipArchiveEntry> _entries = new ConcurrentDictionary<string, ZipArchiveEntry>();
-    private ZipArchive? _zipArchive;
+    private readonly ZipArchive _zipArchive;
+
+    public string Name { get; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ZipFileSource"/> class.
+    /// Load zip with file
     /// </summary>
     /// <param name="zipFilePath">The path to the ZIP file.</param>
     public ZipFileSource(string zipFilePath)
     {
-        _zipFilePath = zipFilePath;
-        LoadZipEntries();
+        Name = zipFilePath;
+
+        try
+        {
+            _zipArchive = ZipFile.OpenRead(zipFilePath);
+            LoadZipEntries();
+        }
+        catch (Exception ex)
+        {
+            throw new IOException($"Failed to open ZIP file: {zipFilePath}", ex);
+        }
+    }
+
+    public ZipFileSource(Stream stream, string name = "unnamed_zip_stream")
+    {
+        Name = name;
+        try
+        {
+            _zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
+            LoadZipEntries();
+        }
+        catch (Exception ex)
+        {
+            throw new IOException($"Failed to open ZIP stream: {name}", ex);
+        }
     }
 
     private void LoadZipEntries()
     {
-        try
+        foreach (var entry in _zipArchive.Entries)
         {
-            _zipArchive = ZipFile.OpenRead(_zipFilePath);
+            // Normalize path separators to forward slashes
+            string normalizedPath = entry.FullName.Replace('\\', '/');
 
-            foreach (var entry in _zipArchive.Entries)
+            // Skip directory entries
+            if (!string.IsNullOrEmpty(normalizedPath) && !normalizedPath.EndsWith('/'))
             {
-                // Normalize path separators to forward slashes
-                string normalizedPath = entry.FullName.Replace('\\', '/');
-
-                // Skip directory entries
-                if (!string.IsNullOrEmpty(normalizedPath) && !normalizedPath.EndsWith("/"))
-                {
-                    _entries[normalizedPath] = entry;
-                }
+                _entries[normalizedPath] = entry;
             }
-        }
-        catch (Exception ex)
-        {
-            throw new IOException($"Failed to open ZIP file: {_zipFilePath}", ex);
-        }
+        };
     }
 
     /// <summary>
@@ -61,11 +76,6 @@ public class ZipFileSource : AutoDisposable, IFileSource
     /// Gets all file names in this file source.
     /// </summary>
     public IEnumerable<string> AllFileNames => _entries.Keys;
-
-    /// <summary>
-    /// Gets a value indicating whether this file source is writeable.
-    /// </summary>
-    public bool IsWriteable => false;
 
     /// <summary>
     /// Tries to get data from this file source.
@@ -108,19 +118,6 @@ public class ZipFileSource : AutoDisposable, IFileSource
             failureReason = ex.ToString();
             return false;
         }
-    }
-
-    /// <summary>
-    /// Tries to write data to this file source.
-    /// </summary>
-    /// <param name="path">The path of the file.</param>
-    /// <param name="data">The data of the file.</param>
-    /// <param name="failureReason">The failure reason.</param>
-    /// <returns>True if the data is successfully written, false otherwise.</returns>
-    public bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string? failureReason)
-    {
-        failureReason = "ZIP archives are read-only in this implementation";
-        return false;
     }
 
     /// <summary>

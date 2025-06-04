@@ -14,13 +14,13 @@ public class TestJsonPreprocessor
 {
     private class TestFileSource : IFileSource
     {
+        public string Name => "Test File Source";
+
         private readonly Dictionary<string, byte[]> _files = new();
 
         public int Priority => 0;
 
         public IEnumerable<string> AllFileNames => _files.Keys;
-
-        public bool IsWriteable => false;
 
         public void AddFile(string filename, string content)
         {
@@ -38,12 +38,6 @@ public class TestJsonPreprocessor
 
             data = SafeMemoryHandle.Empty;
             failureReason = $"File not found: {path}";
-            return false;
-        }
-
-        public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
-        {
-            failureReason = "Not supported";
             return false;
         }
 
@@ -422,5 +416,42 @@ public class TestJsonPreprocessor
         var abilities = rootElement.GetProperty("abilities").EnumerateArray().Select(e => e.GetString()).ToArray();
         var expectedAbilities = new[] { "move", "attack", "block", "charge", "heal", "bless" };
         Assert.That(abilities, Is.EqualTo(expectedAbilities), "Should have all abilities in correct order");
+    }
+
+    [Test]
+    public void TestSpecialPropertiesFiltering()
+    {
+        // Arrange
+        var preprocessor = CreatePreprocessor(out var infos, out var warnings, out var errors);
+        var fileSource = new TestFileSource();
+
+        fileSource.AddFile("abstract.json", @"{
+            ""$abstract"": true,
+            ""Id"": ""abstractParent"",
+            ""baseValue"": 100
+        }");
+
+        fileSource.AddFile("child.json", @"{
+            ""Id"": ""child"",
+            ""$parent"": ""abstractParent"",
+            ""childValue"": 200
+        }");
+
+        preprocessor.AddFileSource(fileSource);
+
+        // Act
+        preprocessor.Preprocess();
+
+        // Assert
+        Assert.That(errors, Is.Empty, "Should have no errors");
+
+        // Verify child document
+        Assert.That(preprocessor.TryGetJsonDocument("child", out var childDoc), Is.True);
+        var childRoot = childDoc.RootElement;
+        Assert.That(childRoot.TryGetProperty("$abstract", out _), Is.False, "Should remove $abstract");
+        Assert.That(childRoot.TryGetProperty("$parent", out _), Is.False, "Should remove $parent");
+
+        // Verify non-abstract parent document (if exists)
+        Assert.That(preprocessor.TryGetJsonDocument("abstractParent", out _), Is.False, "Abstract document should not be in final items");
     }
 }

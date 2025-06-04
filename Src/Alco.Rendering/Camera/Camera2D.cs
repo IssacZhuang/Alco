@@ -1,95 +1,64 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Alco.Rendering;
 
 /// <summary>
-/// Represents a 2D camera for rendering.
+/// Represents a 2D camera for rendering 2D scenes with orthographic projection.
 /// </summary>
-public class Camera2D : BaseCamera<CameraData2D>
+public class Camera2D : BaseCameraObject<CameraData2D>
 {
-    internal Camera2D(RenderingSystem renderingSystem, Vector2 size, float near, float far, string name) : base(renderingSystem, name)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Camera2D"/> class.
+    /// </summary>
+    /// <param name="data">The camera data containing the camera's configuration.</param>
+    public Camera2D() : base(new CameraData2D())
     {
-        _data = new CameraData2D();
-        ViewSize = size;
-        Near = near;
-        Far = far;
     }
 
     /// <summary>
-    /// Gets or sets the position of the camera.
+    /// Gets a reference to the camera's 2D transformation data.
     /// </summary>
-    public Vector2 Position
+    /// <value>A reference to the <see cref="Transform2D"/> that defines the camera's position, rotation, and scale.</value>
+    public ref Transform2D Transform
     {
-        get => _data.Transform.Position;
-        set
-        {
-            _data.Transform.Position = value;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => ref Data.Transform;
     }
 
     /// <summary>
-    /// Gets or sets the view size of the camera.
+    /// Gets or sets the size of the camera's viewport in world units.
     /// </summary>
-    public Vector2 ViewSize
+    /// <value>A <see cref="Vector2"/> representing the width and height of the camera's viewport.</value>
+    public Vector2 Size
     {
-        get => _data.Size;
-        set
-        {
-            _data.Size = value;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.Size;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.Size = value;
     }
 
     /// <summary>
-    /// Gets or sets the width of the camera view.
+    /// Gets or sets the near clipping plane distance for the camera.
     /// </summary>
-    public float Width
-    {
-        get => _data.Size.X;
-        set
-        {
-            _data.Size = new Vector2(value, _data.Size.Y);
-            _dirty = true;
-        }
-    }
-
-    /// <summary>
-    /// Gets or sets the height of the camera view.
-    /// </summary>
-    public float Height
-    {
-        get => _data.Size.Y;
-        set
-        {
-            _data.Size = new Vector2(_data.Size.X, value);
-            _dirty = true;
-        }
-    }
-
-    /// <summary>
-    /// Gets or sets the near clipping plane distance.
-    /// </summary>
+    /// <value>The distance to the near clipping plane. Objects closer than this distance will not be rendered.</value>
     public float Near
     {
-        get => _data.Near;
-        set
-        {
-            _data.Near = value;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.Near;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.Near = value;
     }
 
     /// <summary>
-    /// Gets or sets the far clipping plane distance.
+    /// Gets or sets the far clipping plane distance for the camera.
     /// </summary>
+    /// <value>The distance to the far clipping plane. Objects farther than this distance will not be rendered.</value>
     public float Far
     {
-        get => _data.Far;
-        set
-        {
-            _data.Far = value;
-            _dirty = true;
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.Far;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.Far = value;
     }
 }

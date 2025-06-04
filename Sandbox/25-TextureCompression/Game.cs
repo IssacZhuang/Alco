@@ -12,7 +12,7 @@ public class Game : GameEngine
 {
 
     private readonly RenderContext _materialRenderer;
-    private readonly Camera2D _camera;
+    private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     private readonly Material _materialCompressed;
     private readonly Texture2D _texture;
@@ -22,19 +22,19 @@ public class Game : GameEngine
     private bool _isShowCompressed = false;
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _texture = Assets.Load<Texture2D>("test.jpg");
+        _texture = AssetSystem.Load<Texture2D>("test.jpg");
 
-        _camera = Rendering.CreateCamera2D(MainView.Size, 1000);
-        _materialRenderer = Rendering.CreateRenderContext();
-        _material = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
+        _materialRenderer = RenderingSystem.CreateRenderContext();
+        _material = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         _material.DepthStencilState = DepthStencilState.Default;
         _material.BlendState = BlendState.AlphaBlend;
         
         
        
-        _compressMaterial = Rendering.CreateComputeMaterial(BuiltInAssets.Shader_TextureCompressBC3);
+        _compressMaterial = RenderingSystem.CreateComputeMaterial(BuiltInAssets.Shader_TextureCompressBC3);
         //_compressMaterial.SetDefines("IS_SRGB");
-        _compressor = Rendering.CreateTextureCompressorBC3(_compressMaterial);
+        _compressor = RenderingSystem.CreateTextureCompressorBC3(_compressMaterial);
         _compressor.IsSRGB = false;
         _compressedTexture = _compressor.Compress(_texture);
 
@@ -73,11 +73,11 @@ public class Game : GameEngine
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
         if (_isShowCompressed)
         {
-            _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _materialCompressed, constant);
+            _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);
         }
         else
         {
-            _materialRenderer.DrawWithConstant(Rendering.MeshCenteredSprite, _material, constant);
+            _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
         }
         _materialRenderer.End();
 

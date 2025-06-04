@@ -28,6 +28,7 @@ public partial class RenderingSystem
     private readonly PixelFormat _prefferedDepthStencilFormat;
 
     private readonly GraphicsValueBuffer<GlobalRenderData> _globalRenderData;
+    private readonly GraphicsValueBuffer<Matrix4x4> _viewProjectionMatrix;
 
     private readonly ConcurrentGraphicsBufferPool _bufferPool;
 
@@ -109,9 +110,9 @@ public partial class RenderingSystem
         get => _bufferPool;
     }
 
-    public GraphicsBuffer? MainCamera { get; set; }
-
     public IShaderCache? ShaderCache { get; }
+
+    public ICamera? MainCamera { get; set; }
 
     public RenderingSystem(
         IRenderingSystemHost host,
@@ -130,6 +131,7 @@ public partial class RenderingSystem
         _prefferedDepthStencilFormat = prefferedDepthStencilFormat;
 
         _globalRenderData = CreateGraphicsValueBuffer<GlobalRenderData>();
+        _viewProjectionMatrix = CreateGraphicsValueBuffer<Matrix4x4>();
 
         //2kb, 4kb, 8kb, 16kb, 32kb, 64kb, 128kb, 256kb, 512kb
         _bufferPool = new ConcurrentGraphicsBufferPool(
@@ -207,7 +209,6 @@ public partial class RenderingSystem
         _device.Submit(commandBuffer);
     }
 
-
     private void OnUpdate(float deltaTime)
     {
         GlobalRenderData globleRenderData = _globalRenderData.Value;
@@ -217,6 +218,12 @@ public partial class RenderingSystem
         globleRenderData.CosTime = math.cos(globleRenderData.Time);
         _globalRenderData.Value = globleRenderData;
         _globalRenderData.UpdateBuffer();
+
+        if (MainCamera != null)
+        {
+            _viewProjectionMatrix.Value = MainCamera.ViewProjectionMatrix;
+            _viewProjectionMatrix.UpdateBuffer();
+        }
     }
 
     private void OnDispose()

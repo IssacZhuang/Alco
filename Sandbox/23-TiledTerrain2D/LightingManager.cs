@@ -34,7 +34,7 @@ public class LightingManager
 
     public LightingManager(GameEngine engine, TileMapHeightBuffer heightBuffer, int width, int height)
     {
-        RenderingSystem rendering = engine.Rendering;
+        RenderingSystem rendering = engine.RenderingSystem;
         BuiltInAssets builtInAssets = engine.BuiltInAssets;
         ComputeMaterial computeMaterial = rendering.CreateComputeMaterial(builtInAssets.Shader_TileLighting);
         computeMaterial.SetBuffer(ShaderResourceId.HeightData, heightBuffer);

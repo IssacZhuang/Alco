@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// The mathmatical representation of a 3D perspective camera.
 /// </summary>
-public struct CameraDataPerspective : ICameraData
+public struct CameraDataPerspective : ICamera
 {
     public const float DefaultFov = 0.83f;
     public const float DefaultNear = 0.1f;

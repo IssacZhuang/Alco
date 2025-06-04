@@ -10,9 +10,9 @@ public class TestMaterial
     public void TestMaterialInheritance()
     {
         GameEngine engine = new GameEngine(GameEngineSetting.CreateNoGPU());
-        RenderingSystem renderingSystem = engine.Rendering;
+        RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");
         GraphicsBuffer camera = renderingSystem.CreateCamera2D(1280, 720, 1000);
 
         material.SetBuffer(0, camera);

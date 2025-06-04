@@ -63,11 +63,11 @@ public class Game : GameEngine
         _pipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, GraphicsDevice.BindGroupTexture2DSampled);
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
-        _textureEmpty = Rendering.CreateTexture2D(16, 16, 0xffffffff);
+        _textureEmpty = RenderingSystem.CreateTexture2D(16, 16, 0xffffffff);
         _selected = _textureEmpty;
 
-        //DirectoryFileSource fileSource = new DirectoryFileSource("Assets");
-        //Assets.AddFileSource(fileSource);
+        //DirectoryFileSource fileSource = new DirectoryFileSource("AssetSystem");
+        //AssetSystem.AddFileSource(fileSource);
     }
 
     protected override void OnUpdate(float delta)
@@ -79,7 +79,7 @@ public class Game : GameEngine
 
         if (Input.IsKeyDown(KeyCode.Space))
         {
-            // Assets.LoadAsync<Texture2D>("test.png", (texture, exception) =>
+            // AssetSystem.LoadAsync<Texture2D>("test.png", (texture, exception) =>
             // {
             //     _selected = texture;
             // });
@@ -103,7 +103,7 @@ public class Game : GameEngine
 
     private async void LoadTexture()
     {
-        Texture2D texture = await Assets.LoadAsync<Texture2D>("test.png");
+        Texture2D texture = await AssetSystem.LoadAsync<Texture2D>("test.png");
         _selected = texture;
     }
 

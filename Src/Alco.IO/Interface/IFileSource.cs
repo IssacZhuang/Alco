@@ -14,6 +14,12 @@ namespace Alco.IO;
 public interface IFileSource
 {
     /// <summary>
+    /// The name of this file source
+    /// </summary>
+    /// <value>The name of this file source</value>
+    string Name { get; }
+
+    /// <summary>
     /// The priority of this file source, the higher priority will be override the lower priority
     /// </summary>
     int Priority { get; }
@@ -21,8 +27,6 @@ public interface IFileSource
     /// All file names in this file source
     /// </summary>
     IEnumerable<string> AllFileNames { get; }
-
-    bool IsWriteable { get; }
 
     /// <summary>
     /// Try get data from this file source
@@ -32,16 +36,6 @@ public interface IFileSource
     /// <param name="failureReason">The failure reason</param>
     /// <returns>True if the data is successfully retrieved, false otherwise</returns>
     bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason);
-
-
-    /// <summary>
-    /// Try write data to this file source, only available when <see cref="IsWriteable"/> is true
-    /// </summary>
-    /// <param name="path">The path of the file</param>
-    /// <param name="data">The data of the file</param>
-    /// <param name="failureReason">The failure reason</param>
-    /// <returns>True if the data is successfully written, false otherwise</returns>
-    bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string? failureReason);
 
 }
 

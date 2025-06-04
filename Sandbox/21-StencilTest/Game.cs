@@ -19,7 +19,7 @@ public class Game : GameEngine
 
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
-    private readonly CameraPerspective _camera;
+    private readonly CameraPerspectiveBuffer _camera;
     private readonly GraphicsMaterial _materialStencilWrite;
     private readonly GraphicsMaterial _materialStencilTest;
 
@@ -34,18 +34,18 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _shader = Assets.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
         // _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
         // _camaraChild.position.Z = -10;
         // _camera.tranform = math.transform(_camaraParent, _camaraChild);
 
-        _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
+        _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
         _camaraChild.Position.X = -10;
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
 
-        _renderer = Rendering.CreateRenderContext();
-        _materialStencilWrite = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
+        _renderer = RenderingSystem.CreateRenderContext();
+        _materialStencilWrite = RenderingSystem.CreateMaterial(_shader, "Unlit");
         _materialStencilWrite.SetBuffer("_camera", _camera);
         _materialStencilWrite.DepthStencilState = new DepthStencilState
         {
@@ -59,7 +59,7 @@ public class Game : GameEngine
 
         _materialStencilWrite.StencilReference = 250;
 
-        _materialStencilTest = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
+        _materialStencilTest = RenderingSystem.CreateMaterial(_shader, "Unlit");
         _materialStencilTest.SetBuffer("_camera", _camera);
         _materialStencilTest.DepthStencilState = new DepthStencilState
         {
@@ -73,16 +73,16 @@ public class Game : GameEngine
 
         _materialStencilTest.StencilReference = 250;
 
-        _cubeStencilWrite = new Cube(Rendering.MeshCube, _materialStencilWrite);
+        _cubeStencilWrite = new Cube(RenderingSystem.MeshCube, _materialStencilWrite);
         _cubeStencilWrite.Color = Color1;
         _cubeStencilWrite.transform.Position = new Vector3(0, 0, 0);
         _cubeStencilWrite.transform.Scale = new Vector3(0.1f, 5f, 5f);
 
-        _cubeStencilTest1 = new Cube(Rendering.MeshCube, _materialStencilTest);
+        _cubeStencilTest1 = new Cube(RenderingSystem.MeshCube, _materialStencilTest);
         _cubeStencilTest1.Color = Color2;
         _cubeStencilTest1.transform.Position = new Vector3(2, 3f, 0);
 
-        _cubeStencilTest2 = new Cube(Rendering.MeshCube, _materialStencilTest);
+        _cubeStencilTest2 = new Cube(RenderingSystem.MeshCube, _materialStencilTest);
         _cubeStencilTest2.Color = Color3;
         _cubeStencilTest2.transform.Position = new Vector3(1, -2f, 1);
 
@@ -106,7 +106,7 @@ public class Game : GameEngine
         _commandClearScreen.SetFrameBuffer(MainFrameBuffer);
         _commandClearScreen.ClearColor(new ColorFloat(0.2f, 0.2f, 0.2f, 1), 0);
         _commandClearScreen.End();
-        Rendering.ScheduleCommandBuffer(_commandClearScreen);
+        RenderingSystem.ScheduleCommandBuffer(_commandClearScreen);
 
 
         _renderer.Begin(MainFrameBuffer);

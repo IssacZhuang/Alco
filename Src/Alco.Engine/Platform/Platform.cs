@@ -19,7 +19,7 @@ public abstract class Platform : AutoDisposable
     /// The input handler
     /// </summary>
     /// <value></value>
-    public abstract InputSystem Input { get; }
+    public abstract Input Input { get; }
 
     /// <summary>
     /// Run the main loop of the engine

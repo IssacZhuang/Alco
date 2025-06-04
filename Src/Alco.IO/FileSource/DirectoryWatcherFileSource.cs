@@ -10,6 +10,8 @@ public class DirectoryWatcherFileSource : IFileSource
     private readonly AssetSystem _assetSystem;
     private readonly FileSystemWatcher _watcher;
 
+    public string Name => _directoryPath;
+
     public DirectoryWatcherFileSource(string directoryPath, AssetSystem assetSystem)
     {
         _directoryPath = directoryPath;
@@ -39,8 +41,6 @@ public class DirectoryWatcherFileSource : IFileSource
             }
         }
     }
-
-    public bool IsWriteable => true;
 
     public unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason)
     {
@@ -77,26 +77,5 @@ public class DirectoryWatcherFileSource : IFileSource
     public void Dispose()
     {
         _watcher.Dispose();
-    }
-
-    public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
-    {
-        try
-        {
-            string fullPath = Path.Combine(_directoryPath, path);
-            string? directory = Path.GetDirectoryName(fullPath);
-            if (directory != null && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-            File.WriteAllBytes(fullPath, data);
-            failureReason = string.Empty;
-            return true;
-        }
-        catch (Exception e)
-        {
-            failureReason = e.ToString();
-            return false;
-        }
     }
 }

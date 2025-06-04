@@ -45,9 +45,9 @@ public class PluginHDR : BaseEnginePlugin
 
     public unsafe override void OnPostInitialize(GameEngine engine)
     {
-        RenderingSystem rendering = engine.Rendering;
-        _shader = engine.Assets.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardLuminanceTonemap);
-        _material = rendering.CreateGraphicsMaterial(_shader);
+        RenderingSystem rendering = engine.RenderingSystem;
+        _shader = engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardLuminanceTonemap);
+        _material = rendering.CreateMaterial(_shader);
 
         _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ReinhardToneMapData), "hdr_tonemap_data");
         _dataBuffer.UpdateBuffer(_data);

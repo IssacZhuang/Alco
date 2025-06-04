@@ -7,15 +7,12 @@ namespace Alco.Rendering;
 
 public partial class RenderingSystem
 {
-    public GraphicsMaterial CreateGraphicsMaterial(Shader shader, string name = "unamed")
+    public GraphicsMaterial CreateMaterial(Shader shader, string name = "unamed_material")
     {
         Debug.Assert(shader != null);
         GraphicsMaterial material = new GraphicsMaterial(this, shader, name);
         material.TrySetBuffer(ShaderResourceId.GlobalRenderData, _globalRenderData);
-        if (MainCamera != null)
-        {
-            material.TrySetBuffer(ShaderResourceId.Camera, MainCamera);
-        }
+        material.TrySetBuffer(ShaderResourceId.Camera, _viewProjectionMatrix);
         return material;
     }
 }

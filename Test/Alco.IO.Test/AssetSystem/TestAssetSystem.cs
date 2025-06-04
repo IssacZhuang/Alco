@@ -137,11 +137,11 @@ public class TestAssetSystem
 
     private class TestFileSource : IFileSource
     {
+        public string Name => "Test File Source";
+
         public int Priority => 0;
 
         public IEnumerable<string> AllFileNames => ["test.fast", "test.slow"];
-
-        public bool IsWriteable => false;
 
         public void Dispose()
         {
@@ -174,11 +174,6 @@ public class TestAssetSystem
                     failedReason = string.Empty;
                     return false;
             }
-        }
-
-        public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
-        {
-            throw new NotImplementedException();
         }
     }
 
@@ -372,13 +367,14 @@ public class TestAssetSystem
 
     private class VirtualFileSource : IFileSource
     {
+        public string Name => "Virtual File Source";
+
         private readonly ConcurrentDictionary<string, string> _files = new();
 
         public int Priority => 0;
 
         public IEnumerable<string> AllFileNames => _files.Keys;
 
-        public bool IsWriteable => false;
 
         public void SetFile(string key, string text)
         {
@@ -396,11 +392,6 @@ public class TestAssetSystem
             data = default;
             failureReason = "File not found";
             return false;
-        }
-
-        public bool TryWriteData(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string failureReason)
-        {
-            throw new NotImplementedException();
         }
     }
 

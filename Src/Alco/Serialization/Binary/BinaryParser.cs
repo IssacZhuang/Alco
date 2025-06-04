@@ -153,6 +153,18 @@ namespace Alco
             return TableToObject<T>(DecodeTable(bytes), onCreate);
         }
 
+        /// <summary>
+        /// Deserializes a ReadOnlySpan of bytes into an existing instance of type T.
+        /// This method populates the provided object with data from the byte array without creating a new instance.
+        /// </summary>
+        /// <typeparam name="T">The type of the object to populate, which must implement ISerializable</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="obj">The existing object instance to populate with deserialized data</param>
+        public static void Populate<T>(ReadOnlySpan<byte> bytes, T obj) where T : ISerializable
+        {
+            obj.OnSerialize(new BinarySerializeReadNode(DecodeTable(bytes)), SerializeMode.Load);
+        }
+
         private static void EncodeTableElement(Stream stream, string name, BaseBinaryValue value)
         {
             switch (value)

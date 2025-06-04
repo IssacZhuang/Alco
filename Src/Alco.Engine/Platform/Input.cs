@@ -6,7 +6,7 @@ namespace Alco.Engine;
 /// <summary>
 /// Represents an abstract base class for input handling.
 /// </summary>
-public abstract class InputSystem
+public abstract class Input
 {
     public event Action<KeyCode>? OnKeyDown;
     public event Action<KeyCode>? OnKeyUp;

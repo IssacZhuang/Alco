@@ -69,12 +69,12 @@ public class Game : GameEngine
             Usage = BufferUsage.Index | BufferUsage.CopyDst,
         }, Indices);
 
-        _cameraBuffer = Rendering.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
-        _modelBuffer = Rendering.CreateGraphicsValueBuffer<Matrix4x4>("model_buffer");
+        _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
+        _modelBuffer = RenderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("model_buffer");
 
-        _texBlue = Rendering.CreateTexture2D(16, 16, new ColorFloat(0, 0, 1, 1));
-        _texRed = Rendering.CreateTexture2D(16, 16, new ColorFloat(1, 0, 0, 1));
-        _texGreen = Rendering.CreateTexture2D(16, 16, new ColorFloat(0, 1, 0, 1));
+        _texBlue = RenderingSystem.CreateTexture2D(16, 16, new ColorFloat(0, 0, 1, 1));
+        _texRed = RenderingSystem.CreateTexture2D(16, 16, new ColorFloat(1, 0, 0, 1));
+        _texGreen = RenderingSystem.CreateTexture2D(16, 16, new ColorFloat(0, 1, 0, 1));
 
         camera = new CameraData2D();
         camera.Transform.Position = new Vector2(0, 2);

@@ -23,11 +23,12 @@ namespace Alco.Engine.Test
         /// </summary>
         private class TestFileSource : IFileSource
         {
+            public string Name => "Test File Source";
+
             private readonly Dictionary<string, byte[]> _files = new();
 
             public int Priority => 0;
             public IEnumerable<string> AllFileNames => _files.Keys;
-            public bool IsWriteable => false;
 
             /// <summary>
             /// Add a JSON file to the test file source.
@@ -64,12 +65,6 @@ namespace Alco.Engine.Test
 
                 data = SafeMemoryHandle.Empty;
                 failureReason = $"File not found: {path}";
-                return false;
-            }
-
-            public bool TryWriteData(string path, ReadOnlySpan<byte> data, out string failureReason)
-            {
-                failureReason = "Not supported";
                 return false;
             }
 
@@ -249,7 +244,8 @@ namespace Alco.Engine.Test
             _errors = new ConcurrentBag<string>();
 
             _configDatabase = new ConfigDatabase(
-                [],
+                null,
+                null,
                 info => _infos.Add(info),
                 warning => _warnings.Add(warning),
                 error => _errors.Add(error)

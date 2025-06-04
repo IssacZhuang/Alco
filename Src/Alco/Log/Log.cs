@@ -7,8 +7,8 @@ using System.Diagnostics.CodeAnalysis;
 namespace Alco{
     public static class Log
     {
-        private readonly static ThreadLocal<StringBuilder> _builder = new ThreadLocal<StringBuilder>(()=> new StringBuilder());
-        private static StringBuilder Builder
+        private readonly static ThreadLocal<SpanStringBuilder> _builder = new ThreadLocal<SpanStringBuilder>(()=> new SpanStringBuilder());
+        private static SpanStringBuilder Builder
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -27,30 +27,21 @@ namespace Alco{
         public const string ColorMagenta = "#ff00ff";
         public const string Null = "null";
 
-        // public static void Info(params object[] messages)
-        // {
-        //     Builder.Clear();
-        //     for (int i = 0; i < messages.Length; i++)
-        //     {
-        //         Builder.Append(messages[i]?.ToString());
-        //         Builder.Append(" ");
-        //     }
-        //     ConsolePrint(Builder.ToString(), ConsoleColor.White);
-        // }
+        public static ILogger Logger { get; set; } = new ConsoleLogger();
 
         public static void Info(ReadOnlySpan<char> message)
         {
-            Print(message, ConsoleColor.White);
+            Logger.Info(message);
         }
 
         public static void Info<T> (T message)
         {
             if (message == null)
             {
-                Print(Null, ConsoleColor.White);
+                Logger.Info(Null);
                 return;
             }
-            Print(message.ToString()??string.Empty, ConsoleColor.White);
+            Logger.Info(message.ToString()??string.Empty);
         }
 
         public static void Info<T1, T2> (T1 message1, T2 message2)
@@ -59,7 +50,7 @@ namespace Alco{
             Builder.Append(message1?.ToString());
             Builder.Append(" ");
             Builder.Append(message2?.ToString());
-            Print(Builder.ToString(), ConsoleColor.White);
+            Logger.Info(Builder.AsReadOnlySpan());
         }
 
         public static void Info<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
@@ -70,7 +61,7 @@ namespace Alco{
             Builder.Append(message2?.ToString());
             Builder.Append(" ");
             Builder.Append(message3?.ToString());
-            Print(Builder.ToString(), ConsoleColor.White);
+            Logger.Info(Builder.AsReadOnlySpan());
         }
 
         public static void Info<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
@@ -83,7 +74,7 @@ namespace Alco{
             Builder.Append(message3?.ToString());
             Builder.Append(" ");
             Builder.Append(message4?.ToString());
-            Print(Builder.ToString(), ConsoleColor.White);
+            Logger.Info(Builder.AsReadOnlySpan());
         }
 
         public static void Info<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
@@ -98,7 +89,7 @@ namespace Alco{
             Builder.Append(message4?.ToString());
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
-            Print(Builder.ToString(), ConsoleColor.White);
+            Logger.Info(Builder.AsReadOnlySpan());
         }
 
         // public static void Warning(params object[] messages)
@@ -114,17 +105,17 @@ namespace Alco{
 
         public static void Warning(ReadOnlySpan<char> message)
         {
-            Print(message, ConsoleColor.Yellow);
+            Logger.Warning(message);
         }
 
         public static void Warning<T> (T message)
         {
             if (message == null)
             {
-                Print(Null, ConsoleColor.Yellow);
+                Logger.Warning(Null);
                 return;
             }
-            Print(message.ToString()??string.Empty, ConsoleColor.Yellow);
+            Logger.Warning(message.ToString()??string.Empty);
         }
 
         public static void Warning<T1, T2> (T1 message1, T2 message2)
@@ -133,7 +124,7 @@ namespace Alco{
             Builder.Append(message1?.ToString());
             Builder.Append(" ");
             Builder.Append(message2?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Yellow);
+            Logger.Warning(Builder.AsReadOnlySpan());
         }
 
         public static void Warning<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
@@ -144,7 +135,7 @@ namespace Alco{
             Builder.Append(message2?.ToString());
             Builder.Append(" ");
             Builder.Append(message3?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Yellow);
+            Logger.Warning(Builder.AsReadOnlySpan());
         }
 
         public static void Warning<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
@@ -157,7 +148,7 @@ namespace Alco{
             Builder.Append(message3?.ToString());
             Builder.Append(" ");
             Builder.Append(message4?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Yellow);
+            Logger.Warning(Builder.AsReadOnlySpan());
         }
 
         public static void Warning<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
@@ -172,7 +163,7 @@ namespace Alco{
             Builder.Append(message4?.ToString());
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Yellow);
+            Logger.Warning(Builder.AsReadOnlySpan());
         }
 
         // public static void Error(params object[] messages)
@@ -188,17 +179,17 @@ namespace Alco{
 
         public static void Error(ReadOnlySpan<char> message)
         {
-            Print(message, ConsoleColor.Red);
+            Logger.Error(message);
         }
 
         public static void Error<T> (T message)
         {
             if (message == null)
             {
-                Print(Null, ConsoleColor.Red);
+                Logger.Error(Null);
                 return;
             }
-            Print(message.ToString()??string.Empty, ConsoleColor.Red);
+            Logger.Error(message.ToString()??string.Empty);
         }
 
         public static void Error<T1, T2> (T1 message1, T2 message2)
@@ -207,7 +198,7 @@ namespace Alco{
             Builder.Append(message1?.ToString());
             Builder.Append(" ");
             Builder.Append(message2?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Red);
+            Logger.Error(Builder.AsReadOnlySpan());
         }
 
         public static void Error<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
@@ -218,7 +209,7 @@ namespace Alco{
             Builder.Append(message2?.ToString());
             Builder.Append(" ");
             Builder.Append(message3?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Red);
+            Logger.Error(Builder.AsReadOnlySpan());
         }
 
         public static void Error<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
@@ -231,7 +222,7 @@ namespace Alco{
             Builder.Append(message3?.ToString());
             Builder.Append(" ");
             Builder.Append(message4?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Red);
+            Logger.Error(Builder.AsReadOnlySpan());
         }
 
         public static void Error<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
@@ -246,20 +237,20 @@ namespace Alco{
             Builder.Append(message4?.ToString());
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Red);
+            Logger.Error(Builder.AsReadOnlySpan());
         }
 
 
         public static void Success(ReadOnlySpan<char> message)
         {
-            Print(message, ConsoleColor.Green);
+            Logger.Success(message);
         }
 
         public static void Success<T1>(T1 message1)
         {
             Builder.Clear();
             Builder.Append(message1?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Green);
+            Logger.Success(Builder.AsReadOnlySpan());
         }
 
         public static void Success<T1, T2>(T1 message1, T2 message2)
@@ -268,7 +259,7 @@ namespace Alco{
             Builder.Append(message1?.ToString());
             Builder.Append(" ");
             Builder.Append(message2?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Green);
+            Logger.Success(Builder.AsReadOnlySpan());
         }
 
         public static void Success<T1, T2, T3>(T1 message1, T2 message2, T3 message3)
@@ -279,7 +270,7 @@ namespace Alco{
             Builder.Append(message2?.ToString());
             Builder.Append(" ");
             Builder.Append(message3?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Green);
+            Logger.Success(Builder.AsReadOnlySpan());
         }
 
         public static void Success<T1, T2, T3, T4>(T1 message1, T2 message2, T3 message3, T4 message4)
@@ -292,7 +283,7 @@ namespace Alco{
             Builder.Append(message3?.ToString());
             Builder.Append(" ");
             Builder.Append(message4?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Green);
+            Logger.Success(Builder.AsReadOnlySpan());
         }
 
         public static void Success<T1, T2, T3, T4, T5>(T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
@@ -307,23 +298,7 @@ namespace Alco{
             Builder.Append(message4?.ToString());
             Builder.Append(" ");
             Builder.Append(message5?.ToString());
-            Print(Builder.ToString(), ConsoleColor.Green);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Print(string str, ConsoleColor color = ConsoleColor.White)
-        {
-            Console.ForegroundColor = color;
-            Console.WriteLine(str);
-            Console.ForegroundColor = ConsoleColor.White;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Print(ReadOnlySpan<char> str, ConsoleColor color = ConsoleColor.White)
-        {
-            Console.ForegroundColor = color;
-            Console.Out.WriteLine(str);
-            Console.ForegroundColor = ConsoleColor.White;
+            Logger.Success(Builder.AsReadOnlySpan());
         }
     }
 }

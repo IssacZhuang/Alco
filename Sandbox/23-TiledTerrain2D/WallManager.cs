@@ -10,7 +10,7 @@ public class WallManager
 
     public WallManager(GameEngine engine, LightingManager lightingManager, int width, int height)
     {
-        _wallGrid = engine.Rendering.CreateConnectableTileBlock2D(width, height, "wall_grid");
+        _wallGrid = engine.RenderingSystem.CreateConnectableTileBlock2D(width, height, "wall_grid");
         _wallGrid.Transform.Position.Z = -1.5f;
         _lightingManager = lightingManager;
     }

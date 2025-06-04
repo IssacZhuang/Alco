@@ -77,7 +77,7 @@ public class DropletSystem : IDisposable
     {
         _renderContext = new RenderContext[RenderThreadCount];
         _renderers = new SpriteRenderer[RenderThreadCount];
-        Material material = system.CreateGraphicsMaterial(shader, "Sprite");
+        Material material = system.CreateMaterial(shader, "Sprite");
         material.BlendState = BlendState.AlphaBlend;
         material.SetBuffer(ShaderResourceId.Camera, camera);
         for (int i = 0; i < RenderThreadCount; i++)

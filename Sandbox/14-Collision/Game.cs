@@ -13,7 +13,7 @@ public class Game : GameEngine
     private static ColorFloat Color = new ColorFloat(1f, 0.5f, 0.5f, 1f);
     private static ColorFloat ColorHit = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
     //scence
-    private readonly CameraPerspective _camera;
+    private readonly CameraPerspectiveBuffer _camera;
 
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
@@ -29,17 +29,17 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        _shader = Assets.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
-        _camera = Rendering.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
+        _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
         _camera.Transform.Position.X = -10;
         _camera.UpdateMatrixToGPU();
 
-        _renderer = Rendering.CreateRenderContext();
-        _material = Rendering.CreateGraphicsMaterial(_shader, "Unlit");
+        _renderer = RenderingSystem.CreateRenderContext();
+        _material = RenderingSystem.CreateMaterial(_shader, "Unlit");
 
-        _cameraBuffer = Rendering.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
+        _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
         _material.SetBuffer("_camera", _cameraBuffer);
 
         _plane = new Plane3D(new Vector3(1, 0, 0), 0);
@@ -122,7 +122,7 @@ public class Game : GameEngine
 
     private Cube CreateCube(ColorFloat color)
     {
-        Cube ent = new Cube(Rendering.MeshCube, _material);
+        Cube ent = new Cube(RenderingSystem.MeshCube, _material);
         ent.Color = color;
         return ent;
     }

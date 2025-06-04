@@ -5,7 +5,7 @@ namespace Alco.Engine;
 /// <summary>
 /// The input class for no mouse and keyboard input. Usually used for testing and server environments.
 /// </summary>
-public class NoInputSystem : InputSystem
+public class NoInput : Input
 {
     /// <inheritdoc />
     public override Vector2 MousePosition { get; set; }

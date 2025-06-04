@@ -13,8 +13,8 @@ public class Game : GameEngine
     private readonly View _window2;
     private readonly ViewRenderTarget _windowRenderTarget;
 
-    private readonly Camera2D _windowCamera1;
-    private readonly Camera2D _windowCamera2;
+    private readonly Camera2DBuffer _windowCamera1;
+    private readonly Camera2DBuffer _windowCamera2;
 
     private readonly Shader _shader;
     private readonly RenderContext _renderContext;
@@ -44,29 +44,29 @@ public class Game : GameEngine
         });
 
 
-        _windowRenderTarget = CreateViewRenderTarget(_window2, Rendering.PrefferedSDRPass, BuiltInAssets.Shader_Blit);
+        _windowRenderTarget = CreateViewRenderTarget(_window2, RenderingSystem.PrefferedSDRPass, BuiltInAssets.Shader_Blit);
         AddSystem(_windowRenderTarget);
 
-        _windowCamera1 = Rendering.CreateCamera2D(720, 405, 100);
-        _windowCamera2 = Rendering.CreateCamera2D(720, 405, 100);
+        _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);
+        _windowCamera2 = RenderingSystem.CreateCamera2D(720, 405, 100);
 
-        Material material = Rendering.CreateGraphicsMaterial(_shader);
+        Material material = RenderingSystem.CreateMaterial(_shader);
         material.SetBuffer(ShaderResourceId.Camera, _windowCamera1);
-        _renderContext = Rendering.CreateRenderContext("renderer");
-        _renderer = Rendering.CreateSpriteRenderer(_renderContext, material);
+        _renderContext = RenderingSystem.CreateRenderContext("renderer");
+        _renderer = RenderingSystem.CreateSpriteRenderer(_renderContext, material);
 
 
         MainView.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
 
         _toneMapData = ReinhardToneMapData.Default;
-        _toneMapMaterial = Rendering.CreateGraphicsMaterial(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
+        _toneMapMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
 
-        _toneMapDataBuffer = Rendering.CreateGraphicsValueBuffer(_toneMapData, "tonemap_data_buffer");
+        _toneMapDataBuffer = RenderingSystem.CreateGraphicsValueBuffer(_toneMapData, "tonemap_data_buffer");
         _toneMapMaterial.SetBuffer(ShaderResourceId.Data, _toneMapDataBuffer);
 
-        MainRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMapMaterial);
-        _windowRenderTarget.SetRenderPass(Rendering.PrefferedHDRPass, _toneMapMaterial);
+        MainRenderTarget.SetRenderPass(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
+        _windowRenderTarget.SetRenderPass(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
 
         _bloomSystem1 = new BloomSystem(this, MainRenderTarget);
         AddSystem(_bloomSystem1);
@@ -99,11 +99,11 @@ public class Game : GameEngine
         DebugGUI.Text(_window2.Position.ToString());
 
         _renderContext.Begin(MainFrameBuffer);
-        _renderer.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
+        _renderer.Draw(RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
         _renderContext.End();
 
         _renderContext.Begin(_windowRenderTarget.FrameBuffer);
-        _renderer.Draw(Rendering.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
+        _renderer.Draw(RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
         _renderContext.End();
 
 
@@ -114,7 +114,7 @@ public class Game : GameEngine
         _toneMapDataBuffer?.Dispose();
     }
 
-    private void Render(Camera2D camera, ViewRenderTarget renderTarget)
+    private void Render(Camera2DBuffer camera, ViewRenderTarget renderTarget)
     {
         
     }

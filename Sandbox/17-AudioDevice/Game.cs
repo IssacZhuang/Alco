@@ -102,7 +102,7 @@ public class Game : GameEngine
 
     private async void LoadAudioClipAsync(string filename)
     {
-        AudioClip audioClip = await Assets.LoadAsync<AudioClip>(filename);
+        AudioClip audioClip = await AssetSystem.LoadAsync<AudioClip>(filename);
         _source.AudioClip = audioClip;
         _source.Play();
     }

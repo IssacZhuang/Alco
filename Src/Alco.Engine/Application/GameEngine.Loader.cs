@@ -2,6 +2,7 @@ using System.Text;
 using Alco.Rendering;
 using Alco.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Alco.Engine;
 
@@ -10,12 +11,12 @@ public partial class GameEngine
     public virtual IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         // texture
-        yield return new AssetLoaderFontTTF(Rendering);
-        yield return new AssetLoaderTexture2D(Rendering);
+        yield return new AssetLoaderFontTTF(RenderingSystem);
+        yield return new AssetLoaderTexture2D(RenderingSystem);
 
         // shader
         yield return new AssetLoaderShaderHLSLInclude();
-        yield return new AssetLoaderShaderHLSL(Rendering);
+        yield return new AssetLoaderShaderHLSL(RenderingSystem);
 
         // audio
         yield return new AssetLoaderAudioVorbis(AudioDevice);
@@ -27,19 +28,14 @@ public partial class GameEngine
     {
         yield return new AssetHotReloaderShaderHLSL((string includeName) =>
         {
-            if (Assets.TryLoadRaw(includeName, out SafeMemoryHandle data))
+            if (AssetSystem.TryLoadRaw(includeName, out SafeMemoryHandle data))
             {
                 return Encoding.UTF8.GetString(data.AsReadOnlySpan());
             }
             throw new Exception($"Can not find the include file: {includeName}");
         });
 
-        yield return new AssetHotReloaderTexture2D(Rendering);
-    }
-
-    public virtual IEnumerable<IAssetEncoder> CreateDefaultAssetEncoders()
-    {
-        yield return new AssetEncoderConfig(ConfigSerializeOption);
+        yield return new AssetHotReloaderTexture2D(RenderingSystem);
     }
 
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()
@@ -47,36 +43,25 @@ public partial class GameEngine
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
     }
 
-    protected virtual JsonSerializerOptions CreateConfigSerializeOption()
+    public virtual IEnumerable<JsonConverter> CreateDefaultJsonConverters()
     {
-        var options = new JsonSerializerOptions()
-        {
-            TypeInfoResolver = new ConfigJsonTypeResolver(),
-            WriteIndented = true,
-            Converters = {
-                new JsonConverterType(),
-                new JsonConverterVector2(),
-                new JsonConverterVector3(),
-                new JsonConverterVector4(),
-                new JsonConverterHalf2(),
-                new JsonConverterHalf3(),
-                new JsonConverterHalf4(),
-                new JsonConverterInt2(),
-                new JsonConverterInt3(),
-                new JsonConverterInt4(),
-                new JsonConverterUInt2(),
-                new JsonConverterUInt3(),
-                new JsonConverterUInt4(),
-                new JsonConverterQuaternion(),
-                new JsonConverterColor32(),
-                new JsonConverterColorFloat(),
-            }
-        };
-
-        options.MakeReadOnly();
-
-        return options;
+        yield return new JsonConverterType();
+        yield return new JsonConverterVector2();
+        yield return new JsonConverterVector3();
+        yield return new JsonConverterVector4();
+        yield return new JsonConverterHalf2();
+        yield return new JsonConverterHalf3();
+        yield return new JsonConverterHalf4();
+        yield return new JsonConverterInt2();
+        yield return new JsonConverterInt3();
+        yield return new JsonConverterInt4();
+        yield return new JsonConverterUInt2();
+        yield return new JsonConverterUInt3();
+        yield return new JsonConverterUInt4();
+        yield return new JsonConverterQuaternion();
+        yield return new JsonConverterColor32();
+        yield return new JsonConverterColorFloat();
+        yield return new JsonConverterShader(AssetSystem);
+        yield return new JsonConverterTexture2D(AssetSystem);
     }
-
-
 }

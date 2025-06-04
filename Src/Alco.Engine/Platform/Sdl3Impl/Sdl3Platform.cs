@@ -10,7 +10,7 @@ public unsafe class Sdl3Platform : Platform
 {
     private const int PeepEventsCount = 64;
     private readonly Dictionary<SDL_WindowID, Sdl3Window> _windows = new();
-    private readonly Sdl3InputSystem _input = new();
+    private readonly Sdl3Input _input = new();
     private NativeBuffer<SDL_Event> _events;
     private EngineTimer _timer;
     private bool _isStopped = false;
@@ -23,7 +23,7 @@ public unsafe class Sdl3Platform : Platform
         _events = new NativeBuffer<SDL_Event>(PeepEventsCount);
     }
 
-    public override InputSystem Input
+    public override Input Input
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input;

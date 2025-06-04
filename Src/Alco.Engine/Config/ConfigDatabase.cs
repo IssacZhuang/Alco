@@ -29,23 +29,73 @@ public class ConfigDatabase
     private readonly Lock _updateLock = new();
 
     /// <summary>
+    /// [Thread-safe] All configs in the database.
+    /// </summary>
+    /// <value>All configs in the database.</value>
+    public IReadOnlyList<Configable> Configs
+    {
+        get
+        {
+            TryUpdateConfigs();
+            return _configsList;
+        }
+    }
+
+    /// <summary>
+    /// [Thread-safe] Get all configs of a specific type.
+    /// </summary>
+    /// <param name="type">The type of the configs to get.</param>
+    /// <returns>All configs of the specified type.</returns>
+    public IEnumerable<Configable> GetConfigs(Type type)
+    {
+        TryUpdateConfigs();
+        return GetTypedConfigsDictionary(type).Values;
+    }
+
+    /// <summary>
+    /// [Thread-safe] Get all configs of a specific type.
+    /// </summary>
+    /// <typeparam name="T">The type of the configs to get.</typeparam>
+    /// <returns>All configs of the specified type.</returns>
+    public IEnumerable<T> GetConfigs<T>() where T : Configable
+    {
+        TryUpdateConfigs();
+        var values = GetTypedConfigsDictionary(typeof(T)).Values;
+        foreach (var value in values)
+        {
+            if (value is T t)
+            {
+                yield return t;
+            }
+        }
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ConfigDatabase"/> class.
     /// </summary>
+    /// <param name="polymorphicTypes">Types to support for polymorphic JSON serialization</param>
     /// <param name="converters">Custom JSON converters to use for deserialization</param>
     /// <param name="onInfo">Callback for informational messages</param>
     /// <param name="onWarning">Callback for warning messages</param>
     /// <param name="onError">Callback for error messages</param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
-    public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
+    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
         ArgumentNullException.ThrowIfNull(onInfo);
         ArgumentNullException.ThrowIfNull(onWarning);
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
 
+        List<Type> polymorphicTypeList = new();
+        for (int i = 0; i < polymorphicTypes.Length; i++)
+        {
+            polymorphicTypeList.Add(polymorphicTypes[i]);
+        }
+        polymorphicTypeList.Add(typeof(Configable));
+
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new ConfigJsonTypeResolver(),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver(polymorphicTypeList.ToArray()),
             WriteIndented = true,
         };
         foreach (var converter in converters)
@@ -160,7 +210,10 @@ public class ConfigDatabase
         _isDirty = true;
     }
 
-    private void TryUpdateConfigs()
+    /// <summary>
+    /// Try to update configs from all file sources if it is dirty.
+    /// </summary>
+    public void TryUpdateConfigs()
     {
         // First check without lock (performance optimization)
         if (!_isDirty)
@@ -180,12 +233,13 @@ public class ConfigDatabase
             _configs.Clear();
             _jsonPreprocessor.Preprocess();
 
-            _tempConfigs.EnsureSizeWithoutCopy(_jsonPreprocessor.AllDocuments.Count);
+            var documents = _jsonPreprocessor.AllDocuments.ToArray();
+
+            _tempConfigs.EnsureSizeWithoutCopy(documents.Length);
             _tempConfigs.Clear();
 
-            IReadOnlyList<JsonDocument> documents = _jsonPreprocessor.AllDocuments;
-
-            Parallel.For(0, documents.Count, i =>
+            //serialize
+            Parallel.For(0, documents.Length, i =>
             {
                 try
                 {
@@ -211,14 +265,28 @@ public class ConfigDatabase
                 }
             }
 
-            // for (int i = 0; i < _configsList.Count; i++)
-            // {
-            //     ResolveReferences(_configsList[i]);
-            // }
+            // resolve references
             Parallel.ForEach(_configsList, config =>
             {
                 ResolveReferences(config);
             });
+
+            //validate
+            Parallel.ForEach(_configsList, config =>
+            {
+                try
+                {
+                    foreach (var error in config.Validate())
+                    {
+                        _onError($"Error validating config {config.Id}: {error}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _onError($"Error validating config {config.Id}: {ex}");
+                }
+            });
+
             _isDirty = false;
         }
     }
@@ -249,8 +317,15 @@ public class ConfigDatabase
         return table.ToFrozenDictionary();
     }
 
-    private void ResolveReferences(object? @object, string path = "")
+    private void ResolveReferences(object? @object, string path = "", int depth = 0)
     {
+        // Check maximum recursion depth to prevent infinite recursion
+        if (depth >= 64)
+        {
+            _onError($"Maximum recursion depth (64) exceeded while resolving references at path: {path}");
+            return;
+        }
+
         if (@object == null)
         {
             return;
@@ -270,11 +345,11 @@ public class ConfigDatabase
 
         if (UtilsType.IsGenericList(type, out var genericType))
         {
-            ResolveListReferences(@object, path , genericType);
+            ResolveListReferences(@object, path, genericType, depth + 1);
         }
         else if (UtilsType.IsGenericDictionary(type, out var keyType, out var valueType))
         {
-            ResolveDictionaryReferences(@object, path, keyType, valueType);
+            ResolveDictionaryReferences(@object, path, keyType, valueType, depth + 1);
         }
 
         AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(@object.GetType());
@@ -287,7 +362,7 @@ public class ConfigDatabase
             }
             else
             {
-                ResolveReferences(value, path + "." + accessMember.Name);
+                ResolveReferences(value, path + "." + accessMember.Name, depth + 1);
             }
         }
     }
@@ -321,7 +396,14 @@ public class ConfigDatabase
         }
     }
 
-    private void ResolveListReferences(object list, string propertyName, Type genericType)
+    /// <summary>
+    /// Resolves configuration references within list objects.
+    /// </summary>
+    /// <param name="list">The list object to resolve references in</param>
+    /// <param name="propertyName">The property name for error reporting</param>
+    /// <param name="genericType">The generic type of the list elements</param>
+    /// <param name="depth">Current recursion depth</param>
+    private void ResolveListReferences(object list, string propertyName, Type genericType, int depth)
     {
         try
         {
@@ -372,7 +454,7 @@ public class ConfigDatabase
                 {
                     for (int i = 0; i < nonGenericList.Count; i++)
                     {
-                        ResolveReferences(nonGenericList[i]);
+                        ResolveReferences(nonGenericList[i], $"{propertyName}[{i}]", depth);
                     }
                 }
             }
@@ -383,7 +465,7 @@ public class ConfigDatabase
         }
     }
 
-    private void ResolveDictionaryReferences(object dictionary, string propertyName, Type keyType, Type valueType)
+    private void ResolveDictionaryReferences(object dictionary, string propertyName, Type keyType, Type valueType, int depth)
     {
         try
         {
@@ -453,7 +535,7 @@ public class ConfigDatabase
                 {
                     foreach (System.Collections.DictionaryEntry entry in nonGenericDict)
                     {
-                        ResolveReferences(entry.Value);
+                        ResolveReferences(entry.Value, $"{propertyName}[{entry.Key}]", depth);
                     }
                 }
             }

@@ -8,6 +8,8 @@ namespace Alco.Engine;
 
 public class JsonPreprocessor
 {
+    private static readonly HashSet<string> _specialKeywords = new() { "$abstract", "$parent" };
+
     public const string Keyward_Abstract = "$abstract";
     public const string Keyward_Parent = "$parent";
     public const string Keyward_Id = "Id";
@@ -34,7 +36,16 @@ public class JsonPreprocessor
     private readonly Action<string> _onWarning;
     private readonly Action<string> _onError;
 
-    public IReadOnlyList<JsonDocument> AllDocuments => _jsonItemsList;
+    public IEnumerable<JsonDocument> AllDocuments
+    {
+        get
+        {
+            foreach (var item in _jsonItems)
+            {
+                yield return item.Value.Document;
+            }
+        }
+    }
 
     public JsonPreprocessor(Action<string> onInfo, Action<string> onWarning, Action<string> onError)
     {
@@ -239,7 +250,7 @@ public class JsonPreprocessor
         try
         {
             // Merge parent with current document (current document overrides parent)
-            var mergedJson = UtilsJson.Merge(processedParent, document);
+            var mergedJson = UtilsJson.Merge(processedParent, document, _specialKeywords);
             var mergedDocument = JsonDocument.Parse(mergedJson);
 
             AddInfo($"Merged JSON item {currentId} with parent {parentId}");

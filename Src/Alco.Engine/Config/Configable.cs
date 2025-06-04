@@ -12,5 +12,9 @@ public class Configable
     /// </summary>
     public string Id { get; set; } = string.Empty;
 
+    public virtual IEnumerable<string> Validate()
+    {
+        yield break;
+    }
 }
 
