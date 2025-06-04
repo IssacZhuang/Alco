@@ -23,7 +23,7 @@ public class CSharpProject
         BuildParameters buildParameters = new BuildParameters()
         {
             GlobalProperties = globalProperties,
-            Loggers = [new ConsoleLogger()],
+            Loggers = [new Microsoft.Build.Logging.ConsoleLogger()],
         };
 
         BuildRequestData buildRequestData = new BuildRequestData(
