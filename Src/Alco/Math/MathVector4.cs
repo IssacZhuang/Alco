@@ -211,6 +211,11 @@ namespace Alco
             c = cos(a);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 round(Vector4 a)
+        {
+            return new Vector4(round(a.X), round(a.Y), round(a.Z), round(a.W));
+        }
     }
 }
 

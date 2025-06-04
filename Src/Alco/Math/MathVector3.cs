@@ -201,6 +201,12 @@ namespace Alco
             (s, c) = Vector3.SinCos(a);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 round(Vector3 a)
+        {
+            return new Vector3(round(a.X), round(a.Y), round(a.Z));
+        }
+
     }
 }
 
