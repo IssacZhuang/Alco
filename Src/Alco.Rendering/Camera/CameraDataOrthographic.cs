@@ -101,6 +101,18 @@ namespace Alco.Rendering
 
             Transform = Transform3D.Identity;
         }
+
+        /// <summary>
+        /// Converts a screen point to a 3D ray for this orthographic camera.
+        /// In orthographic projection, all rays are parallel and have the same direction.
+        /// </summary>
+        /// <param name="screenPosition">The screen position in pixels</param>
+        /// <param name="screenSize">The size of the screen in pixels</param>
+        /// <returns>A ray from the screen point in world space</returns>
+        public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
+        {
+            return UtilsCameraMath.ScreenPointToRayOrthographic(screenPosition, screenSize, ViewProjectionMatrix, Transform.Direction, Near);
+        }
     }
 }
 

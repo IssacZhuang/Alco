@@ -84,4 +84,9 @@ public struct CameraData2D : ICamera
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => ViewMatrix * ProjectionMatrix;
     }
+
+    public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
+    {
+        return UtilsCameraMath.ScreenPointToRay2D(screenPosition, screenSize, ViewProjectionMatrix, Near, Near + 1);
+    }
 }
