@@ -82,10 +82,13 @@ public class ConnectableTileBlock2D : AutoDisposable
     }
 
     /// <summary>
-    /// Sets tile data at the specified coordinates.
+    /// Sets tile data at the specified coordinates (pixel space).
     /// </summary>
-    /// <param name="x">X coordinate of the tile</param>
-    /// <param name="y">Y coordinate of the tile</param>
+    /// <remarks>
+    /// Pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </remarks>
+    /// <param name="x">X coordinate of the tile in pixel space</param>
+    /// <param name="y">Y coordinate of the tile in pixel space</param>
     /// <param name="data">Tile data to set</param>
     /// <returns>True if the tile data was set, false if it was already set to the same value</returns>
     public bool TrySetTileData(int x, int y, ConnectableTileData data)
@@ -105,10 +108,27 @@ public class ConnectableTileBlock2D : AutoDisposable
     }
 
     /// <summary>
-    /// Removes tile data at the specified coordinates.
+    /// Sets tile data at the specified coordinates (pixel space).
     /// </summary>
-    /// <param name="x">X coordinate of the tile</param>
-    /// <param name="y">Y coordinate of the tile</param>
+    /// <remarks>
+    /// Pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </remarks>
+    /// <param name="tilePosition">The tile coordinates in pixel space</param>
+    /// <param name="data">Tile data to set</param>
+    /// <returns>True if the tile data was set, false if it was already set to the same value</returns>
+    public bool TrySetTileData(int2 tilePosition, ConnectableTileData data)
+    {
+        return TrySetTileData(tilePosition.X, tilePosition.Y, data);
+    }
+
+    /// <summary>
+    /// Removes tile data at the specified coordinates (pixel space).
+    /// </summary>
+    /// <remarks>
+    /// Pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </remarks>
+    /// <param name="x">X coordinate of the tile in pixel space</param>
+    /// <param name="y">Y coordinate of the tile in pixel space</param>
     /// <returns>True if the tile data was removed, false if there was no tile data at the specified coordinates</returns>
     public bool TryRemoveTileData(int x, int y)
     {
@@ -122,6 +142,19 @@ public class ConnectableTileBlock2D : AutoDisposable
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Removes tile data at the specified coordinates (pixel space).
+    /// </summary>
+    /// <remarks>
+    /// Pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </remarks>
+    /// <param name="tilePosition">The tile coordinates in pixel space</param>
+    /// <returns>True if the tile data was removed, false if there was no tile data at the specified coordinates</returns>
+    public bool TryRemoveTileData(int2 tilePosition)
+    {
+        return TryRemoveTileData(tilePosition.X, tilePosition.Y);
     }
 
     /// <summary>

@@ -110,6 +110,18 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     }
 
     /// <summary>
+    /// Attempts to get the item ID at the specified tile coordinates (as int2).
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="position">The tile coordinates (X, Y)</param>
+    /// <param name="itemId">When this method returns, contains the item ID if the coordinates are valid</param>
+    /// <returns>True if the coordinates are valid and the item ID was retrieved; otherwise, false</returns>
+    public bool TryGetItemId(int2 position, out uint itemId)
+    {
+        return TryGetItemId(position.X, position.Y, out itemId);
+    }
+
+    /// <summary>
     /// Attempts to set the item ID at the specified tile coordinates.
     /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
     /// </summary>
@@ -130,6 +142,19 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         _tileIdData[GetTileIndex(x, y)] = tileId;
         _isTileIdDirty = true;
         return true;
+    }
+
+    /// <summary>
+    /// Attempts to set the item ID at the specified tile coordinates (as int2).
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="position">The tile coordinates (X, Y)</param>
+    /// <param name="itemId">The item ID to set at the specified coordinates</param>
+    /// <returns>True if the coordinates are valid and the item ID was set; otherwise, false</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TrySetItemId(int2 position, uint itemId)
+    {
+        return TrySetItemId(position.X, position.Y, itemId);
     }
 
     /// <summary>
@@ -191,6 +216,18 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
 
         userData = _tileSet.GetUserData(itemId);
         return true;
+    }
+
+    /// <summary>
+    /// Attempts to get the user data associated with the tile at the specified coordinates (as int2).
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="position">The tile coordinates (X, Y)</param>
+    /// <param name="userData">When this method returns, contains the user data if available</param>
+    /// <returns>True if the coordinates are valid and user data was retrieved; otherwise, false</returns>
+    public bool TryGetTileUserData(int2 position, out object? userData)
+    {
+        return TryGetTileUserData(position.X, position.Y, out userData);
     }
 
 
@@ -303,6 +340,18 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     public int GetTileIndex(int x, int y)
     {
         return y * _size.X + x;
+    }
+
+    /// <summary>
+    /// Converts 2D tile coordinates (as int2) to a linear tile index.
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="position">The tile coordinates (X, Y)</param>
+    /// <returns>The linear index corresponding to the tile coordinates</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetTileIndex(int2 position)
+    {
+        return GetTileIndex(position.X, position.Y);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
