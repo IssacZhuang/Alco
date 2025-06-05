@@ -318,7 +318,7 @@ public class Game : GameEngine
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
             //DebugGUI.Text($"Tile Position: {tilePosition}");
-            Vector2 tileLocalPosition = _surfaceBlock.TilePositionToLocalPosition(tilePosition);
+            Vector2 tilePositionInWorld = _surfaceBlock.PixelSpaceToWorldSpace(tilePosition);
             //DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
             ImGui.Text($"Tile Position: {tilePosition}");
@@ -334,7 +334,7 @@ public class Game : GameEngine
                 {
                     continue;
                 }
-                _brushTransform.Position = new Vector3(pos.X + tileLocalPosition.X, pos.Y + tileLocalPosition.Y + height, 0);
+                _brushTransform.Position = new Vector3(pos.X + tilePositionInWorld.X, pos.Y + tilePositionInWorld.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _brushMaterial, _brushConstant);

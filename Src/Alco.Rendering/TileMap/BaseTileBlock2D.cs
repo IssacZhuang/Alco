@@ -6,6 +6,12 @@ using static Alco.math;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Base class for 2D tile blocks that manage a grid of tiles with rendering capabilities.
+/// Uses a pixel space coordinate system where the origin (0,0) is at the top-left corner,
+/// the X-axis points to the right, and the Y-axis points downward.
+/// </summary>
+/// <typeparam name="TTileData">The type of tile data that must be unmanaged and implement ITileData</typeparam>
 public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileData : unmanaged, ITileData
 {
     protected readonly RenderingSystem _renderingSystem;
@@ -22,9 +28,19 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
 
     protected BaseTileSet<TTileData> _tileSet;
 
+    /// <summary>
+    /// Gets or sets the 3D transformation matrix for this tile block
+    /// </summary>
     public Transform3D Transform;
+
+    /// <summary>
+    /// Gets the size of the tile block in tiles (width x height)
+    /// </summary>
     public int2 Size => _size;
 
+    /// <summary>
+    /// Gets the tile set used by this tile block
+    /// </summary>
     public BaseTileSet<TTileData> TileSet => _tileSet;
 
 
@@ -68,8 +84,20 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     }
 
 
+    /// <summary>
+    /// Renders the tile block using the provided render context
+    /// </summary>
+    /// <param name="renderer">The render context to use for rendering</param>
     public abstract void OnRender(IRenderContext renderer);
 
+    /// <summary>
+    /// Attempts to get the item ID at the specified tile coordinates.
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="x">The X coordinate of the tile (0 to Size.X-1)</param>
+    /// <param name="y">The Y coordinate of the tile (0 to Size.Y-1)</param>
+    /// <param name="itemId">When this method returns, contains the item ID if the coordinates are valid</param>
+    /// <returns>True if the coordinates are valid and the item ID was retrieved; otherwise, false</returns>
     public bool TryGetItemId(int x, int y, out uint itemId)
     {
         if (x < 0 || y < 0 || x >= _size.X || y >= _size.Y)
@@ -81,6 +109,14 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         return true;
     }
 
+    /// <summary>
+    /// Attempts to set the item ID at the specified tile coordinates.
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="x">The X coordinate of the tile (0 to Size.X-1)</param>
+    /// <param name="y">The Y coordinate of the tile (0 to Size.Y-1)</param>
+    /// <param name="itemId">The item ID to set at the specified coordinates</param>
+    /// <returns>True if the coordinates are valid and the item ID was set; otherwise, false</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TrySetItemId(int x, int y, uint itemId)
     {
@@ -96,6 +132,13 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         return true;
     }
 
+    /// <summary>
+    /// Sets the item ID for a rectangular region of tiles.
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="from">The top-left corner of the region (inclusive)</param>
+    /// <param name="to">The bottom-right corner of the region (exclusive)</param>
+    /// <param name="itemId">The item ID to set for all tiles in the region</param>
     public void SetItemIds(int2 from, int2 to, uint itemId)
     {
         //clamp
@@ -112,6 +155,10 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         _isTileIdDirty = true;
     }
 
+    /// <summary>
+    /// Sets the same item ID for all tiles in the block
+    /// </summary>
+    /// <param name="itemId">The item ID to set for all tiles</param>
     public void SetAllItemIds(uint itemId)
     {
         for (int i = 0; i < _length; i++)
@@ -121,6 +168,14 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         _isTileIdDirty = true;
     }
 
+    /// <summary>
+    /// Attempts to get the user data associated with the tile at the specified coordinates.
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="x">The X coordinate of the tile (0 to Size.X-1)</param>
+    /// <param name="y">The Y coordinate of the tile (0 to Size.Y-1)</param>
+    /// <param name="userData">When this method returns, contains the user data if available</param>
+    /// <returns>True if the coordinates are valid and user data was retrieved; otherwise, false</returns>
     public bool TryGetTileUserData(int x, int y, out object? userData)
     {
         if (!TryGetItemId(x, y, out uint itemId))
@@ -141,9 +196,10 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
 
 
     /// <summary>
-    /// Update the tile set and clear the tile id data
+    /// Updates the tile set and clears all tile ID data to prevent inconsistencies
     /// </summary>
-    /// <param name="tileSet">The new tile set</param>
+    /// <param name="tileSet">The new tile set to use</param>
+    /// <exception cref="ArgumentNullException">Thrown when tileSet is null</exception>
     public void SetTileSet(BaseTileSet<TTileData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
@@ -158,10 +214,11 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     }
 
     /// <summary>
-    /// Update the tile set without clearing the tile id data.
-    /// <br/>[Warning] This it might cause some unexpected behavior if the new tile set has less tiles than the old one.
+    /// Updates the tile set without clearing the tile ID data.
+    /// Warning: This might cause unexpected behavior if the new tile set has fewer tiles than the old one.
     /// </summary>
-    /// <param name="tileSet">The new tile set</param>
+    /// <param name="tileSet">The new tile set to use</param>
+    /// <exception cref="ArgumentNullException">Thrown when tileSet is null</exception>
     public void UnsafeSetTileSet(BaseTileSet<TTileData> tileSet)
     {
         ArgumentNullException.ThrowIfNull(tileSet);
@@ -169,6 +226,13 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileSet.AtlasTexture);
     }
 
+    /// <summary>
+    /// Attempts to determine which tile position a 3D ray intersects with.
+    /// Returns tile coordinates in pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="ray">The 3D ray to test intersection with</param>
+    /// <param name="tilePosition">When this method returns, contains the tile position if intersection occurred</param>
+    /// <returns>True if the ray intersects with a valid tile position; otherwise, false</returns>
     public bool TryGetTilePositionByRay(Ray3D ray, out int2 tilePosition)
     {
         Matrix4x4 matrix = Transform.Matrix;
@@ -203,11 +267,38 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         return false;
     }
 
-    public Vector2 TilePositionToLocalPosition(int2 tilePosition)
+    /// <summary>
+    /// Converts tile coordinates to local position coordinates within the tile block.
+    /// Input coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// Output coordinates use world space: origin (0,0) at center, X points right, Y points up.
+    /// </summary>
+    /// <param name="tilePosition">The tile coordinates to convert</param>
+    /// <returns>The local position corresponding to the tile coordinates</returns>
+    public Vector2 PixelSpaceToWorldSpace(int2 tilePosition)
     {
         return new Vector2(tilePosition.X - (_size.X - 1) * 0.5f, -tilePosition.Y + (_size.Y - 1) * 0.5f);
     }
 
+    /// <summary>
+    /// Converts world space coordinates to tile coordinates.
+    /// Input coordinates use world space: origin (0,0) at center, X points right, Y points up.
+    /// </summary>
+    /// <param name="worldPosition">The world space coordinates to convert</param>
+    /// <returns>The tile coordinates corresponding to the world space coordinates</returns>
+    public int2 WorldSpaceToPixelSpace(Vector2 worldPosition)
+    {
+        float x = worldPosition.X + (_size.X - 1) * 0.5f;
+        float y = (_size.Y - 1) * 0.5f - worldPosition.Y;
+        return new int2(round(x), round(y));
+    }
+
+    /// <summary>
+    /// Converts 2D tile coordinates to a linear tile index.
+    /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </summary>
+    /// <param name="x">The X coordinate of the tile</param>
+    /// <param name="y">The Y coordinate of the tile</param>
+    /// <returns>The linear index corresponding to the tile coordinates</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetTileIndex(int x, int y)
     {
