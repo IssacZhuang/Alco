@@ -180,7 +180,7 @@ public class Game : GameEngine
             _blurCorner, _blurSide, _blurCorner
         ]);
 
-        UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
+        UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
 
         _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _blurTexture);
@@ -216,7 +216,7 @@ public class Game : GameEngine
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
-            UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
+            UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
             isDebugClicked = true;
         }
 
