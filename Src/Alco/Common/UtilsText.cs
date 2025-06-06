@@ -15,25 +15,22 @@ public static class UtilsText
     /// <param name="text">The text to search in</param>
     /// <param name="search">The search pattern to match</param>
     /// <returns>True if the search pattern is found as a subsequence in the text, otherwise false</returns>
-    public static bool BlurSearch(string text, string search)
+    public static bool BlurSearch(ReadOnlySpan<char> text, ReadOnlySpan<char> search)
     {
-        if (string.IsNullOrEmpty(search))
+        if (search.IsEmpty)
             return true;
 
-        if (string.IsNullOrEmpty(text))
+        if (text.IsEmpty)
             return false;
 
-        string lowerText = text.ToLower();
-        string lowerSearch = search.ToLower();
-
         int searchIndex = 0;
-        for (int i = 0; i < lowerText.Length; i++)
+        for (int i = 0; i < text.Length; i++)
         {
-            if (lowerText[i] == lowerSearch[searchIndex])
+            if (char.ToLowerInvariant(text[i]) == char.ToLowerInvariant(search[searchIndex]))
             {
                 searchIndex++;
 
-                if (searchIndex == lowerSearch.Length)
+                if (searchIndex == search.Length)
                     return true;
             }
         }
