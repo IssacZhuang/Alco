@@ -98,6 +98,20 @@ public class ConnectableTileBlock2D : AutoDisposable
     }
 
     /// <summary>
+    /// Attempts to get the tile data at the specified coordinates (pixel space).
+    /// </summary>
+    /// <remarks>
+    /// Pixel space: origin (0,0) at top-left, X points right, Y points down.
+    /// </remarks>
+    /// <param name="tilePosition">The tile coordinates in pixel space</param>
+    /// <param name="data">When this method returns, contains the tile data if the tile exists; otherwise, null.</param>
+    /// <returns>True if the tile data exists at the specified coordinates; otherwise, false.</returns>
+    public bool TryGetTileData(int2 tilePosition, [NotNullWhen(true)] out ConnectableTileData? data)
+    {
+        return _tileData.TryGet(tilePosition.X, tilePosition.Y, out data);
+    }
+
+    /// <summary>
     /// Sets tile data at the specified coordinates (pixel space).
     /// </summary>
     /// <remarks>
