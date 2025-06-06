@@ -305,31 +305,6 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     }
 
     /// <summary>
-    /// Converts tile coordinates to local position coordinates within the tile block.
-    /// Input coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
-    /// Output coordinates use world space: origin (0,0) at center, X points right, Y points up.
-    /// </summary>
-    /// <param name="tilePosition">The tile coordinates to convert</param>
-    /// <returns>The local position corresponding to the tile coordinates</returns>
-    public Vector2 PixelSpaceToWorldSpace(int2 tilePosition)
-    {
-        return new Vector2(tilePosition.X - (_size.X - 1) * 0.5f, -tilePosition.Y + (_size.Y - 1) * 0.5f);
-    }
-
-    /// <summary>
-    /// Converts world space coordinates to tile coordinates.
-    /// Input coordinates use world space: origin (0,0) at center, X points right, Y points up.
-    /// </summary>
-    /// <param name="worldPosition">The world space coordinates to convert</param>
-    /// <returns>The tile coordinates corresponding to the world space coordinates</returns>
-    public int2 WorldSpaceToPixelSpace(Vector2 worldPosition)
-    {
-        float x = worldPosition.X + (_size.X - 1) * 0.5f;
-        float y = (_size.Y - 1) * 0.5f - worldPosition.Y;
-        return new int2(round(x), round(y));
-    }
-
-    /// <summary>
     /// Converts 2D tile coordinates to a linear tile index.
     /// Coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
     /// </summary>

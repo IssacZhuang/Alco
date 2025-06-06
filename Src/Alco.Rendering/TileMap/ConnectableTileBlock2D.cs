@@ -187,34 +187,6 @@ public class ConnectableTileBlock2D : AutoDisposable
         return TryRemoveTileData(tilePosition.X, tilePosition.Y);
     }
 
-    /// <summary>
-    /// Converts tile coordinates to local position coordinates within the tile block.
-    /// </summary>
-    /// <remarks>
-    /// Input coordinates use pixel space: origin (0,0) at top-left, X points right, Y points down.
-    /// </remarks>
-    /// <param name="tilePosition">The tile coordinates to convert</param>
-    /// <returns>The local position corresponding to the tile coordinates</returns>
-    public Vector2 PixelSpaceToWorldSpace(int2 tilePosition)
-    {
-        return new Vector2(tilePosition.X - (_size.X - 1) * 0.5f, -tilePosition.Y + (_size.Y - 1) * 0.5f);
-    }
-
-    /// <summary>
-    /// Converts world space coordinates to tile coordinates.
-    /// </summary>
-    /// <remarks>
-    /// Input coordinates use world space: origin (0,0) at center, X points right, Y points up.
-    /// </remarks>
-    /// <param name="worldPosition">The world space coordinates to convert</param>
-    /// <returns>The tile coordinates corresponding to the world space coordinates</returns>
-    public int2 WorldSpaceToPixelSpace(Vector2 worldPosition)
-    {
-        float x = worldPosition.X + (_size.X - 1) * 0.5f;
-        float y = (_size.Y - 1) * 0.5f - worldPosition.Y;
-        return new int2(round(x), round(y));
-    }
-
     private void BuildRenderCommand(GPURenderPass renderPass)
     {
         _subRenderContext.Begin(renderPass);

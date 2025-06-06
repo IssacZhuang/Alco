@@ -318,7 +318,7 @@ public class Game : GameEngine
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
             //DebugGUI.Text($"Tile Position: {tilePosition}");
-            Vector2 tilePositionInWorld = _surfaceBlock.PixelSpaceToWorldSpace(tilePosition);
+            Vector2 tilePositionInWorld = UtilsCoordinates.PixelSpaceToWorldSpace(tilePosition, _surfaceBlock.Size);
             //DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
             ImGui.Text($"Tile Position: {tilePosition}");
