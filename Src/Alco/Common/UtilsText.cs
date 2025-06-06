@@ -8,42 +8,36 @@ namespace Alco;
 /// </summary>
 public static class UtilsText
 {
-    private static readonly char[] _formatCache = new char[256];
-
     /// <summary>
-    /// Convert value to ReadOnlySpan of char
-    /// <br/> Not thread safe
+    /// Performs a blur search (subsequence matching) on the given text.
+    /// The search is case-insensitive.
     /// </summary>
-    /// <param name="value"> Value to convert </param>
-    /// <typeparam name="T"> Type of value </typeparam>
-    /// <returns>ReadOnlySpan of char</returns>
-    public static ReadOnlySpan<char> ToCharSpan<T>(T value) where T : ISpanFormattable
+    /// <param name="text">The text to search in</param>
+    /// <param name="search">The search pattern to match</param>
+    /// <returns>True if the search pattern is found as a subsequence in the text, otherwise false</returns>
+    public static bool BlurSearch(string text, string search)
     {
-        if (value.TryFormat(_formatCache, out var written, ReadOnlySpan<char>.Empty, null))
+        if (string.IsNullOrEmpty(search))
+            return true;
+
+        if (string.IsNullOrEmpty(text))
+            return false;
+
+        string lowerText = text.ToLower();
+        string lowerSearch = search.ToLower();
+
+        int searchIndex = 0;
+        for (int i = 0; i < lowerText.Length; i++)
         {
-            return new ReadOnlySpan<char>(_formatCache, 0, written);
+            if (lowerText[i] == lowerSearch[searchIndex])
+            {
+                searchIndex++;
+
+                if (searchIndex == lowerSearch.Length)
+                    return true;
+            }
         }
 
-        return ReadOnlySpan<char>.Empty;
-    }
-
-    private static readonly ThreadLocal<char[]> _formatCacheThreadSafe = new ThreadLocal<char[]>(() => new char[256]);
-
-    /// <summary>
-    /// Convert value to ReadOnlySpan of char
-    /// <br/> Thread safe
-    /// </summary>
-    /// <param name="value"> Value to convert </param>
-    /// <typeparam name="T"> Type of value </typeparam>
-    /// <returns>ReadOnlySpan of char</returns>
-    public static ReadOnlySpan<char> ToCharSpanThreadSafe<T>(T value) where T : ISpanFormattable
-    {
-        var formatCache = _formatCacheThreadSafe.Value;
-        if (value.TryFormat(formatCache, out var written, ReadOnlySpan<char>.Empty, null))
-        {
-            return new ReadOnlySpan<char>(formatCache, 0, written);
-        }
-
-        return ReadOnlySpan<char>.Empty;
+        return false;
     }
 }
