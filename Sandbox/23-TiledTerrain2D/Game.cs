@@ -160,7 +160,7 @@ public class Game : GameEngine
         material.DepthStencilState = DepthStencilState.Write;
         material.SetTexture(ShaderResourceId.Texture, textureWall);
 
-        _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f), null);
+        _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), null);
 
 
         _brushTransform = new Transform3D();
@@ -357,7 +357,7 @@ public class Game : GameEngine
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        _wallManager.AddWall(new Wall(tilePosition, _wallData));
+                        _wallManager.AddWall(new Wall(tilePosition, _wallData, new ColorFloat(0, 0, 0, 1f)));
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
