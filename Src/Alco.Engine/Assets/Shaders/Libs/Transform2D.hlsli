@@ -10,8 +10,8 @@ struct Transform2D{
 // Returns: The rotated vector
 float2 rotate(float2 position, float2 rotation)
 {
-    float c = rotation.x; // cosine component
-    float s = rotation.y; // sine component
+    float s = rotation.x; // sine component
+    float c = rotation.y; // cosine component
     // Create 2x2 rotation matrix and multiply - more efficient on GPU
     float2x2 rotMatrix = float2x2(c, s, -s, c);
     return mul(rotMatrix, position);
