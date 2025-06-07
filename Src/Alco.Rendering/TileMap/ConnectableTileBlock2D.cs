@@ -187,6 +187,14 @@ public class ConnectableTileBlock2D : AutoDisposable
         return TryRemoveTileData(tilePosition.X, tilePosition.Y);
     }
 
+    /// <summary>
+    /// Sets the render data dirty.
+    /// </summary>
+    public void SetRenderDataDirty()
+    {
+        _isRenderDataDirty = true;
+    }
+
     private void BuildRenderCommand(GPURenderPass renderPass)
     {
         _subRenderContext.Begin(renderPass);
