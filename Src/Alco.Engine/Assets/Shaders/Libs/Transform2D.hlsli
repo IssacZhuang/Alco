@@ -2,7 +2,7 @@ struct Transform2D{
     float2 position;
     float2 rotation;
     float2 scale;
-}
+};
 
 // Rotates a 2D vector using the rotation component of Rotation2D (left-handed rotation)
 // position: The vector to rotate
