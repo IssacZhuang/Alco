@@ -141,7 +141,7 @@ public sealed class RenderTexture : AutoDisposable
     private GPUResourceGroup CreateGroupSample(GPUTextureView view)
     {
         ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DSampled,
+            _device.BindGroupTextureDepthSampled,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, view),
                 new ResourceBindingEntry(1, _sampler)

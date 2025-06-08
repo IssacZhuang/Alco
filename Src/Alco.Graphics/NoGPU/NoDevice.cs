@@ -48,6 +48,8 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTexture2DSampled {get;}
 
+    public override GPUBindGroup BindGroupTextureDepthSampled {get;}
+
     public override GPUBindGroup BindGroupTexture2DRead {get;}
 
     public override GPUBindGroup BindGroupTexture2DStorage {get;}
@@ -100,6 +102,17 @@ internal class NoDevice : GPUDevice
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        BindGroupTextureDepthSampled = CreateBindGroup(new BindGroupDescriptor
+
+        {
+            Name = "default_bind_group_texture_depth_sampled",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
                 new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
             },
         });

@@ -43,6 +43,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public override GPUBindGroup BindGroupStorageBuffer { get; }
     public override GPUBindGroup BindGroupStorageBufferWithCounter { get; }
     public override GPUBindGroup BindGroupTexture2DSampled { get; }
+    public override GPUBindGroup BindGroupTextureDepthSampled { get; }
     public override GPUBindGroup BindGroupTexture2DRead { get; }
     public override GPUBindGroup BindGroupTexture2DStorage { get; }
 
@@ -73,6 +74,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         BindGroupStorageBuffer.Destroy();
         BindGroupStorageBufferWithCounter.Destroy();
         BindGroupTexture2DSampled.Destroy();
+        BindGroupTextureDepthSampled.Destroy();
         BindGroupTexture2DRead.Destroy();
         BindGroupTexture2DStorage.Destroy();
 
@@ -488,6 +490,16 @@ internal sealed partial class WebGPUDevice : GPUDevice
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        BindGroupTextureDepthSampled = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture_depth_sampled",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, TextureBindingInfo.Depth2D),
                 new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
             },
         });
