@@ -2,6 +2,7 @@ namespace Alco.Graphics;
 
 public enum FilterMode
 {
-    Nearest = 0,
-    Linear = 1,
+    None = 0,
+    Nearest = 1,
+    Linear = 2,
 }

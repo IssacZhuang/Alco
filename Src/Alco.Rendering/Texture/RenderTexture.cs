@@ -90,7 +90,7 @@ public sealed class RenderTexture : AutoDisposable
 
             if (_groupDepthSample == null)
             {
-                _groupDepthSample = CreateGroupSample(_frameBuffer.DepthStencilView!);
+                _groupDepthSample = CreateGroupSample(_frameBuffer.DepthView!);
             }
 
             return _groupDepthSample;

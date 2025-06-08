@@ -344,6 +344,7 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<FilterMode, WGPUFilterMode>[] FilterModeCast = new Tuple<FilterMode, WGPUFilterMode>[]
     {
+        new(FilterMode.None, WGPUFilterMode.None),
         new(FilterMode.Nearest, WGPUFilterMode.Nearest),
         new(FilterMode.Linear, WGPUFilterMode.Linear),
     };
@@ -353,6 +354,7 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<FilterMode, WGPUMipmapFilterMode>[] MipmapFilterModeCast = new Tuple<FilterMode, WGPUMipmapFilterMode>[]
     {
+        new(FilterMode.None, WGPUMipmapFilterMode.None),
         new(FilterMode.Nearest, WGPUMipmapFilterMode.Nearest),
         new(FilterMode.Linear, WGPUMipmapFilterMode.Linear),
     };
