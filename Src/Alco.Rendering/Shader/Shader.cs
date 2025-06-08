@@ -20,7 +20,8 @@ public sealed class Shader : AutoDisposable
     private readonly Lock _lockCreateComputePipeline = new Lock();
     private readonly Lock _lockCreateModules = new Lock();
 
-    private readonly VertexInputLayout[]? _customVertexLayouts;
+    private readonly IReadOnlyList<VertexInputLayout>? _customVertexLayouts;
+    private readonly IReadOnlyList<BindGroupLayout>? _customBindGroups;
 
     private string _shaderText;
     //for hot reload
@@ -42,7 +43,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="renderingSystem">The rendering system</param>
     /// <param name="shaderText">The shader text</param>
     /// <param name="name">The name of the shader</param>
-    internal Shader(RenderingSystem renderingSystem, string shaderText, string name, VertexInputLayout[]? customVertexLayouts = null)
+    internal Shader(RenderingSystem renderingSystem, string shaderText, string name, IReadOnlyList<VertexInputLayout>? customVertexLayouts = null, IReadOnlyList<BindGroupLayout>? customBindGroups = null)
     {
         _renderingSystem = renderingSystem;
         _shaderText = shaderText;
@@ -53,6 +54,7 @@ public sealed class Shader : AutoDisposable
         IsComputeShader = modulesInfo.IsComputeShader;
 
         _customVertexLayouts = customVertexLayouts;
+        _customBindGroups = customBindGroups;
     }
 
     /// <summary>
@@ -330,10 +332,12 @@ public sealed class Shader : AutoDisposable
             ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
             GPUDevice device = _renderingSystem.GraphicsDevice;
 
-            GPUBindGroup[] bindGroups = new GPUBindGroup[reflectionInfo.BindGroups.Count];
-            for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
+            IReadOnlyList<BindGroupLayout> bindGroupLayouts = _customBindGroups ?? reflectionInfo.BindGroups;
+
+            GPUBindGroup[] bindGroups = new GPUBindGroup[bindGroupLayouts.Count];
+            for (int i = 0; i < bindGroupLayouts.Count; i++)
             {
-                bindGroups[i] = device.CreateBindGroup(reflectionInfo.BindGroups[i].ToDescriptor());
+                bindGroups[i] = device.CreateBindGroup(bindGroupLayouts[i].ToDescriptor());
             }
 
             GPUPipeline pipelineNew;
@@ -346,7 +350,7 @@ public sealed class Shader : AutoDisposable
             }
             PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
 
-            VertexInputLayout[] vertexInputLayouts = _customVertexLayouts ?? reflectionInfo.VertexLayouts.ToArray();
+            IReadOnlyList<VertexInputLayout> vertexInputLayouts = _customVertexLayouts ?? reflectionInfo.VertexLayouts;
 
             GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
                 bindGroups,
@@ -354,7 +358,7 @@ public sealed class Shader : AutoDisposable
                     modulesInfo.VertexShader!.Value,
                     modulesInfo.FragmentShader!.Value
                     },
-                vertexInputLayouts,
+                vertexInputLayouts.ToArray(),
                 rasterizer,
                 blend,
                 depthStencil,
