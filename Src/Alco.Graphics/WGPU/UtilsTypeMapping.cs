@@ -372,6 +372,20 @@ internal static partial class UtilsWebGPU
     public static readonly Func<TextureAspect, WGPUTextureAspect> TextureAspectToWebGPU;
     public static readonly Func<WGPUTextureAspect, TextureAspect> TextureAspectToAbstract;
 
+
+    private static readonly Tuple<TextureSampleType, WGPUTextureSampleType>[] TextureSampleTypeCast = new Tuple<TextureSampleType, WGPUTextureSampleType>[]
+    {
+        new(TextureSampleType.None, WGPUTextureSampleType.None),
+        new(TextureSampleType.Float, WGPUTextureSampleType.Float),
+        new(TextureSampleType.UnfilterableFloat, WGPUTextureSampleType.UnfilterableFloat),
+        new(TextureSampleType.Depth, WGPUTextureSampleType.Depth),
+        new(TextureSampleType.Sint, WGPUTextureSampleType.Sint),
+        new(TextureSampleType.Uint, WGPUTextureSampleType.Uint),
+    };
+
+    public static readonly Func<TextureSampleType, WGPUTextureSampleType> TextureSampleTypeToWebGPU;
+    public static readonly Func<WGPUTextureSampleType, TextureSampleType> TextureSampleTypeToAbstract;
+
     static UtilsWebGPU()
     {
         BackendToWebGPU = UtilsCast.GenerateCastFunc(BackendCast);
@@ -392,5 +406,6 @@ internal static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(FilterModeCast, out FilterModeToWebGPU, out FilterModeToAbstract);
         UtilsCast.GenerateCastFunc(MipmapFilterModeCast, out MipmapFilterModeToWebGPU, out MipmapFilterModeToAbstract);
         UtilsCast.GenerateCastFunc(TextureAspectCast, out TextureAspectToWebGPU, out TextureAspectToAbstract);
+        UtilsCast.GenerateCastFunc(TextureSampleTypeCast, out TextureSampleTypeToWebGPU, out TextureSampleTypeToAbstract);
     }
 }

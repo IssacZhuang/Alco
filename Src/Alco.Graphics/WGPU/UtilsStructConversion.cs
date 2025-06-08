@@ -232,7 +232,7 @@ internal static partial class UtilsWebGPU
         {
             result.texture = new WGPUTextureBindingLayout
             {
-                sampleType = WGPUTextureSampleType.Float,
+                sampleType = TextureSampleTypeToWebGPU(binding.TextureInfo.SampleType),
                 viewDimension = TextureViewDimensionToWebGPU(binding.TextureInfo.ViewDimension),
                 multisampled = false,
             };
