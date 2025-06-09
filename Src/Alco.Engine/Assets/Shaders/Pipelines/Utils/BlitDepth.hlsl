@@ -31,5 +31,6 @@ float4 MainPS(V2F input) : SV_TARGET {
     float2 c = input.uv * canvasSize;
     int2 position = int2(c);
     float depth = GET_PIXEL_TEX2D(_texture, position);
+    depth = (1.0 - depth);
     return float4(depth, depth, depth, 1);
 }

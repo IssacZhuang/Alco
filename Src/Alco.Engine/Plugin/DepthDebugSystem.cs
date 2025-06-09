@@ -8,12 +8,21 @@ namespace Alco.Engine;
 
 public class DepthDebugSystem : BaseEngineSystem
 {
-    private readonly Material _material;
+    private readonly RenderingSystem _rendering;
+
+    private readonly Material _materialBlitToTmp;
+    private readonly Material _materialBlitToMain;
     private readonly Mesh _mesh;
     private readonly RenderContext _renderer;
     private readonly ViewRenderTarget _renderTarget;
 
+    //the depth texture can not use as depth attachment and source of read at the same time
+    //so we need to create a temporary texture to store the depth texture
+    private RenderTexture _tmpTexture;
+
     private readonly GraphicsValueBuffer<Vector2> _canvasSizeBuffer;
+
+    public bool IsEnabled { get; set; } = true;
 
     public override int Order => 2000;
 
@@ -21,17 +30,24 @@ public class DepthDebugSystem : BaseEngineSystem
     {
         _renderTarget = renderTarget;
 
-        RenderingSystem rendering = engine.RenderingSystem;
+        _rendering = engine.RenderingSystem;
 
-        _renderer = rendering.CreateRenderContext("blit_depth_buffer");
+        _renderer = _rendering.CreateRenderContext("blit_depth_buffer");
 
-        _canvasSizeBuffer = rendering.CreateGraphicsValueBuffer<Vector2>();
+        _tmpTexture = _rendering.CreateRenderTexture(
+            _rendering.PrefferedSDRPassWithoutDepth, 
+            renderTarget.RenderTexture.Width,
+            renderTarget.RenderTexture.Height,
+            "tmp_depth_texture"
+            );
+
+        _canvasSizeBuffer = _rendering.CreateGraphicsValueBuffer<Vector2>();
 
         AssetSystem assetSystem = engine.AssetSystem;
 
         string shaderText = assetSystem.Load<string>(BuiltInAssetsPath.Shader_BlitDepth);
 
-        Shader shader = rendering.CreateShader(
+        Shader shaderBlitToTmp = _rendering.CreateShader(
             shaderText,
             BuiltInAssetsPath.Shader_BlitDepth,
             null,
@@ -63,30 +79,61 @@ public class DepthDebugSystem : BaseEngineSystem
             }
         );
 
-        _mesh = rendering.MeshFullScreen;
+        _mesh = _rendering.MeshFullScreen;
 
-        _material = shader.CreateMaterial();
-        _material.SetRenderTextureDepth(ShaderResourceId.Texture, renderTarget.RenderTexture);
+        _materialBlitToTmp = shaderBlitToTmp.CreateMaterial("material_blit_to_tmp");
+        _materialBlitToTmp.SetRenderTextureDepth(ShaderResourceId.Texture, renderTarget.RenderTexture);
 
-        _material.SetBuffer(ShaderResourceId.Data, _canvasSizeBuffer);
+        _materialBlitToTmp.SetBuffer(ShaderResourceId.Data, _canvasSizeBuffer);
+
+        Shader shaderBlitToMain = assetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Blit);
+        _materialBlitToMain = shaderBlitToMain.CreateMaterial("material_blit_to_main");
+        _materialBlitToMain.SetRenderTexture(ShaderResourceId.Texture, _tmpTexture);
 
         _renderTarget.OnResize += OnWindowResize;
     }
 
     public override void OnPostUpdate(float delta)
     {
+        if (!IsEnabled)
+        {
+            return;
+        }
+
+        RenderTexture targetTexture = _renderTarget.RenderTexture;
+
+        _canvasSizeBuffer.UpdateBuffer(new Vector2(
+            targetTexture.Width, 
+            targetTexture.Height));
+
+        _renderer.Begin(_tmpTexture.FrameBuffer);
+        _renderer.Draw(_mesh, _materialBlitToTmp);
+        _renderer.End();
+
         _renderer.Begin(_renderTarget.FrameBuffer);
-        _renderer.Draw(_mesh, _material);
+        _renderer.Draw(_mesh, _materialBlitToMain);
         _renderer.End();
     }
 
     private void OnWindowResize(uint2 size)
     {
-        _canvasSizeBuffer.UpdateBuffer(new Vector2(size.X, size.Y));
+        _tmpTexture.Dispose();
+        _tmpTexture = _rendering.CreateRenderTexture(
+            _rendering.PrefferedSDRPassWithoutDepth,
+            _renderTarget.RenderTexture.Width,
+            _renderTarget.RenderTexture.Height,
+            "tmp_depth_texture"
+            );
     }
 
     public override void Dispose()
     {
         _renderTarget.OnResize -= OnWindowResize;
+
+        _tmpTexture.Dispose();
+        _canvasSizeBuffer.Dispose();
+        _materialBlitToTmp.Dispose();
+        _materialBlitToMain.Dispose();
+        _renderer.Dispose();
     }
 }

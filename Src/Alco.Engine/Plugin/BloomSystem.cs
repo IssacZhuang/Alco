@@ -53,9 +53,6 @@ public class BloomSystem : BaseEngineSystem
     {
         _renderTarget.OnResize -= OnRenderTargetResize;
         _bloom.Dispose();
-        _clampShader.Dispose();
-        _downSampleShader.Dispose();
-        _blitShader.Dispose();
         GC.SuppressFinalize(this);
     }
 }
