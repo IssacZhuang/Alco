@@ -78,7 +78,7 @@ public sealed class RenderTexture : AutoDisposable
     /// The entry of depth view for sampling.
     /// </summary>
     /// <value></value>
-    public GPUResourceGroup? EntryDepthSample
+    public GPUResourceGroup? EntryDepthRead
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -90,7 +90,7 @@ public sealed class RenderTexture : AutoDisposable
 
             if (_groupDepthSample == null)
             {
-                _groupDepthSample = CreateGroupSample(_frameBuffer.DepthView!);
+                _groupDepthSample = CreateGroupDepthRead(_frameBuffer.DepthView!);
             }
 
             return _groupDepthSample;
@@ -138,13 +138,12 @@ public sealed class RenderTexture : AutoDisposable
         }
     }
 
-    private GPUResourceGroup CreateGroupSample(GPUTextureView view)
+    private GPUResourceGroup CreateGroupDepthRead(GPUTextureView view)
     {
         ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTextureDepthSampled,
+            _device.BindGroupTextureDepthRead,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, view),
-                new ResourceBindingEntry(1, _sampler)
             }
         );
 

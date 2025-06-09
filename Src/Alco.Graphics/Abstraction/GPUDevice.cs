@@ -140,7 +140,7 @@ public abstract class GPUDevice
     /// <summary>
     /// The <see cref="GPUBindGroup"/> for the sampled depth 2D texture, which contains a texture view and a sampler.
     /// </summary>
-    public abstract GPUBindGroup BindGroupTextureDepthSampled { get; }
+    public abstract GPUBindGroup BindGroupTextureDepthRead { get; }
 
     /// <summary>
     /// The <see cref="GPUBindGroup"/> for the read-only 2D texture, which contains a texture view. Can only be used in the compute shader.

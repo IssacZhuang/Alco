@@ -364,6 +364,7 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<TextureAspect, WGPUTextureAspect>[] TextureAspectCast = new Tuple<TextureAspect, WGPUTextureAspect>[]
     {
+        new(TextureAspect.None, WGPUTextureAspect.None),
         new(TextureAspect.All, WGPUTextureAspect.All),
         new(TextureAspect.StencilOnly, WGPUTextureAspect.StencilOnly),
         new(TextureAspect.DepthOnly, WGPUTextureAspect.DepthOnly),

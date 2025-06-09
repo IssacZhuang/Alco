@@ -48,7 +48,7 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTexture2DSampled {get;}
 
-    public override GPUBindGroup BindGroupTextureDepthSampled {get;}
+    public override GPUBindGroup BindGroupTextureDepthRead { get; }
 
     public override GPUBindGroup BindGroupTexture2DRead {get;}
 
@@ -106,7 +106,7 @@ internal class NoDevice : GPUDevice
             },
         });
 
-        BindGroupTextureDepthSampled = CreateBindGroup(new BindGroupDescriptor
+        BindGroupTextureDepthRead = CreateBindGroup(new BindGroupDescriptor
 
         {
             Name = "default_bind_group_texture_depth_sampled",

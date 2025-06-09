@@ -1,6 +1,11 @@
 
-[[vk::binding(0, 0)]] Texture2D<float> _texture;
-[[vk::binding(1, 0)]] SamplerState _textureSampler; 
+#include "Shaders/Libs/Core.hlsli"
+
+SLOT(0, 0) Texture2D<float> _texture;
+
+DEFINE_UNIFORM(1, _data) {
+  float2 canvasSize;
+}
 
 struct Vertex {
   float3 position : POSITION;
@@ -12,9 +17,6 @@ struct V2F {
   float2 uv : TEXCOORD0;
 };
 
-struct Textures {
-    Texture2D<float> tex;
-};
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
@@ -26,6 +28,8 @@ V2F MainVS(Vertex input) {
 
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
-    Textures textures = { _texture };
-    return textures.tex.Sample(_textureSampler, input.uv);
+    float2 c = input.uv * canvasSize;
+    int2 position = int2(c);
+    float depth = GET_PIXEL_TEX2D(_texture, position);
+    return float4(depth, depth, depth, 1);
 }

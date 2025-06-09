@@ -187,7 +187,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 BuildDepthTextureDescriptor(depthInfo.format, width, height)
                 );
 
-            _depthStencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
+            _depthStencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.None));
             _depthView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
             if(UtilsPixelFormat.HasStencil(_depthStencilTexture.PixelFormat))
             {
