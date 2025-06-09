@@ -8,6 +8,7 @@ using Alco.IO;
 using System.Text;
 using Alco.Audio;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 
 
 namespace Alco.Engine;
@@ -636,6 +637,32 @@ IDisposable
     public void RemoveSystem(IEngineSystem system)
     {
         _systems.Remove(system);
+    }
+
+    public T GetSystem<T>() where T : IEngineSystem
+    {
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            if (_systems[i] is T system)
+            {
+                return system;
+            }
+        }
+        throw new Exception($"System {typeof(T).Name} not found");
+    }
+
+    public bool TryGetSystem<T>([NotNullWhen(true)] out T? system) where T : IEngineSystem
+    {
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            if (_systems[i] is T s)
+            {
+                system = s;
+                return true;
+            }
+        }
+        system = default;
+        return false;
     }
 
     #endregion
