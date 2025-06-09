@@ -4,7 +4,8 @@
 SLOT(0, 0) Texture2D<float> _texture;
 
 DEFINE_UNIFORM(1, _data) {
-  float2 canvasSize;
+    float2 canvasSize;
+    float dynamicMultiplier;
 }
 
 struct Vertex {
@@ -31,6 +32,7 @@ float4 MainPS(V2F input) : SV_TARGET {
     float2 c = input.uv * canvasSize;
     int2 position = int2(c);
     float depth = GET_PIXEL_TEX2D(_texture, position);
-    depth = (1.0 - depth);
+    depth = (1.0 - depth) * dynamicMultiplier;
+
     return float4(depth, depth, depth, 1);
 }

@@ -8,6 +8,18 @@ namespace Alco.Engine;
 
 public class DepthDebugSystem : BaseEngineSystem
 {
+    private struct Data
+    {
+        public Vector2 CanvasSize;
+        public float DynamicMultiplier;
+
+        public Data(Vector2 canvasSize, float dynamicMultiplier)
+        {
+            CanvasSize = canvasSize;
+            DynamicMultiplier = dynamicMultiplier;
+        }
+    }
+
     private readonly RenderingSystem _rendering;
 
     private readonly Material _materialBlitToTmp;
@@ -20,9 +32,11 @@ public class DepthDebugSystem : BaseEngineSystem
     //so we need to create a temporary texture to store the depth texture
     private RenderTexture _tmpTexture;
 
-    private readonly GraphicsValueBuffer<Vector2> _canvasSizeBuffer;
+    private readonly GraphicsValueBuffer<Data> _dataBuffer;
 
     public bool IsEnabled { get; set; } = true;
+
+    public float DynamicMultiplier { get; set; } = 1.0f;
 
     public override int Order => 2000;
 
@@ -41,7 +55,7 @@ public class DepthDebugSystem : BaseEngineSystem
             "tmp_depth_texture"
             );
 
-        _canvasSizeBuffer = _rendering.CreateGraphicsValueBuffer<Vector2>();
+        _dataBuffer = _rendering.CreateGraphicsValueBuffer<Data>();
 
         AssetSystem assetSystem = engine.AssetSystem;
 
@@ -84,7 +98,7 @@ public class DepthDebugSystem : BaseEngineSystem
         _materialBlitToTmp = shaderBlitToTmp.CreateMaterial("material_blit_to_tmp");
         _materialBlitToTmp.SetRenderTextureDepth(ShaderResourceId.Texture, renderTarget.RenderTexture);
 
-        _materialBlitToTmp.SetBuffer(ShaderResourceId.Data, _canvasSizeBuffer);
+        _materialBlitToTmp.SetBuffer(ShaderResourceId.Data, _dataBuffer);
 
         Shader shaderBlitToMain = assetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Blit);
         _materialBlitToMain = shaderBlitToMain.CreateMaterial("material_blit_to_main");
@@ -102,9 +116,9 @@ public class DepthDebugSystem : BaseEngineSystem
 
         RenderTexture targetTexture = _renderTarget.RenderTexture;
 
-        _canvasSizeBuffer.UpdateBuffer(new Vector2(
-            targetTexture.Width, 
-            targetTexture.Height));
+        _dataBuffer.Value.CanvasSize = new Vector2(targetTexture.Width, targetTexture.Height);
+        _dataBuffer.Value.DynamicMultiplier = DynamicMultiplier;
+        _dataBuffer.UpdateBuffer();
 
         _renderer.Begin(_tmpTexture.FrameBuffer);
         _renderer.Draw(_mesh, _materialBlitToTmp);
@@ -131,7 +145,7 @@ public class DepthDebugSystem : BaseEngineSystem
         _renderTarget.OnResize -= OnWindowResize;
 
         _tmpTexture.Dispose();
-        _canvasSizeBuffer.Dispose();
+        _dataBuffer.Dispose();
         _materialBlitToTmp.Dispose();
         _materialBlitToMain.Dispose();
         _renderer.Dispose();
