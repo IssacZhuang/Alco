@@ -5,7 +5,7 @@ SLOT(0, 0) Texture2D<float> _texture;
 
 DEFINE_UNIFORM(1, _data) {
     float2 canvasSize;
-    float dynamicMultiplier;
+    float2 dynamicRange;
 }
 
 struct Vertex {
@@ -32,7 +32,9 @@ float4 MainPS(V2F input) : SV_TARGET {
     float2 c = input.uv * canvasSize;
     int2 position = int2(c);
     float depth = GET_PIXEL_TEX2D(_texture, position);
-    depth = (1.0 - depth) * dynamicMultiplier;
+    depth = 1.0 - depth;
+    // Renormalize depth: map [dynamicRange.x, dynamicRange.y] to [0, 1]
+    depth = (depth - dynamicRange.x) / (dynamicRange.y - dynamicRange.x);
 
     return float4(depth, depth, depth, 1);
 }

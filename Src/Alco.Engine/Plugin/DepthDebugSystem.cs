@@ -6,17 +6,21 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// System for debugging depth buffer by rendering depth values as grayscale colors.
+/// Supports dynamic range adjustment for better visualization of depth values.
+/// </summary>
 public class DepthDebugSystem : BaseEngineSystem
 {
     private struct Data
     {
         public Vector2 CanvasSize;
-        public float DynamicMultiplier;
+        public Vector2 DynamicRange;
 
-        public Data(Vector2 canvasSize, float dynamicMultiplier)
+        public Data(Vector2 canvasSize, Vector2 dynamicRange)
         {
             CanvasSize = canvasSize;
-            DynamicMultiplier = dynamicMultiplier;
+            DynamicRange = dynamicRange;
         }
     }
 
@@ -36,7 +40,11 @@ public class DepthDebugSystem : BaseEngineSystem
 
     public bool IsEnabled { get; set; } = true;
 
-    public float DynamicMultiplier { get; set; } = 1.0f;
+    /// <summary>
+    /// Gets or sets the dynamic range for depth normalization. 
+    /// X component represents the minimum value (mapped to 0), Y component represents the maximum value (mapped to 1).
+    /// </summary>
+    public Vector2 DynamicRange { get; set; } = new Vector2(0.0f, 1.0f);
 
     public override int Order => 2000;
 
@@ -117,7 +125,7 @@ public class DepthDebugSystem : BaseEngineSystem
         RenderTexture targetTexture = _renderTarget.RenderTexture;
 
         _dataBuffer.Value.CanvasSize = new Vector2(targetTexture.Width, targetTexture.Height);
-        _dataBuffer.Value.DynamicMultiplier = DynamicMultiplier;
+        _dataBuffer.Value.DynamicRange = DynamicRange;
         _dataBuffer.UpdateBuffer();
 
         _renderer.Begin(_tmpTexture.FrameBuffer);
