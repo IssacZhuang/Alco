@@ -14,7 +14,7 @@ public class ConnectableTileBlock2D : AutoDisposable
     /// <summary>
     /// Represents a 2D tile block where each tile can connect to its neighbors.
     /// </summary>
-    private readonly Grid2DCollection<ConnectableTileData> _tileData;
+    private readonly Grid2DCollection<IConnectableTile> _tileData;
     private readonly int[] _connectDirections;
     private readonly SubRenderContext _subRenderContext;
 
@@ -58,7 +58,7 @@ public class ConnectableTileBlock2D : AutoDisposable
         string name)
     {
         _size = new int2(width, height);
-        _tileData = new Grid2DCollection<ConnectableTileData>(width, height);
+        _tileData = new Grid2DCollection<IConnectableTile>(width, height);
         _connectDirections = new int[width * height];
         _subRenderContext = renderingSystem.CreateSubRenderContext("connectable_tile_block_2d");
         _isRenderDataDirty = true;
@@ -92,7 +92,7 @@ public class ConnectableTileBlock2D : AutoDisposable
     /// <param name="y">Y coordinate of the tile in pixel space</param>
     /// <param name="data">When this method returns, contains the tile data if the tile exists; otherwise, null.</param>
     /// <returns>True if the tile data exists at the specified coordinates; otherwise, false.</returns>
-    public bool TryGetTileData(int x, int y, [NotNullWhen(true)] out ConnectableTileData? data)
+    public bool TryGetTileData(int x, int y, [NotNullWhen(true)] out IConnectableTile? data)
     {
         return _tileData.TryGet(x, y, out data);
     }
@@ -106,7 +106,7 @@ public class ConnectableTileBlock2D : AutoDisposable
     /// <param name="tilePosition">The tile coordinates in pixel space</param>
     /// <param name="data">When this method returns, contains the tile data if the tile exists; otherwise, null.</param>
     /// <returns>True if the tile data exists at the specified coordinates; otherwise, false.</returns>
-    public bool TryGetTileData(int2 tilePosition, [NotNullWhen(true)] out ConnectableTileData? data)
+    public bool TryGetTileData(int2 tilePosition, [NotNullWhen(true)] out IConnectableTile? data)
     {
         return _tileData.TryGet(tilePosition.X, tilePosition.Y, out data);
     }
@@ -121,7 +121,7 @@ public class ConnectableTileBlock2D : AutoDisposable
     /// <param name="y">Y coordinate of the tile in pixel space</param>
     /// <param name="data">Tile data to set</param>
     /// <returns>True if the tile data was set, false if it was already set to the same value</returns>
-    public bool TrySetTileData(int x, int y, ConnectableTileData data)
+    public bool TrySetTileData(int x, int y, IConnectableTile data)
     {
         if (_tileData.TryGet(x, y, out var oldData) && oldData == data)
         {
@@ -146,7 +146,7 @@ public class ConnectableTileBlock2D : AutoDisposable
     /// <param name="tilePosition">The tile coordinates in pixel space</param>
     /// <param name="data">Tile data to set</param>
     /// <returns>True if the tile data was set, false if it was already set to the same value</returns>
-    public bool TrySetTileData(int2 tilePosition, ConnectableTileData data)
+    public bool TrySetTileData(int2 tilePosition, IConnectableTile data)
     {
         return TrySetTileData(tilePosition.X, tilePosition.Y, data);
     }
@@ -207,18 +207,19 @@ public class ConnectableTileBlock2D : AutoDisposable
         {
             try
             {
-                Grid2DCollection<ConnectableTileData>.Info info = tiles[i];
+                Grid2DCollection<IConnectableTile>.Info info = tiles[i];
                 int direction = _connectDirections[info.Y * _size.X + info.X];
-                Rect uvRect = ConnectableTileData.GetConnectUVRect(direction);
+                IConnectableTile tile = info.Data;
+                Rect uvRect = tile.GetConnectUVRect(direction);
                 ConntectableTileConstant constant = new()
                 {
                     Model = matrix,
                     Color = Vector4.One,
                     UvRect = uvRect,
-                    Size = info.Data.Size,
-                    Offset = new Vector2(info.X - halfWidth, -info.Y + halfHeight) + info.Data.Offset
+                    Size = tile.Size,
+                    Offset = new Vector2(info.X - halfWidth, -info.Y + halfHeight) + tile.Offset
                 };
-                _subRenderContext.DrawWithConstant(_mesh, info.Data.Material, constant);
+                _subRenderContext.DrawWithConstant(_mesh, tile.Material, constant);
             }
             catch (Exception e)
             {

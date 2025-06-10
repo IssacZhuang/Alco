@@ -16,8 +16,8 @@ With<PluginDefaultAssets>().
 With(new PluginHDR()).
 //With<PluginBloom>().
 With<PluginDebugGUI>().
-With<PluginImGUI>().
-With<PluginDepthDebug>();
+With<PluginImGUI>();
+//With<PluginDepthDebug>();
 
 using (Game game = new Game(setting))
 {

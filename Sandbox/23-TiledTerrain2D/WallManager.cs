@@ -17,7 +17,7 @@ public class WallManager
 
     public void AddWall(Wall wall)
     {
-        if (!_wallGrid.TrySetTileData(wall.Position.X, wall.Position.Y, wall.Data))
+        if (!_wallGrid.TrySetTileData(wall.Position.X, wall.Position.Y, wall))
         {
             return;
         }

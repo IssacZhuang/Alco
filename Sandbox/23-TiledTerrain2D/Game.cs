@@ -32,7 +32,7 @@ public class Game : GameEngine
     private SurfaceTileSet _cliffTileSet;
     private WaterTileSet _waterTileSet;
     private PlantTileSet _plantTileSet;
-    private ConnectableTileData _wallData;
+    private Material _wallMaterial;
     private readonly SurfaceTileBlock2D _surfaceBlock;
     private readonly SurfaceTileBlock2D _cliffBlock;
     private readonly WaterTileBlock2D _waterBlock;
@@ -155,12 +155,11 @@ public class Game : GameEngine
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
         textureWall.SetSampler(GraphicsDevice.SamplerNearestClamp);
 
-        Material material = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileConnectable);
-        material.BlendState = BlendState.Opaque;
-        material.DepthStencilState = DepthStencilState.Write;
-        material.SetTexture(ShaderResourceId.Texture, textureWall);
+        _wallMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileConnectable);
+        _wallMaterial.BlendState = BlendState.Opaque;
+        _wallMaterial.DepthStencilState = DepthStencilState.Write;
+        _wallMaterial.SetTexture(ShaderResourceId.Texture, textureWall);
 
-        _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), null);
 
 
         _brushTransform = new Transform3D();
@@ -357,7 +356,7 @@ public class Game : GameEngine
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        _wallManager.AddWall(new Wall(tilePosition, _wallData, new ColorFloat(0, 0, 0, 1f)));
+                        _wallManager.AddWall(new Wall(tilePosition, _wallMaterial, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f)));
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
