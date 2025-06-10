@@ -660,7 +660,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
 
     /// <summary>
     /// Appends a formatted vector representation to the end of the current content.
-    /// The vector will be formatted as <x, y, ...>;.
+    /// The vector will be formatted as &lt;x, y, ...&gt;.
     /// </summary>
     /// <typeparam name="T">The type of the vector components.</typeparam>
     /// <param name="vector">The vector span to append.</param>
@@ -682,7 +682,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a Vector2 to the end of the current content in the format <x, y>.
+    /// Appends a Vector2 to the end of the current content in the format &lt;x, y&gt;.
     /// </summary>
     /// <param name="vector">The Vector2 to append.</param>
     public unsafe void Append(Vector2 vector)
@@ -692,7 +692,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a Vector3 to the end of the current content in the format <x, y, z>.
+    /// Appends a Vector3 to the end of the current content in the format &lt;x, y, z&gt;.
     /// </summary>
     /// <param name="vector">The Vector3 to append.</param>
     public unsafe void Append(Vector3 vector)
@@ -702,7 +702,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a Vector4 to the end of the current content in the format <x, y, z, w>.
+    /// Appends a Vector4 to the end of the current content in the format &lt;x, y, z, w&gt;.
     /// </summary>
     /// <param name="vector">The Vector4 to append.</param>
     public unsafe void Append(Vector4 vector)
@@ -712,7 +712,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a Half2 to the end of the current content in the format <x, y>.
+    /// Appends a Half2 to the end of the current content in the format &lt;x, y&gt;.
     /// </summary>
     /// <param name="vector">The Half2 to append.</param>
     public unsafe void Append(Half2 vector)
@@ -722,7 +722,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a Half3 to the end of the current content in the format <x, y, z>.
+    /// Appends a Half3 to the end of the current content in the format &lt;x, y, z&gt;.
     /// </summary>
     /// <param name="vector">The Half3 to append.</param>
     public unsafe void Append(Half3 vector)
@@ -732,7 +732,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a Half4 to the end of the current content in the format <x, y, z, w>.
+    /// Appends a Half4 to the end of the current content in the format &lt;x, y, z, w&gt;.
     /// </summary>
     /// <param name="vector">The Half4 to append.</param>
     public unsafe void Append(Half4 vector)
@@ -742,7 +742,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a int2 to the end of the current content in the format <x, y>.
+    /// Appends a int2 to the end of the current content in the format &lt;x, y&gt;.
     /// </summary>
     /// <param name="vector">The int2 to append.</param>
     public unsafe void Append(int2 vector)
@@ -752,7 +752,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a int3 to the end of the current content in the format <x, y, z>.
+    /// Appends a int3 to the end of the current content in the format &lt;x, y, z&gt;.
     /// </summary>
     /// <param name="vector">The int3 to append.</param>
     public unsafe void Append(int3 vector)
@@ -762,7 +762,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a int4 to the end of the current content in the format <x, y, z, w>.
+    /// Appends a int4 to the end of the current content in the format &lt;x, y, z, w&gt;.
     /// </summary>
     /// <param name="vector">The int4 to append.</param>
     public unsafe void Append(int4 vector)
@@ -772,7 +772,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a uint2 to the end of the current content in the format <x, y>.
+    /// Appends a uint2 to the end of the current content in the format &lt;x, y&gt;.
     /// </summary>
     /// <param name="vector">The uint2 to append.</param>
     public unsafe void Append(uint2 vector)
@@ -782,7 +782,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a uint3 to the end of the current content in the format <x, y, z>.
+    /// Appends a uint3 to the end of the current content in the format &lt;x, y, z&gt;.
     /// </summary>
     /// <param name="vector">The uint3 to append.</param>
     public unsafe void Append(uint3 vector)
@@ -792,7 +792,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a uint4 to the end of the current content in the format <x, y, z, w>.
+    /// Appends a uint4 to the end of the current content in the format &lt;x, y, z, w&gt;.
     /// </summary>
     /// <param name="vector">The uint4 to append.</param>
     public unsafe void Append(uint4 vector)
@@ -802,7 +802,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a ColorFloat to the end of the current content in the format <r, g, b, a>.
+    /// Appends a ColorFloat4 to the end of the current content in the format &lt;r, g, b, a&gt;.
     /// </summary>
     /// <param name="color">The ColorFloat to append.</param>
     public unsafe void Append(ColorFloat color)
@@ -812,7 +812,7 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     }
 
     /// <summary>
-    /// Appends a Color32 to the end of the current content in the format <r, g, b, a>.
+    /// Appends a Color32 to the end of the current content in the format &lt;r, g, b, a&gt;.
     /// </summary>
     /// <param name="color">The Color32 to append.</param>
     public unsafe void Append(Color32 color)
