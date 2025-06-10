@@ -44,7 +44,7 @@ public unsafe class ShaderCache : IShaderCache
             {
                 exception = e;
             }
-            
+
             return exception;
         });
     }
@@ -58,29 +58,40 @@ public unsafe class ShaderCache : IShaderCache
             return false;
         }
 
-        ulong hash = GetHash(shaderText);
-        using FileStream stream = File.OpenRead(cachePath);
-        using BinaryReader reader = new(stream);
-
-        ulong cacheHash = reader.ReadUInt64();
-        if (cacheHash != hash)
-        {
-            modulesInfo = null;
-            return false;
-        }
-
-        //read rest of the into a byte[]
-        int length = (int)stream.Length - 8;
-        byte* ptrData = (byte*)UtilsMemory.Alloc(length);
-        Span<byte> bytes = new(ptrData, length);
+        byte* ptrData = null;
         try
         {
+            ulong hash = GetHash(shaderText);
+            using FileStream stream = File.OpenRead(cachePath);
+            using BinaryReader reader = new(stream);
+
+            ulong cacheHash = reader.ReadUInt64();
+            if (cacheHash != hash)
+            {
+                modulesInfo = null;
+                return false;
+            }
+
+            //read rest of the into a byte[]
+            int length = (int)stream.Length - 8;
+            ptrData = (byte*)UtilsMemory.Alloc(length);
+            Span<byte> bytes = new(ptrData, length);
+
             reader.Read(bytes);
             modulesInfo = UtilsShader.DecodeShaderModulesInfo(bytes);
         }
+        catch (Exception e)
+        {
+            Log.Error("Error loading shader cache: ", e);
+            modulesInfo = null;
+            return false;
+        }
         finally
         {
-            UtilsMemory.Free(ptrData);
+            if (ptrData != null)
+            {
+                UtilsMemory.Free(ptrData);
+            }
         }
         Log.Info("Shader load from cache: ", cachePath);
         return true;
