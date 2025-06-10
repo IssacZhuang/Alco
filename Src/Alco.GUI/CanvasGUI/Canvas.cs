@@ -369,7 +369,7 @@ public partial class Canvas : AutoDisposable
         _holded = null;
     }
 
-    private void OnTextInput(string text)
+    private void OnTextInput(ReadOnlySpan<char> text)
     {
         _textInput?.OnTextInput(this, text);
     }

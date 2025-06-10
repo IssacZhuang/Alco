@@ -88,7 +88,7 @@ public unsafe abstract class View : AutoDisposable
     /// <summary>
     /// The text input event.
     /// </summary>
-    public event Action<string>? OnTextInput;
+    public event Action<ReadOnlySpan<char>>? OnTextInput;
 
     /// <summary>
     /// Close the view.
@@ -137,7 +137,7 @@ public unsafe abstract class View : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected void DoTextInput(string text)
+    protected void DoTextInput(ReadOnlySpan<char> text)
     {
         OnTextInput?.Invoke(text);
     }

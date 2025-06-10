@@ -54,15 +54,12 @@ public class ImGUIInputHandler: AutoDisposable
         _view.OnTextInput -= OnTextInput;
     }
 
-    private unsafe void OnTextInput(string str)
+    private unsafe void OnTextInput(ReadOnlySpan<char> str)
     {
         ImGuiIOPtr io = ImGui.GetIO();
-        fixed (char* ptr = str)
+        for (int i = 0; i < str.Length; i++)
         {
-            for (int i = 0; i < str.Length; i++)
-            {
-                io.AddInputCharacterUTF16(ptr[i]);
-            }
+            io.AddInputCharacterUTF16(str[i]);
         }
     }
 

@@ -39,7 +39,7 @@ namespace Alco.GUI
         public void CopyToClipboard(ReadOnlySpan<char> text);
         public ReadOnlySpan<char> GetClipboardText();
 
-        public void RegisterTextInput(Action<string> action);
-        public void UnregisterTextInput(Action<string> action);
+        public void RegisterTextInput(Action<ReadOnlySpan<char>> action);
+        public void UnregisterTextInput(Action<ReadOnlySpan<char>> action);
     }
 }
