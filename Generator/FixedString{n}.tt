@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Numerics;
 
 namespace Alco;
 
@@ -657,6 +658,168 @@ public unsafe partial struct FixedString{0} : IEquatable<FixedString{0}>
 
     #endregion
 
+    /// <summary>
+    /// Appends a formatted vector representation to the end of the current content.
+    /// The vector will be formatted as <x, y, ...>;.
+    /// </summary>
+    /// <typeparam name="T">The type of the vector components.</typeparam>
+    /// <param name="vector">The vector span to append.</param>
+    public void Append<T>(ReadOnlySpan<T> vector) where T : ISpanFormattable
+    {
+        if (Length >= MaxLength) return;
+        
+        Append('<');
+        for (int i = 0; i < vector.Length; i++)
+        {
+            Append(vector[i]);
+            if (i < vector.Length - 1)
+            {
+                Append(',');
+                Append(' ');
+            }
+        }
+        Append('>');
+    }
+
+    /// <summary>
+    /// Appends a Vector2 to the end of the current content in the format <x, y>.
+    /// </summary>
+    /// <param name="vector">The Vector2 to append.</param>
+    public unsafe void Append(Vector2 vector)
+    {
+        float* components = (float*)&vector;
+        Append(new ReadOnlySpan<float>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a Vector3 to the end of the current content in the format <x, y, z>.
+    /// </summary>
+    /// <param name="vector">The Vector3 to append.</param>
+    public unsafe void Append(Vector3 vector)
+    {
+        float* components = (float*)&vector;
+        Append(new ReadOnlySpan<float>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a Vector4 to the end of the current content in the format <x, y, z, w>.
+    /// </summary>
+    /// <param name="vector">The Vector4 to append.</param>
+    public unsafe void Append(Vector4 vector)
+    {
+        float* components = (float*)&vector;
+        Append(new ReadOnlySpan<float>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a Half2 to the end of the current content in the format <x, y>.
+    /// </summary>
+    /// <param name="vector">The Half2 to append.</param>
+    public unsafe void Append(Half2 vector)
+    {
+        Half* components = (Half*)&vector;
+        Append(new ReadOnlySpan<Half>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a Half3 to the end of the current content in the format <x, y, z>.
+    /// </summary>
+    /// <param name="vector">The Half3 to append.</param>
+    public unsafe void Append(Half3 vector)
+    {
+        Half* components = (Half*)&vector;
+        Append(new ReadOnlySpan<Half>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a Half4 to the end of the current content in the format <x, y, z, w>.
+    /// </summary>
+    /// <param name="vector">The Half4 to append.</param>
+    public unsafe void Append(Half4 vector)
+    {
+        Half* components = (Half*)&vector;
+        Append(new ReadOnlySpan<Half>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a int2 to the end of the current content in the format <x, y>.
+    /// </summary>
+    /// <param name="vector">The int2 to append.</param>
+    public unsafe void Append(int2 vector)
+    {
+        int* components = (int*)&vector;
+        Append(new ReadOnlySpan<int>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a int3 to the end of the current content in the format <x, y, z>.
+    /// </summary>
+    /// <param name="vector">The int3 to append.</param>
+    public unsafe void Append(int3 vector)
+    {
+        int* components = (int*)&vector;
+        Append(new ReadOnlySpan<int>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a int4 to the end of the current content in the format <x, y, z, w>.
+    /// </summary>
+    /// <param name="vector">The int4 to append.</param>
+    public unsafe void Append(int4 vector)
+    {
+        int* components = (int*)&vector;
+        Append(new ReadOnlySpan<int>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a uint2 to the end of the current content in the format <x, y>.
+    /// </summary>
+    /// <param name="vector">The uint2 to append.</param>
+    public unsafe void Append(uint2 vector)
+    {
+        uint* components = (uint*)&vector;
+        Append(new ReadOnlySpan<uint>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a uint3 to the end of the current content in the format <x, y, z>.
+    /// </summary>
+    /// <param name="vector">The uint3 to append.</param>
+    public unsafe void Append(uint3 vector)
+    {
+        uint* components = (uint*)&vector;
+        Append(new ReadOnlySpan<uint>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a uint4 to the end of the current content in the format <x, y, z, w>.
+    /// </summary>
+    /// <param name="vector">The uint4 to append.</param>
+    public unsafe void Append(uint4 vector)
+    {
+        uint* components = (uint*)&vector;
+        Append(new ReadOnlySpan<uint>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a ColorFloat to the end of the current content in the format <r, g, b, a>.
+    /// </summary>
+    /// <param name="color">The ColorFloat to append.</param>
+    public unsafe void Append(ColorFloat color)
+    {
+        float* components = (float*)&color;
+        Append(new ReadOnlySpan<float>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a Color32 to the end of the current content in the format <r, g, b, a>.
+    /// </summary>
+    /// <param name="color">The Color32 to append.</param>
+    public unsafe void Append(Color32 color)
+    {
+        byte* components = (byte*)&color;
+        Append(new ReadOnlySpan<byte>(components, 4));
+    }
 }
 
 
