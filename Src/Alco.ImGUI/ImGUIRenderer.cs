@@ -162,7 +162,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
                 ImDrawCmdPtr cmd = cmdList.CmdBuffer[j];
                 nint textureId = cmd.TextureId;
 
-                if (TryGetTexture(textureId, out Texture2D? texture))
+                if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
                 {
                     _commandBuffer.SetGraphicsResources(_shaderId_Texture, texture.EntrySample);
                 }
@@ -193,6 +193,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
         _target = null;
+
+        _textures.Clear();
     }
 
     private bool TryGetTexture(IntPtr textureId, [NotNullWhen(true)]out Texture2D? texture)
