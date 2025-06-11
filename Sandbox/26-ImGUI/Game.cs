@@ -14,9 +14,11 @@ public class Game : GameEngine
     private Vector3 color = new Vector3(0.4f, 0.7f, 0.2f);
     private bool toggleValue = true;
 
+    private Texture2D _texture;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
-        
+        _texture = AssetSystem.Load<Texture2D>("Textures/Grid.png");
     }
 
     protected override void OnUpdate(float delta)
@@ -79,6 +81,8 @@ public class Game : GameEngine
             {
                 ImGui.TextColored(new Vector4(1.0f, 0.0f, 0.0f, 1.0f), "Toggle is ON");
             }
+
+            ImGui.Image(_texture, new Vector2(100, 100));
 
             ImGui.End();
         }

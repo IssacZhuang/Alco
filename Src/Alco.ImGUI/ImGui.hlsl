@@ -19,21 +19,16 @@ struct V2F {
   float4 color : COLOR;
 };
 
-struct Constants {
-  float4 uvRect;
-};
-
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
 DEFINE_TEX2D_SAMPLE(1, _texture);
 
-PUSH_CONSTANT Constants constants;
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
   V2F output = (V2F)0;
   output.position = mul(viewProjection, float4(input.position, 0.0f, 1.0f));
-  output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;
+  output.uv = input.uv;
   output.color = input.color;
   return output;
 }

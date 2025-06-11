@@ -20,7 +20,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private IntPtr _imGuiContext;
     private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
-    private readonly IntPtr _fontTextureId = (IntPtr)1;
+    private readonly IntPtr  _fontTextureId = (IntPtr)(-1);
     private readonly Texture2D _fontTexture;
     private NativeBuffer<byte> _tmpIndexBuffer;
 
@@ -170,8 +170,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
                 {
                     _commandBuffer.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
                 }
-                Vector4 uvRect = new Vector4(0, 0, 1, 1);
-                _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, uvRect);
 
                 Vector4 clipRect = cmd.ClipRect;
 
