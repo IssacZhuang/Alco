@@ -57,8 +57,6 @@ public class TestJsonPreprocessor
         var errorsList = errors;
 
         return new JsonPreprocessor(
-            info => infosList.Add(info),
-            warning => warningsList.Add(warning),
             error => errorsList.Add(error)
         );
     }
@@ -287,8 +285,8 @@ public class TestJsonPreprocessor
         preprocessor.Preprocess();
 
         // Assert
-        Assert.That(warnings.Count, Is.GreaterThan(0), "Should report empty parent ID as warning");
-        Assert.That(warnings.Any(w => w.Contains("empty parent ID")), Is.True);
+        Assert.That(errors.Count, Is.GreaterThan(0), "Should report empty parent ID as error");
+        Assert.That(errors.Any(w => w.Contains("empty parent ID")), Is.True);
     }
 
     [Test]

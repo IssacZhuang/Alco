@@ -79,10 +79,8 @@ public class ConfigDatabase
     /// <param name="onWarning">Callback for warning messages</param>
     /// <param name="onError">Callback for error messages</param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
-    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
+    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onError)
     {
-        ArgumentNullException.ThrowIfNull(onInfo);
-        ArgumentNullException.ThrowIfNull(onWarning);
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
 
@@ -105,7 +103,7 @@ public class ConfigDatabase
 
         _jsonSerializerOptions.MakeReadOnly();
 
-        _jsonPreprocessor = new JsonPreprocessor(onInfo, onWarning, onError);
+        _jsonPreprocessor = new JsonPreprocessor(onError);
     }
 
     /// <summary>
