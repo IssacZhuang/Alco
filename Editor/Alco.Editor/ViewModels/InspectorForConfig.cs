@@ -72,22 +72,6 @@ public partial class InspectorForConfig : Inspector<Configable>
         SerializedJson = Encoding.UTF8.GetString(memory.AsSpan());
     }
 
-    public IEnumerable<string> Validate(EditorEngine engine)
-    {
-        if (_asset is Configable config)
-        {
-            try
-            {
-                return config.Validate();
-            }
-            catch (Exception e)
-            {
-                return [e.Message];
-            }
-        }
-        return [];
-    }
-
     protected override void OnOpenAsset(EditorEngine engine, Configable asset, string path)
     {
         _asset = asset;

@@ -64,16 +64,6 @@ public partial class InspectorForConfig : UserControl
 
         viewModel.RefreshSerializedJson(App.Main.Engine);
         TextJsonPreview.Text = viewModel.SerializedJson;
-        IEnumerable<string> errors = viewModel.Validate(App.Main.Engine);
-        if (errors.Any())
-        {
-            TextError.Text = string.Join("\n", errors);
-            TextError.IsVisible = true;
-        }
-        else
-        {
-            TextError.IsVisible = false;
-        }
     }
 
     private void OnGridSplitterDragCompleted(object? sender, VectorEventArgs e)

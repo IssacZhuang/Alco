@@ -269,22 +269,6 @@ public class ConfigDatabase
                 ResolveReferences(config);
             });
 
-            //validate
-            Parallel.ForEach(_configsList, config =>
-            {
-                try
-                {
-                    foreach (var error in config.Validate())
-                    {
-                        _onError($"Error validating config {config.Id}: {error}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _onError($"Error validating config {config.Id}: {ex}");
-                }
-            });
-
             _isDirty = false;
         }
     }
