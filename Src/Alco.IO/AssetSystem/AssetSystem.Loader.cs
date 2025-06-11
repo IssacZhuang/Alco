@@ -93,7 +93,12 @@ public sealed partial class AssetSystem
     /// <returns></returns>
     public bool CanHandleType(string filename, Type type)
     {
-        ReadOnlySpan<char> extension = Path.GetExtension(filename.AsSpan());
+        if (!IsFileExist(filename, out string realFilename))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> extension = Path.GetExtension(realFilename.AsSpan());
         Span<char> lowerExtension = stackalloc char[extension.Length];
         extension.ToLower(lowerExtension, null);
 
