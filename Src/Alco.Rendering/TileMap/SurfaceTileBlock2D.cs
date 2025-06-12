@@ -87,7 +87,7 @@ public sealed class SurfaceTileBlock2D : BaseTileBlock2D<SurfaceTileData>
 
     public override void OnRender(IRenderContext renderer)
     {
-        TryUpdateDataBuffer();
+        TryUpdateBuffer();
 
         _heightData.TryUpdateBuffer();
 

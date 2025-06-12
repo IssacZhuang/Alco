@@ -95,7 +95,7 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     /// <summary>
     /// Set the tile id data as dirty
     /// </summary>
-    public void SetDataDirty()
+    public void SetBufferDirty()
     {
         _isTileIdDirty = true;
     }
@@ -104,7 +104,7 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     /// Try to update the data buffer to GPU if dirty
     /// </summary>
     /// <returns>True if the data buffer was updated; otherwise, false</returns>
-    public bool TryUpdateDataBuffer()
+    public bool TryUpdateBuffer()
     {
         if (_isTileIdDirty)
         {
@@ -118,7 +118,7 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
     /// <summary>
     /// Force update the data buffer to GPU
     /// </summary>
-    public void ForceUpdateDataBuffer()
+    public void ForceUpdateBuffer()
     {
         _tileIdData.UpdateBuffer();
         _isTileIdDirty = false;

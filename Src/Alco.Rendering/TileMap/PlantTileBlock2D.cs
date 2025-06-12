@@ -62,7 +62,7 @@ public class PlantTileBlock2D : BaseTileBlock2D<PlantTileData>
 
     public override void OnRender(IRenderContext renderer)
     {
-        TryUpdateDataBuffer();
+        TryUpdateBuffer();
 
         _heightData.TryUpdateBuffer();
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });
