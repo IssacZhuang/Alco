@@ -126,4 +126,49 @@ public class BinarySerializeReadNode : SerializeReadNode
             return @default;
         }
     }
+
+    public override void BindDictionary<TValue>(string key, IDictionary<string, TValue> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                {
+                    value.Add(itemKey, UtilsBinary.DecodeToValue<TValue>(binaryValue));
+                }
+            }
+        }
+    }
+
+    public override void BindDictionary(string key, IDictionary<string, string> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                if (table.TryGetString(itemKey, out string? stringValue))
+                {
+                    value.Add(itemKey, stringValue);
+                }
+            }
+        }
+    }
+
+    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                {
+                    value.Add(itemKey, binaryValue);
+                }
+            }
+        }
+    }
 }

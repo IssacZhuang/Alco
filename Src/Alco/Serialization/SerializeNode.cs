@@ -100,4 +100,26 @@ public abstract class SerializeNode
     {
         BindMemory(key, array.AsSpan());
     }
+
+    /// <summary>
+    /// Binds a dictionary of unmanaged value types.
+    /// </summary>
+    /// <typeparam name="TValue">The unmanaged value type contained in the dictionary.</typeparam>
+    /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of unmanaged values to be serialized or deserialized.</param>
+    public abstract void BindDictionary<TValue>(string key, IDictionary<string, TValue> value) where TValue : unmanaged;
+
+    /// <summary>
+    /// Binds a dictionary of string values.
+    /// </summary>
+    /// <param name="key">The key identifier for the string dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of strings to be serialized or deserialized.</param>
+    public abstract void BindDictionary(string key, IDictionary<string, string> value);
+
+    /// <summary>
+    /// Binds a dictionary of binary data.
+    /// </summary>
+    /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of binary data to be serialized or deserialized.</param>
+    public abstract void BindDictionary(string key, IDictionary<string, byte[]> value);
 }

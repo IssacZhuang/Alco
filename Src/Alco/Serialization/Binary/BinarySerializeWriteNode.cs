@@ -84,4 +84,34 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     {
         _content.Add(key, value);
     }
+
+    public override void BindDictionary<TValue>(string key, IDictionary<string, TValue> value)
+    {
+        BinaryTable table = new BinaryTable();
+        foreach (var item in value)
+        {
+            table.Add(item.Key, BinaryValue.CreateByValue(item.Value));
+        }
+        _content.Add(key, table);
+    }
+
+    public override void BindDictionary(string key, IDictionary<string, string> value)
+    {
+        BinaryTable table = new BinaryTable();
+        foreach (var item in value)
+        {
+            table.Add(item.Key, item.Value);
+        }
+        _content.Add(key, table);
+    }
+
+    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    {
+        BinaryTable table = new BinaryTable();
+        foreach (var item in value)
+        {
+            table.Add(item.Key, BinaryValue.CreateByMemory(item.Value.AsSpan()));
+        }
+        _content.Add(key, table);
+    }
 }
