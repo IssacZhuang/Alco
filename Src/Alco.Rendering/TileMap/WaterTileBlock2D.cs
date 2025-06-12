@@ -59,12 +59,7 @@ public sealed class WaterTileBlock2D : BaseTileBlock2D<WaterTileData>
 
     public override void OnRender(IRenderContext renderer)
     {
-        if (_isTileIdDirty)
-        {
-            _tileIdData.UpdateBuffer();
-            _isTileIdDirty = false;
-        }
-
+        TryUpdateDataBuffer();
         _surfaceHeightData.TryUpdateBuffer();
 
         renderer.DrawInstancedWithConstant(_mesh, _material, _length, new Constant { Model = Transform.Matrix, Size = _size });

@@ -83,6 +83,47 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         return _renderingSystem.MeshCenteredSprite;
     }
 
+    /// <summary>
+    /// Get the tile id data as a span
+    /// </summary>
+    /// <returns>The tile id data as a span</returns>
+    public Span<uint> AsSpan()
+    {
+        return _tileIdData.AsSpan();
+    }
+
+    /// <summary>
+    /// Set the tile id data as dirty
+    /// </summary>
+    public void SetDataDirty()
+    {
+        _isTileIdDirty = true;
+    }
+
+    /// <summary>
+    /// Try to update the data buffer to GPU if dirty
+    /// </summary>
+    /// <returns>True if the data buffer was updated; otherwise, false</returns>
+    public bool TryUpdateDataBuffer()
+    {
+        if (_isTileIdDirty)
+        {
+            _tileIdData.UpdateBuffer();
+            _isTileIdDirty = false;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Force update the data buffer to GPU
+    /// </summary>
+    public void ForceUpdateDataBuffer()
+    {
+        _tileIdData.UpdateBuffer();
+        _isTileIdDirty = false;
+    }
+
 
     /// <summary>
     /// Renders the tile block using the provided render context
