@@ -35,7 +35,7 @@ public interface IFileSource
     /// <param name="data">The data of the file</param>
     /// <param name="failureReason">The failure reason</param>
     /// <returns>True if the data is successfully retrieved, false otherwise</returns>
-    bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason);
+    bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason);
 
 }
 

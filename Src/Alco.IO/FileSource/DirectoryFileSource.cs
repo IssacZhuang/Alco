@@ -32,7 +32,7 @@ public class DirectoryFileSource : IFileSource
 
     public virtual int Priority => 5;
 
-    public virtual unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason)
+    public virtual unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
     {
         try
         {

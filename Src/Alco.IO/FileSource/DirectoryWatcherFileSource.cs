@@ -42,7 +42,7 @@ public class DirectoryWatcherFileSource : IFileSource
         }
     }
 
-    public unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason)
+    public unsafe bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
     {
         try
         {

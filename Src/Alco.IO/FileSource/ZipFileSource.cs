@@ -84,7 +84,7 @@ public class ZipFileSource : AutoDisposable, IFileSource
     /// <param name="data">The data of the file.</param>
     /// <param name="failureReason">The failure reason.</param>
     /// <returns>True if the data is successfully retrieved, false otherwise.</returns>
-    public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failureReason)
+    public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
     {
         if (IsDisposed)
         {
