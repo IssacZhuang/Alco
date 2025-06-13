@@ -154,7 +154,7 @@ public class ConfigDatabase
     /// <param name="type">The type of the configuration to retrieve</param>
     /// <param name="config">When this method returns, contains the configuration object if found; otherwise, null</param>
     /// <returns>true if a configuration with the specified ID and type was found; otherwise, false</returns>
-    public bool TryGetConfig(string id, Type type, [MaybeNullWhen(false)] out Configable config)
+    public bool TryGetConfig(string id, Type type, [NotNullWhen(true)] out Configable? config)
     {
         TryUpdateConfigs();
         return InternalTryGetConfig(id, type, out config);
@@ -167,7 +167,7 @@ public class ConfigDatabase
     /// <param name="id">The unique identifier of the configuration</param>
     /// <param name="config">When this method returns, contains the configuration object if found and of the correct type; otherwise, null</param>
     /// <returns>true if a configuration with the specified ID and type was found and is of the correct type; otherwise, false</returns>
-    public bool TryGetConfig<T>(string id, [MaybeNullWhen(false)] out T config) where T : Configable
+    public bool TryGetConfig<T>(string id, [NotNullWhen(true)] out T? config) where T : Configable
     {
         if (TryGetConfig(id, typeof(T), out var tmpConfig))
         {
@@ -528,7 +528,7 @@ public class ConfigDatabase
         }
     }
 
-    private bool InternalTryGetConfig(string id, Type type, [MaybeNullWhen(false)] out Configable config)
+    private bool InternalTryGetConfig(string id, Type type, [NotNullWhen(true)] out Configable? config)
     {
         return GetTypedConfigsDictionary(type).TryGetValue(id, out config);
     }
