@@ -13,7 +13,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         _content = content;
     }
 
-    public override void BindDeep<T>(string key, T value)
+    public override void BindSerializable<T>(string key, T value)
     {
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
@@ -21,7 +21,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
+    public override void BindSerializableOptional<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
@@ -44,7 +44,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindCollection<T>(string key, IList<T> value)
+    public override void BindList<T>(string key, IList<T> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -59,7 +59,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindCollection(string key, IList<string> value)
+    public override void BindList(string key, IList<string> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -74,7 +74,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindCollectionDeep<T>(string key, IList<T> value)
+    public override void BindListSerializable<T>(string key, IList<T> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))

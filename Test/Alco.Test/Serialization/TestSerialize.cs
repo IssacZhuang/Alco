@@ -66,10 +66,10 @@ public class TestSerialize
         {
             node.BindValue("intValue", ref intValue);
             node.BindString("str", ref str);
-            node.BindCollection("listInt", listInt);
-            node.BindCollection("listStr", listStr);
+            node.BindList("listInt", listInt);
+            node.BindList("listStr", listStr);
             node.BindMemory("intArray", intArray);
-            node.BindDeepNullable("bitmap", ref bitmap, static (SerializeReadNode subNode) =>
+            node.BindSerializableOptional("bitmap", ref bitmap, static (SerializeReadNode subNode) =>
             {
                 int width = subNode.GetValue<int>("width");
                 int height = subNode.GetValue<int>("height");
@@ -107,8 +107,8 @@ public class TestSerialize
 
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
-            node.BindDeep("obj", child);
-            node.BindDeep("struct", structChild);
+            node.BindSerializable("obj", child);
+            node.BindSerializable("struct", structChild);
 
         }
     }
@@ -124,8 +124,8 @@ public class TestSerialize
         }
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
-            node.BindCollectionDeep("list", list);
-            node.BindCollectionDeep("listStruct", listStruct);
+            node.BindListSerializable("list", list);
+            node.BindListSerializable("listStruct", listStruct);
         }
     }
 
@@ -143,7 +143,7 @@ public class TestSerialize
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
             node.BindEnum("enumValue", ref enumValue);
-            node.BindCollection("enumList", enumList);
+            node.BindList("enumList", enumList);
         }
     }
 

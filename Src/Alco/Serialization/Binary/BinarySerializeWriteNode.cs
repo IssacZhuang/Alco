@@ -9,14 +9,14 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
 
-    public override void BindDeep<T>(string key, T value) 
+    public override void BindSerializable<T>(string key, T value)
     {
         BinarySerializeWriteNode node = new BinarySerializeWriteNode();
         value.OnSerialize(node, SerializeMode.Save);
         _content.Add(key, node._content);
     }
 
-    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
+    public override void BindSerializableOptional<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
         if (value == null)
         {
@@ -35,7 +35,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, BinaryValue.CreateByMemory(memory));
     }
 
-    public override void BindCollection<T>(string key, IList<T> value)
+    public override void BindList<T>(string key, IList<T> value)
     {
         BinaryArray array = new BinaryArray();
         for (int i = 0; i < value.Count; i++)
@@ -46,7 +46,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, array);
     }
 
-    public override void BindCollection(string key, IList<string> value)
+    public override void BindList(string key, IList<string> value)
     {
         BinaryArray array = new BinaryArray();
         for (int i = 0; i < value.Count; i++)
@@ -57,7 +57,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, array);
     }
 
-    public override void BindCollectionDeep<T>(string key, IList<T> value)
+    public override void BindListSerializable<T>(string key, IList<T> value)
     {
         BinaryArray array = new BinaryArray();
         for (int i = 0; i < value.Count; i++)
