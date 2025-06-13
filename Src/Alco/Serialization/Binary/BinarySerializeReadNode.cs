@@ -15,21 +15,50 @@ public class BinarySerializeReadNode : SerializeReadNode
         OnError = onError;
     }
 
+    /// <summary>
+    /// Binds a complex object that implements ISerializable for deserialization.
+    /// Handles exceptions gracefully to prevent serialization errors from affecting other nodes.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the object in the serialization format.</param>
+    /// <param name="value">The existing object to be deserialized into.</param>
     public override void BindSerializable<T>(string key, T value)
     {
-        if (_content.TryGetTable(key, out BinaryTable? table))
+        try
         {
-            value.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+            if (_content.TryGetTable(key, out BinaryTable? table))
+            {
+                value.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddError($"Failed to bind serializable '{key}': {ex}");
         }
     }
 
+    /// <summary>
+    /// Binds a nullable complex object that implements ISerializable for deserialization with error handling.
+    /// Handles exceptions gracefully to prevent serialization errors from affecting other nodes.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the object in the serialization format.</param>
+    /// <param name="value">Reference to the nullable object to be deserialized.</param>
+    /// <param name="onCreate">Factory function to create a new instance during deserialization.</param>
     public override void BindSerializableOptional<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
-        if (_content.TryGetTable(key, out BinaryTable? table))
+        try
         {
-            BinarySerializeReadNode subNode = new BinarySerializeReadNode(table, OnError);
-            value ??= onCreate(subNode);
-            value.OnSerialize(subNode, SerializeMode.Load);
+            if (_content.TryGetTable(key, out BinaryTable? table))
+            {
+                BinarySerializeReadNode subNode = new BinarySerializeReadNode(table, OnError);
+                value ??= onCreate(subNode);
+                value.OnSerialize(subNode, SerializeMode.Load);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddError($"Failed to bind optional serializable '{key}': {ex}");
         }
     }
 
@@ -76,6 +105,13 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <summary>
+    /// Binds a collection of complex objects that implement ISerializable for deserialization.
+    /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
+    /// <param name="key">The key identifier for the collection in the serialization format.</param>
+    /// <param name="value">The collection of serializable objects to be deserialized.</param>
     public override void BindListSerializable<T>(string key, IList<T> value)
     {
         value.Clear();
@@ -83,16 +119,31 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             for (int i = 0; i < array.Count; i++)
             {
-                if (array.TryGetTable(i, out BinaryTable? table))
+                try
                 {
-                    T item = new T();
-                    item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
-                    value.Add(item);
+                    if (array.TryGetTable(i, out BinaryTable? table))
+                    {
+                        T item = new T();
+                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        value.Add(item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
                 }
             }
         }
     }
 
+    /// <summary>
+    /// Binds a collection of complex objects that implement ISerializable for deserialization with custom factory.
+    /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the collection in the serialization format.</param>
+    /// <param name="value">The collection of serializable objects to be deserialized.</param>
+    /// <param name="onCreate">Factory function to create a new instance during deserialization.</param>
     public override void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate)
     {
         value.Clear();
@@ -100,11 +151,18 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             for (int i = 0; i < array.Count; i++)
             {
-                if (array.TryGetTable(i, out BinaryTable? table))
+                try
                 {
-                    T item = onCreate(new BinarySerializeReadNode(table, OnError));
-                    item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
-                    value.Add(item);
+                    if (array.TryGetTable(i, out BinaryTable? table))
+                    {
+                        T item = onCreate(new BinarySerializeReadNode(table, OnError));
+                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        value.Add(item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
                 }
             }
         }
