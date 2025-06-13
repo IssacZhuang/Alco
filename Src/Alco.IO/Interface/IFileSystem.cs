@@ -18,4 +18,12 @@ public interface IFileSystem : IFileSource
     /// <param name="failureReason">The failure reason</param>
     /// <returns>True if the data is successfully written, false otherwise</returns>
     bool TryWriteFile(string path, ReadOnlySpan<byte> data, [NotNullWhen(false)] out string? failureReason);
+
+    /// <summary>
+    /// Try to delete a file
+    /// </summary>
+    /// <param name="path">The path of the file</param>
+    /// <param name="failureReason">The failure reason</param>
+    /// <returns>True if the file is successfully deleted, false otherwise</returns>
+    bool TryDeleteFile(string path, [NotNullWhen(false)] out string? failureReason);
 }
