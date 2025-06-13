@@ -8,16 +8,18 @@ public class BinarySerializeReadNode : SerializeReadNode
 {
     protected BinaryTable _content;
     public BinaryTable Content => _content;
-    public BinarySerializeReadNode(BinaryTable content)
+    public BinarySerializeReadNode(BinaryTable content, Action<string>? onError = null)
     {
+        ArgumentNullException.ThrowIfNull(content);
         _content = content;
+        OnError = onError;
     }
 
     public override void BindSerializable<T>(string key, T value)
     {
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
-            value.OnSerialize(new BinarySerializeReadNode(table), SerializeMode.Load);
+            value.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
         }
     }
 
@@ -25,7 +27,7 @@ public class BinarySerializeReadNode : SerializeReadNode
     {
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
-            BinarySerializeReadNode subNode = new BinarySerializeReadNode(table);
+            BinarySerializeReadNode subNode = new BinarySerializeReadNode(table, OnError);
             value ??= onCreate(subNode);
             value.OnSerialize(subNode, SerializeMode.Load);
         }
@@ -84,7 +86,24 @@ public class BinarySerializeReadNode : SerializeReadNode
                 if (array.TryGetTable(i, out BinaryTable? table))
                 {
                     T item = new T();
-                    item.OnSerialize(new BinarySerializeReadNode(table), SerializeMode.Load);
+                    item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                    value.Add(item);
+                }
+            }
+        }
+    }
+
+    public override void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        value.Clear();
+        if (_content.TryGetArray(key, out BinaryArray? array))
+        {
+            for (int i = 0; i < array.Count; i++)
+            {
+                if (array.TryGetTable(i, out BinaryTable? table))
+                {
+                    T item = onCreate(new BinarySerializeReadNode(table, OnError));
+                    item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
                     value.Add(item);
                 }
             }
@@ -171,4 +190,7 @@ public class BinarySerializeReadNode : SerializeReadNode
             }
         }
     }
+
+    
+
 }

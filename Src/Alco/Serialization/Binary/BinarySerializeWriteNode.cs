@@ -9,9 +9,14 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
 
+    public BinarySerializeWriteNode(Action<string>? onError = null)
+    {
+        OnError = onError;
+    }
+
     public override void BindSerializable<T>(string key, T value)
     {
-        BinarySerializeWriteNode node = new BinarySerializeWriteNode();
+        BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
         value.OnSerialize(node, SerializeMode.Save);
         _content.Add(key, node._content);
     }
@@ -24,7 +29,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         }
         else
         {
-            BinarySerializeWriteNode node = new BinarySerializeWriteNode();
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
             value.OnSerialize(node, SerializeMode.Save);
             _content.Add(key, node._content);
         }
@@ -62,12 +67,23 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         BinaryArray array = new BinaryArray();
         for (int i = 0; i < value.Count; i++)
         {
-            BinarySerializeWriteNode node = new BinarySerializeWriteNode();
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
             value[i].OnSerialize(node, SerializeMode.Save);
             array.Add(node._content);
         }
 
         _content.Add(key, array);
+    }
+
+    public override void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        BinaryArray array = new BinaryArray();
+        for (int i = 0; i < value.Count; i++)
+        {
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
+            value[i].OnSerialize(node, SerializeMode.Save);
+            array.Add(node._content);
+        }
     }
 
     public override void SetValue<T>(string key, T value)

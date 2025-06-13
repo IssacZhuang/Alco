@@ -10,6 +10,8 @@ namespace Alco;
 /// </summary>
 public abstract class SerializeNode
 {
+    protected Action<string>? OnError {get; set;}
+
     /// <summary>
     /// Binds a value type (unmanaged) with an optional default value.
     /// </summary>
@@ -90,6 +92,15 @@ public abstract class SerializeNode
     public abstract void BindListSerializable<T>(string key, IList<T> value) where T : ISerializable, new();
 
     /// <summary>
+    /// Binds a collection of complex objects that implement ISerializable for deep serialization.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
+    /// <param name="key">The key identifier for the collection in the serialization format.</param>
+    /// <param name="value">The collection of serializable objects to be serialized or deserialized.</param>
+    /// <param name="onCreate">Factory function to create a new instance during deserialization when the value is not null.</param>
+    public abstract void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate) where T : ISerializable;
+
+    /// <summary>
     /// Binds an array of unmanaged types by converting it to a span for memory binding.
     /// This is a convenience method that calls BindMemory with the array converted to a span.
     /// </summary>
@@ -122,4 +133,16 @@ public abstract class SerializeNode
     /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
     /// <param name="value">The dictionary of binary data to be serialized or deserialized.</param>
     public abstract void BindDictionary(string key, IDictionary<string, byte[]> value);
+
+    protected void AddError(string error)
+    {
+        if(OnError != null)
+        {
+            OnError(error);
+        }
+        else
+        {
+            Log.Error(error);
+        }
+    }
 }
