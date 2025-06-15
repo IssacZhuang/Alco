@@ -50,7 +50,7 @@ public static class UtilsCoordinates
     /// <param name="canvasWidth">The width of the canvas</param>
     /// <param name="canvasHeight">The height of the canvas</param>
     /// <returns>The pixel position corresponding to the world position</returns>
-    public static Vector2 WorldSpaceToPixelSpace(Vector2 worldPosition, int canvasWidth, int canvasHeight)
+    public static int2 WorldSpaceToPixelSpace(Vector2 worldPosition, int canvasWidth, int canvasHeight)
     {
         float x = worldPosition.X + (canvasWidth - 1) * 0.5f;
         float y = (canvasHeight - 1) * 0.5f - worldPosition.Y;
@@ -67,7 +67,7 @@ public static class UtilsCoordinates
     /// <param name="worldPosition">The world position to convert</param>
     /// <param name="canvasSize">The size of the canvas</param>
     /// <returns>The pixel position corresponding to the world position</returns>
-    public static Vector2 WorldSpaceToPixelSpace(Vector2 worldPosition, int2 canvasSize)
+    public static int2 WorldSpaceToPixelSpace(Vector2 worldPosition, int2 canvasSize)
     {
         float x = worldPosition.X + (canvasSize.X - 1) * 0.5f;
         float y = (canvasSize.Y - 1) * 0.5f - worldPosition.Y;
