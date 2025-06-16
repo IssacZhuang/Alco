@@ -49,6 +49,8 @@ IDisposable
 
 
     #region  State
+    private int _mainThreadId = Environment.CurrentManagedThreadId;
+
     private volatile uint _disposed;
 
 
@@ -174,7 +176,15 @@ IDisposable
     /// </summary>
     public GameEngineSetting Setting => _setting;
 
-    
+    /// <summary>
+    /// The main thread id of the game engine
+    /// </summary>
+    public int MainThreadId => _mainThreadId;
+
+    /// <summary>
+    /// Check if the current thread is the main thread
+    /// </summary>
+    public bool IsMainThread => Environment.CurrentManagedThreadId == _mainThreadId;
 
     #endregion
 
@@ -248,6 +258,8 @@ IDisposable
     /// </summary>
     private void InternaleRun()
     {
+        _mainThreadId = Environment.CurrentManagedThreadId;
+
         _platform.OnTick += InternalTick;
         _platform.OnUpdate += InternalUpdate;
         InternalStart();
