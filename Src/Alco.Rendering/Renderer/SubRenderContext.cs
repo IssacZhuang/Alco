@@ -1,12 +1,16 @@
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace Alco.Rendering;
 
 public sealed class SubRenderContext : AutoDisposable, IRenderContext
 {
     private readonly GPURenderBundle _renderBundle;
+    private readonly List<ICommandListener> _listeners;
+    private readonly List<Exception> _exceptionsBegin;
+    private readonly List<Exception> _exceptionsEnd;
 
     private GPURenderPass? _renderPass;
 
@@ -26,18 +30,54 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     {
         GPUDevice device = renderingSystem.GraphicsDevice;
         _renderBundle = device.CreateRenderBundle(new RenderBundleDescriptor(name));
+        _listeners = new List<ICommandListener>();
+        _exceptionsBegin = new List<Exception>();
+        _exceptionsEnd = new List<Exception>();
     }
 
-    public void Begin(GPURenderPass renderPass)
+    /// <summary>
+    /// Adds a command listener to the sub render context.
+    /// </summary>
+    /// <param name="listener">The listener to add.</param>
+    public void AddListener(ICommandListener listener)
+    {
+        _listeners.Add(listener);
+    }
+
+    /// <summary>
+    /// Removes a command listener from the sub render context.
+    /// </summary>
+    /// <param name="listener">The listener to remove.</param>
+    public void RemoveListener(ICommandListener listener)
+    {
+        _listeners.Remove(listener);
+    }
+
+    /// <summary>
+    /// Begin the sub render context.
+    /// </summary>
+    /// <param name="renderPass">The render pass to render to.</param>
+    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
+    public IReadOnlyList<Exception> Begin(GPURenderPass renderPass)
     {
         _renderPass = renderPass;
         _renderBundle.Begin(renderPass);
+
+        return InvokeBegin();
     }
 
-    public void End()
+    /// <summary>
+    /// End the sub render context.
+    /// </summary>
+    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandEnd"/> event; otherwise, an empty array.</returns>
+    public IReadOnlyList<Exception> End()
     {
+        var exceptions = InvokeEnd();
+
         _renderBundle.End();
         ClearCache();
+
+        return exceptions;
     }
 
     /// <summary>
@@ -151,6 +191,48 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     {
         _mesh = null;
         _subMeshIndex = 0;
+    }
+
+    /// <summary>
+    /// Invokes the OnCommandBegin event on all listeners.
+    /// </summary>
+    /// <returns>A list of exceptions that occurred during the invocation.</returns>
+    private IReadOnlyList<Exception> InvokeBegin()
+    {
+        _exceptionsBegin.Clear();
+        foreach (var observer in _listeners)
+        {
+            try
+            {
+                observer.OnCommandBegin();
+            }
+            catch (Exception e)
+            {
+                _exceptionsBegin.Add(e);
+            }
+        }
+        return _exceptionsBegin;
+    }
+
+    /// <summary>
+    /// Invokes the OnCommandEnd event on all listeners.
+    /// </summary>
+    /// <returns>A list of exceptions that occurred during the invocation.</returns>
+    private IReadOnlyList<Exception> InvokeEnd()
+    {
+        _exceptionsEnd.Clear();
+        foreach (var observer in _listeners)
+        {
+            try
+            {
+                observer.OnCommandEnd();
+            }
+            catch (Exception e)
+            {
+                _exceptionsEnd.Add(e);
+            }
+        }
+        return _exceptionsEnd;
     }
 }
 

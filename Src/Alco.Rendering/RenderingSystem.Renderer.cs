@@ -15,12 +15,12 @@ public partial class RenderingSystem
     /// <param name="material">The material to use.</param>
     /// <param name="name">The name of the renderer.</param>
     /// <returns>The created text renderer.</returns>
-    public TextRenderer CreateTextRenderer(RenderContext renderContext, Material material, string name = "text_renderer")
+    public TextRenderer CreateTextRenderer(IRenderContext renderContext, Material material, string name = "text_renderer")
     {
         return new TextRenderer(this, renderContext, MeshTrueType, material, name);
     }
 
-    public SpriteRenderer CreateSpriteRenderer(RenderContext renderContext, Material material, string name = "sprite_renderer")
+    public SpriteRenderer CreateSpriteRenderer(IRenderContext renderContext, Material material, string name = "sprite_renderer")
     {
         return new SpriteRenderer(this, renderContext, MeshCenteredSprite, material, name);
     }
@@ -40,7 +40,7 @@ public partial class RenderingSystem
         return new CanvasRenderer(this, camera, shaderSprite, shaderText);
     }
 
-    public DynamicMeshRenderer CreateDynamicMeshRenderer(RenderContext renderContext, string name = "dynamic_mesh_renderer")
+    public DynamicMeshRenderer CreateDynamicMeshRenderer(IRenderContext renderContext, string name = "dynamic_mesh_renderer")
     {
         return new DynamicMeshRenderer(this, renderContext, name);
     }

@@ -5,7 +5,7 @@ namespace Alco.Rendering;
 /// </summary>
 public class DynamicMeshRenderer : AutoDisposable, ICommandListener
 {
-    private readonly RenderContext _renderContext;
+    private readonly IRenderContext _renderContext;
     private readonly DynamicMesh _mesh;
 
 
@@ -20,11 +20,13 @@ public class DynamicMeshRenderer : AutoDisposable, ICommandListener
     /// <param name="renderingSystem">The rendering system used to create the dynamic mesh.</param>
     /// <param name="renderContext">The render context used for drawing.</param>
     /// <param name="name">The name of the renderer.</param>
-    internal DynamicMeshRenderer(RenderingSystem renderingSystem,RenderContext renderContext, string name)
+    internal DynamicMeshRenderer(RenderingSystem renderingSystem, IRenderContext renderContext, string name)
     {
         _renderContext = renderContext;
         _mesh = renderingSystem.CreateDynamicMesh(name);
         Name = name;
+        
+        _renderContext.AddListener(this);
     }
 
     /// <summary>
@@ -127,10 +129,12 @@ public class DynamicMeshRenderer : AutoDisposable, ICommandListener
     /// <param name="disposing">True if disposing managed resources, false otherwise.</param>
     protected override void Dispose(bool disposing)
     {
+        _renderContext.RemoveListener(this);
         if(disposing)
         {
             _mesh.Dispose();
         }
+        
     }
 }
 
