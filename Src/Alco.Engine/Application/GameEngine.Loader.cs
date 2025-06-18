@@ -66,5 +66,6 @@ public partial class GameEngine
         yield return new JsonConverterDepthStencilState();
         yield return new JsonConverterBlendState();
         yield return new JsonConverterPivot();
+        yield return new JsonStringEnumConverter();
     }
 }
