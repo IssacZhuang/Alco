@@ -308,6 +308,18 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
 
     /// <summary>
     /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a boolean value to the end of the current content.
+    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// </summary>
+    /// <param name="value">The boolean value to append.</param>
+    public void Append(bool value)
+    {
+        string boolStr = value ? "True" : "False";
+        Append(boolStr);
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
     /// Appends a value to the end of the current content.
     /// If the resulting length would exceed MaxLength, the operation is ignored.
     /// </summary>
@@ -820,6 +832,387 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
         byte* components = (byte*)&color;
         Append(new ReadOnlySpan<byte>(components, 4));
     }
+
+    #region Operator+ Overloads
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a character to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The character to append.</param>
+    /// <returns>A new FixedString32 with the character appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, char right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a string to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The string to append.</param>
+    /// <returns>A new FixedString32 with the string appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, string right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a ReadOnlySpan&lt;char&gt; to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The ReadOnlySpan&lt;char&gt; to append.</param>
+    /// <returns>A new FixedString32 with the span appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, ReadOnlySpan<char> right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a boolean value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The boolean value to append.</param>
+    /// <returns>A new FixedString32 with the boolean appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, bool right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a byte value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The byte value to append.</param>
+    /// <returns>A new FixedString32 with the byte appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, byte right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a signed byte value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The signed byte value to append.</param>
+    /// <returns>A new FixedString32 with the signed byte appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, sbyte right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a short value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The short value to append.</param>
+    /// <returns>A new FixedString32 with the short appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, short right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending an unsigned short value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The unsigned short value to append.</param>
+    /// <returns>A new FixedString32 with the unsigned short appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, ushort right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending an integer value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The integer value to append.</param>
+    /// <returns>A new FixedString32 with the integer appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, int right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending an unsigned integer value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The unsigned integer value to append.</param>
+    /// <returns>A new FixedString32 with the unsigned integer appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, uint right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a long value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The long value to append.</param>
+    /// <returns>A new FixedString32 with the long appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, long right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending an unsigned long value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The unsigned long value to append.</param>
+    /// <returns>A new FixedString32 with the unsigned long appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, ulong right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a float value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The float value to append.</param>
+    /// <returns>A new FixedString32 with the float appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, float right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a double value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The double value to append.</param>
+    /// <returns>A new FixedString32 with the double appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, double right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a decimal value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The decimal value to append.</param>
+    /// <returns>A new FixedString32 with the decimal appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, decimal right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a Vector2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The Vector2 to append.</param>
+    /// <returns>A new FixedString32 with the Vector2 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, Vector2 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a Vector3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The Vector3 to append.</param>
+    /// <returns>A new FixedString32 with the Vector3 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, Vector3 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a Vector4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The Vector4 to append.</param>
+    /// <returns>A new FixedString32 with the Vector4 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, Vector4 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a Half2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The Half2 to append.</param>
+    /// <returns>A new FixedString32 with the Half2 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, Half2 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a Half3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The Half3 to append.</param>
+    /// <returns>A new FixedString32 with the Half3 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, Half3 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a Half4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The Half4 to append.</param>
+    /// <returns>A new FixedString32 with the Half4 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, Half4 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending an int2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The int2 to append.</param>
+    /// <returns>A new FixedString32 with the int2 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, int2 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending an int3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The int3 to append.</param>
+    /// <returns>A new FixedString32 with the int3 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, int3 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending an int4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The int4 to append.</param>
+    /// <returns>A new FixedString32 with the int4 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, int4 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a uint2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The uint2 to append.</param>
+    /// <returns>A new FixedString32 with the uint2 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, uint2 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a uint3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The uint3 to append.</param>
+    /// <returns>A new FixedString32 with the uint3 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, uint3 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a uint4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The uint4 to append.</param>
+    /// <returns>A new FixedString32 with the uint4 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, uint4 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a ColorFloat to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The ColorFloat to append.</param>
+    /// <returns>A new FixedString32 with the ColorFloat appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, ColorFloat right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString32 by appending a Color32 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString32 to append to.</param>
+    /// <param name="right">The Color32 to append.</param>
+    /// <returns>A new FixedString32 with the Color32 appended.</returns>
+    public static FixedString32 operator +(FixedString32 left, Color32 right)
+    {
+        FixedString32 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    #endregion
 }
 
 

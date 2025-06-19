@@ -308,6 +308,18 @@ public unsafe partial struct FixedString8 : IEquatable<FixedString8>
 
     /// <summary>
     /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a boolean value to the end of the current content.
+    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// </summary>
+    /// <param name="value">The boolean value to append.</param>
+    public void Append(bool value)
+    {
+        string boolStr = value ? "True" : "False";
+        Append(boolStr);
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
     /// Appends a value to the end of the current content.
     /// If the resulting length would exceed MaxLength, the operation is ignored.
     /// </summary>
@@ -820,6 +832,387 @@ public unsafe partial struct FixedString8 : IEquatable<FixedString8>
         byte* components = (byte*)&color;
         Append(new ReadOnlySpan<byte>(components, 4));
     }
+
+    #region Operator+ Overloads
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a character to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The character to append.</param>
+    /// <returns>A new FixedString8 with the character appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, char right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a string to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The string to append.</param>
+    /// <returns>A new FixedString8 with the string appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, string right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a ReadOnlySpan&lt;char&gt; to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The ReadOnlySpan&lt;char&gt; to append.</param>
+    /// <returns>A new FixedString8 with the span appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, ReadOnlySpan<char> right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a boolean value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The boolean value to append.</param>
+    /// <returns>A new FixedString8 with the boolean appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, bool right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a byte value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The byte value to append.</param>
+    /// <returns>A new FixedString8 with the byte appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, byte right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a signed byte value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The signed byte value to append.</param>
+    /// <returns>A new FixedString8 with the signed byte appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, sbyte right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a short value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The short value to append.</param>
+    /// <returns>A new FixedString8 with the short appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, short right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending an unsigned short value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The unsigned short value to append.</param>
+    /// <returns>A new FixedString8 with the unsigned short appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, ushort right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending an integer value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The integer value to append.</param>
+    /// <returns>A new FixedString8 with the integer appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, int right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending an unsigned integer value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The unsigned integer value to append.</param>
+    /// <returns>A new FixedString8 with the unsigned integer appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, uint right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a long value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The long value to append.</param>
+    /// <returns>A new FixedString8 with the long appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, long right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending an unsigned long value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The unsigned long value to append.</param>
+    /// <returns>A new FixedString8 with the unsigned long appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, ulong right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a float value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The float value to append.</param>
+    /// <returns>A new FixedString8 with the float appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, float right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a double value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The double value to append.</param>
+    /// <returns>A new FixedString8 with the double appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, double right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a decimal value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The decimal value to append.</param>
+    /// <returns>A new FixedString8 with the decimal appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, decimal right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a Vector2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The Vector2 to append.</param>
+    /// <returns>A new FixedString8 with the Vector2 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, Vector2 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a Vector3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The Vector3 to append.</param>
+    /// <returns>A new FixedString8 with the Vector3 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, Vector3 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a Vector4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The Vector4 to append.</param>
+    /// <returns>A new FixedString8 with the Vector4 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, Vector4 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a Half2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The Half2 to append.</param>
+    /// <returns>A new FixedString8 with the Half2 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, Half2 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a Half3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The Half3 to append.</param>
+    /// <returns>A new FixedString8 with the Half3 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, Half3 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a Half4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The Half4 to append.</param>
+    /// <returns>A new FixedString8 with the Half4 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, Half4 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending an int2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The int2 to append.</param>
+    /// <returns>A new FixedString8 with the int2 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, int2 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending an int3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The int3 to append.</param>
+    /// <returns>A new FixedString8 with the int3 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, int3 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending an int4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The int4 to append.</param>
+    /// <returns>A new FixedString8 with the int4 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, int4 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a uint2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The uint2 to append.</param>
+    /// <returns>A new FixedString8 with the uint2 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, uint2 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a uint3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The uint3 to append.</param>
+    /// <returns>A new FixedString8 with the uint3 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, uint3 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a uint4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The uint4 to append.</param>
+    /// <returns>A new FixedString8 with the uint4 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, uint4 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a ColorFloat to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The ColorFloat to append.</param>
+    /// <returns>A new FixedString8 with the ColorFloat appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, ColorFloat right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString8 by appending a Color32 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString8 to append to.</param>
+    /// <param name="right">The Color32 to append.</param>
+    /// <returns>A new FixedString8 with the Color32 appended.</returns>
+    public static FixedString8 operator +(FixedString8 left, Color32 right)
+    {
+        FixedString8 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    #endregion
 }
 
 
