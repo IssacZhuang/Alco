@@ -39,9 +39,4 @@ public partial class RenderingSystem
     {
         return new CanvasRenderer(this, camera, shaderSprite, shaderText);
     }
-
-    public DynamicMeshRenderer CreateDynamicMeshRenderer(IRenderContext renderContext, string name = "dynamic_mesh_renderer")
-    {
-        return new DynamicMeshRenderer(this, renderContext, name);
-    }
 }
