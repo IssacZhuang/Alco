@@ -24,7 +24,7 @@ public partial class GameEngine
         yield return new AssetLoaderAudioFlac(AudioDevice);
 
         //meta
-        yield return new AssetLoaderShaderMeta(CreateDefaultJsonConverters());
+        yield return new AssetLoaderMeta(CreateDefaultJsonConverters());
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()

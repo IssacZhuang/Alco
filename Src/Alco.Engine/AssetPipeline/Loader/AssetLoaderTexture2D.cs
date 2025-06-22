@@ -43,7 +43,19 @@ public class AssetLoaderTexture2D : IAssetLoader
     {
         if (context.AssetType == typeof(Texture2D))
         {
-            return _renderingSystem.CreateTexture2DFromFile(context.Data, ImageLoadOption.Default with
+            FilterMode filterMode = FilterMode.Linear;
+            AddressMode addressMode = AddressMode.ClampToEdge;
+
+            if (context.AssetSystem.TryLoad<Texture2DMeta>(context.Filename + ".meta", out var meta, out string? failedReason))
+            {
+                filterMode = meta.FilterMode;
+                addressMode = meta.AddressMode;
+            }
+
+            return _renderingSystem.CreateTexture2DFromFile(context.Data, 
+            filterMode,
+            addressMode,
+            ImageLoadOption.Default with
             {
                 Name = context.Filename
             });

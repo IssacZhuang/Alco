@@ -269,6 +269,12 @@ public sealed partial class AssetSystem
                 {
                     string key = ParseEntry(file);
                     _fileEntries[key] = fileSource;
+                    ReadOnlySpan<char> extension = Path.GetExtension(key);
+                    //todo: config to ignore alias
+                    if (extension.SequenceEqual(".meta"))
+                    {
+                        continue;
+                    }
                     string alias = Path.ChangeExtension(key, null);
                     _assetAliases[alias] = key;
                 }

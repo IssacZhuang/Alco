@@ -9,33 +9,34 @@ namespace Alco.Engine;
 /// <summary>
 /// Represents an asset loader for shader meta files.
 /// </summary>
-public class AssetLoaderShaderMeta : IAssetLoader
+public class AssetLoaderMeta : IAssetLoader
 {
-    private static readonly string[] Extensions = new string[] { FileExt.ShaderMeta };
+    private static readonly string[] Extensions = new string[] { FileExt.Meta };
 
     private readonly JsonSerializerOptions? _jsonSerializerOptions;
 
     /// <inheritdoc/>
-    public string Name => "AssetLoader.Shader.Meta";
+    public string Name => "AssetLoader.Meta";
 
     /// <inheritdoc/>
     public IReadOnlyList<string> FileExtensions => Extensions;
 
-    public AssetLoaderShaderMeta()
+    public AssetLoaderMeta()
     {
 
     }
 
-    public AssetLoaderShaderMeta(JsonSerializerOptions jsonSerializerOptions)
+    public AssetLoaderMeta(JsonSerializerOptions jsonSerializerOptions)
     {
         _jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public AssetLoaderShaderMeta(IEnumerable<JsonConverter> jsonConverters)
+    public AssetLoaderMeta(IEnumerable<JsonConverter> jsonConverters)
     {
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+            AllowTrailingCommas = true,
         };
 
         foreach (var converter in jsonConverters)

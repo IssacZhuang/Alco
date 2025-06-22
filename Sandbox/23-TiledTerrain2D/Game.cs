@@ -153,7 +153,6 @@ public class Game : GameEngine
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
-        textureWall.SetSampler(GraphicsDevice.SamplerNearestClamp);
 
         _wallMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileConnectable);
         _wallMaterial.BlendState = BlendState.Opaque;
