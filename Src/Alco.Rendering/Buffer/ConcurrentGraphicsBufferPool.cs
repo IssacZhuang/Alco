@@ -6,13 +6,15 @@ namespace Alco.Rendering;
 /// <summary>
 /// Manages a pool of graphics buffers of different sizes for efficient reuse.
 /// </summary>
-public class ConcurrentGraphicsBufferPool : AutoDisposable, IGraphicsBufferPool
+public sealed class ConcurrentGraphicsBufferPool : AutoDisposable, IGraphicsBufferPool
 {
     private readonly RenderingSystem _renderingSystem;
     private readonly GraphicsBufferPoolEntry[] _pools;
     private readonly uint[] _bufferSizes;
 
     public ReadOnlySpan<uint> BufferSizes => _bufferSizes;
+
+    public IReadOnlyList<GraphicsBufferPoolEntry> Pools => _pools;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConcurrentGraphicsBufferPool"/> class.
