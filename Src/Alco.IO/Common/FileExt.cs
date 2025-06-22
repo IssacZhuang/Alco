@@ -10,6 +10,7 @@ public static class FileExt
     public const string ShaderGLSL = ".glsl";
     public const string ShaderGLSLInclude = ".glslinc";
     public const string ShaderWGSL = ".wgsl";
+    public const string ShaderMeta = ".shader.meta";
 
     // package
     public const string Package = ".vpkg";
