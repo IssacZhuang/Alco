@@ -43,28 +43,24 @@ public class AssetLoaderTexture2D : IAssetLoader
     {
         if (context.AssetType == typeof(Texture2D))
         {
-            FilterMode filterMode = FilterMode.Linear;
-            AddressMode addressMode = AddressMode.ClampToEdge;
+            ImageLoadOption option = ImageLoadOption.Default with
+            {
+                Name = context.Filename
+            };
 
             if (context.AssetSystem.TryLoad<Texture2DMeta>(context.Filename + ".meta", out var meta, out string? failedReason))
             {
-                filterMode = meta.FilterMode;
-                addressMode = meta.AddressMode;
+                option = option with
+                {
+                    FilterMode = meta.FilterMode,
+                    AddressMode = meta.AddressMode
+                };
             }
 
-            return _renderingSystem.CreateTexture2DFromFile(context.Data, 
-            filterMode,
-            addressMode,
-            ImageLoadOption.Default with
-            {
-                Name = context.Filename
-            });
+            return _renderingSystem.CreateTexture2DFromFile(context.Data, option);
         }
         //todo: create sprite
 
         throw new InvalidOperationException($"Cannot create asset of type {context.AssetType.Name}");
     }
-
-    
-
 }
