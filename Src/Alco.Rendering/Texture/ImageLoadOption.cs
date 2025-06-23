@@ -1,5 +1,5 @@
 using Alco.Graphics;
-using System.Numerics;
+using Alco;
 
 namespace Alco.Rendering;
 
@@ -18,8 +18,8 @@ public struct ImageLoadOption
         MipLevels = 1,
         FilterMode = FilterMode.Linear,
         AddressMode = AddressMode.ClampToEdge,
-        SlicePadding = Vector4.Zero,
-        Name = "unnamed_texture",
+        SlicePadding = Padding.Zero,
+        Name = "unnamed_texture"
     };
 
     /// <summary>
@@ -30,15 +30,15 @@ public struct ImageLoadOption
     /// <param name="mipLevels">The number of mipmap levels.</param>
     /// <param name="filterMode">The texture filtering mode.</param>
     /// <param name="addressMode">The texture addressing mode.</param>
-    /// <param name="name">The name of the texture for debugging.</param>
     /// <param name="slicePadding">The slice padding for 9-slice textures.</param>
+    /// <param name="name">The name of the texture for debugging.</param>
     public ImageLoadOption(
         PixelFormat format = PixelFormat.RGBA8Unorm,
         TextureUsage usage = TextureUsage.Standard,
         uint mipLevels = 1,
         FilterMode filterMode = FilterMode.Linear,
         AddressMode addressMode = AddressMode.ClampToEdge,
-        Vector4 slicePadding = default,
+        Padding slicePadding = default,
         string name = "unnamed_texture"
     )
     {
@@ -47,8 +47,8 @@ public struct ImageLoadOption
         Usage = usage;
         FilterMode = filterMode;
         AddressMode = addressMode;
-        Name = name;
         SlicePadding = slicePadding;
+        Name = name;
     }
 
     /// <summary>
@@ -77,12 +77,12 @@ public struct ImageLoadOption
     public AddressMode AddressMode { get; init; } = AddressMode.ClampToEdge;
 
     /// <summary>
+    /// The slice padding for 9-slice textures. Defines the padding for left, top, right, and bottom edges.
+    /// </summary>
+    public Padding SlicePadding { get; init; } = Padding.Zero;
+
+    /// <summary>
     /// The name of the texture for debugging purposes.
     /// </summary>
     public string Name { get; init; } = "unnamed_texture";
-
-    /// <summary>
-    /// The slice padding for 9-slice textures. Defines the padding for left, top, right, and bottom edges.
-    /// </summary>
-    public Vector4 SlicePadding { get; init; } = Vector4.Zero;
 }
