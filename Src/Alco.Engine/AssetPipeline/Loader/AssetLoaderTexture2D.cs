@@ -35,32 +35,28 @@ public class AssetLoaderTexture2D : IAssetLoader
 
     public bool CanHandleType(Type type)
     {
-        return type == typeof(Texture2D) || type == typeof(Sprite);
+        return type == typeof(Texture2D);
     }
 
     /// <inheritdoc/>
     public object CreateAsset(in AssetLoadContext context)
     {
-        if (context.AssetType == typeof(Texture2D))
+
+        ImageLoadOption option = ImageLoadOption.Default with
         {
-            ImageLoadOption option = ImageLoadOption.Default with
+            Name = context.Filename
+        };
+
+        if (context.AssetSystem.TryLoad<Texture2DMeta>(context.Filename + ".meta", out var meta, out string? failedReason))
+        {
+            option = option with
             {
-                Name = context.Filename
+                FilterMode = meta.FilterMode,
+                AddressMode = meta.AddressMode,
+                SlicePadding = meta.SlicePadding
             };
-
-            if (context.AssetSystem.TryLoad<Texture2DMeta>(context.Filename + ".meta", out var meta, out string? failedReason))
-            {
-                option = option with
-                {
-                    FilterMode = meta.FilterMode,
-                    AddressMode = meta.AddressMode
-                };
-            }
-
-            return _renderingSystem.CreateTexture2DFromFile(context.Data, option);
         }
-        //todo: create sprite
 
-        throw new InvalidOperationException($"Cannot create asset of type {context.AssetType.Name}");
+        return _renderingSystem.CreateTexture2DFromFile(context.Data, option);
     }
 }

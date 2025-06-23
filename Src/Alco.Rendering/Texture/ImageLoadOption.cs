@@ -1,4 +1,5 @@
 using Alco.Graphics;
+using System.Numerics;
 
 namespace Alco.Rendering;
 
@@ -17,7 +18,8 @@ public struct ImageLoadOption
         MipLevels = 1,
         FilterMode = FilterMode.Linear,
         AddressMode = AddressMode.ClampToEdge,
-        Name = "unnamed_texture"
+        SlicePadding = Vector4.Zero,
+        Name = "unnamed_texture",
     };
 
     /// <summary>
@@ -29,12 +31,14 @@ public struct ImageLoadOption
     /// <param name="filterMode">The texture filtering mode.</param>
     /// <param name="addressMode">The texture addressing mode.</param>
     /// <param name="name">The name of the texture for debugging.</param>
+    /// <param name="slicePadding">The slice padding for 9-slice textures.</param>
     public ImageLoadOption(
         PixelFormat format = PixelFormat.RGBA8Unorm,
         TextureUsage usage = TextureUsage.Standard,
         uint mipLevels = 1,
         FilterMode filterMode = FilterMode.Linear,
         AddressMode addressMode = AddressMode.ClampToEdge,
+        Vector4 slicePadding = default,
         string name = "unnamed_texture"
     )
     {
@@ -44,6 +48,7 @@ public struct ImageLoadOption
         FilterMode = filterMode;
         AddressMode = addressMode;
         Name = name;
+        SlicePadding = slicePadding;
     }
 
     /// <summary>
@@ -75,4 +80,9 @@ public struct ImageLoadOption
     /// The name of the texture for debugging purposes.
     /// </summary>
     public string Name { get; init; } = "unnamed_texture";
+
+    /// <summary>
+    /// The slice padding for 9-slice textures. Defines the padding for left, top, right, and bottom edges.
+    /// </summary>
+    public Vector4 SlicePadding { get; init; } = Vector4.Zero;
 }

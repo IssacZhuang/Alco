@@ -2,6 +2,7 @@ using Alco.Graphics;
 using StbImageSharp;
 using static Alco.UtilsMemory;
 using System.Runtime.CompilerServices;
+using System.Numerics;
 
 namespace Alco.Rendering;
 
@@ -61,9 +62,25 @@ public sealed class Texture2D : Texture
 
     public GPUSampler Sampler => _sampler;
 
-    internal Texture2D(GPUDevice device, GPUTexture texture, GPUTextureView textureView, GPUSampler sampler) : base(device, texture, textureView, sampler)
-    {
+    public Vector4 SlicePadding { get; }
 
+    internal Texture2D(
+        GPUDevice device,
+        GPUTexture texture,
+        GPUTextureView textureView,
+        GPUSampler sampler,
+        Vector4? slicePadding = null
+        ) :
+        base(device, texture, textureView, sampler)
+    {
+        if (slicePadding.HasValue)
+        {
+            SlicePadding = slicePadding.Value;
+        }
+        else
+        {
+            SlicePadding = Vector4.Zero;
+        }
     }
 
     public unsafe void SetPixels<T>(Bitmap<T> bitmap) where T : unmanaged

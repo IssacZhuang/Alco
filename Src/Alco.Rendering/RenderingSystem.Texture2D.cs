@@ -144,7 +144,8 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler
+            sampler,
+            optionReal.SlicePadding
         );
     }
 
@@ -175,11 +176,13 @@ public partial class RenderingSystem
             size
         );
 
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         return new Texture2D(
             _device,
             texture,
             textureView,
-            sampler
+            sampler,
+            optionReal.SlicePadding
         );
     }
 
@@ -205,7 +208,8 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler
+            sampler,
+            optionReal.SlicePadding
         );
     }
 
@@ -226,11 +230,13 @@ public partial class RenderingSystem
     {
         CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         return new Texture2D(
             _device,
             texture,
             textureView,
-            sampler
+            sampler,
+            optionReal.SlicePadding
         );
     }
 
@@ -251,7 +257,8 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler
+            sampler,
+            null
         );
     }
 
