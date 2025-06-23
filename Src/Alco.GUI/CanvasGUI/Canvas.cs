@@ -43,6 +43,7 @@ public partial class Canvas : AutoDisposable
     private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _spriteRenderer;
     private readonly TextRenderer _textRenderer;
+    private readonly DynamicMeshRenderer _dynamicMeshRenderer;
 
     private readonly Material _textMaterial;
     private readonly Material _spriteMaterial;
@@ -187,6 +188,7 @@ public partial class Canvas : AutoDisposable
 
         _spriteRenderer = system.CreateSpriteRenderer(_renderContext, _spriteMaterial);
         _textRenderer = system.CreateTextRenderer(_renderContext, _textMaterial);
+        _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext);
 
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
@@ -336,6 +338,7 @@ public partial class Canvas : AutoDisposable
         _renderContext.Dispose();
         _spriteRenderer.Dispose();
         _textRenderer.Dispose();
+        _dynamicMeshRenderer.Dispose();
         _camera.Dispose();
     }
 
