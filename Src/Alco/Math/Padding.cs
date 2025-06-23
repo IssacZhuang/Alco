@@ -59,45 +59,37 @@ public struct Padding : IEquatable<Padding>
     /// <summary>
     /// The left padding value.
     /// </summary>
-    public float Left
+    public ref float Left
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.X;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.X = value;
+        get => ref Unsafe.AsRef(in value.X);
     }
 
     /// <summary>
     /// The top padding value.
     /// </summary>
-    public float Top
+    public ref float Top
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.Y;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.Y = value;
+        get => ref Unsafe.AsRef(in value.Y);
     }
 
     /// <summary>
     /// The right padding value.
     /// </summary>
-    public float Right
+    public ref float Right
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.Z;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.Z = value;
+        get => ref Unsafe.AsRef(in value.Z);
     }
 
     /// <summary>
     /// The bottom padding value.
     /// </summary>
-    public float Bottom
+    public ref float Bottom
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.W;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.W = value;
+        get => ref Unsafe.AsRef(in value.W);
     }
 
     /// <summary>

@@ -19,20 +19,22 @@ public struct Pivot
     public static readonly Pivot RightTop = new(0.5f, 0.5f);
     public static readonly Pivot RightBottom = new(0.5f, -0.5f);
 
-    public float X
+    /// <summary>
+    /// The X component of the pivot.
+    /// </summary>
+    public ref float X
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.X;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.X = value;
+        get => ref Unsafe.AsRef(in value.X);
     }
 
-    public float Y
+    /// <summary>
+    /// The Y component of the pivot.
+    /// </summary>
+    public ref float Y
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.Y;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.Y = value;
+        get => ref Unsafe.AsRef(in value.Y);
     }
 
     public Pivot(float x, float y)

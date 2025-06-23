@@ -29,36 +29,40 @@ public struct ColorFloat
         value = new Vector4(r, g, b, 1);
     }
 
-    public float R
+    /// <summary>
+    /// The red component of the color.
+    /// </summary>
+    public ref float R
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.X;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.X = value;
+        get => ref Unsafe.AsRef(in value.X);
     }
 
-    public float G
+    /// <summary>
+    /// The green component of the color.
+    /// </summary>
+    public ref float G
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.Y;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.Y = value;
+        get => ref Unsafe.AsRef(in value.Y);
     }
 
-    public float B
+    /// <summary>
+    /// The blue component of the color.
+    /// </summary>
+    public ref float B
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.Z;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.Z = value;
+        get => ref Unsafe.AsRef(in value.Z);
     }
 
-    public float A
+    /// <summary>
+    /// The alpha component of the color.
+    /// </summary>
+    public ref float A
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => value.W;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => this.value.W = value;
+        get => ref Unsafe.AsRef(in value.W);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
