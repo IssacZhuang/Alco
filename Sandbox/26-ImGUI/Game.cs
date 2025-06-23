@@ -14,6 +14,8 @@ public class Game : GameEngine
     private Vector3 color = new Vector3(0.4f, 0.7f, 0.2f);
     private bool toggleValue = true;
 
+    private ColorFloat colorFloat = new ColorFloat(0.4f, 0.7f, 0.2f, 1.0f);
+
     private Texture2D _texture;
 
     public Game(GameEngineSetting setting) : base(setting)
