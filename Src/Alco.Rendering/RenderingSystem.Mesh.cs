@@ -7,8 +7,6 @@ namespace Alco.Rendering;
 
 public partial class RenderingSystem
 {
-    public const uint DefaultVertexBufferSize = 64;
-    public const uint DefaultIndexBufferSize = 16;
 
     /// <summary>
     /// Create a mesh.
@@ -55,8 +53,15 @@ public partial class RenderingSystem
         return mesh;
     }
 
-    public DynamicMesh CreateDynamicMesh(string name = "dynamic_mesh")
+    /// <summary>
+    /// Create a dynamic mesh with custom vertex and index buffer sizes.
+    /// </summary>
+    /// <param name="vertexBufferSize">The size of the vertex buffer in bytes.</param>
+    /// <param name="indexBufferSize">The size of the index buffer in bytes.</param>
+    /// <param name="name">The name of the mesh.</param>
+    /// <returns>The created dynamic mesh.</returns>
+    public DynamicMesh CreateDynamicMesh(uint vertexBufferSize, uint indexBufferSize, string name = "dynamic_mesh")
     {
-        return new DynamicMesh(_device, DefaultVertexBufferSize, DefaultIndexBufferSize, name);
+        return new DynamicMesh(_device, vertexBufferSize, indexBufferSize, name);
     }
 }

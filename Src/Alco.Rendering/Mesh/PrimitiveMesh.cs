@@ -39,14 +39,11 @@ public sealed unsafe class PrimitiveMesh : Mesh
     /// <param name="data">The data array.</param>
     public void SetVertex<T>(ReadOnlySpan<T> data) where T : unmanaged
     {
-        EnsureVertexBufferSize((uint)(data.Length * sizeof(T)));
         fixed (void* ptr = data)
         {
             UpdateVertexUnsafe(ptr, (uint)(data.Length * sizeof(T)), 0);
         }
 
-        //_defaultSubMesh.VertexOffset = 0;//readonly, no need to set
-        _defaultSubMesh.VertexSize = (uint)(data.Length * sizeof(T));
         IncrementVersion();
     }
 
@@ -69,7 +66,6 @@ public sealed unsafe class PrimitiveMesh : Mesh
     /// <param name="indices">The indices array.</param>
     public void SetIndices(ReadOnlySpan<uint> indices)
     {
-        EnsureIndexBufferSize((uint)(indices.Length * sizeof(uint)));
         fixed (void* ptr = indices)
         {
             UpdateIndicesUnsafe(ptr, (uint)(indices.Length * sizeof(uint)), 0);
@@ -88,7 +84,6 @@ public sealed unsafe class PrimitiveMesh : Mesh
     /// <param name="indices">The indices array.</param>
     public void SetIndices(ReadOnlySpan<ushort> indices)
     {
-        EnsureIndexBufferSize((uint)(indices.Length * sizeof(ushort)));
         fixed (void* ptr = indices)
         {
             UpdateIndicesUnsafe(ptr, (uint)(indices.Length * sizeof(ushort)), 0);
@@ -143,6 +138,11 @@ public sealed unsafe class PrimitiveMesh : Mesh
     /// This method will not copy the data from the old buffer to the new buffer.
     /// </summary>
     /// <param name="size">The size of the vertex buffer.</param>
+    /// <warning>
+    /// Using this method may cause exceptions if a CommandBuffer has already recorded operations 
+    /// with this mesh's vertex buffer. Ensure all command buffers are submitted or reset before 
+    /// calling this method.
+    /// </warning>
     public void EnsureVertexBufferSizeUnsafe(uint size)
     {
         EnsureVertexBufferSize(size);
@@ -153,6 +153,11 @@ public sealed unsafe class PrimitiveMesh : Mesh
     /// This method will not copy the data from the old buffer to the new buffer.
     /// </summary>
     /// <param name="size">The size of the index buffer.</param>
+    /// <warning>
+    /// Using this method may cause exceptions if a CommandBuffer has already recorded operations 
+    /// with this mesh's index buffer. Ensure all command buffers are submitted or reset before 
+    /// calling this method.
+    /// </warning>
     public void EnsureIndexBufferSizeUnsafe(uint size)
     {
         EnsureIndexBufferSize(size);

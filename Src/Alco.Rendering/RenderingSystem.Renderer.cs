@@ -39,4 +39,18 @@ public partial class RenderingSystem
     {
         return new CanvasRenderer(this, camera, shaderSprite, shaderText);
     }
+
+    /// <summary>
+    /// Create a dynamic mesh renderer that manages multiple DynamicMesh instances.
+    /// </summary>
+    /// <param name="renderContext">The render context to use.</param>
+    /// <param name="vertexBufferSizePerChunk">The size of each vertex buffer in bytes. Default is 64KB.</param>
+    /// <param name="indexBufferSizePerChunk">The size of each index buffer in bytes. Default is 16KB.</param>
+    /// <param name="name">The name of the renderer.</param>
+    /// <returns>The created dynamic mesh renderer.</returns>
+    public DynamicMeshRenderer CreateDynamicMeshRenderer(IRenderContext renderContext,
+        uint vertexBufferSizePerChunk = 64 * 1024, uint indexBufferSizePerChunk = 16 * 1024, string name = "dynamic_mesh_renderer")
+    {
+        return new DynamicMeshRenderer(this, renderContext, vertexBufferSizePerChunk, indexBufferSizePerChunk, name);
+    }
 }
