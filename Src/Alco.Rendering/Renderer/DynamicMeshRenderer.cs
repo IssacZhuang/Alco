@@ -21,7 +21,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     private readonly uint _indexBufferSizePerChunk;
 
     private int _currentMeshIndex;
-    private bool _isDrawing;
 
     /// <summary>
     /// Gets the number of DynamicMesh instances currently managed by this renderer.
@@ -62,11 +61,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="material">The material to use for drawing.</param>
     public void Draw<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material) where TVertex : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("Draw can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.Draw(mesh, material, subMeshIndex);
     }
@@ -80,11 +74,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="material">The material to use for drawing.</param>
     public void Draw<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material) where TVertex : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("Draw can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.Draw(mesh, material, subMeshIndex);
     }
@@ -101,11 +90,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     public void DrawWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawWithConstant can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawWithConstant(mesh, material, constant, subMeshIndex);
     }
@@ -122,11 +106,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     public void DrawWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawWithConstant can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawWithConstant(mesh, material, constant, subMeshIndex);
     }
@@ -141,11 +120,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="instanceCount">The number of instances to draw.</param>
     public void DrawInstanced<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in uint instanceCount) where TVertex : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawInstanced can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstanced(mesh, material, instanceCount, subMeshIndex);
     }
@@ -160,11 +134,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="instanceCount">The number of instances to draw.</param>
     public void DrawInstanced<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in uint instanceCount) where TVertex : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawInstanced can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstanced(mesh, material, instanceCount, subMeshIndex);
     }
@@ -182,11 +151,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in uint instanceCount, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawInstancedWithConstant can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstancedWithConstant(mesh, material, instanceCount, constant, subMeshIndex);
     }
@@ -204,11 +168,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in uint instanceCount, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawInstancedWithConstant can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstancedWithConstant(mesh, material, instanceCount, constant, subMeshIndex);
     }
@@ -227,11 +186,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in uint instanceCount, in uint instanceStart, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawInstancedWithConstant can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstancedWithConstant(mesh, material, instanceCount, instanceStart, constant, subMeshIndex);
     }
@@ -250,23 +204,12 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in uint instanceCount, in uint instanceStart, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DrawInstancedWithConstant can only be called between OnCommandBegin and OnCommandEnd");
-        }
-
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstancedWithConstant(mesh, material, instanceCount, instanceStart, constant, subMeshIndex);
     }
 
     void ICommandListener.OnCommandBegin()
     {
-        if (_isDrawing)
-        {
-            throw new InvalidOperationException("DynamicMeshRenderer.OnCommandBegin() called twice without calling OnCommandEnd()");
-        }
-
-        _isDrawing = true;
         _currentMeshIndex = 0;
 
         // Clear the first mesh for new frame
@@ -278,11 +221,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
 
     void ICommandListener.OnCommandEnd()
     {
-        if (!_isDrawing)
-        {
-            throw new InvalidOperationException("DynamicMeshRenderer.OnCommandEnd() called without calling OnCommandBegin()");
-        }
-
         // Update all used meshes to GPU
         for (int i = 0; i <= _currentMeshIndex && i < _dynamicMeshes.Count; i++)
         {
@@ -292,8 +230,6 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
                 mesh.UpdateBufferToGPU();
             }
         }
-
-        _isDrawing = false;
     }
 
     /// <summary>
