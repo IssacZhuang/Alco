@@ -339,6 +339,8 @@ public partial class Canvas : AutoDisposable
         _camera.Dispose();
     }
 
+    
+
     private void OnMouseDown(UINode? node, Vector2 mousePosition)
     {
         if (node == null || !CheckMask(node, mousePosition))
@@ -394,19 +396,21 @@ public partial class Canvas : AutoDisposable
 
             try
             {
+                node.TryRefreshRenderData(this, delta);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "refreshing render data", node.Name);
+            }
+
+            try
+            {
 
                 node.Update(this, delta);
             }
             catch (Exception e)
             {
-                if (ErrorHandler != null)
-                {
-                    ErrorHandler(e);
-                }
-                else
-                {
-                    Log.Error($"Error in updating {node.Name}: {e}");
-                }
+                HandleError(e, "updating", node.Name);
             }
         }
 
@@ -435,14 +439,7 @@ public partial class Canvas : AutoDisposable
             }
             catch (Exception e)
             {
-                if (ErrorHandler != null)
-                {
-                    ErrorHandler(e);
-                }
-                else
-                {
-                    Log.Error($"Error in ticking {node.Name}: {e}");
-                }
+                HandleError(e, "ticking", node.Name);
             }
         }
 
@@ -469,5 +466,17 @@ public partial class Canvas : AutoDisposable
             parent = parent.Parent;
         }
         return true;
+    }
+
+    private void HandleError(Exception exception, string operation, string nodeName)
+    {
+        if (ErrorHandler != null)
+        {
+            ErrorHandler(exception);
+        }
+        else
+        {
+            Log.Error($"Error in {operation} of {nodeName}: {exception}");
+        }
     }
 }

@@ -1,10 +1,30 @@
-
 using System.Numerics;
 
 namespace Alco.Rendering;
 
-public static class UitlsMesh
+public static class UtilsMesh
 {
+
+    /// <summary>
+    /// Generate 9-slice mesh data for UI elements that need to scale without distorting corners and edges.
+    /// </summary>
+    /// <param name="imageSize">The original size of the image.</param>
+    /// <param name="targetSize">The target size to scale to.</param>
+    /// <param name="padding">The padding that defines the 9-slice boundary.</param>
+    /// <returns>A tuple containing the vertex array and index array for the 9-slice mesh.</returns>
+    public static (Vertex[], ushort[]) Make9SliceMeshData(
+        Vector2 imageSize,
+        Vector2 targetSize,
+        Padding padding)
+    {
+        return Make9SliceMeshData(
+            imageSize,
+            targetSize,
+            padding.Top,
+            padding.Bottom,
+            padding.Left,
+            padding.Right);
+    }
 
     /// <summary>
     /// Generate 9-slice mesh data for UI elements that need to scale without distorting corners and edges.
@@ -16,7 +36,7 @@ public static class UitlsMesh
     /// <param name="paddingLeft">The left padding that defines the 9-slice boundary.</param>
     /// <param name="paddingRight">The right padding that defines the 9-slice boundary.</param>
     /// <returns>A tuple containing the vertex array and index array for the 9-slice mesh.</returns>
-    public static (Vertex[], uint[]) Make9SliceMeshData(
+    public static (Vertex[], ushort[]) Make9SliceMeshData(
         Vector2 imageSize,
         Vector2 targetSize,
         float paddingTop,
@@ -25,11 +45,39 @@ public static class UitlsMesh
         float paddingRight)
     {
         Vertex[] vertices = new Vertex[16];
-        uint[] indices = new uint[54];
+        ushort[] indices = new ushort[54];
 
         Populate9SliceMeshData(vertices, indices, imageSize, targetSize, paddingTop, paddingBottom, paddingLeft, paddingRight);
 
         return (vertices, indices);
+    }
+
+    /// <summary>
+    /// Populate existing vertex and index spans with 9-slice mesh data for UI elements that need to scale without distorting corners and edges.
+    /// This method avoids memory allocation by directly modifying the provided spans.
+    /// </summary>
+    /// <param name="vertices">The vertex span to populate. Must have at least 16 elements.</param>
+    /// <param name="indices">The index span to populate. Must have at least 54 elements.</param>
+    /// <param name="imageSize">The original size of the image.</param>
+    /// <param name="targetSize">The target size to scale to.</param>
+    /// <param name="padding">The padding that defines the 9-slice boundary.</param>
+    /// <exception cref="ArgumentException">Thrown when the provided spans are too small.</exception>
+    public static void Populate9SliceMeshData(
+        Span<Vertex> vertices,
+        Span<ushort> indices,
+        Vector2 imageSize,
+        Vector2 targetSize,
+        Padding padding)
+    {
+        Populate9SliceMeshData(
+            vertices,
+            indices,
+            imageSize,
+            targetSize,
+            padding.Top,
+            padding.Bottom,
+            padding.Left,
+            padding.Right);
     }
 
     /// <summary>
@@ -47,7 +95,7 @@ public static class UitlsMesh
     /// <exception cref="ArgumentException">Thrown when the provided spans are too small.</exception>
     public static void Populate9SliceMeshData(
         Span<Vertex> vertices,
-        Span<uint> indices,
+        Span<ushort> indices,
         Vector2 imageSize,
         Vector2 targetSize,
         float paddingTop,
@@ -115,17 +163,17 @@ public static class UitlsMesh
             for (int col = 0; col < 3; col++)
             {
                 // Calculate the base vertex index for this quad
-                uint baseIndex = (uint)(row * 4 + col);
+                ushort baseIndex = (ushort)(row * 4 + col);
 
                 // First triangle (top-left, top-right, bottom-left)
                 indices[indexOffset++] = baseIndex;
-                indices[indexOffset++] = baseIndex + 1;
-                indices[indexOffset++] = baseIndex + 4;
+                indices[indexOffset++] = (ushort)(baseIndex + 1);
+                indices[indexOffset++] = (ushort)(baseIndex + 4);
 
                 // Second triangle (top-right, bottom-right, bottom-left)
-                indices[indexOffset++] = baseIndex + 1;
-                indices[indexOffset++] = baseIndex + 5;
-                indices[indexOffset++] = baseIndex + 4;
+                indices[indexOffset++] = (ushort)(baseIndex + 1);
+                indices[indexOffset++] = (ushort)(baseIndex + 5);
+                indices[indexOffset++] = (ushort)(baseIndex + 4);
             }
         }
     }
