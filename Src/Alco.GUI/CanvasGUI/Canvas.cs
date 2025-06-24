@@ -188,7 +188,10 @@ public partial class Canvas : AutoDisposable
 
         _spriteRenderer = system.CreateSpriteRenderer(_renderContext, _spriteMaterial);
         _textRenderer = system.CreateTextRenderer(_renderContext, _textMaterial);
-        _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext);
+
+        // sliced mesh: 16 vertices (size of vertex is 20 bytes, 320 in total), 54 indices (2 byte per index, 108 in total)
+        // support 1024 sliced mesh per chunk in dynamic mesh renderer
+        _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext, 320* 1024, 108 *1024);
 
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();

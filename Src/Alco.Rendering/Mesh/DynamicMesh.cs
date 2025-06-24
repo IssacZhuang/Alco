@@ -126,8 +126,15 @@ public sealed unsafe class DynamicMesh : Mesh
     /// </summary>
     public void UpdateBufferToGPU()
     {
-        _device.WriteBuffer(VertexBuffer, 0, _vertexBufferCpu.UnsafePointer, _vertexBufferCpuSize);
-        _device.WriteBuffer(IndexBuffer, 0, _indexBufferCpu.UnsafePointer, _indexBufferCpuSize);
+        if (_vertexBufferCpuSize > 0)
+        {
+            _device.WriteBuffer(VertexBuffer, 0, _vertexBufferCpu.UnsafePointer, _vertexBufferCpuSize);
+        }
+        
+        if (_indexBufferCpuSize > 0)
+        {
+            _device.WriteBuffer(IndexBuffer, 0, _indexBufferCpu.UnsafePointer, _indexBufferCpuSize);
+        }
     }
 
     private unsafe SubMeshData AddSubMeshCore(byte* vertexPtr, uint verticesSize, byte* indexPtr, uint indexCount, IndexFormat indexFormat)
