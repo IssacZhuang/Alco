@@ -17,9 +17,112 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
             _commandBuffer = commandBuffer;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetScissorRect(uint x, uint y, uint width, uint height)
+        {
+            _commandBuffer.SetScissorRectCore(x, y, width, height);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetGraphicsPipeline(GPUPipeline pipeline)
+        {
+            _commandBuffer.SetGraphicsPipelineCore(pipeline);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetStencilReference(uint value)
+        {
+            _commandBuffer.SetStencilReferenceCore(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
+        {
+            _commandBuffer.SetGraphicsResourcesCore(slot, resourceGroup);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
+        {
+            _commandBuffer.SetVertexBufferCore(slot, buffer, offset, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
+        {
+            _commandBuffer.SetIndexBufferCore(buffer, format, offset, size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
+        {
+            _commandBuffer.DrawCore(vertexCount, instanceCount, firstVertex, firstInstance);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
+        {
+            _commandBuffer.DrawIndexedCore(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DrawIndirect(GPUBuffer indirectBuffer, uint offset)
+        {
+            _commandBuffer.DrawIndirectCore(indirectBuffer, offset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset)
+        {
+            _commandBuffer.DrawIndexedIndirectCore(indirectBuffer, offset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+        {
+            _commandBuffer.PushGraphicsConstantsCore(stage, bufferOffset, data, size);
+        }
+
+        // polymorphism overloads
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetVertexBuffer(uint slot, GPUBuffer buffer)
+        {
+            SetVertexBuffer(slot, buffer, 0, buffer.Size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format)
+        {
+            SetIndexBuffer(buffer, format, 0, buffer.Size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void PushGraphicsConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+        {
+            PushGraphicsConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void PushGraphicsConstants<T>(ShaderStage stage, T data) where T : unmanaged
+        {
+            PushGraphicsConstants(stage, 0, data);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ExecuteBundle(GPURenderBundle bundle)
+        {
+            _commandBuffer.ExecuteBundleCore(bundle);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ExecuteBundle(ReadOnlySpan<GPURenderBundle> bundles)
+        {
+            _commandBuffer.ExecuteBundleCore(bundles);
+        }
+
         public void Dispose()
         {
-
+            _commandBuffer.EndRenderCore();
         }
     }
 
@@ -32,9 +135,52 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
             _commandBuffer = commandBuffer;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetComputePipeline(GPUPipeline pipeline)
+        {
+            _commandBuffer.SetComputePipelineCore(pipeline);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
+        {
+            _commandBuffer.SetComputeResourcesCore(slot, resourceGroup);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DispatchCompute(uint x, uint y, uint z)
+        {
+            _commandBuffer.DispatchComputeCore(x, y, z);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DispatchComputeIndirect(GPUBuffer indirectBuffer, uint offset)
+        {
+            _commandBuffer.DispatchComputeIndirectCore(indirectBuffer, offset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void PushComputeConstants(uint bufferOffset, byte* data, uint size)
+        {
+            _commandBuffer.PushComputeConstantsCore(bufferOffset, data, size);
+        }
+
+        // polymorphism overloads
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void PushComputeConstants<T>(uint bufferOffset, T data) where T : unmanaged
+        {
+            PushComputeConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe void PushComputeConstants<T>(T data) where T : unmanaged
+        {
+            PushComputeConstants(0, data);
+        }
+
         public void Dispose()
         {
-
+            _commandBuffer.EndComputeCore();
         }
     }
 
@@ -67,17 +213,22 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     }
 
     public RenderScope BeginRender(
-        GPUFrameBuffer frameBuffer
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil
         )
     {
-        //todo
+        BeginRenderCore(frameBuffer, clearColors, clearDepth, clearStencil);
         return new RenderScope(this);
     }
 
     public ComputeScope BeginCompute(){
-        //todo
+        BeginComputeCore();
         return new ComputeScope(this);
     }
+
+
 
     //graphics
 
@@ -289,12 +440,14 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
 
     // API
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ExecuteBundle(GPURenderBundle bundle)
     {
         ExecuteBundleCore(bundle);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ExecuteBundle(ReadOnlySpan<GPURenderBundle> bundles)
     {
@@ -330,6 +483,14 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     // need to be implemented for each backend
     protected abstract void BeginCore();
     protected abstract void EndCore();
+
+
+    protected abstract void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil);
+    protected abstract void EndRenderCore();
+
+    protected abstract void BeginComputeCore();
+    protected abstract void EndComputeCore();
+
     protected abstract void SetFrameBufferCore(GPUFrameBuffer frameBuffer);
     protected abstract void ClearColorCore(Vector4 color, uint index);
 

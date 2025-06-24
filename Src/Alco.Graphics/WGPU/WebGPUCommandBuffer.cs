@@ -109,6 +109,108 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         _encoder = WGPUCommandEncoder.Null;
     }
 
+    protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
+    {
+        WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
+        _frameBuffer = nativeFrameBuffer;
+        TryFinishCurrentRenderPass();
+        TryFinishCurrentComputePass();
+
+        WGPURenderPassDescriptor tmpDescriptor = nativeFrameBuffer.Native;
+        _colorAttachmentsCache.EnsureCapacity((int)tmpDescriptor.colorAttachmentCount);
+
+        // Setup color attachments with clear values
+        for (uint i = 0; i < tmpDescriptor.colorAttachmentCount; i++)
+        {
+            _colorAttachmentsCache[i] = tmpDescriptor.colorAttachments[i];
+
+            if (i < clearColors.Length)
+            {
+                WGPURenderPassColorAttachment attachment = _colorAttachmentsCache[i];
+                attachment.loadOp = WGPULoadOp.Clear;
+                attachment.storeOp = WGPUStoreOp.Store;
+                var clearColor = clearColors[(int)i];
+                attachment.clearValue = new WGPUColor
+                {
+                    r = clearColor.Color.X,
+                    g = clearColor.Color.Y,
+                    b = clearColor.Color.Z,
+                    a = clearColor.Color.W
+                };
+                _colorAttachmentsCache[i] = attachment;
+            }
+        }
+
+        // Setup depth stencil attachment with clear values
+        if (tmpDescriptor.depthStencilAttachment != null)
+        {
+            WGPURenderPassDepthStencilAttachment attachment = *tmpDescriptor.depthStencilAttachment;
+
+            if (clearDepth.HasValue)
+            {
+                attachment.depthLoadOp = WGPULoadOp.Clear;
+                attachment.depthStoreOp = WGPUStoreOp.Store;
+                attachment.depthClearValue = clearDepth.Value;
+            }
+
+            if (clearStencil.HasValue)
+            {
+                attachment.stencilLoadOp = WGPULoadOp.Clear;
+                attachment.stencilStoreOp = WGPUStoreOp.Store;
+                attachment.stencilClearValue = clearStencil.Value;
+            }
+
+            _depthStencilAttachmentCache = attachment;
+        }
+        else
+        {
+            _depthStencilAttachmentCache = null;
+        }
+
+        // Start the render pass
+        WGPURenderPassDescriptor renderPassDesc = new WGPURenderPassDescriptor
+        {
+            colorAttachmentCount = _frameBuffer.Native.colorAttachmentCount,
+            colorAttachments = _colorAttachmentsCache.Ptr,
+        };
+
+        if (_depthStencilAttachmentCache.HasValue)
+        {
+            WGPURenderPassDepthStencilAttachment depthStencilAttachment = _depthStencilAttachmentCache.Value;
+            renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+        }
+
+        _renderPass = wgpuCommandEncoderBeginRenderPass(_encoder, &renderPassDesc);
+    }
+
+    protected override void EndRenderCore()
+    {
+        if (_renderPass != WGPURenderPassEncoder.Null)
+        {
+            wgpuRenderPassEncoderEnd(_renderPass);
+            wgpuRenderPassEncoderRelease(_renderPass);
+            _renderPass = WGPURenderPassEncoder.Null;
+        }
+    }
+
+    protected override void BeginComputeCore()
+    {
+        TryFinishCurrentRenderPass();
+        TryFinishCurrentComputePass();
+
+        _computePass = wgpuCommandEncoderBeginComputePass(_encoder, null);
+    }
+
+    protected override void EndComputeCore()
+    {
+        if (_computePass != WGPUComputePassEncoder.Null)
+        {
+            wgpuComputePassEncoderEnd(_computePass);
+            wgpuComputePassEncoderRelease(_computePass);
+            _computePass = WGPUComputePassEncoder.Null;
+        }
+    }
+
     protected override unsafe void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
     {
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;

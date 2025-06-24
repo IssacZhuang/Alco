@@ -17,6 +17,26 @@ internal class NoCommandBuffer : GPUCommandBuffer
         _hasBuffer = false;
     }
 
+    protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
+    {
+        
+    }
+
+    protected override void EndRenderCore()
+    {
+        
+    }
+
+    protected override void BeginComputeCore()
+    {
+        
+    }
+
+    protected override void EndComputeCore()
+    {
+        
+    }
+
     protected override void ClearColorCore(Vector4 color, uint index)
     {
         
