@@ -18,7 +18,7 @@ public class JsonConverterType : JsonConverter<Type>
 
     public JsonConverterType()
     {
-        _typeHelper = new TypeHelper(true);
+        _typeHelper = TypeHelper.Default;
     }
 
     public JsonConverterType(TypeHelper typeHelper)
@@ -29,18 +29,8 @@ public class JsonConverterType : JsonConverter<Type>
     public JsonConverterType(params ReadOnlySpan<Assembly> assemblies) : this()
 
     {
-        _typeHelper.AddAssemblies(assemblies);
+        _typeHelper = new TypeHelper(assemblies);
     }
-
-    /// <summary>
-    /// Add assemblies to search for types.
-    /// </summary>
-    /// <param name="assemblies">The assemblies to add.</param>
-    public void AddAssemblies(params ReadOnlySpan<Assembly> assemblies)
-    {
-        _typeHelper.AddAssemblies(assemblies);
-    }
-
 
     /// <summary>
     /// Reads a JSON string and converts it to a Type.

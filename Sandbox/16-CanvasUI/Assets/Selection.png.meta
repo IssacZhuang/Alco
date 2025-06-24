@@ -1,0 +1,8 @@
+{
+    "SlicePadding":{
+        "Top": 64,
+        "Bottom": 64,
+        "Left": 64,
+        "Right": 64
+    }
+}

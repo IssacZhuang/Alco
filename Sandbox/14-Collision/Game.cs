@@ -24,7 +24,7 @@ public class Game : GameEngine
 
     private Plane3D _plane;
     private Vector3 offset;
-    private bool _isDragging = false;
+
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -66,7 +66,7 @@ public class Game : GameEngine
 
         Vector2 localMousePosition = MainView.MousePosition;
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay(localMousePosition, MainView.Size, _camera.Data.ViewProjectionMatrix, _camera.Transform.Position);
+        Ray3D cameraRay = _camera.Data.ScreenPointToRay(localMousePosition, MainView.Size) * 10;
 
         bool hit = UtilsCollision3D.RayBox(cameraRay * 10, _entity.Shape, out RaycastHit3D rayCastHit);
 
@@ -79,7 +79,6 @@ public class Game : GameEngine
         if (Input.IsMouseDown(Mouse.Left) && hit)
         {
             offset = _entity.transform.Position - mouseWoldPosition;
-            _isDragging = true;
         }
 
         // if (_isDragging)
@@ -89,7 +88,7 @@ public class Game : GameEngine
 
         if (Input.IsMouseUp(Mouse.Left))
         {
-            _isDragging = false;
+            
         }
 
         //debug ui

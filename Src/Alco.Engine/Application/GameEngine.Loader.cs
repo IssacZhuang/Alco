@@ -22,6 +22,9 @@ public partial class GameEngine
         yield return new AssetLoaderAudioVorbis(AudioDevice);
         yield return new AssetLoaderAudioWave(AudioDevice);
         yield return new AssetLoaderAudioFlac(AudioDevice);
+
+        //meta
+        yield return new AssetLoaderMeta(CreateDefaultJsonConverters());
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
@@ -63,5 +66,10 @@ public partial class GameEngine
         yield return new JsonConverterColorFloat();
         yield return new JsonConverterShader(AssetSystem);
         yield return new JsonConverterTexture2D(AssetSystem);
+        yield return new JsonConverterDepthStencilState();
+        yield return new JsonConverterBlendState();
+        yield return new JsonConverterPivot();
+        yield return new JsonStringEnumConverter();
+        yield return new JsonConverterPadding();
     }
 }

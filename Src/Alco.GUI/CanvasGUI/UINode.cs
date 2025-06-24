@@ -18,6 +18,8 @@ public class UINode
     private Transform2D _worldTransform = Transform2D.Identity;
     private bool _isTransformDirty = true;
 
+    private bool _isRenderDataDirty = true;
+
     private MaskState _maskState = MaskState.None;
 
     public virtual bool BubbleEvent { get; set; } = true;
@@ -120,6 +122,7 @@ public class UINode
         {
             _sizeDelta = value - GetParentSize() * GetAnchorSizeMultiplier();
             SetTransformDirty();
+            SetRenderDataDirty();
         }
     }
 
@@ -521,18 +524,35 @@ public class UINode
         
     }
 
-    private void TryRefreshTransform()
+    protected virtual void OnUpdateRenderData(Canvas canvas, float delta)
+    {
+
+    }
+
+    public bool TryRefreshRenderData(Canvas canvas, float delta)
+    {
+        if (!_isRenderDataDirty)
+        {
+            return false;
+        }
+        OnUpdateRenderData(canvas, delta);
+        _isRenderDataDirty = false;
+        return true;
+    }
+
+
+    protected bool TryRefreshTransform()
     {
         if (!_isTransformDirty)
         {
-            return;
+            return false;
         }
         ForceRefreshTransform();
         
-        return;
+        return true;
     }
 
-    private void ForceRefreshTransform()
+    protected void ForceRefreshTransform()
     {
         _worldTransform = _transform;
         //_worldTransform.position += Size * _pivot.value;
@@ -548,12 +568,18 @@ public class UINode
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetTransformDirty()
+    protected void SetRenderDataDirty()
+    {
+        _isRenderDataDirty = true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected void SetTransformDirty()
     {
         _isTransformDirty = true;
     }
 
-    private void SpreadTransformDirty()
+    protected void SpreadTransformDirty()
     {
 
         for (int i = 0; i < _children.Count; i++)

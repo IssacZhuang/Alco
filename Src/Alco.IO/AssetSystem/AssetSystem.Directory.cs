@@ -58,6 +58,30 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
+    /// Check if the file exists
+    /// </summary>
+    /// <param name="filename">The filename to check</param>
+    /// <param name="realFilename">The real filename if the filename is an alias</param>
+    /// <returns></returns>
+    public bool IsFileExist(string? filename, out string realFilename)
+    {
+        if (filename == null)
+        {
+            realFilename = string.Empty;
+            return false;
+        }
+
+        if (_assetAliases.TryGetValue(filename, out string? alias))
+        {
+            realFilename = alias;
+            return _fileEntries.ContainsKey(alias);
+        }
+
+        realFilename = filename;
+        return _fileEntries.ContainsKey(filename);
+    }
+
+    /// <summary>
     /// Add the file source to the asset manager
     /// </summary>
     /// <param name="fileSource">The file source to add</param>
@@ -245,6 +269,12 @@ public sealed partial class AssetSystem
                 {
                     string key = ParseEntry(file);
                     _fileEntries[key] = fileSource;
+                    ReadOnlySpan<char> extension = Path.GetExtension(key);
+                    //todo: config to ignore alias
+                    if (extension.SequenceEqual(".meta"))
+                    {
+                        continue;
+                    }
                     string alias = Path.ChangeExtension(key, null);
                     _assetAliases[alias] = key;
                 }

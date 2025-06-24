@@ -47,7 +47,7 @@ public class PackageFileSource : IFileSource
         _package.Dispose();
     }
 
-    public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string? failedReason)
+    public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failedReason)
     {
         if (_entryLookup.TryGetValue(path, out var entry))
         {

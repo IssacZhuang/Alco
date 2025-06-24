@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Numerics;
 
 namespace Alco;
 
@@ -303,6 +304,18 @@ public unsafe partial struct FixedString256 : IEquatable<FixedString256>
         {
             Append(ptr, value.Length);
         }
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a boolean value to the end of the current content.
+    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// </summary>
+    /// <param name="value">The boolean value to append.</param>
+    public void Append(bool value)
+    {
+        string boolStr = value ? "True" : "False";
+        Append(boolStr);
     }
 
     /// <summary>
@@ -657,6 +670,549 @@ public unsafe partial struct FixedString256 : IEquatable<FixedString256>
 
     #endregion
 
+    /// <summary>
+    /// Appends a formatted vector representation to the end of the current content.
+    /// The vector will be formatted as &lt;x, y, ...&gt;.
+    /// </summary>
+    /// <typeparam name="T">The type of the vector components.</typeparam>
+    /// <param name="vector">The vector span to append.</param>
+    public void Append<T>(ReadOnlySpan<T> vector) where T : ISpanFormattable
+    {
+        if (Length >= MaxLength) return;
+        
+        Append('<');
+        for (int i = 0; i < vector.Length; i++)
+        {
+            Append(vector[i]);
+            if (i < vector.Length - 1)
+            {
+                Append(',');
+                Append(' ');
+            }
+        }
+        Append('>');
+    }
+
+    /// <summary>
+    /// Appends a Vector2 to the end of the current content in the format &lt;x, y&gt;.
+    /// </summary>
+    /// <param name="vector">The Vector2 to append.</param>
+    public unsafe void Append(Vector2 vector)
+    {
+        float* components = (float*)&vector;
+        Append(new ReadOnlySpan<float>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a Vector3 to the end of the current content in the format &lt;x, y, z&gt;.
+    /// </summary>
+    /// <param name="vector">The Vector3 to append.</param>
+    public unsafe void Append(Vector3 vector)
+    {
+        float* components = (float*)&vector;
+        Append(new ReadOnlySpan<float>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a Vector4 to the end of the current content in the format &lt;x, y, z, w&gt;.
+    /// </summary>
+    /// <param name="vector">The Vector4 to append.</param>
+    public unsafe void Append(Vector4 vector)
+    {
+        float* components = (float*)&vector;
+        Append(new ReadOnlySpan<float>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a Half2 to the end of the current content in the format &lt;x, y&gt;.
+    /// </summary>
+    /// <param name="vector">The Half2 to append.</param>
+    public unsafe void Append(Half2 vector)
+    {
+        Half* components = (Half*)&vector;
+        Append(new ReadOnlySpan<Half>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a Half3 to the end of the current content in the format &lt;x, y, z&gt;.
+    /// </summary>
+    /// <param name="vector">The Half3 to append.</param>
+    public unsafe void Append(Half3 vector)
+    {
+        Half* components = (Half*)&vector;
+        Append(new ReadOnlySpan<Half>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a Half4 to the end of the current content in the format &lt;x, y, z, w&gt;.
+    /// </summary>
+    /// <param name="vector">The Half4 to append.</param>
+    public unsafe void Append(Half4 vector)
+    {
+        Half* components = (Half*)&vector;
+        Append(new ReadOnlySpan<Half>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a int2 to the end of the current content in the format &lt;x, y&gt;.
+    /// </summary>
+    /// <param name="vector">The int2 to append.</param>
+    public unsafe void Append(int2 vector)
+    {
+        int* components = (int*)&vector;
+        Append(new ReadOnlySpan<int>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a int3 to the end of the current content in the format &lt;x, y, z&gt;.
+    /// </summary>
+    /// <param name="vector">The int3 to append.</param>
+    public unsafe void Append(int3 vector)
+    {
+        int* components = (int*)&vector;
+        Append(new ReadOnlySpan<int>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a int4 to the end of the current content in the format &lt;x, y, z, w&gt;.
+    /// </summary>
+    /// <param name="vector">The int4 to append.</param>
+    public unsafe void Append(int4 vector)
+    {
+        int* components = (int*)&vector;
+        Append(new ReadOnlySpan<int>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a uint2 to the end of the current content in the format &lt;x, y&gt;.
+    /// </summary>
+    /// <param name="vector">The uint2 to append.</param>
+    public unsafe void Append(uint2 vector)
+    {
+        uint* components = (uint*)&vector;
+        Append(new ReadOnlySpan<uint>(components, 2));
+    }
+
+    /// <summary>
+    /// Appends a uint3 to the end of the current content in the format &lt;x, y, z&gt;.
+    /// </summary>
+    /// <param name="vector">The uint3 to append.</param>
+    public unsafe void Append(uint3 vector)
+    {
+        uint* components = (uint*)&vector;
+        Append(new ReadOnlySpan<uint>(components, 3));
+    }
+
+    /// <summary>
+    /// Appends a uint4 to the end of the current content in the format &lt;x, y, z, w&gt;.
+    /// </summary>
+    /// <param name="vector">The uint4 to append.</param>
+    public unsafe void Append(uint4 vector)
+    {
+        uint* components = (uint*)&vector;
+        Append(new ReadOnlySpan<uint>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a ColorFloat4 to the end of the current content in the format &lt;r, g, b, a&gt;.
+    /// </summary>
+    /// <param name="color">The ColorFloat to append.</param>
+    public unsafe void Append(ColorFloat color)
+    {
+        float* components = (float*)&color;
+        Append(new ReadOnlySpan<float>(components, 4));
+    }
+
+    /// <summary>
+    /// Appends a Color32 to the end of the current content in the format &lt;r, g, b, a&gt;.
+    /// </summary>
+    /// <param name="color">The Color32 to append.</param>
+    public unsafe void Append(Color32 color)
+    {
+        byte* components = (byte*)&color;
+        Append(new ReadOnlySpan<byte>(components, 4));
+    }
+
+    #region Operator+ Overloads
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a character to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The character to append.</param>
+    /// <returns>A new FixedString256 with the character appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, char right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a string to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The string to append.</param>
+    /// <returns>A new FixedString256 with the string appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, string right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a ReadOnlySpan&lt;char&gt; to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The ReadOnlySpan&lt;char&gt; to append.</param>
+    /// <returns>A new FixedString256 with the span appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, ReadOnlySpan<char> right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a boolean value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The boolean value to append.</param>
+    /// <returns>A new FixedString256 with the boolean appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, bool right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a byte value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The byte value to append.</param>
+    /// <returns>A new FixedString256 with the byte appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, byte right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a signed byte value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The signed byte value to append.</param>
+    /// <returns>A new FixedString256 with the signed byte appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, sbyte right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a short value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The short value to append.</param>
+    /// <returns>A new FixedString256 with the short appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, short right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending an unsigned short value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The unsigned short value to append.</param>
+    /// <returns>A new FixedString256 with the unsigned short appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, ushort right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending an integer value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The integer value to append.</param>
+    /// <returns>A new FixedString256 with the integer appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, int right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending an unsigned integer value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The unsigned integer value to append.</param>
+    /// <returns>A new FixedString256 with the unsigned integer appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, uint right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a long value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The long value to append.</param>
+    /// <returns>A new FixedString256 with the long appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, long right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending an unsigned long value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The unsigned long value to append.</param>
+    /// <returns>A new FixedString256 with the unsigned long appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, ulong right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a float value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The float value to append.</param>
+    /// <returns>A new FixedString256 with the float appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, float right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a double value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The double value to append.</param>
+    /// <returns>A new FixedString256 with the double appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, double right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a decimal value to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The decimal value to append.</param>
+    /// <returns>A new FixedString256 with the decimal appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, decimal right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a Vector2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The Vector2 to append.</param>
+    /// <returns>A new FixedString256 with the Vector2 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, Vector2 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a Vector3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The Vector3 to append.</param>
+    /// <returns>A new FixedString256 with the Vector3 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, Vector3 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a Vector4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The Vector4 to append.</param>
+    /// <returns>A new FixedString256 with the Vector4 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, Vector4 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a Half2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The Half2 to append.</param>
+    /// <returns>A new FixedString256 with the Half2 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, Half2 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a Half3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The Half3 to append.</param>
+    /// <returns>A new FixedString256 with the Half3 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, Half3 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a Half4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The Half4 to append.</param>
+    /// <returns>A new FixedString256 with the Half4 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, Half4 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending an int2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The int2 to append.</param>
+    /// <returns>A new FixedString256 with the int2 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, int2 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending an int3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The int3 to append.</param>
+    /// <returns>A new FixedString256 with the int3 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, int3 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending an int4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The int4 to append.</param>
+    /// <returns>A new FixedString256 with the int4 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, int4 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a uint2 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The uint2 to append.</param>
+    /// <returns>A new FixedString256 with the uint2 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, uint2 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a uint3 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The uint3 to append.</param>
+    /// <returns>A new FixedString256 with the uint3 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, uint3 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a uint4 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The uint4 to append.</param>
+    /// <returns>A new FixedString256 with the uint4 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, uint4 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a ColorFloat to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The ColorFloat to append.</param>
+    /// <returns>A new FixedString256 with the ColorFloat appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, ColorFloat right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new FixedString256 by appending a Color32 to the current instance.
+    /// </summary>
+    /// <param name="left">The FixedString256 to append to.</param>
+    /// <param name="right">The Color32 to append.</param>
+    /// <returns>A new FixedString256 with the Color32 appended.</returns>
+    public static FixedString256 operator +(FixedString256 left, Color32 right)
+    {
+        FixedString256 result = left;
+        result.Append(right);
+        return result;
+    }
+
+    #endregion
 }
 
 

@@ -19,7 +19,11 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_GaussianBlurRGBA8 = "Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl";
 
+   public const string Shader_FXAA = "Shaders/Pipelines/PostProcess/FXAA.hlsl";
+
    public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
+
+   public const string Shader_BlitDepth = "Shaders/Pipelines/Utils/BlitDepth.hlsl";
 
    public const string Shader_TextureCompressBC3 = "Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl";
 

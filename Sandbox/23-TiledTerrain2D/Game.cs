@@ -32,7 +32,7 @@ public class Game : GameEngine
     private SurfaceTileSet _cliffTileSet;
     private WaterTileSet _waterTileSet;
     private PlantTileSet _plantTileSet;
-    private ConnectableTileData _wallData;
+    private Material _wallMaterial;
     private readonly SurfaceTileBlock2D _surfaceBlock;
     private readonly SurfaceTileBlock2D _cliffBlock;
     private readonly WaterTileBlock2D _waterBlock;
@@ -153,14 +153,12 @@ public class Game : GameEngine
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
-        textureWall.SetSampler(GraphicsDevice.SamplerNearestClamp);
 
-        Material material = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileConnectable);
-        material.BlendState = BlendState.Opaque;
-        material.DepthStencilState = DepthStencilState.Write;
-        material.SetTexture(ShaderResourceId.Texture, textureWall);
+        _wallMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileConnectable);
+        _wallMaterial.BlendState = BlendState.Opaque;
+        _wallMaterial.DepthStencilState = DepthStencilState.Write;
+        _wallMaterial.SetTexture(ShaderResourceId.Texture, textureWall);
 
-        _wallData = new ConnectableTileData(material, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f), null);
 
 
         _brushTransform = new Transform3D();
@@ -180,7 +178,7 @@ public class Game : GameEngine
             _blurCorner, _blurSide, _blurCorner
         ]);
 
-        UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
+        UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
 
         _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _blurTexture);
@@ -216,7 +214,7 @@ public class Game : GameEngine
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
-            UtilsGrid.GetCellsInRadius(_brushCells, _brushSize);
+            UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
             isDebugClicked = true;
         }
 
@@ -318,7 +316,7 @@ public class Game : GameEngine
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
             //DebugGUI.Text($"Tile Position: {tilePosition}");
-            Vector2 tileLocalPosition = _surfaceBlock.TilePositionToLocalPosition(tilePosition);
+            Vector2 tilePositionInWorld = UtilsCoordinates.PixelSpaceToWorldSpace(tilePosition, _surfaceBlock.Size);
             //DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
             ImGui.Text($"Tile Position: {tilePosition}");
@@ -334,7 +332,7 @@ public class Game : GameEngine
                 {
                     continue;
                 }
-                _brushTransform.Position = new Vector3(pos.X + tileLocalPosition.X, pos.Y + tileLocalPosition.Y + height, 0);
+                _brushTransform.Position = new Vector3(pos.X + tilePositionInWorld.X, pos.Y + tilePositionInWorld.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _brushMaterial, _brushConstant);
@@ -357,7 +355,7 @@ public class Game : GameEngine
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        _wallManager.AddWall(new Wall(tilePosition, _wallData));
+                        _wallManager.AddWall(new Wall(tilePosition, _wallMaterial, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f)));
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))

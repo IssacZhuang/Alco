@@ -18,11 +18,16 @@ public sealed partial class AssetSystem
     {
         TryRefreshEntries();
         filename = ParseEntry(filename);
+
         // the real filename if the filename is an alias
-        if (_assetAliases.TryGetValue(filename, out var realFilename))
+        if (!IsFileExist(filename, out string realFilename))
         {
-            filename = realFilename;
+            failedReason = $"The file '{filename}' does not exist";
+            asset = null;
+            return false;
         }
+
+        filename = realFilename;
 
         failedReason = string.Empty;
         try

@@ -8,7 +8,9 @@ namespace Alco;
 
 public class TypeHelper
 {
-    private readonly ConcurrentDictionary<string, Type> _typeCache = new ConcurrentDictionary<string, Type>();
+    public static readonly TypeHelper Default = new TypeHelper(true);
+
+    private readonly ConcurrentDictionary<string, Type?> _typeCache = new ConcurrentDictionary<string, Type?>();
     private readonly HashSet<Assembly> _assemblies = new HashSet<Assembly>();
 
     /// <summary>
@@ -18,30 +20,32 @@ public class TypeHelper
 
     public TypeHelper(bool useGlobalAssemblies = false)
     {
+        if (!useGlobalAssemblies)
+        {
+            // Add System assembly by default
+            _assemblies.Add(typeof(int).Assembly);
+            //add self assembly by default
+            _assemblies.Add(typeof(TypeHelper).Assembly);
+            //add executing assembly by default
+            _assemblies.Add(Assembly.GetExecutingAssembly());
+        }
+
+        UseGlobalAssemblies = useGlobalAssemblies;
+    }
+
+    public TypeHelper(params ReadOnlySpan<Assembly> assemblies)
+    {
         // Add System assembly by default
         _assemblies.Add(typeof(int).Assembly);
         //add self assembly by default
         _assemblies.Add(typeof(TypeHelper).Assembly);
         //add executing assembly by default
         _assemblies.Add(Assembly.GetExecutingAssembly());
-        UseGlobalAssemblies = useGlobalAssemblies;
-    }
-
-    public TypeHelper(params ReadOnlySpan<Assembly> assemblies) : this()
-    {
-        AddAssemblies(assemblies);
-    }
-
-    /// <summary>
-    /// Add assemblies to search for types.
-    /// </summary>
-    /// <param name="assemblies">The assemblies to add.</param>
-    public void AddAssemblies(params ReadOnlySpan<Assembly> assemblies)
-    {
         foreach (var assembly in assemblies)
         {
             _assemblies.Add(assembly);
         }
+        UseGlobalAssemblies = false;
     }
 
     /// <summary>
@@ -56,34 +60,14 @@ public class TypeHelper
             return null;
         }
 
-        // Try to get from cache first
-        if (_typeCache.TryGetValue(typeName, out Type? cachedType))
-        {
-            return cachedType;
-        }
-
         if (UseGlobalAssemblies)
         {
-            // Search in all assemblies in the app domain
-            Type? type = FindTypeFromGlobalAssemblies(typeName);
-            if (type != null)
-            {
-                _typeCache.TryAdd(typeName, type);
-                return type;
-            }
+            return _typeCache.GetOrAdd(typeName, FindTypeFromGlobalAssemblies(typeName));
         }
         else
         {
-            // Search in registered assemblies
-            Type? type = FindTypeFromRegisteredAssemblies(typeName);
-            if (type != null)
-            {
-                _typeCache.TryAdd(typeName, type);
-                return type;
-            }
+            return _typeCache.GetOrAdd(typeName, FindTypeFromRegisteredAssemblies(typeName));
         }
-
-        return null;
     }
 
     /// <summary>

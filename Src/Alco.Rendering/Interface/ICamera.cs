@@ -25,4 +25,11 @@ public interface ICamera
     /// This matrix transforms world coordinates directly to clip coordinates in a single operation.
     /// </summary>
     Matrix4x4 ViewProjectionMatrix { get; }
+
+    /// <summary>
+    /// Get the normalized ray from the camera to the screen position
+    /// </summary>
+    /// <param name="screenPosition">The screen position in pixels</param>
+    /// <returns>The ray from the camera to the screen position</returns>
+    Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize);
 }

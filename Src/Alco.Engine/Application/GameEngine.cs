@@ -8,6 +8,7 @@ using Alco.IO;
 using System.Text;
 using Alco.Audio;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 
 
 namespace Alco.Engine;
@@ -48,6 +49,8 @@ IDisposable
 
 
     #region  State
+    private int _mainThreadId = Environment.CurrentManagedThreadId;
+
     private volatile uint _disposed;
 
 
@@ -173,7 +176,15 @@ IDisposable
     /// </summary>
     public GameEngineSetting Setting => _setting;
 
-    
+    /// <summary>
+    /// The main thread id of the game engine
+    /// </summary>
+    public int MainThreadId => _mainThreadId;
+
+    /// <summary>
+    /// Check if the current thread is the main thread
+    /// </summary>
+    public bool IsMainThread => Environment.CurrentManagedThreadId == _mainThreadId;
 
     #endregion
 
@@ -247,6 +258,8 @@ IDisposable
     /// </summary>
     private void InternaleRun()
     {
+        _mainThreadId = Environment.CurrentManagedThreadId;
+
         _platform.OnTick += InternalTick;
         _platform.OnUpdate += InternalUpdate;
         InternalStart();
@@ -636,6 +649,32 @@ IDisposable
     public void RemoveSystem(IEngineSystem system)
     {
         _systems.Remove(system);
+    }
+
+    public T GetSystem<T>() where T : IEngineSystem
+    {
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            if (_systems[i] is T system)
+            {
+                return system;
+            }
+        }
+        throw new Exception($"System {typeof(T).Name} not found");
+    }
+
+    public bool TryGetSystem<T>([NotNullWhen(true)] out T? system) where T : IEngineSystem
+    {
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            if (_systems[i] is T s)
+            {
+                system = s;
+                return true;
+            }
+        }
+        system = default;
+        return false;
     }
 
     #endregion

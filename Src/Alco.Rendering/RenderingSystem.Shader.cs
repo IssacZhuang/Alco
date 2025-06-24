@@ -11,8 +11,8 @@ public partial class RenderingSystem
         return new Shader(this, shaderText, name);
     }
 
-    public Shader CreateShader(string shaderText, string name, VertexInputLayout[] customVertexLayouts)
+    public Shader CreateShader(string shaderText, string name, IReadOnlyList<VertexInputLayout>? customVertexLayouts = null, IReadOnlyList<BindGroupLayout>? customBindGroups = null)
     {
-        return new Shader(this, shaderText, name, customVertexLayouts);
+        return new Shader(this, shaderText, name, customVertexLayouts, customBindGroups);
     }
 }

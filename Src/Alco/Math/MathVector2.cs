@@ -175,6 +175,21 @@ namespace Alco
             c = cos(a);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 round(Vector2 a)
+        {
+            return new Vector2(round(a.X), round(a.Y));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 snap(Vector2 value, Vector2 interval, Vector2 offset)
+        {
+            return new Vector2(
+                snap(value.X, interval.X, offset.X),
+                snap(value.Y, interval.Y, offset.Y)
+            );
+        }
+
     }
 }
 

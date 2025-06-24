@@ -24,7 +24,11 @@ public partial class BuiltInAssets
 
     public Shader Shader_GaussianBlurRGBA8 => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl");
 
+    public Shader Shader_FXAA => GetShader("Shaders/Pipelines/PostProcess/FXAA.hlsl");
+
     public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
+
+    public Shader Shader_BlitDepth => GetShader("Shaders/Pipelines/Utils/BlitDepth.hlsl");
 
     public Shader Shader_TextureCompressBC3 => GetShader("Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl");
 

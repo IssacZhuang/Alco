@@ -84,4 +84,29 @@ public sealed partial class AssetSystem
         UpdateRecongizedExtensions();
         return _recongizedExtensions.Contains(extension);
     }
+
+    /// <summary>
+    /// Check if the asset loader can handle the type
+    /// </summary>
+    /// <param name="filename">The filename to check</param>
+    /// <param name="type">The type to check</param>
+    /// <returns></returns>
+    public bool CanHandleType(string filename, Type type)
+    {
+        if (!IsFileExist(filename, out string realFilename))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> extension = Path.GetExtension(realFilename.AsSpan());
+        Span<char> lowerExtension = stackalloc char[extension.Length];
+        extension.ToLower(lowerExtension, null);
+
+        if (!_assetLoaders.TryGetValue(lowerExtension.ToString(), out IAssetLoader? assetLoader))
+        {
+            return false;
+        }
+
+        return assetLoader.CanHandleType(type);
+    }
 }

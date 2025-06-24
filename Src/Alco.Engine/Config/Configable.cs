@@ -11,10 +11,5 @@ public class Configable
     /// The unique identifier of the config, it could be path or Guid
     /// </summary>
     public string Id { get; set; } = string.Empty;
-
-    public virtual IEnumerable<string> Validate()
-    {
-        yield break;
-    }
 }
 

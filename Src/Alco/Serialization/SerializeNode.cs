@@ -10,6 +10,8 @@ namespace Alco;
 /// </summary>
 public abstract class SerializeNode
 {
+    protected Action<string>? OnError {get; set;}
+
     /// <summary>
     /// Binds a value type (unmanaged) with an optional default value.
     /// </summary>
@@ -31,12 +33,12 @@ public abstract class SerializeNode
     /// Binds a complex object that implements ISerializable for deep serialization.
     /// Note: This method requires an existing object instance and is primarily used for serialization
     /// or when deserializing into an already created object. For deserialization scenarios where
-    /// you need to create new objects, use <see cref="SerializeNode.BindDeepNullable"/> instead.
+    /// you need to create new objects, use <see cref="SerializeNode.BindSerializableOptional"/> instead.
     /// </summary>
     /// <typeparam name="T">The type that implements ISerializable.</typeparam>
     /// <param name="key">The key identifier for the object in the serialization format.</param>
     /// <param name="value">The existing object to be serialized or deserialized into.</param>
-    public abstract void BindDeep<T>(string key, T value) where T : ISerializable;
+    public abstract void BindSerializable<T>(string key, T value) where T : ISerializable;
 
     /// <summary>
     /// Binds a nullable complex object that implements ISerializable with a factory function for creation during deserialization.
@@ -47,7 +49,7 @@ public abstract class SerializeNode
     /// <param name="key">The key identifier for the object in the serialization format.</param>
     /// <param name="value">Reference to the nullable object to be serialized or deserialized.</param>
     /// <param name="onCreate">Factory function to create a new instance during deserialization when the value is not null.</param>
-    public abstract void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : ISerializable;
+    public abstract void BindSerializableOptional<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : ISerializable;
 
     /// <summary>
     /// Binds an enumeration value with an optional default value.
@@ -72,14 +74,14 @@ public abstract class SerializeNode
     /// <typeparam name="T">The unmanaged value type contained in the collection.</typeparam>
     /// <param name="key">The key identifier for the collection in the serialization format.</param>
     /// <param name="value">The collection of unmanaged values to be serialized or deserialized.</param>
-    public abstract void BindCollection<T>(string key, IList<T> value) where T : unmanaged;
+    public abstract void BindList<T>(string key, IList<T> value) where T : unmanaged;
 
     /// <summary>
     /// Binds a collection of string values.
     /// </summary>
     /// <param name="key">The key identifier for the string collection in the serialization format.</param>
     /// <param name="value">The collection of strings to be serialized or deserialized.</param>
-    public abstract void BindCollection(string key, IList<string> value);
+    public abstract void BindList(string key, IList<string> value);
 
     /// <summary>
     /// Binds a collection of complex objects that implement ISerializable for deep serialization.
@@ -87,7 +89,16 @@ public abstract class SerializeNode
     /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
     /// <param name="key">The key identifier for the collection in the serialization format.</param>
     /// <param name="value">The collection of serializable objects to be serialized or deserialized.</param>
-    public abstract void BindCollectionDeep<T>(string key, IList<T> value) where T : ISerializable, new();
+    public abstract void BindListSerializable<T>(string key, IList<T> value) where T : ISerializable, new();
+
+    /// <summary>
+    /// Binds a collection of complex objects that implement ISerializable for deep serialization.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
+    /// <param name="key">The key identifier for the collection in the serialization format.</param>
+    /// <param name="value">The collection of serializable objects to be serialized or deserialized.</param>
+    /// <param name="onCreate">Factory function to create a new instance during deserialization when the value is not null.</param>
+    public abstract void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate) where T : ISerializable;
 
     /// <summary>
     /// Binds an array of unmanaged types by converting it to a span for memory binding.
@@ -99,5 +110,39 @@ public abstract class SerializeNode
     public void BindMemory<T>(string key, T[] array) where T : unmanaged
     {
         BindMemory(key, array.AsSpan());
+    }
+
+    /// <summary>
+    /// Binds a dictionary of unmanaged value types.
+    /// </summary>
+    /// <typeparam name="TValue">The unmanaged value type contained in the dictionary.</typeparam>
+    /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of unmanaged values to be serialized or deserialized.</param>
+    public abstract void BindDictionary<TValue>(string key, IDictionary<string, TValue> value) where TValue : unmanaged;
+
+    /// <summary>
+    /// Binds a dictionary of string values.
+    /// </summary>
+    /// <param name="key">The key identifier for the string dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of strings to be serialized or deserialized.</param>
+    public abstract void BindDictionary(string key, IDictionary<string, string> value);
+
+    /// <summary>
+    /// Binds a dictionary of binary data.
+    /// </summary>
+    /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of binary data to be serialized or deserialized.</param>
+    public abstract void BindDictionary(string key, IDictionary<string, byte[]> value);
+
+    protected void AddError(string error)
+    {
+        if(OnError != null)
+        {
+            OnError(error);
+        }
+        else
+        {
+            Log.Error(error);
+        }
     }
 }

@@ -66,10 +66,10 @@ public class TestSerialize
         {
             node.BindValue("intValue", ref intValue);
             node.BindString("str", ref str);
-            node.BindCollection("listInt", listInt);
-            node.BindCollection("listStr", listStr);
+            node.BindList("listInt", listInt);
+            node.BindList("listStr", listStr);
             node.BindMemory("intArray", intArray);
-            node.BindDeepNullable("bitmap", ref bitmap, static (SerializeReadNode subNode) =>
+            node.BindSerializableOptional("bitmap", ref bitmap, static (SerializeReadNode subNode) =>
             {
                 int width = subNode.GetValue<int>("width");
                 int height = subNode.GetValue<int>("height");
@@ -107,8 +107,8 @@ public class TestSerialize
 
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
-            node.BindDeep("obj", child);
-            node.BindDeep("struct", structChild);
+            node.BindSerializable("obj", child);
+            node.BindSerializable("struct", structChild);
 
         }
     }
@@ -124,8 +124,8 @@ public class TestSerialize
         }
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
-            node.BindCollectionDeep("list", list);
-            node.BindCollectionDeep("listStruct", listStruct);
+            node.BindListSerializable("list", list);
+            node.BindListSerializable("listStruct", listStruct);
         }
     }
 
@@ -143,7 +143,28 @@ public class TestSerialize
         public void OnSerialize(SerializeNode node, SerializeMode mode)
         {
             node.BindEnum("enumValue", ref enumValue);
-            node.BindCollection("enumList", enumList);
+            node.BindList("enumList", enumList);
+        }
+    }
+
+    private class TestObjectDictionary : ISerializable
+    {
+        public Dictionary<string, int> dictInt;
+        public Dictionary<string, string> dictString;
+        public Dictionary<string, byte[]> dictByteArray;
+
+        public TestObjectDictionary()
+        {
+            dictInt = new Dictionary<string, int>();
+            dictString = new Dictionary<string, string>();
+            dictByteArray = new Dictionary<string, byte[]>();
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindDictionary("dictInt", dictInt);
+            node.BindDictionary("dictString", dictString);
+            node.BindDictionary("dictByteArray", dictByteArray);
         }
     }
 
@@ -257,5 +278,85 @@ public class TestSerialize
         Assert.That(obj2.enumList[0], Is.EqualTo(TestEnum.One));
         Assert.That(obj2.enumList[1], Is.EqualTo(TestEnum.Two));
         Assert.That(obj2.enumList[2], Is.EqualTo(TestEnum.Three));
+    }
+
+    [Test]
+    public void TestSerializeDictionary()
+    {
+        TestObjectDictionary obj = new TestObjectDictionary();
+
+        // Setup test data for integer dictionary
+        obj.dictInt["key1"] = 100;
+        obj.dictInt["key2"] = 200;
+        obj.dictInt["key3"] = 300;
+
+        // Setup test data for string dictionary
+        obj.dictString["name"] = "John";
+        obj.dictString["city"] = "New York";
+        obj.dictString["country"] = "USA";
+
+        // Setup test data for byte array dictionary
+        obj.dictByteArray["data1"] = new byte[] { 1, 2, 3, 4, 5 };
+        obj.dictByteArray["data2"] = new byte[] { 10, 20, 30 };
+        obj.dictByteArray["data3"] = new byte[] { 255, 0, 128 };
+
+        byte[] data = BinaryParser.Encode(obj);
+        TestObjectDictionary obj2 = BinaryParser.Decode<TestObjectDictionary>(data);
+
+        // Verify integer dictionary
+        Assert.That(obj2.dictInt.Count, Is.EqualTo(3));
+        Assert.That(obj2.dictInt["key1"], Is.EqualTo(100));
+        Assert.That(obj2.dictInt["key2"], Is.EqualTo(200));
+        Assert.That(obj2.dictInt["key3"], Is.EqualTo(300));
+
+        // Verify string dictionary
+        Assert.That(obj2.dictString.Count, Is.EqualTo(3));
+        Assert.That(obj2.dictString["name"], Is.EqualTo("John"));
+        Assert.That(obj2.dictString["city"], Is.EqualTo("New York"));
+        Assert.That(obj2.dictString["country"], Is.EqualTo("USA"));
+
+        // Verify byte array dictionary
+        Assert.That(obj2.dictByteArray.Count, Is.EqualTo(3));
+        Assert.That(obj2.dictByteArray["data1"], Is.EqualTo(new byte[] { 1, 2, 3, 4, 5 }));
+        Assert.That(obj2.dictByteArray["data2"], Is.EqualTo(new byte[] { 10, 20, 30 }));
+        Assert.That(obj2.dictByteArray["data3"], Is.EqualTo(new byte[] { 255, 0, 128 }));
+    }
+
+    [Test]
+    public void TestSerializeDictionaryEmpty()
+    {
+        TestObjectDictionary obj = new TestObjectDictionary();
+        // Leave dictionaries empty
+
+        byte[] data = BinaryParser.Encode(obj);
+        TestObjectDictionary obj2 = BinaryParser.Decode<TestObjectDictionary>(data);
+
+        // Verify all dictionaries are empty
+        Assert.That(obj2.dictInt.Count, Is.EqualTo(0));
+        Assert.That(obj2.dictString.Count, Is.EqualTo(0));
+        Assert.That(obj2.dictByteArray.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TestSerializeDictionaryWithSpecialCharacters()
+    {
+        TestObjectDictionary obj = new TestObjectDictionary();
+
+        // Test with special characters in keys and values
+        obj.dictString["key with spaces"] = "value with spaces";
+        obj.dictString["key\nwith\nnewlines"] = "value\nwith\nnewlines";
+        obj.dictString["key\twith\ttabs"] = "value\twith\ttabs";
+        obj.dictString[""] = "empty key";
+        obj.dictString["null_test"] = "";
+
+        byte[] data = BinaryParser.Encode(obj);
+        TestObjectDictionary obj2 = BinaryParser.Decode<TestObjectDictionary>(data);
+
+        Assert.That(obj2.dictString.Count, Is.EqualTo(5));
+        Assert.That(obj2.dictString["key with spaces"], Is.EqualTo("value with spaces"));
+        Assert.That(obj2.dictString["key\nwith\nnewlines"], Is.EqualTo("value\nwith\nnewlines"));
+        Assert.That(obj2.dictString["key\twith\ttabs"], Is.EqualTo("value\twith\ttabs"));
+        Assert.That(obj2.dictString[""], Is.EqualTo("empty key"));
+        Assert.That(obj2.dictString["null_test"], Is.EqualTo(""));
     }
 }

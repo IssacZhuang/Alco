@@ -88,4 +88,9 @@ public struct CameraDataPerspective : ICamera
 
         Transform = Transform3D.Identity;
     }
+
+    public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
+    {
+        return UtilsCameraMath.ScreenPointToRayPerspective(screenPosition, screenSize, ViewProjectionMatrix, Transform.Position);
+    }
 }

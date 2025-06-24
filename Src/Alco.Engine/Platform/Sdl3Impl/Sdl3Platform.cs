@@ -3,11 +3,15 @@ using SDL3;
 
 using static SDL3.SDL3;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Runtime.InteropServices;
 
 namespace Alco.Engine;
 
 public unsafe class Sdl3Platform : Platform
 {
+    public const int StackAllocationCharSizeLimit = 1024;
+
     private const int PeepEventsCount = 64;
     private readonly Dictionary<SDL_WindowID, Sdl3Window> _windows = new();
     private readonly Sdl3Input _input = new();
@@ -142,7 +146,20 @@ public unsafe class Sdl3Platform : Platform
                 break;
             case SDL_EventType.TextInput:
                 Sdl3Window window1 = _windows[e.window.windowID];
-                window1.DoTextInputCore(e.text.GetText() ?? string.Empty);
+                ReadOnlySpan<byte> str = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(e.text.text);
+                int length = Encoding.UTF8.GetCharCount(str);
+                if (length <= StackAllocationCharSizeLimit)
+                {
+                    Span<char> chars = stackalloc char[length];
+                    Encoding.UTF8.GetChars(str, chars);
+                    window1.DoTextInputCore(chars);
+                }
+                else
+                {
+                    window1.DoTextInputCore(e.text.GetText() ?? string.Empty);
+                }
+
+
                 break;
             case SDL_EventType.Quit:
                 StopMainLoop();

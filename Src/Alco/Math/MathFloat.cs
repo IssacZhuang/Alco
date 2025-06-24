@@ -218,6 +218,13 @@ namespace Alco
             return num7;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float snap(float value, float interval, float offset)
+        {
+            if (interval == 0f) return value; // Avoid division by zero
+            return round((value - offset) / interval) * interval + offset;
+        }
+
     }
 }
 

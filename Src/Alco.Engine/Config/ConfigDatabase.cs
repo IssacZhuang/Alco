@@ -79,10 +79,8 @@ public class ConfigDatabase
     /// <param name="onWarning">Callback for warning messages</param>
     /// <param name="onError">Callback for error messages</param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
-    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onInfo, Action<string> onWarning, Action<string> onError)
+    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onError)
     {
-        ArgumentNullException.ThrowIfNull(onInfo);
-        ArgumentNullException.ThrowIfNull(onWarning);
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
 
@@ -105,7 +103,7 @@ public class ConfigDatabase
 
         _jsonSerializerOptions.MakeReadOnly();
 
-        _jsonPreprocessor = new JsonPreprocessor(onInfo, onWarning, onError);
+        _jsonPreprocessor = new JsonPreprocessor(onError);
     }
 
     /// <summary>
@@ -156,7 +154,7 @@ public class ConfigDatabase
     /// <param name="type">The type of the configuration to retrieve</param>
     /// <param name="config">When this method returns, contains the configuration object if found; otherwise, null</param>
     /// <returns>true if a configuration with the specified ID and type was found; otherwise, false</returns>
-    public bool TryGetConfig(string id, Type type, [MaybeNullWhen(false)] out Configable config)
+    public bool TryGetConfig(string id, Type type, [NotNullWhen(true)] out Configable? config)
     {
         TryUpdateConfigs();
         return InternalTryGetConfig(id, type, out config);
@@ -169,7 +167,7 @@ public class ConfigDatabase
     /// <param name="id">The unique identifier of the configuration</param>
     /// <param name="config">When this method returns, contains the configuration object if found and of the correct type; otherwise, null</param>
     /// <returns>true if a configuration with the specified ID and type was found and is of the correct type; otherwise, false</returns>
-    public bool TryGetConfig<T>(string id, [MaybeNullWhen(false)] out T config) where T : Configable
+    public bool TryGetConfig<T>(string id, [NotNullWhen(true)] out T? config) where T : Configable
     {
         if (TryGetConfig(id, typeof(T), out var tmpConfig))
         {
@@ -269,22 +267,6 @@ public class ConfigDatabase
             Parallel.ForEach(_configsList, config =>
             {
                 ResolveReferences(config);
-            });
-
-            //validate
-            Parallel.ForEach(_configsList, config =>
-            {
-                try
-                {
-                    foreach (var error in config.Validate())
-                    {
-                        _onError($"Error validating config {config.Id}: {error}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _onError($"Error validating config {config.Id}: {ex}");
-                }
             });
 
             _isDirty = false;
@@ -546,7 +528,7 @@ public class ConfigDatabase
         }
     }
 
-    private bool InternalTryGetConfig(string id, Type type, [MaybeNullWhen(false)] out Configable config)
+    private bool InternalTryGetConfig(string id, Type type, [NotNullWhen(true)] out Configable? config)
     {
         return GetTypedConfigsDictionary(type).TryGetValue(id, out config);
     }

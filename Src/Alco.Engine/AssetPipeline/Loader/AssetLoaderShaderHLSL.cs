@@ -39,14 +39,13 @@ public class AssetLoaderShaderHLSL : IAssetLoader
         }
         else if (context.AssetType == typeof(string))
         {
-            return Encoding.UTF8.GetString(context.Data);
+            return GetShaderText(in context);
         }
         throw new InvalidOperationException($"Cannot create asset of type {context.AssetType.Name}");
     }
 
-    private object CreateShader(in AssetLoadContext context)
+    private string GetShaderText(in AssetLoadContext context)
     {
-        //ShaderCompileResultDeprecated preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         IncludeHelper includeHelper = new IncludeHelper();
         string shaderText = Encoding.UTF8.GetString(context.Data);
         if (_includeResolver != null)
@@ -61,6 +60,13 @@ public class AssetLoaderShaderHLSL : IAssetLoader
                 return assetSystem.Load<string>(include);
             });
         }
+        return shaderText;
+    }
+
+    private object CreateShader(in AssetLoadContext context)
+    {
+        //ShaderCompileResultDeprecated preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
+        string shaderText = GetShaderText(in context);
 
         return _renderingSystem.CreateShader(shaderText, context.Filename);
     }

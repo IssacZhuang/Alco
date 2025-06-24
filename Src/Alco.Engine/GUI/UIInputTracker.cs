@@ -9,7 +9,7 @@ public class UIInputTracker : IUIInputTracker
     private readonly Input _input;
     private readonly View _window;
 
-    public event Action<string>? OnTextInput
+    public event Action<ReadOnlySpan<char>>? OnTextInput
     {
         add => _window.OnTextInput += value;
         remove => _window.OnTextInput -= value;
@@ -141,12 +141,12 @@ public class UIInputTracker : IUIInputTracker
         _window.SetTextInputArea((int)(xNorm * windowWidth), (int)(yNorm * windowHeight), (int)(widthNorm * windowWidth), (int)(heightNorm * windowHeight), cursor);
     }
 
-    public void RegisterTextInput(Action<string> action)
+    public void RegisterTextInput(Action<ReadOnlySpan<char>> action)
     {
         _window.OnTextInput += action;
     }
 
-    public void UnregisterTextInput(Action<string> action)
+    public void UnregisterTextInput(Action<ReadOnlySpan<char>> action)
     {
         _window.OnTextInput -= action;
     }

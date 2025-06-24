@@ -9,6 +9,7 @@ public static class FileExt
     public const string ShaderHLSLInclude = ".hlsli";
     public const string ShaderGLSL = ".glsl";
     public const string ShaderGLSLInclude = ".glslinc";
+    public const string ShaderWGSL = ".wgsl";
 
     // package
     public const string Package = ".vpkg";
@@ -50,4 +51,7 @@ public static class FileExt
     public const string AudioMp3 = ".mp3";
     public const string AudioFlac = ".flac";
     public const string AudioAiff = ".aiff";
+
+    //meta
+    public const string Meta = ".meta";
 }

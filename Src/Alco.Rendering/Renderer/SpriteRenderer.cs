@@ -17,7 +17,7 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     private readonly Material _material;
 
     private readonly RenderingSystem _renderingSystem;
-    private readonly RenderContext _renderContext;
+    private readonly IRenderContext _renderContext;
 
     private readonly uint _shaderId_texture;
 
@@ -36,7 +36,7 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     /// <param name="mesh">The mesh to use for rendering sprites.</param>
     /// <param name="material">The material to use for rendering sprites.</param>
     /// <param name="name">The name of the renderer.</param>
-    internal SpriteRenderer(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)
+    internal SpriteRenderer(RenderingSystem renderingSystem, IRenderContext renderContext, Mesh mesh, Material material, string name)
     {
         _renderingSystem = renderingSystem;
         _renderContext = renderContext;

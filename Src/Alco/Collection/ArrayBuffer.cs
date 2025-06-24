@@ -74,10 +74,14 @@ public class ArrayBuffer<T>
     }
 
 
-    public ReadOnlySpan<T> Span
+    public ReadOnlySpan<T> AsReadOnlySpan()
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _buffer.AsSpan(0, Length);
+        return _buffer.AsSpan(0, Length);
+    }
+
+    public Span<T> AsSpan()
+    {
+        return _buffer.AsSpan(0, Length);
     }
 
     public void EnsureSize(int size)

@@ -344,6 +344,7 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<FilterMode, WGPUFilterMode>[] FilterModeCast = new Tuple<FilterMode, WGPUFilterMode>[]
     {
+        new(FilterMode.None, WGPUFilterMode.None),
         new(FilterMode.Nearest, WGPUFilterMode.Nearest),
         new(FilterMode.Linear, WGPUFilterMode.Linear),
     };
@@ -353,6 +354,7 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<FilterMode, WGPUMipmapFilterMode>[] MipmapFilterModeCast = new Tuple<FilterMode, WGPUMipmapFilterMode>[]
     {
+        new(FilterMode.None, WGPUMipmapFilterMode.None),
         new(FilterMode.Nearest, WGPUMipmapFilterMode.Nearest),
         new(FilterMode.Linear, WGPUMipmapFilterMode.Linear),
     };
@@ -362,6 +364,7 @@ internal static partial class UtilsWebGPU
 
     private static readonly Tuple<TextureAspect, WGPUTextureAspect>[] TextureAspectCast = new Tuple<TextureAspect, WGPUTextureAspect>[]
     {
+        new(TextureAspect.None, WGPUTextureAspect.None),
         new(TextureAspect.All, WGPUTextureAspect.All),
         new(TextureAspect.StencilOnly, WGPUTextureAspect.StencilOnly),
         new(TextureAspect.DepthOnly, WGPUTextureAspect.DepthOnly),
@@ -369,6 +372,20 @@ internal static partial class UtilsWebGPU
 
     public static readonly Func<TextureAspect, WGPUTextureAspect> TextureAspectToWebGPU;
     public static readonly Func<WGPUTextureAspect, TextureAspect> TextureAspectToAbstract;
+
+
+    private static readonly Tuple<TextureSampleType, WGPUTextureSampleType>[] TextureSampleTypeCast = new Tuple<TextureSampleType, WGPUTextureSampleType>[]
+    {
+        new(TextureSampleType.None, WGPUTextureSampleType.None),
+        new(TextureSampleType.Float, WGPUTextureSampleType.Float),
+        new(TextureSampleType.UnfilterableFloat, WGPUTextureSampleType.UnfilterableFloat),
+        new(TextureSampleType.Depth, WGPUTextureSampleType.Depth),
+        new(TextureSampleType.Sint, WGPUTextureSampleType.Sint),
+        new(TextureSampleType.Uint, WGPUTextureSampleType.Uint),
+    };
+
+    public static readonly Func<TextureSampleType, WGPUTextureSampleType> TextureSampleTypeToWebGPU;
+    public static readonly Func<WGPUTextureSampleType, TextureSampleType> TextureSampleTypeToAbstract;
 
     static UtilsWebGPU()
     {
@@ -390,5 +407,6 @@ internal static partial class UtilsWebGPU
         UtilsCast.GenerateCastFunc(FilterModeCast, out FilterModeToWebGPU, out FilterModeToAbstract);
         UtilsCast.GenerateCastFunc(MipmapFilterModeCast, out MipmapFilterModeToWebGPU, out MipmapFilterModeToAbstract);
         UtilsCast.GenerateCastFunc(TextureAspectCast, out TextureAspectToWebGPU, out TextureAspectToAbstract);
+        UtilsCast.GenerateCastFunc(TextureSampleTypeCast, out TextureSampleTypeToWebGPU, out TextureSampleTypeToAbstract);
     }
 }

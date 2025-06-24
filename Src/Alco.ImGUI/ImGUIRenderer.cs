@@ -3,11 +3,14 @@ using Alco.Graphics;
 using Alco.Rendering;
 using Alco;
 using Alco.ImGUI;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Alco.ImGUI;
 
 public unsafe class ImGUIRenderer : AutoDisposable
 {
+    public static ImGUIRenderer? Instance { get; private set; }
+
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandBuffer;
@@ -17,9 +20,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private IntPtr _imGuiContext;
     private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
-    private readonly IntPtr _fontTextureId = (IntPtr)1;
+    private readonly IntPtr  _fontTextureId = (IntPtr)(-1);
     private readonly Texture2D _fontTexture;
     private NativeBuffer<byte> _tmpIndexBuffer;
+
+    private readonly List<Texture2D> _textures = new List<Texture2D>();
 
     public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
     {
@@ -52,6 +57,19 @@ public unsafe class ImGUIRenderer : AutoDisposable
         io.Fonts.TexReady = true;
 
         _tmpIndexBuffer = new NativeBuffer<byte>(96);
+
+        if (Instance != null)
+        {
+            throw new Exception("ImGUIRenderer can only have one instance at a time");
+        }
+        Instance = this;
+    }
+
+    public IntPtr AddTexture(Texture2D texture)
+    {
+        ArgumentNullException.ThrowIfNull(texture);
+        _textures.Add(texture);
+        return _textures.Count - 1;
     }
 
     public void Begin(GPUFrameBuffer target, float deltaTime)
@@ -144,17 +162,14 @@ public unsafe class ImGUIRenderer : AutoDisposable
                 ImDrawCmdPtr cmd = cmdList.CmdBuffer[j];
                 nint textureId = cmd.TextureId;
 
-                if (textureId == _fontTextureId)
+                if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
                 {
-                    _commandBuffer.SetGraphicsResources(_shaderId_Texture, _fontTexture.EntrySample);
+                    _commandBuffer.SetGraphicsResources(_shaderId_Texture, texture.EntrySample);
                 }
                 else
                 {
-                    //todo: get texture by native handle
                     _commandBuffer.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
                 }
-                Vector4 uvRect = new Vector4(0, 0, 1, 1);
-                _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, uvRect);
 
                 Vector4 clipRect = cmd.ClipRect;
 
@@ -176,11 +191,30 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
         _target = null;
+
+        _textures.Clear();
+    }
+
+    private bool TryGetTexture(IntPtr textureId, [NotNullWhen(true)]out Texture2D? texture)
+    {
+        texture = null;
+        if(textureId == _fontTextureId){
+            texture = _fontTexture;
+            return true;
+        }
+
+        if(textureId < _textures.Count){
+            texture = _textures[(int)textureId];
+            return true;
+        }
+
+        return false;
     }
 
 
     protected override void Dispose(bool disposing)
     {
+        Instance = null;
         if (disposing)
         {
             _commandBuffer.Dispose();

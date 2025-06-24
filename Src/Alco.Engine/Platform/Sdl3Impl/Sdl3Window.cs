@@ -353,7 +353,7 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
-    public void DoTextInputCore(string text)
+    public void DoTextInputCore(ReadOnlySpan<char> text)
     {
         DoTextInput(text);
     }

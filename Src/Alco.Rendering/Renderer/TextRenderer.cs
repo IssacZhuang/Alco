@@ -35,7 +35,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private GraphicsBuffer? _textBufferGPU;
 
     private readonly RenderingSystem _renderingSystem;
-    private readonly RenderContext _renderContext;
+    private readonly IRenderContext _renderContext;
 
     private uint _shaderId_textBuffer;
     private uint _shaderId_font;
@@ -50,11 +50,11 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     }
 
 
-    internal TextRenderer(RenderingSystem renderingSystem, RenderContext renderContext, Mesh mesh, Material material, string name)
+    internal TextRenderer(RenderingSystem renderingSystem, IRenderContext renderContext, Mesh mesh, Material material, string name)
     {
         _renderingSystem = renderingSystem;
         _renderContext = renderContext;
-        _renderContext.AddListener(this);
+        
         _tmpGPUBuffers = new List<GraphicsBuffer>();
 
         _mesh = mesh;
@@ -67,6 +67,8 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         //get resource ids
         _shaderId_textBuffer = _material.GetResourceId(ShaderResourceId.TextBuffer);
         _shaderId_font = _material.GetResourceId(ShaderResourceId.Font);
+
+        _renderContext.AddListener(this);
     }
 
 

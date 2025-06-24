@@ -46,7 +46,7 @@ public sealed class ShaderParameterSet
     public ReadOnlySpan<GPUResourceGroup?> ResourceGroups
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _resourceGroups.Span;
+        get => _resourceGroups.AsReadOnlySpan();
     }
 
     /// <summary>
@@ -619,7 +619,7 @@ public sealed class ShaderParameterSet
         slot.texture = null;
         slot.renderTexture = renderTexture;
         slot.renderTextureIndex = RenderTextureIndexDepth;
-        _resourceGroups.Set(id, renderTexture.EntryDepthSample);
+        _resourceGroups.Set(id, renderTexture.EntryDepthRead);
 
         return true;
     }
@@ -658,15 +658,15 @@ public sealed class ShaderParameterSet
 
         ref Slot slot = ref _slots.GetRef(id);
 
-        if (slot.type != ResourceType.TextureWithSampler)
+        if (slot.type != ResourceType.TextureRead)
         {
-            throw new InvalidOperationException($"The depth texture only supports texture with sampler which is not the case for bind group {id}.");
+            throw new InvalidOperationException($"The depth texture only supports texture read which is not the case for bind group {id}.");
         }
 
         slot.texture = null;
         slot.renderTexture = renderTexture;
         slot.renderTextureIndex = RenderTextureIndexDepth;
-        _resourceGroups.Set(id, renderTexture.EntryDepthSample);
+        _resourceGroups.Set(id, renderTexture.EntryDepthRead);
     }
 
     #endregion

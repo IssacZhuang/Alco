@@ -43,6 +43,7 @@ public partial class Canvas : AutoDisposable
     private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _spriteRenderer;
     private readonly TextRenderer _textRenderer;
+    private readonly DynamicMeshRenderer _dynamicMeshRenderer;
 
     private readonly Material _textMaterial;
     private readonly Material _spriteMaterial;
@@ -187,6 +188,10 @@ public partial class Canvas : AutoDisposable
 
         _spriteRenderer = system.CreateSpriteRenderer(_renderContext, _spriteMaterial);
         _textRenderer = system.CreateTextRenderer(_renderContext, _textMaterial);
+
+        // sliced mesh: 16 vertices (size of vertex is 20 bytes, 320 in total), 54 indices (2 byte per index, 108 in total)
+        // support 1024 sliced mesh per chunk in dynamic mesh renderer
+        _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext, 320* 1024, 108 *1024);
 
         _collisionWorld = new CollisionWorld2D();
         _mousePointCaster = new MousePointCaster();
@@ -336,8 +341,11 @@ public partial class Canvas : AutoDisposable
         _renderContext.Dispose();
         _spriteRenderer.Dispose();
         _textRenderer.Dispose();
+        _dynamicMeshRenderer.Dispose();
         _camera.Dispose();
     }
+
+    
 
     private void OnMouseDown(UINode? node, Vector2 mousePosition)
     {
@@ -369,7 +377,7 @@ public partial class Canvas : AutoDisposable
         _holded = null;
     }
 
-    private void OnTextInput(string text)
+    private void OnTextInput(ReadOnlySpan<char> text)
     {
         _textInput?.OnTextInput(this, text);
     }
@@ -394,19 +402,21 @@ public partial class Canvas : AutoDisposable
 
             try
             {
+                node.TryRefreshRenderData(this, delta);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "refreshing render data", node.Name);
+            }
+
+            try
+            {
 
                 node.Update(this, delta);
             }
             catch (Exception e)
             {
-                if (ErrorHandler != null)
-                {
-                    ErrorHandler(e);
-                }
-                else
-                {
-                    Log.Error($"Error in updating {node.Name}: {e}");
-                }
+                HandleError(e, "updating", node.Name);
             }
         }
 
@@ -435,14 +445,7 @@ public partial class Canvas : AutoDisposable
             }
             catch (Exception e)
             {
-                if (ErrorHandler != null)
-                {
-                    ErrorHandler(e);
-                }
-                else
-                {
-                    Log.Error($"Error in ticking {node.Name}: {e}");
-                }
+                HandleError(e, "ticking", node.Name);
             }
         }
 
@@ -469,5 +472,17 @@ public partial class Canvas : AutoDisposable
             parent = parent.Parent;
         }
         return true;
+    }
+
+    private void HandleError(Exception exception, string operation, string nodeName)
+    {
+        if (ErrorHandler != null)
+        {
+            ErrorHandler(exception);
+        }
+        else
+        {
+            Log.Error($"Error in {operation} of {nodeName}: {exception}");
+        }
     }
 }

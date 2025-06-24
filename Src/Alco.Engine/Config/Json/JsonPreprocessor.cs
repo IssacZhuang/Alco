@@ -32,8 +32,6 @@ public class JsonPreprocessor
     private readonly List<IFileSource> _fileSources = new();
     private readonly ArrayBuffer<JsonDocument?> _tempJsonDocuments = new();
 
-    private readonly Action<string> _onInfo;
-    private readonly Action<string> _onWarning;
     private readonly Action<string> _onError;
 
     public IEnumerable<JsonDocument> AllDocuments
@@ -47,10 +45,8 @@ public class JsonPreprocessor
         }
     }
 
-    public JsonPreprocessor(Action<string> onInfo, Action<string> onWarning, Action<string> onError)
+    public JsonPreprocessor(Action<string> onError)
     {
-        _onInfo = onInfo;
-        _onWarning = onWarning;
         _onError = onError;
     }
 
@@ -188,7 +184,6 @@ public class JsonPreprocessor
                 if (processedDocument != jsonItem.Document)
                 {
                     _jsonItems[id] = new JsonItem(jsonItem.Path, processedDocument);
-                    AddInfo($"Processed inheritance for JSON item {id} from {jsonItem.Path}");
                 }
             }
             catch (Exception ex)
@@ -211,7 +206,7 @@ public class JsonPreprocessor
         var parentId = parentProperty.GetString();
         if (string.IsNullOrEmpty(parentId))
         {
-            AddWarning($"JSON item {currentId} has empty parent ID");
+            AddError($"JSON item {currentId} has empty parent ID");
             return document;
         }
 
@@ -253,7 +248,7 @@ public class JsonPreprocessor
             var mergedJson = UtilsJson.Merge(processedParent, document, _specialKeywords);
             var mergedDocument = JsonDocument.Parse(mergedJson);
 
-            AddInfo($"Merged JSON item {currentId} with parent {parentId}");
+
             return mergedDocument;
         }
         catch (Exception ex)
@@ -314,16 +309,6 @@ public class JsonPreprocessor
         }
         id = null;
         return false;
-    }
-
-    private void AddInfo(string message)
-    {
-        _onInfo?.Invoke(message);
-    }
-
-    private void AddWarning(string message)
-    {
-        _onWarning?.Invoke(message);
     }
 
     private void AddError(string message)

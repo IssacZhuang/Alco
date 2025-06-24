@@ -94,7 +94,9 @@ public class UISlider : UINode
             return;
         }
 
-        _valueText.SetText(UtilsText.ToCharSpan(_value));
+        FixedString32 fixedString = new FixedString32();
+        fixedString.Append(_value);// append as ISpanFormattable, no allocation
+        _valueText.SetText(fixedString);
     }
 
     private void OnHandleDrag(Canvas canvas, Vector2 mousePosition)

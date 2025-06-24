@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
@@ -38,5 +39,30 @@ public readonly struct GraphicsBufferPoolEntry
 
         Pool.Return(buffer);
         return true;
+    }
+
+    /// <summary>
+    /// Reduces memory usage by removing and disposing the specified amount of memory from the pool.
+    /// </summary>
+    /// <param name="memoryToReduce">The amount of memory to reduce in bytes.</param>
+    /// <returns>The actual amount of memory reduced in bytes.</returns>
+    public uint ReduceMemory(uint memoryToReduce)
+    {
+        // Calculate how many buffers we need to remove
+        int buffersToRemove = (int)Math.Ceiling((double)memoryToReduce / BufferSize);
+
+        uint actualMemoryReduced = 0;
+
+        // Remove buffers from the pool using Get method
+        // Note: Get will create new buffers if pool is empty, but we only want to remove existing ones
+        // So we check the pool count to avoid creating new buffers unnecessarily
+        for (int i = 0; i < buffersToRemove && Pool.Count > 0; i++)
+        {
+            var buffer = Pool.Get();
+            buffer.Dispose();
+            actualMemoryReduced += BufferSize;
+        }
+
+        return actualMemoryReduced;
     }
 }

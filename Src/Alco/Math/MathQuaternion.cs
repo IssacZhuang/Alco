@@ -178,7 +178,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 direction(Quaternion q)
         {
-            return mul(q, Vector3.UnitZ);
+            return mul(q, Vector3.UnitX);
         }
 
         //todo: use simd

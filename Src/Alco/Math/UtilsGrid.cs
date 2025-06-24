@@ -5,12 +5,28 @@ using static Alco.math;
 
 namespace Alco;
 
+/// <summary>
+/// Provides utility methods for grid operations, especially for radial patterns.
+/// </summary>
 public static class UtilsGrid
 {
+    /// <summary>
+    /// The total number of points in the precomputed radial pattern.
+    /// </summary>
     public const int RadialPatternCount = 10000;
+
+    /// <summary>
+    /// The radius (in grid cells) used to generate the radial pattern.
+    /// </summary>
     public const int RadialPatternRadius = 60;
-    public static readonly IReadOnlyList<int2> RadialPattern;
+
+    private static readonly int2[] _radialPattern;
     private static readonly float[] RadialPatternRadii;
+
+    /// <summary>
+    /// Gets the precomputed radial pattern of grid points, sorted by distance from the center.
+    /// </summary>
+    public static IReadOnlyList<int2> RadialPattern => _radialPattern;
 
     static UtilsGrid()
     {
@@ -44,7 +60,7 @@ public static class UtilsGrid
             radialPatternRadii[i] = sqrt(pos.X * (float)pos.X + pos.Y * (float)pos.Y);
         }
 
-        RadialPattern = radialPattern;
+        _radialPattern = radialPattern;
         RadialPatternRadii = radialPatternRadii;
     }
 
@@ -76,14 +92,25 @@ public static class UtilsGrid
     /// </summary>
     /// <param name="radius">The radius</param>
     /// <param name="cells">The list of cells</param>
-    public static void GetCellsInRadius(List<int2> cells, float radius)
+    public static void FillCellsInRadius(List<int2> cells, float radius)
     {
         cells.Clear();
         int count = GetCellCountInRadius(radius);
         for (int i = 0; i < count; i++)
         {
-            cells.Add(RadialPattern[i]);
+            cells.Add(_radialPattern[i]);
         }
+    }
+
+    /// <summary>
+    /// Gets the positions of the grid cells within the specified radius.
+    /// </summary>
+    /// <param name="radius">The radius to include cells, in grid units.</param>
+    /// <returns>A read-only memory containing the cell positions within the radius.</returns>
+    public static ReadOnlyMemory<int2> GetCellsInRadius(float radius)
+    {
+        int count = GetCellCountInRadius(radius);
+        return new ReadOnlyMemory<int2>(_radialPattern, 0, count);
     }
 }
 

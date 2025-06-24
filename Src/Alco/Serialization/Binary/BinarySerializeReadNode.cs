@@ -8,26 +8,57 @@ public class BinarySerializeReadNode : SerializeReadNode
 {
     protected BinaryTable _content;
     public BinaryTable Content => _content;
-    public BinarySerializeReadNode(BinaryTable content)
+    public BinarySerializeReadNode(BinaryTable content, Action<string>? onError = null)
     {
+        ArgumentNullException.ThrowIfNull(content);
         _content = content;
+        OnError = onError;
     }
 
-    public override void BindDeep<T>(string key, T value)
+    /// <summary>
+    /// Binds a complex object that implements ISerializable for deserialization.
+    /// Handles exceptions gracefully to prevent serialization errors from affecting other nodes.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the object in the serialization format.</param>
+    /// <param name="value">The existing object to be deserialized into.</param>
+    public override void BindSerializable<T>(string key, T value)
     {
-        if (_content.TryGetTable(key, out BinaryTable? table))
+        try
         {
-            value.OnSerialize(new BinarySerializeReadNode(table), SerializeMode.Load);
+            if (_content.TryGetTable(key, out BinaryTable? table))
+            {
+                value.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddError($"Failed to bind serializable '{key}': {ex}");
         }
     }
 
-    public override void BindDeepNullable<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
+    /// <summary>
+    /// Binds a nullable complex object that implements ISerializable for deserialization with error handling.
+    /// Handles exceptions gracefully to prevent serialization errors from affecting other nodes.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the object in the serialization format.</param>
+    /// <param name="value">Reference to the nullable object to be deserialized.</param>
+    /// <param name="onCreate">Factory function to create a new instance during deserialization.</param>
+    public override void BindSerializableOptional<T>(string key, ref T? value, Func<SerializeReadNode, T> onCreate) where T : default
     {
-        if (_content.TryGetTable(key, out BinaryTable? table))
+        try
         {
-            BinarySerializeReadNode subNode = new BinarySerializeReadNode(table);
-            value ??= onCreate(subNode);
-            value.OnSerialize(subNode, SerializeMode.Load);
+            if (_content.TryGetTable(key, out BinaryTable? table))
+            {
+                BinarySerializeReadNode subNode = new BinarySerializeReadNode(table, OnError);
+                value ??= onCreate(subNode);
+                value.OnSerialize(subNode, SerializeMode.Load);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddError($"Failed to bind optional serializable '{key}': {ex}");
         }
     }
 
@@ -44,7 +75,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindCollection<T>(string key, IList<T> value)
+    public override void BindList<T>(string key, IList<T> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -59,7 +90,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindCollection(string key, IList<string> value)
+    public override void BindList(string key, IList<string> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -74,18 +105,64 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindCollectionDeep<T>(string key, IList<T> value)
+    /// <summary>
+    /// Binds a collection of complex objects that implement ISerializable for deserialization.
+    /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
+    /// <param name="key">The key identifier for the collection in the serialization format.</param>
+    /// <param name="value">The collection of serializable objects to be deserialized.</param>
+    public override void BindListSerializable<T>(string key, IList<T> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
         {
             for (int i = 0; i < array.Count; i++)
             {
-                if (array.TryGetTable(i, out BinaryTable? table))
+                try
                 {
-                    T item = new T();
-                    item.OnSerialize(new BinarySerializeReadNode(table), SerializeMode.Load);
-                    value.Add(item);
+                    if (array.TryGetTable(i, out BinaryTable? table))
+                    {
+                        T item = new T();
+                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        value.Add(item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Binds a collection of complex objects that implement ISerializable for deserialization with custom factory.
+    /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the collection in the serialization format.</param>
+    /// <param name="value">The collection of serializable objects to be deserialized.</param>
+    /// <param name="onCreate">Factory function to create a new instance during deserialization.</param>
+    public override void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        value.Clear();
+        if (_content.TryGetArray(key, out BinaryArray? array))
+        {
+            for (int i = 0; i < array.Count; i++)
+            {
+                try
+                {
+                    if (array.TryGetTable(i, out BinaryTable? table))
+                    {
+                        T item = onCreate(new BinarySerializeReadNode(table, OnError));
+                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        value.Add(item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
                 }
             }
         }
@@ -126,4 +203,52 @@ public class BinarySerializeReadNode : SerializeReadNode
             return @default;
         }
     }
+
+    public override void BindDictionary<TValue>(string key, IDictionary<string, TValue> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                {
+                    value.Add(itemKey, UtilsBinary.DecodeToValue<TValue>(binaryValue));
+                }
+            }
+        }
+    }
+
+    public override void BindDictionary(string key, IDictionary<string, string> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                if (table.TryGetString(itemKey, out string? stringValue))
+                {
+                    value.Add(itemKey, stringValue);
+                }
+            }
+        }
+    }
+
+    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                {
+                    value.Add(itemKey, binaryValue);
+                }
+            }
+        }
+    }
+
+    
+
 }

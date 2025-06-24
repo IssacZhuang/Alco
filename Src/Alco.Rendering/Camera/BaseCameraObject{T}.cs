@@ -31,4 +31,9 @@ public abstract class BaseCameraObject<T> : ICamera where T : unmanaged, ICamera
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => Data.ViewProjectionMatrix;
     }
+
+    public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
+    {
+        return Data.ScreenPointToRay(screenPosition, screenSize);
+    }
 }
