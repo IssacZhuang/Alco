@@ -19,6 +19,8 @@ public class Game : GameEngine
     private UISlider _slider;
     private UILayoutVertical _layout;
 
+    private UISprite _sprite;
+
 
     private float _alignHorizontal = TextAlign.Left;
     private float _alignVertical = TextAlign.Top;
@@ -189,6 +191,18 @@ public class Game : GameEngine
         _root.Add(button3);
         button3.Add(button2);
         button2.Add(button);
+
+
+        Texture2D texSelection = AssetSystem.Load<Texture2D>("Selection.png");
+        _sprite = new UISprite()
+        {
+            Texture = texSelection,
+            Size = new Vector2(100, 100),
+            Position = new Vector2(0, 100),
+            ImageType = ImageType.Sliced,
+        };
+
+        _root.Add(_sprite);
     }
 
     protected override void OnUpdate(float delta)
@@ -243,7 +257,19 @@ public class Game : GameEngine
             _layout.Pivot = new Vector2(0f, _pivotY);
         }
 
-        if (DebugGUI.SliderWithText("Item Count", ref _itemCount, 0, 10))
+        float width = _sprite.Size.X;
+        if (DebugGUI.SliderWithText("Sprite width", ref width, 0, 512))
+        {
+            _sprite.Size = new Vector2(width, _sprite.Size.Y);
+        }
+
+        float height = _sprite.Size.Y;
+        if (DebugGUI.SliderWithText("Sprite height", ref height, 0, 512))
+        {
+            _sprite.Size = new Vector2(_sprite.Size.X, height);
+        }
+
+if (DebugGUI.SliderWithText("Item Count", ref _itemCount, 0, 10))
         {
             _layout.RemoveAllChildren();
             for (int i = 0; i < _itemCount; i++)
@@ -259,6 +285,7 @@ public class Game : GameEngine
 
             _layout.UpdateLayout();
         }
+        
 
         if (DebugGUI.Button("Test Async"))
         {

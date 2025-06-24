@@ -93,7 +93,12 @@ public class UISprite : UINode
 
     protected override void OnUpdateRenderData(Canvas canvas, float delta)
     {
-
+        if (ImageType == ImageType.Sliced && Texture != null)
+        {
+            Vertices.EnsureSizeWithoutCopy(16);
+            Indices.EnsureSizeWithoutCopy(54);
+            UtilsMesh.Populate9SliceMeshData(Vertices.AsSpan(), Indices.AsSpan(), new Vector2(Texture.Width, Texture.Height), Size, Texture.SlicePadding);
+        }
     }
 
 
@@ -105,6 +110,15 @@ public class UISprite : UINode
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
+
+        if (ImageType == ImageType.Sliced && Texture != null)
+        {
+            Transform2D transform = RenderTransform;
+            transform.Scale = Vector2.One; // already scaled in mesh
+            canvas.DrawSpriteWithCustomMesh(Vertices.AsReadOnlySpan(), Indices.AsReadOnlySpan(), Texture, transform.Matrix, UvRect, Color);
+            return;
+        }
         canvas.DrawSprite(Texture, RenderTransform.Matrix, UvRect, Color);
+
     }
 }

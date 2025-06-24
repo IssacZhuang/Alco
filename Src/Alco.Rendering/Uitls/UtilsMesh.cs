@@ -103,10 +103,10 @@ public static class UtilsMesh
         float paddingLeft,
         float paddingRight)
     {
-        if (vertices.Length != 16)
+        if (vertices.Length < 16)
             throw new ArgumentException("Vertex span must have at least 16 elements.", nameof(vertices));
 
-        if (indices.Length != 54)
+        if (indices.Length < 54)
             throw new ArgumentException("Index span must have at least 54 elements.", nameof(indices));
 
         // Calculate normalized UV coordinates for the 9-slice boundaries

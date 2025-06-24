@@ -46,7 +46,7 @@ public sealed class ShaderParameterSet
     public ReadOnlySpan<GPUResourceGroup?> ResourceGroups
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _resourceGroups.Span;
+        get => _resourceGroups.AsReadOnlySpan();
     }
 
     /// <summary>

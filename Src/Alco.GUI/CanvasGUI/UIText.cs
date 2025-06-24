@@ -88,7 +88,7 @@ public class UIText : UISelectable
         {
             if (_isTmpStrReadDirty)
             {
-                _tmpStr = new string(_text.Span);
+                _tmpStr = new string(_text.AsReadOnlySpan());
                 _isTmpStrReadDirty = false;
             }
             return _tmpStr;
