@@ -8,6 +8,36 @@ namespace Alco.Graphics;
 /// </summary> 
 public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecorder
 {
+    public readonly struct RenderScope : IDisposable
+    {
+        private readonly GPUCommandBuffer _commandBuffer;
+
+        public RenderScope(GPUCommandBuffer commandBuffer)
+        {
+            _commandBuffer = commandBuffer;
+        }
+
+        public void Dispose()
+        {
+
+        }
+    }
+
+    public readonly struct ComputeScope : IDisposable
+    {
+        private readonly GPUCommandBuffer _commandBuffer;
+
+        public ComputeScope(GPUCommandBuffer commandBuffer)
+        {
+            _commandBuffer = commandBuffer;
+        }
+
+        public void Dispose()
+        {
+
+        }
+    }
+
     protected bool _isRecording = false;
     //API
     public abstract bool HasBuffer { get; }
@@ -36,8 +66,22 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         _isRecording = false;
     }
 
+    public RenderScope BeginRender(
+        GPUFrameBuffer frameBuffer
+        )
+    {
+        //todo
+        return new RenderScope(this);
+    }
+
+    public ComputeScope BeginCompute(){
+        //todo
+        return new ComputeScope(this);
+    }
+
     //graphics
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetFrameBuffer(GPUFrameBuffer frameBuffer)
     {
@@ -45,6 +89,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetFrameBufferCore(frameBuffer);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearColor(Vector4 color, uint index = 0)
     {
@@ -52,6 +97,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         ClearColorCore(color, index);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearDepth(float depth)
     {
@@ -59,6 +105,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         ClearDepthCore(depth);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ClearStencil(uint stencil)
     {
@@ -66,6 +113,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         ClearStencilCore(stencil);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetScissorRect(uint x, uint y, uint width, uint height)
     {
@@ -73,6 +121,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetScissorRectCore(x, y, width, height);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetGraphicsPipeline(GPUPipeline pipeline)
     {
@@ -80,6 +129,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetGraphicsPipelineCore(pipeline);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetStencilReference(uint value)
     {
@@ -87,6 +137,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetStencilReferenceCore(value);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
     {
@@ -94,6 +145,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetGraphicsResourcesCore(slot, resourceGroup);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
@@ -101,6 +153,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetVertexBufferCore(slot, buffer, offset, size);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format,  ulong offset, ulong size)
     {
@@ -108,6 +161,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetIndexBufferCore(buffer, format, offset, size);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
@@ -115,6 +169,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         DrawCore(vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
@@ -122,6 +177,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         DrawIndexedCore(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawIndirect(GPUBuffer indirectBuffer, uint offset)
     {
@@ -129,6 +185,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         DrawIndirectCore(indirectBuffer, offset);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset)
     {
@@ -136,6 +193,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
@@ -145,6 +203,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
 
     //compute
 
+    [Obsolete("Use ComputeScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetComputePipeline(GPUPipeline pipeline)
     {
@@ -152,6 +211,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetComputePipelineCore(pipeline);
     }
 
+    [Obsolete("Use ComputeScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
     {
@@ -159,6 +219,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         SetComputeResourcesCore(slot, resourceGroup);
     }
 
+    [Obsolete("Use ComputeScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DispatchCompute(uint x, uint y, uint z)
     {
@@ -166,6 +227,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         DispatchComputeCore(x, y, z);
     }
 
+    [Obsolete("Use ComputeScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DispatchComputeIndirect(GPUBuffer indirectBuffer, uint offset)
     {
@@ -175,47 +237,57 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
 
     // polymorphism
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetVertexBuffer(uint slot, GPUBuffer buffer)
     {
         SetVertexBuffer(slot, buffer, 0, buffer.Size);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format)
     {
         SetIndexBuffer(buffer, format, 0, buffer.Size);
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushGraphicsConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
     {
         PushGraphicsConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
     }
 
+    [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushGraphicsConstants<T>(ShaderStage stage, T data) where T : unmanaged
     {
         PushGraphicsConstants(stage, 0, data);
     }
 
+    [Obsolete("Use ComputeScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushComputeConstants<T>(uint bufferOffset, T data) where T : unmanaged
     {
         PushComputeConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
     }
 
+    [Obsolete("Use ComputeScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushComputeConstants<T>(T data) where T : unmanaged
     {
         PushComputeConstants(0, data);
     }
 
+    [Obsolete("Use ComputeScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe void PushComputeConstants(uint bufferOffset, byte* data, uint size)
     {
         PushComputeConstantsCore(bufferOffset, data, size);
     }
+
+
+    // API
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ExecuteBundle(GPURenderBundle bundle)
