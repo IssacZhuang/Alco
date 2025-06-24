@@ -367,6 +367,16 @@ public class Game : GameEngine
         }
         _renderer.End();
 
+        if (TryGetSystem<FXAASystem>(out var fxaaSystem))
+        {
+            bool isFXAAEnabled = fxaaSystem.IsEnabled;
+            if (ImGui.Checkbox("FXAA", ref isFXAAEnabled))
+            {
+                fxaaSystem.IsEnabled = isFXAAEnabled;
+            }
+        }
+
+
         ImGui.End();
     }
 

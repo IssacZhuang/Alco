@@ -25,7 +25,6 @@ public class FXAA : PostProcess
 
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandFXAA;
-    private readonly GPUCommandBuffer _commandBlit;
     private readonly RenderingSystem _renderingSystem;
 
     // FXAA shader and pipeline
@@ -115,8 +114,7 @@ public class FXAA : PostProcess
         _fxaaShaderData.UpdateBuffer();
 
         // Create command buffers
-        _commandFXAA = _device.CreateCommandBuffer();
-        _commandBlit = _device.CreateCommandBuffer();
+        _commandFXAA = _device.CreateCommandBuffer("fxaa_command_buffer");
     }
 
     /// <summary>
@@ -159,31 +157,41 @@ public class FXAA : PostProcess
 
         Mesh fullScreenMesh = FullScreenMesh;
 
-        // Step 1: Apply FXAA to intermediate texture
-        _commandFXAA.Begin();
-        _commandFXAA.SetFrameBuffer(_intermediateTexture);
-        _commandFXAA.SetGraphicsPipeline(_fxaaPipelineInfo);
-        uint indexCount = _commandFXAA.SetMesh(fullScreenMesh);
-        _commandFXAA.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
-        _commandFXAA.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
-        _commandFXAA.DrawIndexed(indexCount, 1, 0, 0, 0);
-        _commandFXAA.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandFXAA);
-
-        // Step 2: Blit intermediate texture to final target
         if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.RenderPass))
         {
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }
 
-        _commandBlit.Begin();
-        _commandBlit.SetFrameBuffer(target);
-        _commandBlit.SetGraphicsPipeline(_blitPipelineInfo);
-        indexCount = _commandBlit.SetMesh(fullScreenMesh);
-        _commandBlit.SetGraphicsResources(_blitShaderId_texture, _intermediateTexture.ColorTextures[0].EntrySample);
-        _commandBlit.DrawIndexed(indexCount, 1, 0, 0, 0);
-        _commandBlit.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandBlit);
+        // Step 1: Apply FXAA to intermediate texture
+        _commandFXAA.Begin();
+        // _commandFXAA.SetFrameBuffer(_intermediateTexture);
+        // _commandFXAA.SetGraphicsPipeline(_fxaaPipelineInfo);
+        // uint indexCount = _commandFXAA.SetMesh(fullScreenMesh);
+        // _commandFXAA.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
+        // _commandFXAA.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
+        // _commandFXAA.DrawIndexed(indexCount, 1, 0, 0, 0);
+
+        using (var renderScope = _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
+        {
+            renderScope.SetGraphicsPipeline(_fxaaPipelineInfo.Pipeline!);
+            uint indexCount = renderScope.SetMesh(fullScreenMesh);
+            renderScope.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
+            renderScope.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
+            renderScope.DrawIndexed(indexCount, 1, 0, 0, 0);
+        }
+
+        using (var renderScope = _commandFXAA.BeginRender(target))
+        {
+            renderScope.SetGraphicsPipeline(_blitPipelineInfo.Pipeline!);
+            uint indexCount = renderScope.SetMesh(fullScreenMesh);
+            renderScope.SetGraphicsResources(_blitShaderId_texture, _intermediateTexture.ColorTextures[0].EntrySample);
+            renderScope.DrawIndexed(indexCount, 1, 0, 0, 0);
+        }
+
+        _commandFXAA.End();
+        _renderingSystem.ScheduleCommandBuffer(_commandFXAA);
+
+        // Step 2: Blit intermediate texture to final target
     }
 
     /// <summary>
@@ -195,7 +203,6 @@ public class FXAA : PostProcess
         if (disposing)
         {
             _commandFXAA.Dispose();
-            _commandBlit.Dispose();
             _fxaaShaderData.Dispose();
             _intermediateTexture?.Dispose();
         }

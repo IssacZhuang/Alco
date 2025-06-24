@@ -12,7 +12,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     {
         private readonly GPUCommandBuffer _commandBuffer;
 
-        public RenderScope(GPUCommandBuffer commandBuffer)
+        internal RenderScope(GPUCommandBuffer commandBuffer)
         {
             _commandBuffer = commandBuffer;
         }
@@ -122,6 +122,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
 
         public void Dispose()
         {
+            _commandBuffer._isRecordingRender = false;
             _commandBuffer.EndRenderCore();
         }
     }
@@ -130,7 +131,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     {
         private readonly GPUCommandBuffer _commandBuffer;
 
-        public ComputeScope(GPUCommandBuffer commandBuffer)
+        internal ComputeScope(GPUCommandBuffer commandBuffer)
         {
             _commandBuffer = commandBuffer;
         }
@@ -180,11 +181,18 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
 
         public void Dispose()
         {
+            _commandBuffer._isRecordingCompute = false;
             _commandBuffer.EndComputeCore();
         }
     }
 
+    [Obsolete("Use _isRecordingRender and _isRecordingCompute")]
     protected bool _isRecording = false;
+
+    //new api
+    protected bool _isRecordingRender = false;
+    protected bool _isRecordingCompute = false;
+
     //API
     public abstract bool HasBuffer { get; }
 
@@ -194,7 +202,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
         get => Volatile.Read(ref _isRecording);
     }
 
-    protected GPUCommandBuffer(in CommandBufferDescriptor? descriptor): base(descriptor?.Name ?? "unnamed_command_buffer")
+    protected GPUCommandBuffer(in CommandBufferDescriptor? descriptor) : base(descriptor?.Name ?? "unnamed_command_buffer")
     {
     }
 
@@ -215,16 +223,46 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     public RenderScope BeginRender(
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
-        float? clearDepth,
-        uint? clearStencil
+        float? clearDepth = null,
+        uint? clearStencil = null
         )
     {
+        if (_isRecordingRender)
+        {
+            throw new InvalidOperationException("Render scope is already recording, try end current render scope before starting a new one");
+        }
+
+        if (_isRecordingCompute)
+        {
+            throw new InvalidOperationException("Compute scope is already recording, try end current compute scope before starting a new one");
+        }
+
         BeginRenderCore(frameBuffer, clearColors, clearDepth, clearStencil);
+        _isRecordingRender = true;
         return new RenderScope(this);
     }
 
-    public ComputeScope BeginCompute(){
+    public RenderScope BeginRender(
+        GPUFrameBuffer frameBuffer
+        )
+    {
+        return BeginRender(frameBuffer, ReadOnlySpan<ClearColorData>.Empty, null, null);
+    }
+
+    public ComputeScope BeginCompute()
+    {
+        if (_isRecordingRender)
+        {
+            throw new InvalidOperationException("Render scope is already recording, try end current render scope before starting a new one");
+        }
+
+        if (_isRecordingCompute)
+        {
+            throw new InvalidOperationException("Compute scope is already recording, try end current compute scope before starting a new one");
+        }
+
         BeginComputeCore();
+        _isRecordingCompute = true;
         return new ComputeScope(this);
     }
 
@@ -306,7 +344,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
 
     [Obsolete("Use RenderScope instead")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format,  ulong offset, ulong size)
+    public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
         SetIndexBufferCore(buffer, format, offset, size);
@@ -453,7 +491,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     {
         ExecuteBundleCore(bundles);
     }
-    
+
 
     public void CopyBuffer(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
@@ -467,7 +505,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     }
 
 
-    public void CopyBuffer(GPUBuffer src, GPUBuffer dst)    
+    public void CopyBuffer(GPUBuffer src, GPUBuffer dst)
     {
         CopyBuffer(src, dst, 0, 0, src.Size);
     }
