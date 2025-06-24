@@ -32,154 +32,71 @@ float GetLuminance(float3 color) {
     return dot(color, float3(0.299, 0.587, 0.114));
 }
 
-// Sample texture with offset
-float3 SampleOffset(float2 uv, float2 offset) {
-    return SAMPLE_TEX2D(_texture, uv + offset * InvFrameSize).rgb;
-}
+// FXAA constants
+static const float FXAA_SPAN_MAX = 8.0;
+static const float FXAA_REDUCE_MUL = 1.0 / 8.0;
+static const float FXAA_REDUCE_MIN = 1.0 / 128.0;
 
-// FXAA algorithm implementation
+// Improved FXAA implementation based on reference algorithms
 float3 FXAA(float2 uv) {
     float2 texelSize = InvFrameSize;
-    
-    // Sample center and neighboring pixels
-    float3 rgbM = SAMPLE_TEX2D(_texture, uv).rgb;        // Center
-    float3 rgbNW = SampleOffset(uv, float2(-1, -1));     // North-West
-    float3 rgbNE = SampleOffset(uv, float2(1, -1));      // North-East
-    float3 rgbSW = SampleOffset(uv, float2(-1, 1));      // South-West
-    float3 rgbSE = SampleOffset(uv, float2(1, 1));       // South-East
-    float3 rgbN = SampleOffset(uv, float2(0, -1));       // North
-    float3 rgbS = SampleOffset(uv, float2(0, 1));        // South
-    float3 rgbW = SampleOffset(uv, float2(-1, 0));       // West
-    float3 rgbE = SampleOffset(uv, float2(1, 0));        // East
-    
+
+    // Sample the 5 necessary pixels: center + 4 corners
+    float3 rgbNW = SAMPLE_TEX2D(_texture, uv + float2(-1.0, -1.0) * texelSize).rgb;
+    float3 rgbNE = SAMPLE_TEX2D(_texture, uv + float2(1.0, -1.0) * texelSize).rgb;
+    float3 rgbSW = SAMPLE_TEX2D(_texture, uv + float2(-1.0, 1.0) * texelSize).rgb;
+    float3 rgbSE = SAMPLE_TEX2D(_texture, uv + float2(1.0, 1.0) * texelSize).rgb;
+    float3 rgbM = SAMPLE_TEX2D(_texture, uv).rgb;
+
     // Convert to luminance
-    float lumM = GetLuminance(rgbM);
-    float lumNW = GetLuminance(rgbNW);
-    float lumNE = GetLuminance(rgbNE);
-    float lumSW = GetLuminance(rgbSW);
-    float lumSE = GetLuminance(rgbSE);
-    float lumN = GetLuminance(rgbN);
-    float lumS = GetLuminance(rgbS);
-    float lumW = GetLuminance(rgbW);
-    float lumE = GetLuminance(rgbE);
-    
-    // Find min and max luminance in the local neighborhood
-    float lumMin = min(lumM, min(min(lumN, lumS), min(lumW, lumE)));
-    float lumMax = max(lumM, max(max(lumN, lumS), max(lumW, lumE)));
-    float lumRange = lumMax - lumMin;
-    
-    // If the luminance range is too small, skip AA
-    if (lumRange < max(Threshold, lumMax * 0.125)) {
+    float3 luma = float3(0.299, 0.587, 0.114);
+    float lumaNW = dot(rgbNW, luma);
+    float lumaNE = dot(rgbNE, luma);
+    float lumaSW = dot(rgbSW, luma);
+    float lumaSE = dot(rgbSE, luma);
+    float lumaM = dot(rgbM, luma);
+
+    // Find min and max luminance
+    float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+    float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+
+    // Early exit if contrast is too low
+    float lumaRange = lumaMax - lumaMin;
+    if (lumaRange < max(Threshold, lumaMax * 0.125)) {
         return rgbM;
     }
-    
-    // Determine edge direction
-    float lumL = (lumN + lumS + lumW + lumE) * 0.25;
-    float gradN = abs(lumN - lumL);
-    float gradS = abs(lumS - lumL);
-    float gradW = abs(lumW - lumL);
-    float gradE = abs(lumE - lumL);
-    
-    float gradNS = gradN + gradS;
-    float gradWE = gradW + gradE;
-    
-    bool isHorizontal = gradNS >= gradWE;
-    
-    // Choose samples along the edge
-    float lum1 = isHorizontal ? lumS : lumW;
-    float lum2 = isHorizontal ? lumN : lumE;
-    float gradient1 = abs(lum1 - lumM);
-    float gradient2 = abs(lum2 - lumM);
-    
-    bool is1Steepest = gradient1 >= gradient2;
-    float gradientScaled = 0.25 * max(gradient1, gradient2);
-    
-    // Choose step size
-    float stepLength = isHorizontal ? texelSize.y : texelSize.x;
-    float avgLum = (lum1 + lum2) * 0.5;
-    
-    if (!is1Steepest) {
-        stepLength = -stepLength;
-    }
-    
-    // Initial offset
-    float2 offset = isHorizontal ? float2(texelSize.x, 0) : float2(0, texelSize.y);
-    float2 uv1 = uv;
-    float2 uv2 = uv;
-    
-    if (isHorizontal) {
-        uv1.y += stepLength * 0.5;
-        uv2.y -= stepLength * 0.5;
+
+    // Calculate the blur direction
+    float2 dir;
+    dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
+    dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+
+    // Apply the reduce threshold
+    float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
+
+    // Calculate the reciprocal and scale the direction
+    float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+    dir = min(float2(FXAA_SPAN_MAX, FXAA_SPAN_MAX),
+              max(float2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX),
+                  dir * rcpDirMin)) * texelSize;
+
+    // Sample along the calculated direction
+    float3 rgbA = 0.5 * (
+        SAMPLE_TEX2D(_texture, uv + dir * (1.0 / 3.0 - 0.5)).rgb +
+                         SAMPLE_TEX2D(_texture, uv + dir * (2.0 / 3.0 - 0.5)).rgb);
+
+    float3 rgbB = rgbA * 0.5 + 0.25 * (
+        SAMPLE_TEX2D(_texture, uv + dir * (0.0 / 3.0 - 0.5)).rgb +
+                                       SAMPLE_TEX2D(_texture, uv + dir * (3.0 / 3.0 - 0.5)).rgb);
+
+    float lumaB = dot(rgbB, luma);
+
+    // Choose the appropriate result
+    if ((lumaB < lumaMin) || (lumaB > lumaMax)) {
+        return rgbA;
     } else {
-        uv1.x += stepLength * 0.5;
-        uv2.x -= stepLength * 0.5;
+        return rgbB;
     }
-    
-    // Walk along the edge to find the edge endpoints
-    float lumaEnd1 = GetLuminance(SAMPLE_TEX2D(_texture, uv1).rgb);
-    float lumaEnd2 = GetLuminance(SAMPLE_TEX2D(_texture, uv2).rgb);
-    lumaEnd1 -= avgLum;
-    lumaEnd2 -= avgLum;
-    
-    bool reached1 = abs(lumaEnd1) >= gradientScaled;
-    bool reached2 = abs(lumaEnd2) >= gradientScaled;
-    bool reachedBoth = reached1 && reached2;
-    
-    if (!reached1) {
-        uv1 += offset;
-    }
-    if (!reached2) {
-        uv2 -= offset;
-    }
-    
-    // Continue searching if needed
-    if (!reachedBoth) {
-        for (int i = 2; i < 12; i++) {
-            if (!reached1) {
-                lumaEnd1 = GetLuminance(SAMPLE_TEX2D(_texture, uv1).rgb);
-                lumaEnd1 -= avgLum;
-            }
-            if (!reached2) {
-                lumaEnd2 = GetLuminance(SAMPLE_TEX2D(_texture, uv2).rgb);
-                lumaEnd2 -= avgLum;
-            }
-            
-            reached1 = abs(lumaEnd1) >= gradientScaled;
-            reached2 = abs(lumaEnd2) >= gradientScaled;
-            reachedBoth = reached1 && reached2;
-            
-            if (reachedBoth) break;
-            
-            if (!reached1) {
-                uv1 += offset;
-            }
-            if (!reached2) {
-                uv2 -= offset;
-            }
-        }
-    }
-    
-    // Calculate distances to edge endpoints
-    float distance1 = isHorizontal ? (uv.x - uv1.x) : (uv.y - uv1.y);
-    float distance2 = isHorizontal ? (uv2.x - uv.x) : (uv2.y - uv.y);
-    
-    bool isDirection1 = distance1 < distance2;
-    float distanceFinal = min(distance1, distance2);
-    
-    float edgeThickness = (distance1 + distance2);
-    
-    // Calculate sub-pixel offset
-    float pixelOffset = (-2.0 * distanceFinal + edgeThickness) / edgeThickness;
-    
-    // Final sample position
-    float2 finalUv = uv;
-    if (isHorizontal) {
-        finalUv.y += pixelOffset * stepLength;
-    } else {
-        finalUv.x += pixelOffset * stepLength;
-    }
-    
-    return SAMPLE_TEX2D(_texture, finalUv).rgb;
 }
 
 [shader("pixel")]

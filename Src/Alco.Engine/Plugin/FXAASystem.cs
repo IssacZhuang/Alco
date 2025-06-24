@@ -23,6 +23,13 @@ public class FXAASystem : BaseEngineSystem
     public override int Order => 950;
 
     /// <summary>
+    /// Gets or sets whether FXAA is enabled.
+    /// When disabled, the render target is not processed with FXAA.
+    /// Default: true
+    /// </summary>
+    public bool IsEnabled { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the quality setting for FXAA.
     /// Higher values provide better quality at the cost of performance.
     /// Valid range: 0.5 - 2.0, Default: 1.0
@@ -68,13 +75,16 @@ public class FXAASystem : BaseEngineSystem
     }
 
     /// <summary>
-    /// Called after the main update loop. Applies FXAA to the render target.
+    /// Called after the main update loop. Applies FXAA to the render target if enabled.
     /// </summary>
     /// <param name="delta">Time since last frame in seconds</param>
     public override void OnPostUpdate(float delta)
     {
-        // Apply FXAA to the render target
-        _fxaa.Blit(_renderTarget.RenderTexture);
+        // Only apply FXAA if enabled
+        if (IsEnabled)
+        {
+            _fxaa.Blit(_renderTarget.RenderTexture);
+        }
     }
 
     /// <summary>
