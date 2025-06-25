@@ -89,7 +89,7 @@ public class Game : GameEngine
         _commandBuffer.Begin();
         using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderPass.SetGraphicsPipeline(_pipelineInfo);
+            renderPass.SetPipeline(_pipelineInfo);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _resourceGroupBuffer);

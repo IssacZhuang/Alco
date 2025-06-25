@@ -65,7 +65,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
 
         _command.Begin();
         _renderPass = _command.BeginRender(target);
-        _renderPass.SetGraphicsPipeline(_pipelineInfo);
+        _renderPass.SetPipeline(_pipelineInfo);
         _renderPass.SetResources(_shaderId_camera, Camera.EntryReadonly);
         _indexCount = _renderPass.SetMesh(_mesh);
     }

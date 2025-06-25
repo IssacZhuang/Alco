@@ -6,7 +6,7 @@ namespace Alco.Graphics;
 /// <summary>
 /// The reusable sub command buffer for rendering. Can be executed by <see cref="GPUCommandBuffer.ExecuteBundle(GPURenderBundle)"/> or <see cref="GPUCommandBuffer.ExecuteBundle(ReadOnlySpan{GPURenderBundle})"/>.
 /// </summary>
-public unsafe abstract class GPURenderBundle : BaseGPUObject, IGPUGraphicsCommandRecorder
+public unsafe abstract class GPURenderBundle : BaseGPUObject
 {
     protected bool _isRecording = false;
     //API
