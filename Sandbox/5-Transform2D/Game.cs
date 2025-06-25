@@ -118,40 +118,46 @@ public class Game : GameEngine
 
         //draw
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(2, _texGreen.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderScope.SetGraphicsPipeline(_pipeline);
+            renderScope.SetVertexBuffer(0, _vertexBuffer);
+            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderScope.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+            renderScope.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
+            renderScope.SetGraphicsResources(2, _texGreen.EntrySample);
+            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
         _modelBuffer.UpdateBuffer(_transform2.Matrix);
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(2, _texRed.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderScope.SetGraphicsPipeline(_pipeline);
+            renderScope.SetVertexBuffer(0, _vertexBuffer);
+            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderScope.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+            renderScope.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
+            renderScope.SetGraphicsResources(2, _texRed.EntrySample);
+            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
         _modelBuffer.UpdateBuffer(_transform3.Matrix);
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(2, _texBlue.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderScope.SetGraphicsPipeline(_pipeline);
+            renderScope.SetVertexBuffer(0, _vertexBuffer);
+            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderScope.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+            renderScope.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
+            renderScope.SetGraphicsResources(2, _texBlue.EntrySample);
+            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }

@@ -77,13 +77,15 @@ public class Game : GameEngine
         _timer += delta;
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _texture.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderScope.SetGraphicsPipeline(_pipeline);
+            renderScope.SetVertexBuffer(0, _vertexBuffer);
+            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderScope.SetGraphicsResources(0, _resourceGroupBuffer);
+            renderScope.SetGraphicsResources(1, _texture.EntrySample);
+            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }

@@ -116,24 +116,25 @@ public class Game : GameEngine
 
         //draw
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderScope.SetGraphicsPipeline(_pipeline);
+            renderScope.SetVertexBuffer(0, _vertexBuffer);
+            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderScope.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
 
-        _commandBuffer.SetGraphicsResources(1, _texGreen.EntrySample);
-        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderScope.SetGraphicsResources(1, _texGreen.EntrySample);
+            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-        _commandBuffer.SetGraphicsResources(1, _texRed.EntrySample);
-        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform2.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderScope.SetGraphicsResources(1, _texRed.EntrySample);
+            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform2.Matrix);
+            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-        _commandBuffer.SetGraphicsResources(1, _texBlue.EntrySample);
-        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform3.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
-
+            renderScope.SetGraphicsResources(1, _texBlue.EntrySample);
+            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform3.Matrix);
+            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 

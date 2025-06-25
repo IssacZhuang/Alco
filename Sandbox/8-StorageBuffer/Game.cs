@@ -102,22 +102,25 @@ public class Game : GameEngine
 
         _commandBuffer.Begin();
 
-        _commandBuffer.SetComputePipeline(_computePipeline);
-        _commandBuffer.SetComputeResources(0, _positionsBuffer.EntryReadWrite);
-        _commandBuffer.SetComputeResources(1, _timerBuffer.EntryReadonly);
-        _commandBuffer.DispatchCompute((500 / 8) + 1, 1, 1);
+        using (var computeScope = _commandBuffer.BeginCompute())
+        {
+            computeScope.SetComputePipeline(_computePipeline);
+            computeScope.SetComputeResources(0, _positionsBuffer.EntryReadWrite);
+            computeScope.SetComputeResources(1, _timerBuffer.EntryReadonly);
+            computeScope.DispatchCompute((500 / 8) + 1, 1, 1);
+        }
 
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
-
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
-        _commandBuffer.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
-
-        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
+        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderScope.SetGraphicsPipeline(_graphicsPipeline);
+            renderScope.SetVertexBuffer(0, _vertexBuffer);
+            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderScope.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+            renderScope.SetGraphicsResources(1, _texWhite.EntrySample);
+            renderScope.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
+            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderScope.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
+        }
 
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
