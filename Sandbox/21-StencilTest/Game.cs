@@ -103,7 +103,7 @@ public class Game : GameEngine
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
 
         _commandClearScreen.Begin();
-        using (var renderScope = _commandClearScreen.BeginRender(MainFrameBuffer, new ColorFloat(0.2f, 0.2f, 0.2f, 1)))
+        using (var renderPass = _commandClearScreen.BeginRender(MainFrameBuffer, new ColorFloat(0.2f, 0.2f, 0.2f, 1)))
         {
             // Clear color is handled by BeginRender parameter
         }

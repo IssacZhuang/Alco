@@ -98,17 +98,17 @@ public class Game : GameEngine
 
         //draw
         _commandBuffer.Begin();
-        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderScope.SetGraphicsPipeline(_pipeline);
-            renderScope.SetVertexBuffer(0, _vertexBuffer);
-            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderScope.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetGraphicsPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
 
-            renderScope.SetGraphicsResources(1, _texWhite.EntrySample);
-            renderScope.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
-            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
-            renderScope.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
+            renderPass.SetGraphicsResources(1, _texWhite.EntrySample);
+            renderPass.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
+            renderPass.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
         }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

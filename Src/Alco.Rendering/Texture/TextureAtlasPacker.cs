@@ -99,7 +99,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
         Transform2D transform = Transform2D.Identity;
 
         _commandBuffer.Begin();
-    
+
         // _commandBuffer.SetFrameBuffer(atlasTexture);
         // _commandBuffer.ClearColor(ColorFloat.Black);
         // _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
@@ -120,12 +120,12 @@ public sealed class TextureAtlasPacker: AutoDisposable
         //     _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
         // }
 
-        using (var renderScope = _commandBuffer.BeginRender(atlasTexture.FrameBuffer, [new ClearColorData(0, ColorFloat.Black)]))
+        using (var renderPass = _commandBuffer.BeginRender(atlasTexture.FrameBuffer, [new ClearColorData(0, ColorFloat.Black)]))
         {
-            renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
-            uint indexCount = renderScope.SetMesh(mesh);
+            renderPass.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            uint indexCount = renderPass.SetMesh(mesh);
 
-            renderScope.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
+            renderPass.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
 
             for (int i = 0; i < _packer.Count; i++)
             {
@@ -135,9 +135,9 @@ public sealed class TextureAtlasPacker: AutoDisposable
                 transform.Scale = item.Rect.Size;
                 constant.Model = transform.Matrix;
 
-                renderScope.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
-                renderScope.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
-                renderScope.DrawIndexed(indexCount, 1, 0, 0, 0);
+                renderPass.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
+                renderPass.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
 
         }

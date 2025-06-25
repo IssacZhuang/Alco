@@ -116,24 +116,24 @@ public class Game : GameEngine
 
         //draw
         _commandBuffer.Begin();
-        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderScope.SetGraphicsPipeline(_pipeline);
-            renderScope.SetVertexBuffer(0, _vertexBuffer);
-            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderScope.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetGraphicsPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
 
-            renderScope.SetGraphicsResources(1, _texGreen.EntrySample);
-            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
-            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderPass.SetGraphicsResources(1, _texGreen.EntrySample);
+            renderPass.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-            renderScope.SetGraphicsResources(1, _texRed.EntrySample);
-            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform2.Matrix);
-            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderPass.SetGraphicsResources(1, _texRed.EntrySample);
+            renderPass.PushGraphicsConstants(ShaderStage.Vertex, _transform2.Matrix);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-            renderScope.SetGraphicsResources(1, _texBlue.EntrySample);
-            renderScope.PushGraphicsConstants(ShaderStage.Vertex, _transform3.Matrix);
-            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderPass.SetGraphicsResources(1, _texBlue.EntrySample);
+            renderPass.PushGraphicsConstants(ShaderStage.Vertex, _transform3.Matrix);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

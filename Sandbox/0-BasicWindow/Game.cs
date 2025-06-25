@@ -19,7 +19,7 @@ public class Game : GameEngine
 
         _commandBuffer.Begin();
 
-        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer, new Vector4(0.2f, 0.2f, 0.4f, 1.0f), 1, 0))
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer, new Vector4(0.2f, 0.2f, 0.4f, 1.0f), 1, 0))
         {
         }
 

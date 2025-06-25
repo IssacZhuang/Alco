@@ -69,13 +69,13 @@ public class Game : GameEngine
         UpdateColor(new Vector4(MathF.Sin(_timer), MathF.Cos(_timer), 0.0f, 1.0f));
 
         _commandBuffer.Begin();
-        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderScope.SetGraphicsPipeline(_pipeline);
-            renderScope.SetVertexBuffer(0, _vertexBuffer);
-            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderScope.SetGraphicsResources(0, _resourceGroup);
-            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderPass.SetGraphicsPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetGraphicsResources(0, _resourceGroup);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

@@ -130,9 +130,9 @@ public sealed class TextureCompressorBC3 : AutoDisposable
 
         _commandCompress.Begin();
 
-        using (var computeScope = _commandCompress.BeginCompute())
+        using (var computePass = _commandCompress.BeginCompute())
         {
-            _material.DispatchBySizeWithConstant(computeScope, blocksX, blocksY, 1, new uint2(blocksX, blocksY));
+            _material.DispatchBySizeWithConstant(computePass, blocksX, blocksY, 1, new uint2(blocksX, blocksY));
         }
 
         _commandCompress.End();

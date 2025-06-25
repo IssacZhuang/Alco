@@ -24,25 +24,25 @@ public static class GPUCommandBufferExtension
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static GPUCommandBuffer.RenderScope BeginRender(this GPUCommandBuffer command, IRenderTarget renderTarget)
+    public static GPUCommandBuffer.RenderPass BeginRender(this GPUCommandBuffer command, IRenderTarget renderTarget)
     {
         return command.BeginRender(renderTarget.RenderTexture.FrameBuffer);
     }
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static uint SetMesh(this GPUCommandBuffer.RenderScope renderScope, Mesh mesh, int subMeshIndex = 0)
+    public static uint SetMesh(this GPUCommandBuffer.RenderPass renderPass, Mesh mesh, int subMeshIndex = 0)
     {
         SubMeshData subMeshData = mesh.GetSubMesh(subMeshIndex);
-        renderScope.SetVertexBuffer(0, mesh.VertexBuffer, subMeshData.VertexOffset, subMeshData.VertexSize);
-        renderScope.SetIndexBuffer(mesh.IndexBuffer, subMeshData.IndexFormat, subMeshData.IndexOffset, subMeshData.IndexSize);
+        renderPass.SetVertexBuffer(0, mesh.VertexBuffer, subMeshData.VertexOffset, subMeshData.VertexSize);
+        renderPass.SetIndexBuffer(mesh.IndexBuffer, subMeshData.IndexFormat, subMeshData.IndexOffset, subMeshData.IndexSize);
         return subMeshData.IndexCount;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetGraphicsPipeline(this GPUCommandBuffer.RenderScope renderScope, GraphicsPipelineContext pipelineInfo)
+    public static void SetGraphicsPipeline(this GPUCommandBuffer.RenderPass renderPass, GraphicsPipelineContext pipelineInfo)
     {
-        renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline!);
+        renderPass.SetGraphicsPipeline(pipelineInfo.Pipeline!);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

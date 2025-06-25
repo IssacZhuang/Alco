@@ -362,7 +362,7 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="commandBuffer">The command buffer to set the resources.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public abstract void PushResources(GPUCommandBuffer.RenderScope commandBuffer);
+    public abstract void PushResources(GPUCommandBuffer.RenderPass commandBuffer);
 
     /// <summary>
     /// Set the resources to the render bundle.

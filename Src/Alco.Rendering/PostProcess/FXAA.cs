@@ -171,21 +171,21 @@ public class FXAA : PostProcess
         // _commandFXAA.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
         // _commandFXAA.DrawIndexed(indexCount, 1, 0, 0, 0);
 
-        using (var renderScope = _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
+        using (var renderPass = _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
         {
-            renderScope.SetGraphicsPipeline(_fxaaPipelineInfo.Pipeline!);
-            uint indexCount = renderScope.SetMesh(fullScreenMesh);
-            renderScope.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
-            renderScope.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
-            renderScope.DrawIndexed(indexCount, 1, 0, 0, 0);
+            renderPass.SetGraphicsPipeline(_fxaaPipelineInfo.Pipeline!);
+            uint indexCount = renderPass.SetMesh(fullScreenMesh);
+            renderPass.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
+            renderPass.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
-        using (var renderScope = _commandFXAA.BeginRender(target))
+        using (var renderPass = _commandFXAA.BeginRender(target))
         {
-            renderScope.SetGraphicsPipeline(_blitPipelineInfo.Pipeline!);
-            uint indexCount = renderScope.SetMesh(fullScreenMesh);
-            renderScope.SetGraphicsResources(_blitShaderId_texture, _intermediateTexture.ColorTextures[0].EntrySample);
-            renderScope.DrawIndexed(indexCount, 1, 0, 0, 0);
+            renderPass.SetGraphicsPipeline(_blitPipelineInfo.Pipeline!);
+            uint indexCount = renderPass.SetMesh(fullScreenMesh);
+            renderPass.SetGraphicsResources(_blitShaderId_texture, _intermediateTexture.ColorTextures[0].EntrySample);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
         _commandFXAA.End();

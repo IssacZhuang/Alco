@@ -95,23 +95,23 @@ public class Game : GameEngine
         //_iterationBuffer.Value = 16;
         _commandBuffer.Begin();
 
-        using (var computeScope = _commandBuffer.BeginCompute())
+        using (var computePass = _commandBuffer.BeginCompute())
         {
-            computeScope.SetComputePipeline(_computePipeline);
-            computeScope.SetComputeResources(0, _image.EntryReadonly);
-            computeScope.SetComputeResources(1, _renderTarget.EntryWriteable);
-            computeScope.SetComputeResources(2, _iterationBuffer.EntryReadonly);
-            computeScope.DispatchCompute(_image.Width / 8, _image.Height / 8, 1);
+            computePass.SetComputePipeline(_computePipeline);
+            computePass.SetComputeResources(0, _image.EntryReadonly);
+            computePass.SetComputeResources(1, _renderTarget.EntryWriteable);
+            computePass.SetComputeResources(2, _iterationBuffer.EntryReadonly);
+            computePass.DispatchCompute(_image.Width / 8, _image.Height / 8, 1);
         }
 
-        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderScope.SetGraphicsPipeline(_graphicsPipeline);
-            renderScope.SetVertexBuffer(0, _vertexBuffer);
-            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderScope.SetGraphicsResources(0, _resourceGroupBuffer);
-            renderScope.SetGraphicsResources(1, _renderTarget.EntrySample);
-            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderPass.SetGraphicsPipeline(_graphicsPipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetGraphicsResources(0, _resourceGroupBuffer);
+            renderPass.SetGraphicsResources(1, _renderTarget.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
 
         _commandBuffer.End();

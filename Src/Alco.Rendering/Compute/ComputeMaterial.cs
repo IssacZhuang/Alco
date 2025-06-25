@@ -75,7 +75,7 @@ public class ComputeMaterial
         _parameterSet = new ShaderParameterSet(_pipelineContext.ReflectionInfo!);
     }
 
-    private void SetPipelineResources(GPUCommandBuffer.ComputeScope computeScope)
+    private void SetPipelineResources(GPUCommandBuffer.ComputePass computePass)
     {
 
         if (_shader.TryUpdateComputePipelineContext(ref _pipelineContext, _isPipelineDirty))
@@ -84,7 +84,7 @@ public class ComputeMaterial
             _isPipelineDirty = false;
         }
 
-        computeScope.SetComputePipeline(_pipelineContext.Pipeline!);
+        computePass.SetComputePipeline(_pipelineContext.Pipeline!);
 
         int length = ResourceGroupCount;
         for (int i = 0; i < length; i++)
@@ -92,7 +92,7 @@ public class ComputeMaterial
             GPUResourceGroup? resourceGroup = this[i];
             if (resourceGroup != null)
             {
-                computeScope.SetComputeResources((uint)i, resourceGroup);
+                computePass.SetComputeResources((uint)i, resourceGroup);
             }
             else
             {
@@ -111,14 +111,14 @@ public class ComputeMaterial
     /// <param name="z">The number of thread groups in the Z dimension.</param>
     /// <exception cref="InvalidOperationException">Thrown when the command buffer is not in recording state or when a required resource group is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when any of the dispatch dimensions is zero.</exception>
-    public void DispatchByGroup(GPUCommandBuffer.ComputeScope computeScope, uint x, uint y, uint z)
+    public void DispatchByGroup(GPUCommandBuffer.ComputePass computePass, uint x, uint y, uint z)
     {
         if (x <= 0 || y <= 0 || z <= 0)
         {
             throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
         }
-        SetPipelineResources(computeScope);
-        computeScope.DispatchCompute(x, y, z);
+        SetPipelineResources(computePass);
+        computePass.DispatchCompute(x, y, z);
     }
 
     /// <summary>
@@ -130,15 +130,15 @@ public class ComputeMaterial
     /// <param name="z">The number of thread groups in the Z dimension.</param>
     /// <param name="constant">The constant to push to the compute shader.</param>
     /// <typeparam name="T"></typeparam>
-    public void DispatchByGroupWithConstant<T>(GPUCommandBuffer.ComputeScope computeScope, uint x, uint y, uint z, T constant) where T : unmanaged
+    public void DispatchByGroupWithConstant<T>(GPUCommandBuffer.ComputePass computePass, uint x, uint y, uint z, T constant) where T : unmanaged
     {
         if (x <= 0 || y <= 0 || z <= 0)
         {
             throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
         }
-        SetPipelineResources(computeScope);
-        computeScope.PushComputeConstants(constant);
-        computeScope.DispatchCompute(x, y, z);
+        SetPipelineResources(computePass);
+        computePass.PushComputeConstants(constant);
+        computePass.DispatchCompute(x, y, z);
     }
 
     /// <summary>
@@ -151,16 +151,16 @@ public class ComputeMaterial
     /// <param name="z">The z size of the dispatch.</param>
     /// <exception cref="InvalidOperationException">Thrown when the command buffer is not in recording state or when a required resource group is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when any of the dispatch dimensions is zero.</exception>
-    public void DispatchBySize(GPUCommandBuffer.ComputeScope computeScope, uint x, uint y, uint z)
+    public void DispatchBySize(GPUCommandBuffer.ComputePass computePass, uint x, uint y, uint z)
     {
         if (x <= 0 || y <= 0 || z <= 0)
         {
             throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
         }
-        SetPipelineResources(computeScope);
+        SetPipelineResources(computePass);
         ThreadGroupSize threadGroupSize = _parameterSet.ReflectionInfo.Size;
         threadGroupSize.GetDispatchCount(x, y, z, out uint groupX, out uint groupY, out uint groupZ);
-        computeScope.DispatchCompute(groupX, groupY, groupZ);
+        computePass.DispatchCompute(groupX, groupY, groupZ);
     }
 
     /// <summary>
@@ -173,17 +173,17 @@ public class ComputeMaterial
     /// <param name="z">The z size of the dispatch.</param>
     /// <param name="constant">The constant to push to the compute shader.</param>
     /// <typeparam name="T"></typeparam>
-    public void DispatchBySizeWithConstant<T>(GPUCommandBuffer.ComputeScope computeScope, uint x, uint y, uint z, T constant) where T : unmanaged
+    public void DispatchBySizeWithConstant<T>(GPUCommandBuffer.ComputePass computePass, uint x, uint y, uint z, T constant) where T : unmanaged
     {
         if (x <= 0 || y <= 0 || z <= 0)
         {
             throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
         }
-        SetPipelineResources(computeScope);
-        computeScope.PushComputeConstants(constant);
+        SetPipelineResources(computePass);
+        computePass.PushComputeConstants(constant);
         ThreadGroupSize threadGroupSize = _parameterSet.ReflectionInfo.Size;
         threadGroupSize.GetDispatchCount(x, y, z, out uint groupX, out uint groupY, out uint groupZ);
-        computeScope.DispatchCompute(groupX, groupY, groupZ);
+        computePass.DispatchCompute(groupX, groupY, groupZ);
     }
 
 

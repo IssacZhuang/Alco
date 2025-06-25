@@ -133,7 +133,7 @@ public unsafe partial class GPUSurfaceView : NativeControlHost, IEngineSystem
     protected virtual void OnRender(GPUFrameBuffer frameBuffer, float deltaTime)
     {
         _commandBuffer.Begin();
-        using (var renderScope = _commandBuffer.BeginRender(frameBuffer, new ColorFloat(0, 0, 0, 1)))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer, new ColorFloat(0, 0, 0, 1)))
         {
             // Clear color is handled by BeginRender parameter
         }

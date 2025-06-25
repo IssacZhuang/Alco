@@ -17,11 +17,11 @@ public sealed class GraphicsMaterial : Material
     }
 
     /// <inheritdoc/>
-    public override void PushResources(GPUCommandBuffer.RenderScope renderScope)
+    public override void PushResources(GPUCommandBuffer.RenderPass renderPass)
     {
         if (StencilReference.HasValue)
         {
-            renderScope.SetStencilReference(StencilReference.Value);
+            renderPass.SetStencilReference(StencilReference.Value);
         }
         
         ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
@@ -30,7 +30,7 @@ public sealed class GraphicsMaterial : Material
             GPUResourceGroup? resource = resources[(int)i];
             if (resource != null)
             {
-                renderScope.SetGraphicsResources(i, resource);
+                renderPass.SetGraphicsResources(i, resource);
             }else{
                 throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
             }

@@ -87,14 +87,14 @@ public class Game : GameEngine
         _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.AttachmentLayout);
 
         _commandBuffer.Begin();
-        using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderScope.SetGraphicsPipeline(_pipelineInfo);
-            renderScope.SetVertexBuffer(0, _vertexBuffer);
-            renderScope.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderScope.SetGraphicsResources(0, _resourceGroupBuffer);
-            renderScope.SetGraphicsResources(1, _selected.EntrySample);
-            renderScope.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            renderPass.SetGraphicsPipeline(_pipelineInfo);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetGraphicsResources(0, _resourceGroupBuffer);
+            renderPass.SetGraphicsResources(1, _selected.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);

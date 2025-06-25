@@ -29,7 +29,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
     private uint _indexCount;
 
     private GraphicsPipelineContext _pipelineInfo;
-    private GPUCommandBuffer.RenderScope _renderScope;
+    private GPUCommandBuffer.RenderPass _renderPass;
 
     private uint _shaderId_camera;
     private uint _shaderId_texture;
@@ -64,15 +64,15 @@ internal sealed class OldSpriteRenderer : AutoDisposable
         }
 
         _command.Begin();
-        _renderScope = _command.BeginRender(target);
-        _renderScope.SetGraphicsPipeline(_pipelineInfo);
-        _renderScope.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-        _indexCount = _renderScope.SetMesh(_mesh);
+        _renderPass = _command.BeginRender(target);
+        _renderPass.SetGraphicsPipeline(_pipelineInfo);
+        _renderPass.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
+        _indexCount = _renderPass.SetMesh(_mesh);
     }
 
     public void End()
     {
-        _renderScope.Dispose();
+        _renderPass.Dispose();
         _command.End();
         _device.Submit(_command);
     }
@@ -165,9 +165,9 @@ internal sealed class OldSpriteRenderer : AutoDisposable
             UvRect = uvRect
         };
 
-        _renderScope.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
-        _renderScope.PushGraphicsConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
-        _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
+        _renderPass.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
+        _renderPass.PushGraphicsConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _renderPass.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
     protected override void Dispose(bool disposing)

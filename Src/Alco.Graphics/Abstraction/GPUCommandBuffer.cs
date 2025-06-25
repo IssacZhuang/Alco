@@ -8,11 +8,11 @@ namespace Alco.Graphics;
 /// </summary> 
 public abstract class GPUCommandBuffer : BaseGPUObject
 {
-    public readonly struct RenderScope : IDisposable
+    public readonly struct RenderPass : IDisposable
     {
         private readonly GPUCommandBuffer _commandBuffer;
 
-        internal RenderScope(GPUCommandBuffer commandBuffer)
+        internal RenderPass(GPUCommandBuffer commandBuffer)
         {
             _commandBuffer = commandBuffer;
         }
@@ -20,77 +20,77 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetScissorRect(uint x, uint y, uint width, uint height)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while SetScissorRect, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetScissorRect, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetScissorRectCore(x, y, width, height);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetGraphicsPipeline(GPUPipeline pipeline)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while SetGraphicsPipeline, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetGraphicsPipeline, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetGraphicsPipelineCore(pipeline);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetStencilReference(uint value)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while SetStencilReference, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetStencilReference, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetStencilReferenceCore(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while SetGraphicsResources, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetGraphicsResources, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetGraphicsResourcesCore(slot, resourceGroup);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetVertexBufferCore(slot, buffer, offset, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetIndexBufferCore(buffer, format, offset, size);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while Draw, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while Draw, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.DrawCore(vertexCount, instanceCount, firstVertex, firstInstance);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.DrawIndexedCore(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DrawIndirect(GPUBuffer indirectBuffer, uint offset)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.DrawIndirectCore(indirectBuffer, offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.DrawIndexedIndirectCore(indirectBuffer, offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while PushGraphicsConstants, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while PushGraphicsConstants, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.PushGraphicsConstantsCore(stage, bufferOffset, data, size);
         }
 
@@ -122,14 +122,14 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteBundle(GPURenderBundle bundle)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while ExecuteBundle, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while ExecuteBundle, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.ExecuteBundleCore(bundle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteBundle(ReadOnlySpan<GPURenderBundle> bundles)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render scope is not recording while ExecuteBundle, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while ExecuteBundle, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.ExecuteBundleCore(bundles);
         }
 
@@ -140,11 +140,11 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
     }
 
-    public readonly struct ComputeScope : IDisposable
+    public readonly struct ComputePass : IDisposable
     {
         private readonly GPUCommandBuffer _commandBuffer;
 
-        internal ComputeScope(GPUCommandBuffer commandBuffer)
+        internal ComputePass(GPUCommandBuffer commandBuffer)
         {
             _commandBuffer = commandBuffer;
         }
@@ -152,35 +152,35 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetComputePipeline(GPUPipeline pipeline)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute scope is not recording while SetComputePipeline, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while SetComputePipeline, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.SetComputePipelineCore(pipeline);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute scope is not recording while SetComputeResources, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while SetComputeResources, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.SetComputeResourcesCore(slot, resourceGroup);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DispatchCompute(uint x, uint y, uint z)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute scope is not recording while DispatchCompute, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while DispatchCompute, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.DispatchComputeCore(x, y, z);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DispatchComputeIndirect(GPUBuffer indirectBuffer, uint offset)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute scope is not recording while DispatchComputeIndirect, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while DispatchComputeIndirect, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.DispatchComputeIndirectCore(indirectBuffer, offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe void PushComputeConstants(uint bufferOffset, byte* data, uint size)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute scope is not recording while PushComputeConstants, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while PushComputeConstants, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.PushComputeConstantsCore(bufferOffset, data, size);
         }
 
@@ -237,7 +237,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         _isRecording = false;
     }
 
-    public RenderScope BeginRender(
+    public RenderPass BeginRender(
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
         float? clearDepth = null,
@@ -246,20 +246,20 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     {
         if (_isRecordingRender)
         {
-            throw new InvalidOperationException("Render scope is already recording, try end current render scope before starting a new one");
+            throw new InvalidOperationException("Render pass is already recording, try end current Render pass before starting a new one");
         }
 
         if (_isRecordingCompute)
         {
-            throw new InvalidOperationException("Compute scope is already recording, try end current compute scope before starting a new one");
+            throw new InvalidOperationException("Compute pass is already recording, try end current Compute pass before starting a new one");
         }
 
         BeginRenderCore(frameBuffer, clearColors, clearDepth, clearStencil);
         _isRecordingRender = true;
-        return new RenderScope(this);
+        return new RenderPass(this);
     }
 
-    public RenderScope BeginRender(
+    public RenderPass BeginRender(
         GPUFrameBuffer frameBuffer,
         Vector4 clearColor,
         float? clearDepth = null,
@@ -268,42 +268,42 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     {
         if (_isRecordingRender)
         {
-            throw new InvalidOperationException("Render scope is already recording, try end current render scope before starting a new one");
+            throw new InvalidOperationException("Render pass is already recording, try end current Render pass before starting a new one");
         }
 
         if (_isRecordingCompute)
         {
-            throw new InvalidOperationException("Compute scope is already recording, try end current compute scope before starting a new one");
+            throw new InvalidOperationException("Compute pass is already recording, try end current Compute pass before starting a new one");
         }
 
         ReadOnlySpan<ClearColorData> clearColorsSpan = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
         BeginRenderCore(frameBuffer, clearColorsSpan, clearDepth, clearStencil);
         _isRecordingRender = true;
-        return new RenderScope(this);
+        return new RenderPass(this);
     }
 
-    public RenderScope BeginRender(
+    public RenderPass BeginRender(
         GPUFrameBuffer frameBuffer
         )
     {
         return BeginRender(frameBuffer, ReadOnlySpan<ClearColorData>.Empty, null, null);
     }
 
-    public ComputeScope BeginCompute()
+    public ComputePass BeginCompute()
     {
         if (_isRecordingRender)
         {
-            throw new InvalidOperationException("Render scope is already recording, try end current render scope before starting a new one");
+            throw new InvalidOperationException("Render pass is already recording, try end current Render pass before starting a new one");
         }
 
         if (_isRecordingCompute)
         {
-            throw new InvalidOperationException("Compute scope is already recording, try end current compute scope before starting a new one");
+            throw new InvalidOperationException("Compute pass is already recording, try end current Compute pass before starting a new one");
         }
 
         BeginComputeCore();
         _isRecordingCompute = true;
-        return new ComputeScope(this);
+        return new ComputePass(this);
     }
 
 

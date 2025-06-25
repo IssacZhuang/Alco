@@ -108,7 +108,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     public override void OnBeginFrame(float deltaTime)
     {
         _command.Begin();
-        using (var renderScope = _command.BeginRender(_renderTexture.FrameBuffer, ColorFloat.Black, 1f, 0))
+        using (var renderPass = _command.BeginRender(_renderTexture.FrameBuffer, ColorFloat.Black, 1f, 0))
         {
         }
         _command.End();

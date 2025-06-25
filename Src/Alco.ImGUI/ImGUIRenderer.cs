@@ -145,12 +145,12 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _commandBuffer.Begin();
 
-        using (var scope = _commandBuffer.BeginRender(_target))
+        using (var renderPass = _commandBuffer.BeginRender(_target))
         {
-            scope.SetGraphicsPipeline(pipelineInfo.Pipeline);
-            scope.SetVertexBuffer(0, _mesh.VertexBuffer);
-            scope.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
-            _material.PushResources(scope);
+            renderPass.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            renderPass.SetVertexBuffer(0, _mesh.VertexBuffer);
+            renderPass.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
+            _material.PushResources(renderPass);
 
             uint vertexOffset = 0;
             uint indexOffset = 0;
@@ -166,23 +166,23 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
                     if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
                     {
-                        scope.SetGraphicsResources(_shaderId_Texture, texture.EntrySample);
+                        renderPass.SetGraphicsResources(_shaderId_Texture, texture.EntrySample);
                     }
                     else
                     {
-                        scope.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
+                        renderPass.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
                     }
 
                     Vector4 clipRect = cmd.ClipRect;
 
-                    scope.SetScissorRect(
+                    renderPass.SetScissorRect(
                         (uint)clipRect.X,
                         (uint)clipRect.Y,
                         (uint)(clipRect.Z - clipRect.X),
                         (uint)(clipRect.W - clipRect.Y));
 
 
-                    scope.DrawIndexed(cmd.ElemCount, 1, cmd.IdxOffset + indexOffset, (int)(cmd.VtxOffset + vertexOffset), 0);
+                    renderPass.DrawIndexed(cmd.ElemCount, 1, cmd.IdxOffset + indexOffset, (int)(cmd.VtxOffset + vertexOffset), 0);
                 }
 
                 indexOffset += (uint)cmdList.IdxBuffer.Size;

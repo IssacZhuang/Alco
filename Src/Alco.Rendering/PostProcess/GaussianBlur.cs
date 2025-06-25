@@ -85,10 +85,10 @@ public class GaussianBlur : AutoDisposable
 
         _command.Begin();
 
-        using (var computeScope = _command.BeginCompute())
+        using (var computePass = _command.BeginCompute())
         {
             _material.DispatchBySizeWithConstant(
-                computeScope,
+                computePass,
                 input.Width,
                 input.Height,
                 1,

@@ -29,12 +29,12 @@ public sealed class MaterialInstance : Material
             );
     }
 
-    public override void PushResources(GPUCommandBuffer.RenderScope renderScope)
+    public override void PushResources(GPUCommandBuffer.RenderPass renderPass)
     {
         if(StencilReference.HasValue){
-            renderScope.SetStencilReference(StencilReference.Value);
+            renderPass.SetStencilReference(StencilReference.Value);
         }else if(_parent.StencilReference.HasValue){
-            renderScope.SetStencilReference(_parent.StencilReference.Value);
+            renderPass.SetStencilReference(_parent.StencilReference.Value);
         }
 
         int length = ResourceGroupCount;
@@ -44,7 +44,7 @@ public sealed class MaterialInstance : Material
             GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
             if (resourceGroup != null)
             {
-                renderScope.SetGraphicsResources(i, resourceGroup);
+                renderPass.SetGraphicsResources(i, resourceGroup);
                 continue;
             }
 

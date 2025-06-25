@@ -14,7 +14,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
-    private GPUCommandBuffer.RenderScope _renderScope;
+    private GPUCommandBuffer.RenderPass _renderScope;
     private readonly List<ICommandListener> _listeners;
     private readonly List<Exception> _exceptionsBegin;
     private readonly List<Exception> _exceptionsEnd;

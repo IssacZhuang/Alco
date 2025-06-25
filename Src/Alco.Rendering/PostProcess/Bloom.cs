@@ -163,52 +163,52 @@ public class Bloom : PostProcess
         //clamp
         Vector2 invFrameSize;// = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
         //down sample
-        using (var scope = _command.BeginRender(clampFrame.FrameBuffer))
+        using (var renderPass = _command.BeginRender(clampFrame.FrameBuffer))
         {
-            scope.SetGraphicsPipeline(_clampPipelineInfo);
-            uint indexCount = scope.SetMesh(mesh);
-            scope.SetGraphicsResources(_clampShaderId_texture, _input!.ColorTextures[0].EntrySample);
-            scope.SetGraphicsResources(_clampShaderId_data, _clampShaderData.EntryReadonly);
-            scope.DrawIndexed(indexCount, 1, 0, 0, 0);
+            renderPass.SetGraphicsPipeline(_clampPipelineInfo);
+            uint indexCount = renderPass.SetMesh(mesh);
+            renderPass.SetGraphicsResources(_clampShaderId_texture, _input!.ColorTextures[0].EntrySample);
+            renderPass.SetGraphicsResources(_clampShaderId_data, _clampShaderData.EntryReadonly);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
         for (int i = 1; i < _downSampleTextures!.Length; i++)
         {
             RenderTexture downSampleFrame = _downSampleTextures[i];
             invFrameSize = new Vector2(1f) / new Vector2(downSampleFrame.Width, downSampleFrame.Height);
-            using (var scope = _command.BeginRender(downSampleFrame.FrameBuffer))
+            using (var renderPass = _command.BeginRender(downSampleFrame.FrameBuffer))
             {
-                scope.SetGraphicsPipeline(_downSamplePipelineInfo);
-                uint indexCount = scope.SetMesh(mesh);
-                scope.SetGraphicsResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].ColorTextures[0].EntrySample);
-                scope.PushGraphicsConstants(ShaderStage.Fragment, invFrameSize);
-                scope.DrawIndexed(indexCount, 1, 0, 0, 0);
+                renderPass.SetGraphicsPipeline(_downSamplePipelineInfo);
+                uint indexCount = renderPass.SetMesh(mesh);
+                renderPass.SetGraphicsResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].ColorTextures[0].EntrySample);
+                renderPass.PushGraphicsConstants(ShaderStage.Fragment, invFrameSize);
+                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
         }
 
 
         //up sample
 
-        using (var scope = _command.BeginRender(_upSampleTextures![0].FrameBuffer))
+        using (var renderPass = _command.BeginRender(_upSampleTextures![0].FrameBuffer))
         {
-            scope.SetGraphicsPipeline(_upSamplePipelineInfo);
-            uint indexCount = scope.SetMesh(mesh);
-            scope.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1].ColorTextures[0].EntrySample);
-            scope.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - 2].ColorTextures[0].EntrySample);
-            scope.DrawIndexed(indexCount, 1, 0, 0, 0);
+            renderPass.SetGraphicsPipeline(_upSamplePipelineInfo);
+            uint indexCount = renderPass.SetMesh(mesh);
+            renderPass.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1].ColorTextures[0].EntrySample);
+            renderPass.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - 2].ColorTextures[0].EntrySample);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
         
 
 
         for (int i = 1; i < _upSampleTextures!.Length; i++)
         {
-            using (var scope = _command.BeginRender(_upSampleTextures[i].FrameBuffer))
+            using (var renderPass = _command.BeginRender(_upSampleTextures[i].FrameBuffer))
             {
-                scope.SetGraphicsPipeline(_upSamplePipelineInfo);
-                uint indexCount = scope.SetMesh(mesh);
-                scope.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleTextures![i - 1].ColorTextures[0].EntrySample);
-                scope.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - i - 2].ColorTextures[0].EntrySample);
-                scope.DrawIndexed(indexCount, 1, 0, 0, 0);
+                renderPass.SetGraphicsPipeline(_upSamplePipelineInfo);
+                uint indexCount = renderPass.SetMesh(mesh);
+                renderPass.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleTextures![i - 1].ColorTextures[0].EntrySample);
+                renderPass.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - i - 2].ColorTextures[0].EntrySample);
+                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
         }
 
@@ -219,11 +219,11 @@ public class Bloom : PostProcess
         }
 
         //blit
-        using (var scope = _command.BeginRender(target)){
-            scope.SetGraphicsPipeline(_blitPipelineInfo);
-            uint indexCount = scope.SetMesh(mesh);
-            scope.SetGraphicsResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
-            scope.DrawIndexed(indexCount, 1, 0, 0, 0);
+        using (var renderPass = _command.BeginRender(target)){
+            renderPass.SetGraphicsPipeline(_blitPipelineInfo);
+            uint indexCount = renderPass.SetMesh(mesh);
+            renderPass.SetGraphicsResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
         _command.End();
