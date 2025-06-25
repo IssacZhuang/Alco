@@ -243,6 +243,29 @@ public abstract class GPUCommandBuffer : BaseGPUObject, IGPUGraphicsCommandRecor
     }
 
     public RenderScope BeginRender(
+        GPUFrameBuffer frameBuffer,
+        Vector4 clearColor,
+        float? clearDepth = null,
+        uint? clearStencil = null
+        )
+    {
+        if (_isRecordingRender)
+        {
+            throw new InvalidOperationException("Render scope is already recording, try end current render scope before starting a new one");
+        }
+
+        if (_isRecordingCompute)
+        {
+            throw new InvalidOperationException("Compute scope is already recording, try end current compute scope before starting a new one");
+        }
+
+        ReadOnlySpan<ClearColorData> clearColorsSpan = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
+        BeginRenderCore(frameBuffer, clearColorsSpan, clearDepth, clearStencil);
+        _isRecordingRender = true;
+        return new RenderScope(this);
+    }
+
+    public RenderScope BeginRender(
         GPUFrameBuffer frameBuffer
         )
     {

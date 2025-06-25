@@ -99,24 +99,47 @@ public sealed class TextureAtlasPacker: AutoDisposable
         Transform2D transform = Transform2D.Identity;
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(atlasTexture);
-        _commandBuffer.ClearColor(ColorFloat.Black);
-        _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        uint indexCount = _commandBuffer.SetMesh(mesh);
+    
+        // _commandBuffer.SetFrameBuffer(atlasTexture);
+        // _commandBuffer.ClearColor(ColorFloat.Black);
+        // _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        // uint indexCount = _commandBuffer.SetMesh(mesh);
 
-        _commandBuffer.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
+        // _commandBuffer.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
 
-        for (int i = 0; i < _packer.Count; i++)
+        // for (int i = 0; i < _packer.Count; i++)
+        // {
+        //     var item = _packer.GetRect(i);
+        //     transform.Position = item.Rect.Center;
+        //     transform.Position.Y = -transform.Position.Y;//the rect packer is start from top left
+        //     transform.Scale = item.Rect.Size;
+        //     constant.Model = transform.Matrix;
+
+        //     _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
+        //     _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        //     _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
+        // }
+
+        using (var renderScope = _commandBuffer.BeginRender(atlasTexture.FrameBuffer, [new ClearColorData(0, ColorFloat.Black)]))
         {
-            var item = _packer.GetRect(i);
-            transform.Position = item.Rect.Center;
-            transform.Position.Y = -transform.Position.Y;//the rect packer is start from top left
-            transform.Scale = item.Rect.Size;
-            constant.Model = transform.Matrix;
+            renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            uint indexCount = renderScope.SetMesh(mesh);
 
-            _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
-            _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
-            _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
+            renderScope.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
+
+            for (int i = 0; i < _packer.Count; i++)
+            {
+                var item = _packer.GetRect(i);
+                transform.Position = item.Rect.Center;
+                transform.Position.Y = -transform.Position.Y;//the rect packer is start from top left
+                transform.Scale = item.Rect.Size;
+                constant.Model = transform.Matrix;
+
+                renderScope.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
+                renderScope.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+                renderScope.DrawIndexed(indexCount, 1, 0, 0, 0);
+            }
+
         }
 
         _commandBuffer.End();

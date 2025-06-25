@@ -108,10 +108,9 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     public override void OnBeginFrame(float deltaTime)
     {
         _command.Begin();
-        _command.SetFrameBuffer(_renderTexture.FrameBuffer);
-        _command.ClearColor(new ColorFloat(0, 0, 0, 1));
-        _command.ClearDepth(1f);
-        _command.ClearStencil(0);
+        using (var renderScope = _command.BeginRender(_renderTexture.FrameBuffer, ColorFloat.Black, 1f, 0))
+        {
+        }
         _command.End();
         _rendering.GraphicsDevice.Submit(_command);
     }
