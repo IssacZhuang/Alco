@@ -129,7 +129,12 @@ public sealed class TextureCompressorBC3 : AutoDisposable
         _material.SetTexture(ShaderResourceId.Input, source);
 
         _commandCompress.Begin();
-        _material.DispatchBySizeWithConstant(_commandCompress, blocksX, blocksY, 1, new uint2(blocksX, blocksY));
+
+        using (var computeScope = _commandCompress.BeginCompute())
+        {
+            _material.DispatchBySizeWithConstant(computeScope, blocksX, blocksY, 1, new uint2(blocksX, blocksY));
+        }
+
         _commandCompress.End();
         _device.Submit(_commandCompress);
 

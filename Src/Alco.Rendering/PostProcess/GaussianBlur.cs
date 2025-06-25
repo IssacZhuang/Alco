@@ -84,13 +84,17 @@ public class GaussianBlur : AutoDisposable
         _material.TrySetRenderTexture(ShaderResourceId.Output, output);
 
         _command.Begin();
-        _material.DispatchBySizeWithConstant(
-            _command,
-            input.Width,
-            input.Height,
-            1,
-            constant
-        );
+
+        using (var computeScope = _command.BeginCompute())
+        {
+            _material.DispatchBySizeWithConstant(
+                computeScope,
+                input.Width,
+                input.Height,
+                1,
+                constant
+            );
+        }
         _command.End();
         _device.Submit(_command);
     }
