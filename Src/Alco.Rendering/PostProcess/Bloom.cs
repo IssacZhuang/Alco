@@ -17,9 +17,7 @@ public class Bloom : PostProcess
     public const string ShaderId_currentTexture = "_currentTexture";
 
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _commandDownSample;
-    private readonly GPUCommandBuffer _commandUpSample;
-    private readonly GPUCommandBuffer _commandBlit;
+    private readonly GPUCommandBuffer _command;
     private readonly GPURenderPass _backBufferPass;
     private readonly RenderingSystem _renderingSystem;
 
@@ -86,9 +84,7 @@ public class Bloom : PostProcess
         _upSampleShaderId_previousTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_previousTexture);
         _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
 
-        _commandDownSample = _device.CreateCommandBuffer();
-        _commandUpSample = _device.CreateCommandBuffer();
-        _commandBlit = _device.CreateCommandBuffer();
+        _command = _device.CreateCommandBuffer();
     }
 
     public override void SetInput(RenderTexture input)
@@ -161,13 +157,13 @@ public class Bloom : PostProcess
 
         Mesh mesh = FullScreenMesh;
 
-        _commandDownSample.Begin();
+        _command.Begin();
 
         RenderTexture clampFrame = _downSampleTextures![0];
         //clamp
         Vector2 invFrameSize;// = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
         //down sample
-        using (var scope = _commandDownSample.BeginRender(clampFrame.FrameBuffer))
+        using (var scope = _command.BeginRender(clampFrame.FrameBuffer))
         {
             scope.SetGraphicsPipeline(_clampPipelineInfo);
             uint indexCount = scope.SetMesh(mesh);
@@ -180,7 +176,7 @@ public class Bloom : PostProcess
         {
             RenderTexture downSampleFrame = _downSampleTextures[i];
             invFrameSize = new Vector2(1f) / new Vector2(downSampleFrame.Width, downSampleFrame.Height);
-            using (var scope = _commandDownSample.BeginRender(downSampleFrame.FrameBuffer))
+            using (var scope = _command.BeginRender(downSampleFrame.FrameBuffer))
             {
                 scope.SetGraphicsPipeline(_downSamplePipelineInfo);
                 uint indexCount = scope.SetMesh(mesh);
@@ -190,14 +186,10 @@ public class Bloom : PostProcess
             }
         }
 
-        _commandDownSample.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandDownSample);
 
         //up sample
-        //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames![0].Width, _upSampleFrames![0].Height);
-        _commandUpSample.Begin();
 
-        using (var scope = _commandUpSample.BeginRender(_upSampleTextures![0].FrameBuffer))
+        using (var scope = _command.BeginRender(_upSampleTextures![0].FrameBuffer))
         {
             scope.SetGraphicsPipeline(_upSamplePipelineInfo);
             uint indexCount = scope.SetMesh(mesh);
@@ -210,7 +202,7 @@ public class Bloom : PostProcess
 
         for (int i = 1; i < _upSampleTextures!.Length; i++)
         {
-            using (var scope = _commandUpSample.BeginRender(_upSampleTextures[i].FrameBuffer))
+            using (var scope = _command.BeginRender(_upSampleTextures[i].FrameBuffer))
             {
                 scope.SetGraphicsPipeline(_upSamplePipelineInfo);
                 uint indexCount = scope.SetMesh(mesh);
@@ -220,8 +212,6 @@ public class Bloom : PostProcess
             }
         }
 
-        _commandUpSample.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandUpSample);
 
         if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.RenderPass))
         {
@@ -229,17 +219,15 @@ public class Bloom : PostProcess
         }
 
         //blit
-        _commandBlit.Begin();
-
-        using (var scope = _commandBlit.BeginRender(target)){
+        using (var scope = _command.BeginRender(target)){
             scope.SetGraphicsPipeline(_blitPipelineInfo);
             uint indexCount = scope.SetMesh(mesh);
             scope.SetGraphicsResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
             scope.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
-        _commandBlit.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandBlit);
+        _command.End();
+        _renderingSystem.ScheduleCommandBuffer(_command);
     }
 
     private int GetDownSampleCount(uint height)
@@ -275,9 +263,7 @@ public class Bloom : PostProcess
     protected override void Dispose(bool disposing)
     {
         //dispose non-private managed resources
-        _commandDownSample.Dispose();
-        _commandUpSample.Dispose();
-        _commandBlit.Dispose();
+        _command.Dispose();
         TryDisposeFrames();
     }
 }
