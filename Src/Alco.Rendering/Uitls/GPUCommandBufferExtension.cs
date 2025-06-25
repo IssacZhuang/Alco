@@ -65,6 +65,15 @@ public static class GPUCommandBufferExtension
     {
         renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline!);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static uint SetMesh(this GPURenderBundle command, Mesh mesh, int subMeshIndex = 0)
+    {
+        SubMeshData subMeshData = mesh.GetSubMesh(subMeshIndex);
+        command.SetVertexBuffer(0, mesh.VertexBuffer, subMeshData.VertexOffset, subMeshData.VertexSize);
+        command.SetIndexBuffer(mesh.IndexBuffer, subMeshData.IndexFormat, subMeshData.IndexOffset, subMeshData.IndexSize);
+        return subMeshData.IndexCount;
+    }
     
     
 }

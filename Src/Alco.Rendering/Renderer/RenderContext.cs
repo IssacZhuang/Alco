@@ -14,6 +14,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
+    private GPUCommandBuffer.RenderScope _renderScope;
     private readonly List<ICommandListener> _listeners;
     private readonly List<Exception> _exceptionsBegin;
     private readonly List<Exception> _exceptionsEnd;
@@ -78,34 +79,29 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     /// <param name="target">The framebuffer to render to.</param>
     /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
     public IReadOnlyList<Exception> Begin(
-        GPUFrameBuffer target, 
-        Vector4? clearColor = null,
+        GPUFrameBuffer target,
+        ReadOnlySpan<ClearColorData> clearColors,
         float? clearDepth = null,
         uint? clearStencil = null
         )
     {
         _command.Begin();
-        _command.SetFrameBuffer(target);
-        if (clearColor.HasValue)
-        {
-            _command.ClearColor(clearColor.Value);
-        }
-
-        if (clearDepth.HasValue)
-        {
-            _command.ClearDepth(clearDepth.Value);
-        }
-
-        if (clearStencil.HasValue)
-        {
-            _command.ClearStencil(clearStencil.Value);
-        }
+        _renderScope = _command.BeginRender(target, clearColors, clearDepth, clearStencil);
 
         _framebuffer = target;
 
         ClearCache();
 
         return InvokeBegin();
+    }
+
+    public IReadOnlyList<Exception> Begin(
+        GPUFrameBuffer target,
+        float? clearDepth = null,
+        uint? clearStencil = null
+        )
+    {
+        return Begin(target, ReadOnlySpan<ClearColorData>.Empty, clearDepth, clearStencil);
     }
 
     /// <summary>
@@ -118,10 +114,10 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
-        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToCommandBuffer(_command);
-        _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
+        material.PushResources(_renderScope);
+        _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
 
@@ -142,11 +138,11 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         // {
         //     throw new ArgumentException("The size of the constant does not match the push constants size");
         // }
-        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToCommandBuffer(_command);
-        _command.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
-        _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
+        material.PushResources(_renderScope);
+        _renderScope.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
 
@@ -161,10 +157,10 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
-        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToCommandBuffer(_command);
-        _command.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
+        material.PushResources(_renderScope);
+        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
     }
 
 
@@ -198,11 +194,11 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.RenderPass);
-        _command.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToCommandBuffer(_command);
-        _command.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
-        _command.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
+        material.PushResources(_renderScope);
+        _renderScope.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
 
@@ -218,7 +214,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
             throw new InvalidOperationException("The render bundle of SubRenderContext is not been recorded, try use RenderContext.Begin(GPURenderPass) to record render commands.");
         }
 
-        _command.ExecuteBundle(renderBundle);
+        _renderScope.ExecuteBundle(renderBundle);
         // the binding of vertex buffer and index buffer will be reset after executing the bundle
         // so we need to clear the cache to rebind the vertex buffer and index buffer
         ClearCache();
@@ -232,6 +228,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         var exceptions = InvokeEnd();
 
+        _renderScope.Dispose();
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);
         ClearCache();
@@ -252,7 +249,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _subMeshIndex = subMeshIndex;
         _meshVersion = mesh.Version;
 
-        _indexCount = _command.SetMesh(mesh, subMeshIndex);
+        _indexCount = _renderScope.SetMesh(mesh, subMeshIndex);
     }
 
     /// <summary>

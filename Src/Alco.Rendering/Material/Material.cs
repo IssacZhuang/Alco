@@ -362,14 +362,14 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="commandBuffer">The command buffer to set the resources.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public abstract void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer);
+    public abstract void PushResources(GPUCommandBuffer.RenderScope commandBuffer);
 
     /// <summary>
     /// Set the resources to the render bundle.
     /// </summary>
     /// <param name="renderBundle">The render bundle to set the resources.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public abstract void PushResourceToRenderBundle(GPURenderBundle renderBundle);
+    public abstract void PushResources(GPURenderBundle renderBundle);
 
     /// <summary>
     /// Create a instance of the material. The instance can override part of the parameters of the parent material.

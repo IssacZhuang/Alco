@@ -91,7 +91,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToRenderBundle(_renderBundle);
+        material.PushResources(_renderBundle);
         _renderBundle.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
@@ -107,7 +107,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToRenderBundle(_renderBundle);
+        material.PushResources(_renderBundle);
         _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
     }
 
@@ -141,7 +141,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToRenderBundle(_renderBundle);
+        material.PushResources(_renderBundle);
         _renderBundle.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
         _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
@@ -159,7 +159,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
-        material.PushResourceToRenderBundle(_renderBundle);
+        material.PushResources(_renderBundle);
         _renderBundle.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
         _renderBundle.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }

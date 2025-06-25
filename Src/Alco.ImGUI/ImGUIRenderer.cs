@@ -20,7 +20,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private IntPtr _imGuiContext;
     private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
-    private readonly IntPtr  _fontTextureId = (IntPtr)(-1);
+    private readonly IntPtr _fontTextureId = (IntPtr)(-1);
     private readonly Texture2D _fontTexture;
     private NativeBuffer<byte> _tmpIndexBuffer;
 
@@ -32,7 +32,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _device = renderingSystem.GraphicsDevice;
         _commandBuffer = _device.CreateCommandBuffer($"{name}_command_buffer");
         _mesh = renderingSystem.CreatePrimitiveMesh((uint)sizeof(ImDrawVert) * 64, (uint)sizeof(ushort) * 96, "ImGuiRenderer_mesh");
-        
+
         _viewProjectionBuffer = renderingSystem.CreateGraphicsBuffer((uint)sizeof(Matrix4x4), "ImGuiRenderer_view_projection_buffer");
         _material = material.CreateInstance();
         _material.SetBuffer(ShaderResourceId.Camera, _viewProjectionBuffer);
@@ -43,7 +43,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
 
-        ImGuiIOPtr io = ImGui.GetIO();  
+        ImGuiIOPtr io = ImGui.GetIO();
         io.Fonts.AddFontDefault();
         io.Fonts.Flags |= ImFontAtlasFlags.NoBakedLines;
 
@@ -144,49 +144,52 @@ public unsafe class ImGUIRenderer : AutoDisposable
         ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(_target!.RenderPass);
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(_target);
-        _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        _commandBuffer.SetVertexBuffer(0, _mesh.VertexBuffer);
-        _commandBuffer.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
-        _material.PushResourceToCommandBuffer(_commandBuffer);
 
-        uint vertexOffset = 0;
-        uint indexOffset = 0;
-
-        for (int i = 0; i < drawData.CmdListsCount; i++)
+        using (var scope = _commandBuffer.BeginRender(_target))
         {
-            ImDrawListPtr cmdList = drawData.CmdLists[i];
+            scope.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            scope.SetVertexBuffer(0, _mesh.VertexBuffer);
+            scope.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
+            _material.PushResources(scope);
 
-            for (int j = 0; j < cmdList.CmdBuffer.Size; j++)
+            uint vertexOffset = 0;
+            uint indexOffset = 0;
+
+            for (int i = 0; i < drawData.CmdListsCount; i++)
             {
-                ImDrawCmdPtr cmd = cmdList.CmdBuffer[j];
-                nint textureId = cmd.TextureId;
+                ImDrawListPtr cmdList = drawData.CmdLists[i];
 
-                if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
+                for (int j = 0; j < cmdList.CmdBuffer.Size; j++)
                 {
-                    _commandBuffer.SetGraphicsResources(_shaderId_Texture, texture.EntrySample);
+                    ImDrawCmdPtr cmd = cmdList.CmdBuffer[j];
+                    nint textureId = cmd.TextureId;
+
+                    if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
+                    {
+                        scope.SetGraphicsResources(_shaderId_Texture, texture.EntrySample);
+                    }
+                    else
+                    {
+                        scope.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
+                    }
+
+                    Vector4 clipRect = cmd.ClipRect;
+
+                    scope.SetScissorRect(
+                        (uint)clipRect.X,
+                        (uint)clipRect.Y,
+                        (uint)(clipRect.Z - clipRect.X),
+                        (uint)(clipRect.W - clipRect.Y));
+
+
+                    scope.DrawIndexed(cmd.ElemCount, 1, cmd.IdxOffset + indexOffset, (int)(cmd.VtxOffset + vertexOffset), 0);
                 }
-                else
-                {
-                    _commandBuffer.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
-                }
 
-                Vector4 clipRect = cmd.ClipRect;
-
-                _commandBuffer.SetScissorRect(
-                    (uint)clipRect.X,
-                    (uint)clipRect.Y,
-                    (uint)(clipRect.Z - clipRect.X),
-                    (uint)(clipRect.W - clipRect.Y));
-
-
-                _commandBuffer.DrawIndexed(cmd.ElemCount, 1, cmd.IdxOffset + indexOffset, (int)(cmd.VtxOffset + vertexOffset), 0);
+                indexOffset += (uint)cmdList.IdxBuffer.Size;
+                vertexOffset += (uint)cmdList.VtxBuffer.Size;
             }
 
-            indexOffset += (uint)cmdList.IdxBuffer.Size;
-            vertexOffset += (uint)cmdList.VtxBuffer.Size;
         }
-
 
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
@@ -195,15 +198,17 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _textures.Clear();
     }
 
-    private bool TryGetTexture(IntPtr textureId, [NotNullWhen(true)]out Texture2D? texture)
+    private bool TryGetTexture(IntPtr textureId, [NotNullWhen(true)] out Texture2D? texture)
     {
         texture = null;
-        if(textureId == _fontTextureId){
+        if (textureId == _fontTextureId)
+        {
             texture = _fontTexture;
             return true;
         }
 
-        if(textureId < _textures.Count){
+        if (textureId < _textures.Count)
+        {
             texture = _textures[(int)textureId];
             return true;
         }
@@ -220,7 +225,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
             _commandBuffer.Dispose();
             _viewProjectionBuffer.Dispose();
             _mesh.Dispose();
-            
+
         }
         _tmpIndexBuffer.Dispose();
         ImGui.DestroyContext(_imGuiContext);

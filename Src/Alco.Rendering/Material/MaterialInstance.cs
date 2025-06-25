@@ -29,12 +29,12 @@ public sealed class MaterialInstance : Material
             );
     }
 
-    public override void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    public override void PushResources(GPUCommandBuffer.RenderScope renderScope)
     {
         if(StencilReference.HasValue){
-            commandBuffer.SetStencilReference(StencilReference.Value);
+            renderScope.SetStencilReference(StencilReference.Value);
         }else if(_parent.StencilReference.HasValue){
-            commandBuffer.SetStencilReference(_parent.StencilReference.Value);
+            renderScope.SetStencilReference(_parent.StencilReference.Value);
         }
 
         int length = ResourceGroupCount;
@@ -44,7 +44,7 @@ public sealed class MaterialInstance : Material
             GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
             if (resourceGroup != null)
             {
-                commandBuffer.SetGraphicsResources(i, resourceGroup);
+                renderScope.SetGraphicsResources(i, resourceGroup);
                 continue;
             }
 
@@ -52,7 +52,7 @@ public sealed class MaterialInstance : Material
         }
     }
 
-    public override void PushResourceToRenderBundle(GPURenderBundle renderBundle)
+    public override void PushResources(GPURenderBundle renderBundle)
     {
         // the stencil value is dynamic state which is not supported in render bundle
         // if(StencilReference.HasValue){
