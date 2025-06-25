@@ -108,7 +108,7 @@ public sealed class RenderTexture : AutoDisposable
     }
 
     /// <summary>
-    /// The render pass of the frame buffer.
+    /// The attachment layout of the frame buffer.
     /// </summary>
     public GPUAttachmentLayout AttachmentLayout
     {

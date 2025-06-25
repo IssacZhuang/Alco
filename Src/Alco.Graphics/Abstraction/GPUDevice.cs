@@ -235,10 +235,10 @@ public abstract class GPUDevice
 
 
     /// <summary>
-    /// Creates a GPU render pass with the descriptor.
+    /// Creates a GPU attachment layout with the descriptor.
     /// </summary>
-    /// <param name="descriptor">The descriptor for the GPU render pass.</param>
-    /// <returns>The created GPU render pass.</returns> 
+    /// <param name="descriptor">The descriptor for the GPU attachment layout.</param>
+    /// <returns>The created GPU attachment layout.</returns> 
     public GPUAttachmentLayout CreateAttachmentLayout(in AttachmentLayoutDescriptor descriptor)
     {
         return CreateAttachmentLayoutCore(descriptor);

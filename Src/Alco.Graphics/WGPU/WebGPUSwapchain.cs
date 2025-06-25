@@ -64,7 +64,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
 
         wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
 
-        //create render pass
+        //create attachment layout
         DepthAttachment? depth = null;
         if (descriptor.DepthFormat.HasValue)
         {

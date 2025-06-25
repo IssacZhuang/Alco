@@ -60,7 +60,7 @@ public sealed class Shader : AutoDisposable
     /// <summary>
     /// Gets a graphics pipeline with the specified parameters and shader defines
     /// </summary>
-    /// <param name="attachmentLayout">The render pass configuration</param>
+    /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="depthStencil">The depth stencil state</param>
     /// <param name="blend">The blend state</param>
     /// <param name="rasterizer">The rasterizer state</param>
@@ -94,7 +94,7 @@ public sealed class Shader : AutoDisposable
     /// <summary>
     /// Gets a graphics pipeline with default rasterizer state and triangle list topology
     /// </summary>
-    /// <param name="attachmentLayout">The render pass configuration</param>
+    /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="depthStencil">The depth stencil state</param>
     /// <param name="blend">The blend state</param>
     /// <param name="defines">Optional shader defines to customize compilation</param>
@@ -119,7 +119,7 @@ public sealed class Shader : AutoDisposable
     /// <summary>
     /// Gets a graphics pipeline with default states for depth, blend, rasterizer and topology
     /// </summary>
-    /// <param name="attachmentLayout">The render pass configuration</param>
+    /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="defines">Optional shader defines to customize compilation</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
@@ -138,11 +138,11 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Attempts to update an existing pipeline context with a new render pass
+    /// Attempts to update an existing pipeline context with a new attachment layout
     /// </summary>
     /// <param name="pipelineInfo">The pipeline context to update</param>
-    /// <param name="attachmentLayout">The new render pass configuration</param>
-    /// <param name="forced">Whether to force update even if render pass hasn't changed</param>
+    /// <param name="attachmentLayout">The new attachment layout configuration</param>
+    /// <param name="forced">Whether to force update even if attachment layout hasn't changed</param>
     /// <returns>True if the pipeline was updated, false otherwise</returns>
     public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPUAttachmentLayout attachmentLayout, bool forced = false)
     {
@@ -295,7 +295,7 @@ public sealed class Shader : AutoDisposable
         )
     {
         long hash = default;
-        //fist 32 bits are the render pass hash
+        //fist 32 bits are the attachment layout hash
         int hash1= attachmentLayout.GetHashCode();
 
         //next 32 bits are combination of the variant hash and the pipeline state hash

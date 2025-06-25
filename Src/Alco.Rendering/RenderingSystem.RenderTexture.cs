@@ -7,9 +7,9 @@ namespace Alco.Rendering;
 public partial class RenderingSystem
 {
     /// <summary>
-    /// Create a render texture with the given render pass, width, height and name.
+    /// Create a render texture with the given attachment layout, width, height and name.
     /// </summary>
-    /// <param name="attachmentLayout"> The render pass to create the render texture. </param>
+    /// <param name="attachmentLayout"> The attachment layout to create the render texture. </param>
     /// <param name="width"> The width of the render texture. </param>
     /// <param name="height"> The height of the render texture. </param>
     /// <param name="name"> The name of the render texture. </param>
@@ -31,9 +31,9 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Create a render texture with the given render pass, filter mode, width, height and name.
+    /// Create a render texture with the given attachment layout, filter mode, width, height and name.
     /// </summary>
-    /// <param name="attachmentLayout"> The render pass to create the render texture. </param>
+    /// <param name="attachmentLayout"> The attachment layout to create the render texture. </param>
     /// <param name="filterMode"> The filter mode to use for the sampler. </param>
     /// <param name="width"> The width of the render texture. </param>
     /// <param name="height"> The height of the render texture. </param>
@@ -52,9 +52,9 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Create a render texture with the given render pass, filter mode, address mode, width, height and name.
+    /// Create a render texture with the given attachment layout, filter mode, address mode, width, height and name.
     /// </summary>
-    /// <param name="attachmentLayout"> The render pass to create the render texture. </param>
+    /// <param name="attachmentLayout"> The attachment layout to create the render texture. </param>
     /// <param name="filterMode"> The filter mode to use for the sampler. </param>
     /// <param name="addressMode"> The address mode to use for the sampler. </param>
     /// <param name="width"> The width of the render texture. </param>
@@ -75,9 +75,9 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Create a render texture with the given render pass, sampler, width, height and name.
+    /// Create a render texture with the given attachment layout, sampler, width, height and name.
     /// </summary>
-    /// <param name="attachmentLayout"> The render pass to create the render texture. </param>
+    /// <param name="attachmentLayout"> The attachment layout to create the render texture. </param>
     /// <param name="sampler"> The sampler to use for the render texture. </param>
     /// <param name="width"> The width of the render texture. </param>
     /// <param name="height"> The height of the render texture. </param>

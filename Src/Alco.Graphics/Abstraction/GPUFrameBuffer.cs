@@ -22,7 +22,7 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     /// <summary>
     /// The metadata of the frame buffer which describes the color and depth attachments
     /// </summary>
-    /// <value>The render pass of the frame buffer</value>
+    /// <value>The attachment layout of the frame buffer</value>
     public abstract GPUAttachmentLayout AttachmentLayout { get; }
     /// <summary>
     /// The list of color textures of the frame buffer

@@ -166,7 +166,7 @@ public abstract class Material: AutoDisposable
     /// <summary>
     /// Get the shader pipeline.
     /// </summary>
-    /// <param name="attachmentLayout">The render pass.</param>
+    /// <param name="attachmentLayout">The attachment layout.</param>
     /// <returns>The shader pipeline.</returns>
     public ShaderPipelineInfo GetPipelineInfo(GPUAttachmentLayout attachmentLayout)
     {

@@ -2,7 +2,7 @@ namespace Alco.Graphics;
 
 public struct AttachmentLayoutDescriptor
 {
-    public AttachmentLayoutDescriptor(ColorAttachment[] colors, DepthAttachment? depth, string name = "Unnamed Render Pass")
+    public AttachmentLayoutDescriptor(ColorAttachment[] colors, DepthAttachment? depth, string name = "unnamed_attachment_layout")
     {
         Colors = colors;
         Depth = depth;

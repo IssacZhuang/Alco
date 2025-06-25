@@ -56,7 +56,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <summary>
     /// Begin the sub render context.
     /// </summary>
-    /// <param name="attachmentLayout">The render pass to render to.</param>
+    /// <param name="attachmentLayout">The attachment layout to render to.</param>
     /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
     public IReadOnlyList<Exception> Begin(GPUAttachmentLayout attachmentLayout)
     {

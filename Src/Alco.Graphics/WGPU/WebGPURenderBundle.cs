@@ -95,7 +95,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
         _graphicsPipeline = ((WebGPUGraphicsPipeline)pipeline).Native;
-        //wgpuRenderPassEncoderSetPipeline(_renderPass, _graphicsPipeline);
         wgpuRenderBundleEncoderSetPipeline(_renderBundleEncoder, _graphicsPipeline);
     }
 
@@ -104,7 +103,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ValidateGraphicsPipeline();
 
         WebGPUResourceGroup nativeResourceGroup = (WebGPUResourceGroup)resourceGroup;
-        // wgpuRenderPassEncoderSetBindGroup(_renderPass, slot, nativeResourceGroup.Native, 0, null);
         wgpuRenderBundleEncoderSetBindGroup(_renderBundleEncoder, slot, nativeResourceGroup.Native, 0, null);
     }
 
@@ -113,7 +111,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ValidateGraphicsPipeline();
 
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
-        //wgpuRenderPassEncoderSetVertexBuffer(_renderPass, slot, nativeBuffer.Native, offset, size);
         wgpuRenderBundleEncoderSetVertexBuffer(_renderBundleEncoder, slot, nativeBuffer.Native, offset, size);
     }
 
@@ -122,7 +119,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ValidateGraphicsPipeline();
 
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
-        //wgpuRenderPassEncoderSetIndexBuffer(_renderPass, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
         wgpuRenderBundleEncoderSetIndexBuffer(_renderBundleEncoder, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
     }
 
@@ -130,7 +126,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     {
         ValidateGraphicsPipeline();
 
-        //wgpuRenderPassEncoderDraw(_renderPass, vertexCount, instanceCount, firstVertex, firstInstance);
         wgpuRenderBundleEncoderDraw(_renderBundleEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
@@ -138,7 +133,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     {
         ValidateGraphicsPipeline();
 
-        //wgpuRenderPassEncoderDrawIndexed(_renderPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
         wgpuRenderBundleEncoderDrawIndexed(_renderBundleEncoder, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
@@ -147,7 +141,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ValidateGraphicsPipeline();
 
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)indirectBuffer;
-        //wgpuRenderPassEncoderDrawIndirect(_renderPass, nativeBuffer.Native, offset);
         wgpuRenderBundleEncoderDrawIndirect(_renderBundleEncoder, nativeBuffer.Native, offset);
     }
 
@@ -156,7 +149,6 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ValidateGraphicsPipeline();
 
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)indirectBuffer;
-        //wgpuRenderPassEncoderDrawIndexedIndirect(_renderPass, nativeBuffer.Native, offset);
         wgpuRenderBundleEncoderDrawIndexedIndirect(_renderBundleEncoder, nativeBuffer.Native, offset);
     }
 
