@@ -84,7 +84,7 @@ public class ComputeMaterial
             _isPipelineDirty = false;
         }
 
-        computePass.SetComputePipeline(_pipelineContext.Pipeline!);
+        computePass.SetPipeline(_pipelineContext.Pipeline!);
 
         int length = ResourceGroupCount;
         for (int i = 0; i < length; i++)
@@ -92,7 +92,7 @@ public class ComputeMaterial
             GPUResourceGroup? resourceGroup = this[i];
             if (resourceGroup != null)
             {
-                computePass.SetComputeResources((uint)i, resourceGroup);
+                computePass.SetResources((uint)i, resourceGroup);
             }
             else
             {
@@ -137,7 +137,7 @@ public class ComputeMaterial
             throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
         }
         SetPipelineResources(computePass);
-        computePass.PushComputeConstants(constant);
+        computePass.PushConstants(constant);
         computePass.DispatchCompute(x, y, z);
     }
 
@@ -180,7 +180,7 @@ public class ComputeMaterial
             throw new ArgumentOutOfRangeException($"The dispatch size must be greater than zero: {x}, {y}, {z}");
         }
         SetPipelineResources(computePass);
-        computePass.PushComputeConstants(constant);
+        computePass.PushConstants(constant);
         ThreadGroupSize threadGroupSize = _parameterSet.ReflectionInfo.Size;
         threadGroupSize.GetDispatchCount(x, y, z, out uint groupX, out uint groupY, out uint groupZ);
         computePass.DispatchCompute(groupX, groupY, groupZ);

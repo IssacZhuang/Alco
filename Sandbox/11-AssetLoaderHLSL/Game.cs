@@ -92,8 +92,8 @@ public class Game : GameEngine
             renderPass.SetGraphicsPipeline(_pipelineInfo);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderPass.SetGraphicsResources(0, _resourceGroupBuffer);
-            renderPass.SetGraphicsResources(1, _selected.EntrySample);
+            renderPass.SetResources(0, _resourceGroupBuffer);
+            renderPass.SetResources(1, _selected.EntrySample);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();

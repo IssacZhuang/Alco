@@ -122,10 +122,10 @@ public sealed class TextureAtlasPacker: AutoDisposable
 
         using (var renderPass = _commandBuffer.BeginRender(atlasTexture.FrameBuffer, [new ClearColorData(0, ColorFloat.Black)]))
         {
-            renderPass.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            renderPass.SetPipeline(pipelineInfo.Pipeline);
             uint indexCount = renderPass.SetMesh(mesh);
 
-            renderPass.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
+            renderPass.SetResources(shaderId_camera, _camera.EntryReadonly);
 
             for (int i = 0; i < _packer.Count; i++)
             {
@@ -135,8 +135,8 @@ public sealed class TextureAtlasPacker: AutoDisposable
                 transform.Scale = item.Rect.Size;
                 constant.Model = transform.Matrix;
 
-                renderPass.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
-                renderPass.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+                renderPass.SetResources(shaderId_texture, item.Data.Texture.EntrySample);
+                renderPass.PushConstants(pipelineInfo.PushConstantsStages, constant);
                 renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
 

@@ -147,7 +147,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         using (var renderPass = _commandBuffer.BeginRender(_target))
         {
-            renderPass.SetGraphicsPipeline(pipelineInfo.Pipeline);
+            renderPass.SetPipeline(pipelineInfo.Pipeline);
             renderPass.SetVertexBuffer(0, _mesh.VertexBuffer);
             renderPass.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
             _material.PushResources(renderPass);
@@ -166,11 +166,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
                     if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
                     {
-                        renderPass.SetGraphicsResources(_shaderId_Texture, texture.EntrySample);
+                        renderPass.SetResources(_shaderId_Texture, texture.EntrySample);
                     }
                     else
                     {
-                        renderPass.SetGraphicsResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
+                        renderPass.SetResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
                     }
 
                     Vector4 clipRect = cmd.ClipRect;

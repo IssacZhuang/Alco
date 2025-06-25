@@ -42,7 +42,7 @@ public static class GPUCommandBufferExtension
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetGraphicsPipeline(this GPUCommandBuffer.RenderPass renderPass, GraphicsPipelineContext pipelineInfo)
     {
-        renderPass.SetGraphicsPipeline(pipelineInfo.Pipeline!);
+        renderPass.SetPipeline(pipelineInfo.Pipeline!);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

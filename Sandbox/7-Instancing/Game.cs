@@ -100,14 +100,14 @@ public class Game : GameEngine
         _commandBuffer.Begin();
         using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderPass.SetGraphicsPipeline(_pipeline);
+            renderPass.SetPipeline(_pipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderPass.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
 
-            renderPass.SetGraphicsResources(1, _texWhite.EntrySample);
-            renderPass.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
-            renderPass.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderPass.SetResources(1, _texWhite.EntrySample);
+            renderPass.SetResources(2, _positionsBuffer.EntryReadonly);
+            renderPass.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
         }
         _commandBuffer.End();

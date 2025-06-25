@@ -66,7 +66,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
         _command.Begin();
         _renderPass = _command.BeginRender(target);
         _renderPass.SetGraphicsPipeline(_pipelineInfo);
-        _renderPass.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
+        _renderPass.SetResources(_shaderId_camera, Camera.EntryReadonly);
         _indexCount = _renderPass.SetMesh(_mesh);
     }
 
@@ -165,8 +165,8 @@ internal sealed class OldSpriteRenderer : AutoDisposable
             UvRect = uvRect
         };
 
-        _renderPass.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
-        _renderPass.PushGraphicsConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _renderPass.SetResources(_shaderId_texture, texture.EntrySample);
+        _renderPass.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
         _renderPass.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 

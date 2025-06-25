@@ -173,18 +173,18 @@ public class FXAA : PostProcess
 
         using (var renderPass = _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
         {
-            renderPass.SetGraphicsPipeline(_fxaaPipelineInfo.Pipeline!);
+            renderPass.SetPipeline(_fxaaPipelineInfo.Pipeline!);
             uint indexCount = renderPass.SetMesh(fullScreenMesh);
-            renderPass.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
-            renderPass.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
+            renderPass.SetResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
+            renderPass.SetResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
         using (var renderPass = _commandFXAA.BeginRender(target))
         {
-            renderPass.SetGraphicsPipeline(_blitPipelineInfo.Pipeline!);
+            renderPass.SetPipeline(_blitPipelineInfo.Pipeline!);
             uint indexCount = renderPass.SetMesh(fullScreenMesh);
-            renderPass.SetGraphicsResources(_blitShaderId_texture, _intermediateTexture.ColorTextures[0].EntrySample);
+            renderPass.SetResources(_blitShaderId_texture, _intermediateTexture.ColorTextures[0].EntrySample);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 

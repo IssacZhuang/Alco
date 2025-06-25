@@ -104,21 +104,21 @@ public class Game : GameEngine
 
         using (var computePass = _commandBuffer.BeginCompute())
         {
-            computePass.SetComputePipeline(_computePipeline);
-            computePass.SetComputeResources(0, _positionsBuffer.EntryReadWrite);
-            computePass.SetComputeResources(1, _timerBuffer.EntryReadonly);
+            computePass.SetPipeline(_computePipeline);
+            computePass.SetResources(0, _positionsBuffer.EntryReadWrite);
+            computePass.SetResources(1, _timerBuffer.EntryReadonly);
             computePass.DispatchCompute((500 / 8) + 1, 1, 1);
         }
 
         using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
         {
-            renderPass.SetGraphicsPipeline(_graphicsPipeline);
+            renderPass.SetPipeline(_graphicsPipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderPass.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-            renderPass.SetGraphicsResources(1, _texWhite.EntrySample);
-            renderPass.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
-            renderPass.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetResources(1, _texWhite.EntrySample);
+            renderPass.SetResources(2, _positionsBuffer.EntryReadonly);
+            renderPass.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
         }
 

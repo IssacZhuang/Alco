@@ -125,7 +125,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
-        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
         _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
@@ -149,10 +149,10 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         // {
         //     throw new ArgumentException("The size of the constant does not match the push constants size");
         // }
-        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        _renderScope.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        _renderScope.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
@@ -168,7 +168,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
-        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
         _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
@@ -205,10 +205,10 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
-        _renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        _renderScope.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        _renderScope.PushConstants(pipelineInfo.PushConstantsStages, constant);
         _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 

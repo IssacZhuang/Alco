@@ -25,9 +25,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetGraphicsPipeline(GPUPipeline pipeline)
+        public void SetPipeline(GPUPipeline pipeline)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetGraphicsPipeline, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetGraphicsPipelineCore(pipeline);
         }
 
@@ -39,9 +39,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
+        public void SetResources(uint slot, GPUResourceGroup resourceGroup)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetGraphicsResources, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while SetResources, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.SetGraphicsResourcesCore(slot, resourceGroup);
         }
 
@@ -88,9 +88,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+        public unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while PushGraphicsConstants, try start recording by calling GPUCommandBuffer.BeginRender()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while PushConstants, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.PushGraphicsConstantsCore(stage, bufferOffset, data, size);
         }
 
@@ -108,15 +108,15 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushGraphicsConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+        public unsafe void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
         {
-            PushGraphicsConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
+            PushConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushGraphicsConstants<T>(ShaderStage stage, T data) where T : unmanaged
+        public unsafe void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
         {
-            PushGraphicsConstants(stage, 0, data);
+            PushConstants(stage, 0, data);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -150,16 +150,16 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetComputePipeline(GPUPipeline pipeline)
+        public void SetPipeline(GPUPipeline pipeline)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while SetComputePipeline, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.SetComputePipelineCore(pipeline);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetComputeResources(uint slot, GPUResourceGroup resourceGroup)
+        public void SetResources(uint slot, GPUResourceGroup resourceGroup)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while SetComputeResources, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while SetResources, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.SetComputeResourcesCore(slot, resourceGroup);
         }
 
@@ -178,23 +178,23 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushComputeConstants(uint bufferOffset, byte* data, uint size)
+        public unsafe void PushConstants(uint bufferOffset, byte* data, uint size)
         {
-            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while PushComputeConstants, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            UtilsAssert.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while PushConstants, try start recording by calling GPUCommandBuffer.BeginCompute()");
             _commandBuffer.PushComputeConstantsCore(bufferOffset, data, size);
         }
 
         // polymorphism overloads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushComputeConstants<T>(uint bufferOffset, T data) where T : unmanaged
+        public unsafe void PushConstants<T>(uint bufferOffset, T data) where T : unmanaged
         {
-            PushComputeConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
+            PushConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushComputeConstants<T>(T data) where T : unmanaged
+        public unsafe void PushConstants<T>(T data) where T : unmanaged
         {
-            PushComputeConstants(0, data);
+            PushConstants(0, data);
         }
 
         public void Dispose()

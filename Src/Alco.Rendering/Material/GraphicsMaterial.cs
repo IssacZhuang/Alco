@@ -30,7 +30,7 @@ public sealed class GraphicsMaterial : Material
             GPUResourceGroup? resource = resources[(int)i];
             if (resource != null)
             {
-                renderPass.SetGraphicsResources(i, resource);
+                renderPass.SetResources(i, resource);
             }else{
                 throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
             }

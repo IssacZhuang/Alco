@@ -44,7 +44,7 @@ public sealed class MaterialInstance : Material
             GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
             if (resourceGroup != null)
             {
-                renderPass.SetGraphicsResources(i, resourceGroup);
+                renderPass.SetResources(i, resourceGroup);
                 continue;
             }
 
