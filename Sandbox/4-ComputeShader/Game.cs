@@ -87,7 +87,6 @@ public class Game : GameEngine
         }
 
         int value = _iterationBuffer.Value;
-        DebugStats.Slider(ref value, 1, 16);
         _iterationBuffer.Value = value;
         _iterationBuffer.UpdateBuffer();
         _timer += delta;

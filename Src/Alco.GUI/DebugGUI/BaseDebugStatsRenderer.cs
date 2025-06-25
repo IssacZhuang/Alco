@@ -113,6 +113,11 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
 
     public virtual void Dispose()
     {
+        _rendererBlit.Dispose();
+        _rendererContent.Dispose();
+        _textRenderer.Dispose();
+        _spriteRenderer.Dispose();
+        _backBuffer.Dispose();
         _camera.Dispose();
     }
 

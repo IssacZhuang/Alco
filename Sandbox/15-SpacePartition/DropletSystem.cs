@@ -1,5 +1,3 @@
-
-
 using System.Buffers;
 using System.Numerics;
 using Alco;
@@ -7,6 +5,7 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.GUI;
 using Alco.Rendering;
+using Alco.ImGUI;
 
 using Random = Alco.Random;
 
@@ -153,28 +152,22 @@ public class DropletSystem : IDisposable
 
         _scheduler.Run(_jobParallelRender, RenderThreadCount);
 
+        // ImGUI Controls
+        ImGui.Begin("Droplet System Controls");
 
-        DebugStats.Text("Active: 0", _activeList.Count);
+        // Display active count
+        FixedString32 activeText = new FixedString32();
+        activeText.Append("Active: ");
+        activeText.Append(_activeList.Count);
+        ImGui.Text(activeText);
 
-        DebugStats.Slider(ref _spawnRate, 0, 1000);
-        DebugStats.SameLine();
-        DebugStats.Text("Spawn Rate");
+        ImGui.SliderInt("Spawn Rate", ref _spawnRate, 0, 1000);
+        ImGui.SliderInt("Spawn Height", ref _spawnHeight, 0, 640);
+        ImGui.SliderInt("Despawn Height", ref _despawnHeight, -640, 0);
+        ImGui.SliderInt("Spawn Range X", ref _spwanRangeX, 0, 640);
+        ImGui.SliderInt("Speed", ref _speed, 0, 600);
 
-        DebugStats.Slider(ref _spawnHeight, 0, 640);
-        DebugStats.SameLine();
-        DebugStats.Text("Spawn Height");
-
-        DebugStats.Slider(ref _despawnHeight, -640, 0);
-        DebugStats.SameLine();
-        DebugStats.Text("Despawn Height");
-
-        DebugStats.Slider(ref _spwanRangeX, 0, 640);
-        DebugStats.SameLine();
-        DebugStats.Text("Spawn Range X");
-
-        DebugStats.Slider(ref _speed, 0, 600);
-        DebugStats.SameLine();
-        DebugStats.Text("Speed");
+        ImGui.End();
     }
 
     public void Render(int i)

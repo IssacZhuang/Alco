@@ -6,6 +6,7 @@ using Alco;
 using Random = Alco.Random;
 using Alco.Graphics;
 using Alco.GUI;
+using Alco.ImGUI;
 
 public class Game : GameEngine
 {
@@ -55,6 +56,8 @@ public class Game : GameEngine
             Log.Info(_intensity);
         }
 
+        DebugStats.Text(FrameRate);
+
         Vector2 normalizedMousePosition = Input.MousePosition / new Vector2(1280, 720);
         Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
         spritePosition.Y = -spritePosition.Y;
@@ -69,23 +72,29 @@ public class Game : GameEngine
 
         _renderContext.End();
 
-        DebugStats.Text(FrameRate);
-        DebugStats.SameLine();
-        DebugStats.Text(_intensity);
-        if (DebugStats.Button("-0.1"))
+        // ImGUI Controls
+        ImGui.Begin("Bloom HDR Controls");
+
+        // Display intensity value
+        FixedString32 intensityText = new FixedString32();
+        intensityText.Append("Intensity: ");
+        intensityText.Append(_intensity);
+        ImGui.Text(intensityText);
+
+        if (ImGui.Button("-0.1"))
         {
             _intensity -= 0.1f;
         }
-        DebugStats.SameLine();
-        DebugStats.Slider(ref _intensity, 0, 5);
-        DebugStats.SameLine();
-        if (DebugStats.Button("+0.1"))
+        ImGui.SameLine();
+        ImGui.SliderFloat("Intensity", ref _intensity, 0, 5);
+        ImGui.SameLine();
+        if (ImGui.Button("+0.1"))
         {
             _intensity += 0.1f;
         }
-        DebugStats.CheckBox(ref _enabled);
-        
+        ImGui.Checkbox("Enabled", ref _enabled);
 
+        ImGui.End();
     }
 
     protected override void OnStop()

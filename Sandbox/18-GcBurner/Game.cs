@@ -5,6 +5,7 @@ using Alco;
 using Alco.Rendering;
 using Alco.GUI;
 using Alco.Graphics;
+using Alco.ImGUI;
 
 
 /*Note: 
@@ -44,6 +45,8 @@ public class Game : GameEngine
     override protected void OnUpdate(float delta)
     {
 
+        DebugStats.Text(FrameRate);
+
         int count = 1000;
         for (int i = 0; i < count; i++)
         {
@@ -62,11 +65,10 @@ public class Game : GameEngine
             Stop();
         }
 
+        // ImGUI Controls
+        ImGui.Begin("GC Burner Controls");
 
-
-        DebugStats.Text(FrameRate);
-
-        if (DebugStats.Button("Alloc 1"))
+        if (ImGui.Button("Alloc 1"))
         {
             for (int i = 0; i < 1; i++)
             {
@@ -74,7 +76,7 @@ public class Game : GameEngine
             }
         }
 
-        if (DebugStats.Button("Alloc 10"))
+        if (ImGui.Button("Alloc 10"))
         {
             for (int i = 0; i < 10; i++)
             {
@@ -82,7 +84,7 @@ public class Game : GameEngine
             }
         }
 
-        if (DebugStats.Button("Alloc 100"))
+        if (ImGui.Button("Alloc 100"))
         {
             for (int i = 0; i < 100; i++)
             {
@@ -90,25 +92,31 @@ public class Game : GameEngine
             }
         }
 
-        if (DebugStats.Button("Collect Gen 0"))
+        if (ImGui.Button("Collect Gen 0"))
         {
             GC.Collect(0);
         }
 
-        if (DebugStats.Button("Collect Gen 1"))
+        if (ImGui.Button("Collect Gen 1"))
         {
             GC.Collect(1);
         }
 
-        if (DebugStats.Button("Collect Gen 2"))
+        if (ImGui.Button("Collect Gen 2"))
         {
             GC.Collect(2);
         }
 
-        if (DebugStats.Button("Collect All"))
+        if (ImGui.Button("Collect All"))
         {
             GC.Collect();
         }
+
+        // Display test span param info
+        ImGui.Separator();
+        ImGui.Text("Test Span Length: 10");
+
+        ImGui.End();
 
         TestSpanParam("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
     }
@@ -134,7 +142,7 @@ public class Game : GameEngine
 
     private void TestSpanParam(params Span<string> spans)
     {
-        DebugStats.Text(spans.Length);
+        // Display span length in the ImGUI window (handled in OnUpdate)
     }
 
     private GPUCommandBuffer CreateGPUCommandBuffer()

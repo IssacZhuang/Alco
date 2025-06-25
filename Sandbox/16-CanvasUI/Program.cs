@@ -1,6 +1,7 @@
 ﻿using Alco;
 using Alco.Engine;
 using Alco.Graphics;
+using Alco.ImGUI;
 
 GameEngineSetting setting = new GameEngineSetting
 {
@@ -11,7 +12,8 @@ GameEngineSetting setting = new GameEngineSetting
     }
 }.
 With<PluginHDR>().
-With<PluginDebugStats>();
+With<PluginDebugStats>().
+With<PluginImGUI>();
 
 //setting.Window.VSync = true;
 

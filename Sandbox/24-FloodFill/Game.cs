@@ -6,6 +6,7 @@ using Alco.Graphics;
 using Alco.GUI;
 using Alco.IO;
 using SandboxUtils;
+using Alco.ImGUI;
 
 public class Game : GameEngine
 {
@@ -57,32 +58,39 @@ public class Game : GameEngine
         }
 
         DebugStats.Text(FrameRate);
-        if (DebugStats.SliderWithText("Iterations", ref _iterations, 0, 100))
+
+        // ImGUI Controls
+        ImGui.Begin("Flood Fill Controls");
+
+
+        float iterationsFloat = _iterations;
+        if (ImGui.SliderFloat("Iterations", ref iterationsFloat, 0, 100))
         {
+            _iterations = (int)iterationsFloat;
             _tileLightMap.Iteration = _iterations;
         }
-        DebugStats.SliderWithText("Intensity", ref _intensity, 0, 2);
-        if (DebugStats.Button("Reset"))
+
+        ImGui.SliderFloat("Intensity", ref _intensity, 0, 2);
+
+        if (ImGui.Button("Reset"))
         {
             _tileLightMap.AttenuationCorner = 0.1f;
             _tileLightMap.AttenuationSide = 0.141414f;
         }
 
         float attenuationSide = _tileLightMap.AttenuationSide;
-        if (DebugStats.SliderWithText("Attenuation Side", ref attenuationSide, 0, 2))
+        if (ImGui.SliderFloat("Attenuation Side", ref attenuationSide, 0, 2))
         {
             _tileLightMap.AttenuationSide = attenuationSide;
         }
 
-
-
-
         float attenuationCorner = _tileLightMap.AttenuationCorner;
-        if (DebugStats.SliderWithText("Attenuation Corner", ref attenuationCorner, 0, 2))
+        if (ImGui.SliderFloat("Attenuation Corner", ref attenuationCorner, 0, 2))
         {
             _tileLightMap.AttenuationCorner = attenuationCorner;
         }
 
+        ImGui.End();
 
         _camera.ViewSize = MainView.Size;
         _camera.UpdateMatrixToGPU();

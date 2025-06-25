@@ -5,6 +5,7 @@ using Alco;
 using Alco.GUI;
 using System.Diagnostics;
 using Alco.Graphics;
+using Alco.ImGUI;
 
 public class Game : GameEngine
 {
@@ -212,65 +213,76 @@ public class Game : GameEngine
             Stop();
         }
 
+        DebugStats.Text(FrameRate);
+
         _canvas.Tick(_root, delta);
         _canvas.Update(MainFrameBuffer, _root, delta);
 
+        // ImGUI Controls
+        ImGui.Begin("Canvas UI Controls");
 
-        DebugStats.Text(FrameRate);
-        if (DebugStats.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
+        // Display frame rate
+        FixedString32 framerateText = new FixedString32();
+        framerateText.Append("Frame Rate: ");
+        framerateText.Append(FrameRate);
+        ImGui.Text(framerateText);
+
+        if (ImGui.SliderFloat("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
         {
             _inputBox.AlignHorizontal = _alignHorizontal;
         }
 
-        if (DebugStats.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
+        if (ImGui.SliderFloat("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
         {
             _inputBox.AlignVertical = _alignVertical;
         }
 
-        if (DebugStats.SliderWithText("Line Spacing", ref _lineSpacing, 0.5f, 2f))
+        if (ImGui.SliderFloat("Line Spacing", ref _lineSpacing, 0.5f, 2f))
         {
             _inputBox.LineSpacing = _lineSpacing;
         }
 
-        if (DebugStats.SliderWithText("Font Size", ref _fontSize, 8, 32))
+        if (ImGui.SliderFloat("Font Size", ref _fontSize, 8, 32))
         {
             _inputBox.FontSize = _fontSize;
         }
 
-        if (DebugStats.SliderWithText("Label Scale", ref _labelScale, 0.5f, 2f))
+        if (ImGui.SliderFloat("Label Scale", ref _labelScale, 0.5f, 2f))
         {
             _inputBox.Scale = new Vector2(_labelScale);
         }
 
-        if (DebugStats.SliderWithText("Angle", ref _angle, 0, 360))
+        if (ImGui.SliderFloat("Angle", ref _angle, 0, 360))
         {
             _inputBox.Rotation = new Rotation2D(_angle);
         }
 
-        if (DebugStats.SliderWithText("Progress", ref _progress, 0, 1))
+        if (ImGui.SliderFloat("Progress", ref _progress, 0, 1))
         {
             _slider.Value = _progress;
         }
 
-        if (DebugStats.SliderWithText("Pivot Y", ref _pivotY, -0.5f, 0.5f))
+        if (ImGui.SliderFloat("Pivot Y", ref _pivotY, -0.5f, 0.5f))
         {
             _layout.Pivot = new Vector2(0f, _pivotY);
         }
 
         float width = _sprite.Size.X;
-        if (DebugStats.SliderWithText("Sprite width", ref width, 0, 512))
+        if (ImGui.SliderFloat("Sprite width", ref width, 0, 512))
         {
             _sprite.Size = new Vector2(width, _sprite.Size.Y);
         }
 
         float height = _sprite.Size.Y;
-        if (DebugStats.SliderWithText("Sprite height", ref height, 0, 512))
+        if (ImGui.SliderFloat("Sprite height", ref height, 0, 512))
         {
             _sprite.Size = new Vector2(_sprite.Size.X, height);
         }
 
-if (DebugStats.SliderWithText("Item Count", ref _itemCount, 0, 10))
+        float itemCountFloat = _itemCount;
+        if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 10))
         {
+            _itemCount = (int)itemCountFloat;
             _layout.RemoveAllChildren();
             for (int i = 0; i < _itemCount; i++)
             {
@@ -286,11 +298,12 @@ if (DebugStats.SliderWithText("Item Count", ref _itemCount, 0, 10))
             _layout.UpdateLayout();
         }
 
-
-        if (DebugStats.Button("Test Async"))
+        if (ImGui.Button("Test Async"))
         {
             TestAsync();
         }
+
+        ImGui.End();
     }
 
     private async void TestAsync()
