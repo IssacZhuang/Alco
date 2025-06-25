@@ -29,6 +29,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
     private uint _indexCount;
 
     private GraphicsPipelineContext _pipelineInfo;
+    private GPUCommandBuffer.RenderScope _renderScope;
 
     private uint _shaderId_camera;
     private uint _shaderId_texture;
@@ -63,14 +64,15 @@ internal sealed class OldSpriteRenderer : AutoDisposable
         }
 
         _command.Begin();
-        _command.SetFrameBuffer(target);
-        _command.SetGraphicsPipeline(_pipelineInfo);
-        _command.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
-        _indexCount = _command.SetMesh(_mesh);
+        _renderScope = _command.BeginRender(target);
+        _renderScope.SetGraphicsPipeline(_pipelineInfo);
+        _renderScope.SetGraphicsResources(_shaderId_camera, Camera.EntryReadonly);
+        _indexCount = _renderScope.SetMesh(_mesh);
     }
 
     public void End()
     {
+        _renderScope.Dispose();
         _command.End();
         _device.Submit(_command);
     }
@@ -163,9 +165,9 @@ internal sealed class OldSpriteRenderer : AutoDisposable
             UvRect = uvRect
         };
 
-        _command.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
-        _command.PushGraphicsConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
-        _command.DrawIndexed(_indexCount, 1, 0, 0, 0);
+        _renderScope.SetGraphicsResources(_shaderId_texture, texture.EntrySample);
+        _renderScope.PushGraphicsConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
     protected override void Dispose(bool disposing)

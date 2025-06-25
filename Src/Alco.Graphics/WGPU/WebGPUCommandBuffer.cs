@@ -212,111 +212,6 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    protected override unsafe void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
-    {
-        WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
-        _frameBuffer = nativeFrameBuffer;
-        TryFinishCurrentRenderPass();
-        //TryFinishCurrentComputePass();
-        WGPURenderPassDescriptor tmpDescriptor = nativeFrameBuffer.Native;
-        _colorAttachmentsCache.EnsureCapacity((int)tmpDescriptor.colorAttachmentCount);
-
-        for (uint i = 0; i < tmpDescriptor.colorAttachmentCount; i++)
-        {
-            _colorAttachmentsCache[i] = tmpDescriptor.colorAttachments[i];
-        }
-
-        if (tmpDescriptor.depthStencilAttachment != null)
-        {
-            _depthStencilAttachmentCache = *tmpDescriptor.depthStencilAttachment;
-        }
-        else
-        {
-            _depthStencilAttachmentCache = null;
-        }
-    }
-
-    protected override void ClearColorCore(Vector4 color, uint index)
-    {
-
-        if (_frameBuffer == null)
-        {
-            throw new GraphicsException("Framebuffer must be setted before ClearColor");
-        }
-
-        if (_renderPass != WGPURenderPassEncoder.Null)
-        {
-            throw new GraphicsException("The pipeline is already set, can not clear color");
-        }
-
-        if (index >= _frameBuffer.Native.colorAttachmentCount)
-        {
-            throw new GraphicsException("The index is out of range of color attachment");
-        }
-
-        WGPURenderPassColorAttachment attachment = _colorAttachmentsCache[index];
-        attachment.loadOp = WGPULoadOp.Clear;
-        attachment.storeOp = WGPUStoreOp.Store;
-        attachment.clearValue = new WGPUColor
-        {
-            r = color.X,
-            g = color.Y,
-            b = color.Z,
-            a = color.W
-        };
-        _colorAttachmentsCache[index] = attachment;
-    }
-
-    protected override void ClearDepthCore(float depth)
-    {
-        if (_frameBuffer == null)
-        {
-            throw new GraphicsException("Framebuffer must be setted before ClearDepthStencil");
-        }
-
-        if (_renderPass != WGPURenderPassEncoder.Null)
-        {
-            throw new GraphicsException("The pipeline is already set, can not clear depth stencil");
-        }
-
-        if (!_depthStencilAttachmentCache.HasValue)
-        {
-            //no depth stencil attachment
-            return;
-        }
-
-        WGPURenderPassDepthStencilAttachment attachment = _depthStencilAttachmentCache.Value;
-        attachment.depthLoadOp = WGPULoadOp.Clear;
-        attachment.depthStoreOp = WGPUStoreOp.Store;
-        attachment.depthClearValue = depth;
-        _depthStencilAttachmentCache = attachment;
-    }
-
-    protected override void ClearStencilCore(uint stencil)
-    {
-        if (_frameBuffer == null)
-        {
-            throw new GraphicsException("Framebuffer must be setted before ClearDepthStencil");
-        }
-
-        if (_renderPass != WGPURenderPassEncoder.Null)
-        {
-            throw new GraphicsException("The pipeline is already set, can not clear depth stencil");
-        }
-
-        if (!_depthStencilAttachmentCache.HasValue)
-        {
-            //no depth stencil attachment
-            return;
-        }
-
-        WGPURenderPassDepthStencilAttachment attachment = _depthStencilAttachmentCache.Value;
-        attachment.stencilLoadOp = WGPULoadOp.Clear;
-        attachment.stencilStoreOp = WGPUStoreOp.Store;
-        attachment.stencilClearValue = stencil;
-        _depthStencilAttachmentCache = attachment;
-    }
-
     protected override void SetScissorRectCore(uint x, uint y, uint width, uint height)
     {
         ValidateGraphicsPipeline();
@@ -406,9 +301,6 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected unsafe override void SetComputePipelineCore(GPUPipeline pipeline)
     {
-        CheckComputePass();
-        //ValidateComputePass();
-
         _computePipeline = ((WebGPUComputePipeline)pipeline).Native;
         wgpuComputePassEncoderSetPipeline(_computePass, _computePipeline);
     }
@@ -580,31 +472,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CheckComputePass()
-    {
-        if (_computePass != WGPUComputePassEncoder.Null)
-        {
-            return;
-        }
-
-        TryFinishCurrentRenderPass();
-
-        _computePass = wgpuCommandEncoderBeginComputePass(_encoder, null);
-    }
-
-
     //debug validate
-
-    [Conditional("DEBUG")]
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ValidateComputePass()
-    {
-        if (_computePass == WGPUComputePassEncoder.Null)
-        {
-            throw ExceptionNoComputePipeline;
-        }
-    }
 
     [Conditional("DEBUG")]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

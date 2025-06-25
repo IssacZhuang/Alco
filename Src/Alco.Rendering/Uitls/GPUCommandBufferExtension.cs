@@ -5,27 +5,6 @@ namespace Alco.Rendering;
 
 public static class GPUCommandBufferExtension
 {
-    [Obsolete("Use RenderScope instead")]
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetFrameBuffer(this GPUCommandBuffer command, IRenderTarget renderTarget)
-    {
-        command.SetFrameBuffer(renderTarget.RenderTexture.FrameBuffer);
-    }
-
-    [Obsolete("Use RenderScope instead")]
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetFrameBuffer(this GPUCommandBuffer command, RenderTexture renderTexture)
-    {
-        command.SetFrameBuffer(renderTexture.FrameBuffer);
-    }
-
-    [Obsolete("Use RenderScope instead")]
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetGraphicsPipeline(this IGPUGraphicsCommandRecorder command, GraphicsPipelineContext pipelineInfo)
-    {
-        command.SetGraphicsPipeline(pipelineInfo.Pipeline!);
-    }
-
     /// <summary>
     /// Set the mesh and return the index count of the sub mesh.
     /// </summary>

@@ -37,21 +37,6 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
-    protected override void ClearColorCore(Vector4 color, uint index)
-    {
-        
-    }
-
-    protected override void ClearDepthCore(float depth)
-    {
-        
-    }
-
-    protected override void ClearStencilCore(uint stencil)
-    {
-        
-    }
-
     protected override void DispatchComputeCore(uint x, uint y, uint z)
     {
         
@@ -113,11 +98,6 @@ internal class NoCommandBuffer : GPUCommandBuffer
     }
 
     protected override void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup)
-    {
-        
-    }
-
-    protected override void SetFrameBufferCore(GPUFrameBuffer frameBuffer)
     {
         
     }
