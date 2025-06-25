@@ -74,8 +74,8 @@ public class Game : GameEngine
 
         _plane.IntersectRay(cameraRay, out Vector3 mouseWoldPosition);
 
-        DebugGUI.Text(localMousePosition.ToString());
-        DebugGUI.Text(mouseWoldPosition.ToString());
+        DebugStats.Text(localMousePosition.ToString());
+        DebugStats.Text(mouseWoldPosition.ToString());
         if (Input.IsMouseDown(Mouse.Left) && hit)
         {
             offset = _entity.transform.Position - mouseWoldPosition;
@@ -92,16 +92,16 @@ public class Game : GameEngine
         }
 
         //debug ui
-        DebugGUI.Text("Camera Data");
+        DebugStats.Text("Camera Data");
         int fov = (int)(_camera.FieldOfView * 100);
-        if (DebugGUI.Slider(ref fov, 30, 110))
+        if (DebugStats.Slider(ref fov, 30, 110))
         {
             _camera.FieldOfView = fov / 100f;
             _cameraBuffer.UpdateBuffer(_camera.Data.ViewProjectionMatrix);
         }
 
-        DebugGUI.SameLine();
-        DebugGUI.Text("Fov");
+        DebugStats.SameLine();
+        DebugStats.Text("Fov");
 
         ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE, MODE.LOCAL, ref _entity.transform, Vector3.Zero);
     }

@@ -4,7 +4,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public interface IDebugGUIRenderer
+public interface IDebugStatsRenderer
 {
     public Vector2 MousePosition { get; }
     public bool IsMouseClicked { get; }

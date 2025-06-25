@@ -3,7 +3,7 @@ using Alco.Graphics;
 
 namespace Alco.GUI;
 
-public partial class DebugGUI
+public partial class DebugStats
 {
     /// <summary>
     /// Draw a checkbox with text

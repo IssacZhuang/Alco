@@ -56,19 +56,21 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugGUI.Text(FrameRate);
-        if (DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100))
+        DebugStats.Text(FrameRate);
+        if (DebugStats.SliderWithText("Iterations", ref _iterations, 0, 100))
         {
             _tileLightMap.Iteration = _iterations;
         }
-        DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
-        if(DebugGUI.Button("Reset")) {
+        DebugStats.SliderWithText("Intensity", ref _intensity, 0, 2);
+        if (DebugStats.Button("Reset"))
+        {
             _tileLightMap.AttenuationCorner = 0.1f;
             _tileLightMap.AttenuationSide = 0.141414f;
         }
 
         float attenuationSide = _tileLightMap.AttenuationSide;
-        if(DebugGUI.SliderWithText("Attenuation Side", ref attenuationSide, 0, 2)){
+        if (DebugStats.SliderWithText("Attenuation Side", ref attenuationSide, 0, 2))
+        {
             _tileLightMap.AttenuationSide = attenuationSide;
         }
 
@@ -76,7 +78,8 @@ public class Game : GameEngine
 
 
         float attenuationCorner = _tileLightMap.AttenuationCorner;
-        if(DebugGUI.SliderWithText("Attenuation Corner", ref attenuationCorner, 0, 2)){
+        if (DebugStats.SliderWithText("Attenuation Corner", ref attenuationCorner, 0, 2))
+        {
             _tileLightMap.AttenuationCorner = attenuationCorner;
         }
 

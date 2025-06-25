@@ -6,7 +6,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public static partial class DebugGUI
+public static partial class DebugStats
 {
     public unsafe static bool Button(string str)
     {

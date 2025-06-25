@@ -98,7 +98,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugGUI.Text("Hold mouse middle button to rotate camera");
+        DebugStats.Text("Hold mouse middle button to rotate camera");
 
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
 

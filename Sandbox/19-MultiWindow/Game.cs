@@ -95,8 +95,8 @@ public class Game : GameEngine
         _windowCamera2.Position = ScreenToWorld(new Vector2(1920, 1080), _window2.Position, _window2.Size);
         _windowCamera2.UpdateBuffer();
 
-        DebugGUI.Text(MainView.Position.ToString());
-        DebugGUI.Text(_window2.Position.ToString());
+        DebugStats.Text(MainView.Position.ToString());
+        DebugStats.Text(_window2.Position.ToString());
 
         _renderContext.Begin(MainFrameBuffer);
         _renderer.Draw(RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));

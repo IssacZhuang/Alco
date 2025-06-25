@@ -5,7 +5,7 @@ GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     View = new ViewSetting(640, 360, "Push Constants"),
-}.With<PluginDefaultAssets>().With<PluginDebugGUI>();
+}.With<PluginDefaultAssets>().With<PluginDebugStats>();
 
 using (Game game = new Game(setting))
 {

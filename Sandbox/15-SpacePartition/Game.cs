@@ -71,7 +71,7 @@ public class Game : GameEngine
             }
         }
 
-        DebugGUI.Text(FrameRate);
+        DebugStats.Text(FrameRate);
 
         _dropletSystem.OnUpdate(delta);
         _cubeSystem.OnUpdate(MainFrameBuffer, delta);

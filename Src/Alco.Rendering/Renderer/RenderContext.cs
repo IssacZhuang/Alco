@@ -104,6 +104,17 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         return Begin(target, ReadOnlySpan<ClearColorData>.Empty, clearDepth, clearStencil);
     }
 
+    public IReadOnlyList<Exception> Begin(
+        GPUFrameBuffer target,
+        ColorFloat clearColor,
+        float? clearDepth = null,
+        uint? clearStencil = null
+        )
+    {
+        ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
+        return Begin(target, clearColors, clearDepth, clearStencil);
+    }
+
     /// <summary>
     /// Draws a mesh with the specified material.
     /// </summary>

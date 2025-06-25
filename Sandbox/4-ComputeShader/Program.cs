@@ -5,7 +5,7 @@ GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     View = new ViewSetting(400, 400, "Compute Shader"),
-}.With<PluginDebugGUI>();
+}.With<PluginDebugStats>();
 
 using (Game game = new Game(setting))
 {

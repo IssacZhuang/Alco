@@ -64,9 +64,9 @@ public class Game : GameEngine
 
 
 
-        DebugGUI.Text(FrameRate);
+        DebugStats.Text(FrameRate);
 
-        if (DebugGUI.Button("Alloc 1"))
+        if (DebugStats.Button("Alloc 1"))
         {
             for (int i = 0; i < 1; i++)
             {
@@ -74,7 +74,7 @@ public class Game : GameEngine
             }
         }
 
-        if (DebugGUI.Button("Alloc 10"))
+        if (DebugStats.Button("Alloc 10"))
         {
             for (int i = 0; i < 10; i++)
             {
@@ -82,7 +82,7 @@ public class Game : GameEngine
             }
         }
 
-        if (DebugGUI.Button("Alloc 100"))
+        if (DebugStats.Button("Alloc 100"))
         {
             for (int i = 0; i < 100; i++)
             {
@@ -90,22 +90,22 @@ public class Game : GameEngine
             }
         }
 
-        if (DebugGUI.Button("Collect Gen 0"))
+        if (DebugStats.Button("Collect Gen 0"))
         {
             GC.Collect(0);
         }
 
-        if (DebugGUI.Button("Collect Gen 1"))
+        if (DebugStats.Button("Collect Gen 1"))
         {
             GC.Collect(1);
         }
 
-        if (DebugGUI.Button("Collect Gen 2"))
+        if (DebugStats.Button("Collect Gen 2"))
         {
             GC.Collect(2);
         }
 
-        if (DebugGUI.Button("Collect All"))
+        if (DebugStats.Button("Collect All"))
         {
             GC.Collect();
         }
@@ -134,7 +134,7 @@ public class Game : GameEngine
 
     private void TestSpanParam(params Span<string> spans)
     {
-        DebugGUI.Text(spans.Length);
+        DebugStats.Text(spans.Length);
     }
 
     private GPUCommandBuffer CreateGPUCommandBuffer()

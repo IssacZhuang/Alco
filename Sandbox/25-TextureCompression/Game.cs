@@ -54,8 +54,8 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugGUI.Text(FrameRate);
-        DebugGUI.CheckBoxWithText("Show Compressed", ref _isShowCompressed);
+        DebugStats.Text(FrameRate);
+        DebugStats.CheckBoxWithText("Show Compressed", ref _isShowCompressed);
 
 
         Transform2D transform = Transform2D.Identity;

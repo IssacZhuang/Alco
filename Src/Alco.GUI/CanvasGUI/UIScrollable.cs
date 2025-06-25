@@ -37,9 +37,6 @@ public class UIScrollable : UISelectable
 
         Vector2 contentSize = _content?.Size ?? Vector2.Zero;
 
-        // DebugGUI.Text(Size.ToString());
-        // DebugGUI.Text(contentSize.ToString());
-        // DebugGUI.Text(_content!.Position.ToString());
     }
 
     public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
@@ -101,10 +98,6 @@ public class UIScrollable : UISelectable
         {
             boundPosition.Max.Y = 0;
         }
-
-        // DebugGUI.Text(boundSelf.ToString());
-        // DebugGUI.Text(boundContent.ToString());
-        // DebugGUI.Text(boundPosition.ToString());
 
         if ((ScrollMode & SrollMode.Vertical) != 0)
         {

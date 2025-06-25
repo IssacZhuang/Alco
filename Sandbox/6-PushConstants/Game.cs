@@ -138,7 +138,7 @@ public class Game : GameEngine
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
-        DebugGUI.Text(FrameRate);
+        DebugStats.Text(FrameRate);
     }
 
 

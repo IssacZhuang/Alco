@@ -216,60 +216,60 @@ public class Game : GameEngine
         _canvas.Update(MainFrameBuffer, _root, delta);
 
 
-        DebugGUI.Text(FrameRate);
-        if (DebugGUI.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
+        DebugStats.Text(FrameRate);
+        if (DebugStats.SliderWithText("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
         {
             _inputBox.AlignHorizontal = _alignHorizontal;
         }
 
-        if (DebugGUI.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
+        if (DebugStats.SliderWithText("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
         {
             _inputBox.AlignVertical = _alignVertical;
         }
 
-        if (DebugGUI.SliderWithText("Line Spacing", ref _lineSpacing, 0.5f, 2f))
+        if (DebugStats.SliderWithText("Line Spacing", ref _lineSpacing, 0.5f, 2f))
         {
             _inputBox.LineSpacing = _lineSpacing;
         }
 
-        if (DebugGUI.SliderWithText("Font Size", ref _fontSize, 8, 32))
+        if (DebugStats.SliderWithText("Font Size", ref _fontSize, 8, 32))
         {
             _inputBox.FontSize = _fontSize;
         }
 
-        if (DebugGUI.SliderWithText("Label Scale", ref _labelScale, 0.5f, 2f))
+        if (DebugStats.SliderWithText("Label Scale", ref _labelScale, 0.5f, 2f))
         {
             _inputBox.Scale = new Vector2(_labelScale);
         }
 
-        if (DebugGUI.SliderWithText("Angle", ref _angle, 0, 360))
+        if (DebugStats.SliderWithText("Angle", ref _angle, 0, 360))
         {
             _inputBox.Rotation = new Rotation2D(_angle);
         }
 
-        if (DebugGUI.SliderWithText("Progress", ref _progress, 0, 1))
+        if (DebugStats.SliderWithText("Progress", ref _progress, 0, 1))
         {
             _slider.Value = _progress;
         }
 
-        if (DebugGUI.SliderWithText("Pivot Y", ref _pivotY, -0.5f, 0.5f))
+        if (DebugStats.SliderWithText("Pivot Y", ref _pivotY, -0.5f, 0.5f))
         {
             _layout.Pivot = new Vector2(0f, _pivotY);
         }
 
         float width = _sprite.Size.X;
-        if (DebugGUI.SliderWithText("Sprite width", ref width, 0, 512))
+        if (DebugStats.SliderWithText("Sprite width", ref width, 0, 512))
         {
             _sprite.Size = new Vector2(width, _sprite.Size.Y);
         }
 
         float height = _sprite.Size.Y;
-        if (DebugGUI.SliderWithText("Sprite height", ref height, 0, 512))
+        if (DebugStats.SliderWithText("Sprite height", ref height, 0, 512))
         {
             _sprite.Size = new Vector2(_sprite.Size.X, height);
         }
 
-if (DebugGUI.SliderWithText("Item Count", ref _itemCount, 0, 10))
+if (DebugStats.SliderWithText("Item Count", ref _itemCount, 0, 10))
         {
             _layout.RemoveAllChildren();
             for (int i = 0; i < _itemCount; i++)
@@ -285,9 +285,9 @@ if (DebugGUI.SliderWithText("Item Count", ref _itemCount, 0, 10))
 
             _layout.UpdateLayout();
         }
-        
 
-        if (DebugGUI.Button("Test Async"))
+
+        if (DebugStats.Button("Test Async"))
         {
             TestAsync();
         }

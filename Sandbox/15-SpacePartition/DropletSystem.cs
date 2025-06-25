@@ -154,27 +154,27 @@ public class DropletSystem : IDisposable
         _scheduler.Run(_jobParallelRender, RenderThreadCount);
 
 
-        DebugGUI.Text("Active: 0", _activeList.Count);
+        DebugStats.Text("Active: 0", _activeList.Count);
 
-        DebugGUI.Slider(ref _spawnRate, 0, 1000);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Spawn Rate");
+        DebugStats.Slider(ref _spawnRate, 0, 1000);
+        DebugStats.SameLine();
+        DebugStats.Text("Spawn Rate");
 
-        DebugGUI.Slider(ref _spawnHeight, 0, 640);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Spawn Height");
+        DebugStats.Slider(ref _spawnHeight, 0, 640);
+        DebugStats.SameLine();
+        DebugStats.Text("Spawn Height");
 
-        DebugGUI.Slider(ref _despawnHeight, -640, 0);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Despawn Height");
+        DebugStats.Slider(ref _despawnHeight, -640, 0);
+        DebugStats.SameLine();
+        DebugStats.Text("Despawn Height");
 
-        DebugGUI.Slider(ref _spwanRangeX, 0, 640);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Spawn Range X");
+        DebugStats.Slider(ref _spwanRangeX, 0, 640);
+        DebugStats.SameLine();
+        DebugStats.Text("Spawn Range X");
 
-        DebugGUI.Slider(ref _speed, 0, 600);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Speed");
+        DebugStats.Slider(ref _speed, 0, 600);
+        DebugStats.SameLine();
+        DebugStats.Text("Speed");
     }
 
     public void Render(int i)

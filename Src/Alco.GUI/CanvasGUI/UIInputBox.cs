@@ -705,7 +705,7 @@ public class UIInputBox : UIText, ITextInput
     {
         for (int i = 0; i < _lines.Count; i++)
         {
-            DebugGUI.Text($"Line {i}: start: {_lines[i].start}, count: {_lines[i].count}");
+            DebugStats.Text($"Line {i}: start: {_lines[i].start}, count: {_lines[i].count}");
         }
     }
 
