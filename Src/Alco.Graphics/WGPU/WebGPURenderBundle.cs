@@ -53,7 +53,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     }
 
     // begin the encoder
-    protected unsafe override void BeginCore(GPURenderPass renderPass)
+    protected unsafe override void BeginCore(GPUAttachmentLayout renderPass)
     {
         ReleaseRenderBundleEncoder();
         WebGPURenderPass nativeRenderPass = (WebGPURenderPass)renderPass;

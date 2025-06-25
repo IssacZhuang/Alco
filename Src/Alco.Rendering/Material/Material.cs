@@ -168,7 +168,7 @@ public abstract class Material: AutoDisposable
     /// </summary>
     /// <param name="renderPass">The render pass.</param>
     /// <returns>The shader pipeline.</returns>
-    public ShaderPipelineInfo GetPipelineInfo(GPURenderPass renderPass)
+    public ShaderPipelineInfo GetPipelineInfo(GPUAttachmentLayout renderPass)
     {
         if (_shader.TryUpdatePipelineContext(ref _pipelineContext, renderPass, _isPipelineDirty))
         {

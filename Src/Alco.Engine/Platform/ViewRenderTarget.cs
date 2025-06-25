@@ -13,7 +13,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     private readonly RenderingSystem _rendering;
     private readonly GPUSwapchain? _viewSwapchain;
     private readonly GPUCommandBuffer _command;
-    private GPURenderPass _renderPass;
+    private GPUAttachmentLayout _renderPass;
     private RenderTexture _renderTexture;
 
     private RenderContext _renderer;
@@ -66,7 +66,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
 
     public override int Order => SystemOrder;
 
-    internal ViewRenderTarget(GameEngine engine, View view, GPURenderPass renderPass, Shader blitShader)
+    internal ViewRenderTarget(GameEngine engine, View view, GPUAttachmentLayout renderPass, Shader blitShader)
     {
         _view = view;
         _view.OnResize += OnWindowResize;
@@ -93,7 +93,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _command = _rendering.GraphicsDevice.CreateCommandBuffer();
     }
 
-    public void SetRenderPass(GPURenderPass renderPass, Material? overrideMaterial = null)
+    public void SetRenderPass(GPUAttachmentLayout renderPass, Material? overrideMaterial = null)
     {
         _renderPass = renderPass;
         _renderTexture.Dispose();

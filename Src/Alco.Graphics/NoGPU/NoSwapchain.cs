@@ -11,7 +11,7 @@ internal class NoSwapchain : GPUSwapchain
 
     public NoSwapchain(in SwapchainDescriptor descriptor): base(descriptor)
     {
-        GPURenderPass renderPass = new NoRenderPass(new RenderPassDescriptor(
+        GPUAttachmentLayout renderPass = new NoRenderPass(new AttachmentLayoutDescriptor(
             [new ColorAttachment(descriptor.ColorFormat)],
             descriptor.DepthFormat is not null ? new DepthAttachment(descriptor.DepthFormat.Value) : null,
             descriptor.Name

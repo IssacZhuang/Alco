@@ -157,7 +157,7 @@ public class FXAA : PostProcess
 
         Mesh fullScreenMesh = FullScreenMesh;
 
-        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.RenderPass))
+        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.AttachmentLayout))
         {
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }

@@ -30,7 +30,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
     #region Abstract Implementation
 
-    public override GPURenderPass RenderPass
+    public override GPUAttachmentLayout AttachmentLayout
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderPass;
@@ -139,7 +139,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     internal WebGPUFrameBuffer(WebGPUDevice device, in FrameBufferDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        WebGPURenderPass renderPass = (WebGPURenderPass)descriptor.RenderPass;
+        WebGPURenderPass renderPass = (WebGPURenderPass)descriptor.AttachmentLayout;
         uint width = descriptor.Width;
         uint height = descriptor.Height;
 

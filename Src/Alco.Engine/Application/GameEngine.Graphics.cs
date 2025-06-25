@@ -11,7 +11,7 @@ public partial class GameEngine
         return _platform.CreateView(_graphicsDevice, setting);
     }
 
-    public ViewRenderTarget CreateViewRenderTarget(View view, GPURenderPass renderPass, Shader blitShader)
+    public ViewRenderTarget CreateViewRenderTarget(View view, GPUAttachmentLayout renderPass, Shader blitShader)
     {
         return new ViewRenderTarget(this, view, renderPass, blitShader);
     }

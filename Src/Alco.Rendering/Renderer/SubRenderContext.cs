@@ -12,7 +12,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     private readonly List<Exception> _exceptionsBegin;
     private readonly List<Exception> _exceptionsEnd;
 
-    private GPURenderPass? _renderPass;
+    private GPUAttachmentLayout? _renderPass;
 
     //cached mesh data
     private Mesh? _mesh;
@@ -58,7 +58,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// </summary>
     /// <param name="renderPass">The render pass to render to.</param>
     /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
-    public IReadOnlyList<Exception> Begin(GPURenderPass renderPass)
+    public IReadOnlyList<Exception> Begin(GPUAttachmentLayout renderPass)
     {
         _renderPass = renderPass;
         _renderBundle.Begin(renderPass);

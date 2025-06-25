@@ -1,8 +1,8 @@
 namespace Alco.Graphics;
 
-public struct RenderPassDescriptor
+public struct AttachmentLayoutDescriptor
 {
-    public RenderPassDescriptor(ColorAttachment[] colors, DepthAttachment? depth, string name = "Unnamed Render Pass")
+    public AttachmentLayoutDescriptor(ColorAttachment[] colors, DepthAttachment? depth, string name = "Unnamed Render Pass")
     {
         Colors = colors;
         Depth = depth;

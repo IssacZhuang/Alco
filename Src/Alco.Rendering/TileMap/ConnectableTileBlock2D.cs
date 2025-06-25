@@ -75,7 +75,7 @@ public class ConnectableTileBlock2D : AutoDisposable
     {
         if (_isRenderDataDirty)
         {
-            BuildRenderCommand(renderer.Framebuffer!.RenderPass);
+            BuildRenderCommand(renderer.Framebuffer!.AttachmentLayout);
             _isRenderDataDirty = false;
         }
 
@@ -195,7 +195,7 @@ public class ConnectableTileBlock2D : AutoDisposable
         _isRenderDataDirty = true;
     }
 
-    private void BuildRenderCommand(GPURenderPass renderPass)
+    private void BuildRenderCommand(GPUAttachmentLayout renderPass)
     {
         _subRenderContext.Begin(renderPass);
        Matrix4x4 matrix = Transform.Matrix;

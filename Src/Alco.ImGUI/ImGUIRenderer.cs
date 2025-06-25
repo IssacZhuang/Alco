@@ -141,7 +141,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         drawData.ScaleClipRects(ImGui.GetIO().DisplayFramebufferScale);
 
-        ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(_target!.RenderPass);
+        ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(_target!.AttachmentLayout);
 
         _commandBuffer.Begin();
 

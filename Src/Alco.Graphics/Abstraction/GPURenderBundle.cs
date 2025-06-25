@@ -21,7 +21,7 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject, IGPUGraphicsComman
     {
     }
 
-    public void Begin(GPURenderPass renderPass)
+    public void Begin(GPUAttachmentLayout renderPass)
     {
         UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
         _isRecording = true;
@@ -120,7 +120,7 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject, IGPUGraphicsComman
     }
 
     // need to be implemented for each backend
-    protected abstract void BeginCore(GPURenderPass renderPass);
+    protected abstract void BeginCore(GPUAttachmentLayout renderPass);
     protected abstract void EndCore();
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);

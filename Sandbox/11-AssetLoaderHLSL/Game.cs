@@ -84,7 +84,7 @@ public class Game : GameEngine
 
         _timer += delta;
 
-        _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.RenderPass);
+        _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.AttachmentLayout);
 
         _commandBuffer.Begin();
         using (var renderScope = _commandBuffer.BeginRender(MainFrameBuffer))

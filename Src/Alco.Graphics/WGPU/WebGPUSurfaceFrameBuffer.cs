@@ -37,7 +37,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     #region Abstract Implementation
     protected override WebGPUDevice Device { get; }
-    public override GPURenderPass RenderPass
+    public override GPUAttachmentLayout AttachmentLayout
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _renderPass;

@@ -77,7 +77,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
             };
         }
 
-        RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
+        AttachmentLayoutDescriptor renderPassDescriptor = new AttachmentLayoutDescriptor(
             new ColorAttachment[]
             {
                 new ColorAttachment()

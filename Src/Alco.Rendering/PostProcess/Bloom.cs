@@ -18,7 +18,7 @@ public class Bloom : PostProcess
 
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _command;
-    private readonly GPURenderPass _backBufferPass;
+    private readonly GPUAttachmentLayout _backBufferPass;
     private readonly RenderingSystem _renderingSystem;
 
     private readonly Shader _blitShader;
@@ -213,7 +213,7 @@ public class Bloom : PostProcess
         }
 
 
-        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.RenderPass))
+        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.AttachmentLayout))
         {
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }

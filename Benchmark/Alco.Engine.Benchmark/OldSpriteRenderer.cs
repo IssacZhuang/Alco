@@ -57,7 +57,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
 
     public void Begin(GPUFrameBuffer target)
     {
-        if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.RenderPass))
+        if (_shader.TryUpdatePipelineContext(ref _pipelineInfo, target.AttachmentLayout))
         {
             _shaderId_camera = _pipelineInfo.GetResourceId(ShaderId_camera);
             _shaderId_texture = _pipelineInfo.GetResourceId(ShaderId_texture);

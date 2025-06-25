@@ -15,7 +15,7 @@ public partial class RenderingSystem
     /// <param name="name"> The name of the render texture. </param>
     /// <returns></returns>
     public RenderTexture CreateRenderTexture(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         uint width,
         uint height,
         string name = "unmaned_render_texture"
@@ -40,7 +40,7 @@ public partial class RenderingSystem
     /// <param name="name"> The name of the render texture. </param>
     /// <returns></returns>
     public RenderTexture CreateRenderTexture(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         uint width,
         uint height,
         FilterMode filterMode,
@@ -62,7 +62,7 @@ public partial class RenderingSystem
     /// <param name="name"></param>
     /// <returns></returns>
     public RenderTexture CreateRenderTexture(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         uint width,
         uint height,
         FilterMode filterMode,
@@ -84,7 +84,7 @@ public partial class RenderingSystem
     /// <param name="name"> The name of the render texture. </param>
     /// <returns></returns>
     public RenderTexture CreateRenderTexture(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         uint width,
         uint height,
         GPUSampler sampler,
@@ -106,7 +106,7 @@ public partial class RenderingSystem
     }
 
     private GPUFrameBuffer CreateFrameBuffer(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         uint width,
         uint height,
         string name

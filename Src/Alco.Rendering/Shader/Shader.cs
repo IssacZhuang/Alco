@@ -68,7 +68,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="defines">Optional shader defines to customize compilation</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         DepthStencilState depthStencil,
         BlendState blend,
         RasterizerState rasterizer,
@@ -100,7 +100,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="defines">Optional shader defines to customize compilation</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         DepthStencilState depthStencil,
         BlendState blend,
         params ReadOnlySpan<string> defines
@@ -123,7 +123,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="defines">Optional shader defines to customize compilation</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         params ReadOnlySpan<string> defines
         )
     {
@@ -144,7 +144,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="renderPass">The new render pass configuration</param>
     /// <param name="forced">Whether to force update even if render pass hasn't changed</param>
     /// <returns>True if the pipeline was updated, false otherwise</returns>
-    public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass, bool forced = false)
+    public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPUAttachmentLayout renderPass, bool forced = false)
     {
         if (pipelineInfo.RenderPass == renderPass && !forced && pipelineInfo.Version == _version)
         {
@@ -286,7 +286,7 @@ public sealed class Shader : AutoDisposable
     }
 
     private unsafe GPUPipeline GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout renderPass,
         ShaderModulesInfo modulesInfo,
         DepthStencilState depthStencil,
         BlendState blend,
@@ -510,7 +510,7 @@ public sealed class Shader : AutoDisposable
         }
 
         //default render pass 
-        GPURenderPass renderPass = _renderingSystem.PrefferedHDRPass;
+        GPUAttachmentLayout renderPass = _renderingSystem.PrefferedHDRPass;
 
         // Generate and test all non-empty combinations
         for (int length = 1; length <= definesArray.Length; length++)

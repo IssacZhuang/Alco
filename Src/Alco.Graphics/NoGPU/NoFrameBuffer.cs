@@ -7,7 +7,7 @@ internal class NoFrameBuffer : GPUFrameBuffer
     protected override GPUDevice Device => NoDevice.noDevice;
     private readonly NoTexture[] NoColors;
     private readonly NoTextureView[] NoColorViews;
-    public override GPURenderPass RenderPass { get; }
+    public override GPUAttachmentLayout AttachmentLayout { get; }
 
     public override ReadOnlySpan<GPUTexture> Colors => NoColors; // at least one element to prevent out of range exception
 
@@ -27,7 +27,7 @@ internal class NoFrameBuffer : GPUFrameBuffer
 
     public NoFrameBuffer(in FrameBufferDescriptor descriptor): base("no_gpu_frame_buffer")
     {
-        RenderPass = descriptor.RenderPass;
+        AttachmentLayout = descriptor.AttachmentLayout;
         Width = descriptor.Width;
         Height = descriptor.Height;
 
@@ -49,7 +49,7 @@ internal class NoFrameBuffer : GPUFrameBuffer
             texture,
             TextureViewDimension.Texture2D))];
 
-        if (RenderPass.Depth != null)
+        if (AttachmentLayout.Depth != null)
         {
             NoTexture depthTexture = new(new TextureDescriptor(
                 TextureDimension.Texture2D,

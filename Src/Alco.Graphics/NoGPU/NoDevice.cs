@@ -166,7 +166,7 @@ internal class NoDevice : GPUDevice
         return new NoPipeline(descriptor);
     }
 
-    protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
+    protected override GPUAttachmentLayout CreateRenderPassCore(in AttachmentLayoutDescriptor descriptor)
     {
         return new NoRenderPass(descriptor);
     }

@@ -239,7 +239,7 @@ public abstract class GPUDevice
     /// </summary>
     /// <param name="descriptor">The descriptor for the GPU render pass.</param>
     /// <returns>The created GPU render pass.</returns> 
-    public GPURenderPass CreateRenderPass(in RenderPassDescriptor descriptor)
+    public GPUAttachmentLayout CreateRenderPass(in AttachmentLayoutDescriptor descriptor)
     {
         return CreateRenderPassCore(descriptor);
     }
@@ -611,7 +611,7 @@ public abstract class GPUDevice
     protected abstract GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor);
 
     /// <exclude />
-    protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
+    protected abstract GPUAttachmentLayout CreateRenderPassCore(in AttachmentLayoutDescriptor descriptor);
 
     /// <exclude />
     protected abstract GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor);

@@ -6,7 +6,7 @@ using static WebGPU.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
-internal sealed class WebGPURenderPass : GPURenderPass
+internal sealed class WebGPURenderPass : GPUAttachmentLayout
 {
 
     #region Properties
@@ -49,7 +49,7 @@ internal sealed class WebGPURenderPass : GPURenderPass
     }
 
     // for GPUDevice.CreateRenderPass(RenderPassDescriptor)
-    public unsafe WebGPURenderPass(WebGPUDevice device, in RenderPassDescriptor descriptor): base(descriptor)
+    public unsafe WebGPURenderPass(WebGPUDevice device, in AttachmentLayoutDescriptor descriptor) : base(descriptor)
     {
         Device = device;
         

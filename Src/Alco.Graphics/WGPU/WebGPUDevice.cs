@@ -108,7 +108,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         return new WebGPUTexture(this, descriptor);
     }
 
-    protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
+    protected override GPUAttachmentLayout CreateRenderPassCore(in AttachmentLayoutDescriptor descriptor)
     {
         return new WebGPURenderPass(this, descriptor);
     }
