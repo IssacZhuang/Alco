@@ -26,9 +26,9 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
     // cached state from outside
     private UnsafeArray<WGPURenderPassColorAttachment> _colorAttachmentsCache;
     private WGPURenderPassDepthStencilAttachment? _depthStencilAttachmentCache;
+
     private WGPURenderPipeline _graphicsPipeline;
     private WGPUComputePipeline _computePipeline;
-    private WebGPUFrameBufferBase? _frameBuffer;
 
     // create on end(), can be reused
     private WGPUCommandBuffer _buffer;
@@ -98,7 +98,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
         _graphicsPipeline = WGPURenderPipeline.Null;
         _computePipeline = WGPUComputePipeline.Null;
-        _frameBuffer = null;
+
         _depthStencilAttachmentCache = null;
 
         // release encoder
@@ -109,7 +109,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
     protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
     {
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
-        _frameBuffer = nativeFrameBuffer;
+
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
 
@@ -171,7 +171,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         // Start the render pass
         WGPURenderPassDescriptor renderPassDesc = new WGPURenderPassDescriptor
         {
-            colorAttachmentCount = _frameBuffer.Native.colorAttachmentCount,
+            colorAttachmentCount = nativeFrameBuffer.Native.colorAttachmentCount,
             colorAttachments = _colorAttachmentsCache.Ptr,
         };
 
