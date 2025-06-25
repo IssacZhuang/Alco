@@ -43,6 +43,14 @@ public static class GPUCommandBufferExtension
         return subMeshData.IndexCount;
     }
 
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static GPUCommandBuffer.RenderScope BeginRender(this GPUCommandBuffer command, IRenderTarget renderTarget)
+    {
+        return command.BeginRender(renderTarget.RenderTexture.FrameBuffer);
+    }
+
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint SetMesh(this GPUCommandBuffer.RenderScope renderScope, Mesh mesh, int subMeshIndex = 0)
     {
@@ -50,6 +58,12 @@ public static class GPUCommandBufferExtension
         renderScope.SetVertexBuffer(0, mesh.VertexBuffer, subMeshData.VertexOffset, subMeshData.VertexSize);
         renderScope.SetIndexBuffer(mesh.IndexBuffer, subMeshData.IndexFormat, subMeshData.IndexOffset, subMeshData.IndexSize);
         return subMeshData.IndexCount;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void SetGraphicsPipeline(this GPUCommandBuffer.RenderScope renderScope, GraphicsPipelineContext pipelineInfo)
+    {
+        renderScope.SetGraphicsPipeline(pipelineInfo.Pipeline!);
     }
     
     
