@@ -6,6 +6,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
+
 public static partial class DebugGUI
 {
     private static IDebugGUIRenderer _renderer = new NoDebugGUIRenderer();

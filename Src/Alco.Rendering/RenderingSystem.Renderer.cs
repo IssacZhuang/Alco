@@ -35,11 +35,6 @@ public partial class RenderingSystem
         return new SubRenderContext(this, name);
     }
 
-    public CanvasRenderer CreateCanvasRenderer(GraphicsBuffer camera, Shader shaderSprite, Shader shaderText)
-    {
-        return new CanvasRenderer(this, camera, shaderSprite, shaderText);
-    }
-
     /// <summary>
     /// Create a dynamic mesh renderer that manages multiple DynamicMesh instances.
     /// </summary>
