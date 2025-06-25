@@ -135,8 +135,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
         public void Dispose()
         {
-            _commandBuffer._isRecordingRender = false;
             _commandBuffer.EndRenderCore();
+            _commandBuffer._isRecordingRender = false;
         }
     }
 
@@ -199,8 +199,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
         public void Dispose()
         {
-            _commandBuffer._isRecordingCompute = false;
             _commandBuffer.EndComputeCore();
+            _commandBuffer._isRecordingCompute = false;
         }
     }
 
