@@ -108,6 +108,7 @@ public class Game : GameEngine
         };
 
         _tileLightMap.SetLight((int)_size.X / 2, (int)_size.Y / 2, new Half4(_intensity, _intensity, _intensity, 1));
+        _tileLightMap.SetDirty();
         _tileLightMap.Render();
 
         //draw atlas texture
