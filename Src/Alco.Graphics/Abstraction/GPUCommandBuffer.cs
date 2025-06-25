@@ -225,14 +225,14 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     public void Begin()
     {
-        UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
+        UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin() twice before calling GPUCommandBuffer.End()");
         _isRecording = true;
         BeginCore();
     }
 
     public void End()
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin()");
         EndCore();
         _isRecording = false;
     }
@@ -311,7 +311,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     public void CopyBuffer(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while CopyBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while CopyBuffer, try start recording by calling GPUCommandBuffer.Begin()");
         CopyBufferCore(src, dst, srcOffset, dstOffset, size);
     }
 
@@ -328,7 +328,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     public void CopyBufferToTexture(GPUBuffer src, GPUTexture dst, uint mipLevel = 0, uint offset = 0, TextureAspect aspect = TextureAspect.All)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while CopyBufferToTexture, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while CopyBufferToTexture, try start recording by calling GPUCommandBuffer.Begin()");
         CopyBufferToTextureCore(src, dst, mipLevel, offset, aspect);
     }
 

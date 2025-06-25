@@ -166,9 +166,9 @@ internal class NoDevice : GPUDevice
         return new NoPipeline(descriptor);
     }
 
-    protected override GPUAttachmentLayout CreateRenderPassCore(in AttachmentLayoutDescriptor descriptor)
+    protected override GPUAttachmentLayout CreateAttachmentLayoutCore(in AttachmentLayoutDescriptor descriptor)
     {
-        return new NoRenderPass(descriptor);
+        return new NoAttachmentLayout(descriptor);
     }
 
     protected override GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor)

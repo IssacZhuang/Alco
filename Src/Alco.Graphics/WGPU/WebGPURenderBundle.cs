@@ -53,17 +53,17 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     }
 
     // begin the encoder
-    protected unsafe override void BeginCore(GPUAttachmentLayout renderPass)
+    protected unsafe override void BeginCore(GPUAttachmentLayout attachmentLayout)
     {
         ReleaseRenderBundleEncoder();
-        WebGPURenderPass nativeRenderPass = (WebGPURenderPass)renderPass;
+        WebGPUAttachmentLayout nativeAttachmentLayout = (WebGPUAttachmentLayout)attachmentLayout;
 
-        int colorCount = nativeRenderPass.WebGPUColorInfos.Length;
+        int colorCount = nativeAttachmentLayout.WebGPUColorInfos.Length;
         WGPUTextureFormat* colors = stackalloc WGPUTextureFormat[colorCount];
         for (int i = 0; i < colorCount; i++)
         {
 
-            colors[i] = nativeRenderPass.WebGPUColorInfos[i].format;
+            colors[i] = nativeAttachmentLayout.WebGPUColorInfos[i].format;
         }
 
         WGPURenderBundleEncoderDescriptor descriptor = new WGPURenderBundleEncoderDescriptor
@@ -71,7 +71,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
             label = _nativeNameView,
             colorFormatCount = (nuint)colorCount,
             colorFormats = colors,
-            depthStencilFormat = nativeRenderPass.WebGPUDepthInfo?.format ?? WGPUTextureFormat.Undefined,
+            depthStencilFormat = nativeAttachmentLayout.WebGPUDepthInfo?.format ?? WGPUTextureFormat.Undefined,
             sampleCount = 1,
         };
         _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, &descriptor);

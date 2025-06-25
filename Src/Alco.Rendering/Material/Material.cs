@@ -166,11 +166,11 @@ public abstract class Material: AutoDisposable
     /// <summary>
     /// Get the shader pipeline.
     /// </summary>
-    /// <param name="renderPass">The render pass.</param>
+    /// <param name="attachmentLayout">The render pass.</param>
     /// <returns>The shader pipeline.</returns>
-    public ShaderPipelineInfo GetPipelineInfo(GPUAttachmentLayout renderPass)
+    public ShaderPipelineInfo GetPipelineInfo(GPUAttachmentLayout attachmentLayout)
     {
-        if (_shader.TryUpdatePipelineContext(ref _pipelineContext, renderPass, _isPipelineDirty))
+        if (_shader.TryUpdatePipelineContext(ref _pipelineContext, attachmentLayout, _isPipelineDirty))
         {
             UpdateSlotResources(_pipelineContext.ReflectionInfo!);
             _pipelineInfo = new ShaderPipelineInfo

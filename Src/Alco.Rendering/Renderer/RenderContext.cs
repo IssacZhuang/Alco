@@ -222,7 +222,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         GPURenderBundle renderBundle = subContext.RenderBundle;
         if (!renderBundle.HasBuffer)
         {
-            throw new InvalidOperationException("The render bundle of SubRenderContext is not been recorded, try use RenderContext.Begin(GPURenderPass) to record render commands.");
+            throw new InvalidOperationException("The render bundle of SubRenderContext is not been recorded, try use RenderContext.Begin(GPUAttachmentLayout) to record render commands.");
         }
 
         _renderScope.ExecuteBundle(renderBundle);

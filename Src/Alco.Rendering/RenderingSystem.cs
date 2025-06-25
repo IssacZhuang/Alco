@@ -147,49 +147,49 @@ public partial class RenderingSystem
             512 * 1024
             );
 
-        _prefferedSDRPass = device.CreateRenderPass(new AttachmentLayoutDescriptor
+        _prefferedSDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedSDRFormat)],
             new(_prefferedDepthStencilFormat),
             "sdr_pass"
         ));
 
-        _prefferedHDRPass = device.CreateRenderPass(new AttachmentLayoutDescriptor
+        _prefferedHDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedHDRFormat)],
             new(_prefferedDepthStencilFormat),
             "hdr_pass"
         ));
 
-        _prefferedSDRPassWithoutDepth = device.CreateRenderPass(new AttachmentLayoutDescriptor
+        _prefferedSDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedSDRFormat)],
             null,
             "sdr_pass_no_depth"
         ));
 
-        _prefferedHDRPassWithoutDepth = device.CreateRenderPass(new AttachmentLayoutDescriptor
+        _prefferedHDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedHDRFormat)],
             null,
             "hdr_pass_no_depth"
         ));
 
-        _prefferedRGBATexturePass = device.CreateRenderPass(new AttachmentLayoutDescriptor
+        _prefferedRGBATexturePass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(PixelFormat.RGBA8Unorm)],
             null,
             "rgba_texture_pass"
         ));
 
-        _prefferedRTexturePass = device.CreateRenderPass(new AttachmentLayoutDescriptor
+        _prefferedRTexturePass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(PixelFormat.R8Unorm)],
             null,
             "r_texture_pass"
         ));
 
-        _prefferedLightMapPass = device.CreateRenderPass(new AttachmentLayoutDescriptor
+        _prefferedLightMapPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(PixelFormat.RGBA16Float)],
             null,

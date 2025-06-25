@@ -110,7 +110,7 @@ public sealed class RenderTexture : AutoDisposable
     /// <summary>
     /// The render pass of the frame buffer.
     /// </summary>
-    public GPUAttachmentLayout RenderPass
+    public GPUAttachmentLayout AttachmentLayout
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _frameBuffer.AttachmentLayout;

@@ -65,8 +65,8 @@ public class Game : GameEngine
         _toneMapDataBuffer = RenderingSystem.CreateGraphicsValueBuffer(_toneMapData, "tonemap_data_buffer");
         _toneMapMaterial.SetBuffer(ShaderResourceId.Data, _toneMapDataBuffer);
 
-        MainRenderTarget.SetRenderPass(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
-        _windowRenderTarget.SetRenderPass(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
+        MainRenderTarget.SetAttachmentLayout(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
+        _windowRenderTarget.SetAttachmentLayout(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
 
         _bloomSystem1 = new BloomSystem(this, MainRenderTarget);
         AddSystem(_bloomSystem1);

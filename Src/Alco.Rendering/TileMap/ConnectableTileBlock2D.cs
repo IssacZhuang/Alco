@@ -195,9 +195,9 @@ public class ConnectableTileBlock2D : AutoDisposable
         _isRenderDataDirty = true;
     }
 
-    private void BuildRenderCommand(GPUAttachmentLayout renderPass)
+    private void BuildRenderCommand(GPUAttachmentLayout attachmentLayout)
     {
-        _subRenderContext.Begin(renderPass);
+        _subRenderContext.Begin(attachmentLayout);
        Matrix4x4 matrix = Transform.Matrix;
         var tiles = _tileData.Infos;
 

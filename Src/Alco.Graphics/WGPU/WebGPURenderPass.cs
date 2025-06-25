@@ -6,13 +6,12 @@ using static WebGPU.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
-internal sealed class WebGPURenderPass : GPUAttachmentLayout
+internal sealed class WebGPUAttachmentLayout : GPUAttachmentLayout
 {
 
     #region Properties
     private readonly WGPUDevice _nativeDevice;
 
-    //the texture view are not setted in the WebGPURenderPass object, these attachments are used to create the framebuffer
     private readonly WGPUColorAttachmentInfo[] _colorInfos;
     private readonly WGPUDepthAttachmentInfo? _depthInfo;
 
@@ -48,8 +47,7 @@ internal sealed class WebGPURenderPass : GPUAttachmentLayout
         get => _nativeDevice;
     }
 
-    // for GPUDevice.CreateRenderPass(RenderPassDescriptor)
-    public unsafe WebGPURenderPass(WebGPUDevice device, in AttachmentLayoutDescriptor descriptor) : base(descriptor)
+    public unsafe WebGPUAttachmentLayout(WebGPUDevice device, in AttachmentLayoutDescriptor descriptor) : base(descriptor)
     {
         Device = device;
         

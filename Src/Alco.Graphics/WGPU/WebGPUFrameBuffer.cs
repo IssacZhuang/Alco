@@ -17,7 +17,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     private readonly WebGPUTextureView? _depthStencilView;
     private readonly WebGPUTextureView? _depthView;
     private readonly WebGPUTextureView? _stencilView;
-    private readonly WebGPURenderPass _renderPass;
+    private readonly WebGPUAttachmentLayout _attachmentLayout;
     private readonly WGPURenderPassDescriptor _descriptor;
     // native memory, need to be manually released
     private readonly WGPURenderPassColorAttachment* _colorAttachments;
@@ -33,7 +33,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     public override GPUAttachmentLayout AttachmentLayout
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _renderPass;
+        get => _attachmentLayout;
     }
 
     protected override WebGPUDevice Device { get; }
@@ -139,11 +139,11 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     internal WebGPUFrameBuffer(WebGPUDevice device, in FrameBufferDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        WebGPURenderPass renderPass = (WebGPURenderPass)descriptor.AttachmentLayout;
+        WebGPUAttachmentLayout renderPass = (WebGPUAttachmentLayout)descriptor.AttachmentLayout;
         uint width = descriptor.Width;
         uint height = descriptor.Height;
 
-        _renderPass = renderPass;
+        _attachmentLayout = renderPass;
 
         _width = width;
         _height = height;

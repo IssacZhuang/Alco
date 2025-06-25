@@ -11,13 +11,13 @@ internal class NoSwapchain : GPUSwapchain
 
     public NoSwapchain(in SwapchainDescriptor descriptor): base(descriptor)
     {
-        GPUAttachmentLayout renderPass = new NoRenderPass(new AttachmentLayoutDescriptor(
+        GPUAttachmentLayout attachmentLayout = new NoAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(descriptor.ColorFormat)],
             descriptor.DepthFormat is not null ? new DepthAttachment(descriptor.DepthFormat.Value) : null,
             descriptor.Name
         ));
         FrameBuffer = new NoFrameBuffer(new FrameBufferDescriptor(
-            renderPass,
+            attachmentLayout,
             descriptor.Width,
             descriptor.Height,
             descriptor.Name

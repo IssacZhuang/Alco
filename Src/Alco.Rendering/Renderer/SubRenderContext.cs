@@ -12,7 +12,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     private readonly List<Exception> _exceptionsBegin;
     private readonly List<Exception> _exceptionsEnd;
 
-    private GPUAttachmentLayout? _renderPass;
+    private GPUAttachmentLayout? _attachmentLayout;
 
     //cached mesh data
     private Mesh? _mesh;
@@ -56,12 +56,12 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <summary>
     /// Begin the sub render context.
     /// </summary>
-    /// <param name="renderPass">The render pass to render to.</param>
+    /// <param name="attachmentLayout">The render pass to render to.</param>
     /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
-    public IReadOnlyList<Exception> Begin(GPUAttachmentLayout renderPass)
+    public IReadOnlyList<Exception> Begin(GPUAttachmentLayout attachmentLayout)
     {
-        _renderPass = renderPass;
-        _renderBundle.Begin(renderPass);
+        _attachmentLayout = attachmentLayout;
+        _renderBundle.Begin(attachmentLayout);
 
         return InvokeBegin();
     }
@@ -88,7 +88,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void Draw(in Mesh mesh, in Material material, in int subMeshIndex = 0)
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
@@ -104,7 +104,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
@@ -138,7 +138,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public unsafe void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
@@ -156,7 +156,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_renderPass!);
+        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);

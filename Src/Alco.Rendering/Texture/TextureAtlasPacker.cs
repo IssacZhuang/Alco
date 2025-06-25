@@ -85,7 +85,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
 
         Mesh mesh = _renderingSystem.MeshCenteredSprite;
 
-        ShaderPipelineInfo pipelineInfo = _blitMaterial.GetPipelineInfo(atlasTexture.RenderPass);
+        ShaderPipelineInfo pipelineInfo = _blitMaterial.GetPipelineInfo(atlasTexture.AttachmentLayout);
         uint shaderId_texture = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Texture);
         uint shaderId_camera = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Camera);
 
