@@ -9,7 +9,7 @@ public class DebugStatsRenderer : BaseDebugStatsRenderer
 {
     private readonly Input _input;
     private readonly View _window;
-    public DebugStatsRenderer(Input input, View window, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Shader shaderBlit) : base(width, height, renderingSystem, shaderText, shaderSprite, shaderBlit)
+    public DebugStatsRenderer(Input input, View window, float width, float height, IRenderTarget renderTarget,RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite) : base(width, height, renderTarget, renderingSystem, shaderText, shaderSprite)
     {
         _input = input;
         _window = window;

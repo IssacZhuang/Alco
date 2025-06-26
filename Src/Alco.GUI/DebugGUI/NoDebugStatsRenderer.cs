@@ -39,11 +39,6 @@ public class NoDebugStatsRenderer : IDebugStatsRenderer
         
     }
 
-    public void Blit(GPUFrameBuffer frameBuffer)
-    {
-
-    }
-
     public void SetResolution(float width, float height)
     {
         

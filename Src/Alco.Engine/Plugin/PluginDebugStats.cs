@@ -13,6 +13,8 @@ public class PluginDebugStats : BaseEnginePlugin
         private readonly DebugStatsRenderer _renderer;
         private readonly ViewRenderTarget _renderTarget;
 
+        public override int Order => 2000;
+
         public DebugStatsSystem(DebugStatsRenderer renderer, ViewRenderTarget renderTarget)
         {
             _renderer = renderer;
@@ -23,14 +25,8 @@ public class PluginDebugStats : BaseEnginePlugin
 
         public override void OnEndFrame(float deltaTime)
         {
-            _renderer.Blit(_renderTarget.RenderTexture.FrameBuffer);
-        }
-
-        public override void OnPostUpdate(float delta)
-        {
             DebugStats.CheckAndSubmit();
         }
-
 
         private void OnRenderTargetResize(uint2 size)
         {
@@ -56,7 +52,7 @@ public class PluginDebugStats : BaseEnginePlugin
         Shader ShaderBlit = builtInAssets.Shader_Blit;
         Font font = builtInAssets.Font_Default;
 
-        DebugStatsRenderer renderer = new(engine.Input, engine.MainView, engine.MainView.Size.X, engine.MainView.Size.Y, engine.RenderingSystem, shaderText, shaderSprite, ShaderBlit);
+        DebugStatsRenderer renderer = new(engine.Input, engine.MainView, engine.MainView.Size.X, engine.MainView.Size.Y, engine.MainRenderTarget, engine.RenderingSystem, shaderText, shaderSprite);
         DebugStatsStyle style = new DebugStatsStyle
         {
             Font = font,

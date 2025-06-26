@@ -15,28 +15,28 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
 
     private readonly Camera2DBuffer _camera;
     private readonly Texture2D _textureWhite;
-    private RenderTexture _backBuffer;
 
     //blit
-    private readonly RenderContext _rendererBlit;
     private readonly RenderContext _rendererContent;
     private readonly TextRenderer _textRenderer;
     private readonly SpriteRenderer _spriteRenderer;
-    private readonly Material _material;
     private readonly Mesh _mesh;
 
+    private IRenderTarget _renderTarget;
 
     public abstract Vector2 MousePosition { get; }
     public abstract bool IsMouseClicked { get; }
     public abstract bool IsMousePressing { get; }
 
 
-    protected BaseDebugStatsRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite, Shader shaderBlit)
+    protected BaseDebugStatsRenderer(float width, float height, IRenderTarget renderTarget,RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
     {
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
         //external resources
         _textureWhite = renderingSystem.TextureWhite;
+
+        _renderTarget = renderTarget;
 
         //internal resources
         _camera = renderingSystem.CreateCamera2D(width, height, 100, "debug_gui_camera_2d");
@@ -47,7 +47,6 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
         textMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         textMaterial.BlendState = BlendState.AlphaBlend;
 
-        _rendererBlit = _renderingSystem.CreateRenderContext("debug_stats_blit");
         _rendererContent = _renderingSystem.CreateRenderContext("debug_stats_content");
         _textRenderer = _renderingSystem.CreateTextRenderer(_rendererContent, textMaterial);
 
@@ -58,27 +57,18 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
 
         _mesh = _renderingSystem.MeshFullScreen;
 
-        _backBuffer = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");
 
-        _material = _renderingSystem.CreateMaterial(shaderBlit);
-        _material.SetRenderTexture(ShaderResourceId.Texture, _backBuffer);
-        _material.DepthStencilState = DepthStencilState.Default;
-        _material.BlendState = BlendState.AlphaBlend;
     }
 
     public void SetResolution(float width, float height)
     {
         _camera.ViewSize = new Vector2(width, height);
         _camera.Position = new Vector2(width / 2, -height / 2);
-        Vector2 halfSize = _camera.ViewSize * 0.5f;
-        _backBuffer.Dispose();
-        _backBuffer = _renderingSystem.CreateRenderTexture(_renderingSystem.PrefferedSDRPass, (uint)width, (uint)height, "debug_gui_backbuffer");
-        _material.SetRenderTexture(ShaderResourceId.Texture, _backBuffer);
     }
 
     public void Begin()
     {
-        _rendererContent.Begin(_backBuffer.FrameBuffer, Vector4.Zero);//tranparent background
+        _rendererContent.Begin(_renderTarget.RenderTexture.FrameBuffer);//tranparent background
     }
 
     public void End()
@@ -86,12 +76,6 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
         _rendererContent.End();
     }
 
-    public void Blit(GPUFrameBuffer frameBuffer)
-    {
-        _rendererBlit.Begin(frameBuffer);
-        _rendererBlit.Draw(_mesh, _material);
-        _rendererBlit.End();
-    }
 
     public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
     {
@@ -113,11 +97,9 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
 
     public virtual void Dispose()
     {
-        _rendererBlit.Dispose();
         _rendererContent.Dispose();
         _textRenderer.Dispose();
         _spriteRenderer.Dispose();
-        _backBuffer.Dispose();
         _camera.Dispose();
     }
 
