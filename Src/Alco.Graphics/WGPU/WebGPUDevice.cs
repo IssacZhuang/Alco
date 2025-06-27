@@ -561,7 +561,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     {
         if (status != WGPUMapAsyncStatus.Success)
         {
-            //todo: handle buffer map failed
+            throw new GraphicsException("WebGPU buffer map failed: " + message.ToString());
         }
     }
 
