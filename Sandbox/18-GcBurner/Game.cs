@@ -18,7 +18,7 @@ collocter large amount of GPU will block the GPUQueue
 public class Game : GameEngine
 {
 
-    private class TestThreakWorkerItem : IThreadPoolWorkItem
+    private class TestThreadWorkerItem : IThreadPoolWorkItem
     {
         public void Execute()
         {
@@ -26,10 +26,19 @@ public class Game : GameEngine
         }
     }
 
-    private TestThreakWorkerItem _item = new TestThreakWorkerItem();
+    private class TestParallelTask : ReuseableParallelTask
+    {
+        protected override void ExecuteCore(int index)
+        {
+            //empty
+        }
+    }
+
+    private TestThreadWorkerItem _item = new TestThreadWorkerItem();
 
     private readonly ConcurrentPool<GPUCommandBuffer> _gpuCommandBufferPool;
     private readonly List<GPUCommandBuffer> _gpuCommandBufferList = new List<GPUCommandBuffer>();
+    private readonly TestParallelTask _task = new TestParallelTask();
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -39,6 +48,7 @@ public class Game : GameEngine
     protected override void OnTick(float delta)
     {
         ThreadPool.UnsafeQueueUserWorkItem(_item, false);
+        _task.RunParallel(10000);
         // Parallel.For(0, 100, ParallelCallback);
     }
 
