@@ -21,7 +21,7 @@ namespace Alco
             public bool IsLeaf => collider.HasCollider;
         }
 
-        private class CastRayTask : ReuseableParallelTask
+        private class CastRayTask : ReuseableBatchTask
         {
             private NativeBvh3D _bvh;
             public Ray3D* rays;
@@ -38,7 +38,7 @@ namespace Alco
             }
         }
 
-        private class CastRayFastTask : ReuseableParallelTask
+        private class CastRayFastTask : ReuseableBatchTask
         {
             private NativeBvh3D _bvh;
             public Ray3D* rays;
@@ -55,7 +55,7 @@ namespace Alco
             }
         }
 
-        private class CastColliderRefTask : ReuseableParallelTask
+        private class CastColliderRefTask : ReuseableBatchTask
         {
             private NativeBvh3D _bvh;
             public ColliderRef3D* colliders;
@@ -72,7 +72,7 @@ namespace Alco
             }
         }
 
-        private class CastColliderRefCollectorTask : ReuseableParallelTask
+        private class CastColliderRefCollectorTask : ReuseableBatchTask
         {
             private NativeBvh3D _bvh;
             public ColliderRef3D* colliders;

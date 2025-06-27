@@ -54,7 +54,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for CPU-intensive work (calculating square roots and trigonometric functions)
     /// </summary>
-    private class CpuIntensiveTask : ReuseableParallelTask
+    private class CpuIntensiveTask : ReuseableBatchTask
     {
         private int[] _data;
         private double[] _results;
@@ -120,7 +120,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for memory-intensive work (array operations and memory access patterns)
     /// </summary>
-    private class MemoryIntensiveTask : ReuseableParallelTask
+    private class MemoryIntensiveTask : ReuseableBatchTask
     {
         private int[] _source;
         private int[] _destination;
@@ -189,7 +189,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for lightweight work (simple arithmetic operations)
     /// </summary>
-    private class LightweightTask : ReuseableParallelTask
+    private class LightweightTask : ReuseableBatchTask
     {
         private int[] _source;
         private int[] _destination;
@@ -246,7 +246,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for empty work (no operations) to test pure scheduling overhead
     /// </summary>
-    private class EmptyTask : ReuseableParallelTask
+    private class EmptyTask : ReuseableBatchTask
     {
         protected override void ExecuteCore(int index)
         {
@@ -307,7 +307,7 @@ public class BenchmarkParallel
         return count;
     }
 
-    private class OverheadTask : ReuseableParallelTask
+    private class OverheadTask : ReuseableBatchTask
     {
         private int _count;
 

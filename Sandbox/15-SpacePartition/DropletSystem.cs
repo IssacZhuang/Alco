@@ -20,7 +20,7 @@ public class DropletSystem : IDisposable
         public int end;
     }
 
-    private class JobParallelRender : ReuseableParallelTask
+    private class JobParallelRender : ReuseableBatchTask
     {
         private readonly SubRenderContext[] _renderContext;
         private readonly SpriteRenderer[] _renderers;

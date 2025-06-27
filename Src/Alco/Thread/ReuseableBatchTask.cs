@@ -9,7 +9,7 @@ namespace Alco;
 /// This class provides parallel execution of indexed operations with optimized
 /// object reuse to minimize allocations.
 /// </summary>
-public abstract class ReuseableParallelTask : AutoDisposable
+public abstract class ReuseableBatchTask : AutoDisposable
 {
     /// <summary>
     /// Represents a work item that can be executed in parallel.
@@ -34,13 +34,13 @@ public abstract class ReuseableParallelTask : AutoDisposable
         /// <summary>
         /// The parent task that owns this item.
         /// </summary>
-        private readonly ReuseableParallelTask _task;
+        private readonly ReuseableBatchTask _task;
 
         /// <summary>
         /// Initializes a new instance of the TaskItem class.
         /// </summary>
         /// <param name="task">The parent task.</param>
-        public TaskItem(ReuseableParallelTask task)
+        public TaskItem(ReuseableBatchTask task)
         {
             _task = task;
         }
@@ -79,7 +79,7 @@ public abstract class ReuseableParallelTask : AutoDisposable
     /// Initializes a new instance of the ReuseableParallelTask class.
     /// </summary>
     /// <param name="maxConcurrency">The maximum number of concurrent tasks. Defaults to the processor count.</param>
-    public ReuseableParallelTask(int maxConcurrency = 0)
+    public ReuseableBatchTask(int maxConcurrency = 0)
     {
         _maxConcurrency = maxConcurrency <= 0 ? Environment.ProcessorCount : maxConcurrency;
         _completionCount = new SemaphoreSlim(0, int.MaxValue);
