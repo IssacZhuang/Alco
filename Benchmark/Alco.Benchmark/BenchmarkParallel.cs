@@ -17,7 +17,6 @@ public class BenchmarkParallel
     private const int MediumWorkload = 10000;
     private const int LargeWorkload = 100000;
 
-    private ParallelScheduler _scheduler;
     private CpuIntensiveTask _cpuTask;
     private MemoryIntensiveTask _memoryTask;
     private LightweightTask _lightweightTask;
@@ -28,7 +27,6 @@ public class BenchmarkParallel
     [GlobalSetup]
     public void Setup()
     {
-        _scheduler = new ParallelScheduler();
         _cpuTask = new CpuIntensiveTask();
         _memoryTask = new MemoryIntensiveTask();
         _lightweightTask = new LightweightTask();
@@ -45,7 +43,6 @@ public class BenchmarkParallel
     [GlobalCleanup]
     public void Cleanup()
     {
-        _scheduler?.Dispose();
         _cpuTask?.Dispose();
         _memoryTask?.Dispose();
         _lightweightTask?.Dispose();
@@ -93,25 +90,6 @@ public class BenchmarkParallel
     {
         var results = new double[size];
         Parallel.For(0, size, i =>
-        {
-            double value = _array[i];
-            for (int j = 0; j < 10; j++)
-            {
-                value = Math.Sqrt(value * Math.Sin(value) + Math.Cos(value));
-            }
-            results[i] = value;
-        });
-        return results;
-    }
-
-    [Benchmark(Description = "CPU Intensive - ParallelScheduler")]
-    [Arguments(SmallWorkload)]
-    [Arguments(MediumWorkload)]
-    [Arguments(LargeWorkload)]
-    public double[] CpuIntensive_ParallelScheduler(int size)
-    {
-        var results = new double[size];
-        _scheduler.For(size, i =>
         {
             double value = _array[i];
             for (int j = 0; j < 10; j++)
@@ -191,25 +169,6 @@ public class BenchmarkParallel
         return results;
     }
 
-    [Benchmark(Description = "Memory Intensive - ParallelScheduler")]
-    [Arguments(SmallWorkload)]
-    [Arguments(MediumWorkload)]
-    [Arguments(LargeWorkload)]
-    public int[] MemoryIntensive_ParallelScheduler(int size)
-    {
-        var results = new int[size];
-        _scheduler.For(size, i =>
-        {
-            int sum = 0;
-            for (int j = 0; j < 20; j++)
-            {
-                int idx = (i * 31 + j * 17) % _array.Length;
-                sum += _array[idx];
-            }
-            results[i] = sum;
-        });
-        return results;
-    }
 
     [Benchmark(Description = "Memory Intensive - ReuseableParallelTask")]
     [Arguments(SmallWorkload)]
@@ -267,19 +226,6 @@ public class BenchmarkParallel
         return results;
     }
 
-    [Benchmark(Description = "Lightweight - ParallelScheduler")]
-    [Arguments(SmallWorkload)]
-    [Arguments(MediumWorkload)]
-    [Arguments(LargeWorkload)]
-    public int[] Lightweight_ParallelScheduler(int size)
-    {
-        var results = new int[size];
-        _scheduler.For(size, i =>
-        {
-            results[i] = _array[i] * 2 + 1;
-        });
-        return results;
-    }
 
     [Benchmark(Description = "Lightweight - ReuseableParallelTask")]
     [Arguments(SmallWorkload)]
@@ -329,22 +275,6 @@ public class BenchmarkParallel
     }
 
     /// <summary>
-    /// Test scheduling performance with empty tasks using ParallelScheduler repeated execution
-    /// </summary>
-    [Benchmark(Description = "Scheduling Performance - ParallelScheduler (Repeated)")]
-    [Arguments(100)]
-    public void SchedulingPerformance_ParallelScheduler_Repeated(int taskCount)
-    {
-        for (int iteration = 0; iteration < SchedulingIterations; iteration++)
-        {
-            _scheduler.For(taskCount, i =>
-            {
-                // Empty task - pure scheduling overhead
-            });
-        }
-    }
-
-    /// <summary>
     /// Test scheduling performance with empty tasks using ReuseableParallelTask repeated execution
     /// </summary>
     [Benchmark(Description = "Scheduling Performance - ReuseableParallelTask (Repeated)")]
@@ -371,17 +301,6 @@ public class BenchmarkParallel
     {
         int count = 0;
         Parallel.For(0, 100, i =>
-        {
-            Interlocked.Increment(ref count);
-        });
-        return count;
-    }
-
-    [Benchmark(Description = "Overhead - ParallelScheduler")]
-    public int Overhead_ParallelScheduler()
-    {
-        int count = 0;
-        _scheduler.For(100, i =>
         {
             Interlocked.Increment(ref count);
         });
