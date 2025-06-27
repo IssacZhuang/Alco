@@ -12,14 +12,12 @@ public class BenchmarkBvh
     NativeArrayList<ColliderSphere3D> spheres3D;
     NativeArrayList<Ray3D> rays3D;
     NativeArrayList<ColliderRef3D> colliders3D;
-    ParallelScheduler scheduler3D;
     NativeBvh3D bvh3D;
 
     NativeArrayList<ColliderBox2D> boxs2D;
     NativeArrayList<ColliderSphere2D> spheres2D;
     NativeArrayList<Ray2D> rays2D;
     NativeArrayList<ColliderRef2D> colliders2D;
-    ParallelScheduler scheduler2D;
     NativeBvh2D bvh2D;
 
     [GlobalSetup]
@@ -85,9 +83,7 @@ public class BenchmarkBvh
         {
             colliders3D.Add(ColliderRef3D.Create(ptrSphere + i));
         }
-
-        scheduler3D = new ParallelScheduler();
-        bvh3D = new NativeBvh3D(scheduler3D);
+        bvh3D = new NativeBvh3D();
 
         bvh3D.BuildTree(colliders3D.AsReadOnlySpan());
         bvh3D.CastBatchRay(rays3D.AsReadOnlySpan());
@@ -148,8 +144,7 @@ public class BenchmarkBvh
             colliders2D.Add(ColliderRef2D.Create(ptrSphere + i));
         }
 
-        scheduler2D = new ParallelScheduler();
-        bvh2D = new NativeBvh2D(scheduler2D);
+        bvh2D = new NativeBvh2D();
 
         bvh2D.BuildTree(colliders2D.AsReadOnlySpan());
         bvh2D.CastBatchRay(rays2D.AsReadOnlySpan());
@@ -163,14 +158,12 @@ public class BenchmarkBvh
         rays3D.Dispose();
         colliders3D.Dispose();
         bvh3D.Dispose();
-        scheduler3D.Dispose();
 
         boxs2D.Dispose();
         spheres2D.Dispose();
         rays2D.Dispose();
         colliders2D.Dispose();
         bvh2D.Dispose();
-        scheduler2D.Dispose();
     }
 
     [Benchmark(Description = "BVH 3D Build tree: ")]

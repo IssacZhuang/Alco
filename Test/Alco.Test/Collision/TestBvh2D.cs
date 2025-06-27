@@ -69,8 +69,7 @@ namespace Alco.Test
             // colliders.Add(ColliderRef.Create(boxs.Ptr));
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
-            using ParallelScheduler scheduler = new ParallelScheduler();
-            NativeBvh2D bvh = new NativeBvh2D(scheduler);
+            NativeBvh2D bvh = new NativeBvh2D();
             Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-2, 1.1f), new Vector2(200, 1.1f));
 
             bvh.BuildTree(colliders.AsReadOnlySpan());
@@ -132,8 +131,7 @@ namespace Alco.Test
                 colliders.Add(ColliderRef2D.Create(spheres.UnsafePointer + i));
             }
 
-            using ParallelScheduler scheduler = new ParallelScheduler();
-            NativeBvh2D bvh = new NativeBvh2D(scheduler);
+            NativeBvh2D bvh = new NativeBvh2D();
 
             bvh.BuildTree(colliders.AsReadOnlySpan());
 
