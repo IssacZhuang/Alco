@@ -6,10 +6,11 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public static partial class DebugGUI
+
+public static partial class DebugStats
 {
-    private static IDebugGUIRenderer _renderer = new NoDebugGUIRenderer();
-    private static DebugGUIStyle _style;
+    private static IDebugStatsRenderer _renderer = new NoDebugStatsRenderer();
+    private static DebugStatsStyle _style;
 
     private static readonly char[] _stringBuffer = new char[1024];
     private static int _stringBufferLength = 0;
@@ -19,7 +20,7 @@ public static partial class DebugGUI
     private static Vector2 _currentPosition = Vector2.Zero;
     private static Vector2 _nextOffset = Vector2.Zero;
 
-    public static void Initialize(IDebugGUIRenderer renderer, DebugGUIStyle style)
+    public static void Initialize(IDebugStatsRenderer renderer, DebugStatsStyle style)
     {
         _renderer = renderer;
         _style = style;
@@ -90,7 +91,7 @@ public static partial class DebugGUI
 
     internal static void Reset()
     {
-        _renderer = new NoDebugGUIRenderer();
+        _renderer = new NoDebugStatsRenderer();
         _style = default;
         ResetPosition();
     }

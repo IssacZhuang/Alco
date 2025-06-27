@@ -8,6 +8,8 @@ namespace Alco
 {
     public unsafe class NativeBvh3D : IDisposable
     {
+        private const int BatchSize = 16;
+
         private const int ChildCount = 2;
 
         public struct Node
@@ -19,82 +21,79 @@ namespace Alco
             public bool IsLeaf => collider.HasCollider;
         }
 
-        private class JobCastRay : IJobBatch
+        private class CastRayTask : ReuseableParallelTask
         {
             private NativeBvh3D _bvh;
             public Ray3D* rays;
             public RayCastResult3D* results;
 
-            public JobCastRay(NativeBvh3D bvh)
+            public CastRayTask(NativeBvh3D bvh)
             {
                 _bvh = bvh;
             }
 
-            public void Execute(int index)
+            protected override void ExecuteCore(int index)
             {
                 results[index] = _bvh.CastRay(rays[index]);
             }
         }
 
-        private class JobCastRayFast : IJobBatch
+        private class CastRayFastTask : ReuseableParallelTask
         {
             private NativeBvh3D _bvh;
             public Ray3D* rays;
             public RayCastResult3D* results;
 
-            public JobCastRayFast(NativeBvh3D bvh)
+            public CastRayFastTask(NativeBvh3D bvh)
             {
                 _bvh = bvh;
             }
 
-            public void Execute(int index)
+            protected override void ExecuteCore(int index)
             {
                 results[index] = _bvh.CastRayFirstHit(rays[index]);
             }
         }
 
-        private class JobCastColliderRef : IJobBatch
+        private class CastColliderRefTask : ReuseableParallelTask
         {
             private NativeBvh3D _bvh;
             public ColliderRef3D* colliders;
             public ColliderCastResult3D* results;
 
-            public JobCastColliderRef(NativeBvh3D bvh)
+            public CastColliderRefTask(NativeBvh3D bvh)
             {
                 _bvh = bvh;
             }
 
-
-            public void Execute(int index)
+            protected override void ExecuteCore(int index)
             {
                 results[index] = _bvh.CastCollider(colliders[index]);
             }
         }
 
-        private class JobCastColliderRefCollector : IJobBatch
+        private class CastColliderRefCollectorTask : ReuseableParallelTask
         {
             private NativeBvh3D _bvh;
             public ColliderRef3D* colliders;
             public NativeArrayList<ColliderCastResult3D>* results;
 
-            public JobCastColliderRefCollector(NativeBvh3D bvh)
+            public CastColliderRefCollectorTask(NativeBvh3D bvh)
             {
                 _bvh = bvh;
             }
 
-            public void Execute(int index)
+            protected override void ExecuteCore(int index)
             {
                 _bvh.CastColliderCollectorCore(colliders[index], _bvh._root, results + index);
             }
-        } 
+        }
 
-        private readonly ParallelScheduler _scheduler;
-        //reuse job
-        private readonly JobCastRay _jobCastRay;
-        private readonly JobCastRayFast _jobCastRayFast;
-        private readonly JobCastColliderRef _jobCastColliderRef;
-        private readonly JobCastColliderRefCollector _jobCastColliderRefCollector;
-
+        //reuse task
+        private readonly CastRayTask _castRayTask;
+        private readonly CastRayFastTask _castRayFastTask;
+        private readonly CastColliderRefTask _castColliderRefTask;
+        private readonly CastColliderRefCollectorTask _castColliderRefCollectorTask;
 
         private NativeBuffer<Node> _nodes;
         // result for parallel job
@@ -113,14 +112,12 @@ namespace Alco
         public int Size => _nodeSize;
         public int Capacity => _nodes.Length;
 
-        public NativeBvh3D(ParallelScheduler scheduler)
+        public NativeBvh3D()
         {
-            _scheduler = scheduler;
-
-            _jobCastRay = new JobCastRay(this);
-            _jobCastRayFast = new JobCastRayFast(this);
-            _jobCastColliderRef = new JobCastColliderRef(this);
-            _jobCastColliderRefCollector = new JobCastColliderRefCollector(this);
+            _castRayTask = new CastRayTask(this);
+            _castRayFastTask = new CastRayFastTask(this);
+            _castColliderRefTask = new CastColliderRefTask(this);
+            _castColliderRefCollectorTask = new CastColliderRefCollectorTask(this);
             _isDisposed = false;
 
             _castResultCollector = new NativeArrayList<ColliderCastResult3D>(4);
@@ -160,9 +157,9 @@ namespace Alco
 
             fixed (Ray3D* raysPtr = rays)
             {
-                _jobCastRayFast.rays = raysPtr;
-                _jobCastRayFast.results = _batchRayCastResult.UnsafePointer;
-                _scheduler.Run(_jobCastRayFast, rays.Length);
+                _castRayFastTask.rays = raysPtr;
+                _castRayFastTask.results = _batchRayCastResult.UnsafePointer;
+                _castRayFastTask.RunParallel(rays.Length, BatchSize);
             }
 
 
@@ -183,9 +180,9 @@ namespace Alco
 
             fixed (Ray3D* raysPtr = rays)
             {
-                _jobCastRay.rays = raysPtr;
-                _jobCastRay.results = _batchRayCastResult.UnsafePointer;
-                _scheduler.Run(_jobCastRay, rays.Length);
+                _castRayTask.rays = raysPtr;
+                _castRayTask.results = _batchRayCastResult.UnsafePointer;
+                _castRayTask.RunParallel(rays.Length, BatchSize);
             }
             return _batchRayCastResult.AsReadOnlySpan();
         }
@@ -205,9 +202,9 @@ namespace Alco
 
             fixed (ColliderRef3D* collidersPtr = colliders)
             {
-                _jobCastColliderRef.colliders = collidersPtr;
-                _jobCastColliderRef.results = _batchColliderCastResult.UnsafePointer;
-                _scheduler.Run(_jobCastColliderRef, colliders.Length);
+                _castColliderRefTask.colliders = collidersPtr;
+                _castColliderRefTask.results = _batchColliderCastResult.UnsafePointer;
+                _castColliderRefTask.RunParallel(colliders.Length, BatchSize);
             }
 
             return _batchColliderCastResult.AsReadOnlySpan();
@@ -241,9 +238,9 @@ namespace Alco
 
             fixed (ColliderRef3D* collidersPtr = colliders)
             {
-                _jobCastColliderRefCollector.colliders = collidersPtr;
-                _jobCastColliderRefCollector.results = _batchColliderCastResultCollector.UnsafePointer;
-                _scheduler.Run(_jobCastColliderRefCollector, colliders.Length);
+                _castColliderRefCollectorTask.colliders = collidersPtr;
+                _castColliderRefCollectorTask.results = _batchColliderCastResultCollector.UnsafePointer;
+                _castColliderRefCollectorTask.RunParallel(colliders.Length, BatchSize);
             }
 
             return _batchColliderCastResultCollector.AsReadOnlySpan();
@@ -669,6 +666,11 @@ namespace Alco
             {
                 return;
             }
+
+            _castRayTask?.Dispose();
+            _castRayFastTask?.Dispose();
+            _castColliderRefTask?.Dispose();
+            _castColliderRefCollectorTask?.Dispose();
 
             _batchRayCastResult.Dispose();
 

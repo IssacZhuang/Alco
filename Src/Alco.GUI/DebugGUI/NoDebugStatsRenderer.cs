@@ -4,7 +4,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public class NoDebugGUIRenderer : IDebugGUIRenderer
+public class NoDebugStatsRenderer : IDebugStatsRenderer
 {
     public Vector2 MousePosition => new Vector2();
 
@@ -37,11 +37,6 @@ public class NoDebugGUIRenderer : IDebugGUIRenderer
     public void End()
     {
         
-    }
-
-    public void Blit(GPUFrameBuffer frameBuffer)
-    {
-
     }
 
     public void SetResolution(float width, float height)

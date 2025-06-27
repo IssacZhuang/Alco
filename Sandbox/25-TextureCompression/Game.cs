@@ -5,6 +5,7 @@ using Alco;
 
 using Alco.Graphics;
 using Alco.GUI;
+using Alco.ImGUI;
 
 
 
@@ -54,8 +55,11 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugGUI.Text(FrameRate);
-        DebugGUI.CheckBoxWithText("Show Compressed", ref _isShowCompressed);
+        DebugStats.Text(FrameRate);
+
+        ImGui.Begin("Texture Compression");
+        ImGui.Checkbox("Show Compressed", ref _isShowCompressed);
+        ImGui.End();
 
 
         Transform2D transform = Transform2D.Identity;

@@ -87,7 +87,6 @@ public class Game : GameEngine
         }
 
         int value = _iterationBuffer.Value;
-        DebugGUI.Slider(ref value, 1, 16);
         _iterationBuffer.Value = value;
         _iterationBuffer.UpdateBuffer();
         _timer += delta;
@@ -95,22 +94,26 @@ public class Game : GameEngine
 
         //_iterationBuffer.Value = 16;
         _commandBuffer.Begin();
-        _commandBuffer.SetComputePipeline(_computePipeline);
-        _commandBuffer.SetComputeResources(0, _image.EntryReadonly);
-        _commandBuffer.SetComputeResources(1, _renderTarget.EntryWriteable);
-        _commandBuffer.SetComputeResources(2, _iterationBuffer.EntryReadonly);
-        _commandBuffer.DispatchCompute(_image.Width / 8, _image.Height / 8, 1);
-        // _commandBuffer.End();
-        // GraphicsDevice.Submit(_commandBuffer);
 
-        // _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_graphicsPipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _renderTarget.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var computePass = _commandBuffer.BeginCompute())
+        {
+            computePass.SetPipeline(_computePipeline);
+            computePass.SetResources(0, _image.EntryReadonly);
+            computePass.SetResources(1, _renderTarget.EntryWriteable);
+            computePass.SetResources(2, _iterationBuffer.EntryReadonly);
+            computePass.DispatchCompute(_image.Width / 8, _image.Height / 8, 1);
+        }
+
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_graphicsPipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _resourceGroupBuffer);
+            renderPass.SetResources(1, _renderTarget.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
+
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
@@ -169,7 +172,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPURenderPass renderPass = MainRenderTarget.FrameBuffer.RenderPass;
+        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },
@@ -178,8 +181,8 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { renderPass.Colors[0].Format },
-             renderPass.Depth.HasValue ? renderPass.Depth.Value.Format : null,
+            new PixelFormat[] { attachmentLayout.Colors[0].Format },
+             attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
             null,
             "Quad Pipeline"
         );

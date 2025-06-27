@@ -98,17 +98,18 @@ public class Game : GameEngine
 
         //draw
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
 
-        _commandBuffer.SetGraphicsResources(1, _texWhite.EntrySample);
-        _commandBuffer.SetGraphicsResources(2, _positionsBuffer.EntryReadonly);
-        _commandBuffer.PushGraphicsConstants(ShaderStage.Vertex, _transform1.Matrix);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
-
+            renderPass.SetResources(1, _texWhite.EntrySample);
+            renderPass.SetResources(2, _positionsBuffer.EntryReadonly);
+            renderPass.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
@@ -154,7 +155,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPURenderPass renderPass = MainRenderTarget.FrameBuffer.RenderPass;
+        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
 
         GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
             bindGroups,
@@ -163,8 +164,8 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { renderPass.Colors[0].Format },
-            renderPass.Depth.HasValue ? renderPass.Depth.Value.Format : null,
+            new PixelFormat[] { attachmentLayout.Colors[0].Format },
+            attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
             info.PushConstantsRanges.ToArray(),
             "quad_pipline"
         );

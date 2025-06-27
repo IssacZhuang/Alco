@@ -17,7 +17,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     private readonly WebGPUTextureView? _depthStencilView;
     private readonly WebGPUTextureView? _depthView;
     private readonly WebGPUTextureView? _stencilView;
-    private readonly WebGPURenderPass _renderPass;
+    private readonly WebGPUAttachmentLayout _attachmentLayout;
     private readonly WGPURenderPassDescriptor _descriptor;
     // native memory, need to be manually released
     private readonly WGPURenderPassColorAttachment* _colorAttachments;
@@ -30,10 +30,10 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
     #region Abstract Implementation
 
-    public override GPURenderPass RenderPass
+    public override GPUAttachmentLayout AttachmentLayout
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _renderPass;
+        get => _attachmentLayout;
     }
 
     protected override WebGPUDevice Device { get; }
@@ -139,26 +139,26 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
     internal WebGPUFrameBuffer(WebGPUDevice device, in FrameBufferDescriptor descriptor): base(descriptor)
     {
         Device = device;
-        WebGPURenderPass renderPass = (WebGPURenderPass)descriptor.RenderPass;
+        WebGPUAttachmentLayout attachmentLayout = (WebGPUAttachmentLayout)descriptor.AttachmentLayout;
         uint width = descriptor.Width;
         uint height = descriptor.Height;
 
-        _renderPass = renderPass;
+        _attachmentLayout = attachmentLayout;
 
         _width = width;
         _height = height;
 
-        _colorTextures = new WebGPUTexture[renderPass.Colors.Length];
-        _colorViews = new WebGPUTextureView[renderPass.Colors.Length];
+        _colorTextures = new WebGPUTexture[attachmentLayout.Colors.Length];
+        _colorViews = new WebGPUTextureView[attachmentLayout.Colors.Length];
         _descriptor = new WGPURenderPassDescriptor
         {
-            colorAttachmentCount = (uint)renderPass.Colors.Length,
+            colorAttachmentCount = (uint)attachmentLayout.Colors.Length,
         };
 
-        _colorAttachments = Alloc<WGPURenderPassColorAttachment>(renderPass.Colors.Length);
-        for (int i = 0; i < renderPass.WebGPUColorInfos.Length; i++)
+        _colorAttachments = Alloc<WGPURenderPassColorAttachment>(attachmentLayout.Colors.Length);
+        for (int i = 0; i < attachmentLayout.WebGPUColorInfos.Length; i++)
         {
-            WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[i];
+            WGPUColorAttachmentInfo colorInfo = attachmentLayout.WebGPUColorInfos[i];
             _colorTextures[i] = new WebGPUTexture(
                 device,
                 BuildColorTextureDescriptor(colorInfo.format, width, height)
@@ -178,9 +178,9 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
             };
         }
 
-        if (renderPass.WebGPUDepthInfo.HasValue)
+        if (attachmentLayout.WebGPUDepthInfo.HasValue)
         {
-            WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
+            WGPUDepthAttachmentInfo depthInfo = attachmentLayout.WebGPUDepthInfo.Value;
 
             _depthStencilTexture = new WebGPUTexture(
                 device,
@@ -211,15 +211,15 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         _descriptor.colorAttachments = _colorAttachments;
         _descriptor.depthStencilAttachment = _depthAttachment;
 
-        _colors = new WGPUTextureFormat[renderPass.WebGPUColorInfos.Length];
-        for (int i = 0; i < renderPass.WebGPUColorInfos.Length; i++)
+        _colors = new WGPUTextureFormat[attachmentLayout.WebGPUColorInfos.Length];
+        for (int i = 0; i < attachmentLayout.WebGPUColorInfos.Length; i++)
         {
-            _colors[i] = renderPass.WebGPUColorInfos[i].format;
+            _colors[i] = attachmentLayout.WebGPUColorInfos[i].format;
         }
 
-        if (renderPass.WebGPUDepthInfo.HasValue)
+        if (attachmentLayout.WebGPUDepthInfo.HasValue)
         {
-            _depth = renderPass.WebGPUDepthInfo.Value.format;
+            _depth = attachmentLayout.WebGPUDepthInfo.Value.format;
         }
     }
 

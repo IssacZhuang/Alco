@@ -4,33 +4,33 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Test;
 
-public class TestRenderPass
+public class TestAttachmentLayout
 {
     [Test]
-    public void TestRenderPassHash()
+    public void TestAttachmentLayoutHash()
     {
         GameEngine engine = new GameEngine(GameEngineSetting.CreateNoGPU());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         GPUDevice device = renderingSystem.GraphicsDevice;
-        GPURenderPass pass1 = device.CreateRenderPass(new RenderPassDescriptor(
-            [new(PixelFormat.RGBA8Unorm)],
-            new(PixelFormat.Depth24PlusStencil8),
-            "test"
-        ));
-        
-        GPURenderPass pass2 = device.CreateRenderPass(new RenderPassDescriptor(
+        GPUAttachmentLayout pass1 = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new(PixelFormat.RGBA8Unorm)],
             new(PixelFormat.Depth24PlusStencil8),
             "test"
         ));
 
-        GPURenderPass pass3 = device.CreateRenderPass(new RenderPassDescriptor(
+        GPUAttachmentLayout pass2 = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new(PixelFormat.RGBA8Unorm)],
+            new(PixelFormat.Depth24PlusStencil8),
+            "test"
+        ));
+
+        GPUAttachmentLayout pass3 = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new(PixelFormat.RGBA8Unorm)],
             null,
             "test"
         ));
 
-        GPURenderPass pass4 = device.CreateRenderPass(new RenderPassDescriptor(
+        GPUAttachmentLayout pass4 = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new(PixelFormat.RGBA8Unorm), new(PixelFormat.R8Unorm)],
             null,
             "test"

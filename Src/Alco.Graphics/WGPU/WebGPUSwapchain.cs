@@ -8,7 +8,7 @@ namespace Alco.Graphics.WebGPU;
 internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
 {
     private readonly WebGPUDevice _device;
-    private readonly WebGPURenderPass _renderPass;
+    private readonly WebGPUAttachmentLayout _attachmentLayout;
     private readonly WGPUSurface _surface;
     private readonly WebGPUSurfaceFrameBuffer _frameBuffer;
 
@@ -64,7 +64,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
 
         wgpuSurfaceCapabilitiesFreeMembers(surfaceCapabilities);
 
-        //create render pass
+        //create attachment layout
         DepthAttachment? depth = null;
         if (descriptor.DepthFormat.HasValue)
         {
@@ -77,7 +77,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
             };
         }
 
-        RenderPassDescriptor renderPassDescriptor = new RenderPassDescriptor(
+        AttachmentLayoutDescriptor attachmentLayoutDescriptor = new AttachmentLayoutDescriptor(
             new ColorAttachment[]
             {
                 new ColorAttachment()
@@ -90,11 +90,11 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
             "surface_render_pass"
         );
 
-        _renderPass = new WebGPURenderPass(device, renderPassDescriptor);
+        _attachmentLayout = new WebGPUAttachmentLayout(device, attachmentLayoutDescriptor);
 
 
         _config.device = device.Native;
-        _config.format = _renderPass.WebGPUColorInfos[0].format;
+        _config.format = _attachmentLayout.WebGPUColorInfos[0].format;
         _config.usage = WGPUTextureUsage.RenderAttachment;
         _config.presentMode = GetPresentMode(descriptor.IsVSyncEnabled);
         _config.alphaMode = WGPUCompositeAlphaMode.Auto;
@@ -104,7 +104,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
 
         ///the life cycle of the _surface will be managed by the WebGPUSurfaceTexture
         /// because it must be released after the native SurfaceTexture is released
-        _frameBuffer = new WebGPUSurfaceFrameBuffer(_device, _renderPass, _surface, _config);
+        _frameBuffer = new WebGPUSurfaceFrameBuffer(_device, _attachmentLayout, _surface, _config);
     }
 
     #region Abstract Implementation

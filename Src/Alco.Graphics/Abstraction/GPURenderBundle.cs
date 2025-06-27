@@ -6,7 +6,7 @@ namespace Alco.Graphics;
 /// <summary>
 /// The reusable sub command buffer for rendering. Can be executed by <see cref="GPUCommandBuffer.ExecuteBundle(GPURenderBundle)"/> or <see cref="GPUCommandBuffer.ExecuteBundle(ReadOnlySpan{GPURenderBundle})"/>.
 /// </summary>
-public unsafe abstract class GPURenderBundle : BaseGPUObject, IGPUGraphicsCommandRecorder
+public unsafe abstract class GPURenderBundle : BaseGPUObject
 {
     protected bool _isRecording = false;
     //API
@@ -21,16 +21,16 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject, IGPUGraphicsComman
     {
     }
 
-    public void Begin(GPURenderPass renderPass)
+    public void Begin(GPUAttachmentLayout attachmentLayout)
     {
-        UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPURenderPass) twice before calling GPUCommandBuffer.End()");
+        UtilsAssert.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPUAttachmentLayout) twice before calling GPUCommandBuffer.End()");
         _isRecording = true;
-        BeginCore(renderPass);
+        BeginCore(attachmentLayout);
     }
 
     public void End()
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         _isRecording = false;
         EndCore();
     }
@@ -39,55 +39,55 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject, IGPUGraphicsComman
 
     public void SetGraphicsPipeline(GPUPipeline pipeline)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         SetGraphicsPipelineCore(pipeline);
     }
 
     public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         SetGraphicsResourcesCore(slot, resourceGroup);
     }
 
     public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         SetVertexBufferCore(slot, buffer, offset, size);
     }
 
     public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         SetIndexBufferCore(buffer, format, offset, size);
     }
 
     public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while Draw, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while Draw, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         DrawCore(vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
     public void DrawIndexed(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexed, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         DrawIndexedCore(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
     public void DrawIndirect(GPUBuffer indirectBuffer, uint offset)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         DrawIndirectCore(indirectBuffer, offset);
     }
 
     public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
     public void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
-        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while PushGraphicsConstants, try start recording by calling GPUCommandBuffer.Begin(GPURenderPass)");
+        UtilsAssert.IsTrue(_isRecording, "Command buffer is not recording while PushGraphicsConstants, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         PushGraphicsConstantsCore(stage, bufferOffset, data, size);
     }
 
@@ -120,7 +120,7 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject, IGPUGraphicsComman
     }
 
     // need to be implemented for each backend
-    protected abstract void BeginCore(GPURenderPass renderPass);
+    protected abstract void BeginCore(GPUAttachmentLayout attachmentLayout);
     protected abstract void EndCore();
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);
     protected abstract void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size);

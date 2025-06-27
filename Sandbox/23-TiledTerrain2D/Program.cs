@@ -15,7 +15,7 @@ GameEngineSetting setting = new GameEngineSetting
 With<PluginDefaultAssets>().
 With(new PluginHDR()).
 //With<PluginBloom>().
-With<PluginDebugGUI>().
+With<PluginDebugStats>().
 With<PluginImGUI>().
 With<PluginFXAA>();
 //With<PluginDepthDebug>();

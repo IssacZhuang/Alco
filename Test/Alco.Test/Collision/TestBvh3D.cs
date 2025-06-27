@@ -70,8 +70,7 @@ namespace Alco.Test
             // colliders.Add(ColliderRef.Create(boxs.Ptr));
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
-            using ParallelScheduler scheduler = new ParallelScheduler();
-            NativeBvh3D bvh = new NativeBvh3D(scheduler);
+            NativeBvh3D bvh = new NativeBvh3D();
             Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
 
             bvh.BuildTree(colliders.AsReadOnlySpan());
@@ -133,8 +132,7 @@ namespace Alco.Test
                 colliders.Add(ColliderRef3D.Create(spheres.UnsafePointer + i));
             }
 
-            using ParallelScheduler scheduler = new ParallelScheduler();
-            NativeBvh3D bvh = new NativeBvh3D(scheduler);
+            NativeBvh3D bvh = new NativeBvh3D();
 
             bvh.BuildTree(colliders.AsReadOnlySpan());
 

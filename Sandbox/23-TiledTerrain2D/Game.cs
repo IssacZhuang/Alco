@@ -208,7 +208,7 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        DebugGUI.Text(FrameRate);
+        DebugStats.Text(FrameRate);
         bool isDebugClicked = false;
 
         ImGui.Begin("Edit", ref _isEditWindowOpen);
@@ -315,9 +315,7 @@ public class Game : GameEngine
 
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
-            //DebugGUI.Text($"Tile Position: {tilePosition}");
             Vector2 tilePositionInWorld = UtilsCoordinates.PixelSpaceToWorldSpace(tilePosition, _surfaceBlock.Size);
-            //DebugGUI.Text($"Tile Local Position: {tileLocalPosition}");
 
             ImGui.Text($"Tile Position: {tilePosition}");
 
@@ -366,6 +364,16 @@ public class Game : GameEngine
             }
         }
         _renderer.End();
+
+        if (TryGetSystem<FXAASystem>(out var fxaaSystem))
+        {
+            bool isFXAAEnabled = fxaaSystem.IsEnabled;
+            if (ImGui.Checkbox("FXAA", ref isFXAAEnabled))
+            {
+                fxaaSystem.IsEnabled = isFXAAEnabled;
+            }
+        }
+
 
         ImGui.End();
     }

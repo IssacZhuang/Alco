@@ -17,7 +17,7 @@ public class BloomSystem : BaseEngineSystem
     private readonly Shader _upSampleShader;
     private readonly Bloom _bloom;
 
-    public override int Order => 900;
+    public override int Order => 1000;
 
     public BloomSystem(GameEngine engine, ViewRenderTarget renderTarget)
     {

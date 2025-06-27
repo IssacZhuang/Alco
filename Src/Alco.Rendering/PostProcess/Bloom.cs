@@ -17,10 +17,8 @@ public class Bloom : PostProcess
     public const string ShaderId_currentTexture = "_currentTexture";
 
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _commandDownSample;
-    private readonly GPUCommandBuffer _commandUpSample;
-    private readonly GPUCommandBuffer _commandBlit;
-    private readonly GPURenderPass _backBufferPass;
+    private readonly GPUCommandBuffer _command;
+    private readonly GPUAttachmentLayout _backBufferPass;
     private readonly RenderingSystem _renderingSystem;
 
     private readonly Shader _blitShader;
@@ -86,9 +84,7 @@ public class Bloom : PostProcess
         _upSampleShaderId_previousTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_previousTexture);
         _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
 
-        _commandDownSample = _device.CreateCommandBuffer();
-        _commandUpSample = _device.CreateCommandBuffer();
-        _commandBlit = _device.CreateCommandBuffer();
+        _command = _device.CreateCommandBuffer();
     }
 
     public override void SetInput(RenderTexture input)
@@ -161,79 +157,77 @@ public class Bloom : PostProcess
 
         Mesh mesh = FullScreenMesh;
 
-        _commandDownSample.Begin();
+        _command.Begin();
 
         RenderTexture clampFrame = _downSampleTextures![0];
         //clamp
         Vector2 invFrameSize;// = new Vector2(1f) / new Vector2(clampFrame!.Width, clampFrame.Height);
-
-
-        _commandDownSample.SetFrameBuffer(clampFrame);
-        _commandDownSample.SetGraphicsPipeline(_clampPipelineInfo);
-        uint indexCount = _commandDownSample.SetMesh(mesh);
-        _commandDownSample.SetGraphicsResources(_clampShaderId_texture, _input!.ColorTextures[0].EntrySample);
-        _commandDownSample.SetGraphicsResources(_clampShaderId_data, _clampShaderData.EntryReadonly);
-        _commandDownSample.DrawIndexed(indexCount, 1, 0, 0, 0);
-
-
         //down sample
+        using (var renderPass = _command.BeginRender(clampFrame.FrameBuffer))
+        {
+            renderPass.SetPipeline(_clampPipelineInfo);
+            uint indexCount = renderPass.SetMesh(mesh);
+            renderPass.SetResources(_clampShaderId_texture, _input!.ColorTextures[0].EntrySample);
+            renderPass.SetResources(_clampShaderId_data, _clampShaderData.EntryReadonly);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+        }
+
         for (int i = 1; i < _downSampleTextures!.Length; i++)
         {
             RenderTexture downSampleFrame = _downSampleTextures[i];
             invFrameSize = new Vector2(1f) / new Vector2(downSampleFrame.Width, downSampleFrame.Height);
-            _commandDownSample.SetFrameBuffer(downSampleFrame);
-            _commandDownSample.SetGraphicsPipeline(_downSamplePipelineInfo);
-            indexCount = _commandDownSample.SetMesh(mesh);
-            _commandDownSample.SetGraphicsResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].ColorTextures[0].EntrySample);
-            _commandDownSample.PushGraphicsConstants(ShaderStage.Fragment, invFrameSize);
-            _commandDownSample.DrawIndexed(indexCount, 1, 0, 0, 0);
+            using (var renderPass = _command.BeginRender(downSampleFrame.FrameBuffer))
+            {
+                renderPass.SetPipeline(_downSamplePipelineInfo);
+                uint indexCount = renderPass.SetMesh(mesh);
+                renderPass.SetResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].ColorTextures[0].EntrySample);
+                renderPass.PushConstants(ShaderStage.Fragment, invFrameSize);
+                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+            }
         }
-        _commandDownSample.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandDownSample);
+
 
         //up sample
-        //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames![0].Width, _upSampleFrames![0].Height);
-        _commandUpSample.Begin();
-        _commandUpSample.SetFrameBuffer(_upSampleTextures![0]);
-        _commandUpSample.SetGraphicsPipeline(_upSamplePipelineInfo);
-        indexCount = _commandUpSample.SetMesh(mesh);
-        _commandUpSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1].ColorTextures[0].EntrySample);
-        _commandUpSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - 2].ColorTextures[0].EntrySample);
-        //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
-        _commandUpSample.DrawIndexed(indexCount, 1, 0, 0, 0);
+
+        using (var renderPass = _command.BeginRender(_upSampleTextures![0].FrameBuffer))
+        {
+            renderPass.SetPipeline(_upSamplePipelineInfo);
+            uint indexCount = renderPass.SetMesh(mesh);
+            renderPass.SetResources(_upSampleShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1].ColorTextures[0].EntrySample);
+            renderPass.SetResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - 2].ColorTextures[0].EntrySample);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+        }
         
 
 
         for (int i = 1; i < _upSampleTextures!.Length; i++)
         {
-            //invFrameSize = new Vector2(1f) / new Vector2(_upSampleFrames[i].Width, _upSampleFrames[i].Height);
-
-            _commandUpSample.SetFrameBuffer(_upSampleTextures[i]);
-            _commandUpSample.SetGraphicsPipeline(_upSamplePipelineInfo);
-            indexCount = _commandUpSample.SetMesh(mesh);
-            _commandUpSample.SetGraphicsResources(_upSampleShaderId_previousTexture, _upSampleTextures![i - 1].ColorTextures[0].EntrySample);
-            _commandUpSample.SetGraphicsResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - i - 2].ColorTextures[0].EntrySample);
-            //_commandDownSample.PushConstants(ShaderStage.Fragment, invFrameSize);
-            _commandUpSample.DrawIndexed(indexCount, 1, 0, 0, 0);
+            using (var renderPass = _command.BeginRender(_upSampleTextures[i].FrameBuffer))
+            {
+                renderPass.SetPipeline(_upSamplePipelineInfo);
+                uint indexCount = renderPass.SetMesh(mesh);
+                renderPass.SetResources(_upSampleShaderId_previousTexture, _upSampleTextures![i - 1].ColorTextures[0].EntrySample);
+                renderPass.SetResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - i - 2].ColorTextures[0].EntrySample);
+                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+            }
         }
 
-        _commandUpSample.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandUpSample);
 
-        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.RenderPass))
+        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.AttachmentLayout))
         {
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }
 
         //blit
-        _commandBlit.Begin();
-        _commandBlit.SetFrameBuffer(target);
-        _commandBlit.SetGraphicsPipeline(_blitPipelineInfo);
-        indexCount = _commandBlit.SetMesh(mesh);
-        _commandBlit.SetGraphicsResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
-        _commandBlit.DrawIndexed(indexCount, 1, 0, 0, 0);
-        _commandBlit.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandBlit);
+        using (var renderPass = _command.BeginRender(target)){
+            renderPass.SetPipeline(_blitPipelineInfo);
+            uint indexCount = renderPass.SetMesh(mesh);
+            renderPass.SetResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
+            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+        }
+
+        _command.End();
+        _renderingSystem.ScheduleCommandBuffer(_command);
     }
 
     private int GetDownSampleCount(uint height)
@@ -269,9 +263,7 @@ public class Bloom : PostProcess
     protected override void Dispose(bool disposing)
     {
         //dispose non-private managed resources
-        _commandDownSample.Dispose();
-        _commandUpSample.Dispose();
-        _commandBlit.Dispose();
+        _command.Dispose();
         TryDisposeFrames();
     }
 }

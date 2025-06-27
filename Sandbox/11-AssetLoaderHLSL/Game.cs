@@ -84,16 +84,18 @@ public class Game : GameEngine
 
         _timer += delta;
 
-        _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.RenderPass);
+        _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.AttachmentLayout);
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipelineInfo);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _selected.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_pipelineInfo);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _resourceGroupBuffer);
+            renderPass.SetResources(1, _selected.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }

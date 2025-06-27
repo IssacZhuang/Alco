@@ -1,11 +1,11 @@
 
 namespace Alco.Graphics.NoGPU;
 
-internal class NoRenderPass : GPURenderPass
+internal class NoAttachmentLayout : GPUAttachmentLayout
 {
     protected override GPUDevice Device => NoDevice.noDevice;
 
-    public NoRenderPass(in RenderPassDescriptor descriptor) : base(descriptor)
+    public NoAttachmentLayout(in AttachmentLayoutDescriptor descriptor) : base(descriptor)
     {
     }
     protected override void Dispose(bool disposing)

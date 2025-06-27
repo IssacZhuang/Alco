@@ -20,7 +20,7 @@ public class FXAASystem : BaseEngineSystem
     /// <summary>
     /// Execution order for the FXAA system. Should run after main rendering but before UI.
     /// </summary>
-    public override int Order => 950;
+    public override int Order => 1100;
 
     /// <summary>
     /// Gets or sets whether FXAA is enabled.

@@ -49,11 +49,13 @@ public class Game : GameEngine
         }
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
@@ -105,7 +107,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.Opaque;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPURenderPass renderPass = MainRenderTarget.FrameBuffer.RenderPass;
+        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             Array.Empty<GPUBindGroup>(),
@@ -114,8 +116,8 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { renderPass.Colors[0].Format },
-            renderPass.Depth.HasValue ? renderPass.Depth.Value.Format : null,
+            new PixelFormat[] { attachmentLayout.Colors[0].Format },
+            attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
             null,
             "quad_pipeline"
         );

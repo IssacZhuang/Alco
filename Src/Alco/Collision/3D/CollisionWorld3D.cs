@@ -8,8 +8,6 @@ namespace Alco;
 
 public unsafe class CollisionWorld3D : AutoDisposable
 {
-    private readonly ParallelScheduler _scheduler;
-    private readonly bool _isSchedulerOwner;
     private readonly NativeBvh3D _bvh;
 
     public NativeBvh3D Bvh => _bvh;
@@ -29,24 +27,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     public CollisionWorld3D()
     {
-        _scheduler = new ParallelScheduler("collision_world_thread");
-        _isSchedulerOwner = true;
-        _bvh = new NativeBvh3D(_scheduler);
-    }
-
-
-    public CollisionWorld3D(int threadCount)
-    {
-        _scheduler = new ParallelScheduler(threadCount, "collision_world_thread");
-        _isSchedulerOwner = true;
-        _bvh = new NativeBvh3D(_scheduler);
-    }
-
-    public CollisionWorld3D(ParallelScheduler scheduler)
-    {
-        _scheduler = scheduler;
-        _isSchedulerOwner = false;
-        _bvh = new NativeBvh3D(_scheduler);
+        _bvh = new NativeBvh3D();
     }
 
     /// <summary>
@@ -232,11 +213,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        if (_isSchedulerOwner)
-        {
-            _scheduler.Dispose();
-        }
-
         _bvh.Dispose();
 
         _targetBoxes.Dispose();

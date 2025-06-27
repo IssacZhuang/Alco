@@ -1,5 +1,3 @@
-
-
 using System.Buffers;
 using System.Numerics;
 using Alco;
@@ -7,12 +5,13 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.GUI;
 using Alco.Rendering;
+using Alco.ImGUI;
 
 using Random = Alco.Random;
 
 public class DropletSystem : IDisposable
 {
-    public const int RenderThreadCount = 16;
+    public static readonly int RenderThreadCount = 24;
     public const int BufferLength = 10000;
 
     private struct RenderRange
@@ -21,9 +20,9 @@ public class DropletSystem : IDisposable
         public int end;
     }
 
-    private class JobParallelRender : IJobBatch
+    private class JobParallelRender : ReuseableParallelTask
     {
-        private readonly RenderContext[] _renderContext;
+        private readonly SubRenderContext[] _renderContext;
         private readonly SpriteRenderer[] _renderers;
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
@@ -31,7 +30,7 @@ public class DropletSystem : IDisposable
         private readonly ViewRenderTarget _renderTarget;
 
 
-        public JobParallelRender(ViewRenderTarget renderTarget, RenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
+        public JobParallelRender(ViewRenderTarget renderTarget, SubRenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
         {
             _renderTarget = renderTarget;
             _renderContext = renderContext;
@@ -41,9 +40,9 @@ public class DropletSystem : IDisposable
             _texture = texture;
         }
 
-        public void Execute(int index)
+        protected override void ExecuteCore(int index)
         {
-            _renderContext[index].Begin(_renderTarget.RenderTexture.FrameBuffer);
+            _renderContext[index].Begin(_renderTarget.RenderTexture.AttachmentLayout);
             for (int j = _renderRanges[index].start; j < _renderRanges[index].end; j++)
             {
                 var droplet = _activeList[j];
@@ -54,13 +53,13 @@ public class DropletSystem : IDisposable
     }
 
     private static readonly ColorFloat DefaultColor = 0xCCCCCC;
-    private readonly RenderContext[] _renderContext;
+    private readonly RenderContext _renderContext;
+    private readonly SubRenderContext[] _subRenderContexts;
     private readonly SpriteRenderer[] _renderers;
     private readonly RenderRange[] _renderRanges;
     private readonly Texture2D _texture;
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(200000, () => new Droplet());
-    private readonly ParallelScheduler _scheduler = new ParallelScheduler(24);
     private readonly ViewRenderTarget _renderTarget;
     private readonly JobParallelRender _jobParallelRender;
     private int _spawnRate = 100;
@@ -75,23 +74,24 @@ public class DropletSystem : IDisposable
 
     public DropletSystem(ViewRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
-        _renderContext = new RenderContext[RenderThreadCount];
+        _renderContext = system.CreateRenderContext();
+        _subRenderContexts = new SubRenderContext[RenderThreadCount];
         _renderers = new SpriteRenderer[RenderThreadCount];
         Material material = system.CreateMaterial(shader, "Sprite");
         material.BlendState = BlendState.AlphaBlend;
         material.SetBuffer(ShaderResourceId.Camera, camera);
         for (int i = 0; i < RenderThreadCount; i++)
         {
-            _renderContext[i] = system.CreateRenderContext();
+            _subRenderContexts[i] = system.CreateSubRenderContext();
             //a material instance per thread
-            _renderers[i] = system.CreateSpriteRenderer(_renderContext[i], material.CreateInstance(), "Sprite");
+            _renderers[i] = system.CreateSpriteRenderer(_subRenderContexts[i], material.CreateInstance(), "Sprite");
         }
 
         _renderRanges = new RenderRange[RenderThreadCount];
         _texture = texDroplet;
         _renderTarget = windowRenderTarget;
 
-        _jobParallelRender = new JobParallelRender(_renderTarget, _renderContext, _renderers, _renderRanges, _activeList, _texture);
+        _jobParallelRender = new JobParallelRender(_renderTarget, _subRenderContexts, _renderers, _renderRanges, _activeList, _texture);
     }
 
     public void OnTick(float delta)
@@ -151,30 +151,30 @@ public class DropletSystem : IDisposable
             }
         }
 
-        _scheduler.Run(_jobParallelRender, RenderThreadCount);
+        _jobParallelRender.RunParallel(RenderThreadCount);
+        _renderContext.Begin(_renderTarget.FrameBuffer);
+        for (int i = 0; i < RenderThreadCount; i++)
+        {
+            _renderContext.ExecuteSubContext(_subRenderContexts[i]);
+        }
+        _renderContext.End();
 
+        // ImGUI Controls
+        ImGui.Begin("Droplet System Controls");
 
-        DebugGUI.Text("Active: 0", _activeList.Count);
+        // Display active count
+        FixedString32 activeText = new FixedString32();
+        activeText.Append("Active: ");
+        activeText.Append(_activeList.Count);
+        ImGui.Text(activeText);
 
-        DebugGUI.Slider(ref _spawnRate, 0, 1000);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Spawn Rate");
+        ImGui.SliderInt("Spawn Rate", ref _spawnRate, 0, 1000);
+        ImGui.SliderInt("Spawn Height", ref _spawnHeight, 0, 640);
+        ImGui.SliderInt("Despawn Height", ref _despawnHeight, -640, 0);
+        ImGui.SliderInt("Spawn Range X", ref _spwanRangeX, 0, 640);
+        ImGui.SliderInt("Speed", ref _speed, 0, 600);
 
-        DebugGUI.Slider(ref _spawnHeight, 0, 640);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Spawn Height");
-
-        DebugGUI.Slider(ref _despawnHeight, -640, 0);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Despawn Height");
-
-        DebugGUI.Slider(ref _spwanRangeX, 0, 640);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Spawn Range X");
-
-        DebugGUI.Slider(ref _speed, 0, 600);
-        DebugGUI.SameLine();
-        DebugGUI.Text("Speed");
+        ImGui.End();
     }
 
     public void Render(int i)
@@ -190,6 +190,6 @@ public class DropletSystem : IDisposable
 
     public void Dispose()
     {
-        _scheduler.Dispose();
+        _jobParallelRender.Dispose();
     }
 }

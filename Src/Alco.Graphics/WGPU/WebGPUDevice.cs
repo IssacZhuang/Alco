@@ -59,9 +59,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected override void DisposeCore()
     {
-        // _surfaceFrameBuffer.Destroy();
-        // _surfaceRenderPass.Destroy();
-
         //dispose default resources
         SamplerNearestRepeat.Destroy();
         SamplerLinearRepeat.Destroy();
@@ -108,9 +105,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
         return new WebGPUTexture(this, descriptor);
     }
 
-    protected override GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor)
+    protected override GPUAttachmentLayout CreateAttachmentLayoutCore(in AttachmentLayoutDescriptor descriptor)
     {
-        return new WebGPURenderPass(this, descriptor);
+        return new WebGPUAttachmentLayout(this, descriptor);
     }
 
     protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)

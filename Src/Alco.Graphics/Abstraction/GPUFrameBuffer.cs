@@ -1,7 +1,7 @@
 namespace Alco.Graphics;
 
 /// <surmmary>
-/// The instance of the color attachments and depth attachment of a <see cref="GPURenderPass"/> 
+/// The instance of the color attachments and depth attachment of a <see cref="GPUAttachmentLayout"/> 
 /// <br/>Used as the render target of a shader
 /// </surmmary>
 public abstract class GPUFrameBuffer : BaseGPUObject
@@ -22,8 +22,8 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     /// <summary>
     /// The metadata of the frame buffer which describes the color and depth attachments
     /// </summary>
-    /// <value>The render pass of the frame buffer</value>
-    public abstract GPURenderPass RenderPass { get; }
+    /// <value>The attachment layout of the frame buffer</value>
+    public abstract GPUAttachmentLayout AttachmentLayout { get; }
     /// <summary>
     /// The list of color textures of the frame buffer
     /// </summary>

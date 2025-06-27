@@ -15,13 +15,13 @@ public partial class RenderingSystem
     private readonly IRenderingSystemHost _host;
 
     //preffered
-    private readonly GPURenderPass _prefferedSDRPass;
-    private readonly GPURenderPass _prefferedHDRPass;
-    private readonly GPURenderPass _prefferedSDRPassWithoutDepth;
-    private readonly GPURenderPass _prefferedHDRPassWithoutDepth;
-    private readonly GPURenderPass _prefferedRGBATexturePass;
-    private readonly GPURenderPass _prefferedRTexturePass;
-    private readonly GPURenderPass _prefferedLightMapPass;
+    private readonly GPUAttachmentLayout _prefferedSDRPass;
+    private readonly GPUAttachmentLayout _prefferedHDRPass;
+    private readonly GPUAttachmentLayout _prefferedSDRPassWithoutDepth;
+    private readonly GPUAttachmentLayout _prefferedHDRPassWithoutDepth;
+    private readonly GPUAttachmentLayout _prefferedRGBATexturePass;
+    private readonly GPUAttachmentLayout _prefferedRTexturePass;
+    private readonly GPUAttachmentLayout _prefferedLightMapPass;
 
     private readonly PixelFormat _prefferedSDRFormat;
     private readonly PixelFormat _prefferedHDRFormat;
@@ -62,43 +62,43 @@ public partial class RenderingSystem
         get => _prefferedDepthStencilFormat;
     }
 
-    public GPURenderPass PrefferedSDRPass
+    public GPUAttachmentLayout PrefferedSDRPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _prefferedSDRPass;
     }
 
-    public GPURenderPass PrefferedSDRPassWithoutDepth
+    public GPUAttachmentLayout PrefferedSDRPassWithoutDepth
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _prefferedSDRPassWithoutDepth;
     }
 
-    public GPURenderPass PrefferedHDRPass
+    public GPUAttachmentLayout PrefferedHDRPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _prefferedHDRPass;
     }
 
-    public GPURenderPass PrefferedHDRPassWithoutDepth
+    public GPUAttachmentLayout PrefferedHDRPassWithoutDepth
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _prefferedHDRPassWithoutDepth;
     }
 
-    public GPURenderPass PrefferedRGBATexturePass
+    public GPUAttachmentLayout PrefferedRGBATexturePass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _prefferedRGBATexturePass;
     }
 
-    public GPURenderPass PrefferedRTexturePass
+    public GPUAttachmentLayout PrefferedRTexturePass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _prefferedRTexturePass;
     }
 
-    public GPURenderPass PrefferedLightMapPass
+    public GPUAttachmentLayout PrefferedLightMapPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _prefferedLightMapPass;
@@ -147,49 +147,49 @@ public partial class RenderingSystem
             512 * 1024
             );
 
-        _prefferedSDRPass = device.CreateRenderPass(new RenderPassDescriptor
+        _prefferedSDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedSDRFormat)],
             new(_prefferedDepthStencilFormat),
             "sdr_pass"
         ));
 
-        _prefferedHDRPass = device.CreateRenderPass(new RenderPassDescriptor
+        _prefferedHDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedHDRFormat)],
             new(_prefferedDepthStencilFormat),
             "hdr_pass"
         ));
 
-        _prefferedSDRPassWithoutDepth = device.CreateRenderPass(new RenderPassDescriptor
+        _prefferedSDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedSDRFormat)],
             null,
             "sdr_pass_no_depth"
         ));
 
-        _prefferedHDRPassWithoutDepth = device.CreateRenderPass(new RenderPassDescriptor
+        _prefferedHDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_prefferedHDRFormat)],
             null,
             "hdr_pass_no_depth"
         ));
 
-        _prefferedRGBATexturePass = device.CreateRenderPass(new RenderPassDescriptor
+        _prefferedRGBATexturePass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(PixelFormat.RGBA8Unorm)],
             null,
             "rgba_texture_pass"
         ));
 
-        _prefferedRTexturePass = device.CreateRenderPass(new RenderPassDescriptor
+        _prefferedRTexturePass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(PixelFormat.R8Unorm)],
             null,
             "r_texture_pass"
         ));
 
-        _prefferedLightMapPass = device.CreateRenderPass(new RenderPassDescriptor
+        _prefferedLightMapPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(PixelFormat.RGBA16Float)],
             null,

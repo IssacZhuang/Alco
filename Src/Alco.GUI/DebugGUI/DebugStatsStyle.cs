@@ -6,7 +6,7 @@ namespace Alco.GUI;
 
 #pragma warning disable CS8618
 
-public struct DebugGUIStyle
+public struct DebugStatsStyle
 {
     public Font Font { get; set; }
     public float FontSize { get; set; }

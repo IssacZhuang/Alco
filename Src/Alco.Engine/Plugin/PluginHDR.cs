@@ -52,8 +52,8 @@ public class PluginHDR : BaseEnginePlugin
         _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ReinhardToneMapData), "hdr_tonemap_data");
         _dataBuffer.UpdateBuffer(_data);
         _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
-        
-        engine.MainRenderTarget.SetRenderPass(rendering.PrefferedHDRPass, _material);
+
+        engine.MainRenderTarget.SetAttachmentLayout(rendering.PrefferedHDRPass, _material);
     }
 
     public override void Dispose()

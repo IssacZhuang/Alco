@@ -5,7 +5,7 @@ namespace Alco.Graphics;
 /// <summary>
 /// The meta data to describe the GPU framebuffer.
 /// </summary>
-public abstract class GPURenderPass : BaseGPUObject
+public abstract class GPUAttachmentLayout : BaseGPUObject
 {
     private readonly ColorAttachment[] _colors;
     public ReadOnlySpan<ColorAttachment> Colors
@@ -15,7 +15,7 @@ public abstract class GPURenderPass : BaseGPUObject
     }
     public DepthAttachment? Depth { get; }
 
-    protected GPURenderPass(in RenderPassDescriptor descriptor): base(descriptor.Name)
+    protected GPUAttachmentLayout(in AttachmentLayoutDescriptor descriptor) : base(descriptor.Name)
     {
         _colors = new ColorAttachment[descriptor.Colors.Length];
         for (int i = 0; i < descriptor.Colors.Length; i++)
@@ -26,7 +26,7 @@ public abstract class GPURenderPass : BaseGPUObject
         Depth = descriptor.Depth;
     }
 
-    public bool AttachmentsEqual(GPURenderPass other)
+    public bool AttachmentsEqual(GPUAttachmentLayout other)
     {
         if (Colors.Length != other.Colors.Length) return false;
         for (int i = 0; i < Colors.Length; i++)
@@ -44,7 +44,7 @@ public abstract class GPURenderPass : BaseGPUObject
 
     public override bool Equals(object? obj)
     {
-        if (obj is GPURenderPass other)
+        if (obj is GPUAttachmentLayout other)
         {
             return AttachmentsEqual(other);
         }

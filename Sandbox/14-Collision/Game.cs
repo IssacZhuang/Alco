@@ -74,8 +74,26 @@ public class Game : GameEngine
 
         _plane.IntersectRay(cameraRay, out Vector3 mouseWoldPosition);
 
-        DebugGUI.Text(localMousePosition.ToString());
-        DebugGUI.Text(mouseWoldPosition.ToString());
+        // ImGUI Controls
+        ImGui.Begin("Collision Controls");
+
+        // Display mouse information
+        FixedString64 mouseLocalText = new FixedString64();
+        mouseLocalText.Append("Local Mouse: ");
+        mouseLocalText.Append(localMousePosition.X);
+        mouseLocalText.Append(", ");
+        mouseLocalText.Append(localMousePosition.Y);
+        ImGui.Text(mouseLocalText);
+
+        FixedString64 mouseWorldText = new FixedString64();
+        mouseWorldText.Append("World Mouse: ");
+        mouseWorldText.Append(mouseWoldPosition.X);
+        mouseWorldText.Append(", ");
+        mouseWorldText.Append(mouseWoldPosition.Y);
+        mouseWorldText.Append(", ");
+        mouseWorldText.Append(mouseWoldPosition.Z);
+        ImGui.Text(mouseWorldText);
+
         if (Input.IsMouseDown(Mouse.Left) && hit)
         {
             offset = _entity.transform.Position - mouseWoldPosition;
@@ -91,17 +109,17 @@ public class Game : GameEngine
             
         }
 
-        //debug ui
-        DebugGUI.Text("Camera Data");
-        int fov = (int)(_camera.FieldOfView * 100);
-        if (DebugGUI.Slider(ref fov, 30, 110))
+        //camera controls
+        ImGui.Separator();
+        ImGui.Text("Camera Data");
+        float fovFloat = _camera.FieldOfView * 100;
+        if (ImGui.SliderFloat("Fov", ref fovFloat, 30, 110))
         {
-            _camera.FieldOfView = fov / 100f;
+            _camera.FieldOfView = fovFloat / 100f;
             _cameraBuffer.UpdateBuffer(_camera.Data.ViewProjectionMatrix);
         }
 
-        DebugGUI.SameLine();
-        DebugGUI.Text("Fov");
+        ImGui.End();
 
         ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE, MODE.LOCAL, ref _entity.transform, Vector3.Zero);
     }

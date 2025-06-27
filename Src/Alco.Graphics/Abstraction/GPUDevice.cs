@@ -235,23 +235,20 @@ public abstract class GPUDevice
 
 
     /// <summary>
-    /// Creates a GPU render pass with the descriptor.
+    /// Creates a GPU attachment layout with the descriptor.
     /// </summary>
-    /// <param name="descriptor">The descriptor for the GPU render pass.</param>
-    /// <returns>The created GPU render pass.</returns> 
-    public GPURenderPass CreateRenderPass(in RenderPassDescriptor descriptor)
+    /// <param name="descriptor">The descriptor for the GPU attachment layout.</param>
+    /// <returns>The created GPU attachment layout.</returns> 
+    public GPUAttachmentLayout CreateAttachmentLayout(in AttachmentLayoutDescriptor descriptor)
     {
-        return CreateRenderPassCore(descriptor);
+        return CreateAttachmentLayoutCore(descriptor);
     }
 
 
     /// <summary>
-    /// Creates a GPU frame buffer with the render pass, width, and height.
+    /// Creates a GPU frame buffer with the attachment layout, width, and height.
     /// </summary>
-    /// <param name="renderPass"> The render pass of the frame buffer.</param>
-    /// <param name="width"> The width of the frame buffer.</param>
-    /// <param name="height"> The height of the frame buffer.</param>
-    /// <param name="name"> The name of the frame buffer.</param>
+    /// <param name="attachmentLayout"> The attachment layout of the frame buffer.</param>
     /// <returns></returns>
     public GPUFrameBuffer CreateFrameBuffer(in FrameBufferDescriptor descriptor)
     {
@@ -611,7 +608,7 @@ public abstract class GPUDevice
     protected abstract GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor);
 
     /// <exclude />
-    protected abstract GPURenderPass CreateRenderPassCore(in RenderPassDescriptor descriptor);
+    protected abstract GPUAttachmentLayout CreateAttachmentLayoutCore(in AttachmentLayoutDescriptor descriptor);
 
     /// <exclude />
     protected abstract GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor);

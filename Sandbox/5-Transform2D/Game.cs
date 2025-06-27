@@ -118,40 +118,46 @@ public class Game : GameEngine
 
         //draw
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(2, _texGreen.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetResources(1, _modelBuffer.EntryReadonly);
+            renderPass.SetResources(2, _texGreen.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
         _modelBuffer.UpdateBuffer(_transform2.Matrix);
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(2, _texRed.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetResources(1, _modelBuffer.EntryReadonly);
+            renderPass.SetResources(2, _texRed.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
 
         _modelBuffer.UpdateBuffer(_transform3.Matrix);
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _cameraBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(1, _modelBuffer.EntryReadonly);
-        _commandBuffer.SetGraphicsResources(2, _texBlue.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetResources(1, _modelBuffer.EntryReadonly);
+            renderPass.SetResources(2, _texBlue.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
@@ -198,7 +204,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPURenderPass renderPass = MainRenderTarget.FrameBuffer.RenderPass;
+        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
 
         GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
             bindGroups,
@@ -207,8 +213,8 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { renderPass.Colors[0].Format },
-            renderPass.Depth.HasValue ? renderPass.Depth.Value.Format : null,
+            new PixelFormat[] { attachmentLayout.Colors[0].Format },
+            attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
             null,
             "quad_pipline"
         );

@@ -13,12 +13,12 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     private readonly RenderingSystem _rendering;
     private readonly GPUSwapchain? _viewSwapchain;
     private readonly GPUCommandBuffer _command;
-    private GPURenderPass _renderPass;
+    private GPUAttachmentLayout _attachmentLayout;
     private RenderTexture _renderTexture;
 
     private RenderContext _renderer;
     private Material _blitMaterial;
-    private MaterialInstance? _overrideMaterial;
+    private MaterialInstance? _customBlitMaterial;
     private Mesh _mesh;
 
 
@@ -66,7 +66,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
 
     public override int Order => SystemOrder;
 
-    internal ViewRenderTarget(GameEngine engine, View view, GPURenderPass renderPass, Shader blitShader)
+    internal ViewRenderTarget(GameEngine engine, View view, GPUAttachmentLayout attachmentLayout, Shader blitShader)
     {
         _view = view;
         _view.OnResize += OnWindowResize;
@@ -78,12 +78,12 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _width = math.max(1, view.Size.X);
         _height = math.max(1, view.Size.Y);
 
-        _renderPass = renderPass;
+        _attachmentLayout = attachmentLayout;
         _renderer = _rendering.CreateRenderContext();
 
         _mesh = _rendering.MeshFullScreen;
 
-        _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);
+        _renderTexture = _rendering.CreateRenderTexture(attachmentLayout, _width, _height);
 
         _blitMaterial = _rendering.CreateMaterial(blitShader);
         _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
@@ -93,25 +93,24 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _command = _rendering.GraphicsDevice.CreateCommandBuffer();
     }
 
-    public void SetRenderPass(GPURenderPass renderPass, Material? overrideMaterial = null)
+    public void SetAttachmentLayout(GPUAttachmentLayout attachmentLayout, Material? blitMaterial = null)
     {
-        _renderPass = renderPass;
+        _attachmentLayout = attachmentLayout;
         _renderTexture.Dispose();
-        _renderTexture = _rendering.CreateRenderTexture(renderPass, _width, _height);
-        if (overrideMaterial != null)
+        _renderTexture = _rendering.CreateRenderTexture(attachmentLayout, _width, _height);
+        if (blitMaterial != null)
         {
-            _overrideMaterial = overrideMaterial.CreateInstance();
-            _overrideMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
+            _customBlitMaterial = blitMaterial.CreateInstance();
+            _customBlitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
         }
     }
 
     public override void OnBeginFrame(float deltaTime)
     {
         _command.Begin();
-        _command.SetFrameBuffer(_renderTexture.FrameBuffer);
-        _command.ClearColor(new ColorFloat(0, 0, 0, 1));
-        _command.ClearDepth(1f);
-        _command.ClearStencil(0);
+        using (var renderPass = _command.BeginRender(_renderTexture.FrameBuffer, ColorFloat.Black, 1f, 0))
+        {
+        }
         _command.End();
         _rendering.GraphicsDevice.Submit(_command);
     }
@@ -135,9 +134,9 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
 
         //_converter.Blit(_windowSwapchain.FrameBuffer);
         _renderer.Begin(_viewSwapchain.FrameBuffer);
-        if (_overrideMaterial != null)
+        if (_customBlitMaterial != null)
         {
-            _renderer.Draw(_mesh, _overrideMaterial);
+            _renderer.Draw(_mesh, _customBlitMaterial);
         }
         else
         {
@@ -165,12 +164,12 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     private void RecreateRenderTexture()
     {
         _renderTexture.Dispose();
-        _renderTexture = _rendering.CreateRenderTexture(_renderPass!, _width, _height);
+        _renderTexture = _rendering.CreateRenderTexture(_attachmentLayout!, _width, _height);
 
         _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
-        if (_overrideMaterial != null)
+        if (_customBlitMaterial != null)
         {
-            _overrideMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
+            _customBlitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
         }
     }
 

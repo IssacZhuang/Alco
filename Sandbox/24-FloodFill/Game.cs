@@ -6,6 +6,7 @@ using Alco.Graphics;
 using Alco.GUI;
 using Alco.IO;
 using SandboxUtils;
+using Alco.ImGUI;
 
 public class Game : GameEngine
 {
@@ -56,30 +57,40 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugGUI.Text(FrameRate);
-        if (DebugGUI.SliderWithText("Iterations", ref _iterations, 0, 100))
+        DebugStats.Text(FrameRate);
+
+        // ImGUI Controls
+        ImGui.Begin("Flood Fill Controls");
+
+
+        float iterationsFloat = _iterations;
+        if (ImGui.SliderFloat("Iterations", ref iterationsFloat, 0, 100))
         {
+            _iterations = (int)iterationsFloat;
             _tileLightMap.Iteration = _iterations;
         }
-        DebugGUI.SliderWithText("Intensity", ref _intensity, 0, 2);
-        if(DebugGUI.Button("Reset")) {
+
+        ImGui.SliderFloat("Intensity", ref _intensity, 0, 2);
+
+        if (ImGui.Button("Reset"))
+        {
             _tileLightMap.AttenuationCorner = 0.1f;
             _tileLightMap.AttenuationSide = 0.141414f;
         }
 
         float attenuationSide = _tileLightMap.AttenuationSide;
-        if(DebugGUI.SliderWithText("Attenuation Side", ref attenuationSide, 0, 2)){
+        if (ImGui.SliderFloat("Attenuation Side", ref attenuationSide, 0, 2))
+        {
             _tileLightMap.AttenuationSide = attenuationSide;
         }
 
-
-
-
         float attenuationCorner = _tileLightMap.AttenuationCorner;
-        if(DebugGUI.SliderWithText("Attenuation Corner", ref attenuationCorner, 0, 2)){
+        if (ImGui.SliderFloat("Attenuation Corner", ref attenuationCorner, 0, 2))
+        {
             _tileLightMap.AttenuationCorner = attenuationCorner;
         }
 
+        ImGui.End();
 
         _camera.ViewSize = MainView.Size;
         _camera.UpdateMatrixToGPU();
@@ -97,6 +108,7 @@ public class Game : GameEngine
         };
 
         _tileLightMap.SetLight((int)_size.X / 2, (int)_size.Y / 2, new Half4(_intensity, _intensity, _intensity, 1));
+        _tileLightMap.SetDirty();
         _tileLightMap.Render();
 
         //draw atlas texture

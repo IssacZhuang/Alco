@@ -14,7 +14,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private readonly WGPURenderPassDescriptor _descriptor;
     private readonly WebGPUSurfaceTexture[] _colorTextures; // the surface texture has default view
     private readonly WebGPUTextureViewWrapper[] _colorViewsWrapper; // only one element but use list for the abstraction
-    private readonly WebGPURenderPass _renderPass;
+    private readonly WebGPUAttachmentLayout _attachmentLayout;
     private WebGPUTexture? _depthStencilTexture;
     private WebGPUTextureView? _depthStencilView;
     private WebGPUTextureView? _depthView;
@@ -37,10 +37,10 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     #region Abstract Implementation
     protected override WebGPUDevice Device { get; }
-    public override GPURenderPass RenderPass
+    public override GPUAttachmentLayout AttachmentLayout
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _renderPass;
+        get => _attachmentLayout;
     }
     public override ReadOnlySpan<GPUTexture> Colors
     {
@@ -136,9 +136,9 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUSurfaceFrameBuffer(WebGPUDevice device, WebGPURenderPass renderPass, WGPUSurface surface, WGPUSurfaceConfiguration config) : base(
+    internal WebGPUSurfaceFrameBuffer(WebGPUDevice device, WebGPUAttachmentLayout attachmentLayout, WGPUSurface surface, WGPUSurfaceConfiguration config) : base(
         new FrameBufferDescriptor(
-            renderPass,
+            attachmentLayout,
             config.width,
             config.height,
             "swapchain_frameBuffer"
@@ -147,7 +147,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     )
     {
         Device = device;
-        _renderPass = renderPass;
+        _attachmentLayout = attachmentLayout;
 
         // configure the surface
         wgpuSurfaceConfigure(surface, &config);
@@ -168,7 +168,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _colorTextures = new WebGPUSurfaceTexture[1];
         _colorTextures[0] = surfaceTexture;
 
-        WGPUColorAttachmentInfo colorInfo = renderPass.WebGPUColorInfos[0];
+        WGPUColorAttachmentInfo colorInfo = attachmentLayout.WebGPUColorInfos[0];
 
         // pointer attention !!
         _colorAttachments = Alloc<WGPURenderPassColorAttachment>(1);
@@ -190,10 +190,10 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _width = surfaceTexture.Width;
         _height = surfaceTexture.Height;
 
-        if (renderPass.WebGPUDepthInfo.HasValue)
+        if (attachmentLayout.WebGPUDepthInfo.HasValue)
         {
             _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
-            WGPUDepthAttachmentInfo depthInfo = renderPass.WebGPUDepthInfo.Value;
+            WGPUDepthAttachmentInfo depthInfo = attachmentLayout.WebGPUDepthInfo.Value;
             _depthStencilTexture = new WebGPUTexture(
                 Device,
                 BuildDepthTextureDescriptor(depthInfo.format, _width, _height)
@@ -212,9 +212,9 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         _colors = new WGPUTextureFormat[1];
         _colors[0] = colorInfo.format;
 
-        if (renderPass.WebGPUDepthInfo.HasValue)
+        if (attachmentLayout.WebGPUDepthInfo.HasValue)
         {
-            _depth = renderPass.WebGPUDepthInfo.Value.format;
+            _depth = attachmentLayout.WebGPUDepthInfo.Value.format;
         }
     }
 
@@ -244,7 +244,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     private void ResizeDepthTexture()
     {
-        if (_renderPass.WebGPUDepthInfo.HasValue)
+        if (_attachmentLayout.WebGPUDepthInfo.HasValue)
         {
             //_depthTexture?.Dispose();
             _depthStencilTexture?.Dispose();
@@ -253,7 +253,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _stencilView?.Dispose();
             _depthStencilTexture = new WebGPUTexture(
                 Device,
-                BuildDepthTextureDescriptor(_renderPass.WebGPUDepthInfo.Value.format, _width, _height)
+                BuildDepthTextureDescriptor(_attachmentLayout.WebGPUDepthInfo.Value.format, _width, _height)
                 );
             _depthStencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
             _depthView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));

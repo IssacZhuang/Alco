@@ -77,13 +77,15 @@ public class Game : GameEngine
         _timer += delta;
 
         _commandBuffer.Begin();
-        _commandBuffer.SetFrameBuffer(MainFrameBuffer);
-        _commandBuffer.SetGraphicsPipeline(_pipeline);
-        _commandBuffer.SetVertexBuffer(0, _vertexBuffer);
-        _commandBuffer.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-        _commandBuffer.SetGraphicsResources(0, _resourceGroupBuffer);
-        _commandBuffer.SetGraphicsResources(1, _texture.EntrySample);
-        _commandBuffer.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        {
+            renderPass.SetPipeline(_pipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _resourceGroupBuffer);
+            renderPass.SetResources(1, _texture.EntrySample);
+            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+        }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
     }
@@ -155,7 +157,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPURenderPass renderPass = MainRenderTarget.FrameBuffer.RenderPass;
+        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },
@@ -164,8 +166,8 @@ public class Game : GameEngine
             rasterizer,
             blend,
             depthStencil,
-            new PixelFormat[] { renderPass.Colors[0].Format },
-            renderPass.Depth.HasValue ? renderPass.Depth.Value.Format : null,
+            new PixelFormat[] { attachmentLayout.Colors[0].Format },
+            attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
             null,
             "quad_pipeline"
         );

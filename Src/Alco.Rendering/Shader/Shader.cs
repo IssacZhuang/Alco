@@ -60,7 +60,7 @@ public sealed class Shader : AutoDisposable
     /// <summary>
     /// Gets a graphics pipeline with the specified parameters and shader defines
     /// </summary>
-    /// <param name="renderPass">The render pass configuration</param>
+    /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="depthStencil">The depth stencil state</param>
     /// <param name="blend">The blend state</param>
     /// <param name="rasterizer">The rasterizer state</param>
@@ -68,7 +68,7 @@ public sealed class Shader : AutoDisposable
     /// <param name="defines">Optional shader defines to customize compilation</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout attachmentLayout,
         DepthStencilState depthStencil,
         BlendState blend,
         RasterizerState rasterizer,
@@ -77,11 +77,11 @@ public sealed class Shader : AutoDisposable
         )
     {
         ShaderModulesInfo modulesInfo = GetShaderModules(defines);
-        GPUPipeline pipeline = GetGraphicsPipeline(renderPass, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
+        GPUPipeline pipeline = GetGraphicsPipeline(attachmentLayout, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
         return new GraphicsPipelineContext
         {
             Pipeline = pipeline,
-            RenderPass = renderPass,
+            AttachmentLayout = attachmentLayout,
             ReflectionInfo = modulesInfo.ReflectionInfo,
             DepthStencil = depthStencil,
             BlendState = blend,
@@ -94,20 +94,20 @@ public sealed class Shader : AutoDisposable
     /// <summary>
     /// Gets a graphics pipeline with default rasterizer state and triangle list topology
     /// </summary>
-    /// <param name="renderPass">The render pass configuration</param>
+    /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="depthStencil">The depth stencil state</param>
     /// <param name="blend">The blend state</param>
     /// <param name="defines">Optional shader defines to customize compilation</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout attachmentLayout,
         DepthStencilState depthStencil,
         BlendState blend,
         params ReadOnlySpan<string> defines
         )
     {
         return GetGraphicsPipeline(
-            renderPass,
+            attachmentLayout,
             depthStencil,
             blend,
             RasterizerState.CullNone,
@@ -119,16 +119,16 @@ public sealed class Shader : AutoDisposable
     /// <summary>
     /// Gets a graphics pipeline with default states for depth, blend, rasterizer and topology
     /// </summary>
-    /// <param name="renderPass">The render pass configuration</param>
+    /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="defines">Optional shader defines to customize compilation</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout attachmentLayout,
         params ReadOnlySpan<string> defines
         )
     {
         return GetGraphicsPipeline(
-            renderPass,
+            attachmentLayout,
             DepthStencilState.Read,
             BlendState.Opaque,
             RasterizerState.CullNone,
@@ -138,15 +138,15 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Attempts to update an existing pipeline context with a new render pass
+    /// Attempts to update an existing pipeline context with a new attachment layout
     /// </summary>
     /// <param name="pipelineInfo">The pipeline context to update</param>
-    /// <param name="renderPass">The new render pass configuration</param>
-    /// <param name="forced">Whether to force update even if render pass hasn't changed</param>
+    /// <param name="attachmentLayout">The new attachment layout configuration</param>
+    /// <param name="forced">Whether to force update even if attachment layout hasn't changed</param>
     /// <returns>True if the pipeline was updated, false otherwise</returns>
-    public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPURenderPass renderPass, bool forced = false)
+    public bool TryUpdatePipelineContext(ref GraphicsPipelineContext pipelineInfo, GPUAttachmentLayout attachmentLayout, bool forced = false)
     {
-        if (pipelineInfo.RenderPass == renderPass && !forced && pipelineInfo.Version == _version)
+        if (pipelineInfo.AttachmentLayout == attachmentLayout && !forced && pipelineInfo.Version == _version)
         {
             return false;
         }
@@ -154,7 +154,7 @@ public sealed class Shader : AutoDisposable
         ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Defines);
 
         GPUPipeline pipeline = GetGraphicsPipeline(
-            renderPass,
+            attachmentLayout,
             modulesInfo,
             pipelineInfo.DepthStencil,
             pipelineInfo.BlendState,
@@ -163,7 +163,7 @@ public sealed class Shader : AutoDisposable
             );
 
         pipelineInfo.Pipeline = pipeline;
-        pipelineInfo.RenderPass = renderPass;
+        pipelineInfo.AttachmentLayout = attachmentLayout;
         pipelineInfo.ReflectionInfo = modulesInfo.ReflectionInfo;
         pipelineInfo.Version = _version;
 
@@ -286,7 +286,7 @@ public sealed class Shader : AutoDisposable
     }
 
     private unsafe GPUPipeline GetGraphicsPipeline(
-        GPURenderPass renderPass,
+        GPUAttachmentLayout attachmentLayout,
         ShaderModulesInfo modulesInfo,
         DepthStencilState depthStencil,
         BlendState blend,
@@ -295,8 +295,8 @@ public sealed class Shader : AutoDisposable
         )
     {
         long hash = default;
-        //fist 32 bits are the render pass hash
-        int hash1= renderPass.GetHashCode();
+        //fist 32 bits are the attachment layout hash
+        int hash1= attachmentLayout.GetHashCode();
 
         //next 32 bits are combination of the variant hash and the pipeline state hash
         int hash2 = HashCode.Combine(
@@ -343,12 +343,12 @@ public sealed class Shader : AutoDisposable
             GPUPipeline pipelineNew;
 
 
-            PixelFormat[] colors = new PixelFormat[renderPass.Colors.Length];
-            for (int i = 0; i < renderPass.Colors.Length; i++)
+            PixelFormat[] colors = new PixelFormat[attachmentLayout.Colors.Length];
+            for (int i = 0; i < attachmentLayout.Colors.Length; i++)
             {
-                colors[i] = renderPass.Colors[i].Format;
+                colors[i] = attachmentLayout.Colors[i].Format;
             }
-            PixelFormat? depthStencilFormat = renderPass.Depth?.Format;
+            PixelFormat? depthStencilFormat = attachmentLayout.Depth?.Format;
 
             IReadOnlyList<VertexInputLayout> vertexInputLayouts = _customVertexLayouts ?? reflectionInfo.VertexLayouts;
 
@@ -509,8 +509,8 @@ public sealed class Shader : AutoDisposable
             onError(Name, Array.Empty<string>(), ex);
         }
 
-        //default render pass 
-        GPURenderPass renderPass = _renderingSystem.PrefferedHDRPass;
+        //default attachment layout
+        GPUAttachmentLayout attachmentLayout = _renderingSystem.PrefferedHDRPass;
 
         // Generate and test all non-empty combinations
         for (int length = 1; length <= definesArray.Length; length++)
@@ -531,7 +531,7 @@ public sealed class Shader : AutoDisposable
                     if (modulesInfo.IsGraphicsShader)
                     {
                         var pipeline = GetGraphicsPipeline(
-                        renderPass,
+                        attachmentLayout,
                             DepthStencilState.Default,
                             BlendState.Opaque,
                             RasterizerState.CullNone,

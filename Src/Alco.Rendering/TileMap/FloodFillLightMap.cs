@@ -131,13 +131,16 @@ public class FloodFillLightMap : AutoDisposable
         _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
 
         _command.Begin();
-        _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
-        for (int i = 0; i < Iteration; i++)
+        using (var computePass = _command.BeginCompute())
         {
-            _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
-            _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
-            _material.DispatchByGroupWithConstant(_command, groupX, groupY, groupZ, _data);
-            _lightMaps.Swap();
+            _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
+            for (int i = 0; i < Iteration; i++)
+            {
+                _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
+                _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
+                _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, _data);
+                _lightMaps.Swap();
+            }
         }
         _command.End();
         _device.Submit(_command);

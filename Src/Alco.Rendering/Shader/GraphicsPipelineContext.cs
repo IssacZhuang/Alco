@@ -10,7 +10,7 @@ namespace Alco.Rendering;
 public struct GraphicsPipelineContext
 {
     public GPUPipeline? Pipeline;
-    public GPURenderPass? RenderPass;
+    public GPUAttachmentLayout? AttachmentLayout;
     public ShaderReflectionInfo? ReflectionInfo;
     public DepthStencilState DepthStencil;
     public BlendState BlendState;
@@ -24,7 +24,7 @@ public struct GraphicsPipelineContext
     public GraphicsPipelineContext()
     {
         Pipeline = null;
-        RenderPass = null;
+        AttachmentLayout = null;
         ReflectionInfo = null;
         DepthStencil = DepthStencilState.Default;
         BlendState = BlendState.Opaque;

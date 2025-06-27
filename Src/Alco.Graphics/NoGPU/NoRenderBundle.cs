@@ -10,7 +10,7 @@ internal class NoRenderBundle : GPURenderBundle
     {
     }
 
-    protected override void BeginCore(GPURenderPass frameBuffer)
+    protected override void BeginCore(GPUAttachmentLayout frameBuffer)
     {
         
     }

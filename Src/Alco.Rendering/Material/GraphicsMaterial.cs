@@ -17,11 +17,11 @@ public sealed class GraphicsMaterial : Material
     }
 
     /// <inheritdoc/>
-    public override void PushResourceToCommandBuffer(GPUCommandBuffer commandBuffer)
+    public override void PushResources(GPUCommandBuffer.RenderPass renderPass)
     {
         if (StencilReference.HasValue)
         {
-            commandBuffer.SetStencilReference(StencilReference.Value);
+            renderPass.SetStencilReference(StencilReference.Value);
         }
         
         ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
@@ -30,14 +30,14 @@ public sealed class GraphicsMaterial : Material
             GPUResourceGroup? resource = resources[(int)i];
             if (resource != null)
             {
-                commandBuffer.SetGraphicsResources(i, resource);
+                renderPass.SetResources(i, resource);
             }else{
                 throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
             }
         }
     }
 
-    public override void PushResourceToRenderBundle(GPURenderBundle renderBundle)
+    public override void PushResources(GPURenderBundle renderBundle)
     {
         // the stencil value is dynamic state which is not supported in render bundle
         // if (StencilReference.HasValue)

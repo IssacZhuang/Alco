@@ -6,14 +6,16 @@ using Alco.IO;
 
 namespace Alco.Engine;
 
-public class PluginDebugGUI : BaseEnginePlugin
+public class PluginDebugStats : BaseEnginePlugin
 {
-    private class DebugGUISystem : BaseEngineSystem
+    private class DebugStatsSystem : BaseEngineSystem
     {
-        private readonly DebugGUIRenderer _renderer;
+        private readonly DebugStatsRenderer _renderer;
         private readonly ViewRenderTarget _renderTarget;
 
-        public DebugGUISystem(DebugGUIRenderer renderer, ViewRenderTarget renderTarget)
+        public override int Order => 2000;
+
+        public DebugStatsSystem(DebugStatsRenderer renderer, ViewRenderTarget renderTarget)
         {
             _renderer = renderer;
             _renderTarget = renderTarget;
@@ -23,14 +25,8 @@ public class PluginDebugGUI : BaseEnginePlugin
 
         public override void OnEndFrame(float deltaTime)
         {
-            _renderer.Blit(_renderTarget.RenderTexture.FrameBuffer);
+            DebugStats.CheckAndSubmit();
         }
-
-        public override void OnPostUpdate(float delta)
-        {
-            DebugGUI.CheckAndSubmit();
-        }
-
 
         private void OnRenderTargetResize(uint2 size)
         {
@@ -41,7 +37,7 @@ public class PluginDebugGUI : BaseEnginePlugin
         {
             _renderTarget.OnResize -= OnRenderTargetResize;
             _renderer.Dispose();
-            DebugGUI.Reset();
+            DebugStats.Reset();
         }
     }
 
@@ -51,13 +47,13 @@ public class PluginDebugGUI : BaseEnginePlugin
     {
         BuiltInAssets builtInAssets = engine.BuiltInAssets;
 
-        Shader shaderText = builtInAssets.Shader_TextMasked;
-        Shader shaderSprite = builtInAssets.Shader_SpriteMasked;
+        Shader shaderText = builtInAssets.Shader_Text;
+        Shader shaderSprite = builtInAssets.Shader_Sprite;
         Shader ShaderBlit = builtInAssets.Shader_Blit;
         Font font = builtInAssets.Font_Default;
 
-        DebugGUIRenderer renderer = new(engine.Input, engine.MainView, engine.MainView.Size.X, engine.MainView.Size.Y, engine.RenderingSystem, shaderText, shaderSprite, ShaderBlit);
-        DebugGUIStyle style = new DebugGUIStyle
+        DebugStatsRenderer renderer = new(engine.Input, engine.MainView, engine.MainView.Size.X, engine.MainView.Size.Y, engine.MainRenderTarget, engine.RenderingSystem, shaderText, shaderSprite);
+        DebugStatsStyle style = new DebugStatsStyle
         {
             Font = font,
             FontSize = 16,
@@ -70,7 +66,7 @@ public class PluginDebugGUI : BaseEnginePlugin
             TextColor = 0xf1f1f1,
             ButtonColor = 0x2a2a2a,
             ButtonHoverColor = 0x3a3a3a,
-            ButtonPressedColor = 0x234A6C,  
+            ButtonPressedColor = 0x234A6C,
             CheckBoxColor = 0x2a2a2a,
             CheckBoxHoverColor = 0x3a3a3a,
             CheckBoxCheckColor = 0x007ACC,
@@ -79,7 +75,7 @@ public class PluginDebugGUI : BaseEnginePlugin
         };
 
 
-        DebugGUI.Initialize(renderer, style);
-        engine.AddSystem(new DebugGUISystem(renderer, engine.MainRenderTarget));
+        DebugStats.Initialize(renderer, style);
+        engine.AddSystem(new DebugStatsSystem(renderer, engine.MainRenderTarget));
     }
 }
