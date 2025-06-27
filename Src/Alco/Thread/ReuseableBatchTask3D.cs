@@ -5,14 +5,14 @@ using System.Threading;
 namespace Alco;
 
 /// <summary>
-/// Represents a reusable parallel task that can execute work items concurrently in 2D space.
-/// This class provides parallel execution of 2D indexed operations with optimized
+/// Represents a reusable parallel task that can execute work items concurrently in 3D space.
+/// This class provides parallel execution of 3D indexed operations with optimized
 /// object reuse to minimize allocations.
 /// </summary>
-public abstract class ReuseableBatchTask2D : AutoDisposable
+public abstract class ReuseableBatchTask3D : AutoDisposable
 {
     /// <summary>
-    /// Represents a work item that can be executed in parallel for 2D operations.
+    /// Represents a work item that can be executed in parallel for 3D operations.
     /// </summary>
     private class TaskItem : IThreadPoolWorkItem
     {
@@ -27,6 +27,11 @@ public abstract class ReuseableBatchTask2D : AutoDisposable
         public volatile int StartY;
 
         /// <summary>
+        /// The starting Z position for this work item.
+        /// </summary>
+        public volatile int StartZ;
+
+        /// <summary>
         /// The width of the region this work item should process.
         /// </summary>
         public volatile int SizeX;
@@ -37,6 +42,11 @@ public abstract class ReuseableBatchTask2D : AutoDisposable
         public volatile int SizeY;
 
         /// <summary>
+        /// The depth of the region this work item should process.
+        /// </summary>
+        public volatile int SizeZ;
+
+        /// <summary>
         /// Exception that occurred during execution, if any.
         /// </summary>
         public volatile Exception? Exception;
@@ -44,30 +54,33 @@ public abstract class ReuseableBatchTask2D : AutoDisposable
         /// <summary>
         /// The parent task that owns this item.
         /// </summary>
-        private readonly ReuseableBatchTask2D _task;
+        private readonly ReuseableBatchTask3D _task;
 
         /// <summary>
         /// Initializes a new instance of the TaskItem class.
         /// </summary>
         /// <param name="task">The parent task.</param>
-        public TaskItem(ReuseableBatchTask2D task)
+        public TaskItem(ReuseableBatchTask3D task)
         {
             _task = task;
         }
 
         /// <summary>
-        /// Executes the work item by processing the assigned 2D region.
+        /// Executes the work item by processing the assigned 3D region.
         /// </summary>
         public void Execute()
         {
             Exception = null;
             try
             {
-                for (int y = StartY; y < StartY + SizeY; y++)
+                for (int z = StartZ; z < StartZ + SizeZ; z++)
                 {
-                    for (int x = StartX; x < StartX + SizeX; x++)
+                    for (int y = StartY; y < StartY + SizeY; y++)
                     {
-                        _task.ExecuteCore(x, y);
+                        for (int x = StartX; x < StartX + SizeX; x++)
+                        {
+                            _task.ExecuteCore(x, y, z);
+                        }
                     }
                 }
             }
@@ -89,10 +102,10 @@ public abstract class ReuseableBatchTask2D : AutoDisposable
     private readonly List<Exception> _exceptions;
 
     /// <summary>
-    /// Initializes a new instance of the ReuseableBatchTask2D class.
+    /// Initializes a new instance of the ReuseableBatchTask3D class.
     /// </summary>
     /// <param name="maxConcurrency">The maximum number of concurrent tasks. Defaults to the processor count.</param>
-    public ReuseableBatchTask2D(int maxConcurrency = 0)
+    public ReuseableBatchTask3D(int maxConcurrency = 0)
     {
         _maxConcurrency = maxConcurrency <= 0 ? Environment.ProcessorCount : maxConcurrency;
         _completionCount = new SemaphoreSlim(0, int.MaxValue);
@@ -101,48 +114,57 @@ public abstract class ReuseableBatchTask2D : AutoDisposable
     }
 
     /// <summary>
-    /// Executes the core logic for a specific 2D position. Must be implemented by derived classes.
+    /// Executes the core logic for a specific 3D position. Must be implemented by derived classes.
     /// </summary>
     /// <param name="x">The X coordinate to process.</param>
     /// <param name="y">The Y coordinate to process.</param>
-    protected abstract void ExecuteCore(int x, int y);
+    /// <param name="z">The Z coordinate to process.</param>
+    protected abstract void ExecuteCore(int x, int y, int z);
 
     /// <summary>
-    /// Executes the parallel task for the specified 2D size.
+    /// Executes the parallel task for the specified 3D size.
     /// </summary>
     /// <param name="x">The width of the region to process.</param>
     /// <param name="y">The height of the region to process.</param>
+    /// <param name="z">The depth of the region to process.</param>
     /// <param name="batchSizeX">The width of each batch. If null, it will be calculated automatically.</param>
     /// <param name="batchSizeY">The height of each batch. If null, it will be calculated automatically.</param>
+    /// <param name="batchSizeZ">The depth of each batch. If null, it will be calculated automatically.</param>
     /// <exception cref="AggregateException">Thrown when one or more exceptions occur during parallel execution.</exception>
-    public void RunParallel(int x, int y, int? batchSizeX = null, int? batchSizeY = null)
+    public void RunParallel(int x, int y, int z, int? batchSizeX = null, int? batchSizeY = null, int? batchSizeZ = null)
     {
-        if (x <= 0 || y <= 0) return;
+        if (x <= 0 || y <= 0 || z <= 0) return;
 
-        int totalPixels = x * y;
+        int totalVoxels = x * y * z;
 
         // Calculate batch size if not provided
         int actualBatchSizeX;
         int actualBatchSizeY;
-        if (batchSizeX.HasValue && batchSizeY.HasValue)
+        int actualBatchSizeZ;
+        if (batchSizeX.HasValue && batchSizeY.HasValue && batchSizeZ.HasValue)
         {
             actualBatchSizeX = batchSizeX.Value;
             actualBatchSizeY = batchSizeY.Value;
+            actualBatchSizeZ = batchSizeZ.Value;
         }
         else
         {
-            // Try to create square-ish batches
-            int pixelsPerBatch = Math.Max(1, totalPixels / _maxConcurrency);
-            actualBatchSizeX = Math.Max(1, (int)Math.Sqrt(pixelsPerBatch));
-            actualBatchSizeY = Math.Max(1, pixelsPerBatch / actualBatchSizeX);
+            // Try to create cube-ish batches
+            int voxelsPerBatch = Math.Max(1, totalVoxels / _maxConcurrency);
+            actualBatchSizeX = Math.Max(1, (int)Math.Round(Math.Pow(voxelsPerBatch, 1.0 / 3.0)));
+            actualBatchSizeY = Math.Max(1, (int)Math.Sqrt(voxelsPerBatch / actualBatchSizeX));
+            actualBatchSizeZ = Math.Max(1, voxelsPerBatch / (actualBatchSizeX * actualBatchSizeY));
+
             actualBatchSizeX = Math.Min(actualBatchSizeX, x);
             actualBatchSizeY = Math.Min(actualBatchSizeY, y);
+            actualBatchSizeZ = Math.Min(actualBatchSizeZ, z);
         }
 
         // Calculate number of batches in each dimension
         int batchesX = (x + actualBatchSizeX - 1) / actualBatchSizeX;
         int batchesY = (y + actualBatchSizeY - 1) / actualBatchSizeY;
-        int totalBatches = batchesX * batchesY;
+        int batchesZ = (z + actualBatchSizeZ - 1) / actualBatchSizeZ;
+        int totalBatches = batchesX * batchesY * batchesZ;
 
         // Ensure we have enough TaskItem objects
         while (_taskItems.Count < totalBatches)
@@ -152,24 +174,31 @@ public abstract class ReuseableBatchTask2D : AutoDisposable
 
         // Queue all tasks
         int batchIndex = 0;
-        for (int by = 0; by < batchesY; by++)
+        for (int bz = 0; bz < batchesZ; bz++)
         {
-            for (int bx = 0; bx < batchesX; bx++)
+            for (int by = 0; by < batchesY; by++)
             {
-                int startX = bx * actualBatchSizeX;
-                int startY = by * actualBatchSizeY;
-                int endX = Math.Min(startX + actualBatchSizeX, x);
-                int endY = Math.Min(startY + actualBatchSizeY, y);
+                for (int bx = 0; bx < batchesX; bx++)
+                {
+                    int startX = bx * actualBatchSizeX;
+                    int startY = by * actualBatchSizeY;
+                    int startZ = bz * actualBatchSizeZ;
+                    int endX = Math.Min(startX + actualBatchSizeX, x);
+                    int endY = Math.Min(startY + actualBatchSizeY, y);
+                    int endZ = Math.Min(startZ + actualBatchSizeZ, z);
 
-                var item = _taskItems[batchIndex];
-                item.StartX = startX;
-                item.StartY = startY;
-                item.SizeX = endX - startX;
-                item.SizeY = endY - startY;
-                item.Exception = null;
-                ThreadPool.UnsafeQueueUserWorkItem(item, false);
+                    var item = _taskItems[batchIndex];
+                    item.StartX = startX;
+                    item.StartY = startY;
+                    item.StartZ = startZ;
+                    item.SizeX = endX - startX;
+                    item.SizeY = endY - startY;
+                    item.SizeZ = endZ - startZ;
+                    item.Exception = null;
+                    ThreadPool.UnsafeQueueUserWorkItem(item, false);
 
-                batchIndex++;
+                    batchIndex++;
+                }
             }
         }
 
@@ -197,7 +226,7 @@ public abstract class ReuseableBatchTask2D : AutoDisposable
     }
 
     /// <summary>
-    /// Releases the unmanaged resources used by the ReuseableBatchTask2D and optionally releases the managed resources.
+    /// Releases the unmanaged resources used by the ReuseableBatchTask3D and optionally releases the managed resources.
     /// </summary>
     /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
     protected override void Dispose(bool disposing)
