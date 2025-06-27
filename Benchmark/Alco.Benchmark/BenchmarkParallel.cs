@@ -10,6 +10,7 @@ namespace Alco.Benchmark;
 /// Benchmark comparing Parallel.For, ParallelScheduler, and ReuseableParallelTask performance
 /// across different workload types and scales.
 /// </summary>
+[MemoryDiagnoser]
 public class BenchmarkParallel
 {
     private const int SmallWorkload = 1000;
@@ -48,6 +49,7 @@ public class BenchmarkParallel
         _cpuTask?.Dispose();
         _memoryTask?.Dispose();
         _lightweightTask?.Dispose();
+        _emptyTask?.Dispose();
     }
 
     #region CPU Intensive Tasks
@@ -291,6 +293,71 @@ public class BenchmarkParallel
         return results;
     }
 
+    #endregion
+
+    #region Scheduling Performance Tests
+
+    /// <summary>
+    /// Reusable parallel task for empty work (no operations) to test pure scheduling overhead
+    /// </summary>
+    private class EmptyTask : ReuseableParallelTask
+    {
+        protected override void ExecuteCore(int index)
+        {
+            // Completely empty - pure scheduling overhead test
+        }
+    }
+
+    private readonly EmptyTask _emptyTask = new EmptyTask();
+
+    private const int SchedulingIterations = 1000;
+
+    /// <summary>
+    /// Test scheduling performance with empty tasks using Parallel.For repeated execution
+    /// </summary>
+    [Benchmark(Description = "Scheduling Performance - Parallel.For (Repeated)")]
+    [Arguments(100)]
+    public void SchedulingPerformance_ParallelFor_Repeated(int taskCount)
+    {
+        for (int iteration = 0; iteration < SchedulingIterations; iteration++)
+        {
+            Parallel.For(0, taskCount, i =>
+            {
+                // Empty task - pure scheduling overhead
+            });
+        }
+    }
+
+    /// <summary>
+    /// Test scheduling performance with empty tasks using ParallelScheduler repeated execution
+    /// </summary>
+    [Benchmark(Description = "Scheduling Performance - ParallelScheduler (Repeated)")]
+    [Arguments(100)]
+    public void SchedulingPerformance_ParallelScheduler_Repeated(int taskCount)
+    {
+        for (int iteration = 0; iteration < SchedulingIterations; iteration++)
+        {
+            _scheduler.For(taskCount, i =>
+            {
+                // Empty task - pure scheduling overhead
+            });
+        }
+    }
+
+    /// <summary>
+    /// Test scheduling performance with empty tasks using ReuseableParallelTask repeated execution
+    /// </summary>
+    [Benchmark(Description = "Scheduling Performance - ReuseableParallelTask (Repeated)")]
+    [Arguments(100)]
+    public void SchedulingPerformance_ReuseableParallelTask_Repeated(int taskCount)
+    {
+        for (int iteration = 0; iteration < SchedulingIterations; iteration++)
+        {
+            _emptyTask.RunParallel(taskCount);
+        }
+    }
+
+   
     #endregion
 
     #region Overhead Tests
