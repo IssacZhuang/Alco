@@ -95,6 +95,8 @@ public class ConfigDatabase
         {
             TypeInfoResolver = new PolymorphicJsonTypeResolver(polymorphicTypeList.ToArray()),
             WriteIndented = true,
+            AllowTrailingCommas = true,
+            ReadCommentHandling = JsonCommentHandling.Skip
         };
         foreach (var converter in converters)
         {

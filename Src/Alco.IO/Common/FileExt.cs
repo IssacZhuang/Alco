@@ -31,6 +31,7 @@ public static class FileExt
     public const string Text = ".txt";
     public const string TextCSV = ".csv";
     public const string TextJSON = ".json";
+    public const string TextJSONC = ".jsonc";
     public const string TextXML = ".xml";
     public const string TextYAML = ".yaml";
     public const string TextYML = ".yml";
