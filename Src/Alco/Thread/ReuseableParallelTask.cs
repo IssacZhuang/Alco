@@ -6,42 +6,43 @@ namespace Alco;
 
 /// <summary>
 /// Represents a reusable parallel task that can execute work items concurrently.
-/// This class manages a pool of TaskItem objects to minimize allocations and provides
-/// parallel execution of indexed operations.
+/// This class provides parallel execution of indexed operations with optimized
+/// object reuse to minimize allocations.
 /// </summary>
 public abstract class ReuseableParallelTask : AutoDisposable
 {
     /// <summary>
     /// Represents a work item that can be executed in parallel.
     /// </summary>
-    public class TaskItem : IThreadPoolWorkItem
+    private class TaskItem : IThreadPoolWorkItem
     {
-        /// <summary>
-        /// The parent task that owns this item.
-        /// </summary>
-        public ReuseableParallelTask Task { get; set; }
-
         /// <summary>
         /// The starting index for this work item.
         /// </summary>
-        public int IndexStart { get; set; }
+        public volatile int IndexStart;
 
         /// <summary>
         /// The number of iterations this work item should process.
         /// </summary>
-        public int Count { get; set; }
+        public volatile int Count;
+
+        /// <summary>
+        /// Exception that occurred during execution, if any.
+        /// </summary>
+        public volatile Exception? Exception;
+
+        /// <summary>
+        /// The parent task that owns this item.
+        /// </summary>
+        private readonly ReuseableParallelTask _task;
 
         /// <summary>
         /// Initializes a new instance of the TaskItem class.
         /// </summary>
         /// <param name="task">The parent task.</param>
-        /// <param name="indexStart">The starting index.</param>
-        /// <param name="count">The number of iterations to process.</param>
-        public TaskItem(ReuseableParallelTask task, int indexStart, int count)
+        public TaskItem(ReuseableParallelTask task)
         {
-            Task = task;
-            IndexStart = indexStart;
-            Count = count;
+            _task = task;
         }
 
         /// <summary>
@@ -49,30 +50,30 @@ public abstract class ReuseableParallelTask : AutoDisposable
         /// </summary>
         public void Execute()
         {
+            Exception = null;
             try
             {
                 for (int i = IndexStart; i < IndexStart + Count; i++)
                 {
-                    Task.ExecuteCore(i);
+                    _task.ExecuteCore(i);
                 }
+            }
+            catch (Exception e)
+            {
+                Exception = e;
             }
             finally
             {
-                // Signal completion and return this item to the pool
-                Task.ReturnItem(this);
-                Task._completionCount.Release();
+                // Signal completion
+                _task._completionCount.Release();
             }
         }
     }
 
     private readonly SemaphoreSlim _completionCount;
-    private readonly ConcurrentPool<TaskItem> _pool;
     private readonly int _maxConcurrency;
-
-    /// <summary>
-    /// Gets the maximum number of concurrent tasks that can be executed.
-    /// </summary>
-    public int MaxConcurrency => _maxConcurrency;
+    private readonly List<TaskItem> _taskItems;
+    private readonly List<Exception> _exceptions;
 
     /// <summary>
     /// Initializes a new instance of the ReuseableParallelTask class.
@@ -82,7 +83,8 @@ public abstract class ReuseableParallelTask : AutoDisposable
     {
         _maxConcurrency = maxConcurrency <= 0 ? Environment.ProcessorCount : maxConcurrency;
         _completionCount = new SemaphoreSlim(0, int.MaxValue);
-        _pool = new ConcurrentPool<TaskItem>(() => new TaskItem(this, 0, 0));
+        _taskItems = new List<TaskItem>();
+        _exceptions = new List<Exception>();
     }
 
     /// <summary>
@@ -92,25 +94,11 @@ public abstract class ReuseableParallelTask : AutoDisposable
     protected abstract void ExecuteCore(int index);
 
     /// <summary>
-    /// Gets an existing TaskItem from the pool or creates a new one if the pool is empty.
-    /// </summary>
-    /// <param name="indexStart">The starting index for the task item.</param>
-    /// <param name="count">The number of iterations for the task item.</param>
-    /// <returns>A TaskItem configured with the specified parameters.</returns>
-    public TaskItem GetOrCreateItem(int indexStart, int count)
-    {
-        var item = _pool.Get();
-        item.Task = this;
-        item.IndexStart = indexStart;
-        item.Count = count;
-        return item;
-    }
-
-    /// <summary>
     /// Executes the parallel task for the specified range of indices.
     /// </summary>
     /// <param name="totalCount">The total number of iterations to process.</param>
     /// <param name="batchSize">The size of each batch. If null, it will be calculated automatically.</param>
+    /// <exception cref="AggregateException">Thrown when one or more exceptions occur during parallel execution.</exception>
     public void RunParallel(int totalCount, int? batchSize = null)
     {
         if (totalCount <= 0) return;
@@ -118,13 +106,22 @@ public abstract class ReuseableParallelTask : AutoDisposable
         int actualBatchSize = batchSize ?? Math.Max(1, totalCount / _maxConcurrency);
         int taskCount = (totalCount + actualBatchSize - 1) / actualBatchSize;
 
+        // Ensure we have enough TaskItem objects
+        while (_taskItems.Count < taskCount)
+        {
+            _taskItems.Add(new TaskItem(this));
+        }
+
         // Queue all tasks
         for (int i = 0; i < taskCount; i++)
         {
             int start = i * actualBatchSize;
             int count = Math.Min(actualBatchSize, totalCount - start);
 
-            var item = GetOrCreateItem(start, count);
+            var item = _taskItems[i];
+            item.IndexStart = start;
+            item.Count = count;
+            item.Exception = null;
             ThreadPool.UnsafeQueueUserWorkItem(item, false);
         }
 
@@ -133,15 +130,22 @@ public abstract class ReuseableParallelTask : AutoDisposable
         {
             _completionCount.Wait();
         }
-    }
 
-    /// <summary>
-    /// Returns a TaskItem to the pool for reuse.
-    /// </summary>
-    /// <param name="item">The TaskItem to return to the pool.</param>
-    private void ReturnItem(TaskItem item)
-    {
-        _pool.Return(item);
+        // Check for exceptions and aggregate them if any occurred
+        _exceptions.Clear();
+        for (int i = 0; i < taskCount; i++)
+        {
+            var item = _taskItems[i];
+            if (item.Exception != null)
+            {
+                _exceptions.Add(item.Exception);
+            }
+        }
+
+        if (_exceptions.Count > 0)
+        {
+            throw new AggregateException("One or more exceptions occurred during parallel execution.", _exceptions);
+        }
     }
 
     /// <summary>
