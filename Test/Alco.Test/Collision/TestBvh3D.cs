@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Numerics;
 
 
-using Random = Alco.Random;
+using Random = Alco.FastRandom;
 using System.Runtime;
 using TestFramework;
 

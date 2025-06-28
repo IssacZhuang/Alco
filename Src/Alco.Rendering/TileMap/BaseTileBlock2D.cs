@@ -18,7 +18,7 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
 
     protected readonly uint _length;
     protected readonly int2 _size;
-    protected readonly System.Random _random = new System.Random(123);
+    protected  FastRandom _random = new FastRandom(123);
     
     protected readonly GraphicsArrayBuffer<uint> _tileIdData;
     
@@ -378,7 +378,7 @@ public abstract class BaseTileBlock2D<TTileData> : AutoDisposable where TTileDat
         {
             return sprites[0].TileId;
         }
-        return sprites[_random.Next(sprites.Length)].TileId;
+        return sprites[_random.NextUint(0, (uint)sprites.Length)].TileId;
     }
 
     protected override void Dispose(bool disposing)

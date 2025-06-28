@@ -37,7 +37,7 @@ public class BenchmarkBvh
         int colliderCount = 1500;
         int rayCount = 10000;
 
-        Random random = new Random(12345);
+        FastRandom random = new FastRandom(12345);
         //random collider
         for (int i = 0; i < colliderCount / 2; i++)
         {
@@ -99,7 +99,7 @@ public class BenchmarkBvh
         int colliderCount = 1500;
         int rayCount = 10000;
 
-        Random random = new Random(12345);
+        FastRandom random = new FastRandom(12345);
         //random collider
         for (int i = 0; i < colliderCount / 2; i++)
         {

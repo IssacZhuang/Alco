@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 
 public abstract class BaseParticleEmitter2D : IParticleEmitter2D
 {
-    private Random _random = Random.CreateFromIndex(3);
+    private FastRandom _random = FastRandom.CreateFromIndex(3);
 
     /// <summary>
     /// Gets or sets the minimum speed of emitted particles.
@@ -53,7 +53,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     /// </summary>
     public bool IsRotationFollowDirection = true;
 
-    protected ref Random Random => ref _random;
+    protected ref FastRandom Random => ref _random;
 
     protected abstract Vector2 GeneratePosition();
 

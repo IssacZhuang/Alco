@@ -5,12 +5,12 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
-    public struct Random
+    public struct FastRandom
     {
         public uint state;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Random(uint seed)
+        public FastRandom(uint seed)
         {
             state = seed;
             CheckState();
@@ -18,12 +18,12 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Random CreateFromIndex(uint index)
+        public static FastRandom CreateFromIndex(uint index)
         {
 
             // Wang hash will hash 61 to zero but we want uint.MaxValue to hash to zero.  To make this happen
             // we must offset by 62.
-            return new Random(WangHash(index + 62u));
+            return new FastRandom(WangHash(index + 62u));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

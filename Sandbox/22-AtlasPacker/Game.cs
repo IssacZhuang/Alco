@@ -3,7 +3,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
-using Random = Alco.Random;
+using FastRandom = Alco.FastRandom;
 using Alco.Graphics;
 using Alco.GUI;
 
@@ -15,7 +15,7 @@ public class Game : GameEngine
     private readonly Material _material;
     public Game(GameEngineSetting setting) : base(setting)
     {
-        Random random = new Random(123456789);
+        FastRandom random = new FastRandom(123456789);
         int spriteCount = 32;
         List<int2> spriteSizes = new List<int2>();
         List<Texture2D> textures = new List<Texture2D>();

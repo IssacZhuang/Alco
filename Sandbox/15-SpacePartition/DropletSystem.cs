@@ -7,7 +7,7 @@ using Alco.GUI;
 using Alco.Rendering;
 using Alco.ImGUI;
 
-using Random = Alco.Random;
+using FastRandom = Alco.FastRandom;
 
 public class DropletSystem : IDisposable
 {
@@ -68,7 +68,7 @@ public class DropletSystem : IDisposable
     private int _spwanRangeX = 480;
     private int _speed = 300;
 
-    private Random _random = new Random(123);
+    private FastRandom _random = new FastRandom(123);
 
     private readonly Profiler _profiler = new Profiler();
 

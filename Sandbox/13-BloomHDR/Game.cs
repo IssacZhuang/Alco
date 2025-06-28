@@ -3,7 +3,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
-using Random = Alco.Random;
+using Random = Alco.FastRandom;
 using Alco.Graphics;
 using Alco.GUI;
 using Alco.ImGUI;
