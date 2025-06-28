@@ -25,7 +25,7 @@ public sealed partial class AssetSystem
         }
     }
 
-    
+
     /// <summary>
     /// Get all the asset infos
     /// </summary>
@@ -270,6 +270,11 @@ public sealed partial class AssetSystem
                     string key = ParseEntry(file);
                     _fileEntries[key] = fileSource;
                     ReadOnlySpan<char> extension = Path.GetExtension(key);
+                    if (!IsRecongizedExtension(extension.ToString()))
+                    {
+                        continue;
+                    }
+
                     //todo: config to ignore alias
                     if (extension.SequenceEqual(".meta"))
                     {
@@ -296,7 +301,7 @@ public sealed partial class AssetSystem
             {
                 return;
             }
-            
+
             _recongizedExtensions.Clear();
             foreach (var loader in _assetLoaders.Values)
             {
