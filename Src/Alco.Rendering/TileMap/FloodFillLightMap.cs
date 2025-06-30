@@ -20,7 +20,8 @@ public class FloodFillLightMap : AutoDisposable
 
     private FloodFillLightingConstant _data;
 
-    private bool _isDirty = false;
+    private bool _isTextureDirty = false;
+    private bool _isResultDirty = false;
 
 
     public int Iteration { get; set; } = 32;
@@ -84,7 +85,7 @@ public class FloodFillLightMap : AutoDisposable
 
     public void SetDirty()
     {
-        _isDirty = true;
+        _isTextureDirty = true;
     }
 
     public void ResetOpacity()
@@ -115,7 +116,27 @@ public class FloodFillLightMap : AutoDisposable
 
     public void Compute(GPUCommandBuffer.ComputePass computePass)
     {
-        if (!_isDirty)
+        ResetTexture();
+
+        if (_isResultDirty)
+        {
+            _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
+            for (int i = 0; i < Iteration; i++)
+            {
+                _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
+                _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
+                _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, _data);
+                _lightMaps.Swap();
+            }
+
+            _isResultDirty = false;
+        }
+
+    }
+
+    public void ResetTexture(bool force = false)
+    {
+        if (!_isTextureDirty && !force)
         {
             return;
         }
@@ -125,16 +146,8 @@ public class FloodFillLightMap : AutoDisposable
         _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
         _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
 
-
-        _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
-        for (int i = 0; i < Iteration; i++)
-        {
-            _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
-            _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
-            _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, _data);
-            _lightMaps.Swap();
-        }
-
+        _isTextureDirty = false;
+        _isResultDirty = true;
     }
 
 
