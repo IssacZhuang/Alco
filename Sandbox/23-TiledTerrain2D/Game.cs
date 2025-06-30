@@ -42,9 +42,6 @@ public class Game : GameEngine
     private readonly LightingManager _lightingManager;
     private readonly WallManager _wallManager;
 
-    private readonly RenderTexture _blurTexture;
-    private GaussianBlur _gaussianBlur;
-
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
@@ -52,10 +49,6 @@ public class Game : GameEngine
 
     private float _blendFactor = 0.35f;
     private float _edgeSmoothFactor = 0.15f;
-
-    private float _blurCenter = 4;
-    private float _blurSide = 3;
-    private float _blurCorner = 2;
 
     private EditMode _editMode = EditMode.Surface;
     private int _surfaceTileId = 1;
@@ -89,7 +82,7 @@ public class Game : GameEngine
             Far = 5
         };
        
-       RenderingSystem.MainCamera = _camera;
+        RenderingSystem.MainCamera = _camera;
 
         _blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
 
@@ -169,19 +162,10 @@ public class Game : GameEngine
             UvRect = new Rect(0, 0, 1, 1)
         };
 
-        ComputeMaterial gaussianBlurMaterial = RenderingSystem.CreateComputeMaterial(BuiltInAssets.Shader_GaussianBlurRGBA16F);
-        _blurTexture = RenderingSystem.CreateRenderTexture(RenderingSystem.PrefferedLightMapPass, (uint)width, (uint)height);
-
-        _gaussianBlur = RenderingSystem.CreateGaussianBlur(gaussianBlurMaterial, 3, 3, [
-            _blurCorner, _blurSide, _blurCorner,
-            _blurSide, _blurCenter, _blurSide,
-            _blurCorner, _blurSide, _blurCorner
-        ]);
-
         UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
 
         _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
-        _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _blurTexture);
+        _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightingManager.LightMap);
         _materialLightOverlay.BlendState = BlendState.Multiply;
 
         Transform2D lightOverlayTransform = new Transform2D();
@@ -262,18 +246,6 @@ public class Game : GameEngine
             }
         }
 
-        if (ImGui.SliderFloat("Blur Center", ref _blurCenter, 1, 10) ||
-            ImGui.SliderFloat("Blur Side", ref _blurSide, 1, 5) ||
-            ImGui.SliderFloat("Blur Corner", ref _blurCorner, 0, 3))
-        {
-            _gaussianBlur.SetKernel([
-                _blurCorner, _blurSide, _blurCorner,
-                _blurSide, _blurCenter, _blurSide,
-                _blurCorner, _blurSide, _blurCorner
-            ]);
-            isDebugClicked = true;
-        }
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -296,12 +268,8 @@ public class Game : GameEngine
         _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
         _camera.Size = new Vector2(_zoom * MainView.AspectRatio, _zoom);
 
-
-        // _lightingManager.SetLightMapDirty();
-        // _lightingManager.SetOpacityMapDirty();
-
+        // Render lighting using internal command buffer
         _lightingManager.Render();
-        _gaussianBlur.Blit(_lightingManager.LightMap, _blurTexture);
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.OnRender(_renderer);
@@ -376,6 +344,11 @@ public class Game : GameEngine
 
 
         ImGui.End();
+    }
+
+    protected override void OnStop()
+    {
+        _lightingManager?.Dispose();
     }
 
     private void OnHotReload(string filename, object cachedAsset)

@@ -5,7 +5,6 @@ namespace Alco.Rendering;
 
 public class FloodFillLightMap : AutoDisposable
 {
-    private readonly GPUDevice _device;
     private readonly RenderTexture _lightMapFront;
     private readonly RenderTexture _lightMapBack;
     private readonly DoubleBuffer<RenderTexture> _lightMaps;
@@ -15,7 +14,6 @@ public class FloodFillLightMap : AutoDisposable
     private readonly BitmapUIntRGBA _opacityMapCPU;
 
     private readonly ComputeMaterial _material;
-    private readonly GPUCommandBuffer _command;
 
     private uint _shaderId_front;
     private uint _shaderId_back;
@@ -63,9 +61,6 @@ public class FloodFillLightMap : AutoDisposable
 
         _opacityMap = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedRGBATexturePass, (uint)width, (uint)height, "tile_opacity_map");
         _opacityMapCPU = new BitmapUIntRGBA(width, height, Color32.White);
-
-        _device = renderingSystem.GraphicsDevice;
-        _command = _device.CreateCommandBuffer();
 
         _data = new FloodFillLightingConstant
         {
@@ -118,7 +113,7 @@ public class FloodFillLightMap : AutoDisposable
         _opacityMapCPU[x, y] = opacity;
     }
 
-    public void Render()
+    public void Compute(GPUCommandBuffer.ComputePass computePass)
     {
         if (!_isDirty)
         {
@@ -130,20 +125,16 @@ public class FloodFillLightMap : AutoDisposable
         _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
         _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
 
-        _command.Begin();
-        using (var computePass = _command.BeginCompute())
+
+        _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
+        for (int i = 0; i < Iteration; i++)
         {
-            _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
-            for (int i = 0; i < Iteration; i++)
-            {
-                _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
-                _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
-                _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, _data);
-                _lightMaps.Swap();
-            }
+            _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
+            _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
+            _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, _data);
+            _lightMaps.Swap();
         }
-        _command.End();
-        _device.Submit(_command);
+
     }
 
 
