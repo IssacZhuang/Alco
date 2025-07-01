@@ -8,7 +8,7 @@ namespace Alco
     public class CurveHermite : ICurve
     {
 
-        private readonly List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
+        private readonly List<CurvePoint> _points = new List<CurvePoint>();
         private readonly List<float> _slopes = new List<float>();
 
         public int PointsCount
@@ -19,7 +19,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint<float>> Points
+        public IReadOnlyList<CurvePoint> Points
         {
             get
             {
@@ -32,7 +32,7 @@ namespace Alco
 
         }
 
-        public CurveHermite(IReadOnlyList<CurvePoint<float>> points)
+        public CurveHermite(IReadOnlyList<CurvePoint> points)
         {
             if (points == null)
             {
@@ -64,13 +64,13 @@ namespace Alco
 
             for (int i = 0; i < t.Length; i++)
             {
-                _points.Add(new CurvePoint<float>(t[i], value[i]));
+                _points.Add(new CurvePoint(t[i], value[i]));
             }
             Sort();
             CalculateSlopes(_slopes, _points);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint> points)
         {
             _points.Clear();
             _points.AddRange(points);
@@ -137,7 +137,7 @@ namespace Alco
             return high;
         }
 
-        private static void CalculateSlopes(List<float> slopes, IReadOnlyList<CurvePoint<float>> points)
+        private static void CalculateSlopes(List<float> slopes, IReadOnlyList<CurvePoint> points)
         {
             slopes.Clear();
             int count = points.Count;

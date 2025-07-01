@@ -8,7 +8,7 @@ namespace Alco
     public class CurveLinear : ICurve
     {
 
-        private readonly List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
+        private readonly List<CurvePoint> _points = new List<CurvePoint>();
         public int PointsCount
         {
             get
@@ -17,7 +17,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint<float>> Points
+        public IReadOnlyList<CurvePoint> Points
         {
             get
             {
@@ -49,12 +49,12 @@ namespace Alco
 
             for (int i = 0; i < t.Length; i++)
             {
-                _points.Add(new CurvePoint<float>(t[i], value[i]));
+                _points.Add(new CurvePoint(t[i], value[i]));
             }
             Sort();
         }
 
-        public CurveLinear(IReadOnlyList<CurvePoint<float>> points)
+        public CurveLinear(IReadOnlyList<CurvePoint> points)
         {
             if (points == null)
             {
@@ -64,7 +64,7 @@ namespace Alco
             Sort();
         }
 
-        public CurvePoint<float> this[int i]
+        public CurvePoint this[int i]
         {
             get
             {
@@ -76,7 +76,7 @@ namespace Alco
             }
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint> points)
         {
             _points.Clear();
             _points.AddRange(points);
@@ -85,7 +85,7 @@ namespace Alco
 
         public void Sort()
         {
-            _points.Sort((CurvePoint<float> a, CurvePoint<float> b) => a.Time.CompareTo(b.Time));
+            _points.Sort((CurvePoint a, CurvePoint b) => a.Time.CompareTo(b.Time));
         }
         
 
@@ -105,8 +105,8 @@ namespace Alco
             }
            
             int i = BinarySearchFloor(x);
-            CurvePoint<float> keyFrame1 = _points[i];
-            CurvePoint<float> keyFrame2 = _points[i + 1];
+            CurvePoint keyFrame1 = _points[i];
+            CurvePoint keyFrame2 = _points[i + 1];
             float t = (x - keyFrame1.Time) / (keyFrame2.Time - keyFrame1.Time);
             return math.lerp(keyFrame1.Value, keyFrame2.Value, t);
         }

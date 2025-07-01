@@ -8,7 +8,7 @@ namespace Alco
 {
     public class BaseCurve3D<T> : ICurve3D where T : ICurve, new()
     {
-        private readonly List<CurvePoint<Vector3>> _points = new List<CurvePoint<Vector3>>();
+        private readonly List<CurvePoint3> _points = new List<CurvePoint3>();
 
         private T _curveX;
         private T _curveY;
@@ -22,7 +22,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint<Vector3>> Points
+        public IReadOnlyList<CurvePoint3> Points
         {
             get
             {
@@ -38,7 +38,7 @@ namespace Alco
         }
 
 
-        public BaseCurve3D(IReadOnlyList<CurvePoint<Vector3>> points)
+        public BaseCurve3D(IReadOnlyList<CurvePoint3> points)
         {
             _curveX = new T();
             _curveY = new T();
@@ -48,7 +48,7 @@ namespace Alco
         }
 
 
-        public void SetPoints(IReadOnlyList<CurvePoint<Vector3>> points)
+        public void SetPoints(IReadOnlyList<CurvePoint3> points)
         {
             if (points == null)
             {
@@ -57,16 +57,16 @@ namespace Alco
 
             _points.Clear();
 
-            List<CurvePoint<float>> xPoints = new List<CurvePoint<float>>();
-            List<CurvePoint<float>> yPoints = new List<CurvePoint<float>>();
-            List<CurvePoint<float>> zPoints = new List<CurvePoint<float>>();
+            List<CurvePoint> xPoints = new List<CurvePoint>();
+            List<CurvePoint> yPoints = new List<CurvePoint>();
+            List<CurvePoint> zPoints = new List<CurvePoint>();
 
             for (int i = 0; i < points.Count; i++)
             {
                 _points.Add(points[i]);
-                xPoints.Add(new CurvePoint<float>(points[i].Time, points[i].Value.X));
-                yPoints.Add(new CurvePoint<float>(points[i].Time, points[i].Value.Y));
-                zPoints.Add(new CurvePoint<float>(points[i].Time, points[i].Value.Z));
+                xPoints.Add(new CurvePoint(points[i].Time, points[i].Value.X));
+                yPoints.Add(new CurvePoint(points[i].Time, points[i].Value.Y));
+                zPoints.Add(new CurvePoint(points[i].Time, points[i].Value.Z));
             }
 
             _curveX.SetPoints(xPoints);
