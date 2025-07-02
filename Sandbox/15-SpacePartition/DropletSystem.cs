@@ -200,5 +200,10 @@ public class DropletSystem : IDisposable
     public void Dispose()
     {
         _jobParallelRender.Dispose();
+        foreach (var renderer in _renderers)
+        {
+            renderer.Dispose();
+        }
+        _renderContext.Dispose();
     }
 }
