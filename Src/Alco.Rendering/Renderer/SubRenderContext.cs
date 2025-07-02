@@ -104,11 +104,24 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
     {
+        DrawInstanced(mesh, material, instanceCount, 0, subMeshIndex);
+    }
+
+    /// <summary>
+    /// Draws a mesh multiple times with the specified material.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    /// <param name="instanceStartIndex">The index of the first instance to draw.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
+    {
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
+        _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
     }
 
     /// <summary>

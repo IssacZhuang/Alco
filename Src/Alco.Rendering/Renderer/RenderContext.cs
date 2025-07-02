@@ -156,7 +156,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
-
     /// <summary>
     /// Draws a mesh multiple times with the specified material.
     /// </summary>
@@ -166,12 +165,26 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
     {
+        DrawInstanced(mesh, material, instanceCount, 0, subMeshIndex);
+    }
+
+
+    /// <summary>
+    /// Draws a mesh multiple times with the specified material.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    /// <param name="instanceStartIndex">The index of the first instance to draw.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
+    {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
+        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
     }
 
 
