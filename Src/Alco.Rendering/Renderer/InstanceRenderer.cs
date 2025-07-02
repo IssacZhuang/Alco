@@ -7,18 +7,34 @@ namespace Alco.Rendering;
 /// <typeparam name="T">The unmanaged type representing instance data.</typeparam>
 public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListener where T : unmanaged
 {
-    private NativeBuffer<T> _instances = new NativeBuffer<T>();
-    private int _instanceCount = 0;
+    private struct DrawData
+    {
+        public GraphicsBuffer Buffer;
+        public uint InstanceCount;
+        public uint InstanceStartIndex;
+
+        public DrawData(GraphicsBuffer buffer, uint instanceCount, uint instanceStartIndex)
+        {
+            Buffer = buffer;
+            InstanceCount = instanceCount;
+            InstanceStartIndex = instanceStartIndex;
+        }
+    }
+
     private readonly RenderingSystem _renderingSystem;
     private readonly List<GraphicsBuffer> _tmpGPUBuffers = new List<GraphicsBuffer>();
-    private readonly List<uint> _drawCounts = new List<uint>();
+    private readonly List<DrawData> _draws = new List<DrawData>();
     private readonly IRenderContext _renderContext;
     private readonly Material _material;
     private readonly int _sizePerBuffer;
     private readonly int _maxInstanceCountPerBuffer;
     private readonly uint _shaderId_instanceBuffer;
 
+    private GraphicsBuffer? _currentBuffer;
     private int _bufferIndex = 0;
+
+    private NativeBuffer<T> _instances = new NativeBuffer<T>();
+    private int _instanceCount = 0;
 
     public string Name { get; }
 
@@ -59,17 +75,15 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     void ICommandListener.OnCommandBegin()
     {
         // reset state for new frame
-        _instanceCount = 0;
-        _bufferIndex = 0;
-        _drawCounts.Clear();
+        Clear();
     }
 
     void ICommandListener.OnCommandEnd()
     {
-        // upload remaining instance data
-        if (_instanceCount > 0)
+        if (_currentBuffer != null && _instanceCount > 0)
         {
-            FlushCurrentBuffer(CurrentInstances);
+            ReadOnlySpan<T> span = new ReadOnlySpan<T>(_instances.UnsafePointer, _instanceCount);
+            _currentBuffer.UpdateBuffer(span);
         }
     }
 
@@ -79,121 +93,125 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     public void Clear()
     {
         _instanceCount = 0;
-        _drawCounts.Clear();
+        _draws.Clear();
         _bufferIndex = 0;
+        _currentBuffer = null;
+    }
+
+
+
+    public void Draw(Mesh mesh, int subMeshIndex, ReadOnlySpan<T> instances)
+    {
+        List<DrawData> draws = PushInstances(instances);
+        for (int i = 0; i < draws.Count; i++)
+        {
+            DrawData draw = draws[i];
+            _material.SetBuffer(_shaderId_instanceBuffer, draw.Buffer);
+            _renderContext.DrawInstanced(mesh, _material, draw.InstanceCount, draw.InstanceStartIndex, subMeshIndex);
+        }
+    }
+
+    public void Draw(Mesh mesh, ReadOnlySpan<T> instances)
+    {
+        Draw(mesh, 0, instances);
+    }
+
+    public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, int subMeshIndex, ReadOnlySpan<T> instances) where TConstant : unmanaged
+    {
+        List<DrawData> draws = PushInstances(instances);
+        for (int i = 0; i < draws.Count; i++)
+        {
+            DrawData draw = draws[i];
+            _material.SetBuffer(_shaderId_instanceBuffer, draw.Buffer);
+            _renderContext.DrawInstancedWithConstant(mesh, _material, draw.InstanceCount, draw.InstanceStartIndex, constant, subMeshIndex);
+        }
+    }
+
+    public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, ReadOnlySpan<T> instances) where TConstant : unmanaged
+    {
+        DrawWithConstant(mesh, constant, 0, instances);
     }
 
     /// <summary>
-    /// Adds a single instance to the batch.
+    /// Efficiently batches instances for rendering by minimizing memory copies.
+    /// <br/> For large instance sets, complete buffer-sized chunks are sent directly to GPU without intermediate copying.
+    /// <br/> Smaller chunks are accumulated in the instance buffer and flushed when full or at frame end.
     /// </summary>
-    /// <param name="instance">The instance data to add.</param>
-    public void AddInstance(T instance)
+    /// <param name="instances">The span of instances to batch for rendering.</param>
+    /// <returns>A list of draw data containing buffer references and instance counts for rendering.</returns>
+    private List<DrawData> PushInstances(ReadOnlySpan<T> instances)
     {
-        // check if current buffer has enough capacity
-        if (_instanceCount >= _maxInstanceCountPerBuffer)
+        _draws.Clear();
+
+        _currentBuffer ??= RequestNewBuffer();
+
+
+        int count = instances.Length;
+        int remainInBuffer = _maxInstanceCountPerBuffer - _instanceCount;
+
+        if (count < remainInBuffer)
         {
-            FlushCurrentBuffer(CurrentInstances);
+            uint instanceStart = (uint)_instanceCount;
+            Span<T> span = new Span<T>(_instances.UnsafePointer + _instanceCount, count);
+            instances.CopyTo(span);
+            _instanceCount += count;
+            _draws.Add(new DrawData(_currentBuffer, (uint)count, instanceStart));
+            return _draws;
         }
 
-        _instances.UnsafePointer[_instanceCount++] = instance;
-    }
+        // Handle case where instances don't fit in current buffer
+        int offset = 0;
 
-    /// <summary>
-    /// Adds multiple instances to the batch. For large batches (>= buffer capacity), 
-    /// instances are uploaded directly to GPU to avoid unnecessary copying to intermediate buffer.
-    /// </summary>
-    /// <param name="instances">The span of instances to add.</param>
-    public void AddInstances(ReadOnlySpan<T> instances)
-    {
-        if (instances.Length == 0)
-            return;
+        // First, fill the current buffer if it has space
 
-        int remainingInstances = instances.Length;
-        int currentOffset = 0;
-
-        // If we have existing instances and the new batch would exceed the buffer capacity,
-        // flush the current buffer first
-        if (_instanceCount > 0 && _instanceCount + instances.Length > _maxInstanceCountPerBuffer)
+        if (remainInBuffer > 0)
         {
-            FlushCurrentBuffer(CurrentInstances);
-        }
+            int toAdd = Math.Min(count, remainInBuffer);
+            uint instanceStart = (uint)_instanceCount;
+            Span<T> span = new Span<T>(_instances.UnsafePointer + _instanceCount, toAdd);
+            instances.Slice(0, toAdd).CopyTo(span);
+            _instanceCount += toAdd;
+            _draws.Add(new DrawData(_currentBuffer, (uint)toAdd, instanceStart));
+            offset += toAdd;
 
-        // Process large batches directly to GPU to avoid copying to intermediate buffer
-        while (remainingInstances >= _maxInstanceCountPerBuffer)
-        {
-            var batch = instances.Slice(currentOffset, _maxInstanceCountPerBuffer);
-            FlushCurrentBuffer(batch);
+            // If buffer is full, immediately update to GPU and get new buffer
 
-            currentOffset += _maxInstanceCountPerBuffer;
-            remainingInstances -= _maxInstanceCountPerBuffer;
-        }
-
-        // Add remaining instances to the buffer
-        if (remainingInstances > 0)
-        {
-            var remaining = instances.Slice(currentOffset, remainingInstances);
-
-            // Check if remaining instances would exceed current buffer capacity
-            if (_instanceCount + remainingInstances > _maxInstanceCountPerBuffer)
+            if (_instanceCount >= _maxInstanceCountPerBuffer)
             {
-                FlushCurrentBuffer(CurrentInstances);
+                ReadOnlySpan<T> bufferSpan = new ReadOnlySpan<T>(_instances.UnsafePointer, _instanceCount);
+                _currentBuffer.UpdateBuffer(bufferSpan);
+                _currentBuffer = RequestNewBuffer();
             }
-
-            // Copy remaining instances to buffer
-            var destination = new Span<T>(_instances.UnsafePointer + _instanceCount, remainingInstances);
-            remaining.CopyTo(destination);
-            _instanceCount += remainingInstances;
         }
-    }
 
-    /// <summary>
-    /// Draws all accumulated instances using the bound material.
-    /// </summary>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void Draw(Mesh mesh, int subMeshIndex = 0)
-    {
-        for (int i = 0; i < _drawCounts.Count; i++)
+        // Process complete buffer-sized chunks directly without copying to _instances
+
+        while (offset + _maxInstanceCountPerBuffer <= count)
         {
-            // Bind the corresponding instance buffer for this draw call
-            _material.SetBuffer(_shaderId_instanceBuffer, _tmpGPUBuffers[i]);
-            _renderContext.DrawInstanced(mesh, _material, _drawCounts[i], subMeshIndex);
-        }
-    }
+            // Directly update a full buffer worth of data to GPU
+            ReadOnlySpan<T> directSpan = instances.Slice(offset, _maxInstanceCountPerBuffer);
+            _currentBuffer.UpdateBuffer(directSpan);
+            _draws.Add(new DrawData(_currentBuffer, (uint)_maxInstanceCountPerBuffer, 0));
+            offset += _maxInstanceCountPerBuffer;
 
-    /// <summary>
-    /// Draws all accumulated instances using the bound material with push constants.
-    /// </summary>
-    /// <typeparam name="TConstant">The type of the constant data.</typeparam>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="constant">The constant data to push to the shader.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, int subMeshIndex = 0) where TConstant : unmanaged
-    {
-        for (int i = 0; i < _drawCounts.Count; i++)
+            // Always get new buffer after direct update
+            _currentBuffer = RequestNewBuffer();
+        }
+
+        // Handle remaining instances (less than a full buffer)
+
+        if (offset < count)
         {
-            // Bind the corresponding instance buffer for this draw call
-            _material.SetBuffer(_shaderId_instanceBuffer, _tmpGPUBuffers[i]);
-            _renderContext.DrawInstancedWithConstant(mesh, _material, _drawCounts[i], constant, subMeshIndex);
+            int remaining = count - offset;
+            Span<T> span = new Span<T>(_instances.UnsafePointer, remaining);
+            instances.Slice(offset, remaining).CopyTo(span);
+            _instanceCount = remaining;
+            _draws.Add(new DrawData(_currentBuffer, (uint)remaining, 0));
         }
+
+        return _draws;
     }
 
-    private void FlushCurrentBuffer(ReadOnlySpan<T> instances)
-    {
-        if (instances.Length == 0)
-            return;
-
-        // get or request new GPU buffer
-        GraphicsBuffer buffer = RequestNewBuffer();
-
-        // upload data to GPU
-        buffer.UpdateBuffer(instances);
-
-        _drawCounts.Add((uint)instances.Length);
-
-        // reset state for next batch
-        _instanceCount = 0;
-    }
 
     private GraphicsBuffer RequestNewBuffer()
     {
@@ -201,11 +219,13 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
 
         if (_bufferIndex < _tmpGPUBuffers.Count)
         {
+            _instanceCount = 0;
             return _tmpGPUBuffers[_bufferIndex++];
         }
         else if (_renderingSystem.GraphicsBufferPool.TryGetBuffer(bufferSize, out var buffer))
         {
             _tmpGPUBuffers.Add(buffer);
+            _instanceCount = 0;
             _bufferIndex++;
             return buffer;
         }
