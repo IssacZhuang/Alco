@@ -9,6 +9,7 @@ using System.Text;
 using Alco.Audio;
 using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 
 
 namespace Alco.Engine;
@@ -258,6 +259,18 @@ IDisposable
     /// </summary>
     private void InternaleRun()
     {
+        try
+        {
+            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
+            Thread.CurrentThread.Priority = ThreadPriority.Highest;
+        }
+        catch (Exception e)
+        {
+
+            Log.Error("[Set Process Priority Error]", e);
+        }
+
+
         _mainThreadId = Environment.CurrentManagedThreadId;
 
         _platform.OnTick += InternalTick;
