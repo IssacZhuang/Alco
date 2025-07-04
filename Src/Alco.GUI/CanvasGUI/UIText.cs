@@ -73,7 +73,7 @@ public class UIText : UISelectable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            return _text.AsSpan(_textLength);
+            return _text.AsSpan(0, _textLength);
         }
     }
 
@@ -87,7 +87,7 @@ public class UIText : UISelectable
         {
             if (_isTmpStrReadDirty)
             {
-                _tmpStr = new string(_text.AsSpan(_textLength));
+                _tmpStr = new string(_text.AsSpan(0, _textLength));
                 _isTmpStrReadDirty = false;
             }
             return _tmpStr;

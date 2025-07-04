@@ -129,12 +129,6 @@ public class ArrayBuffer<T>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Span<T> AsSpan(int length)
-    {
-        return _buffer.AsSpan(0, length);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Span<T> AsSpan(int start, int length)
     {
         return _buffer.AsSpan(start, length);
