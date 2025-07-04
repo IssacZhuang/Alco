@@ -33,12 +33,12 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     private GraphicsBuffer? _currentBuffer;
     private int _bufferIndex = 0;
 
-    private NativeBuffer<T> _instances = new NativeBuffer<T>();
+    private readonly ArrayBuffer<T> _instances = new ArrayBuffer<T>();
     private int _instanceCount = 0;
 
     public string Name { get; }
 
-    private ReadOnlySpan<T> CurrentInstances => new ReadOnlySpan<T>(_instances.UnsafePointer, _instanceCount);
+    private ReadOnlySpan<T> CurrentInstances => _instances.AsSpan(0, _instanceCount);
 
     /// <summary>
     /// Initializes a new instance of the InstanceRenderer class.
@@ -64,7 +64,6 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
         _material = material.CreateInstance();
         _sizePerBuffer = sizePerBuffer;
         _maxInstanceCountPerBuffer = sizePerBuffer / sizeof(T);
-        _instances.EnsureSizeWithoutCopy(_maxInstanceCountPerBuffer);
 
         // Get shader resource ID for instance buffer
         _shaderId_instanceBuffer = _material.GetResourceId(instanceBufferShaderId);
@@ -82,7 +81,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     {
         if (_currentBuffer != null && _instanceCount > 0)
         {
-            ReadOnlySpan<T> span = new ReadOnlySpan<T>(_instances.UnsafePointer, _instanceCount);
+            ReadOnlySpan<T> span = _instances.AsSpan(0, _instanceCount);
             _currentBuffer.UpdateBuffer(span);
         }
     }
@@ -149,10 +148,12 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
         int count = instances.Length;
         int remainInBuffer = _maxInstanceCountPerBuffer - _instanceCount;
 
+        _instances.SetSizeWithoutCopy(Math.Max(_instanceCount + count, _maxInstanceCountPerBuffer));
+
         if (count < remainInBuffer)
         {
             uint instanceStart = (uint)_instanceCount;
-            Span<T> span = new Span<T>(_instances.UnsafePointer + _instanceCount, count);
+            Span<T> span = _instances.AsSpan(_instanceCount, count);
             instances.CopyTo(span);
             _instanceCount += count;
             _draws.Add(new DrawData(_currentBuffer, (uint)count, instanceStart));
@@ -168,7 +169,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
         {
             int toAdd = Math.Min(count, remainInBuffer);
             uint instanceStart = (uint)_instanceCount;
-            Span<T> span = new Span<T>(_instances.UnsafePointer + _instanceCount, toAdd);
+            Span<T> span = _instances.AsSpan(_instanceCount, toAdd);
             instances.Slice(0, toAdd).CopyTo(span);
             _instanceCount += toAdd;
             _draws.Add(new DrawData(_currentBuffer, (uint)toAdd, instanceStart));
@@ -178,7 +179,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
 
             if (_instanceCount >= _maxInstanceCountPerBuffer)
             {
-                ReadOnlySpan<T> bufferSpan = new ReadOnlySpan<T>(_instances.UnsafePointer, _instanceCount);
+                ReadOnlySpan<T> bufferSpan = _instances.AsSpan(0, _instanceCount);
                 _currentBuffer.UpdateBuffer(bufferSpan);
                 _currentBuffer = RequestNewBuffer();
             }
@@ -203,7 +204,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
         if (offset < count)
         {
             int remaining = count - offset;
-            Span<T> span = new Span<T>(_instances.UnsafePointer, remaining);
+            Span<T> span = _instances.AsSpan(0, remaining);
             instances.Slice(offset, remaining).CopyTo(span);
             _instanceCount = remaining;
             _draws.Add(new DrawData(_currentBuffer, (uint)remaining, 0));
@@ -239,8 +240,6 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     protected override void Dispose(bool disposing)
     {
         _renderContext.RemoveListener(this);
-        // dispose native resources
-        _instances.Dispose();
         // return all temporary GPU buffers to pool
         for (int i = 0; i < _tmpGPUBuffers.Count; i++)
         {
