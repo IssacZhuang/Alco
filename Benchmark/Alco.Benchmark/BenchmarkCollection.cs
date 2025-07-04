@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using System.Collections.Generic;
 using System.Collections.Frozen;
+using System.Runtime.InteropServices;
 using Alco;
 
 namespace Alco.Benchmark;
@@ -113,6 +114,9 @@ public class BenchmarkCollectionRemove
 
 }
 
+/// <summary>
+/// Benchmark tests for different collection access patterns
+/// </summary>
 public class BenchmarkCollectionAccess
 {
     private const int Count = 1000;
@@ -120,10 +124,10 @@ public class BenchmarkCollectionAccess
     private int[] array;
     private Dictionary<int, int> dictionary;
     private FrozenDictionary<int, int> frozenDictionary;
-
+    private unsafe int* unmanagedPointer;
 
     [GlobalSetup]
-    public void Setup()
+    public unsafe void Setup()
     {
         array = new int[Count];
         dictionary = new Dictionary<int, int>();
@@ -137,6 +141,26 @@ public class BenchmarkCollectionAccess
 
         // Create frozen dictionary from regular dictionary
         frozenDictionary = dictionary.ToFrozenDictionary();
+
+        // Allocate unmanaged memory
+        unmanagedPointer = (int*)NativeMemory.Alloc((nuint)(Count * sizeof(int)));
+
+        // Initialize unmanaged memory with same data
+        for (int i = 0; i < Count; i++)
+        {
+            unmanagedPointer[i] = i;
+        }
+    }
+
+    [GlobalCleanup]
+    public unsafe void Cleanup()
+    {
+        // Free unmanaged memory
+        if (unmanagedPointer != null)
+        {
+            NativeMemory.Free(unmanagedPointer);
+            unmanagedPointer = null;
+        }
     }
 
     [Benchmark(Description = "Array access")]
@@ -172,7 +196,65 @@ public class BenchmarkCollectionAccess
         return sum;
     }
 
+    [Benchmark(Description = "Span access")]
+    public int SpanAccess()
+    {
+        Span<int> span = array.AsSpan();
+        int sum = 0;
+        for (int i = 0; i < Count; i++)
+        {
+            sum += span[i];
+        }
+        return sum;
+    }
 
+    [Benchmark(Description = "Unsafe pointer access")]
+    public unsafe int UnsafePointerAccess()
+    {
+        int sum = 0;
+        for (int i = 0; i < Count; i++)
+        {
+            sum += unmanagedPointer[i];
+        }
+        return sum;
+    }
+
+    [Benchmark(Description = "Array write")]
+    public void ArrayWrite()
+    {
+        for (int i = 0; i < Count; i++)
+        {
+            array[i] = i * 2;
+        }
+    }
+
+    [Benchmark(Description = "Dictionary write")]
+    public void DictionaryWrite()
+    {
+        for (int i = 0; i < Count; i++)
+        {
+            dictionary[i] = i * 2;
+        }
+    }
+
+    [Benchmark(Description = "Span write")]
+    public void SpanWrite()
+    {
+        Span<int> span = array.AsSpan();
+        for (int i = 0; i < Count; i++)
+        {
+            span[i] = i * 2;
+        }
+    }
+
+    [Benchmark(Description = "Unsafe pointer write")]
+    public unsafe void UnsafePointerWrite()
+    {
+        for (int i = 0; i < Count; i++)
+        {
+            unmanagedPointer[i] = i * 2;
+        }
+    }
 }
 
 
