@@ -98,7 +98,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     public void BuildTree()
     {
-        _bvh.BuildTree(_targetColliders.AsReadOnlySpan());
+        _bvh.BuildTree(_targetColliders.AsSpan());
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
         {
             return;
         }
-        ReadOnlySpan<NativeArrayList<ColliderCastResult2D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.AsReadOnlySpan());
+        ReadOnlySpan<NativeArrayList<ColliderCastResult2D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.AsSpan());
         for (int i = 0; i < _casters.Count; i++)
         {
             NativeArrayList<ColliderCastResult2D> hitTargets = result[i];

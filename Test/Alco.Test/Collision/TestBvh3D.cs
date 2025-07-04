@@ -73,7 +73,7 @@ namespace Alco.Test
             NativeBvh3D bvh = new NativeBvh3D();
             Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
 
-            bvh.BuildTree(colliders.AsReadOnlySpan());
+            bvh.BuildTree(colliders.AsSpan());
 
             //RayCastResult result = bvh.CastRay(ray);
 
@@ -134,7 +134,7 @@ namespace Alco.Test
 
             NativeBvh3D bvh = new NativeBvh3D();
 
-            bvh.BuildTree(colliders.AsReadOnlySpan());
+            bvh.BuildTree(colliders.AsSpan());
 
             ColliderBox3D boxCast1 = new ColliderBox3D
             {

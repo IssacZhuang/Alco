@@ -355,7 +355,8 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
                 GraphicsBuffer buffer = _buffers[i];
                 int particleCount = Math.Min(drawCount, MaxParticlePerBuffer);
                 drawCount -= particleCount;
-                buffer.UpdateBuffer(_particles.AsReadOnlySpan().Slice(i * MaxParticlePerBuffer, particleCount));
+                ReadOnlySpan<ParticleData2D> span = _particles.AsSpan(i * MaxParticlePerBuffer, particleCount);
+                buffer.UpdateBuffer(span);
             }
             _isParticleDirty = false;
         }

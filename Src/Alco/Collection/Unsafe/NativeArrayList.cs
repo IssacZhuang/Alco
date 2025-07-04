@@ -28,14 +28,25 @@ namespace Alco
             get => (T*)_ptrBuffer;
         }
 
-        public ReadOnlySpan<T> AsReadOnlySpan()
-        {
-            return new ReadOnlySpan<T>((T*)_ptrBuffer, _length);
-        }
-
         public Span<T> AsSpan()
         {
             return new Span<T>((T*)_ptrBuffer, _length);
+        }
+
+        /// <summary>
+        /// Returns a span representing a portion of the array list starting at the specified index with the specified length.
+        /// </summary>
+        /// <param name="start">The zero-based starting index of the span.</param>
+        /// <param name="length">The number of elements to include in the span.</param>
+        /// <returns>A span that represents the specified portion of the array list.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when start or length is negative, or when start + length exceeds the bounds of the array list.</exception>
+        public Span<T> AsSpan(int start, int length)
+        {
+            if (start < 0) throw new ArgumentOutOfRangeException(nameof(start), "Start index cannot be negative.");
+            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length), "Length cannot be negative.");
+            if (start + length > _length) throw new ArgumentOutOfRangeException(nameof(length), "The start index and length would exceed the bounds of the array list.");
+
+            return new Span<T>((T*)_ptrBuffer + start, length);
         }
 
         public int Stride => sizeof(T);

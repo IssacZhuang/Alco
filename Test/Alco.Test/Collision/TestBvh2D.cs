@@ -72,7 +72,7 @@ namespace Alco.Test
             NativeBvh2D bvh = new NativeBvh2D();
             Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-2, 1.1f), new Vector2(200, 1.1f));
 
-            bvh.BuildTree(colliders.AsReadOnlySpan());
+            bvh.BuildTree(colliders.AsSpan());
 
             //RayCastResult result = bvh.CastRay(ray);
 
@@ -133,7 +133,7 @@ namespace Alco.Test
 
             NativeBvh2D bvh = new NativeBvh2D();
 
-            bvh.BuildTree(colliders.AsReadOnlySpan());
+            bvh.BuildTree(colliders.AsSpan());
 
             ColliderBox2D boxCast1 = new ColliderBox2D
             {
