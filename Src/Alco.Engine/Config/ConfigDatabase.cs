@@ -235,7 +235,7 @@ public class ConfigDatabase
 
             var documents = _jsonPreprocessor.AllDocuments.ToArray();
 
-            _tempConfigs.EnsureSizeWithoutCopy(documents.Length);
+            _tempConfigs.SetSizeWithoutCopy(documents.Length);
             _tempConfigs.Clear();
 
             //serialize

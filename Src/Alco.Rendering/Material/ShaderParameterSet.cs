@@ -46,7 +46,7 @@ public sealed class ShaderParameterSet
     public ReadOnlySpan<GPUResourceGroup?> ResourceGroups
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _resourceGroups.AsReadOnlySpan();
+        get => _resourceGroups.AsSpan();
     }
 
     /// <summary>
@@ -759,8 +759,8 @@ public sealed class ShaderParameterSet
         ShaderReflectionInfo reflectionInfo = _reflectionInfo;
         int slotCount = reflectionInfo.BindGroups.Count;
 
-        _slots.EnsureSize(slotCount);
-        _resourceGroups.EnsureSize(slotCount);
+        _slots.SetSize(slotCount);
+        _resourceGroups.SetSize(slotCount);
 
         for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
         {

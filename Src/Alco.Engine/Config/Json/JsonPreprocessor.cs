@@ -103,7 +103,7 @@ public class JsonPreprocessor
         }
 
         //JsonDocument?[] jsonDocuments = new JsonDocument?[jsonFiles.Count];
-        _tempJsonDocuments.EnsureSizeWithoutCopy(jsonFiles.Count);
+        _tempJsonDocuments.SetSizeWithoutCopy(jsonFiles.Count);
         _tempJsonDocuments.Clear();
 
         _abstractJsonItems.Clear();
