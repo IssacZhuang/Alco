@@ -96,8 +96,8 @@ internal unsafe struct FlacFile : IDisposable
         Span<float> output = new Span<float>(_data + _dataIndex, bufferSize);
         _dataIndex += bufferSize;
 
-        _dataBuffer.EnsureSizeWithoutCopy(bufferSize);
-        _residualBuffer.EnsureSizeWithoutCopy(bufferSize);
+        _dataBuffer.SetSizeWithoutCopy(bufferSize);
+        _residualBuffer.SetSizeWithoutCopy(bufferSize);
 
         bitReader = new BitReader(_reader.CurrentPointer);
 

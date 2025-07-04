@@ -25,7 +25,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _shaderSprite = BuiltInAssets.Shader_SpriteInstanced;
+        _shaderSprite = BuiltInAssets.Shader_Sprite;
         _texDroplet = AssetSystem.Load<Texture2D>("Droplet.png");
 
         _camera = RenderingSystem.CreateCamera2D(960, 540, 100f);
@@ -35,7 +35,7 @@ public class Game : GameEngine
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
 
-        _dropletSystem = new DropletSystem(MainRenderTarget, RenderingSystem, _camera, _shaderSprite, _texDroplet);
+        _dropletSystem = new DropletSystem(MainRenderTarget, RenderingSystem, _camera, BuiltInAssets.Shader_SpriteInstanced, _texDroplet);
         Material cubeMaterial = RenderingSystem.CreateMaterial(_shaderSprite, "Sprite");
         cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _cubeSystem = new CubeSystem(RenderingSystem, cubeMaterial, RenderingSystem.TextureWhite);

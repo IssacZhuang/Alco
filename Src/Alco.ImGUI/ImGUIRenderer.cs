@@ -103,7 +103,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _mesh.EnsureVertexBufferSizeUnsafe(totalVertexBufferSize);
         _mesh.EnsureIndexBufferSizeUnsafe(totalIndexBufferSize);
-        _tmpIndexBuffer.EnsureSize((int)totalIndexBufferSize);
+        _tmpIndexBuffer.SetSize((int)totalIndexBufferSize);
         byte* tmpIndexBufferPtr = _tmpIndexBuffer.UnsafePointer;
 
         uint vertexBufferOffset = 0;

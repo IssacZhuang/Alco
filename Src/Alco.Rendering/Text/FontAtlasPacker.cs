@@ -18,7 +18,7 @@ public sealed unsafe class FontAtlasPacker : AutoDisposable
     private readonly int _height;
 
     public GlyphInfo[] Glyphs => _glyphs;
-    public ReadOnlySpan<byte> Bitmap => _bitmap.AsReadOnlySpan();
+    public ReadOnlySpan<byte> Bitmap => _bitmap.AsSpan();
     public int Width => _width;
     public int Height => _height;
 
