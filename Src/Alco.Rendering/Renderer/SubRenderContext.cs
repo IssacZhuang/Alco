@@ -20,6 +20,8 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     private uint _meshVersion;
     private uint _indexCount;
 
+    public bool HasBuffer => _renderBundle.HasBuffer;
+
     public GPURenderBundle RenderBundle
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
