@@ -239,12 +239,16 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
 
     protected override void Dispose(bool disposing)
     {
-        _renderContext.RemoveListener(this);
-        // return all temporary GPU buffers to pool
-        for (int i = 0; i < _tmpGPUBuffers.Count; i++)
+        if (disposing)
         {
-            _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_tmpGPUBuffers[i]);
+            // return all temporary GPU buffers to pool
+            for (int i = 0; i < _tmpGPUBuffers.Count; i++)
+            {
+                _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_tmpGPUBuffers[i]);
+            }
         }
+
+        _renderContext.RemoveListener(this);
         _tmpGPUBuffers.Clear();
 
 

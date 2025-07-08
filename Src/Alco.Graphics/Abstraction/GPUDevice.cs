@@ -386,7 +386,7 @@ public abstract class GPUDevice
     {
         obj.Destroy();
     }
-    
+
 
     /// <summary>
     /// Submits the GPU command buffer to the GPU for execution.
@@ -411,13 +411,14 @@ public abstract class GPUDevice
     /// <param name="size">The size of the data. (unit: byte)</param>
     public unsafe void WriteBuffer(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
+        GraphicsException.ThrowIfDisposed(buffer);
         uint remainder = size % 4;
-        if(remainder != 0)
+        if (remainder != 0)
         {
             throw new GraphicsException($"The size of the data must be aligned to 4. (size: {size})");
         }
         remainder = bufferOffset % 4;
-        if(remainder != 0)
+        if (remainder != 0)
         {
             throw new GraphicsException($"The offset of the buffer must be aligned to 4. (offset: {bufferOffset})");
         }
@@ -433,6 +434,7 @@ public abstract class GPUDevice
     /// <param name="size">The size of the data. (unit: byte)</param>
     public unsafe void ReadBuffer(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
     {
+        GraphicsException.ThrowIfDisposed(buffer);
         ReadBufferCore(buffer, dest, bufferOffset, size);
     }
 
@@ -446,6 +448,7 @@ public abstract class GPUDevice
     /// <param name="mipLevel">The mip level of the texture.</param>
     public unsafe void WriteTexture(GPUTexture texture, byte* data, uint dataSize, uint mipLevel = 0)
     {
+        GraphicsException.ThrowIfDisposed(texture);
         WriteTextureCore(texture, data, dataSize, mipLevel);
     }
 
@@ -459,9 +462,10 @@ public abstract class GPUDevice
     /// <param name="mipLevel">The mip level of the texture.</param>
     public unsafe void ReadTexture(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
+        GraphicsException.ThrowIfDisposed(texture);
         ReadTextureCore(texture, dest, dataSize, mipLevel);
     }
-    
+
 
     // polymorphism
 
@@ -560,6 +564,7 @@ public abstract class GPUDevice
     /// <typeparam name="T">The type of the data.</typeparam>
     public unsafe void ReadBuffer<T>(GPUBuffer buffer, uint bufferOffset, T[] data) where T : unmanaged
     {
+        GraphicsException.ThrowIfDisposed(buffer);
         fixed (T* ptr = data)
         {
             ReadBufferCore(buffer, (byte*)ptr, bufferOffset, (uint)(sizeof(T) * data.Length));
@@ -574,6 +579,7 @@ public abstract class GPUDevice
     /// <typeparam name="T">The type of the data.</typeparam>
     public unsafe void ReadBuffer<T>(GPUBuffer buffer, T[] data) where T : unmanaged
     {
+        GraphicsException.ThrowIfDisposed(buffer);
         fixed (T* ptr = data)
         {
             ReadBufferCore(buffer, (byte*)ptr, 0, (uint)(sizeof(T) * data.Length));
@@ -648,7 +654,7 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0);
-    
+
     protected abstract void OnEndFrameCore();
     protected abstract void DisposeCore();
 

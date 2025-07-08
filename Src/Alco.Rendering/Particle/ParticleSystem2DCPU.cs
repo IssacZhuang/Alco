@@ -403,11 +403,15 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     /// <param name="disposing">True if called from Dispose, false if called from finalizer.</param>
     protected override void Dispose(bool disposing)
     {
-        _particles.Dispose();
-        foreach (var buffer in _buffers)
+        if (disposing)
         {
-            _renderingSystem.GraphicsBufferPool.TryReturnBuffer(buffer);
+            foreach (var buffer in _buffers)
+            {
+                _renderingSystem.GraphicsBufferPool.TryReturnBuffer(buffer);
+            }
         }
+
+        _particles.Dispose();
         _buffers.Clear();
     }
 }
