@@ -136,7 +136,7 @@ public class Game : GameEngine
         _waterBlock.Transform.Position = new Vector3(0, -0.1f, 0.1f);
 
 
-        _plantBlock = RenderingSystem.CreatePlantTileBlock2D(_plantTileSet, _heightBuffer, _plantMaterial, width, height);
+        _plantBlock = new PlantTileBlock2D(RenderingSystem, _plantTileSet, _heightBuffer, _plantMaterial, width, height);
         _plantBlock.SetAllItemIds(0);
         _plantBlock.Transform.Position = new Vector3(0, 0, 0);
 
@@ -494,6 +494,6 @@ public class Game : GameEngine
         }, 0, highGrass1.Result, highGrass2.Result);
         items.Add(item1);
 
-        return RenderingSystem.CreatePlantTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
+        return new PlantTileSet(RenderingSystem, items, _blitMaterial, GraphicsDevice.SamplerNearestClamp, "tile_set");
     }
 }

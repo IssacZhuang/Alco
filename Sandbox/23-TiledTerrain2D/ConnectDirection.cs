@@ -1,5 +1,4 @@
 
-namespace Alco.Rendering;
 
 [Flags]
 public enum ConnectDirection

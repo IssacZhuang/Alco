@@ -1,10 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using Alco;
 using Alco.Graphics;
-
+using Alco.Rendering;
 using static Alco.math;
 
-namespace Alco.Rendering;
 
 /// <summary>
 /// Represents a 2D tile block where each tile can connect to its neighbors.

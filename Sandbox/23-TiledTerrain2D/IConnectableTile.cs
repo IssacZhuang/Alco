@@ -1,7 +1,9 @@
 
 using System.Numerics;
+using Alco;
+using Alco.Rendering;
 
-namespace Alco.Rendering;
+
 
 public interface IConnectableTile
 {

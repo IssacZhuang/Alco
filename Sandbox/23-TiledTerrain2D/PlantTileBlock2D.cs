@@ -1,7 +1,8 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Alco;
+using Alco.Rendering;
 
-namespace Alco.Rendering;
 
 public class PlantTileBlock2D : BaseTileBlock2D<PlantTileData>
 {

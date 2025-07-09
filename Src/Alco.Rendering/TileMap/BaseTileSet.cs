@@ -39,7 +39,7 @@ public abstract class BaseTileSet<TTileData> : AutoDisposable where TTileData : 
         get => _atlas.RenderTexture;
     }
 
-    internal BaseTileSet(
+    protected BaseTileSet(
         RenderingSystem renderingSystem,
         IReadOnlyList<BaseTileItem<TTileData>> items,
         Material material,
