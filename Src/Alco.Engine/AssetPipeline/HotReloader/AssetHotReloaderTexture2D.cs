@@ -19,13 +19,7 @@ public class AssetHotReloaderTexture2D : BaseAssetHotReloader<Texture2D>
     {
         Texture2D texture2d = (Texture2D)asset;
 
-        _renderingSystem.CreateTextureCore(
-            texture2d.Width, 
-            texture2d.Height, 
-            ImageLoadOption.Default, 
-            out GPUTexture texture, out GPUTextureView textureView);
-
-        _renderingSystem.WriteImageFileToTexture(data, texture);
-        texture2d.UnsafeHotReload(texture, textureView);
+        // Use the optimized hot reload method from RenderingSystem
+        _renderingSystem.UnsafeHotReloadTexture2DByFile(texture2d, data, ImageLoadOption.Default);
     }
 }
