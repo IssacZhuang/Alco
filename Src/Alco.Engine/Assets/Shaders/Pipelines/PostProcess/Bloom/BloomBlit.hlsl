@@ -1,6 +1,11 @@
 #include "Shaders/Libs/Core.hlsli"
 
-DEFINE_TEX2D_SAMPLE(0, _texture); 
+struct Constants {
+    float intensity;
+};
+
+DEFINE_TEX2D_SAMPLE(0, _texture);
+PUSH_CONSTANT Constants constants;
 
 struct Vertex {
   float3 position : POSITION;
@@ -28,7 +33,5 @@ float grayScale(float3 color) {
 float4 MainPS(V2F input) : SV_TARGET {
     // use gray scale as alpha
     float4 source = SAMPLE_TEX2D(_texture, input.uv);
-  float intensityBase = 2;
-
-  return float4(source.rgb * intensityBase, grayScale(source.rgb));
+    return float4(source.rgb , grayScale(source.rgb) * constants.intensity);
 }

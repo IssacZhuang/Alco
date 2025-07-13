@@ -1,10 +1,13 @@
 #include "Shaders/Libs/Core.hlsli"
 
-DEFINE_TEX2D_SAMPLE(0, _texture);
-DEFINE_UNIFORM(1, _data) { 
+struct Constants {
     float2 InvTextureSize;
-    float Threshold; 
+    float Threshold;
+    float Spread;
 };
+
+DEFINE_TEX2D_SAMPLE(0, _texture);
+PUSH_CONSTANT Constants constants;
 
 struct Vertex {
   float3 position : POSITION;
@@ -26,7 +29,7 @@ V2F MainVS(Vertex input) {
 
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float2 invTextureSize = InvTextureSize;
+    float2 invTextureSize = constants.InvTextureSize;
   float4 sum = float4(0, 0, 0, 0);
   float weights[5] = {0.07027, 0.316216, 0.227027, 0.316216,
                       0.07027}; // Gaussian weights for a 5x5 kernel
@@ -40,6 +43,6 @@ float4 MainPS(V2F input) : SV_TARGET {
     }
   }
 
-  float3 clamped = max(0, sum.rgb - Threshold);
-  return float4(clamped*2, sum.a);
+  float3 clamped = max(0, sum.rgb - constants.Threshold);
+  return float4(clamped * constants.Spread, sum.a);
 }

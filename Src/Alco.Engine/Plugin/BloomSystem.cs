@@ -16,8 +16,45 @@ public class BloomSystem : BaseEngineSystem
     private readonly Shader _downSampleShader;
     private readonly Shader _upSampleShader;
     private readonly Bloom _bloom;
+    private bool _isEnabled = true;
 
     public override int Order => 1000;
+
+    /// <summary>
+    /// Gets or sets whether the bloom effect is enabled.
+    /// </summary>
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set => _isEnabled = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the bloom threshold value. Only pixels above this brightness will contribute to the bloom effect.
+    /// </summary>
+    public float Threshold
+    {
+        get => _bloom.Threshold;
+        set => _bloom.Threshold = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the bloom spread intensity. Controls how much the bloom effect spreads across the entire pipeline.
+    /// </summary>
+    public float Spread
+    {
+        get => _bloom.Spread;
+        set => _bloom.Spread = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the bloom intensity. Controls the final output strength of the bloom effect.
+    /// </summary>
+    public float Intensity
+    {
+        get => _bloom.Intensity;
+        set => _bloom.Intensity = value;
+    }
 
     public BloomSystem(GameEngine engine, ViewRenderTarget renderTarget)
     {
@@ -41,7 +78,10 @@ public class BloomSystem : BaseEngineSystem
 
     public override void OnPostUpdate(float delta)
     {
-        _bloom.Blit(_renderTarget.RenderTexture);
+        if (_isEnabled)
+        {
+            _bloom.Blit(_renderTarget.RenderTexture);
+        }
     }
 
     private void OnRenderTargetResize(uint2 size)
