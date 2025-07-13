@@ -48,8 +48,8 @@ public class Bloom : PostProcess
     private Vector2 _clampInvFrameSize;
 
     private float _threshold = 1.0f;
-    private float _spread = 2.0f;
-    private float _intensity = 2.0f;
+    private float _spread = 1.0f;
+    private float _intensity = 1.0f;
 
     public float Threshold
     {

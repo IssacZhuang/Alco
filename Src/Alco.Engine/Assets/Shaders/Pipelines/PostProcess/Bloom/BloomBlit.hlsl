@@ -25,13 +25,11 @@ V2F MainVS(Vertex input) {
   return output;
 }
 
-float grayScale(float3 color) {
-  return dot(color, float3(0.299, 0.587, 0.114));
-}
-
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
-    // use gray scale as alpha
-    float4 source = SAMPLE_TEX2D(_texture, input.uv);
-    return float4(source.rgb , grayScale(source.rgb) * constants.intensity);
+    // Sample the bloom texture (this is the processed bloom result from upsampling)
+    float4 bloomColor = SAMPLE_TEX2D(_texture, input.uv);
+
+    // Apply intensity and return the bloom color for additive blending
+    return float4(bloomColor.rgb, bloomColor.a * constants.intensity);
 }
