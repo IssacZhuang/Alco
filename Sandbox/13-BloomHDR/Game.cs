@@ -131,6 +131,12 @@ public class Game : GameEngine
             {
                 _bloomSystem.Intensity = bloomIntensity;
             }
+
+            float gamma = _bloomSystem.Gamma;
+            if (ImGui.SliderFloat("Bloom Gamma", ref gamma, 0.5f, 4.0f))
+            {
+                _bloomSystem.Gamma = gamma;
+            }
         }
 
         ImGui.End();
