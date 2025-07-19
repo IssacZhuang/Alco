@@ -5,7 +5,7 @@ namespace Alco.Rendering;
 
 public class Bloom : PostProcess
 {
-    private struct ClampShaderData
+    private struct ClampConstant
     {
         public Vector2 InvFrameSize;
         public float Threshold;
@@ -27,6 +27,7 @@ public class Bloom : PostProcess
     private struct BlitConstants
     {
         public float Intensity;
+        public float Gamma;
     }
 
     public const string ShaderId_texture = "_texture";
@@ -50,6 +51,7 @@ public class Bloom : PostProcess
     private float _threshold = 1.0f;
     private float _spread = 1.0f;
     private float _intensity = 1.0f;
+    private float _gamma = 2.2f;
 
     public float Threshold
     {
@@ -67,6 +69,15 @@ public class Bloom : PostProcess
     {
         get => _intensity;
         set => _intensity = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the gamma correction value for bloom blending. Default is 2.2.
+    /// </summary>
+    public float Gamma
+    {
+        get => _gamma;
+        set => _gamma = Math.Max(value, 0.0001f);
     }
 
     //for clamp
@@ -199,7 +210,7 @@ public class Bloom : PostProcess
             uint indexCount = renderPass.SetMesh(mesh);
             renderPass.SetResources(_clampShaderId_texture, _input!.ColorTextures[0].EntrySample);
 
-            var clampShaderData = new ClampShaderData
+            var clampShaderData = new ClampConstant
             {
                 InvFrameSize = _clampInvFrameSize,
                 Threshold = Threshold,
@@ -283,7 +294,8 @@ public class Bloom : PostProcess
 
             var blitConstants = new BlitConstants
             {
-                Intensity = Intensity
+                Intensity = Intensity,
+                Gamma = Gamma
             };
             renderPass.PushConstants(ShaderStage.Fragment, blitConstants);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);

@@ -1,7 +1,6 @@
 using System.Numerics;
+using Alco;
 using static Alco.math;
-
-namespace Alco;
 
 /// <summary>
 /// Provides utility methods for coordinate space transformations.

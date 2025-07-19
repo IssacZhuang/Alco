@@ -1,4 +1,4 @@
-﻿using Alco;
+using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
@@ -6,14 +6,13 @@ using Alco.ImGUI;
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
-    View = new ViewSetting(960, 540, "Bloom HDR"),
-    Graphics = GraphicsSetting.Default with{
+    View = new ViewSetting(800, 600, "Noise Generator"),
+    Graphics = GraphicsSetting.Default with
+    {
         Backend = GraphicsBackend.Vulkan
     },
 }.
-With<PluginHDR>().
-With<PluginBloom>().
-With<PluginDebugStats>().
+With<PluginDefaultAssets>().
 With<PluginImGUI>();
 
 using (Game game = new Game(setting))
@@ -23,4 +22,4 @@ using (Game game = new Game(setting))
 
 GC.Collect();
 GC.WaitForFullGCComplete();
-AllocationTracker.CheckAllocated();
+AllocationTracker.CheckAllocated(); 

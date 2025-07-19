@@ -58,15 +58,15 @@ public abstract class Texture : AutoDisposable
         Name = texture.Name;
     }
 
-    public unsafe void SetPixels(Color32[] data)
+    public unsafe void SetPixels<T>(T[] data) where T : unmanaged
     {
-        fixed (Color32* ptr = data)
+        fixed (T* ptr = data)
         {
             SetPixels(ptr, (uint)data.Length);
         }
     }
 
-    public unsafe void SetPixels(Color32* data, uint length)
+    public unsafe void SetPixels<T>(T* data, uint length) where T : unmanaged
     {
         if (!IsWriteable)
         {
@@ -79,16 +79,16 @@ public abstract class Texture : AutoDisposable
             throw new ArgumentException($"The pxiel count {length} is not equal to the texture size(width*height)");
         }
 
-        _device.WriteTexture(_texture, (byte*)data, length, 4);
+        _device.WriteTexture(_texture, (byte*)data, length * (uint)sizeof(T));
     }
 
-    public unsafe void SetPixels(byte* data, uint size, uint pixelSize)
+    public unsafe void SetPixels(byte* data, uint size)
     {
         if (!IsWriteable)
         {
             throw new InvalidOperationException("Can not set pixels to a readonly texture");
         }
-        _device.WriteTexture(_texture, data, size, pixelSize);
+        _device.WriteTexture(_texture, data, size);
     }
 
     public virtual void SetSampler(GPUSampler sampler)

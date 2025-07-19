@@ -56,6 +56,15 @@ public class BloomSystem : BaseEngineSystem
         set => _bloom.Intensity = value;
     }
 
+    /// <summary>
+    /// Gets or sets the gamma correction value for bloom blending. Default is 2.2.
+    /// </summary>
+    public float Gamma
+    {
+        get => _bloom.Gamma;
+        set => _bloom.Gamma = value;
+    }
+
     public BloomSystem(GameEngine engine, ViewRenderTarget renderTarget)
     {
         _renderTarget = renderTarget;
