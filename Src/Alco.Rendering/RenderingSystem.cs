@@ -38,10 +38,16 @@ public partial class RenderingSystem
         get => _device;
     }
 
-    public GraphicsValueBuffer<GlobalRenderData> GlobalRenderData
+    public GraphicsValueBuffer<GlobalRenderData> GlobalRenderDataBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _globalRenderData;
+    }
+
+    public GraphicsValueBuffer<Matrix4x4> MainCameraViewProjectionBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _viewProjectionMatrix;
     }
 
     public PixelFormat PrefferedSDRFormat

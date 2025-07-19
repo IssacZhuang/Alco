@@ -21,6 +21,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     private MaterialInstance? _customBlitMaterial;
     private Mesh _mesh;
 
+    private Camera2DBuffer _screenCamera;
 
     private bool _shouldResize = false;
     private bool _isMinimized = false;
@@ -64,6 +65,17 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         get => _renderTexture.FrameBuffer;
     }
 
+    /// <summary>
+    /// The screen camera for 2D rendering that matches the render target size
+    /// <br/>[Attention] The camera will be updated when the view is resized
+    /// </summary>
+    /// <value></value>
+    public Camera2DBuffer ScreenCamera
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _screenCamera;
+    }
+
     public override int Order => SystemOrder;
 
     internal ViewRenderTarget(GameEngine engine, View view, GPUAttachmentLayout attachmentLayout, Shader blitShader)
@@ -91,6 +103,9 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _viewSwapchain = view.Swapchain;
 
         _command = _rendering.GraphicsDevice.CreateCommandBuffer();
+
+        // Create the screen camera with current dimensions
+        _screenCamera = _rendering.CreateCamera2D(_width, _height, 1000, "screen_camera");
     }
 
     public void SetAttachmentLayout(GPUAttachmentLayout attachmentLayout, Material? blitMaterial = null)
@@ -159,6 +174,8 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _view.OnResize -= OnWindowResize;
         _view.OnMinimize -= OnWindowMinimize;
         _view.OnRestore -= OnWindowRestore;
+
+        _screenCamera.Dispose();
     }
 
     private void RecreateRenderTexture()
@@ -171,6 +188,11 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         {
             _customBlitMaterial.SetRenderTexture(ShaderResourceId.Texture, _renderTexture);
         }
+
+        // Update screen camera dimensions to match new render texture size
+        _screenCamera.Width = _width;
+        _screenCamera.Height = _height;
+        _screenCamera.UpdateMatrixToGPU();
     }
 
     private void OnWindowResize(uint2 size)

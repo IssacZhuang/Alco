@@ -16,7 +16,7 @@ public partial class RenderingSystem
     /// <remarks>
     /// Default properties:
     /// _camera : camera matrix of <see cref="RenderingSystem.MainCamera"/> 
-    /// _globalRenderData : global render data of <see cref="RenderingSystem.GlobalRenderData"/>
+    /// _globalRenderData : global render data of <see cref="RenderingSystem.GlobalRenderDataBuffer"/>
     /// </remarks>
     public GraphicsMaterial CreateMaterial(Shader shader, string name = "unamed_material")
     {
