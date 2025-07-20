@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Libs/TextureBombing.hlsli"
 
 struct Vertex
 {
@@ -11,11 +12,12 @@ struct V2F
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
+    float2 worldPos : TEXCOORD1;
 #if defined(USE_LIGHT_MAP)
-    float2 lightMapUV : TEXCOORD1;
-    uint instanceId : TEXCOORD2;
+    float2 lightMapUV : TEXCOORD2;
+    uint instanceId : TEXCOORD3;
 #else
-    uint instanceId : TEXCOORD1;
+    uint instanceId : TEXCOORD2;
 #endif
 };
 
@@ -54,13 +56,32 @@ DEFINE_TEX2D_SAMPLE(5, _lightMap);
 
 PUSH_CONSTANT Constants constants;
 
-float4 SampleTile(uint tileId, float2 vertexUV, out float blendPriority)
+float4 SampleTile(uint tileId, float2 vertexUV, float2 worldPos, out float blendPriority)
 {
     TileData data = _tileData[tileId];
+
+    // Calculate traditional UV for uvRect sampling
     float2 uv = frac(vertexUV * data.uvScale);
     uv = uv * data.uvRect.zw + data.uvRect.xy;
+
     blendPriority = data.blendPriority;
+
+#if defined(TEXTURE_BOMBING)
+    // Use world position for texture bombing UV
+    float2 bombingUV = worldPos * 0.1; // Scale factor for texture bombing
+
+    // Apply texture bombing using world coordinates
+    float4 bombedColor = TextureBombing(_texture, _textureSampler, bombingUV, float2(1, 1), data.uvRect.xy);
+
+    // Blend between regular sampling and texture bombing
+    float4 regularColor = SAMPLE_TEX2D(_texture, uv);
+    float4 finalColor = lerp(regularColor, bombedColor, 0.7); // 70% texture bombing
+
+    return finalColor * data.color;
+#else
+    // Regular texture sampling without bombing
     return SAMPLE_TEX2D(_texture, uv) * data.color;
+#endif
 }
 
 [shader("vertex")]
@@ -105,6 +126,10 @@ V2F VertexMain(Vertex input)
     output.uv = input.uv;
     output.instanceId = input.instanceId;
 
+    // Calculate world position for texture bombing (before view-projection transform)
+    float4 worldPosition = mul(constants.model, float4(pos + float3(offsetX, -offsetY, -height), 1));
+    output.worldPos = worldPosition.xy;
+
 #if defined(USE_LIGHT_MAP)
     output.lightMapUV = float2(gridX + input.position.x, gridY - input.position.y) * data.meshScale / float2(constants.size.x, constants.size.y) ;
 #endif
@@ -141,7 +166,7 @@ float4 PixelMain(V2F input)
     {
         int neighborIndex = input.instanceId + offsets[i].x + offsets[i].y * constants.size.x;
         uint tileId = _tileIdData[neighborIndex];
-        colors[i] = SampleTile(tileId, input.uv, priorities[i]);
+        colors[i] = SampleTile(tileId, input.uv, input.worldPos, priorities[i]);
         heights[i] = _heightData[neighborIndex];
     }
 
