@@ -68,7 +68,7 @@ public partial class RenderingSystem
         FilterMode filterMode,
         string name = "tile_set"
     ){
-        GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
+        GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.Repeat);
         return new SurfaceTileSet(this, items, atlasPackingMaterial, sampler, name);
     }
 
@@ -171,7 +171,7 @@ public partial class RenderingSystem
         string name = "water_tile_set"
     )
     {
-        GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.ClampToEdge);
+        GPUSampler sampler = _device.GetSampler(filterMode, AddressMode.Repeat);
         return new WaterTileSet(this, items, atlasPackingMaterial, sampler, name);
     }
 
