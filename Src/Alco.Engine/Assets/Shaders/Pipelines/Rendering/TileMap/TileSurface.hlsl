@@ -1,3 +1,5 @@
+#define TEXTURE_BOMBING 1
+
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Libs/TextureBombing.hlsli"
 
@@ -67,17 +69,25 @@ float4 SampleTile(uint tileId, float2 vertexUV, float2 worldPos, out float blend
     blendPriority = data.blendPriority;
 
 #if defined(TEXTURE_BOMBING)
-    // Use world position for texture bombing UV
-    float2 bombingUV = worldPos * 0.1; // Scale factor for texture bombing
+    // Use world position for texture bombing UV to ensure continuity across tiles
+    // Reduce the scale factor for finer bombing pattern
+    float2 bombingUV = worldPos * 0.05; // Reduced from 0.1 to 0.05 for finer pattern
 
-    // Apply texture bombing using world coordinates
-    float4 bombedColor = TextureBombing(_texture, _textureSampler, bombingUV, float2(1, 1), data.uvRect.xy);
+    // Extract uvRect components for atlas bombing
+    float4 uvRect = data.uvRect; // (x, y, width, height)
 
-    // Blend between regular sampling and texture bombing
+    // Apply texture bombing using world coordinates with atlas constraints
+    // Use higher tiling and lower intensity for smoother transitions
+    float4 bombedColor = TextureBombingAtlas(_texture, _textureSampler, bombingUV, float2(8, 8), uvRect, 0.5);
+
+    // Sample regular texture for comparison
     float4 regularColor = SAMPLE_TEX2D(_texture, uv);
-    float4 finalColor = lerp(regularColor, bombedColor, 0.7); // 70% texture bombing
 
-    return finalColor * data.color;
+    // Mix bombing with regular sampling based on bombing effectiveness
+    // This helps ensure we don't lose the original texture completely
+    float4 finalColor = bombedColor * data.color;
+
+    return finalColor;
 #else
     // Regular texture sampling without bombing
     return SAMPLE_TEX2D(_texture, uv) * data.color;
