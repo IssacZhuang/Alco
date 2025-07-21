@@ -1,6 +1,3 @@
-#include "Shaders/Libs/Core.hlsli"
-#include "Shaders/Libs/Noise.hlsli"
-
 // Simple hash function for generating pseudo-random values
 float2 Hash2D(float2 p) {
     p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
