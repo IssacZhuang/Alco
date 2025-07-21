@@ -65,4 +65,18 @@ public partial class RenderingSystem
     {
         return new InstanceRenderer<T>(this, renderContext, material, instanceBufferShaderName, sizePerBuffer, name);
     }
+
+    /// <summary>
+    /// Creates a tile renderer for rendering tile-based graphics with efficient batching.
+    /// </summary>
+    /// <param name="renderContext">The render context to use for rendering.</param>
+    /// <param name="tileSet">The tile set containing tile items and materials.</param>
+    /// <param name="width">The width of the tile map in tiles.</param>
+    /// <param name="height">The height of the tile map in tiles.</param>
+    /// <param name="name">The name of the tile renderer.</param>
+    /// <returns>The created tile renderer.</returns>
+    public TileRenderer CreateTileRenderer(IRenderContext renderContext, NewTileSet tileSet, int width, int height, string name = "tile_renderer")
+    {
+        return new TileRenderer(this, renderContext, tileSet, width, height, name);
+    }
 }

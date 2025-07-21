@@ -26,6 +26,8 @@ DEFINE_TEX2D_SAMPLE(1, _texture);
 
 DEFINE_STORAGE(2, TileData, _instances);
 
+PUSH_CONSTANT Constants constants;
+
 [shader("vertex")]
 V2F VertexMain(Vertex input)
 {
@@ -35,9 +37,10 @@ V2F VertexMain(Vertex input)
     
     float3 worldPosition = input.position + float3(tileData.position, 0.0);
     
-    float4 modelPosition = mul(viewProjection, float4(worldPosition, 1.0));
+    float4 position = mul(constants.model, float4(worldPosition, 1.0));
+    position = mul(viewProjection, position);
     
-    output.position = modelPosition;
+    output.position = position;
     output.uv = input.uv;
     
     return output;

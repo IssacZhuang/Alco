@@ -28,12 +28,12 @@ public class Game : GameEngine
     private readonly Material _cliffMaterial;
     private readonly Material _waterMaterial;
     private readonly Material _plantMaterial;
-    private SurfaceTileSet _surfaceTileSet;
+    private NewTileSet _surfaceTileSet;
     private SurfaceTileSet _cliffTileSet;
     private WaterTileSet _waterTileSet;
     private PlantTileSet _plantTileSet;
     private Material _wallMaterial;
-    private readonly SurfaceTileBlock2D _surfaceBlock;
+    private readonly TileRenderer _surfaceBlock;
     private readonly SurfaceTileBlock2D _cliffBlock;
     private readonly WaterTileBlock2D _waterBlock;
     private readonly PlantTileBlock2D _plantBlock;
@@ -47,8 +47,6 @@ public class Game : GameEngine
     private float _zoomVelocity = 0f;
     private ColorFloat _color = new ColorFloat(1, 1, 1, 1);
 
-    private float _blendFactor = 0.35f;
-    private float _edgeSmoothFactor = 0.15f;
 
     private EditMode _editMode = EditMode.Surface;
     private int _surfaceTileId = 1;
@@ -101,18 +99,21 @@ public class Game : GameEngine
         _lightingManager.SetLightMapDirty();
         _lightingManager.SetOpacityMapDirty();
 
+        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+        _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
+
         _surfaceTileSet = BuildSurfaceTileSet();
-        _surfaceTileSet.SetAllTileColor(_color);
         _cliffTileSet = BuildCliffTileSet();
         _cliffTileSet.SetAllTileColor(new Vector4(0.9f, 0.9f, 0.9f, 1f));
         _waterTileSet = BuildWaterTileSet();
         _plantTileSet = BuildPlantTileSet();
 
-        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileSurface);
-        _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
-        _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
-       
-        _cliffMaterial = _surfaceMaterial.CreateInstance();
+
+
+        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileSurface);
+        _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+        _cliffMaterial.DepthStencilState = DepthStencilState.Write;
 
         _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWater);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
@@ -122,9 +123,8 @@ public class Game : GameEngine
         _plantMaterial.BlendState = BlendState.Opaque;
         _plantMaterial.DepthStencilState = DepthStencilState.Write;
 
-        _surfaceBlock = RenderingSystem.CreateSurfaceBlock2D(_surfaceTileSet, _heightBuffer, _surfaceMaterial, width, height);
-        // _surfaceBlock.UseLightMap = true;
-        _surfaceBlock.SetAllItemIds(1);
+        _surfaceBlock = RenderingSystem.CreateTileRenderer(_renderer, _surfaceTileSet, width, height, "surface_block");
+        _surfaceBlock.SetAllTiles(1);
 
         _cliffBlock = RenderingSystem.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
         _cliffBlock.SetAllItemIds(1);
@@ -202,7 +202,7 @@ public class Game : GameEngine
             isDebugClicked = true;
         }
 
-        if (ImGui.SliderInt("Surface Tile", ref _surfaceTileId, 0, _surfaceTileSet.ItemCount - 1))
+        if (ImGui.SliderInt("Surface Tile", ref _surfaceTileId, 0, _surfaceTileSet.Count - 1))
         {
             isDebugClicked = true;
         }
@@ -223,28 +223,21 @@ public class Game : GameEngine
         }
 
 
-        if (ImGui.SliderFloat("Blend Width", ref _blendFactor, 0.01f, 0.5f))
-        {
-            isDebugClicked = true;
-            for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
-            {
-                _surfaceTileSet.SetTileBlendFactor(i, _blendFactor);
-            }
-        }
+        // Note: Blend Width and Edge Smooth controls are not supported by NewTileSet
+        // if (ImGui.SliderFloat("Blend Width", ref _blendFactor, 0.01f, 0.5f))
+        // {
+        //     isDebugClicked = true;
+        // }
 
         if (ImGui.SliderFloat("Height", ref _hight, -1f, 1f))
         {
             isDebugClicked = true;
         }
 
-        if (ImGui.SliderFloat("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
-        {
-            isDebugClicked = true;
-            for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
-            {
-                _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
-            }
-        }
+        // if (ImGui.SliderFloat("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
+        // {
+        //     isDebugClicked = true;
+        // }
 
         if (Input.IsKeyDown(KeyCode.Escape))
         {
@@ -272,7 +265,7 @@ public class Game : GameEngine
         _lightingManager.Render();
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
-        _surfaceBlock.OnRender(_renderer);
+        _surfaceBlock.Render();
         _cliffBlock.OnRender(_renderer);
         _plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
@@ -312,7 +305,7 @@ public class Game : GameEngine
                     }
                     else if (_editMode == EditMode.Surface)
                     {
-                        _surfaceBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_surfaceTileId);
+                        _surfaceBlock.SetTile(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
                         _cliffBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_surfaceTileId);
                     }
                     else if (_editMode == EditMode.Plant)
@@ -353,14 +346,18 @@ public class Game : GameEngine
 
     private void OnHotReload(string filename, object cachedAsset)
     {
-        if (_surfaceTileSet.Atlas.TryGetSprite(filename, out Sprite? sprite))
+        // Hot reload functionality simplified for NewTileSet
+        // Original implementation relied on Atlas which is not available in NewTileSet
+        if (filename.EndsWith(".png") || filename.EndsWith(".jpg"))
         {
+            // Rebuild the tile set when textures are reloaded
             _surfaceTileSet = BuildSurfaceTileSet();
-            _surfaceBlock.UnsafeSetTileSet(_surfaceTileSet);
+            // Note: TileRenderer doesn't support hot-swapping tile sets
+            // A full recreation of the renderer would be needed
         }
     }
 
-    private SurfaceTileSet BuildSurfaceTileSet()
+    private NewTileSet BuildSurfaceTileSet()
     {
         Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = AssetSystem.LoadAsync<Texture2D>("Textures/Grass.png");
@@ -369,28 +366,27 @@ public class Game : GameEngine
         Task<Texture2D> grass4 = AssetSystem.LoadAsync<Texture2D>("Textures/Grass4.png");
         Task<Texture2D> sand = AssetSystem.LoadAsync<Texture2D>("Textures/Dirt.png");
 
-
         Task.WaitAll(grid, grass, sand);
 
-        List<SurfaceTileItem> items = new();
-        var item1 = new SurfaceTileItem("grid", new SurfaceTileData(){
-            BlendPriority = 0,
-        }, 0, grid.Result);
+        List<NewTileSetitem> items = new();
 
+        Material gridMaterial = _surfaceMaterial.CreateInstance();
+        gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
+        var item1 = new NewTileSetitem("grid", gridMaterial, 0, null);
 
-        var item2 = new SurfaceTileItem("grass", new SurfaceTileData(){
-            BlendPriority = 1,
-        }, 1, grass.Result, grass2.Result, grass3.Result, grass4.Result);
+        Material grassMaterial = _surfaceMaterial.CreateInstance();
+        grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
+        var item2 = new NewTileSetitem("grass", grassMaterial, 1, null);
 
-
-        var item3 = new SurfaceTileItem("sand", new SurfaceTileData(){
-            BlendPriority = 2,
-        }, 2, sand.Result);
+        Material sandMaterial = _surfaceMaterial.CreateInstance();
+        sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
+        var item3 = new NewTileSetitem("sand", sandMaterial, 2, null);
 
         items.Add(item1);
         items.Add(item2);
         items.Add(item3);
-        return RenderingSystem.CreateSurfaceTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
+
+        return new NewTileSet(items.ToArray());
     }
 
     private SurfaceTileSet BuildCliffTileSet()

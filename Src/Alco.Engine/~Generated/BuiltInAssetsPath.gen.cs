@@ -53,6 +53,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_TileConnectable = "Shaders/Pipelines/Rendering/TileMap/TileConnectable.hlsl";
 
+   public const string Shader_TileInstanced = "Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl";
+
    public const string Shader_TileLighting = "Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl";
 
    public const string Shader_TilePlant = "Shaders/Pipelines/Rendering/TileMap/TilePlant.hlsl";

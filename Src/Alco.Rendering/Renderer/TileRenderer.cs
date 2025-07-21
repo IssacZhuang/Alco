@@ -136,6 +136,8 @@ public sealed class TileRenderer : AutoDisposable
 
     public string Name { get; }
 
+    public int2 Size => new int2(_width, _height);
+
     internal TileRenderer(RenderingSystem rendering, IRenderContext context, NewTileSet tileSet, int width, int height, string name = "tile_renderer")
     {
         ArgumentNullException.ThrowIfNull(rendering);
@@ -151,7 +153,8 @@ public sealed class TileRenderer : AutoDisposable
         _batches = new Batch[tileSet.Count];
         for (int i = 0; i < tileSet.Count; i++)
         {
-            _batches[i] = new Batch(rendering.MeshCenteredSprite, rendering.CreateInstanceRenderer<TileInstanceData>(context, tileSet.GetItem(i).Material));
+            Material material = tileSet.GetItem(i).Material;
+            _batches[i] = new Batch(rendering.MeshCenteredSprite, rendering.CreateInstanceRenderer<TileInstanceData>(context, material));
         }
 
         _map = new int[width * height];
@@ -159,6 +162,8 @@ public sealed class TileRenderer : AutoDisposable
 
         _width = width;
         _height = height;
+
+        Transform = Transform3D.Identity;
     }
 
     private void FillBatches()
@@ -192,6 +197,12 @@ public sealed class TileRenderer : AutoDisposable
         _isDirty = true;
     }
 
+    public void SetAllTiles(int tileId)
+    {
+        _map.AsSpan().Fill(tileId);
+        _isDirty = true;
+    }
+
     public void ClearTile(int x, int y)
     {
         _map[y * _width + x] = TileIdEmpty;
@@ -212,12 +223,49 @@ public sealed class TileRenderer : AutoDisposable
             _isDirty = false;
         }
 
-        Constant constant = new(Transform.Matrix, new int2(_width, _height));
+        Transform3D transform = Transform;
+        transform.Position -= new Vector3(_width * 0.5f, _height * 0.5f, 0);
+
+        Constant constant = new(transform.Matrix, new int2(_width, _height));
 
         for (int i = 0; i < _batches.Length; i++)
         {
             _batches[i].Draw(constant);
         }
+    }
+
+    public bool TryGetTilePositionByRay(Ray3D ray, out int2 tilePosition)
+    {
+        Matrix4x4 matrix = Transform.Matrix;
+        //to local space
+        if (Matrix4x4.Invert(matrix, out Matrix4x4 invMatrix))
+        {
+            Vector3 start = ray.Origin;
+            Vector3 end = ray.Origin + ray.Displacement;
+
+            Vector3 localStart = Vector3.Transform(start, invMatrix);
+            Vector3 localEnd = Vector3.Transform(end, invMatrix);
+
+            Plane3D plane = new Plane3D(Vector3.UnitZ, 0);
+
+            Ray3D localRay = new Ray3D(localStart, localEnd - localStart);
+
+            if (plane.IntersectRay(localRay, out Vector3 hitPoint))
+            {
+
+                int tileX = (int)math.floor(hitPoint.X + _width * 0.5f);
+                int tileY = (int)math.floor(_height * 0.5f - hitPoint.Y);
+
+                if (tileX >= 0 && tileX < _width && tileY >= 0 && tileY < _height)
+                {
+                    tilePosition = new int2(tileX, tileY);
+                    return true;
+                }
+            }
+        }
+
+        tilePosition = new int2(0, 0);
+        return false;
     }
 
     protected override void Dispose(bool disposing)
