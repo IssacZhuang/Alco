@@ -78,7 +78,7 @@ V2F VertexMain(Vertex input)
     tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
     if(tileId != constants.currentTileId){
         tilePos.y += check.y *blendFactor;
-        uv.y += checkY.y *blendFactor;
+        uv.y -= checkY.y *blendFactor;
     }
     
     
@@ -104,6 +104,7 @@ V2F VertexMain(Vertex input)
 float4 PixelMain(V2F input)
     : SV_TARGET
 {
-    float4 color = SAMPLE_TEX2D(_texture, input.uv);
+    float2 uv = frac(input.uv);
+    float4 color = SAMPLE_TEX2D(_texture, uv);
     return color;
 }

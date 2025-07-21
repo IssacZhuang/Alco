@@ -200,6 +200,9 @@ public sealed class TileRenderer : AutoDisposable
                 _batches[tileId].Add(new TileInstanceData(new Vector2(x, y)));
             }
         }
+
+        ReadOnlySpan<int> span = _tileMap;
+        _tileMapBuffer.UpdateBuffer(span);
     }
 
     public void SetTile(int x, int y, int tileId)
