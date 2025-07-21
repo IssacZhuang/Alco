@@ -104,7 +104,22 @@ V2F VertexMain(Vertex input)
 float4 PixelMain(V2F input)
     : SV_TARGET
 {
-    float2 uv = frac(input.uv);
-    float4 color = SAMPLE_TEX2D(_texture, uv);
+    float2 uv = input.uv;
+    float2 uvFrac = frac(uv);
+    float4 color = SAMPLE_TEX2D(_texture, uvFrac);
+
+    float blendFactor = 0.1;
+
+
+    float2 uvOverflow = abs(uv - clamp(uv, 0.0, 1.0));
+    float maxOverflow = max(uvOverflow.x, uvOverflow.y);
+    float alpha = 1.0;
+    if (maxOverflow > 0.0)
+    {
+        alpha = 1.0 - saturate(maxOverflow / blendFactor);
+    }
+
+    color.a *= alpha;
+
     return color;
 }
