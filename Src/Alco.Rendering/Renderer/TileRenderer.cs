@@ -224,7 +224,7 @@ public sealed class TileRenderer : AutoDisposable
         }
 
         Transform3D transform = Transform;
-        transform.Position -= new Vector3(_width * 0.5f, _height * 0.5f, 0);
+        // transform.Position -= new Vector3(_width * 0.5f, _height * 0.5f, 0);
 
         Constant constant = new(transform.Matrix, new int2(_width, _height));
 
@@ -252,9 +252,10 @@ public sealed class TileRenderer : AutoDisposable
 
             if (plane.IntersectRay(localRay, out Vector3 hitPoint))
             {
-
-                int tileX = (int)math.floor(hitPoint.X + _width * 0.5f);
-                int tileY = (int)math.floor(_height * 0.5f - hitPoint.Y);
+                // TileRenderer Transform corresponds to bottom-left corner (0,0)
+                // No offset needed since Transform is already at the correct position
+                int tileX = (int)math.floor(hitPoint.X);
+                int tileY = (int)math.floor(hitPoint.Y);
 
                 if (tileX >= 0 && tileX < _width && tileY >= 0 && tileY < _height)
                 {

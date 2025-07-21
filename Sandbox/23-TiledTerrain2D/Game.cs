@@ -29,12 +29,12 @@ public class Game : GameEngine
     private readonly Material _waterMaterial;
     private readonly Material _plantMaterial;
     private NewTileSet _surfaceTileSet;
-    private SurfaceTileSet _cliffTileSet;
+    private NewTileSet _cliffTileSet;
     private WaterTileSet _waterTileSet;
     private PlantTileSet _plantTileSet;
     private Material _wallMaterial;
     private readonly TileRenderer _surfaceBlock;
-    private readonly SurfaceTileBlock2D _cliffBlock;
+    private readonly TileRenderer _cliffBlock;
     private readonly WaterTileBlock2D _waterBlock;
     private readonly PlantTileBlock2D _plantBlock;
     private readonly TileMapHeightBuffer _heightBuffer;
@@ -103,17 +103,19 @@ public class Game : GameEngine
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
 
+        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+        _cliffMaterial.DepthStencilState = DepthStencilState.Write;
+        _cliffMaterial.SetDefines("IS_FACADE");
+
         _surfaceTileSet = BuildSurfaceTileSet();
         _cliffTileSet = BuildCliffTileSet();
-        _cliffTileSet.SetAllTileColor(new Vector4(0.9f, 0.9f, 0.9f, 1f));
         _waterTileSet = BuildWaterTileSet();
         _plantTileSet = BuildPlantTileSet();
 
 
 
-        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileSurface);
-        _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
-        _cliffMaterial.DepthStencilState = DepthStencilState.Write;
+
 
         _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWater);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
@@ -126,9 +128,8 @@ public class Game : GameEngine
         _surfaceBlock = RenderingSystem.CreateTileRenderer(_renderer, _surfaceTileSet, width, height, "surface_block");
         _surfaceBlock.SetAllTiles(1);
 
-        _cliffBlock = RenderingSystem.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
-        _cliffBlock.SetAllItemIds(1);
-        _cliffBlock.IsCliff = true;
+        _cliffBlock = RenderingSystem.CreateTileRenderer(_renderer, _cliffTileSet, width, height, "cliff_block");
+        _cliffBlock.SetAllTiles(1);
 
 
         _waterBlock = RenderingSystem.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
@@ -266,7 +267,7 @@ public class Game : GameEngine
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
         _surfaceBlock.Render();
-        _cliffBlock.OnRender(_renderer);
+        _cliffBlock.Render();
         _plantBlock.OnRender(_renderer);
         _waterBlock.OnRender(_renderer);
         _wallManager.Render(_renderer);
@@ -276,8 +277,6 @@ public class Game : GameEngine
 
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
-            Vector2 tilePositionInWorld = UtilsCoordinates.PixelSpaceToWorldSpace(tilePosition, _surfaceBlock.Size);
-
             ImGui.Text($"Tile Position: {tilePosition}");
 
             for (int i = 0; i < _brushCells.Count; i++)
@@ -291,7 +290,7 @@ public class Game : GameEngine
                 {
                     continue;
                 }
-                _brushTransform.Position = new Vector3(pos.X + tilePositionInWorld.X, pos.Y + tilePositionInWorld.Y + height, 0);
+                _brushTransform.Position = new Vector3(pos.X + tilePosition.X, pos.Y + tilePosition.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _brushMaterial, _brushConstant);
@@ -306,7 +305,7 @@ public class Game : GameEngine
                     else if (_editMode == EditMode.Surface)
                     {
                         _surfaceBlock.SetTile(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
-                        _cliffBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_surfaceTileId);
+                        _cliffBlock.SetTile(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
                     }
                     else if (_editMode == EditMode.Plant)
                     {
@@ -389,7 +388,7 @@ public class Game : GameEngine
         return new NewTileSet(items.ToArray());
     }
 
-    private SurfaceTileSet BuildCliffTileSet()
+    private NewTileSet BuildCliffTileSet()
     {
         Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = AssetSystem.LoadAsync<Texture2D>("Textures/GrassCliff.png");
@@ -397,24 +396,25 @@ public class Game : GameEngine
 
         Task.WaitAll(grid, grass, sand);
 
-        List<SurfaceTileItem> items = new();
-        var item1 = new SurfaceTileItem("grid", new SurfaceTileData(){
-            BlendPriority = 0,
-        }, 0, grid.Result);
+        List<NewTileSetitem> items = new();
 
-        var item2 = new SurfaceTileItem("grass", new SurfaceTileData(){
-            BlendPriority = 1,
-        }, 1, grass.Result);
+        Material gridMaterial = _cliffMaterial.CreateInstance();
+        gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
+        var item1 = new NewTileSetitem("grid", gridMaterial, 0, null);
 
-        var item3 = new SurfaceTileItem("sand", new SurfaceTileData(){
-            BlendPriority = 2,
-        }, 2, sand.Result);
+        Material grassMaterial = _cliffMaterial.CreateInstance();
+        grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
+        var item2 = new NewTileSetitem("grass", grassMaterial, 1, null);
+
+        Material sandMaterial = _cliffMaterial.CreateInstance();
+        sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
+        var item3 = new NewTileSetitem("sand", sandMaterial, 2, null);
 
         items.Add(item1);
         items.Add(item2);
         items.Add(item3);
 
-        return RenderingSystem.CreateSurfaceTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
+        return new NewTileSet(items.ToArray());
     }
 
     private WaterTileSet BuildWaterTileSet()

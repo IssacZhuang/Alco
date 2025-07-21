@@ -35,7 +35,16 @@ V2F VertexMain(Vertex input)
     
     TileData tileData = _instances[input.instanceId];
     
-    float3 worldPosition = input.position + float3(tileData.position, 0.0);
+    float3 pos = input.position;
+    float2 tilePos = tileData.position;
+
+#if defined(IS_FACADE)
+    // make it render as a facade
+    tilePos.y += 1;
+    pos.z = 0.5f - pos.y;
+#endif
+
+    float3 worldPosition = pos + float3(tilePos, 0.0);
     
     float4 position = mul(constants.model, float4(worldPosition, 1.0));
     position = mul(viewProjection, position);
