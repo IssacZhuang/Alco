@@ -2,7 +2,8 @@
 
 struct Constants {
   float4x4 model;
-  float4 size;//the map size
+  int2 size;//the map size
+  int currentTileId;
 };
 
 struct TileData {
@@ -13,6 +14,7 @@ struct Vertex {
   float3 position : POSITION;
   float2 uv : TEXCOORD0;
   uint instanceId : SV_INSTANCEID;
+  uint vertexId : SV_VERTEXID;
 };
 
 struct V2F {
@@ -26,7 +28,20 @@ DEFINE_TEX2D_SAMPLE(1, _texture);
 
 DEFINE_STORAGE(2, TileData, _instances);
 
+DEFINE_STORAGE(3, int, _tileMap);
+
 PUSH_CONSTANT Constants constants;
+
+int GetTileId(int2 tilePos, int defaultValue)
+{
+    if(tilePos.x < 0 || tilePos.x >= constants.size.x || tilePos.y < 0 || tilePos.y >= constants.size.y)
+    {
+        return defaultValue;
+    }
+
+    return _tileMap[tilePos.y * constants.size.x + tilePos.x];
+
+}
 
 [shader("vertex")]
 V2F VertexMain(Vertex input)
@@ -37,6 +52,36 @@ V2F VertexMain(Vertex input)
     
     float3 pos = input.position;
     float2 tilePos = tileData.position;
+    int2 tilePosInt = int2(tilePos);
+
+    float blendFactor = 0.1;
+
+    float2 uv = input.uv;
+
+    static const int2 offsetOfCheck[4] = {
+        int2(-1, 1),
+        int2(1, 1),
+        int2(1, -1),
+        int2(-1, -1)
+    };
+
+    int2 check = offsetOfCheck[input.vertexId];
+    int2 checkX = int2(check.x,0);
+    int2 checkY = int2(0,check.y);
+
+    int tileId = GetTileId(tilePosInt + checkX, constants.currentTileId);
+    if(tileId != constants.currentTileId){
+        tilePos.x += check.x *blendFactor;
+        uv.x += checkX.x *blendFactor;
+    }
+
+    tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
+    if(tileId != constants.currentTileId){
+        tilePos.y += check.y *blendFactor;
+        uv.y += checkY.y *blendFactor;
+    }
+    
+    
 
 #if defined(IS_FACADE)
     // make it render as a facade
@@ -48,9 +93,9 @@ V2F VertexMain(Vertex input)
     
     float4 position = mul(constants.model, float4(worldPosition, 1.0));
     position = mul(viewProjection, position);
-    
+
     output.position = position;
-    output.uv = input.uv;
+    output.uv = uv;
     
     return output;
 }

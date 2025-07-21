@@ -3,8 +3,9 @@
 #include "Shaders/Libs/GlobalRenderData.hlsli"
 
 struct Constants {
-  float4x4 model;
-  float4 size;//the map size
+    float4x4 model;
+    int2 size; // the map size
+    int currentTileId;
 };
 
 struct TileData {

@@ -72,11 +72,13 @@ public sealed class TileRenderer : AutoDisposable
     {
         public Matrix4x4 Model;
         public int2 Size;
+        public int CurrentTileId;
 
-        public Constant(Matrix4x4 model, int2 size)
+        public Constant(Matrix4x4 model, int2 size, int currentTileId)
         {
             Model = model;
             Size = size;
+            CurrentTileId = currentTileId;
         }
     }
 
@@ -125,7 +127,9 @@ public sealed class TileRenderer : AutoDisposable
     //same index as the item
     private readonly Batch[] _batches;
 
-    private readonly int[] _map;
+    private readonly int[] _tileMap;
+    private readonly GraphicsBuffer _tileMapBuffer;
+
     private readonly int _width;
     private readonly int _height;
 
@@ -150,15 +154,22 @@ public sealed class TileRenderer : AutoDisposable
 
         Name = name;
 
+        _tileMapBuffer = rendering.CreateGraphicsBuffer((uint)(width * height * sizeof(int)), "tile_map");
+        ReadOnlySpan<int> span = _tileMap;
+        _tileMapBuffer.UpdateBuffer(span);
+
         _batches = new Batch[tileSet.Count];
         for (int i = 0; i < tileSet.Count; i++)
         {
-            Material material = tileSet.GetItem(i).Material;
+            Material material = tileSet.GetItem(i).Material.CreateInstance();
+            material.TrySetBuffer(ShaderResourceId.TileMap, _tileMapBuffer);
             _batches[i] = new Batch(rendering.MeshCenteredSprite, rendering.CreateInstanceRenderer<TileInstanceData>(context, material));
         }
 
-        _map = new int[width * height];
-        _map.AsSpan().Fill(TileIdEmpty);
+        _tileMap = new int[width * height];
+        _tileMap.AsSpan().Fill(TileIdEmpty);
+
+        
 
         _width = width;
         _height = height;
@@ -174,7 +185,7 @@ public sealed class TileRenderer : AutoDisposable
             _batches[i].Clear();
         }
 
-        Span<int> spanMap = _map;
+        Span<int> spanMap = _tileMap;
         int itemCount = _tileSet.Count;
         for (int x = 0; x < _width; x++)
         {
@@ -193,25 +204,25 @@ public sealed class TileRenderer : AutoDisposable
 
     public void SetTile(int x, int y, int tileId)
     {
-        _map[y * _width + x] = tileId;
+        _tileMap[y * _width + x] = tileId;
         _isDirty = true;
     }
 
     public void SetAllTiles(int tileId)
     {
-        _map.AsSpan().Fill(tileId);
+        _tileMap.AsSpan().Fill(tileId);
         _isDirty = true;
     }
 
     public void ClearTile(int x, int y)
     {
-        _map[y * _width + x] = TileIdEmpty;
+        _tileMap[y * _width + x] = TileIdEmpty;
         _isDirty = true;
     }
 
     public void ClearAllTiles()
     {
-        _map.AsSpan().Fill(TileIdEmpty);
+        _tileMap.AsSpan().Fill(TileIdEmpty);
         _isDirty = true;
     }
 
@@ -226,10 +237,11 @@ public sealed class TileRenderer : AutoDisposable
         Transform3D transform = Transform;
         // transform.Position -= new Vector3(_width * 0.5f, _height * 0.5f, 0);
 
-        Constant constant = new(transform.Matrix, new int2(_width, _height));
+        Constant constant = new(transform.Matrix, new int2(_width, _height), TileIdEmpty);
 
         for (int i = 0; i < _batches.Length; i++)
         {
+            constant.CurrentTileId = i;
             _batches[i].Draw(constant);
         }
     }
@@ -254,8 +266,8 @@ public sealed class TileRenderer : AutoDisposable
             {
                 // TileRenderer Transform corresponds to bottom-left corner (0,0)
                 // No offset needed since Transform is already at the correct position
-                int tileX = (int)math.floor(hitPoint.X);
-                int tileY = (int)math.floor(hitPoint.Y);
+                int tileX = (int)math.round(hitPoint.X);
+                int tileY = (int)math.round(hitPoint.Y);
 
                 if (tileX >= 0 && tileX < _width && tileY >= 0 && tileY < _height)
                 {
