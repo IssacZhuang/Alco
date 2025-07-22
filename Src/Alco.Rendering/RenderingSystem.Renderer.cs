@@ -75,7 +75,7 @@ public partial class RenderingSystem
     /// <param name="height">The height of the tile map in tiles.</param>
     /// <param name="name">The name of the tile renderer.</param>
     /// <returns>The created tile renderer.</returns>
-    public TileRenderer CreateTileRenderer(IRenderContext renderContext, NewTileSet tileSet, int width, int height, string name = "tile_renderer")
+    public TileRenderer CreateTileRenderer(IRenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer")
     {
         return new TileRenderer(this, renderContext, tileSet, width, height, name);
     }

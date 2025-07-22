@@ -26,9 +26,9 @@ public class Game : GameEngine
     private readonly Material _surfaceMaterial;
     private readonly Material _cliffMaterial;
     private readonly Material _waterMaterial;
-    private NewTileSet _surfaceTileSet;
-    private NewTileSet _cliffTileSet;
-    private NewTileSet _waterTileSet;
+    private TileSet _surfaceTileSet;
+    private TileSet _cliffTileSet;
+    private TileSet _waterTileSet;
     private Material _wallMaterial;
     private readonly TileRenderer _surfaceBlock;
     private readonly TileRenderer _cliffBlock;
@@ -199,7 +199,7 @@ public class Game : GameEngine
 
         for (int i = 0; i < _surfaceTileSet.Count; i++)
         {
-            NewTileSetitem item = _surfaceTileSet.GetItem(i);
+            TileItem item = _surfaceTileSet.GetItem(i);
             float blendFactor = item.BlendFactor;
             if (ImGui.SliderFloat($"Blend Factor {i}", ref blendFactor, 0.01f, 0.5f))
             {
@@ -326,7 +326,7 @@ public class Game : GameEngine
         }
     }
 
-    private NewTileSet BuildSurfaceTileSet()
+    private TileSet BuildSurfaceTileSet()
     {
         Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = AssetSystem.LoadAsync<Texture2D>("Textures/Grass.png");
@@ -337,30 +337,30 @@ public class Game : GameEngine
 
         Task.WaitAll(grid, grass, sand);
 
-        List<NewTileSetitem> items = new();
+        List<TileItem> items = new();
 
         Material gridMaterial = _surfaceMaterial.CreateInstance();
         gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
-        var item1 = new NewTileSetitem("grid", gridMaterial, 0, null);
+        var item1 = new TileItem("grid", gridMaterial, 0, null);
 
         Material grassMaterial = _surfaceMaterial.CreateInstance();
         grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
         grassMaterial.SetDefines("TEXTURE_BOMBING");
-        var item2 = new NewTileSetitem("grass", grassMaterial, 1, null);
+        var item2 = new TileItem("grass", grassMaterial, 1, null);
 
         Material sandMaterial = _surfaceMaterial.CreateInstance();
         sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
         sandMaterial.SetDefines("TEXTURE_BOMBING");
-        var item3 = new NewTileSetitem("sand", sandMaterial, 2, null);
+        var item3 = new TileItem("sand", sandMaterial, 2, null);
 
         items.Add(item1);
         items.Add(item2);
         items.Add(item3);
 
-        return new NewTileSet(items.ToArray());
+        return new TileSet(items.ToArray());
     }
 
-    private NewTileSet BuildCliffTileSet()
+    private TileSet BuildCliffTileSet()
     {
         Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = AssetSystem.LoadAsync<Texture2D>("Textures/GrassCliff.png");
@@ -368,52 +368,52 @@ public class Game : GameEngine
 
         Task.WaitAll(grid, grass, sand);
 
-        List<NewTileSetitem> items = new();
+        List<TileItem> items = new();
 
         Material gridMaterial = _cliffMaterial.CreateInstance();
         gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
-        var item1 = new NewTileSetitem("grid", gridMaterial, 0, null);
+        var item1 = new TileItem("grid", gridMaterial, 0, null);
 
         Material grassMaterial = _cliffMaterial.CreateInstance();
         grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
-        var item2 = new NewTileSetitem("grass", grassMaterial, 1, null);
+        var item2 = new TileItem("grass", grassMaterial, 1, null);
 
         Material sandMaterial = _cliffMaterial.CreateInstance();
         sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
-        var item3 = new NewTileSetitem("sand", sandMaterial, 2, null);
+        var item3 = new TileItem("sand", sandMaterial, 2, null);
 
         items.Add(item1);
         items.Add(item2);
         items.Add(item3);
 
-        return new NewTileSet(items.ToArray());
+        return new TileSet(items.ToArray());
     }
 
-    private NewTileSet BuildWaterTileSet()
+    private TileSet BuildWaterTileSet()
     {
         Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
         Task.WaitAll(grid);
 
-        List<NewTileSetitem> items = new();
+        List<TileItem> items = new();
 
 
         Material gridMaterial = _waterMaterial.CreateInstance();
         gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
-        var item1 = new NewTileSetitem("grid", gridMaterial, 0, null);
+        var item1 = new TileItem("grid", gridMaterial, 0, null);
 
         Material waterMaterial = _waterMaterial.CreateInstance();
         waterMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
-        var item2 = new NewTileSetitem("water", waterMaterial, 1, null);
+        var item2 = new TileItem("water", waterMaterial, 1, null);
 
         Material water2Material = _waterMaterial.CreateInstance();
         water2Material.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
-        var item3 = new NewTileSetitem("water2", water2Material, 2, null);
+        var item3 = new TileItem("water2", water2Material, 2, null);
 
         items.Add(item1);
         items.Add(item2);
         items.Add(item3);
 
-        return new NewTileSet(items.ToArray());
+        return new TileSet(items.ToArray());
     }
 
 

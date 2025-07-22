@@ -5,16 +5,17 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Rendering;
 
-public sealed class NewTileSetitem
+public sealed class TileItem
 {
     public string Name { get; }
     public Material Material { get; }
     public float RenderOrder { get; }
     public object? UserData { get; }
-
+    
+    public Vector4 Color { get; set; } = Vector4.One;
     public float BlendFactor { get; set; } = 0.2f;
 
-    public NewTileSetitem(string name, Material material, float renderOrder, object? userData)
+    public TileItem(string name, Material material, float renderOrder, object? userData)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(material);
@@ -24,19 +25,19 @@ public sealed class NewTileSetitem
     }
 }
 
-public sealed class NewTileSet
+public sealed class TileSet
 {
-    private readonly NewTileSetitem[] _items;
-    private readonly FrozenDictionary<NewTileSetitem, int> _itemIndexMap;
+    private readonly TileItem[] _items;
+    private readonly FrozenDictionary<TileItem, int> _itemIndexMap;
 
     public int Count => _items.Length;
 
-    public NewTileSet(params ReadOnlySpan<NewTileSetitem> items)
+    public TileSet(params ReadOnlySpan<TileItem> items)
     {
         _items = items.ToArray();
         Array.Sort(_items, static (a, b) => a.RenderOrder.CompareTo(b.RenderOrder));
 
-        Dictionary<NewTileSetitem, int> itemIndexMap = new();
+        Dictionary<TileItem, int> itemIndexMap = new();
         for (int i = 0; i < _items.Length; i++)
         {
             itemIndexMap.Add(_items[i], i);
@@ -44,12 +45,12 @@ public sealed class NewTileSet
         _itemIndexMap = itemIndexMap.ToFrozenDictionary();
     }
 
-    public NewTileSetitem GetItem(int index)
+    public TileItem GetItem(int index)
     {
         return _items[index];
     }
 
-    public int GetItemIndex(NewTileSetitem item)
+    public int GetItemIndex(TileItem item)
     {
         return _itemIndexMap[item];
     }
@@ -76,14 +77,16 @@ public sealed class TileRenderer : AutoDisposable
         public int2 Size;
         public int CurrentTileId;
         public int _reserved = 0;
+        public Vector4 Color;
         public float BlendFactor;
 
-        public Constant(Matrix4x4 model, int2 size, int currentTileId, float blendFactor)
+        public Constant(Matrix4x4 model, int2 size)
         {
             Model = model;
             Size = size;
-            CurrentTileId = currentTileId;
-            BlendFactor = blendFactor;
+            CurrentTileId = 0;
+            BlendFactor = 0.2f;
+            Color = Vector4.One;
         }
     }
 
@@ -128,7 +131,7 @@ public sealed class TileRenderer : AutoDisposable
 
     private readonly RenderingSystem _rendering;
     private readonly IRenderContext _context;
-    private readonly NewTileSet _tileSet;
+    private readonly TileSet _tileSet;
     //same index as the item
     private readonly Batch[] _batches;
 
@@ -147,7 +150,7 @@ public sealed class TileRenderer : AutoDisposable
 
     public int2 Size => new int2(_width, _height);
 
-    internal TileRenderer(RenderingSystem rendering, IRenderContext context, NewTileSet tileSet, int width, int height, string name = "tile_renderer")
+    internal TileRenderer(RenderingSystem rendering, IRenderContext context, TileSet tileSet, int width, int height, string name = "tile_renderer")
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(context);
@@ -244,7 +247,7 @@ public sealed class TileRenderer : AutoDisposable
 
         Transform3D transform = Transform;
 
-        Constant constant = new(transform.Matrix, new int2(_width, _height), TileIdEmpty, 0.1f);
+        Constant constant = new(transform.Matrix, new int2(_width, _height));
 
         for (int i = 0; i < _batches.Length; i++)
         {
