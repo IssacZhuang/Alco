@@ -285,8 +285,10 @@ public sealed class TileRenderer : AutoDisposable
 
         for (int i = 0; i < _batches.Length; i++)
         {
+            TileItem item = _tileSet.GetItem(i);
             constant.CurrentTileId = i;
-            constant.BlendFactor = _tileSet.GetItem(i).BlendFactor;
+            constant.BlendFactor = item.BlendFactor;
+            constant.Color = item.Color;
 
             _batches[i].Draw(constant);
         }
