@@ -4,6 +4,8 @@ struct Constants {
   float4x4 model;
   int2 size;//the map size
   int currentTileId;
+  int _reserved; // for memory alignment
+  float blendFactor;
 };
 
 struct TileData {
@@ -54,7 +56,7 @@ V2F VertexMain(Vertex input)
     float2 tilePos = tileData.position;
     int2 tilePosInt = int2(tilePos);
 
-    float blendFactor = 0.1;
+    float blendFactor = constants.blendFactor;
 
     float2 uv = input.uv;
 
@@ -108,7 +110,7 @@ float4 PixelMain(V2F input)
     float2 uvFrac = frac(uv);
     float4 color = SAMPLE_TEX2D(_texture, uvFrac);
 
-    float blendFactor = 0.1;
+    float blendFactor = constants.blendFactor;
 
 
     float2 uvOverflow = abs(uv - clamp(uv, 0.0, 1.0));

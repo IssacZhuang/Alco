@@ -176,46 +176,41 @@ public class Game : GameEngine
     protected override void OnUpdate(float delta)
     {
         DebugStats.Text(FrameRate);
-        bool isDebugClicked = false;
 
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
             UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
-            isDebugClicked = true;
         }
 
         if (ImGui.SliderInt("Surface Tile", ref _surfaceTileId, 0, _surfaceTileSet.Count - 1))
         {
-            isDebugClicked = true;
+
         }
 
         if (ImGui.SliderInt("Water Tile", ref _waterTileId, 0, _waterTileSet.Count - 1))
         {
-            isDebugClicked = true;
         }
 
         if (ImGui.Combo("Edit Mode", ref _editMode))
         {
-            isDebugClicked = true;
+
         }
 
-
-        // Note: Blend Width and Edge Smooth controls are not supported by NewTileSet
-        // if (ImGui.SliderFloat("Blend Width", ref _blendFactor, 0.01f, 0.5f))
-        // {
-        //     isDebugClicked = true;
-        // }
+        for (int i = 0; i < _surfaceTileSet.Count; i++)
+        {
+            NewTileSetitem item = _surfaceTileSet.GetItem(i);
+            float blendFactor = item.BlendFactor;
+            if (ImGui.SliderFloat($"Blend Factor {i}", ref blendFactor, 0.01f, 0.5f))
+            {
+                item.BlendFactor = blendFactor;
+            }
+        }
 
         if (ImGui.SliderFloat("Height", ref _hight, -1f, 1f))
         {
-            isDebugClicked = true;
         }
 
-        // if (ImGui.SliderFloat("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
-        // {
-        //     isDebugClicked = true;
-        // }
 
         if (Input.IsKeyDown(KeyCode.Escape))
         {
@@ -251,6 +246,8 @@ public class Game : GameEngine
         _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialLightOverlay, _lightOverlayConstant);
 
 
+        ImGuiIOPtr io = ImGui.GetIO();
+
         if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
 
@@ -258,7 +255,7 @@ public class Game : GameEngine
 
             for (int i = 0; i < _brushCells.Count; i++)
             {
-                if (isDebugClicked)
+                if (io.WantCaptureMouse)
                 {
                     continue;
                 }

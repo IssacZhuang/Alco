@@ -12,6 +12,8 @@ public sealed class NewTileSetitem
     public float RenderOrder { get; }
     public object? UserData { get; }
 
+    public float BlendFactor { get; set; } = 0.2f;
+
     public NewTileSetitem(string name, Material material, float renderOrder, object? userData)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -73,12 +75,15 @@ public sealed class TileRenderer : AutoDisposable
         public Matrix4x4 Model;
         public int2 Size;
         public int CurrentTileId;
+        public int _reserved = 0;
+        public float BlendFactor;
 
-        public Constant(Matrix4x4 model, int2 size, int currentTileId)
+        public Constant(Matrix4x4 model, int2 size, int currentTileId, float blendFactor)
         {
             Model = model;
             Size = size;
             CurrentTileId = currentTileId;
+            BlendFactor = blendFactor;
         }
     }
 
@@ -238,13 +243,14 @@ public sealed class TileRenderer : AutoDisposable
         }
 
         Transform3D transform = Transform;
-        // transform.Position -= new Vector3(_width * 0.5f, _height * 0.5f, 0);
 
-        Constant constant = new(transform.Matrix, new int2(_width, _height), TileIdEmpty);
+        Constant constant = new(transform.Matrix, new int2(_width, _height), TileIdEmpty, 0.1f);
 
         for (int i = 0; i < _batches.Length; i++)
         {
             constant.CurrentTileId = i;
+            constant.BlendFactor = _tileSet.GetItem(i).BlendFactor;
+
             _batches[i].Draw(constant);
         }
     }

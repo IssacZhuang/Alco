@@ -157,7 +157,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        _renderBundle.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
         _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
@@ -175,7 +175,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        _renderBundle.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
         _renderBundle.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
@@ -197,6 +197,20 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         _meshVersion = mesh.Version;
 
         _indexCount = _renderBundle.SetMesh(mesh, subMeshIndex);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private unsafe void PushConstantSafe<T>(ShaderStage stage, in T data, int pushConstantSize) where T : unmanaged
+    {
+        if (pushConstantSize != sizeof(T))
+        {
+            pushConstantSize = Math.Min(pushConstantSize, sizeof(T));
+        }
+
+        fixed (T* ptr = &data)
+        {
+            _renderBundle.PushGraphicsConstants(stage, 0, (byte*)ptr, (uint)pushConstantSize);
+        }
     }
 
     /// <summary>
