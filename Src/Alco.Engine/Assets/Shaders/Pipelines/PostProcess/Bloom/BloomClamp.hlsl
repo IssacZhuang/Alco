@@ -43,6 +43,8 @@ float4 MainPS(V2F input) : SV_TARGET {
     }
   }
 
-  float3 clamped = max(0, sum.rgb - constants.Threshold);
+  float luma = dot(sum.rgb, float3(0.2126, 0.7152, 0.0722));
+  float3 clamped = sum.rgb * max(0, luma - constants.Threshold) / max(luma, 0.00001);
+  
   return float4(clamped * constants.Spread, sum.a);
 }
