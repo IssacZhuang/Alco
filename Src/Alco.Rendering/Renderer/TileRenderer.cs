@@ -185,7 +185,7 @@ public sealed class TileRenderer : AutoDisposable
         Transform = Transform3D.Identity;
     }
 
-    private void FillBatches()
+    public void ForceUpdateBuffer()
     {
         //clear all batches
         for (int i = 0; i < _batches.Length; i++)
@@ -275,7 +275,7 @@ public sealed class TileRenderer : AutoDisposable
     {
         if (_isDirty)
         {
-            FillBatches();
+            ForceUpdateBuffer();
             _isDirty = false;
         }
 
