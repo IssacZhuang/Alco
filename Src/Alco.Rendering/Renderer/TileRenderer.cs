@@ -215,7 +215,29 @@ public sealed class TileRenderer : AutoDisposable
 
     public void SetTile(int x, int y, int tileId)
     {
+        if (!IsInBounds(x, y))
+        {
+            return;
+        }
+
         _tileMap[y * _width + x] = tileId;
+        _isDirty = true;
+    }
+
+    public void SetTile(int2 from, int2 to, int tileId)
+    {
+        int2 size = new int2(_width, _height);
+
+        from = math.clamp(from, new int2(0, 0), size - new int2(1, 1));
+        to = math.clamp(to, new int2(0, 0), size - new int2(1, 1));
+
+        for (int i = from.Y; i <= to.Y; i++)
+        {
+            for (int j = from.X; j <= to.X; j++)
+            {
+                _tileMap[i * _width + j] = tileId;
+            }
+        }
         _isDirty = true;
     }
 
@@ -223,6 +245,18 @@ public sealed class TileRenderer : AutoDisposable
     {
         _tileMap.AsSpan().Fill(tileId);
         _isDirty = true;
+    }
+
+    public bool TryGetTile(int x, int y, out int tileId)
+    {
+        if (!IsInBounds(x, y))
+        {
+            tileId = TileIdEmpty;
+            return false;
+        }
+
+        tileId = _tileMap[y * _width + x];
+        return tileId >= 0 && tileId < _tileSet.Count;
     }
 
     public void ClearTile(int x, int y)
@@ -291,6 +325,17 @@ public sealed class TileRenderer : AutoDisposable
 
         tilePosition = new int2(0, 0);
         return false;
+    }
+
+    public Span<int> AsSpan()
+    {
+        return _tileMap.AsSpan();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsInBounds(int x, int y)
+    {
+        return x >= 0 && x < _width && y >= 0 && y < _height;
     }
 
     protected override void Dispose(bool disposing)
