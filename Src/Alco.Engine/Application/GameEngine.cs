@@ -664,7 +664,7 @@ IDisposable
         _systems.Remove(system);
     }
 
-    public T GetSystem<T>() where T : IEngineSystem
+    public T GetSystem<T>()
     {
         for (int i = 0; i < _systems.Count; i++)
         {
@@ -676,7 +676,7 @@ IDisposable
         throw new Exception($"System {typeof(T).Name} not found");
     }
 
-    public bool TryGetSystem<T>([NotNullWhen(true)] out T? system) where T : IEngineSystem
+    public bool TryGetSystem<T>([NotNullWhen(true)] out T? system)
     {
         for (int i = 0; i < _systems.Count; i++)
         {
@@ -688,6 +688,48 @@ IDisposable
         }
         system = default;
         return false;
+    }
+
+    public IEnumerable<T> GetSystems<T>()
+    {
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            if (_systems[i] is T system)
+            {
+                yield return system;
+            }
+        }
+        yield break;
+    }
+
+
+    public bool TryGetPlugin<T>([NotNullWhen(true)] out T? plugin)
+    {
+        IReadOnlyList<IEnginePlugin> plugins = Setting.Plugins;
+        for (int i = 0; i < plugins.Count; i++)
+        {
+            if (plugins[i] is T p)
+            {
+                plugin = p;
+                return true;
+            }
+        }
+
+        plugin = default;
+        return false;
+    }
+
+    public IEnumerable<T> GetPlugins<T>()
+    {
+        for (int i = 0; i < Setting.Plugins.Count; i++)
+        {
+            if (Setting.Plugins[i] is T plugin)
+            {
+                yield return plugin;
+            }
+        }
+
+        yield break;
     }
 
     #endregion
