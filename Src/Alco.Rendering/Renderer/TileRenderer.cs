@@ -195,9 +195,9 @@ public sealed class TileRenderer : AutoDisposable
 
         Span<int> spanMap = _tileMap;
         int itemCount = _tileSet.Count;
-        for (int x = 0; x < _width; x++)
+        for (int x = _width - 1; x >= 0; x--)
         {
-            for (int y = 0; y < _height; y++)
+            for (int y = _height - 1; y >= 0; y--)
             {
                 int tileId = spanMap[y * _width + x];
                 if (tileId < 0 || tileId >= itemCount)

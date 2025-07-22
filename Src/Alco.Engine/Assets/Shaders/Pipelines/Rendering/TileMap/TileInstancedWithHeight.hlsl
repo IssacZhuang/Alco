@@ -42,6 +42,8 @@ DEFINE_STORAGE(2, TileData, _instances);
 
 DEFINE_STORAGE(3, int, _tileMap);
 
+DEFINE_STORAGE(4, float, _heightData);
+
 PUSH_CONSTANT Constants constants;
 
 int GetTileId(int2 tilePos, int defaultValue)
@@ -52,6 +54,11 @@ int GetTileId(int2 tilePos, int defaultValue)
     }
 
     return _tileMap[tilePos.y * constants.size.x + tilePos.x];
+}
+
+float GetHeight(int2 tilePos)
+{
+    return _heightData[tilePos.y * constants.size.x + tilePos.x];
 }
 
 [shader("vertex")]
@@ -80,34 +87,53 @@ V2F VertexMain(Vertex input)
     int2 checkX = int2(check.x, 0);
     int2 checkY = int2(0, check.y);
 
-    int tileId = GetTileId(tilePosInt + checkX, constants.currentTileId);
-    if (tileId != constants.currentTileId)
+    float height = GetHeight(tilePosInt);
+
+    int2 checkPos = tilePosInt + checkX;
+    int tileId = GetTileId(checkPos, constants.currentTileId);
+    float otherHeight = GetHeight(checkPos);
+
+    if (tileId != constants.currentTileId && abs(height - otherHeight) < 0.001)
     {
         tilePos.x += check.x * blendFactor;
         uv.x += checkX.x * blendFactor;
     }
+
+    
 
 #if defined(IS_FACADE)
     // make it render as a facade
     pos.z = 0.5f - pos.y;
     pos.y -= 1;
 #else
-    tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
-    if (tileId != constants.currentTileId)
+    checkPos = tilePosInt + checkY;
+    tileId = GetTileId(checkPos, constants.currentTileId);
+    otherHeight = GetHeight(checkPos);
+
+    if (tileId != constants.currentTileId && abs(height - otherHeight) < 0.001)
     {
         tilePos.y += check.y * blendFactor;
         uv.y -= checkY.y * blendFactor;
     }
 #endif
 
+    
+
     float3 worldPosition = pos + float3(tilePos, 0.0);
+
+    //assign world position that not affected by height
+    output.worldPos = worldPosition.xy;
+
+    //apply height offset
+    worldPosition.y += height;
+    worldPosition.z -= height;
 
     float4 position = mul(constants.model, float4(worldPosition, 1.0));
     position = mul(viewProjection, position);
 
     output.position = position;
     output.uv = uv;
-    output.worldPos = worldPosition.xy;
+    
     return output;
 }
 

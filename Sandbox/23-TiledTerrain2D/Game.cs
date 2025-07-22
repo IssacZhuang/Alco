@@ -74,6 +74,8 @@ public class Game : GameEngine
             Near = -5,
             Far = 5
         };
+
+        _camera.Transform.Position = new Vector2(width / 2, height / 2);
        
         RenderingSystem.MainCamera = _camera;
 
@@ -94,14 +96,16 @@ public class Game : GameEngine
         _lightingManager.SetLightMapDirty();
         _lightingManager.SetOpacityMapDirty();
 
-        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstancedWithHeight);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
+        _surfaceMaterial.SetBuffer(ShaderResourceId.HeightData, _heightBuffer);
 
-        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstancedWithHeight);
         _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _cliffMaterial.DepthStencilState = DepthStencilState.Write;
         _cliffMaterial.SetDefines("IS_FACADE");
+        _cliffMaterial.SetBuffer(ShaderResourceId.HeightData, _heightBuffer);
 
         _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWaterInstanced);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
@@ -259,12 +263,12 @@ public class Game : GameEngine
                 {
                     continue;
                 }
-                int2 pos = _brushCells[i];
-                if (!_heightBuffer.TryGetTileHeight(tilePosition.X + pos.X, tilePosition.Y - pos.Y, out float height))
+                int2 pos = _brushCells[i] + tilePosition;
+                if (!_heightBuffer.TryGetTileHeight(pos.X, pos.Y, out float height))
                 {
                     continue;
                 }
-                _brushTransform.Position = new Vector3(pos.X + tilePosition.X, pos.Y + tilePosition.Y + height, 0);
+                _brushTransform.Position = new Vector3(pos.X, pos.Y + height, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _brushMaterial, _brushConstant);
@@ -274,21 +278,22 @@ public class Game : GameEngine
                 {
                     if (_editMode == EditMode.Water)
                     {
-                        _waterBlock.SetTile(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _waterTileId);
+                        _waterBlock.SetTile(pos.X, pos.Y, _waterTileId);
                     }
                     else if (_editMode == EditMode.Surface)
                     {
-                        _surfaceBlock.SetTile(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
-                        _cliffBlock.SetTile(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _surfaceTileId);
+                        _surfaceBlock.SetTile(pos.X, pos.Y, _surfaceTileId);
+                        _cliffBlock.SetTile(pos.X, pos.Y, _surfaceTileId);
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        _wallManager.AddWall(new Wall(tilePosition, _wallMaterial, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f)));
+                        _wallManager.AddWall(new Wall(pos, _wallMaterial, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f)));
                     }
                 }
                 else if (Input.IsMousePressing(Mouse.Right))
                 {
-                    _heightBuffer.TrySetTileHeight(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _hight);
+                    _heightBuffer.TrySetTileHeight(pos.X, pos.Y, _hight);
+                    _heightBuffer.UpdateBuffer();
                 }
 
             }

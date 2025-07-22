@@ -60,6 +60,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_TileInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl");
 
+    public Shader Shader_TileInstancedWithHeight => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstancedWithHeight.hlsl");
+
     public Shader Shader_TileLighting => GetShader("Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl");
 
     public Shader Shader_TilePlant => GetShader("Shaders/Pipelines/Rendering/TileMap/TilePlant.hlsl");

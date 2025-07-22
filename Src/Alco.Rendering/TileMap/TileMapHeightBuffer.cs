@@ -82,15 +82,7 @@ public sealed class TileMapHeightBuffer : GraphicsArrayBuffer<float>
 
     }
 
-    /// <summary>
-    /// Get the index of the tile at the specified position.
-    /// </summary>
-    /// <param name="x">The x coordinate of the tile.</param>
-    /// <param name="y">The y coordinate of the tile.</param>
-    /// <returns>The index of the tile.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int GetTileIndex(int x, int y)
-
+    private int GetTileIndex(int x, int y)
     {
         return y * _size.X + x;
     }
