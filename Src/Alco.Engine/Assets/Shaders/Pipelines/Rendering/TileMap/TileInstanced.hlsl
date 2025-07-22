@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Libs/TextureBombing.hlsli"
 
 struct Constants {
   float4x4 model;
@@ -22,6 +23,7 @@ struct Vertex {
 struct V2F {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
+    float2 worldPos : TEXCOORD1;
 };
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
@@ -98,7 +100,7 @@ V2F VertexMain(Vertex input)
 
     output.position = position;
     output.uv = uv;
-    
+    output.worldPos = worldPosition.xy;
     return output;
 }
 
@@ -107,8 +109,13 @@ float4 PixelMain(V2F input)
     : SV_TARGET
 {
     float2 uv = input.uv;
+
+#if defined(TEXTURE_BOMBING)
+    float4 color = TextureBombing(_texture, _textureSampler, input.worldPos);
+#else
     float2 uvFrac = frac(uv);
     float4 color = SAMPLE_TEX2D(_texture, uvFrac);
+#endif
 
     float blendFactor = constants.blendFactor;
 

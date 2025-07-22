@@ -345,10 +345,12 @@ public class Game : GameEngine
 
         Material grassMaterial = _surfaceMaterial.CreateInstance();
         grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
+        grassMaterial.SetDefines("TEXTURE_BOMBING");
         var item2 = new NewTileSetitem("grass", grassMaterial, 1, null);
 
         Material sandMaterial = _surfaceMaterial.CreateInstance();
         sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
+        sandMaterial.SetDefines("TEXTURE_BOMBING");
         var item3 = new NewTileSetitem("sand", sandMaterial, 2, null);
 
         items.Add(item1);

@@ -17,7 +17,7 @@ public struct ImageLoadOption
         Usage = TextureUsage.Standard,
         MipLevels = 1,
         FilterMode = FilterMode.Linear,
-        AddressMode = AddressMode.ClampToEdge,
+        AddressMode = AddressMode.Repeat,
         SlicePadding = Padding.Zero,
         Name = "unnamed_texture"
     };
@@ -37,7 +37,7 @@ public struct ImageLoadOption
         TextureUsage usage = TextureUsage.Standard,
         uint mipLevels = 1,
         FilterMode filterMode = FilterMode.Linear,
-        AddressMode addressMode = AddressMode.ClampToEdge,
+        AddressMode addressMode = AddressMode.Repeat,
         Padding slicePadding = default,
         string name = "unnamed_texture"
     )
@@ -74,7 +74,7 @@ public struct ImageLoadOption
     /// <summary>
     /// The texture addressing mode.
     /// </summary>
-    public AddressMode AddressMode { get; init; } = AddressMode.ClampToEdge;
+    public AddressMode AddressMode { get; init; } = AddressMode.Repeat;
 
     /// <summary>
     /// The slice padding for 9-slice textures. Defines the padding for left, top, right, and bottom edges.

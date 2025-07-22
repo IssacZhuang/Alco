@@ -1,167 +1,59 @@
-// Simple hash function for generating pseudo-random values
-float2 Hash2D(float2 p) {
-    p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
-    return -1.0 + 2.0 * frac(sin(p) * 43758.5453123);
-}
+//translate GLSL code from https://www.shadertoy.com/view/flt3Wn to HLSL
 
-// Generate a pseudo-random rotation matrix for 2D
-float2x2 GetRandomRotation(float2 cellPos) {
-    float angle = Hash2D(cellPos).x * PI * 2.0;
-    float c = cos(angle);
-    float s = sin(angle);
-    return float2x2(c, -s, s, c);
-}
-
-// Atlas-aware texture bombing function
-// texture: The texture to sample
-// textureSampler: The sampler state for the texture
-// uv: Input UV coordinates (in texture space, not atlas space)
-// tiling: How many times the texture should tile
-// uvRect: The UV rectangle of this texture in the atlas (x, y, width, height)
-float4 TextureBombingAtlas(Texture2D texture, SamplerState textureSampler, float2 uv, float2 tiling, float4 uvRect)
+// Helper function: hash22 - generates pseudo-random float2 from float2 input
+float2 hash22(float2 p) 
 {
-    // Apply tiling to the input UV
-    float2 tiledUV = uv * tiling;
-
-    // Get the cell coordinates
-    float2 cellPos = floor(tiledUV);
-    float2 cellUV = frac(tiledUV);
-
-    // Initialize output color
-    float4 result = float4(0, 0, 0, 0);
-    float totalWeight = 0.0;
-
-    // Sample from current cell and 8 surrounding cells (3x3 grid)
-    for (int x = -1; x <= 1; x++)
-    {
-        for (int y = -1; y <= 1; y++)
-        {
-            float2 neighborCell = cellPos + float2(x, y);
-
-            // Generate random offset for this cell (smaller offset to stay within bounds)
-            float2 randomOffset = Hash2D(neighborCell) * 0.2; // Reduced from 0.5 to 0.2
-
-            // Generate random rotation for this cell
-            float2x2 randomRotation = GetRandomRotation(neighborCell);
-
-            // Transform UV coordinates
-            float2 rotatedUV = mul(randomRotation, cellUV - 0.5) + 0.5;
-            float2 localUV = frac(rotatedUV + randomOffset);
-
-            // Map local UV to atlas UV, ensuring we stay within uvRect bounds
-            float2 atlasUV = uvRect.xy + localUV * uvRect.zw;
-
-            // Sample the texture
-            float4 sampleColor = texture.Sample(textureSampler, atlasUV);
-
-            // Calculate weight based on distance from cell center
-            float2 distFromCenter = abs(cellUV - 0.5 - float2(x, y));
-            float weight = 1.0 - max(distFromCenter.x, distFromCenter.y) * 2.0;
-            weight = saturate(weight);
-
-            // Apply smooth falloff
-            weight = smoothstep(0.0, 1.0, weight);
-
-            // Add random variation to weight
-            float randomFactor = Hash2D(neighborCell + float2(0.5, 0.5)).x * 0.5 + 0.5;
-            weight *= randomFactor;
-
-            result += sampleColor * weight;
-            totalWeight += weight;
-        }
-    }
-
-    // Normalize by total weight to avoid darkening
-    if (totalWeight > 0.0)
-    {
-        result /= totalWeight;
-    }
-
-    return result;
+    // credit to Dave_Hoskins - https://www.shadertoy.com/view/4djSRW
+    float3 p3 = frac(float3(p.xyx) * float3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return frac((p3.xx + p3.yz) * p3.zy);
 }
 
-// Main texture bombing function (for non-atlas textures)
-// texture: The texture to sample
-// textureSampler: The sampler state for the texture
-// uv: Input UV coordinates
-// tiling: How many times the texture should tile
-// offset: Additional offset for the UV coordinates
-float4 TextureBombing(Texture2D texture, SamplerState textureSampler, float2 uv, float2 tiling, float2 offset) {
-    // Apply tiling and offset
-    float2 tiledUV = uv * tiling + offset;
-    
-    // Get the cell coordinates
-    float2 cellPos = floor(tiledUV);
-    float2 cellUV = frac(tiledUV);
-    
-    // Initialize output color
-    float4 result = float4(0, 0, 0, 0);
-    float totalWeight = 0.0;
-    
-    // Sample from current cell and 8 surrounding cells (3x3 grid)
-    for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
-            float2 neighborCell = cellPos + float2(x, y);
-            
-            // Generate random offset for this cell
-            float2 randomOffset = Hash2D(neighborCell) * 0.5; // Limit offset to half cell size
-            
-            // Generate random rotation for this cell
-            float2x2 randomRotation = GetRandomRotation(neighborCell);
-            
-            // Transform UV coordinates
-            float2 rotatedUV = mul(randomRotation, cellUV - 0.5) + 0.5;
-            float2 sampleUV = (neighborCell + rotatedUV + randomOffset) / tiling;
-            
-            // Sample the texture
-            float4 sampleColor = texture.Sample(textureSampler, sampleUV);
-            
-            // Calculate weight based on distance from cell center
-            float2 distFromCenter = abs(cellUV - 0.5 - float2(x, y));
-            float weight = 1.0 - max(distFromCenter.x, distFromCenter.y) * 2.0;
-            weight = saturate(weight);
-            
-            // Apply smooth falloff
-            weight = smoothstep(0.0, 1.0, weight);
-            
-            // Add random variation to weight
-            float randomFactor = Hash2D(neighborCell + float2(0.5, 0.5)).x * 0.5 + 0.5;
-            weight *= randomFactor;
-            
-            result += sampleColor * weight;
-            totalWeight += weight;
-        }
-    }
-    
-    // Normalize by total weight to avoid darkening
-    if (totalWeight > 0.0) {
-        result /= totalWeight;
-    }
-    
-    return result;
-}
-
-// Simplified version with fewer parameters
-float4 TextureBombing(Texture2D texture, SamplerState textureSampler, float2 uv) {
-    return TextureBombing(texture, textureSampler, uv, float2(1, 1), float2(0, 0));
-}
-
-// Version with intensity control for atlas textures
-float4 TextureBombingAtlas(Texture2D texture, SamplerState textureSampler, float2 uv, float2 tiling, float4 uvRect, float intensity)
+// Helper function: calculate squared length of vector
+float lengthSqr(float2 v) 
 {
-    float4 bombedTexture = TextureBombingAtlas(texture, textureSampler, uv, tiling, uvRect);
-
-    // Sample regular texture at the center of uvRect for comparison
-    float2 regularUV = uvRect.xy + frac(uv * tiling) * uvRect.zw;
-    float4 regularTexture = texture.Sample(textureSampler, regularUV);
-
-    return lerp(regularTexture, bombedTexture, intensity);
+    return dot(v, v);
 }
 
-// Version with intensity control
-float4 TextureBombing(Texture2D texture, SamplerState textureSampler, float2 uv, float2 tiling, float2 offset, float intensity) {
-    float4 bombedTexture = TextureBombing(texture, textureSampler, uv, tiling, offset);
-    float4 regularTexture = texture.Sample(textureSampler, uv * tiling + offset);
+float4 TextureBombing(Texture2D texture, SamplerState textureSampler, float2 uv, float tiling = 1.0, float scrambleFreq = 2.0)
+{
     
-    return lerp(regularTexture, bombedTexture, intensity);
+    // Scale UV coordinates
+    float2 scaledUV = -scrambleFreq * tiling * uv;
+    
+    float2 uvFloor = floor(scaledUV);
+    float2 uvFrac = scaledUV - uvFloor;
+    
+    // Calculate splat centers for the two triangles in each quad
+    float2 splatCenters[2];
+    splatCenters[0] = uvFrac.x < 1.0 - uvFrac.y ? float2(0.0, 0.0) : float2(1.0, 1.0);
+    splatCenters[1] = uvFrac.x < uvFrac.y      ? float2(0.0, 1.0) : float2(1.0, 0.0);
+    splatCenters[0] += uvFloor;
+    splatCenters[1] += uvFloor;
+    
+    // Calculate weights for blending
+    float2 weights;
+    weights[0] = max(1.0 - 2.0 * lengthSqr(scaledUV - splatCenters[0]), 0.0);
+    weights[1] = max(1.0 - 2.0 * lengthSqr(scaledUV - splatCenters[1]), 0.0);
+    weights /= dot(weights, float2(1.0, 1.0));
+    
+    // Static tweak value (since we don't have time input)
+    float tweak = 0.5; // Could be parameterized later
+    
+    // Explicit gradients for consistent mip selection
+    float2 sampleUV = scaledUV / scrambleFreq;
+    float2 duv_dx = ddx(sampleUV);
+    float2 duv_dy = ddy(sampleUV);
+    
+    // Sample texture with random offsets for each splat center
+    float3 col = float3(0.0, 0.0, 0.0);
+    col += weights[0] * texture.SampleGrad(textureSampler, sampleUV + tweak * (hash22(splatCenters[0]) - 0.5), duv_dx, duv_dy).rgb;
+    col += weights[1] * texture.SampleGrad(textureSampler, sampleUV + tweak * (hash22(splatCenters[1]) - 0.5), duv_dx, duv_dy).rgb;
+    
+    // Contrast correction
+    float3 mean = texture.SampleBias(textureSampler, sampleUV, 16.0).rgb;
+    col = mean + (col - mean) / length(weights);
+    
+    return float4(col, 1.0);
 }
+
