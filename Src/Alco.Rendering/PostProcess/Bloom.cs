@@ -10,6 +10,7 @@ public class Bloom : PostProcess
         public Vector2 InvFrameSize;
         public float Threshold;
         public float Spread;
+        public float Intensity;
     }
 
     private struct DownSampleConstants
@@ -26,7 +27,6 @@ public class Bloom : PostProcess
 
     private struct BlitConstants
     {
-        public float Intensity;
         public float Gamma;
     }
 
@@ -83,7 +83,7 @@ public class Bloom : PostProcess
     //for clamp
     private readonly Shader _clampShader;
     private GraphicsPipelineContext _clampPipelineInfo;
-    private readonly uint _clampShaderId_texture;
+    private uint _clampShaderId_texture;
 
     private readonly Shader _downSampleShader;
     private GraphicsPipelineContext _downSamplePipelineInfo;
@@ -96,8 +96,8 @@ public class Bloom : PostProcess
 
     private readonly Shader _upSampleShader;
     private GraphicsPipelineContext _upSamplePipelineInfo;
-    private readonly uint _upSampleShaderId_previousTexture;
-    private readonly uint _upSampleShaderId_currentTexture;
+    private uint _upSampleShaderId_previousTexture;
+    private uint _upSampleShaderId_currentTexture;
 
     private RenderTexture[]? _upSampleTextures;
     internal Bloom(RenderingSystem _system, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(_system, blitShader)
@@ -158,7 +158,7 @@ public class Bloom : PostProcess
                 width = (uint)(_targetDownSampleHeight * aspectRatio);
                 height = _targetDownSampleHeight;
 
-                
+
                 _downSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
             }
             else
@@ -203,6 +203,12 @@ public class Bloom : PostProcess
         _command.Begin();
 
         RenderTexture clampFrame = _downSampleTextures![0];
+
+        if (_clampShader.TryUpdatePipelineContext(ref _clampPipelineInfo, clampFrame.AttachmentLayout))
+        {
+            _clampShaderId_texture = _clampPipelineInfo.GetResourceId(ShaderId_texture);
+        }
+
         //clamp
         using (var renderPass = _command.BeginRender(clampFrame.FrameBuffer))
         {
@@ -214,10 +220,16 @@ public class Bloom : PostProcess
             {
                 InvFrameSize = _clampInvFrameSize,
                 Threshold = Threshold,
-                Spread = Spread
+                Spread = Spread,
+                Intensity = Intensity
             };
             renderPass.PushConstants(ShaderStage.Fragment, clampShaderData);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+        }
+
+        if (_downSampleShader.TryUpdatePipelineContext(ref _downSamplePipelineInfo, _downSampleTextures![0].AttachmentLayout))
+        {
+            _downSampleShaderId_texture = _downSamplePipelineInfo.GetResourceId(ShaderId_texture);
         }
 
         for (int i = 1; i < _downSampleTextures!.Length; i++)
@@ -243,6 +255,12 @@ public class Bloom : PostProcess
 
         //up sample
 
+        if (_upSampleShader.TryUpdatePipelineContext(ref _upSamplePipelineInfo, _upSampleTextures![0].AttachmentLayout))
+        {
+            _upSampleShaderId_previousTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_previousTexture);
+            _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
+        }
+
         using (var renderPass = _command.BeginRender(_upSampleTextures![0].FrameBuffer))
         {
             renderPass.SetPipeline(_upSamplePipelineInfo);
@@ -258,7 +276,7 @@ public class Bloom : PostProcess
             renderPass.PushConstants(ShaderStage.Fragment, upSampleConstants);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
-        
+
 
 
         for (int i = 1; i < _upSampleTextures!.Length; i++)
@@ -287,14 +305,14 @@ public class Bloom : PostProcess
         }
 
         //blit
-        using (var renderPass = _command.BeginRender(target)){
+        using (var renderPass = _command.BeginRender(target))
+        {
             renderPass.SetPipeline(_blitPipelineInfo);
             uint indexCount = renderPass.SetMesh(mesh);
             renderPass.SetResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
 
             var blitConstants = new BlitConstants
             {
-                Intensity = Intensity,
                 Gamma = Gamma
             };
             renderPass.PushConstants(ShaderStage.Fragment, blitConstants);

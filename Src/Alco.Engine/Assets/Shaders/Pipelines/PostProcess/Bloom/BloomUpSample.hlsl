@@ -44,7 +44,7 @@ float4 MainPS(V2F input) : SV_TARGET {
 
   // sum +=  SAMPLE_TEX2D(_previousTexture, input.uv);
 
-  float4 final = SAMPLE_TEX2D(_currentTexture, input.uv)*0.2 + sum;
+  float4 final = SAMPLE_TEX2D(_currentTexture, input.uv)*0.07 + sum;
 
   return float4(final.rgb * constants.spread, 1);
 }

@@ -7,6 +7,9 @@ using Random = Alco.FastRandom;
 using Alco.Graphics;
 using Alco.GUI;
 using Alco.ImGUI;
+using Alco.IO;
+
+using SandboxUtils;
 
 public class Game : GameEngine
 {
@@ -36,6 +39,16 @@ public class Game : GameEngine
         material.SetBuffer(ShaderResourceId.Camera, _camera);
         _renderContext = RenderingSystem.CreateRenderContext("renderer");
         _renderer = RenderingSystem.CreateSpriteRenderer(_renderContext, material);
+    }
+
+    public override IEnumerable<IFileSource> CreateDefaultFileSources()
+    {
+        foreach (var fileSource in base.CreateDefaultFileSources())
+        {
+            yield return fileSource;
+        }
+        yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), AssetSystem);
+        yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
     protected override void OnStart()

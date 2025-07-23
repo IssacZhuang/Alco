@@ -1,7 +1,6 @@
 #include "Shaders/Libs/Core.hlsli"
 
 struct Constants {
-    float intensity;
     float gamma;
 };
 
@@ -31,7 +30,7 @@ float4 MainPS(V2F input) : SV_TARGET {
     // Sample the bloom texture (this is the processed bloom result from upsampling)
     float4 bloomColor = SAMPLE_TEX2D(_texture, input.uv);
 
-    float a = bloomColor.a * constants.intensity;
+    float a = bloomColor.a;
     a = pow(a, 1.0 / constants.gamma);
     // Apply intensity and return the bloom color for additive blending
     return float4(bloomColor.rgb, a);
