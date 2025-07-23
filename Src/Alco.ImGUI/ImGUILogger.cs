@@ -4,15 +4,26 @@ using System.Numerics;
 
 namespace Alco.ImGUI;
 
+/// <summary>
+/// ImGUI-based logger that provides a visual interface for displaying log messages with filtering and selection capabilities.
+/// </summary>
 public class ImGUILogger : ILogger
 {
+    /// <summary>
+    /// Flags enumeration representing different types of log messages.
+    /// </summary>
     [Flags]
     public enum LogType
     {
+        /// <summary>Informational messages.</summary>
         Info = 1 << 0,
+        /// <summary>Warning messages.</summary>
         Warning = 1 << 1,
+        /// <summary>Error messages.</summary>
         Error = 1 << 2,
+        /// <summary>Success messages.</summary>
         Success = 1 << 3,
+        /// <summary>All message types.</summary>
         All = Info | Warning | Error | Success
     }
 
@@ -20,7 +31,7 @@ public class ImGUILogger : ILogger
     {
         public LogType Type;
         public string Message;
-        public int Id; // 添加唯一标识符
+        public int Id; // Unique identifier
 
         public LogInfo(LogType type, string message, int id)
         {
@@ -39,13 +50,16 @@ public class ImGUILogger : ILogger
     private LogType _filter = LogType.All;
     private const int MaxLogEntries = 1000;
 
-
     private int _selectedLogId = -1;
+    private string _selectedLogMessage = string.Empty; // Store selected log message content
     private int _logIdCounter = 0;
     private double _lastClickTime = 0;
     private int _lastClickedLogId = -1;
-    private const double DoubleClickThreshold = 0.5; 
+    private const double DoubleClickThreshold = 0.5;
 
+    /// <summary>
+    /// Gets or sets the filter for log message types to display.
+    /// </summary>
     public LogType Filter
     {
         get => _filter;
@@ -55,28 +69,50 @@ public class ImGUILogger : ILogger
         }
     }
 
+    /// <summary>
+    /// Event triggered when a log entry is double-clicked.
+    /// </summary>
     public event Action<string>? OnLogDoubleClick;
 
+    /// <summary>
+    /// Gets or sets whether the logger window is open.
+    /// </summary>
     public bool IsOpen = true;
 
+    /// <summary>
+    /// Logs an error message.
+    /// </summary>
+    /// <param name="message">The error message to log.</param>
     public void Error(ReadOnlySpan<char> message)
     {
         EnqueueLog(LogType.Error, message.ToString());
         _consoleLogger.Error(message);
     }
 
+    /// <summary>
+    /// Logs an informational message.
+    /// </summary>
+    /// <param name="message">The informational message to log.</param>
     public void Info(ReadOnlySpan<char> message)
     {
         EnqueueLog(LogType.Info, message.ToString());
         _consoleLogger.Info(message);
     }
 
+    /// <summary>
+    /// Logs a success message.
+    /// </summary>
+    /// <param name="message">The success message to log.</param>
     public void Success(ReadOnlySpan<char> message)
     {
         EnqueueLog(LogType.Success, message.ToString());
         _consoleLogger.Success(message);
     }
 
+    /// <summary>
+    /// Logs a warning message.
+    /// </summary>
+    /// <param name="message">The warning message to log.</param>
     public void Warning(ReadOnlySpan<char> message)
     {
         EnqueueLog(LogType.Warning, message.ToString());
@@ -90,6 +126,9 @@ public class ImGUILogger : ILogger
         TrimLogQueue();
     }
 
+    /// <summary>
+    /// Draws the ImGUI logger window with log filtering, display, and detail panels.
+    /// </summary>
     public void Draw()
     {
         if (!IsOpen)
@@ -142,7 +181,12 @@ public class ImGUILogger : ILogger
         ImGui.Separator();
 
         // Log display area
-        ImGui.BeginChild("ScrollingRegion", new Vector2(0, 0), ImGuiChildFlags.None);
+        // Calculate available height for logs dynamically
+        float availableHeight = ImGui.GetContentRegionAvail().Y;
+        float detailAreaHeight = 100; // Reserve space for separator + "Details:" text + detail panel
+        float logAreaHeight = Math.Max(100, availableHeight - detailAreaHeight);
+
+        ImGui.BeginChild("ScrollingRegion", new Vector2(0, logAreaHeight), ImGuiChildFlags.None);
 
         // Display logs
         var logs = _logQueue.ToArray();
@@ -173,12 +217,13 @@ public class ImGUILogger : ILogger
             if (ImGui.Selectable(logText, isSelected))
             {
                 _selectedLogId = log.Id;
+                _selectedLogMessage = log.Message; // Update selected log message content
 
-                // 检测双击
+                // Detect double click
                 double currentTime = ImGui.GetTime();
                 if (_lastClickedLogId == log.Id && (currentTime - _lastClickTime) < DoubleClickThreshold)
                 {
-                    // 双击事件
+                    // Double click event
                     OnLogDoubleClick?.Invoke(log.Message);
                 }
 
@@ -197,6 +242,26 @@ public class ImGUILogger : ILogger
         }
 
         ImGui.EndChild();
+
+        // Separator
+        ImGui.Separator();
+
+        // Selected log detail area
+        ImGui.Text("Details:");
+
+        // Use remaining available height for detail area
+        float remainingHeight = ImGui.GetContentRegionAvail().Y;
+        ImGui.BeginChild("SelectedLogDetail", new Vector2(0, remainingHeight), ImGuiChildFlags.None);
+        if (!string.IsNullOrEmpty(_selectedLogMessage))
+        {
+            ImGui.TextWrapped(_selectedLogMessage);
+        }
+        else
+        {
+            ImGui.TextDisabled("Select a log entry to view details...");
+        }
+        ImGui.EndChild();
+
         ImGui.End();
     }
 
@@ -218,6 +283,7 @@ public class ImGUILogger : ILogger
         
         _selectedLogId = -1;
         _lastClickedLogId = -1;
+        _selectedLogMessage = string.Empty; // Clear selected log message content
     }
 
     private static Vector4 GetLogColor(LogType type)
