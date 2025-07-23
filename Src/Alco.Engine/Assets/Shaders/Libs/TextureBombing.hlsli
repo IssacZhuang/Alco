@@ -35,7 +35,10 @@ float4 TextureBombing(Texture2D texture, SamplerState textureSampler, float2 uv,
     float2 weights;
     weights[0] = max(1.0 - 2.0 * lengthSqr(scaledUV - splatCenters[0]), 0.0);
     weights[1] = max(1.0 - 2.0 * lengthSqr(scaledUV - splatCenters[1]), 0.0);
-    weights /= dot(weights, float2(1.0, 1.0));
+    
+    // Normalize weights with epsilon to prevent division by zero/NaN
+    float weightSum = dot(weights, float2(1.0, 1.0));
+    weights /= max(weightSum, 1e-7); // Add small epsilon to avoid division by zero
     
     // Static tweak value (since we don't have time input)
     float tweak = 0.5; // Could be parameterized later

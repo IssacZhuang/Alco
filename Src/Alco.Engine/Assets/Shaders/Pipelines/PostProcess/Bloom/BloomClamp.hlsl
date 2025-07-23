@@ -27,6 +27,10 @@ float4 SampleTextureClamped(float2 uv)
 {
     float4 color = SAMPLE_TEX2D(_texture, uv);
     float luma = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+    if (any(isnan(color)))
+    {
+        return float4(0, 0, 0, 0);
+    }
     return color * max(0, luma - constants.Threshold);
 }
 
