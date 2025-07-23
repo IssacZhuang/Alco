@@ -4,26 +4,13 @@ using Alco.Rendering;
 using Alco;
 using Alco.Graphics;
 using Alco.ImGUI;
-using FastNoiseLite;
-using static FastNoiseLite.FastNoiseLite;
+
+using static Alco.Rendering.Noise;
+
 
 public class Game : GameEngine
 {
-    // Noise parameters
-    private int _seed = 1337;
-    private float _frequency = 0.01f;
-    private NoiseType _noiseType = NoiseType.OpenSimplex2;
-    private FractalType _fractalType = FractalType.None;
-    private int _octaves = 3;
-    private float _lacunarity = 2.0f;
-    private float _gain = 0.5f;
-    private float _weightedStrength = 0.0f;
-    private float _pingPongStrength = 2.0f;
-
-    // Cellular noise parameters
-    private CellularDistanceFunction _cellularDistanceFunc = CellularDistanceFunction.EuclideanSq;
-    private CellularReturnType _cellularReturnType = CellularReturnType.Distance;
-    private float _cellularJitter = 1.0f;
+    // Noise parameters are now managed directly by the _noise object
 
     // View parameters
     private float _scale = 10.0f;
@@ -32,7 +19,7 @@ public class Game : GameEngine
     // Texture and noise generation
     private const int TextureSize = 512;
     private Texture2D _noiseTexture;
-    private FastNoiseLite.FastNoiseLite _noise;
+    private Noise _noise;
     private Color32[] _pixelData;
     private bool _needsUpdate = true;
 
@@ -80,9 +67,8 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        // Initialize noise generator
-        _noise = new FastNoiseLite.FastNoiseLite(_seed);
-        UpdateNoiseSettings();
+        // Initialize noise generator with default seed
+        _noise = new Noise(1337);
 
         // Create texture and pixel data
         _noiseTexture = RenderingSystem.CreateTexture2D(
@@ -116,32 +102,13 @@ public class Game : GameEngine
         RenderImGUIContent();
     }
 
-    /// <summary>
-    /// Updates the noise generator settings with current parameter values.
-    /// </summary>
-    private void UpdateNoiseSettings()
-    {
-        _noise.SetSeed(_seed);
-        _noise.SetFrequency(_frequency);
-        _noise.SetNoiseType(_noiseType);
-        _noise.SetFractalType(_fractalType);
-        _noise.SetFractalOctaves(_octaves);
-        _noise.SetFractalLacunarity(_lacunarity);
-        _noise.SetFractalGain(_gain);
-        _noise.SetFractalWeightedStrength(_weightedStrength);
-        _noise.SetFractalPingPongStrength(_pingPongStrength);
-        _noise.SetCellularDistanceFunction(_cellularDistanceFunc);
-        _noise.SetCellularReturnType(_cellularReturnType);
-        _noise.SetCellularJitter(_cellularJitter);
-    }
+    // UpdateNoiseSettings method removed - settings are now applied directly via properties
 
     /// <summary>
     /// Generates noise texture using parallel processing for improved performance.
     /// </summary>
     private void GenerateNoise()
     {
-        UpdateNoiseSettings();
-
         // Use parallel processing to generate noise
         _noiseTask.RunParallel(TextureSize, TextureSize);
 
@@ -166,14 +133,24 @@ public class Game : GameEngine
         // Basic parameters
         if (ImGui.CollapsingHeader("Basic Parameters", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            if (ImGui.SliderInt("Seed", ref _seed, 0, 10000))
-                _needsUpdate = true;
-
-            if (ImGui.SliderFloat("Frequency", ref _frequency, 0.001f, 0.1f, "%.4f"))
-                _needsUpdate = true;
-
-            if (ImGui.Combo("Noise Type", ref _noiseType))
+            int seed = _noise.Seed;
+            if (ImGui.SliderInt("Seed", ref seed, 0, 10000))
             {
+                _noise.Seed = seed;
+                _needsUpdate = true;
+            }
+
+            float frequency = _noise.Frequency;
+            if (ImGui.SliderFloat("Frequency", ref frequency, 0.001f, 0.1f, "%.4f"))
+            {
+                _noise.Frequency = frequency;
+                _needsUpdate = true;
+            }
+
+            NoiseType noiseType = _noise.NoiseType;
+            if (ImGui.Combo("Noise Type", ref noiseType))
+            {
+                _noise.NoiseType = noiseType;
                 _needsUpdate = true;
             }
         }
@@ -181,48 +158,78 @@ public class Game : GameEngine
         // Fractal parameters
         if (ImGui.CollapsingHeader("Fractal Parameters"))
         {
-            if (ImGui.Combo("Fractal Type", ref _fractalType))
+            FractalType fractalType = _noise.FractalType;
+            if (ImGui.Combo("Fractal Type", ref fractalType))
             {
+                _noise.FractalType = fractalType;
                 _needsUpdate = true;
             }
 
-            if (_fractalType != FractalType.None)
+            if (_noise.FractalType != FractalType.None)
             {
-                if (ImGui.SliderInt("Octaves", ref _octaves, 1, 8))
-                    _needsUpdate = true;
-
-                if (ImGui.SliderFloat("Lacunarity", ref _lacunarity, 0.5f, 4.0f))
-                    _needsUpdate = true;
-
-                if (ImGui.SliderFloat("Gain", ref _gain, 0.0f, 1.0f))
-                    _needsUpdate = true;
-
-                if (ImGui.SliderFloat("Weighted Strength", ref _weightedStrength, 0.0f, 1.0f))
-                    _needsUpdate = true;
-
-                if (_fractalType == FractalType.PingPong)
+                int octaves = _noise.FractalOctaves;
+                if (ImGui.SliderInt("Octaves", ref octaves, 1, 8))
                 {
-                    if (ImGui.SliderFloat("Ping Pong Strength", ref _pingPongStrength, 0.0f, 4.0f))
+                    _noise.FractalOctaves = octaves;
+                    _needsUpdate = true;
+                }
+
+                float lacunarity = _noise.FractalLacunarity;
+                if (ImGui.SliderFloat("Lacunarity", ref lacunarity, 0.5f, 4.0f))
+                {
+                    _noise.FractalLacunarity = lacunarity;
+                    _needsUpdate = true;
+                }
+
+                float gain = _noise.FractalGain;
+                if (ImGui.SliderFloat("Gain", ref gain, 0.0f, 1.0f))
+                {
+                    _noise.FractalGain = gain;
+                    _needsUpdate = true;
+                }
+
+                float weightedStrength = _noise.FractalWeightedStrength;
+                if (ImGui.SliderFloat("Weighted Strength", ref weightedStrength, 0.0f, 1.0f))
+                {
+                    _noise.FractalWeightedStrength = weightedStrength;
+                    _needsUpdate = true;
+                }
+
+                if (_noise.FractalType == FractalType.PingPong)
+                {
+                    float pingPongStrength = _noise.FractalPingPongStrength;
+                    if (ImGui.SliderFloat("Ping Pong Strength", ref pingPongStrength, 0.0f, 4.0f))
+                    {
+                        _noise.FractalPingPongStrength = pingPongStrength;
                         _needsUpdate = true;
+                    }
                 }
             }
         }
 
         // Cellular noise parameters
-        if (_noiseType == NoiseType.Cellular && ImGui.CollapsingHeader("Cellular Parameters"))
+        if (_noise.NoiseType == NoiseType.Cellular && ImGui.CollapsingHeader("Cellular Parameters"))
         {
-            if (ImGui.Combo("Distance Function", ref _cellularDistanceFunc))
+            CellularDistanceFunction cellularDistanceFunc = _noise.CellularDistanceFunction;
+            if (ImGui.Combo("Distance Function", ref cellularDistanceFunc))
             {
+                _noise.CellularDistanceFunction = cellularDistanceFunc;
                 _needsUpdate = true;
             }
 
-            if (ImGui.Combo("Return Type", ref _cellularReturnType))
+            CellularReturnType cellularReturnType = _noise.CellularReturnType;
+            if (ImGui.Combo("Return Type", ref cellularReturnType))
             {
+                _noise.CellularReturnType = cellularReturnType;
                 _needsUpdate = true;
             }
 
-            if (ImGui.SliderFloat("Jitter", ref _cellularJitter, 0.0f, 2.0f))
+            float cellularJitter = _noise.CellularJitter;
+            if (ImGui.SliderFloat("Jitter", ref cellularJitter, 0.0f, 2.0f))
+            {
+                _noise.CellularJitter = cellularJitter;
                 _needsUpdate = true;
+            }
         }
 
         // View parameters
@@ -262,18 +269,18 @@ public class Game : GameEngine
 
     private void ResetToDefault()
     {
-        _seed = 1337;
-        _frequency = 0.01f;
-        _noiseType = NoiseType.OpenSimplex2;
-        _fractalType = FractalType.None;
-        _octaves = 3;
-        _lacunarity = 2.0f;
-        _gain = 0.5f;
-        _weightedStrength = 0.0f;
-        _pingPongStrength = 2.0f;
-        _cellularDistanceFunc = CellularDistanceFunction.EuclideanSq;
-        _cellularReturnType = CellularReturnType.Distance;
-        _cellularJitter = 1.0f;
+        _noise.Seed = 1337;
+        _noise.Frequency = 0.01f;
+        _noise.NoiseType = NoiseType.OpenSimplex2;
+        _noise.FractalType = FractalType.None;
+        _noise.FractalOctaves = 3;
+        _noise.FractalLacunarity = 2.0f;
+        _noise.FractalGain = 0.5f;
+        _noise.FractalWeightedStrength = 0.0f;
+        _noise.FractalPingPongStrength = 2.0f;
+        _noise.CellularDistanceFunction = CellularDistanceFunction.EuclideanSq;
+        _noise.CellularReturnType = CellularReturnType.Distance;
+        _noise.CellularJitter = 1.0f;
         _scale = 10.0f;
         _offset = Vector2.Zero;
     }
