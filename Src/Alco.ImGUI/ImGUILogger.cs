@@ -20,11 +20,13 @@ public class ImGUILogger : ILogger
     {
         public LogType Type;
         public string Message;
+        public int Id; // 添加唯一标识符
 
-        public LogInfo(LogType type, string message)
+        public LogInfo(LogType type, string message, int id)
         {
             Type = type;
             Message = message.ToString();
+            Id = id;
         }
     }
 
@@ -37,6 +39,13 @@ public class ImGUILogger : ILogger
     private LogType _filter = LogType.All;
     private const int MaxLogEntries = 1000;
 
+
+    private int _selectedLogId = -1;
+    private int _logIdCounter = 0;
+    private double _lastClickTime = 0;
+    private int _lastClickedLogId = -1;
+    private const double DoubleClickThreshold = 0.5; 
+
     public LogType Filter
     {
         get => _filter;
@@ -45,6 +54,8 @@ public class ImGUILogger : ILogger
             _filter = value;
         }
     }
+
+    public event Action<string>? OnLogDoubleClick;
 
     public bool IsOpen = true;
 
@@ -74,7 +85,7 @@ public class ImGUILogger : ILogger
 
     private void EnqueueLog(LogType type, string message)
     {
-        LogInfo logInfo = new LogInfo(type, message);
+        LogInfo logInfo = new LogInfo(type, message, _logIdCounter++);
         _logQueue.Enqueue(logInfo);
         TrimLogQueue();
     }
@@ -152,9 +163,31 @@ public class ImGUILogger : ILogger
             _stringBuilder.Append(GetLogTypeString(log.Type));
             _stringBuilder.Append("] ");
             _stringBuilder.Append(log.Message);
-            
-            // Display with color
-            ImGui.TextColored(color, _stringBuilder.AsReadOnlySpan());
+
+            ImGui.PushStyleColor(ImGuiCol.Text, color);
+
+            bool isSelected = _selectedLogId == log.Id;
+            string logText = _stringBuilder.AsReadOnlySpan().ToString();
+
+            ImGui.PushID(log.Id);
+            if (ImGui.Selectable(logText, isSelected))
+            {
+                _selectedLogId = log.Id;
+
+                // 检测双击
+                double currentTime = ImGui.GetTime();
+                if (_lastClickedLogId == log.Id && (currentTime - _lastClickTime) < DoubleClickThreshold)
+                {
+                    // 双击事件
+                    OnLogDoubleClick?.Invoke(log.Message);
+                }
+
+                _lastClickedLogId = log.Id;
+                _lastClickTime = currentTime;
+            }
+
+            ImGui.PopID();
+            ImGui.PopStyleColor();
         }
 
         // Auto-scroll to bottom
@@ -182,6 +215,9 @@ public class ImGUILogger : ILogger
         {
             // Clear all entries
         }
+        
+        _selectedLogId = -1;
+        _lastClickedLogId = -1;
     }
 
     private static Vector4 GetLogColor(LogType type)

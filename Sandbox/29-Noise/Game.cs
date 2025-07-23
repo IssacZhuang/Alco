@@ -87,6 +87,10 @@ public class Game : GameEngine
         GenerateNoise();
 
         _logger = new ImGUILogger();
+        _logger.OnLogDoubleClick += (str) =>
+        {
+            Input.CopyToClipboard(str);
+        };
         Log.Logger = _logger;
     }
 
