@@ -56,19 +56,19 @@ public class Bloom : PostProcess
     public float Threshold
     {
         get => _threshold;
-        set => _threshold = value;
+        set => _threshold = Math.Max(value, 0.0f); 
     }
 
     public float Spread
     {
         get => _spread;
-        set => _spread = value;
+        set => _spread = Math.Max(value, 0.0001f); 
     }
 
     public float Intensity
     {
         get => _intensity;
-        set => _intensity = value;
+        set => _intensity = Math.Max(value, 0.0f); 
     }
 
     /// <summary>
