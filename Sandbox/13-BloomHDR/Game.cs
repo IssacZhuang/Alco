@@ -20,7 +20,7 @@ public class Game : GameEngine
     private readonly Shader _spriteShader;
     private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _renderer;
-    private float _intensity = 3;
+    private float _intensity = 2;
     private bool _enabled = true;
 
     private BloomSystem? _bloomSystem;
