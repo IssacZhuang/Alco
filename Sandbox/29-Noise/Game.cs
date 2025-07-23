@@ -26,6 +26,8 @@ public class Game : GameEngine
     // Parallel noise generation
     private NoiseGenerationTask _noiseTask;
 
+    private ImGUILogger _logger;
+
     /// <summary>
     /// Parallel noise generation task that extends ReuseableBatchTask2D for optimized performance.
     /// </summary>
@@ -83,6 +85,9 @@ public class Game : GameEngine
 
         // Generate initial noise
         GenerateNoise();
+
+        _logger = new ImGUILogger();
+        Log.Logger = _logger;
     }
 
     protected override void OnUpdate(float delta)
@@ -90,6 +95,11 @@ public class Game : GameEngine
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
+        }
+
+        if (Input.IsKeyDown(KeyCode.F11))
+        {
+            _logger.IsOpen = !_logger.IsOpen;
         }
 
         // Update noise if needed
@@ -100,6 +110,8 @@ public class Game : GameEngine
         }
 
         RenderImGUIContent();
+
+        _logger.Draw();
     }
 
     // UpdateNoiseSettings method removed - settings are now applied directly via properties
