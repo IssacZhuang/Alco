@@ -54,8 +54,6 @@ public partial class BuiltInAssets
 
     public Shader Shader_Text => GetShader("Shaders/Pipelines/Rendering/Text/Text.hlsl");
 
-    public Shader Shader_TextMasked => GetShader("Shaders/Pipelines/Rendering/Text/TextMasked.hlsl");
-
     public Shader Shader_TileConnectable => GetShader("Shaders/Pipelines/Rendering/TileMap/TileConnectable.hlsl");
 
     public Shader Shader_TileInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl");
