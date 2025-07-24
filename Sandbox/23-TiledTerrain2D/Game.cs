@@ -123,7 +123,7 @@ public class Game : GameEngine
 
 
         _waterBlock = RenderingSystem.CreateTileRenderer(_renderer, _waterTileSet, width, height, "water_block");
-        _waterBlock.SetAllTiles(1);
+        // _waterBlock.SetAllTiles(1);
         _waterBlock.Transform.Position = new Vector3(0, -0.1f, 0.1f);
 
 
@@ -409,14 +409,13 @@ public class Game : GameEngine
         Material waterMaterial = _waterMaterial.CreateInstance();
         waterMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         var item2 = new TileItem("water", waterMaterial, 1, null);
+        item2.Color = new ColorFloat(0.25f, 0.64f, 0.87f, 0.8f);
+        item2.BlendFactor = 0.25f;
 
-        Material water2Material = _waterMaterial.CreateInstance();
-        water2Material.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
-        var item3 = new TileItem("water2", water2Material, 2, null);
 
         items.Add(item1);
         items.Add(item2);
-        items.Add(item3);
+
 
         return new TileSet(items.ToArray());
     }

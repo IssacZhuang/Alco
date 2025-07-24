@@ -129,7 +129,7 @@ float4 PixelMain(V2F input)
     float2 uvOverflow = abs(uv - clamp(uv, 0.0, 1.0));
     float maxOverflow = max(uvOverflow.x, uvOverflow.y);
     float alpha = 1.0;
-    if (maxOverflow > 0.0)
+    if (blendFactor > 0.0)
     {
         alpha = 1.0 - saturate(maxOverflow / blendFactor);
     }
