@@ -217,7 +217,7 @@ public class ConnectableTileBlock2D : AutoDisposable
                     Color = Vector4.One,
                     UvRect = uvRect,
                     Size = tile.Size,
-                    Offset = new Vector2(info.X - halfWidth, -info.Y + halfHeight) + tile.Offset
+                    Offset = new Vector2(info.X, info.Y) + tile.Offset
                 };
                 _subRenderContext.DrawWithConstant(_mesh, tile.Material, constant);
             }
@@ -257,11 +257,11 @@ public class ConnectableTileBlock2D : AutoDisposable
         {
             direction |= ConnectDirection.Left;
         }
-        if (_tileData.TryGet(x, y - 1, out _))
+        if (_tileData.TryGet(x, y + 1, out _))
         {
             direction |= ConnectDirection.Up;
         }
-        if (_tileData.TryGet(x, y + 1, out _))
+        if (_tileData.TryGet(x, y - 1, out _))
         {
             direction |= ConnectDirection.Down;
         }

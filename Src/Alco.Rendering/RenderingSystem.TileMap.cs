@@ -9,18 +9,6 @@ namespace Alco.Rendering;
 public partial class RenderingSystem
 {
     /// <summary>
-    /// Creates a height buffer for tile maps to store elevation data.
-    /// </summary>
-    /// <param name="width">Width of the height buffer in pixels.</param>
-    /// <param name="height">Height of the height buffer in pixels.</param>
-    /// <param name="name">Optional name for the height buffer (default: "tile_map_height_buffer").</param>
-    /// <returns>A new TileMapHeightBuffer instance.</returns>
-    public TileMapHeightBuffer CreateTileMapHeightBuffer(int width, int height, string name = "tile_map_height_buffer")
-    {
-        return new TileMapHeightBuffer(this, width, height, name);
-    }
-
-    /// <summary>
     /// Creates a flood fill light map for tile-based lighting calculations.
     /// </summary>
     /// <param name="material">Compute material used for the lighting calculations.</param>

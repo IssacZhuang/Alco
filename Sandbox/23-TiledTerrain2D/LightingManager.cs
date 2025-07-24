@@ -52,7 +52,7 @@ public class LightingManager : AutoDisposable
     /// <param name="heightBuffer">The height buffer for terrain elevation data.</param>
     /// <param name="width">Width of the light map.</param>
     /// <param name="height">Height of the light map.</param>
-    public LightingManager(GameEngine engine, TileMapHeightBuffer heightBuffer, int width, int height)
+    public LightingManager(GameEngine engine, int width, int height)
     {
         RenderingSystem rendering = engine.RenderingSystem;
         BuiltInAssets builtInAssets = engine.BuiltInAssets;
@@ -61,8 +61,7 @@ public class LightingManager : AutoDisposable
         _graphicsDevice = rendering.GraphicsDevice;
 
         // Create compute material for lighting
-        ComputeMaterial computeMaterial = rendering.CreateComputeMaterial(builtInAssets.Shader_TileLighting);
-        computeMaterial.SetBuffer(ShaderResourceId.HeightData, heightBuffer);
+        ComputeMaterial computeMaterial = rendering.CreateComputeMaterial(builtInAssets.Shader_FloodFillLighting);
         _lightMap = rendering.CreateTileLightMap(computeMaterial, width, height);
 
         // Create Gaussian blur
