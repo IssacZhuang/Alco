@@ -189,4 +189,32 @@ public partial class Noise
         get => mDomainWarpAmp;
         set => SetDomainWarpAmp(value);
     }
+
+    /// <summary>
+    /// Creates a deep copy of this Noise instance with all the same configuration settings
+    /// </summary>
+    /// <returns>A new Noise instance with identical configuration</returns>
+    public Noise Clone()
+    {
+        var clone = new Noise(this.Seed)
+        {
+            // Copy all configuration properties
+            Frequency = this.Frequency,
+            NoiseType = this.NoiseType,
+            RotationType3D = this.RotationType3D,
+            FractalType = this.FractalType,
+            FractalOctaves = this.FractalOctaves,
+            FractalLacunarity = this.FractalLacunarity,
+            FractalGain = this.FractalGain,
+            FractalWeightedStrength = this.FractalWeightedStrength,
+            FractalPingPongStrength = this.FractalPingPongStrength,
+            CellularDistanceFunction = this.CellularDistanceFunction,
+            CellularReturnType = this.CellularReturnType,
+            CellularJitter = this.CellularJitter,
+            DomainWarpType = this.DomainWarpType,
+            DomainWarpAmp = this.DomainWarpAmp
+        };
+
+        return clone;
+    }
 }
