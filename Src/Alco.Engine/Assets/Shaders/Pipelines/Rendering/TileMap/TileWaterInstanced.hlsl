@@ -179,5 +179,19 @@ float4 PixelMain(V2F input)
     float t = noise - shimmerThreshold - sinT;
     color.rgb = lerp(color.rgb, color.rgb *2, clamp(sign(t), 0, 1));
 
+    noiseState.seed = 111;
+    // Create ripple coordinates with time animation
+    float2 rippleCoord = float2(
+        worldPos.x + time ,
+        worldPos.y + time
+    );
+
+    // Sample cellular noise for ripples
+    float ripples = fnlGetNoise2D(noiseState, rippleCoord.x, rippleCoord.y);
+
+    ripples = (ripples + 1) * 0.1;
+
+    color.rgb *=(1+ripples);
+
     return color;
 }
