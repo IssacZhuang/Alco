@@ -11,7 +11,7 @@ namespace Alco
             
         }
 
-        public CurveLinear2D(IReadOnlyList<CurvePoint2> points) : base(points)
+        public CurveLinear2D(IReadOnlyList<CurvePoint2Value> points) : base(points)
         {
             
         }

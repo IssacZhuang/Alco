@@ -8,7 +8,7 @@ namespace Alco
 {
     public class CurveCache2D : ICurve2D
     {
-        private CurvePoint2[] _points;
+        private CurvePoint2Value[] _points;
         private readonly float _step = ConstCurve.DefaultStep;
 
         public int PointsCount
@@ -19,7 +19,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint2> Points
+        public IReadOnlyList<CurvePoint2Value> Points
         {
             get
             {
@@ -36,7 +36,7 @@ namespace Alco
             _points = CacheCurve(curve, step);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint2> points)
+        public void SetPoints(IReadOnlyList<CurvePoint2Value> points)
         {
             //default use linear
             ICurve2D curve = new CurveLinear2D(points);
@@ -66,21 +66,21 @@ namespace Alco
             return math.lerp(v1, v2, (t - t1) / _step);
         }
 
-        public static CurvePoint2[] CacheCurve(ICurve2D curve, float step)
+        public static CurvePoint2Value[] CacheCurve(ICurve2D curve, float step)
         {
             if (curve == null) throw new ArgumentNullException(nameof(curve));
 
             int count = (int)math.floor((curve.Points[curve.PointsCount - 1].Time - curve.Points[0].Time) / step) + 2;
 
-            CurvePoint2[] points = new CurvePoint2[count];
+            CurvePoint2Value[] points = new CurvePoint2Value[count];
             Parallel.For(0, count - 1, (i) =>
             {
                 float t = curve.Points[0].Time + i * step;
                 Vector2 value = curve.Evaluate(t);
 
-                points[i] = new CurvePoint2(t, value);
+                points[i] = new CurvePoint2Value(t, value);
             });
-            points[count - 1] = new CurvePoint2(curve.Points[curve.PointsCount - 1].Time, curve.Points[curve.PointsCount - 1].Value);
+            points[count - 1] = new CurvePoint2Value(curve.Points[curve.PointsCount - 1].Time, curve.Points[curve.PointsCount - 1].Value);
 
             return points;
         }

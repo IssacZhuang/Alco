@@ -7,7 +7,7 @@ namespace Alco
 {
     public class BaseCurve2D<T> : ICurve2D where T : ICurve, new()
     {
-        private readonly List<CurvePoint2> _points = new List<CurvePoint2>();
+        private readonly List<CurvePoint2Value> _points = new List<CurvePoint2Value>();
 
         private T _curveX;
         private T _curveY;
@@ -20,7 +20,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint2> Points
+        public IReadOnlyList<CurvePoint2Value> Points
         {
             get
             {
@@ -34,7 +34,7 @@ namespace Alco
             _curveY = new T();
         }
 
-        public BaseCurve2D(IReadOnlyList<CurvePoint2> points)
+        public BaseCurve2D(IReadOnlyList<CurvePoint2Value> points)
         {
             _curveX = new T();
             _curveY = new T();
@@ -42,7 +42,7 @@ namespace Alco
             SetPoints(points);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint2> points)
+        public void SetPoints(IReadOnlyList<CurvePoint2Value> points)
         {
             if (points == null)
             {
@@ -51,14 +51,14 @@ namespace Alco
 
             _points.Clear();
 
-            List<CurvePoint> xPoints = new List<CurvePoint>();
-            List<CurvePoint> yPoints = new List<CurvePoint>();
+            List<CurvePointValue> xPoints = new List<CurvePointValue>();
+            List<CurvePointValue> yPoints = new List<CurvePointValue>();
 
             for (int i = 0; i < points.Count; i++)
             {
                 _points.Add(points[i]);
-                xPoints.Add(new CurvePoint(points[i].Time, points[i].Value.X));
-                yPoints.Add(new CurvePoint(points[i].Time, points[i].Value.Y));
+                xPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.X));
+                yPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.Y));
             }
 
             _curveX.SetPoints(xPoints);
