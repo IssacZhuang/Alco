@@ -20,6 +20,33 @@ float GetLightPassingFactor(uint2 pos) {
     return 1;
 }
 
+// float4 AdjustLuminance(float4 color, float attenuation) {
+//     float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+//     float newLuminance = max(0, luminance - attenuation);
+
+//     // Avoid division by zero and improve numerical stability
+//     if (luminance < 1e-6) {
+//         return float4(0, 0, 0, color.a);
+//     }
+
+//     float scale = newLuminance / luminance;
+//     return float4(color.rgb * scale, color.a);
+// }
+
+// Alternative 1: Exponential decay (more physically accurate)
+float4 AdjustLuminanceExponential(float4 color, float attenuation) {
+    float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
+
+    if (luminance < 1e-6) {
+        return float4(0, 0, 0, color.a);
+    }
+
+    // Exponential decay: I = I0 * e^(-attenuation)
+    float scale = exp(-attenuation);
+    return float4(color.rgb * scale, color.a);
+}
+
+
 [shader("compute")]
 [numthreads(16, 16, 1)]
 void MainCS(uint3 id: SV_DispatchThreadID) {
@@ -40,14 +67,14 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     float attenuationCorner = constants.attenuationCorner;
 
     float4 color = _frontBuffer[id.xy];
-    color = max(color, colors[0] - attenuationSide);
-    color = max(color, colors[1] - attenuationSide);
-    color = max(color, colors[2] - attenuationSide);
-    color = max(color, colors[3] - attenuationSide);
-    color = max(color, colors[4] - attenuationCorner);
-    color = max(color, colors[5] - attenuationCorner);
-    color = max(color, colors[6] - attenuationCorner);
-    color = max(color, colors[7] - attenuationCorner);
+    color = max(color, AdjustLuminanceExponential(colors[0], attenuationSide));
+    color = max(color, AdjustLuminanceExponential(colors[1], attenuationSide));
+    color = max(color, AdjustLuminanceExponential(colors[2], attenuationSide));
+    color = max(color, AdjustLuminanceExponential(colors[3], attenuationSide));
+    color = max(color, AdjustLuminanceExponential(colors[4], attenuationCorner));
+    color = max(color, AdjustLuminanceExponential(colors[5], attenuationCorner));
+    color = max(color, AdjustLuminanceExponential(colors[6], attenuationCorner));
+    color = max(color, AdjustLuminanceExponential(colors[7], attenuationCorner));
 
     float4 opacity = _opacityMap[id.xy];
     color = color * opacity;
