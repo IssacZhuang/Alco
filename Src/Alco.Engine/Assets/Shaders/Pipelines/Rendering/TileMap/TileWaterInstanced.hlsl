@@ -1,4 +1,6 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Libs/GlobalRenderData.hlsli"
+#include "Shaders/Libs/Noise.hlsli"
 #include "Shaders/Libs/TextureBombing.hlsli"
 
 struct Constants
@@ -41,6 +43,10 @@ DEFINE_TEX2D_SAMPLE(1, _texture);
 DEFINE_STORAGE(2, TileData, _instances);
 
 DEFINE_STORAGE(3, int, _tileMap);
+
+DEFINE_UNIFORM(4, _globalRenderData) {
+    GlobalRenderData _globalRenderData;
+}
 
 PUSH_CONSTANT Constants constants;
 
@@ -136,9 +142,42 @@ float4 PixelMain(V2F input)
         float t = saturate(maxOverflow / blendFactor);
         alpha = 1.0 - t;
         color.a *= alpha;
-        //lerp to white
-        //color.rgb = lerp(color.rgb, float3(1.0, 1.0, 1.0), t);
     }
+
+    // Shimmering water effect - use sin and time as noise coordinates
+    float time = _globalRenderData.time;
+    float2 worldPos = input.worldPos;
+
+    // Create noise state for FastNoiseLite
+    fnl_state noiseState = fnlCreateState(12345);
+    noiseState.frequency = 0.05;
+
+    float scale = 30;
+
+    // Generate noise coordinates using sin functions and time
+    float2 noiseCoord = float2(
+        worldPos.x * scale,
+        worldPos.y * scale
+    );
+
+    // Sample noise using the generated coordinates
+    float noise = fnlGetNoise2D(noiseState, noiseCoord.x, noiseCoord.y);
+
+    // Normalize to 0-1 range
+    noise = (noise + 1.0) * 0.5;
+
+    // Set threshold for shimmer effect
+    float shimmerThreshold = 0.92;
+
+    float speed = 8;
+
+    noiseState.seed = 437;
+    float noise2 = fnlGetNoise2D(noiseState, noiseCoord.x * 0.2 - time * speed , noiseCoord.y*2 );
+
+    float sinT = (noise2 +1)*0.2;
+
+    float t = noise - shimmerThreshold - sinT;
+    color.rgb = lerp(color.rgb, color.rgb *2, clamp(sign(t), 0, 1));
 
     return color;
 }

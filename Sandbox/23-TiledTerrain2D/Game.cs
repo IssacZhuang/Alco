@@ -319,7 +319,7 @@ public class Game : GameEngine
         Material waterMaterial = _waterMaterial.CreateInstance();
         waterMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         var item4 = new TileItem("water", waterMaterial, 1, null);
-        item4.Color = new ColorFloat(0.25f, 0.64f, 0.87f, 0.8f);
+        item4.Color = new ColorFloat(0.15f, 0.54f, 0.67f, 0.8f);
         item4.BlendFactor = 0.35f;
 
         items.Add(item1);
