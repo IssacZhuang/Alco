@@ -150,14 +150,14 @@ public class Game : GameEngine
         if (ImGui.CollapsingHeader("Basic Parameters", ImGuiTreeNodeFlags.DefaultOpen))
         {
             int seed = _noise.Seed;
-            if (ImGui.SliderInt("Seed", ref seed, 0, 10000))
+            if (ImGui.InputInt("Seed", ref seed, 0, 10000))
             {
                 _noise.Seed = seed;
                 _needsUpdate = true;
             }
 
             float frequency = _noise.Frequency;
-            if (ImGui.SliderFloat("Frequency", ref frequency, 0.001f, 0.1f, "%.4f"))
+            if (ImGui.InputFloat("Frequency", ref frequency, 0.01f, 0.1f, "%.4f"))
             {
                 _noise.Frequency = frequency;
                 _needsUpdate = true;

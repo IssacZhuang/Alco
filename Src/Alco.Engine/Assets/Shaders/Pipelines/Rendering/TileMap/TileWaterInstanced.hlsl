@@ -150,7 +150,7 @@ float4 PixelMain(V2F input)
 
     // Create noise state for FastNoiseLite
     fnl_state noiseState = fnlCreateState(12345);
-    noiseState.frequency = 0.04;
+    noiseState.frequency = 0.03;
 
     float scale = 30;
 
@@ -169,15 +169,16 @@ float4 PixelMain(V2F input)
     // Set threshold for shimmer effect
     float shimmerThreshold = 0.88;
 
-    float speed = 4;
+    float speed = 12;
 
     noiseState.seed = 437;
-    float noise2 = fnlGetNoise2D(noiseState, noiseCoord.x * 0.5 - time * speed, noiseCoord.y * 0.5 );
+    float noise2 = fnlGetNoise2D(noiseState, noiseCoord.x * 0.5 - time * speed, noiseCoord.y * 7 );
 
     float sinT = (noise2 +1)*0.2;
 
     float t = noise - shimmerThreshold - sinT;
-    color.rgb = lerp(color.rgb, color.rgb *1.5, clamp(sign(t), 0, 1));
+    t = max(0, t) / (1-shimmerThreshold);
+    color.rgb = lerp(color.rgb, color.rgb *1.5, t);
 
     noiseState.seed = 111;
     // Create ripple coordinates with time animation
@@ -187,11 +188,11 @@ float4 PixelMain(V2F input)
     );
 
     // Sample cellular noise for ripples
-    float ripples = fnlGetNoise2D(noiseState, rippleCoord.x, rippleCoord.y);
+    // float ripples = fnlGetNoise2D(noiseState, rippleCoord.x, rippleCoord.y);
 
-    ripples = (ripples + 1) * 0.1;
+    // ripples = (ripples + 1) * 0.1;
 
-    color.rgb *=(1-ripples);
+    // color.rgb *=(1-ripples);
 
     return color;
 }
