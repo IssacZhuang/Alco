@@ -11,7 +11,7 @@ namespace Alco
 
         }
 
-        public CurveLinear4D(IReadOnlyList<CurvePoint4Value> points) : base(points)
+        public CurveLinear4D(ReadOnlySpan<CurvePoint4Value> points) : base(points)
         {
 
         }

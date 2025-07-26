@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Buffers;
 
 
 namespace Alco
@@ -34,7 +35,7 @@ namespace Alco
             _curveY = new T();
         }
 
-        public BaseCurve2D(IReadOnlyList<CurvePoint2Value> points)
+        public BaseCurve2D(ReadOnlySpan<CurvePoint2Value> points)
         {
             _curveX = new T();
             _curveY = new T();
@@ -42,27 +43,27 @@ namespace Alco
             SetPoints(points);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint2Value> points)
+        public void SetPoints(ReadOnlySpan<CurvePoint2Value> points)
         {
-            if (points == null)
-            {
-                throw ExceptionCurve.NullOrEmptyPoints("points");
-            }
-
             _points.Clear();
 
-            List<CurvePointValue> xPoints = new List<CurvePointValue>();
-            List<CurvePointValue> yPoints = new List<CurvePointValue>();
+            int length = points.Length;
 
-            for (int i = 0; i < points.Count; i++)
+            CurvePointValue[] xPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+            CurvePointValue[] yPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+
+            for (int i = 0; i < length; i++)
             {
                 _points.Add(points[i]);
-                xPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.X));
-                yPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.Y));
+                xPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.X);
+                yPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Y);
             }
 
-            _curveX.SetPoints(xPoints);
-            _curveY.SetPoints(yPoints);
+            _curveX.SetPoints(xPoints.AsSpan(0, length));
+            _curveY.SetPoints(yPoints.AsSpan(0, length));
+
+            ArrayPool<CurvePointValue>.Shared.Return(xPoints);
+            ArrayPool<CurvePointValue>.Shared.Return(yPoints);
         }
 
         public Vector2 Evaluate(float t)

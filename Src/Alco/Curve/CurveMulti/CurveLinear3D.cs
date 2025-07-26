@@ -11,7 +11,7 @@ namespace Alco
 
         }
 
-        public CurveLinear3D(IReadOnlyList<CurvePoint3Value> points) : base(points)
+        public CurveLinear3D(ReadOnlySpan<CurvePoint3Value> points) : base(points)
         {
 
         }

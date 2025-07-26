@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Buffers;
 
 
 
@@ -8,7 +9,7 @@ namespace Alco
 {
     public class BaseCurve4D<T>:ICurve4D where T: ICurve, new()
     {
-        private List<CurvePoint4Value> _points = new List<CurvePoint4Value>();
+        private readonly List<CurvePoint4Value> _points = new List<CurvePoint4Value>();
 
         private T _curveX;
         private T _curveY;
@@ -39,7 +40,7 @@ namespace Alco
             _curveW = new T();
         }
 
-        public BaseCurve4D(IReadOnlyList<CurvePoint4Value> points)
+        public BaseCurve4D(ReadOnlySpan<CurvePoint4Value> points)
         {
             _curveX = new T();
             _curveY = new T();
@@ -49,32 +50,35 @@ namespace Alco
             SetPoints(points);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint4Value> points)
+        public void SetPoints(ReadOnlySpan<CurvePoint4Value> points)
         {
-            if (points == null)
-            {
-                throw ExceptionCurve.NullOrEmptyPoints("points");
-            }
-
             _points.Clear();
 
-            List<CurvePointValue> xPoints = new List<CurvePointValue>();
-            List<CurvePointValue> yPoints = new List<CurvePointValue>();
-            List<CurvePointValue> zPoints = new List<CurvePointValue>();
-            List<CurvePointValue> wPoints = new List<CurvePointValue>();
+            int length = points.Length;
 
-            for (int i = 0; i < points.Count; i++)
+            CurvePointValue[] xPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+            CurvePointValue[] yPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+            CurvePointValue[] zPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+            CurvePointValue[] wPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+
+            for (int i = 0; i < length; i++)
             {
-                xPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.X));
-                yPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.Y));
-                zPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.Z));
-                wPoints.Add(new CurvePointValue(points[i].Time, points[i].Value.W));
+                _points.Add(points[i]);
+                xPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.X);
+                yPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Y);
+                zPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Z);
+                wPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.W);
             }
 
-            _curveX.SetPoints(xPoints);
-            _curveY.SetPoints(yPoints);
-            _curveZ.SetPoints(zPoints);
-            _curveW.SetPoints(wPoints);
+            _curveX.SetPoints(xPoints.AsSpan(0, length));
+            _curveY.SetPoints(yPoints.AsSpan(0, length));
+            _curveZ.SetPoints(zPoints.AsSpan(0, length));
+            _curveW.SetPoints(wPoints.AsSpan(0, length));
+
+            ArrayPool<CurvePointValue>.Shared.Return(xPoints);
+            ArrayPool<CurvePointValue>.Shared.Return(yPoints);
+            ArrayPool<CurvePointValue>.Shared.Return(zPoints);
+            ArrayPool<CurvePointValue>.Shared.Return(wPoints);
         }
 
         public Vector4 Evaluate(float t)

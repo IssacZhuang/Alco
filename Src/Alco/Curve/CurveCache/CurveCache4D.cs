@@ -36,7 +36,7 @@ namespace Alco
             _points = CacheCurve(curve, step);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint4Value> points)
+        public void SetPoints(ReadOnlySpan<CurvePoint4Value> points)
         {
             //default use linear
             ICurve4D curve = new CurveLinear4D(points);

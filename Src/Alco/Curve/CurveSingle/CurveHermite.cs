@@ -32,13 +32,8 @@ namespace Alco
 
         }
 
-        public CurveHermite(IReadOnlyList<CurvePointValue> points)
+        public CurveHermite(ReadOnlySpan<CurvePointValue> points)
         {
-            if (points == null)
-            {
-                throw ExceptionCurve.NullOrEmptyPoints("points");
-            }
-
             _points.AddRange(points);
           
             Sort();
@@ -70,7 +65,7 @@ namespace Alco
             CalculateSlopes(_slopes, _points);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePointValue> points)
+        public void SetPoints(ReadOnlySpan<CurvePointValue> points)
         {
             _points.Clear();
             _points.AddRange(points);

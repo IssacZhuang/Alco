@@ -12,7 +12,7 @@ namespace Alco
     {
         float Evaluate(float t);
         int PointsCount { get; }
-        void SetPoints(IReadOnlyList<CurvePointValue> points);
+        void SetPoints(ReadOnlySpan<CurvePointValue> points);
         IReadOnlyList<CurvePointValue> Points { get; }
     }
 
@@ -23,7 +23,7 @@ namespace Alco
     {
         Vector2 Evaluate(float t);
         int PointsCount { get; }
-        void SetPoints(IReadOnlyList<CurvePoint2Value> points);
+        void SetPoints(ReadOnlySpan<CurvePoint2Value> points);
         IReadOnlyList<CurvePoint2Value> Points { get; }
     }
 
@@ -34,7 +34,7 @@ namespace Alco
     {
         Vector3 Evaluate(float t);
         int PointsCount { get; }
-        void SetPoints(IReadOnlyList<CurvePoint3Value> points);
+        void SetPoints(ReadOnlySpan<CurvePoint3Value> points);
         IReadOnlyList<CurvePoint3Value> Points { get; }
     }
 
@@ -45,7 +45,7 @@ namespace Alco
     {
         Vector4 Evaluate(float t);
         int PointsCount { get; }
-        void SetPoints(IReadOnlyList<CurvePoint4Value> points);
+        void SetPoints(ReadOnlySpan<CurvePoint4Value> points);
         IReadOnlyList<CurvePoint4Value> Points { get; }
     }
 }

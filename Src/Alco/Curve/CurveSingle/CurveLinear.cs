@@ -54,12 +54,8 @@ namespace Alco
             Sort();
         }
 
-        public CurveLinear(IReadOnlyList<CurvePointValue> points)
+        public CurveLinear(ReadOnlySpan<CurvePointValue> points)
         {
-            if (points == null)
-            {
-                throw ExceptionCurve.NullOrEmptyPoints("points");
-            }
             _points.AddRange(points);
             Sort();
         }
@@ -76,7 +72,7 @@ namespace Alco
             }
         }
 
-        public void SetPoints(IReadOnlyList<CurvePointValue> points)
+        public void SetPoints(ReadOnlySpan<CurvePointValue> points)
         {
             _points.Clear();
             _points.AddRange(points);
