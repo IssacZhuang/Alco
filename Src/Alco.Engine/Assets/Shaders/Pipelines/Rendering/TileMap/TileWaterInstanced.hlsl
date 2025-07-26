@@ -167,7 +167,7 @@ float4 PixelMain(V2F input)
     noise = (noise + 1.0) * 0.5;
 
     // Set threshold for shimmer effect
-    float shimmerThreshold = 0.88;
+    float shimmerThreshold = 0.91;
 
     float speed = 12;
 
@@ -178,7 +178,7 @@ float4 PixelMain(V2F input)
 
     float t = noise - shimmerThreshold - sinT;
     t = max(0, t) / (1-shimmerThreshold);
-    color.rgb = lerp(color.rgb, color.rgb *1.5, t);
+    color.rgb = lerp(color.rgb, color.rgb *2, t);
 
     noiseState.seed = 111;
     // Create ripple coordinates with time animation
