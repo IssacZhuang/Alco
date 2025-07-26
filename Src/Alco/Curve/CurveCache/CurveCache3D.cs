@@ -43,6 +43,17 @@ namespace Alco
             _points = CacheCurve(curve, _step);
         }
 
+        public void SetPoints(IReadOnlyList<CurvePoint3Value> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
+            //default use linear
+            ICurve3D curve = new CurveLinear3D(points);
+            _points = CacheCurve(curve, _step);
+        }
 
 
         public Vector3 Evaluate(float t)

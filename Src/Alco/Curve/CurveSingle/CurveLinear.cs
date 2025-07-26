@@ -60,6 +60,17 @@ namespace Alco
             Sort();
         }
 
+        public CurveLinear(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
+            _points.AddRange(points);
+            Sort();
+        }
+
         public CurvePointValue this[int i]
         {
             get
@@ -74,6 +85,18 @@ namespace Alco
 
         public void SetPoints(ReadOnlySpan<CurvePointValue> points)
         {
+            _points.Clear();
+            _points.AddRange(points);
+            Sort();
+        }
+
+        public void SetPoints(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
             _points.Clear();
             _points.AddRange(points);
             Sort();

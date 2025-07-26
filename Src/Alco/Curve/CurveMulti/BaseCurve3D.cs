@@ -46,31 +46,84 @@ namespace Alco
             SetPoints(points);
         }
 
+        public BaseCurve3D(IReadOnlyList<CurvePoint3Value> points)
+        {
+            _curveX = new T();
+            _curveY = new T();
+            _curveZ = new T();
+
+            SetPoints(points);
+        }
+
         public void SetPoints(ReadOnlySpan<CurvePoint3Value> points)
         {
             _points.Clear();
 
             int length = points.Length;
 
-            CurvePointValue[] xPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
-            CurvePointValue[] yPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
-            CurvePointValue[] zPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+            CurvePointValue[] tempPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
 
+            // Process X coordinates
             for (int i = 0; i < length; i++)
             {
                 _points.Add(points[i]);
-                xPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.X);
-                yPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Y);
-                zPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Z);
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.X);
+            }
+            _curveX.SetPoints(tempPoints.AsSpan(0, length));
+
+            // Process Y coordinates
+            for (int i = 0; i < length; i++)
+            {
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Y);
+            }
+            _curveY.SetPoints(tempPoints.AsSpan(0, length));
+
+            // Process Z coordinates
+            for (int i = 0; i < length; i++)
+            {
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Z);
+            }
+            _curveZ.SetPoints(tempPoints.AsSpan(0, length));
+
+            ArrayPool<CurvePointValue>.Shared.Return(tempPoints);
+        }
+
+        public void SetPoints(IReadOnlyList<CurvePoint3Value> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
             }
 
-            _curveX.SetPoints(xPoints.AsSpan(0, length));
-            _curveY.SetPoints(yPoints.AsSpan(0, length));
-            _curveZ.SetPoints(zPoints.AsSpan(0, length));
+            _points.Clear();
 
-            ArrayPool<CurvePointValue>.Shared.Return(xPoints);
-            ArrayPool<CurvePointValue>.Shared.Return(yPoints);
-            ArrayPool<CurvePointValue>.Shared.Return(zPoints);
+            int length = points.Count;
+
+            CurvePointValue[] tempPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+
+            // Process X coordinates
+            for (int i = 0; i < length; i++)
+            {
+                _points.Add(points[i]);
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.X);
+            }
+            _curveX.SetPoints(tempPoints.AsSpan(0, length));
+
+            // Process Y coordinates
+            for (int i = 0; i < length; i++)
+            {
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Y);
+            }
+            _curveY.SetPoints(tempPoints.AsSpan(0, length));
+
+            // Process Z coordinates
+            for (int i = 0; i < length; i++)
+            {
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Z);
+            }
+            _curveZ.SetPoints(tempPoints.AsSpan(0, length));
+
+            ArrayPool<CurvePointValue>.Shared.Return(tempPoints);
         }
 
         public Vector3 Evaluate(float t)

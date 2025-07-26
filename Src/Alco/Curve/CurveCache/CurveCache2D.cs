@@ -43,6 +43,17 @@ namespace Alco
             _points = CacheCurve(curve, _step);
         }
 
+        public void SetPoints(IReadOnlyList<CurvePoint2Value> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
+            //default use linear
+            ICurve2D curve = new CurveLinear2D(points);
+            _points = CacheCurve(curve, _step);
+        }
 
 
         public Vector2 Evaluate(float t)

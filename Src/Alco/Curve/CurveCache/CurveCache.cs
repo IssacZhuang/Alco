@@ -43,6 +43,18 @@ namespace Alco
             _points = CacheCurve(curve, _step);
         }
 
+        public void SetPoints(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
+            //default use linear
+            ICurve curve = new CurveLinear(points);
+            _points = CacheCurve(curve, _step);
+        }
+
         public float Evaluate(float t)
         {
 

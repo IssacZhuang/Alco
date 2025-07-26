@@ -40,6 +40,19 @@ namespace Alco
             CalculateSlopes(_slopes, _points);
         }
 
+        public CurveHermite(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
+            _points.AddRange(points);
+
+            Sort();
+            CalculateSlopes(_slopes, _points);
+        }
+
         public CurveHermite(float[] t, float[] value)
         {
             if (t == null)
@@ -67,6 +80,19 @@ namespace Alco
 
         public void SetPoints(ReadOnlySpan<CurvePointValue> points)
         {
+            _points.Clear();
+            _points.AddRange(points);
+            Sort();
+            CalculateSlopes(_slopes, _points);
+        }
+
+        public void SetPoints(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
             _points.Clear();
             _points.AddRange(points);
             Sort();

@@ -15,6 +15,11 @@ namespace Alco
         {
 
         }
+
+        public CurveLinear4D(IReadOnlyList<CurvePoint4Value> points) : base(points)
+        {
+
+        }
     }
 }
 
