@@ -97,14 +97,8 @@ public struct CurvePoint4Value : IComparable<CurvePoint4Value>, ISortable
 /// </summary>
 public class CurvePoint
 {
-    public float Time;
-    public float Value;
-
-    public CurvePoint(float t, float value)
-    {
-        this.Time = t;
-        this.Value = value;
-    }
+    public float Time { get; set; }
+    public float Value { get; set; }
 
     public static implicit operator CurvePointValue(CurvePoint point)
     {
@@ -117,14 +111,9 @@ public class CurvePoint
 /// </summary>
 public class CurvePoint2
 {
-    public float Time;
-    public Vector2 Value;
+    public float Time { get; set; }
+    public Vector2 Value { get; set; }
 
-    public CurvePoint2(float t, Vector2 value)
-    {
-        this.Time = t;
-        this.Value = value;
-    }
 
     public static implicit operator CurvePoint2Value(CurvePoint2 point)
     {
@@ -137,14 +126,9 @@ public class CurvePoint2
 /// </summary>
 public class CurvePoint3
 {
-    public float Time;
-    public Vector3 Value;
+    public float Time { get; set; }
+    public Vector3 Value { get; set; }
 
-    public CurvePoint3(float t, Vector3 value)
-    {
-        this.Time = t;
-        this.Value = value;
-    }
 
     public static implicit operator CurvePoint3Value(CurvePoint3 point)
     {
@@ -157,14 +141,8 @@ public class CurvePoint3
 /// </summary>
 public class CurvePoint4
 {
-    public float Time;
-    public Vector4 Value;
-
-    public CurvePoint4(float t, Vector4 value)
-    {
-        this.Time = t;
-        this.Value = value;
-    }
+    public float Time { get; set; }
+    public Vector4 Value { get; set; }
 
     public static implicit operator CurvePoint4Value(CurvePoint4 point)
     {
@@ -179,14 +157,8 @@ public class CurvePoint4
 /// </summary>
 public class CurvePointColor
 {
-    public float Time;
-    public ColorFloat Value;
-
-    public CurvePointColor(float t, ColorFloat value)
-    {
-        this.Time = t;
-        this.Value = value;
-    }
+    public float Time { get; set; }
+    public ColorFloat Value { get; set; }
 
     public static implicit operator CurvePoint4Value(CurvePointColor point)
     {
