@@ -131,7 +131,7 @@ float4 PixelMain(V2F input)
     float alpha = 1.0;
     if (blendFactor > 0.0 && maxOverflow > 0)
     {
-        float t = maxOverflow *(sin((input.worldPos.x + input.worldPos.y) * 10) * 0.2f + 0.8f);
+        float t = maxOverflow - (sin((input.worldPos.x *7 + input.worldPos.y *7) + 1) * 0.015);
         alpha = 1.0 - saturate(t / blendFactor);
         color.a *= alpha;
     }
