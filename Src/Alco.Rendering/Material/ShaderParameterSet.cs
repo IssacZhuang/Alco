@@ -104,23 +104,23 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.UniformBuffer)
         {
             slot.buffer = buffer;
-            _resourceGroups.Set(id, buffer.EntryReadonly);
+            _resourceGroups[id] = buffer.EntryReadonly;
             return true;
         }
         else if (slot.type == ResourceType.StorageBuffer)
         {
             slot.buffer = buffer;
-            _resourceGroups.Set(id, buffer.EntryReadWrite);
+            _resourceGroups[id] = buffer.EntryReadWrite;
             return true;
         }
         else if (slot.type == ResourceType.StorageBufferWithCounter)
         {
             slot.buffer = buffer;
-            _resourceGroups.Set(id, buffer.EntryReadWriteWithCounter);
+            _resourceGroups[id] = buffer.EntryReadWriteWithCounter;
             return true;
         }
 
@@ -154,21 +154,21 @@ public sealed class ShaderParameterSet
             throw new ArgumentOutOfRangeException(nameof(id), "The resource ID is out of range.");
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.UniformBuffer)
         {
             slot.buffer = buffer;
-            _resourceGroups.Set(id, buffer.EntryReadonly);
+            _resourceGroups[id] = buffer.EntryReadonly;
         }
         else if (slot.type == ResourceType.StorageBuffer)
         {
             slot.buffer = buffer;
-            _resourceGroups.Set(id, buffer.EntryReadWrite);
+            _resourceGroups[id] = buffer.EntryReadWrite;
         }
         else if (slot.type == ResourceType.StorageBufferWithCounter)
         {
             slot.buffer = buffer;
-            _resourceGroups.Set(id, buffer.EntryReadWriteWithCounter);
+            _resourceGroups[id] = buffer.EntryReadWriteWithCounter;
         }
         else
         {
@@ -213,7 +213,7 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer || slot.type == ResourceType.StorageBufferWithCounter)
         {
             buffer = slot.buffer;
@@ -251,7 +251,7 @@ public sealed class ShaderParameterSet
             return null;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer || slot.type == ResourceType.StorageBufferWithCounter)
         {
             return slot.buffer;
@@ -294,23 +294,23 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler)
         {
             slot.texture = texture;
-            _resourceGroups.Set(id, texture.EntrySample);
+            _resourceGroups[id] = texture.EntrySample;
             return true;
         }
         else if (slot.type == ResourceType.TextureStorage)
         {
             slot.texture = texture;
-            _resourceGroups.Set(id, texture.EntryWriteable);
+            _resourceGroups[id] = texture.EntryWriteable;
             return true;
         }
         else if (slot.type == ResourceType.TextureRead)
         {
             slot.texture = texture;
-            _resourceGroups.Set(id, texture.EntryReadonly);
+            _resourceGroups[id] = texture.EntryReadonly;
             return true;
         }
 
@@ -339,21 +339,21 @@ public sealed class ShaderParameterSet
             throw new ArgumentOutOfRangeException(nameof(id), "The resource ID is out of range.");
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler)
         {
             slot.texture = texture;
-            _resourceGroups.Set(id, texture.EntrySample);
+            _resourceGroups[id] = texture.EntrySample;
         }
         else if (slot.type == ResourceType.TextureStorage)
         {
             slot.texture = texture;
-            _resourceGroups.Set(id, texture.EntryWriteable);
+            _resourceGroups[id] = texture.EntryWriteable;
         }
         else if (slot.type == ResourceType.TextureRead)
         {
             slot.texture = texture;
-            _resourceGroups.Set(id, texture.EntryReadonly);
+            _resourceGroups[id] = texture.EntryReadonly;
         }
         else
         {
@@ -391,7 +391,7 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             texture = slot.texture;
@@ -429,7 +429,7 @@ public sealed class ShaderParameterSet
             return null;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             return slot.texture;
@@ -478,13 +478,13 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if(slot.type == ResourceType.TextureWithSampler)
         {
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntrySample);
+            _resourceGroups[id] = renderTexture.ColorTextures[index].EntrySample;
             return true;
         }
         else if (slot.type == ResourceType.TextureStorage)
@@ -492,7 +492,7 @@ public sealed class ShaderParameterSet
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryWriteable);
+            _resourceGroups[id] = renderTexture.ColorTextures[index].EntryWriteable;
             return true;
         }
         else if (slot.type == ResourceType.TextureRead)
@@ -500,7 +500,7 @@ public sealed class ShaderParameterSet
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryReadonly);
+            _resourceGroups[id] = renderTexture.ColorTextures[index].EntryReadonly;
             return true;
         }
 
@@ -543,27 +543,27 @@ public sealed class ShaderParameterSet
             throw new ArgumentOutOfRangeException(nameof(index), "The render texture index is out of range.");
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler)
         {
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntrySample);
+            _resourceGroups[id] = renderTexture.ColorTextures[index].EntrySample;
         }
         else if (slot.type == ResourceType.TextureStorage)
         {
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryWriteable);
+            _resourceGroups[id] = renderTexture.ColorTextures[index].EntryWriteable;
         }
         else if (slot.type == ResourceType.TextureRead)
         {
             slot.texture = null;
             slot.renderTexture = renderTexture;
             slot.renderTextureIndex = index;
-            _resourceGroups.Set(id, renderTexture.ColorTextures[index].EntryReadonly);
+            _resourceGroups[id] = renderTexture.ColorTextures[index].EntryReadonly;
         }
         else
         {
@@ -609,7 +609,7 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type != ResourceType.TextureWithSampler)
         {
             return false;
@@ -619,7 +619,7 @@ public sealed class ShaderParameterSet
         slot.texture = null;
         slot.renderTexture = renderTexture;
         slot.renderTextureIndex = RenderTextureIndexDepth;
-        _resourceGroups.Set(id, renderTexture.EntryDepthRead);
+        _resourceGroups[id] = renderTexture.EntryDepthRead;
 
         return true;
     }
@@ -656,7 +656,7 @@ public sealed class ShaderParameterSet
             throw new InvalidOperationException("The render texture does not have a depth attachment.");
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
 
         if (slot.type != ResourceType.TextureRead)
         {
@@ -666,7 +666,7 @@ public sealed class ShaderParameterSet
         slot.texture = null;
         slot.renderTexture = renderTexture;
         slot.renderTextureIndex = RenderTextureIndexDepth;
-        _resourceGroups.Set(id, renderTexture.EntryDepthRead);
+        _resourceGroups[id] = renderTexture.EntryDepthRead;
     }
 
     #endregion
@@ -704,7 +704,7 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             renderTexture = slot.renderTexture;
@@ -742,7 +742,7 @@ public sealed class ShaderParameterSet
             return null;
         }
 
-        ref Slot slot = ref _slots.GetRef(id);
+        ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
             return slot.renderTexture;
@@ -801,7 +801,7 @@ public sealed class ShaderParameterSet
         {
             for (int i = 0; i < _slots.Length; i++)
             {
-                ref Slot slot = ref _slots.GetRef(i);
+                ref Slot slot = ref _slots[i];
                 slot.buffer = null;
                 slot.texture = null;
                 slot.renderTexture = null;

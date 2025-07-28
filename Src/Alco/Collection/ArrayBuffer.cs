@@ -53,70 +53,16 @@ public class ArrayBuffer<T>
     }
 
     /// <summary>
-    /// Gets the element at the specified index.
+    /// Gets or sets the element at the specified index.
     /// </summary>
-    /// <param name="index">The zero-based index of the element to get.</param>
-    /// <returns>The element at the specified index.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public T Get(int index)
-    {
-        return _buffer[index];
-    }
-
-    /// <summary>
-    /// Gets the element at the specified index.
-    /// </summary>
-    /// <param name="index">The zero-based index of the element to get.</param>
-    /// <returns>The element at the specified index.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public T Get(uint index)
-    {
-        return _buffer[index];
-    }
-
-    /// <summary>
-    /// Gets a reference to the element at the specified index.
-    /// </summary>
-    /// <param name="index">The zero-based index of the element to get.</param>
+    /// <param name="index">The zero-based index of the element to get or set.</param>
     /// <returns>A reference to the element at the specified index.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref T GetRef(int index)
+    public ref T this[uint index]
     {
-        return ref _buffer[index];
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => ref _buffer[index];
     }
 
-    /// <summary>
-    /// Gets a reference to the element at the specified index.
-    /// </summary>
-    /// <param name="index">The zero-based index of the element to get.</param>
-    /// <returns>A reference to the element at the specified index.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref T GetRef(uint index)
-    {
-        return ref _buffer[index];
-    }
-
-    /// <summary>
-    /// Sets the element at the specified index to the given value.
-    /// </summary>
-    /// <param name="index">The zero-based index of the element to set.</param>
-    /// <param name="value">The value to set.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Set(int index, T value)
-    {
-        _buffer[index] = value;
-    }
-
-    /// <summary>
-    /// Sets the element at the specified index to the given value.
-    /// </summary>
-    /// <param name="index">The zero-based index of the element to set.</param>
-    /// <param name="value">The value to set.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Set(uint index, T value)
-    {
-        _buffer[index] = value;
-    }
 
     /// <summary>
     /// Returns a span that represents the ensured portion of the buffer.
