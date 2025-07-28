@@ -44,6 +44,12 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
 
         ImGuiIOPtr io = ImGui.GetIO();
+
+        io.ConfigErrorRecovery = true;
+        io.ConfigErrorRecoveryEnableAssert = true;
+        io.ConfigErrorRecoveryEnableDebugLog = true;
+        io.ConfigErrorRecoveryEnableTooltip = true;
+
         io.Fonts.AddFontDefault();
         io.Fonts.Flags |= ImFontAtlasFlags.NoBakedLines;
 
