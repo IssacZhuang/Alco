@@ -68,6 +68,12 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int NextInt()
+        {
+            return (int)NextState() ^ -2147483648;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte NextByte()
         {
             return (byte)(NextState() >> 24);
@@ -97,10 +103,70 @@ namespace Alco
             return new Vector4(NextFloat(), NextFloat(), NextFloat(), NextFloat());
         }
 
+        /// <summary>
+        /// Generates a random int2 vector with each component in the range [int.MinValue, int.MaxValue].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int2 NextInt2()
+        {
+            return new int2(NextInt(), NextInt());
+        }
+
+        /// <summary>
+        /// Generates a random int3 vector with each component in the range [int.MinValue, int.MaxValue].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int3 NextInt3()
+        {
+            return new int3(NextInt(), NextInt(), NextInt());
+        }
+
+        /// <summary>
+        /// Generates a random int4 vector with each component in the range [int.MinValue, int.MaxValue].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int4 NextInt4()
+        {
+            return new int4(NextInt(), NextInt(), NextInt(), NextInt());
+        }
+
+        /// <summary>
+        /// Generates a random uint2 vector with each component in the range [0, uint.MaxValue].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint2 NextUint2()
+        {
+            return new uint2(NextUint(), NextUint());
+        }
+
+        /// <summary>
+        /// Generates a random uint3 vector with each component in the range [0, uint.MaxValue].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint3 NextUint3()
+        {
+            return new uint3(NextUint(), NextUint(), NextUint());
+        }
+
+        /// <summary>
+        /// Generates a random uint4 vector with each component in the range [0, uint.MaxValue].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint4 NextUint4()
+        {
+            return new uint4(NextUint(), NextUint(), NextUint(), NextUint());
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint NextUint(uint max)
         {
             return NextUint() % max;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int NextInt(int max)
+        {
+            return (int)((NextState() * (ulong)max) >> 32);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,10 +211,125 @@ namespace Alco
             return NextVector4() * max;
         }
 
+        /// <summary>
+        /// Generates a random int2 vector with each component in the range [0, max.X), [0, max.Y).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int2 NextInt2(int2 max)
+        {
+            return new int2(NextInt(max.X), NextInt(max.Y));
+        }
+
+        /// <summary>
+        /// Generates a random int3 vector with each component in the range [0, max.X), [0, max.Y), [0, max.Z).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int3 NextInt3(int3 max)
+        {
+            return new int3(NextInt(max.X), NextInt(max.Y), NextInt(max.Z));
+        }
+
+        /// <summary>
+        /// Generates a random int4 vector with each component in the range [0, max.X), [0, max.Y), [0, max.Z), [0, max.W).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int4 NextInt4(int4 max)
+        {
+            return new int4(NextInt(max.X), NextInt(max.Y), NextInt(max.Z), NextInt(max.W));
+        }
+
+        /// <summary>
+        /// Generates a random int2 vector with each component in the range [0, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int2 NextInt2(int max)
+        {
+            return new int2(NextInt(max), NextInt(max));
+        }
+
+        /// <summary>
+        /// Generates a random int3 vector with each component in the range [0, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int3 NextInt3(int max)
+        {
+            return new int3(NextInt(max), NextInt(max), NextInt(max));
+        }
+
+        /// <summary>
+        /// Generates a random int4 vector with each component in the range [0, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int4 NextInt4(int max)
+        {
+            return new int4(NextInt(max), NextInt(max), NextInt(max), NextInt(max));
+        }
+
+        /// <summary>
+        /// Generates a random uint2 vector with each component in the range [0, max.X), [0, max.Y).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint2 NextUint2(uint2 max)
+        {
+            return new uint2(NextUint(max.X), NextUint(max.Y));
+        }
+
+        /// <summary>
+        /// Generates a random uint3 vector with each component in the range [0, max.X), [0, max.Y), [0, max.Z).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint3 NextUint3(uint3 max)
+        {
+            return new uint3(NextUint(max.X), NextUint(max.Y), NextUint(max.Z));
+        }
+
+        /// <summary>
+        /// Generates a random uint4 vector with each component in the range [0, max.X), [0, max.Y), [0, max.Z), [0, max.W).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint4 NextUint4(uint4 max)
+        {
+            return new uint4(NextUint(max.X), NextUint(max.Y), NextUint(max.Z), NextUint(max.W));
+        }
+
+        /// <summary>
+        /// Generates a random uint2 vector with each component in the range [0, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint2 NextUint2(uint max)
+        {
+            return new uint2(NextUint(max), NextUint(max));
+        }
+
+        /// <summary>
+        /// Generates a random uint3 vector with each component in the range [0, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint3 NextUint3(uint max)
+        {
+            return new uint3(NextUint(max), NextUint(max), NextUint(max));
+        }
+
+        /// <summary>
+        /// Generates a random uint4 vector with each component in the range [0, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint4 NextUint4(uint max)
+        {
+            return new uint4(NextUint(max), NextUint(max), NextUint(max), NextUint(max));
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint NextUint(uint min, uint max)
         {
             return NextUint() % (max - min) + min;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int NextInt(int min, int max)
+        {
+            uint range = (uint)(max - min);
+            return (int)(NextState() * (ulong)range >> 32) + min;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -191,6 +372,114 @@ namespace Alco
         public Vector4 NextVector4(float min, float max)
         {
             return NextVector4() * (max - min) + min * Vector4.One;
+        }
+
+        /// <summary>
+        /// Generates a random int2 vector with each component in the range [min.X, max.X), [min.Y, max.Y).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int2 NextInt2(int2 min, int2 max)
+        {
+            return new int2(NextInt(min.X, max.X), NextInt(min.Y, max.Y));
+        }
+
+        /// <summary>
+        /// Generates a random int3 vector with each component in the range [min.X, max.X), [min.Y, max.Y), [min.Z, max.Z).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int3 NextInt3(int3 min, int3 max)
+        {
+            return new int3(NextInt(min.X, max.X), NextInt(min.Y, max.Y), NextInt(min.Z, max.Z));
+        }
+
+        /// <summary>
+        /// Generates a random int4 vector with each component in the range [min.X, max.X), [min.Y, max.Y), [min.Z, max.Z), [min.W, max.W).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int4 NextInt4(int4 min, int4 max)
+        {
+            return new int4(NextInt(min.X, max.X), NextInt(min.Y, max.Y), NextInt(min.Z, max.Z), NextInt(min.W, max.W));
+        }
+
+        /// <summary>
+        /// Generates a random int2 vector with each component in the range [min, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int2 NextInt2(int min, int max)
+        {
+            return new int2(NextInt(min, max), NextInt(min, max));
+        }
+
+        /// <summary>
+        /// Generates a random int3 vector with each component in the range [min, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int3 NextInt3(int min, int max)
+        {
+            return new int3(NextInt(min, max), NextInt(min, max), NextInt(min, max));
+        }
+
+        /// <summary>
+        /// Generates a random int4 vector with each component in the range [min, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int4 NextInt4(int min, int max)
+        {
+            return new int4(NextInt(min, max), NextInt(min, max), NextInt(min, max), NextInt(min, max));
+        }
+
+        /// <summary>
+        /// Generates a random uint2 vector with each component in the range [min.X, max.X), [min.Y, max.Y).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint2 NextUint2(uint2 min, uint2 max)
+        {
+            return new uint2(NextUint(min.X, max.X), NextUint(min.Y, max.Y));
+        }
+
+        /// <summary>
+        /// Generates a random uint3 vector with each component in the range [min.X, max.X), [min.Y, max.Y), [min.Z, max.Z).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint3 NextUint3(uint3 min, uint3 max)
+        {
+            return new uint3(NextUint(min.X, max.X), NextUint(min.Y, max.Y), NextUint(min.Z, max.Z));
+        }
+
+        /// <summary>
+        /// Generates a random uint4 vector with each component in the range [min.X, max.X), [min.Y, max.Y), [min.Z, max.Z), [min.W, max.W).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint4 NextUint4(uint4 min, uint4 max)
+        {
+            return new uint4(NextUint(min.X, max.X), NextUint(min.Y, max.Y), NextUint(min.Z, max.Z), NextUint(min.W, max.W));
+        }
+
+        /// <summary>
+        /// Generates a random uint2 vector with each component in the range [min, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint2 NextUint2(uint min, uint max)
+        {
+            return new uint2(NextUint(min, max), NextUint(min, max));
+        }
+
+        /// <summary>
+        /// Generates a random uint3 vector with each component in the range [min, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint3 NextUint3(uint min, uint max)
+        {
+            return new uint3(NextUint(min, max), NextUint(min, max), NextUint(min, max));
+        }
+
+        /// <summary>
+        /// Generates a random uint4 vector with each component in the range [min, max).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint4 NextUint4(uint min, uint max)
+        {
+            return new uint4(NextUint(min, max), NextUint(min, max), NextUint(min, max), NextUint(min, max));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
