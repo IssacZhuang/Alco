@@ -86,6 +86,16 @@ namespace Alco
         {
             return new int4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
         }
+        /// <summary>
+        /// Negates the specified int4 value.
+        /// </summary>
+        /// <param name="a">The value to negate.</param>
+        /// <returns>A new int4 with all components negated.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int4 operator -(int4 a)
+        {
+            return new int4(-a.X, -a.Y, -a.Z, -a.W);
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int4 operator *(int4 a, int4 b)
         {

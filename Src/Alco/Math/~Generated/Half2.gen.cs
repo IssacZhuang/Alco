@@ -68,6 +68,16 @@ namespace Alco
         {
             return new Half2(a.X - b.X, a.Y - b.Y);
         }
+        /// <summary>
+        /// Negates the specified Half2 value.
+        /// </summary>
+        /// <param name="a">The value to negate.</param>
+        /// <returns>A new Half2 with all components negated.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Half2 operator -(Half2 a)
+        {
+            return new Half2(-a.X, -a.Y);
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Half2 operator *(Half2 a, Half2 b)
         {

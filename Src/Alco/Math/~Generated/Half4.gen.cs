@@ -102,6 +102,16 @@ namespace Alco
         {
             return new Half4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
         }
+        /// <summary>
+        /// Negates the specified Half4 value.
+        /// </summary>
+        /// <param name="a">The value to negate.</param>
+        /// <returns>A new Half4 with all components negated.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Half4 operator -(Half4 a)
+        {
+            return new Half4(-a.X, -a.Y, -a.Z, -a.W);
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Half4 operator *(Half4 a, Half4 b)
         {

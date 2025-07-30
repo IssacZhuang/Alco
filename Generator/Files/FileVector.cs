@@ -7,10 +7,12 @@ public class FileVector
     public static readonly string[] FieldsUpperCase = new string[] { "X", "Y", "Z", "W" };
     private readonly string _vectorType;
     private readonly int _vectorSize;
-    public FileVector(string vectorType, int vectorSize)
+    private readonly bool _isSigned;
+    public FileVector(string vectorType, int vectorSize, bool isSigned = false)
     {
         _vectorType = vectorType;
         _vectorSize = vectorSize;
+        _isSigned = isSigned;
     }
 
     public string GenerateContent()
@@ -150,6 +152,33 @@ public class FileVector
             }
         }
         builder.AppendLine("        }");
+
+        //operator - (unary)
+        if (_isSigned)
+        {
+            builder.AppendLine($"        /// <summary>");
+            builder.AppendLine($"        /// Negates the specified {_vectorType}{_vectorSize} value.");
+            builder.AppendLine($"        /// </summary>");
+            builder.AppendLine($"        /// <param name=\"a\">The value to negate.</param>");
+            builder.AppendLine($"        /// <returns>A new {_vectorType}{_vectorSize} with all components negated.</returns>");
+            builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
+            builder.AppendLine($"        public static {_vectorType}{_vectorSize} operator -({_vectorType}{_vectorSize} a)");
+            builder.AppendLine("        {");
+            builder.Append($"            return new {_vectorType}{_vectorSize}(");
+            for (int i = 0; i < _vectorSize; i++)
+            {
+                builder.Append($"-a.{FieldsUpperCase[i]}");
+                if (i < _vectorSize - 1)
+                {
+                    builder.Append(", ");
+                }
+                else
+                {
+                    builder.AppendLine(");");
+                }
+            }
+            builder.AppendLine("        }");
+        }
 
         //operator *
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");

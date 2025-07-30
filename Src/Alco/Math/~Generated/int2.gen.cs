@@ -56,6 +56,16 @@ namespace Alco
         {
             return new int2(a.X - b.X, a.Y - b.Y);
         }
+        /// <summary>
+        /// Negates the specified int2 value.
+        /// </summary>
+        /// <param name="a">The value to negate.</param>
+        /// <returns>A new int2 with all components negated.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int2 operator -(int2 a)
+        {
+            return new int2(-a.X, -a.Y);
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int2 operator *(int2 a, int2 b)
         {

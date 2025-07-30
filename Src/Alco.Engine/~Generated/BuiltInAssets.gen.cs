@@ -54,13 +54,7 @@ public partial class BuiltInAssets
 
     public Shader Shader_Text => GetShader("Shaders/Pipelines/Rendering/Text/Text.hlsl");
 
-    public Shader Shader_TileConnectable => GetShader("Shaders/Pipelines/Rendering/TileMap/TileConnectable.hlsl");
-
     public Shader Shader_TileInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl");
-
-    public Shader Shader_TileInstancedWithHeight => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstancedWithHeight.hlsl");
-
-    public Shader Shader_TileLighting => GetShader("Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl");
 
     public Shader Shader_TileWaterInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl");
 
