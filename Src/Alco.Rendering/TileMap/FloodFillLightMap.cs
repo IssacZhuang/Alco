@@ -65,7 +65,7 @@ public class FloodFillLightMap : AutoDisposable
 
     public void ClearLightMap(Vector4 color)
     {
-        _lightMapCPU.Clear(color);
+        _lightMapCPU.Fill(color);
     }
 
     public void SetDirty()
@@ -75,7 +75,7 @@ public class FloodFillLightMap : AutoDisposable
 
     public void ResetOpacity()
     {
-        _opacityMapCPU.Clear(Color32.White);
+        _opacityMapCPU.Fill(Color32.White);
     }
 
     public void AddLight(int x, int y, Half4 light)
@@ -90,7 +90,7 @@ public class FloodFillLightMap : AutoDisposable
 
     public void ClearOpacityMap()
     {
-        _opacityMapCPU.Clear(Color32.White);
+        _opacityMapCPU.Fill(Color32.White);
     }
 
 

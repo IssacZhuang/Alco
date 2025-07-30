@@ -66,7 +66,7 @@ namespace Alco.Rendering.Test
             var bitmap = new Bitmap<int>(5, 5, 10);
 
             // Act
-            bitmap.Clear(25);
+            bitmap.Fill(25);
 
             // Assert
             for (int y = 0; y < bitmap.Height; y++)
