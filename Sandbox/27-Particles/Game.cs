@@ -294,7 +294,6 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-        _particleSystem.Dispose();
         _renderContext.Dispose();
     }
 }
