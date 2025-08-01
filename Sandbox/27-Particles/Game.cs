@@ -8,13 +8,19 @@ using Alco.ImGUI;
 
 public class Game : GameEngine
 {
-    private Camera2DBuffer _camera;
-    private Material _materialParticle;
-    private ParticleEmitterBox2D _emitter;
-    private ParticleSimulatorColorLerp2D _simulator;
-    private ParticleSystem2DCPU _particleSystem;
-    
+    private readonly Camera2DBuffer _camera;
+    private readonly Material _materialParticle;
+    private readonly ParticleEmitterBox2D _emitter;
+    private readonly ParticleSimulatorColorLerp2D _simulator;
+    private readonly ParticleSystem2DCPU _particleSystem;
+    private readonly Mesh _mesh;
+
+
+
     private RenderContext _renderContext;
+    private SubRenderContext _subRenderContext;
+    private InstanceRenderer<ParticleData2D> _renderer;
+
     private Texture2D _particleTexture;
     private float _boxRotation = 0f;
     private readonly string[] spaceModes = new string[] { "Local", "World" };
@@ -38,6 +44,11 @@ public class Game : GameEngine
 
         // Create render context
         _renderContext = RenderingSystem.CreateRenderContext();
+        _subRenderContext = RenderingSystem.CreateSubRenderContext();
+
+        _mesh = RenderingSystem.MeshCenteredSprite;
+
+        _renderer = RenderingSystem.CreateInstanceRenderer<ParticleData2D>(_subRenderContext, _materialParticle, "_particles", 512 * 1024, "ParticleRenderer");
 
         // Create particle emitter
         _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(0, 0));
@@ -52,10 +63,12 @@ public class Game : GameEngine
         _simulator = new ParticleSimulatorColorLerp2D();
 
         // Create particle system
-        _particleSystem = RenderingSystem.CreateParticleSystem2DCPU(_materialParticle, _emitter, _simulator);
-        _particleSystem.EmissionRateOverTime = 100;
-        _particleSystem.ParticleLifetime = 1.0f;
-        _particleSystem.MaxParticles = 100000;
+        _particleSystem = new(_emitter, _simulator)
+        {
+            EmissionRateOverTime = 100,
+            ParticleLifetime = 1.0f,
+            MaxParticles = 100000
+        };
         _particleSystem.Play();
 
     }
@@ -64,6 +77,9 @@ public class Game : GameEngine
     {
         // Simulate particles
         _particleSystem.Simulate(delta);
+        _subRenderContext.Begin(MainFrameBuffer.AttachmentLayout);
+        _renderer.DrawWithConstant(_mesh, _particleSystem.Transform.Matrix, _particleSystem.Particles);
+        _subRenderContext.End();
     }
 
     protected override void OnUpdate(float delta)
@@ -76,9 +92,13 @@ public class Game : GameEngine
         ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _imGuizmoOperation, MODE.LOCAL, ref _particleSystem.Transform);
 
         // Draw particles
-        _renderContext.Begin(MainFrameBuffer);
-        _particleSystem.Render(_renderContext);
-        _renderContext.End();
+        if (_subRenderContext.HasBuffer)
+        {
+            _renderContext.Begin(MainFrameBuffer);
+            _renderContext.ExecuteSubContext(_subRenderContext);
+            _renderContext.End();
+        }
+
 
         // Show particle controls
         ImGui.Begin("Particle Control");
@@ -87,6 +107,7 @@ public class Game : GameEngine
         strFramerate.Append(FrameRate);
 
         ImGui.Text(strFramerate);
+        ImGui.Text($"Particle Count: {_particleSystem.Particles.Length}");
 
         ImGui.EditTransform2D(ref _particleSystem.Transform);
 

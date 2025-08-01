@@ -39,13 +39,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
 
     private const int GPUBufferBlockSize = 64 * 1024;
     private static readonly int MaxParticlePerBuffer = GPUBufferBlockSize / sizeof(ParticleData2D);
-    private readonly RenderingSystem _renderingSystem;
-    private readonly List<GraphicsBuffer> _buffers = new();
-    private readonly Mesh _mesh;
-    private readonly Material _material;
-    private readonly uint _shaderId_particles;
     private NativeArrayList<ParticleData2D> _particles;//simulate on cpu
-    private bool _isParticleDirty = false;
     private SpaceMode _spaceMode = SpaceMode.Local;
 
     private IParticleSimulator2D _simulator;
@@ -142,21 +136,16 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         }
     }
 
-    internal ParticleSystem2DCPU(
-        RenderingSystem renderingSystem,
-        Mesh mesh,
-        Material material,
+    public Span<ParticleData2D> Particles => _particles.AsSpan();
+
+    public ParticleSystem2DCPU(
         IParticleEmitter2D emitter,
         IParticleSimulator2D? simulator = null)
     {
         ArgumentNullException.ThrowIfNull(emitter);
         _emitter = emitter;
         _simulator = simulator ?? new DefaultSimulator();
-        _renderingSystem = renderingSystem;
         _particles = new NativeArrayList<ParticleData2D>(32);
-        _mesh = mesh;
-        _material = material.CreateInstance();
-        _shaderId_particles = _material.GetResourceId(ShaderResourceId.Particles);
     }
 
     /// <summary>
@@ -212,7 +201,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
                 _particles.Add(particle);
             }
         }
-        _isParticleDirty = true;
     }
 
     /// <summary>
@@ -314,64 +302,8 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         {
             Stop();
         }
-        _isParticleDirty = true;
     }
 
-    /// <summary>
-    /// Render the particle system.
-    /// </summary>
-    /// <param name="context">The render context.</param>
-    public unsafe void Render(IRenderContext context)
-    {
-        if (!IsPlaying)
-        {
-            return;
-        }
-
-        //update to gpu
-        if (_isParticleDirty)
-        {
-            int bufferRequired = (_particles.Length * sizeof(ParticleData2D) + GPUBufferBlockSize - 1) / GPUBufferBlockSize;
-            int bufferNeedToRent = bufferRequired - _buffers.Count;
-            if (bufferNeedToRent > 0)
-            {
-                for (int i = 0; i < bufferNeedToRent; i++)
-                {
-                    _buffers.Add(_renderingSystem.GraphicsBufferPool.GetBuffer(GPUBufferBlockSize));
-                }
-            }
-            else if (bufferNeedToRent < 0)
-            {
-                for (int i = 0; i < -bufferNeedToRent; i++)
-                {
-                    _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_buffers[^1]);
-                    _buffers.RemoveAt(_buffers.Count - 1);
-                }
-            }
-
-            int drawCount = _particles.Length;
-            for (int i = 0; i < _buffers.Count; i++)
-            {
-                GraphicsBuffer buffer = _buffers[i];
-                int particleCount = Math.Min(drawCount, MaxParticlePerBuffer);
-                drawCount -= particleCount;
-                ReadOnlySpan<ParticleData2D> span = _particles.AsSpan(i * MaxParticlePerBuffer, particleCount);
-                buffer.UpdateBuffer(span);
-            }
-            _isParticleDirty = false;
-        }
-
-        //draw
-        int drawCount2 = _particles.Length;
-        for (int i = 0; i < _buffers.Count; i++)
-        {
-            GraphicsBuffer buffer = _buffers[i];
-            int particleCount = Math.Min(drawCount2, MaxParticlePerBuffer);
-            drawCount2 -= particleCount;
-            _material.SetBuffer(_shaderId_particles, buffer);
-            context.DrawInstancedWithConstant(_mesh, _material, (uint)particleCount, Transform.Matrix);
-        }
-    }
 
     /// <summary>
     /// Clear all active particles.
@@ -379,7 +311,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     public void Clear()
     {
         _particles.Clear();
-        _isParticleDirty = true;
     }
 
 
@@ -387,14 +318,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     {
         _spaceMode = mode;
         Clear();
-        if (_spaceMode == SpaceMode.Local)
-        {
-            _material.ClearDefines();
-        }
-        else
-        {
-            _material.SetDefines(ShaderDefine_SPACE_MODE_WORLD);
-        }
     }
 
     /// <summary>
@@ -403,16 +326,8 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     /// <param name="disposing">True if called from Dispose, false if called from finalizer.</param>
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            foreach (var buffer in _buffers)
-            {
-                _renderingSystem.GraphicsBufferPool.TryReturnBuffer(buffer);
-            }
-        }
 
         _particles.Dispose();
-        _buffers.Clear();
     }
 }
 
