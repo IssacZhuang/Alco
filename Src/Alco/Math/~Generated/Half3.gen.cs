@@ -11,6 +11,31 @@ namespace Alco
         public Half Y;
         public Half Z;
 
+        /// <summary>
+        /// A Half3 with all components set to zero.
+        /// </summary>
+        public static readonly Half3 Zero = new Half3(0, 0, 0);
+
+        /// <summary>
+        /// A Half3 with all components set to one.
+        /// </summary>
+        public static readonly Half3 One = new Half3(1, 1, 1);
+
+        /// <summary>
+        /// A unit vector with the X component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half3 UnitX = new Half3(1, 0, 0);
+
+        /// <summary>
+        /// A unit vector with the Y component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half3 UnitY = new Half3(0, 1, 0);
+
+        /// <summary>
+        /// A unit vector with the Z component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half3 UnitZ = new Half3(0, 0, 1);
+
         public Half3(Half value)
         {
             this.X = value;

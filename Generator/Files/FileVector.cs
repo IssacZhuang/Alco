@@ -38,6 +38,9 @@ public class FileVector
         }
         builder.AppendLine();
 
+        //static constants
+        AppendStaticConstants(builder);
+
         //constructor single typed
         builder.AppendLine($"        public {_vectorType}{_vectorSize}({_vectorType} value)");
         builder.AppendLine("        {");
@@ -323,6 +326,103 @@ public class FileVector
             builder.AppendLine("        }");
             builder.AppendLine();
         }
+    }
+
+    private void AppendStaticConstants(StringBuilder builder)
+    {
+        // Zero constant - all components are 0
+        builder.AppendLine("        /// <summary>");
+        builder.AppendLine($"        /// A {_vectorType}{_vectorSize} with all components set to zero.");
+        builder.AppendLine("        /// </summary>");
+        builder.Append($"        public static readonly {_vectorType}{_vectorSize} Zero = new {_vectorType}{_vectorSize}(");
+        for (int i = 0; i < _vectorSize; i++)
+        {
+            string zeroValue = GetZeroValue();
+            builder.Append(zeroValue);
+            if (i < _vectorSize - 1)
+            {
+                builder.Append(", ");
+            }
+        }
+        builder.AppendLine(");");
+        builder.AppendLine();
+
+        // One constant - all components are 1
+        builder.AppendLine("        /// <summary>");
+        builder.AppendLine($"        /// A {_vectorType}{_vectorSize} with all components set to one.");
+        builder.AppendLine("        /// </summary>");
+        builder.Append($"        public static readonly {_vectorType}{_vectorSize} One = new {_vectorType}{_vectorSize}(");
+        for (int i = 0; i < _vectorSize; i++)
+        {
+            string oneValue = GetOneValue();
+            builder.Append(oneValue);
+            if (i < _vectorSize - 1)
+            {
+                builder.Append(", ");
+            }
+        }
+        builder.AppendLine(");");
+        builder.AppendLine();
+
+        // Unit vectors
+        for (int unitIndex = 0; unitIndex < _vectorSize; unitIndex++)
+        {
+            string unitName = GetUnitName(unitIndex);
+            string componentName = FieldsUpperCase[unitIndex];
+
+            builder.AppendLine("        /// <summary>");
+            builder.AppendLine($"        /// A unit vector with the {componentName} component set to one and all other components set to zero.");
+            builder.AppendLine("        /// </summary>");
+            builder.Append($"        public static readonly {_vectorType}{_vectorSize} {unitName} = new {_vectorType}{_vectorSize}(");
+
+            for (int i = 0; i < _vectorSize; i++)
+            {
+                string value = (i == unitIndex) ? GetOneValue() : GetZeroValue();
+                builder.Append(value);
+                if (i < _vectorSize - 1)
+                {
+                    builder.Append(", ");
+                }
+            }
+            builder.AppendLine(");");
+            builder.AppendLine();
+        }
+    }
+
+    private string GetZeroValue()
+    {
+        return _vectorType switch
+        {
+            "int" => "0",
+            "uint" => "0u",
+            "float" => "0.0f",
+            "double" => "0.0",
+            _ => "0"
+        };
+    }
+
+    private string GetOneValue()
+    {
+        return _vectorType switch
+        {
+            "int" => "1",
+            "uint" => "1u",
+            "float" => "1.0f",
+            "double" => "1.0",
+            _ => "1"
+        };
+    }
+
+    private string GetUnitName(int index)
+    {
+        return index switch
+        {
+            0 => "UnitX",
+            1 => "UnitY",
+            2 => "UnitZ",
+            3 => "UnitW",
+            _ => $"Unit{FieldsUpperCase[index]}"
+        };
     }
 }
 

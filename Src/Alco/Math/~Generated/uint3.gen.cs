@@ -11,6 +11,31 @@ namespace Alco
         public uint Y;
         public uint Z;
 
+        /// <summary>
+        /// A uint3 with all components set to zero.
+        /// </summary>
+        public static readonly uint3 Zero = new uint3(0u, 0u, 0u);
+
+        /// <summary>
+        /// A uint3 with all components set to one.
+        /// </summary>
+        public static readonly uint3 One = new uint3(1u, 1u, 1u);
+
+        /// <summary>
+        /// A unit vector with the X component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly uint3 UnitX = new uint3(1u, 0u, 0u);
+
+        /// <summary>
+        /// A unit vector with the Y component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly uint3 UnitY = new uint3(0u, 1u, 0u);
+
+        /// <summary>
+        /// A unit vector with the Z component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly uint3 UnitZ = new uint3(0u, 0u, 1u);
+
         public uint3(uint value)
         {
             this.X = value;

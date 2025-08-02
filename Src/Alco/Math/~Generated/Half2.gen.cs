@@ -10,6 +10,26 @@ namespace Alco
         public Half X;
         public Half Y;
 
+        /// <summary>
+        /// A Half2 with all components set to zero.
+        /// </summary>
+        public static readonly Half2 Zero = new Half2(0, 0);
+
+        /// <summary>
+        /// A Half2 with all components set to one.
+        /// </summary>
+        public static readonly Half2 One = new Half2(1, 1);
+
+        /// <summary>
+        /// A unit vector with the X component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half2 UnitX = new Half2(1, 0);
+
+        /// <summary>
+        /// A unit vector with the Y component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half2 UnitY = new Half2(0, 1);
+
         public Half2(Half value)
         {
             this.X = value;

@@ -10,6 +10,26 @@ namespace Alco
         public int X;
         public int Y;
 
+        /// <summary>
+        /// A int2 with all components set to zero.
+        /// </summary>
+        public static readonly int2 Zero = new int2(0, 0);
+
+        /// <summary>
+        /// A int2 with all components set to one.
+        /// </summary>
+        public static readonly int2 One = new int2(1, 1);
+
+        /// <summary>
+        /// A unit vector with the X component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly int2 UnitX = new int2(1, 0);
+
+        /// <summary>
+        /// A unit vector with the Y component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly int2 UnitY = new int2(0, 1);
+
         public int2(int value)
         {
             this.X = value;
