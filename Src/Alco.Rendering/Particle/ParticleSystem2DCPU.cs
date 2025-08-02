@@ -3,11 +3,12 @@ namespace Alco.Rendering;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using static Alco.math;
 
 /// <summary>
 /// A CPU-based 2D particle system that handles simulation and rendering of particles.
 /// </summary>
-public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
+public sealed unsafe class ParticleSystem2DCPU
 {
     public const string ShaderDefine_SPACE_MODE_WORLD = "SPACE_MODE_WORLD";
 
@@ -39,13 +40,7 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
 
     private const int GPUBufferBlockSize = 64 * 1024;
     private static readonly int MaxParticlePerBuffer = GPUBufferBlockSize / sizeof(ParticleData2D);
-    private readonly RenderingSystem _renderingSystem;
-    private readonly List<GraphicsBuffer> _buffers = new();
-    private readonly Mesh _mesh;
-    private readonly Material _material;
-    private readonly uint _shaderId_particles;
-    private NativeArrayList<ParticleData2D> _particles;//simulate on cpu
-    private bool _isParticleDirty = false;
+    private readonly ArrayBuffer<ParticleData2D> _particles;//simulate on cpu
     private SpaceMode _spaceMode = SpaceMode.Local;
 
     private IParticleSimulator2D _simulator;
@@ -142,21 +137,16 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         }
     }
 
-    internal ParticleSystem2DCPU(
-        RenderingSystem renderingSystem,
-        Mesh mesh,
-        Material material,
+    public Span<ParticleData2D> Particles => _particles.AsSpan();
+
+    public ParticleSystem2DCPU(
         IParticleEmitter2D emitter,
         IParticleSimulator2D? simulator = null)
     {
         ArgumentNullException.ThrowIfNull(emitter);
         _emitter = emitter;
         _simulator = simulator ?? new DefaultSimulator();
-        _renderingSystem = renderingSystem;
-        _particles = new NativeArrayList<ParticleData2D>(32);
-        _mesh = mesh;
-        _material = material.CreateInstance();
-        _shaderId_particles = _material.GetResourceId(ShaderResourceId.Particles);
+        _particles = new ArrayBuffer<ParticleData2D>();
     }
 
     /// <summary>
@@ -196,27 +186,40 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
 
         if (_spaceMode == SpaceMode.Local)
         {
-            for (uint i = 0; i < burstCount && _particles.Length < MaxParticles; i++)
+            // for (uint i = 0; i < burstCount && _particles.Length < MaxParticles; i++)
+            // {
+            //     var particle = _emitter.EmitInLocal();
+            //     particle.Lifetime = ParticleLifetime;
+            //     _particles.Add(particle);
+            // }
+            int newSize = math.min(MaxParticles, _particles.Length + burstCount);
+            int spanStart = _particles.Length;
+            _particles.SetSize(newSize);
+            Span<ParticleData2D> particles = _particles.AsSpan(spanStart, burstCount);
+            for (int i = 0; i < burstCount; i++)
             {
-                var particle = _emitter.EmitInLocal();
-                particle.Lifetime = ParticleLifetime;
-                _particles.Add(particle);
+                particles[i] = _emitter.EmitInLocal();
+                particles[i].Lifetime = ParticleLifetime;
             }
         }
         else
         {
-            for (uint i = 0; i < burstCount && _particles.Length < MaxParticles; i++)
+            int newSize = math.min(MaxParticles, _particles.Length + burstCount);
+            int spanStart = _particles.Length;
+            _particles.SetSize(newSize);
+            Span<ParticleData2D> particles = _particles.AsSpan(spanStart, burstCount);
+            for (int i = 0; i < burstCount; i++)
             {
-                var particle = _emitter.EmitInWorld(Transform);
-                particle.Lifetime = ParticleLifetime;
-                _particles.Add(particle);
+                particles[i] = _emitter.EmitInWorld(Transform);
+                particles[i].Lifetime = ParticleLifetime;
             }
         }
-        _isParticleDirty = true;
     }
 
     /// <summary>
     /// Simulates all active particles in the system for the given time step.
+    /// Dead particles (lifetime <= 0) are swapped to the end of the active range and then removed efficiently.
+    /// Uses an activeLength counter to prevent re-checking already processed dead particles.
     /// </summary>
     /// <param name="deltaTime">Time elapsed since the last simulation step in seconds.</param>
     public void Simulate(float deltaTime)
@@ -224,51 +227,64 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         if (!IsPlaying)
             return;
 
-        ParticleData2D* particles = _particles.UnsafePointer;
+        Span<ParticleData2D> particles = _particles.AsSpan();
+        int removeCount = 0;
 
         // Update existing particles
         if (_spaceMode == SpaceMode.Local)
         {
-            for (int i = _particles.Length - 1; i >= 0; i--)
+            int activeLength = particles.Length;
+            for (int i = 0; i < activeLength; i++)
             {
                 ref ParticleData2D particle = ref particles[i];
 
+                _simulator.SimulateInLocal(this, ref particle, deltaTime);
+
                 if (particle.Lifetime <= 0)
                 {
-                    // Remove dead particles using unordered removal (swap with last element)
-                    int lastIndex = _particles.Length - 1;
-                    if (i != lastIndex)
+                    // Swap dead particle with the last active element
+                    activeLength--;
+                    if (i != activeLength)
                     {
-                        particle = particles[lastIndex];
+                        (particles[i], particles[activeLength]) = (particles[activeLength], particles[i]);
                     }
-                    // Remove last element
-                    _particles.RemoveAt(lastIndex);
-                    continue;
+                    removeCount++;
+                    i--; // Re-check the swapped particle at current position
                 }
+            }
 
-                _simulator.SimulateInLocal(this, ref particle, deltaTime);
+            // Reduce span size by removing dead particles
+            if (removeCount > 0)
+            {
+                _particles.SetSize(_particles.Length - removeCount);
             }
         }
         else
         {
-            for (int i = _particles.Length - 1; i >= 0; i--)
+            int activeLength = particles.Length;
+            for (int i = 0; i < activeLength; i++)
             {
                 ref ParticleData2D particle = ref particles[i];
 
+                _simulator.SimulateInWorld(this, ref particle, deltaTime);
+
                 if (particle.Lifetime <= 0)
                 {
-                    // Remove dead particles using unordered removal (swap with last element)
-                    int lastIndex = _particles.Length - 1;
-                    if (i != lastIndex)
+                    // Swap dead particle with the last active element
+                    activeLength--;
+                    if (i != activeLength)
                     {
-                        particle = particles[lastIndex];
+                        (particles[i], particles[activeLength]) = (particles[activeLength], particles[i]);
                     }
-                    // Remove last element
-                    _particles.RemoveAt(lastIndex);
-                    continue;
+                    removeCount++;
+                    i--; // Re-check the swapped particle at current position
                 }
+            }
 
-                _simulator.SimulateInWorld(this, ref particle, deltaTime);
+            // Reduce span size by removing dead particles
+            if (removeCount > 0)
+            {
+                _particles.SetSize(_particles.Length - removeCount);
             }
         }
 
@@ -279,27 +295,38 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
             _emitAccumulator += deltaTime;
             float emissionInterval = 1.0f / EmissionRateOverTime;
 
-            if (SpaceMode == SpaceMode.Local)
-            {
-                while (_emitAccumulator >= emissionInterval && _particles.Length < MaxParticles)
-                {
-                    var particle = _emitter.EmitInLocal();
-                    particle.Lifetime = ParticleLifetime;
-                    _particles.Add(particle);
+            // Calculate how many particles to emit using division
+            int particlesToEmit = (int)(_emitAccumulator / emissionInterval);
+            int maxPossibleEmit = MaxParticles - _particles.Length;
+            particlesToEmit = min(particlesToEmit, maxPossibleEmit);
 
-                    _emitAccumulator -= emissionInterval;
-                }
-            }
-            else
+            if (particlesToEmit > 0)
             {
-                while (_emitAccumulator >= emissionInterval && _particles.Length < MaxParticles)
-                {
-                    var particle = _emitter.EmitInWorld(Transform);
-                    particle.Lifetime = ParticleLifetime;
-                    _particles.Add(particle);
+                // Batch expand the ArrayBuffer
+                int currentSize = _particles.Length;
+                int newSize = currentSize + particlesToEmit;
+                _particles.SetSize(newSize);
+                Span<ParticleData2D> newParticles = _particles.AsSpan(currentSize, particlesToEmit);
 
-                    _emitAccumulator -= emissionInterval;
+                if (SpaceMode == SpaceMode.Local)
+                {
+                    for (int i = 0; i < particlesToEmit; i++)
+                    {
+                        newParticles[i] = _emitter.EmitInLocal();
+                        newParticles[i].Lifetime = ParticleLifetime;
+                    }
                 }
+                else
+                {
+                    for (int i = 0; i < particlesToEmit; i++)
+                    {
+                        newParticles[i] = _emitter.EmitInWorld(Transform);
+                        newParticles[i].Lifetime = ParticleLifetime;
+                    }
+                }
+
+                // Update accumulator once after emitting all particles
+                _emitAccumulator -= particlesToEmit * emissionInterval;
             }
 
 
@@ -314,64 +341,8 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
         {
             Stop();
         }
-        _isParticleDirty = true;
     }
 
-    /// <summary>
-    /// Render the particle system.
-    /// </summary>
-    /// <param name="context">The render context.</param>
-    public unsafe void Render(IRenderContext context)
-    {
-        if (!IsPlaying)
-        {
-            return;
-        }
-
-        //update to gpu
-        if (_isParticleDirty)
-        {
-            int bufferRequired = (_particles.Length * sizeof(ParticleData2D) + GPUBufferBlockSize - 1) / GPUBufferBlockSize;
-            int bufferNeedToRent = bufferRequired - _buffers.Count;
-            if (bufferNeedToRent > 0)
-            {
-                for (int i = 0; i < bufferNeedToRent; i++)
-                {
-                    _buffers.Add(_renderingSystem.GraphicsBufferPool.GetBuffer(GPUBufferBlockSize));
-                }
-            }
-            else if (bufferNeedToRent < 0)
-            {
-                for (int i = 0; i < -bufferNeedToRent; i++)
-                {
-                    _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_buffers[^1]);
-                    _buffers.RemoveAt(_buffers.Count - 1);
-                }
-            }
-
-            int drawCount = _particles.Length;
-            for (int i = 0; i < _buffers.Count; i++)
-            {
-                GraphicsBuffer buffer = _buffers[i];
-                int particleCount = Math.Min(drawCount, MaxParticlePerBuffer);
-                drawCount -= particleCount;
-                ReadOnlySpan<ParticleData2D> span = _particles.AsSpan(i * MaxParticlePerBuffer, particleCount);
-                buffer.UpdateBuffer(span);
-            }
-            _isParticleDirty = false;
-        }
-
-        //draw
-        int drawCount2 = _particles.Length;
-        for (int i = 0; i < _buffers.Count; i++)
-        {
-            GraphicsBuffer buffer = _buffers[i];
-            int particleCount = Math.Min(drawCount2, MaxParticlePerBuffer);
-            drawCount2 -= particleCount;
-            _material.SetBuffer(_shaderId_particles, buffer);
-            context.DrawInstancedWithConstant(_mesh, _material, (uint)particleCount, Transform.Matrix);
-        }
-    }
 
     /// <summary>
     /// Clear all active particles.
@@ -379,7 +350,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     public void Clear()
     {
         _particles.Clear();
-        _isParticleDirty = true;
     }
 
 
@@ -387,32 +357,6 @@ public sealed unsafe class ParticleSystem2DCPU : AutoDisposable
     {
         _spaceMode = mode;
         Clear();
-        if (_spaceMode == SpaceMode.Local)
-        {
-            _material.ClearDefines();
-        }
-        else
-        {
-            _material.SetDefines(ShaderDefine_SPACE_MODE_WORLD);
-        }
-    }
-
-    /// <summary>
-    /// Disposes resources used by the particle system.
-    /// </summary>
-    /// <param name="disposing">True if called from Dispose, false if called from finalizer.</param>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            foreach (var buffer in _buffers)
-            {
-                _renderingSystem.GraphicsBufferPool.TryReturnBuffer(buffer);
-            }
-        }
-
-        _particles.Dispose();
-        _buffers.Clear();
     }
 }
 
