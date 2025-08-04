@@ -101,6 +101,13 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
 
 
 
+    /// <summary>
+    /// Draws all instances in the queue for the specified mesh and submesh, then clears the queue.
+    /// This operation enqueues the provided instances, renders all queued instances, and clears the internal draw queue.
+    /// </summary>
+    /// <param name="mesh">The mesh to render.</param>
+    /// <param name="subMeshIndex">The index of the submesh to render.</param>
+    /// <param name="instances">The instances to add to the queue before rendering.</param>
     public void Draw(Mesh mesh, int subMeshIndex, ReadOnlySpan<T> instances)
     {
         EnqueueInstances(instances);
@@ -113,11 +120,47 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
         ClearDraws();
     }
 
+    /// <summary>
+    /// Draws all instances in the queue for the specified mesh (using submesh index 0), then clears the queue.
+    /// This operation enqueues the provided instances, renders all queued instances, and clears the internal draw queue.
+    /// </summary>
+    /// <param name="mesh">The mesh to render.</param>
+    /// <param name="instances">The instances to add to the queue before rendering.</param>
     public void Draw(Mesh mesh, ReadOnlySpan<T> instances)
     {
         Draw(mesh, 0, instances);
     }
 
+    /// <summary>
+    /// Draws all instances currently in the queue for the specified mesh and submesh, then clears the queue.
+    /// This operation renders all queued instances without adding new ones, and clears the internal draw queue.
+    /// </summary>
+    /// <param name="mesh">The mesh to render.</param>
+    /// <param name="subMeshIndex">The index of the submesh to render.</param>
+    public void Draw(Mesh mesh, int subMeshIndex)
+    {
+        Draw(mesh, subMeshIndex, ReadOnlySpan<T>.Empty);
+    }
+
+    /// <summary>
+    /// Draws all instances currently in the queue for the specified mesh (using submesh index 0), then clears the queue.
+    /// This operation renders all queued instances without adding new ones, and clears the internal draw queue.
+    /// </summary>
+    /// <param name="mesh">The mesh to render.</param>
+    public void Draw(Mesh mesh)
+    {
+        Draw(mesh, 0, ReadOnlySpan<T>.Empty);
+    }
+
+    /// <summary>
+    /// Draws all instances in the queue for the specified mesh and submesh with a constant value, then clears the queue.
+    /// This operation enqueues the provided instances, renders all queued instances with the constant value, and clears the internal draw queue.
+    /// </summary>
+    /// <typeparam name="TConstant">The unmanaged type of the constant value.</typeparam>
+    /// <param name="mesh">The mesh to render.</param>
+    /// <param name="constant">The constant value to pass to the shader.</param>
+    /// <param name="subMeshIndex">The index of the submesh to render.</param>
+    /// <param name="instances">The instances to add to the queue before rendering.</param>
     public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, int subMeshIndex, ReadOnlySpan<T> instances) where TConstant : unmanaged
     {
         EnqueueInstances(instances);
@@ -130,9 +173,42 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
         ClearDraws();
     }
 
+    /// <summary>
+    /// Draws all instances in the queue for the specified mesh (using submesh index 0) with a constant value, then clears the queue.
+    /// This operation enqueues the provided instances, renders all queued instances with the constant value, and clears the internal draw queue.
+    /// </summary>
+    /// <typeparam name="TConstant">The unmanaged type of the constant value.</typeparam>
+    /// <param name="mesh">The mesh to render.</param>
+    /// <param name="constant">The constant value to pass to the shader.</param>
+    /// <param name="instances">The instances to add to the queue before rendering.</param>
     public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, ReadOnlySpan<T> instances) where TConstant : unmanaged
     {
         DrawWithConstant(mesh, constant, 0, instances);
+    }
+
+    /// <summary>
+    /// Draws all instances currently in the queue for the specified mesh and submesh with a constant value, then clears the queue.
+    /// This operation renders all queued instances with the constant value without adding new ones, and clears the internal draw queue.
+    /// </summary>
+    /// <typeparam name="TConstant">The unmanaged type of the constant value.</typeparam>
+    /// <param name="mesh">The mesh to render.</param>
+    /// <param name="constant">The constant value to pass to the shader.</param>
+    /// <param name="subMeshIndex">The index of the submesh to render.</param>
+    public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, int subMeshIndex) where TConstant : unmanaged
+    {
+        DrawWithConstant(mesh, constant, subMeshIndex, ReadOnlySpan<T>.Empty);
+    }
+
+    /// <summary>
+    /// Draws all instances currently in the queue for the specified mesh (using submesh index 0) with a constant value, then clears the queue.
+    /// This operation renders all queued instances with the constant value without adding new ones, and clears the internal draw queue.
+    /// </summary>
+    /// <typeparam name="TConstant">The unmanaged type of the constant value.</typeparam>
+    /// <param name="mesh">The mesh to render.</param>
+    /// <param name="constant">The constant value to pass to the shader.</param>
+    public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant) where TConstant : unmanaged
+    {
+        DrawWithConstant(mesh, constant, 0, ReadOnlySpan<T>.Empty);
     }
 
     /// <summary>

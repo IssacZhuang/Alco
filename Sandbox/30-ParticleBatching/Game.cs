@@ -161,7 +161,7 @@ public class Game : GameEngine
         }
 
 
-        _renderer.Draw(_mesh, ReadOnlySpan<ParticleData2D>.Empty);
+        _renderer.Draw(_mesh);
         
 
         _subRenderContext.End();
