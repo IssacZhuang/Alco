@@ -164,7 +164,12 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
             Span<T> span = _instances.AsSpan(_instanceCount, count);
             instances.CopyTo(span);
             _instanceCount += count;
-            _draws.Add(new DrawData(_currentBuffer, (uint)count, instanceStart));
+
+            // Try to merge with last DrawData, or add new one if merge fails
+            if (!TryMergeToLastDrawData(_currentBuffer, (uint)count, instanceStart))
+            {
+                _draws.Add(new DrawData(_currentBuffer, (uint)count, instanceStart));
+            }
             return;
         }
 
@@ -180,7 +185,13 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
             Span<T> span = _instances.AsSpan(_instanceCount, toAdd);
             instances.Slice(0, toAdd).CopyTo(span);
             _instanceCount += toAdd;
-            _draws.Add(new DrawData(_currentBuffer, (uint)toAdd, instanceStart));
+
+            // Try to merge with last DrawData, or add new one if merge fails
+            if (!TryMergeToLastDrawData(_currentBuffer, (uint)toAdd, instanceStart))
+            {
+                _draws.Add(new DrawData(_currentBuffer, (uint)toAdd, instanceStart));
+            }
+
             offset += toAdd;
 
             // If buffer is full, immediately update to GPU and get new buffer
@@ -223,6 +234,35 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     private void ClearDraws()
     {
         _draws.Clear();
+    }
+
+    /// <summary>
+    /// Attempts to merge the specified draw data with the last DrawData in the list.
+    /// </summary>
+    /// <param name="buffer">The graphics buffer for the new draw data.</param>
+    /// <param name="instanceCount">The number of instances in the new draw data.</param>
+    /// <param name="instanceStartIndex">The starting index of instances in the new draw data.</param>
+    /// <returns>True if successfully merged; otherwise, false.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryMergeToLastDrawData(GraphicsBuffer buffer, uint instanceCount, uint instanceStartIndex)
+    {
+        if (_draws.Count == 0)
+            return false;
+
+        int lastIndex = _draws.Count - 1;
+        DrawData lastDraw = _draws[lastIndex];
+
+        // Can merge if same buffer and contiguous instances
+        if (lastDraw.Buffer == buffer &&
+            lastDraw.InstanceStartIndex + lastDraw.InstanceCount == instanceStartIndex)
+        {
+            // Merge by extending the last draw's instance count
+            lastDraw.InstanceCount += instanceCount;
+            _draws[lastIndex] = lastDraw;
+            return true;
+        }
+
+        return false;
     }
 
 
