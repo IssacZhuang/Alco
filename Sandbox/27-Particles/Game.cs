@@ -23,7 +23,6 @@ public class Game : GameEngine
 
     private Texture2D _particleTexture;
     private float _boxRotation = 0f;
-    private readonly string[] spaceModes = new string[] { "Local", "World" };
     private readonly string[] operationModes = new string[] { "Translate", "Scale", "Rotate" };
     private int _operationIndex = 0;
     private OPERATION _imGuizmoOperation = OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y;
@@ -78,7 +77,7 @@ public class Game : GameEngine
         // Simulate particles
         _particleSystem.Simulate(delta);
         _subRenderContext.Begin(MainFrameBuffer.AttachmentLayout);
-        _renderer.DrawWithConstant(_mesh, _particleSystem.Transform.Matrix, _particleSystem.Particles);
+        _renderer.Draw(_mesh, _particleSystem.Particles);
         _subRenderContext.End();
     }
 
@@ -114,12 +113,8 @@ public class Game : GameEngine
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Space Mode");
         ImGui.Text($"Rotation: {_particleSystem.Transform.Rotation.ToRadian() / math.DegToRad}");
 
-        int currentSpaceMode = (int)_particleSystem.SpaceMode;
-
-        if (ImGui.Combo("Particle Space Mode", ref currentSpaceMode, spaceModes, spaceModes.Length))
-        {
-            _particleSystem.SpaceMode = (SpaceMode)currentSpaceMode;
-        }
+        // Space mode is now always World - removed SpaceMode property
+        ImGui.Text("Space Mode: World (fixed)");
 
 
         if (ImGui.Combo("Particle Operation Mode", ref _operationIndex, operationModes, operationModes.Length))

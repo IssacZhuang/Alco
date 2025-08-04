@@ -24,19 +24,11 @@ struct ParticleData2D{
     float duration;
 };
 
-struct Constants{
-    float4x4 model;
-};
-
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
 
 DEFINE_TEX2D_SAMPLE(1, _texture);
 
 DEFINE_STORAGE(2, ParticleData2D, _particles);
-
-PUSH_CONSTANT Constants constants;
-
-
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
@@ -51,21 +43,10 @@ V2F MainVS(Vertex input) {
         particle.rotation.x, particle.rotation.y
     };
     float2 rotatedPosition = mul(rotMatrix, scaledPosition);
-    
-    
-    //transform mesh by position
+
+    // transform mesh by position and apply camera transform
     float3 worldPosition = float3(rotatedPosition + particle.position, 0.0);
-
-#if defined(SPACE_MODE_WORLD)
-    // already in world space
-    float4 modelPosition = float4(worldPosition, 1.0);
-#else
-    // Apply model and view-projection transform
-    float4 modelPosition = mul(constants.model, float4(worldPosition, 1.0));
-#endif
-
-    //apply camera transform
-    output.position = mul(viewProjection, modelPosition);
+    output.position = mul(viewProjection, float4(worldPosition, 1.0));
     
     // Pass UV coordinates and instance ID
     output.uv = input.uv;

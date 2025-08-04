@@ -10,8 +10,6 @@ using static Alco.math;
 /// </summary>
 public sealed unsafe class ParticleSystem2DCPU
 {
-    public const string ShaderDefine_SPACE_MODE_WORLD = "SPACE_MODE_WORLD";
-
     /// <summary>
     /// Default implementation of particle simulator that updates particle position based on velocity.
     /// </summary>
@@ -24,14 +22,7 @@ public sealed unsafe class ParticleSystem2DCPU
         /// <param name="particle">Reference to the particle being simulated.</param>
         /// <param name="deltaTime">Time elapsed since the last simulation step.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SimulateInLocal(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
-        {
-            particle.Position += particle.Velocity * deltaTime;
-            particle.Lifetime -= deltaTime;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SimulateInWorld(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
+        public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
         {
             particle.Position += particle.Velocity * deltaTime;
             particle.Lifetime -= deltaTime;
@@ -41,7 +32,6 @@ public sealed unsafe class ParticleSystem2DCPU
     private const int GPUBufferBlockSize = 64 * 1024;
     private static readonly int MaxParticlePerBuffer = GPUBufferBlockSize / sizeof(ParticleData2D);
     private readonly ArrayBuffer<ParticleData2D> _particles;//simulate on cpu
-    private SpaceMode _spaceMode = SpaceMode.Local;
 
     private IParticleSimulator2D _simulator;
 
@@ -122,21 +112,6 @@ public sealed unsafe class ParticleSystem2DCPU
     /// </summary>
     public Transform2D Transform = Transform2D.Identity;
 
-    /// <summary>
-    /// The space mode of the particle system.
-    /// </summary>
-    public SpaceMode SpaceMode
-    {
-        get => _spaceMode;
-        set
-        {
-            if (_spaceMode != value)
-            {
-                SwitchSpaceMode(value);
-            }
-        }
-    }
-
     public Span<ParticleData2D> Particles => _particles.AsSpan();
 
     public ParticleSystem2DCPU(
@@ -184,35 +159,14 @@ public sealed unsafe class ParticleSystem2DCPU
             burstCount += Random.Shared.Next(0, MaxBurstCount - MinBurstCount + 1);
         }
 
-        if (_spaceMode == SpaceMode.Local)
+        int newSize = math.min(MaxParticles, _particles.Length + burstCount);
+        int spanStart = _particles.Length;
+        _particles.SetSize(newSize);
+        Span<ParticleData2D> particles = _particles.AsSpan(spanStart, burstCount);
+        for (int i = 0; i < burstCount; i++)
         {
-            // for (uint i = 0; i < burstCount && _particles.Length < MaxParticles; i++)
-            // {
-            //     var particle = _emitter.EmitInLocal();
-            //     particle.Lifetime = ParticleLifetime;
-            //     _particles.Add(particle);
-            // }
-            int newSize = math.min(MaxParticles, _particles.Length + burstCount);
-            int spanStart = _particles.Length;
-            _particles.SetSize(newSize);
-            Span<ParticleData2D> particles = _particles.AsSpan(spanStart, burstCount);
-            for (int i = 0; i < burstCount; i++)
-            {
-                particles[i] = _emitter.EmitInLocal();
-                particles[i].Lifetime = ParticleLifetime;
-            }
-        }
-        else
-        {
-            int newSize = math.min(MaxParticles, _particles.Length + burstCount);
-            int spanStart = _particles.Length;
-            _particles.SetSize(newSize);
-            Span<ParticleData2D> particles = _particles.AsSpan(spanStart, burstCount);
-            for (int i = 0; i < burstCount; i++)
-            {
-                particles[i] = _emitter.EmitInWorld(Transform);
-                particles[i].Lifetime = ParticleLifetime;
-            }
+            particles[i] = _emitter.Emit(Transform);
+            particles[i].Lifetime = ParticleLifetime;
         }
     }
 
@@ -231,61 +185,30 @@ public sealed unsafe class ParticleSystem2DCPU
         int removeCount = 0;
 
         // Update existing particles
-        if (_spaceMode == SpaceMode.Local)
+        int activeLength = particles.Length;
+        for (int i = 0; i < activeLength; i++)
         {
-            int activeLength = particles.Length;
-            for (int i = 0; i < activeLength; i++)
+            ref ParticleData2D particle = ref particles[i];
+
+            _simulator.Simulate(this, ref particle, deltaTime);
+
+            if (particle.Lifetime <= 0)
             {
-                ref ParticleData2D particle = ref particles[i];
-
-                _simulator.SimulateInLocal(this, ref particle, deltaTime);
-
-                if (particle.Lifetime <= 0)
+                // Swap dead particle with the last active element
+                activeLength--;
+                if (i != activeLength)
                 {
-                    // Swap dead particle with the last active element
-                    activeLength--;
-                    if (i != activeLength)
-                    {
-                        (particles[i], particles[activeLength]) = (particles[activeLength], particles[i]);
-                    }
-                    removeCount++;
-                    i--; // Re-check the swapped particle at current position
+                    (particles[i], particles[activeLength]) = (particles[activeLength], particles[i]);
                 }
-            }
-
-            // Reduce span size by removing dead particles
-            if (removeCount > 0)
-            {
-                _particles.SetSize(_particles.Length - removeCount);
+                removeCount++;
+                i--; // Re-check the swapped particle at current position
             }
         }
-        else
+
+        // Reduce span size by removing dead particles
+        if (removeCount > 0)
         {
-            int activeLength = particles.Length;
-            for (int i = 0; i < activeLength; i++)
-            {
-                ref ParticleData2D particle = ref particles[i];
-
-                _simulator.SimulateInWorld(this, ref particle, deltaTime);
-
-                if (particle.Lifetime <= 0)
-                {
-                    // Swap dead particle with the last active element
-                    activeLength--;
-                    if (i != activeLength)
-                    {
-                        (particles[i], particles[activeLength]) = (particles[activeLength], particles[i]);
-                    }
-                    removeCount++;
-                    i--; // Re-check the swapped particle at current position
-                }
-            }
-
-            // Reduce span size by removing dead particles
-            if (removeCount > 0)
-            {
-                _particles.SetSize(_particles.Length - removeCount);
-            }
+            _particles.SetSize(_particles.Length - removeCount);
         }
 
 
@@ -308,21 +231,10 @@ public sealed unsafe class ParticleSystem2DCPU
                 _particles.SetSize(newSize);
                 Span<ParticleData2D> newParticles = _particles.AsSpan(currentSize, particlesToEmit);
 
-                if (SpaceMode == SpaceMode.Local)
+                for (int i = 0; i < particlesToEmit; i++)
                 {
-                    for (int i = 0; i < particlesToEmit; i++)
-                    {
-                        newParticles[i] = _emitter.EmitInLocal();
-                        newParticles[i].Lifetime = ParticleLifetime;
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < particlesToEmit; i++)
-                    {
-                        newParticles[i] = _emitter.EmitInWorld(Transform);
-                        newParticles[i].Lifetime = ParticleLifetime;
-                    }
+                    newParticles[i] = _emitter.Emit(Transform);
+                    newParticles[i].Lifetime = ParticleLifetime;
                 }
 
                 // Update accumulator once after emitting all particles
@@ -353,10 +265,6 @@ public sealed unsafe class ParticleSystem2DCPU
     }
 
 
-    private void SwitchSpaceMode(SpaceMode mode)
-    {
-        _spaceMode = mode;
-        Clear();
-    }
+
 }
 

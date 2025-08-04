@@ -58,45 +58,7 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     protected abstract Vector2 GeneratePosition();
 
 
-    /// <summary>
-    /// Emits a single particle with randomized properties within the configured ranges.
-    /// </summary>
-    /// <returns>A new particle with randomized position, velocity, rotation, color, size, and lifetime.</returns>
-    public ParticleData2D EmitInLocal()
-    {
-        ParticleData2D particle = default;
-        particle.Position = GeneratePosition();
-
-        particle.Color = Color;
-        float scale = _random.NextFloat(MinSize, MaxSize);
-        particle.Scale = new Vector2(scale, scale);
-
-        // Create normalized random direction vector
-        float halfConeAngle = ConeAngle * 0.5f;
-        float directionAngle = _random.NextFloat(-halfConeAngle, halfConeAngle);
-        Rotation2D direction = new Rotation2D(directionAngle);
-
-        // Apply random speed between MinSpeed and MaxSpeed
-        float speed = _random.NextFloat(MinSpeed, MaxSpeed);
-        particle.Velocity = math.rotate(Vector2.UnitX, direction) * speed;
-
-        if (IsRotationFollowDirection)
-        {
-            particle.Rotation = math.inverse(direction);
-        }
-        else
-        {
-            particle.Rotation = Rotation2D.Identity;
-        }
-
-        particle.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
-
-        particle.Lifetime = _random.NextFloat(1, 2);
-        particle.Duration = particle.Lifetime;
-        return particle;
-    }
-
-    public ParticleData2D EmitInWorld(in Transform2D transform)
+    public ParticleData2D Emit(in Transform2D transform)
     {
         ParticleData2D particle = default;
         //generate position in world space

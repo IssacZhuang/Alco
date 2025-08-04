@@ -139,8 +139,7 @@ public class Game : GameEngine
             {
                 EmissionRateOverTime = Random.Shared.NextSingle() * 100f + 50f,
                 ParticleLifetime = Random.Shared.NextSingle() * 2f + 1f,
-                MaxParticles = ParticlesPerSystem,
-                SpaceMode = SpaceMode.World
+                MaxParticles = ParticlesPerSystem
             };
             
             particleSystem.Play();
@@ -162,7 +161,7 @@ public class Game : GameEngine
         }
 
 
-        _renderer.DrawWithConstant(_mesh, Transform2D.Identity.Matrix, ReadOnlySpan<ParticleData2D>.Empty);
+        _renderer.Draw(_mesh, ReadOnlySpan<ParticleData2D>.Empty);
         
 
         _subRenderContext.End();
