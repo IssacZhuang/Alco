@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace Alco.Rendering;
 
 /// <summary>
@@ -101,13 +103,14 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
 
     public void Draw(Mesh mesh, int subMeshIndex, ReadOnlySpan<T> instances)
     {
-        List<DrawData> draws = PushInstances(instances);
-        for (int i = 0; i < draws.Count; i++)
+        EnqueueInstances(instances);
+        for (int i = 0; i < _draws.Count; i++)
         {
-            DrawData draw = draws[i];
+            DrawData draw = _draws[i];
             _material.SetBuffer(_shaderId_instanceBuffer, draw.Buffer);
             _renderContext.DrawInstanced(mesh, _material, draw.InstanceCount, draw.InstanceStartIndex, subMeshIndex);
         }
+        ClearDraws();
     }
 
     public void Draw(Mesh mesh, ReadOnlySpan<T> instances)
@@ -117,13 +120,14 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
 
     public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, int subMeshIndex, ReadOnlySpan<T> instances) where TConstant : unmanaged
     {
-        List<DrawData> draws = PushInstances(instances);
-        for (int i = 0; i < draws.Count; i++)
+        EnqueueInstances(instances);
+        for (int i = 0; i < _draws.Count; i++)
         {
-            DrawData draw = draws[i];
+            DrawData draw = _draws[i];
             _material.SetBuffer(_shaderId_instanceBuffer, draw.Buffer);
             _renderContext.DrawInstancedWithConstant(mesh, _material, draw.InstanceCount, draw.InstanceStartIndex, constant, subMeshIndex);
         }
+        ClearDraws();
     }
 
     public void DrawWithConstant<TConstant>(Mesh mesh, TConstant constant, ReadOnlySpan<T> instances) where TConstant : unmanaged
@@ -132,18 +136,22 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     }
 
     /// <summary>
-    /// Efficiently batches instances for rendering by minimizing memory copies.
-    /// <br/> For large instance sets, complete buffer-sized chunks are sent directly to GPU without intermediate copying.
-    /// <br/> Smaller chunks are accumulated in the instance buffer and flushed when full or at frame end.
+    /// Enqueues instances to be rendered on the next call to <see cref="Draw(Mesh, ReadOnlySpan{T})"/> or <see cref="DrawWithConstant{TConstant}(Mesh, TConstant, ReadOnlySpan{T})"/>.
     /// </summary>
-    /// <param name="instances">The span of instances to batch for rendering.</param>
-    /// <returns>A list of draw data containing buffer references and instance counts for rendering.</returns>
-    private List<DrawData> PushInstances(ReadOnlySpan<T> instances)
+    /// <param name="instances">The span of instances to enqueue for rendering.</param>
+    public void EnqueueInstances(ReadOnlySpan<T> instances)
     {
-        _draws.Clear();
+        if (instances.IsEmpty)
+        {
+            return;
+        }
+
+        // Implementation efficiently batches instances for rendering by minimizing memory copies.
+        // For large instance sets, complete buffer-sized chunks are sent directly to GPU without intermediate copying.
+        // Smaller chunks are accumulated in the instance buffer and flushed when full or at frame end.
+        // If the last drawData is not full, merges instances into it when possible.
 
         _currentBuffer ??= RequestNewBuffer();
-
 
         int count = instances.Length;
         int remainInBuffer = _maxInstanceCountPerBuffer - _instanceCount;
@@ -157,7 +165,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
             instances.CopyTo(span);
             _instanceCount += count;
             _draws.Add(new DrawData(_currentBuffer, (uint)count, instanceStart));
-            return _draws;
+            return;
         }
 
         // Handle case where instances don't fit in current buffer
@@ -209,8 +217,12 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
             _instanceCount = remaining;
             _draws.Add(new DrawData(_currentBuffer, (uint)remaining, 0));
         }
+    }
 
-        return _draws;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ClearDraws()
+    {
+        _draws.Clear();
     }
 
 
