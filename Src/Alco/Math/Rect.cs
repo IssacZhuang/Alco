@@ -95,5 +95,17 @@ namespace Alco
         {
             return new Rect(Min - new Vector2(left, top), Size + new Vector2(left + right, top + bottom));
         }
+
+        /// <summary>
+        /// Converts this Rect to a RectInt by rounding the floating-point values to the nearest integers.
+        /// </summary>
+        /// <returns>A <see cref="RectInt"/> with coordinates rounded to the nearest integers.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RectInt RoundToInt()
+        {
+            int2 roundedOrigin = math.round(Origin);
+            int2 roundedSize = math.round(Size);
+            return new RectInt(roundedOrigin, roundedSize);
+        }
     }
 }

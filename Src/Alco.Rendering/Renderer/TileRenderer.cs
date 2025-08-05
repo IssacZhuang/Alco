@@ -143,20 +143,14 @@ public sealed class TileRenderer : AutoDisposable
         private bool _isDirty = true;
 
         // Precomputed batch bounds in tile coordinates
-        private readonly int2 _min;
-        private readonly int2 _max;
+        private readonly RectInt _bounds;
 
         public bool IsDirty => _isDirty;
 
         /// <summary>
-        /// Gets the minimum bounds of this batch in tile coordinates (inclusive).
+        /// Gets the bounds of this batch in tile coordinates.
         /// </summary>
-        public int2 Min => _min;
-
-        /// <summary>
-        /// Gets the maximum bounds of this batch in tile coordinates (inclusive).
-        /// </summary>
-        public int2 Max => _max;
+        public RectInt Bounds => _bounds;
 
         public TileBatch(TileSet tileSet, RenderingSystem rendering, IRenderContext context,
             int batchX, int batchY, int batchWidth, int batchHeight, int mapWidth, int mapHeight, GraphicsBuffer tileMapBuffer)
@@ -171,11 +165,10 @@ public sealed class TileRenderer : AutoDisposable
 
             // Precompute batch bounds in tile coordinates
             // batchX and batchY are already tile coordinates (startX, startY)
-            int endX = Math.Min(batchX + batchWidth - 1, mapWidth - 1);
-            int endY = Math.Min(batchY + batchHeight - 1, mapHeight - 1);
+            int actualWidth = Math.Min(batchWidth, mapWidth - batchX);
+            int actualHeight = Math.Min(batchHeight, mapHeight - batchY);
 
-            _min = new int2(batchX, batchY);
-            _max = new int2(endX, endY);
+            _bounds = new RectInt(batchX, batchY, actualWidth, actualHeight);
 
             _renderers = new Renderer[tileSet.Count];
             for (int i = 0; i < tileSet.Count; i++)
@@ -287,8 +280,7 @@ public sealed class TileRenderer : AutoDisposable
     private readonly BatchUpdateTask _updateTask;
 
     // Viewport fields for culling
-    private int2 _viewportFrom;
-    private int2 _viewportTo;
+    private RectInt _viewport;
     private bool _hasViewport;
 
     //The global transform of the tile renderer
@@ -314,10 +306,7 @@ public sealed class TileRenderer : AutoDisposable
     /// </summary>
     public int BatchSizeY => _batchSizeY;
 
-    internal TileRenderer(RenderingSystem rendering, IRenderContext context, TileSet tileSet, int width, int height, string name = "tile_renderer")
-        : this(rendering, context, tileSet, width, height, 64, 64, name)
-    {
-    }
+
 
     /// <summary>
     /// Initializes a new instance of the TileRenderer class with specified batch sizes.
@@ -604,15 +593,15 @@ public sealed class TileRenderer : AutoDisposable
     /// <summary>
     /// Sets the viewport for culling. Only batches within the viewport will be rendered.
     /// </summary>
-    /// <param name="from">The top-left position of the viewport (inclusive).</param>
-    /// <param name="to">The bottom-right position of the viewport (inclusive).</param>
-    public void SetViewport(int2 from, int2 to)
+    /// <param name="viewport">The viewport rectangle in tile coordinates.</param>
+    public void SetViewport(RectInt viewport)
     {
-        from = math.clamp(from, new int2(0, 0), Size - new int2(1, 1));
-        to = math.clamp(to, new int2(0, 0), Size - new int2(1, 1));
+        // Clamp viewport to valid tile map bounds
+        int2 clampedOrigin = math.clamp(viewport.Origin, int2.Zero, Size - int2.One);
+        int2 clampedMax = math.clamp(viewport.Max, int2.Zero, Size);
+        int2 clampedSize = clampedMax - clampedOrigin;
 
-        _viewportFrom = from;
-        _viewportTo = to;
+        _viewport = new RectInt(clampedOrigin, clampedSize);
         _hasViewport = true;
     }
 
@@ -627,19 +616,16 @@ public sealed class TileRenderer : AutoDisposable
     /// <summary>
     /// Gets the current viewport bounds. Returns default values if no viewport is set.
     /// </summary>
-    /// <param name="from">The top-left position of the viewport (inclusive).</param>
-    /// <param name="to">The bottom-right position of the viewport (inclusive).</param>
-    public void GetViewport(out int2 from, out int2 to)
+    /// <returns>The current viewport rectangle.</returns>
+    public RectInt GetViewport()
     {
         if (_hasViewport)
         {
-            from = _viewportFrom;
-            to = _viewportTo;
+            return _viewport;
         }
         else
         {
-            from = int2.Zero;
-            to = Size - int2.One;
+            return new RectInt(int2.Zero, Size);
         }
     }
 
@@ -654,18 +640,9 @@ public sealed class TileRenderer : AutoDisposable
         if (!_hasViewport)
             return true;
 
-        // Get precomputed batch bounds
+        // Get precomputed batch bounds and use RectInt.Intersects
         TileBatch batch = _batches[batchIndex];
-        int2 batchMin = batch.Min;
-        int2 batchMax = batch.Max;
-
-        // Use vector-based intersection test (similar to BoundingBox2D)
-        // but adapted for int2 coordinates
-        int2 minMax = math.max(batchMin, _viewportFrom);
-        int2 maxMin = math.min(batchMax, _viewportTo);
-        int2 result = maxMin - minMax;
-
-        return result.X >= 0 && result.Y >= 0;
+        return batch.Bounds.Intersects(_viewport);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

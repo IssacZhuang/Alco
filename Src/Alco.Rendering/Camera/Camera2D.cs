@@ -61,4 +61,14 @@ public class Camera2D : BaseCameraObject<CameraData2D>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set => Data.Far = value;
     }
+
+    /// <summary>
+    /// Gets the viewport rectangle representing the area visible by the camera in world coordinates.
+    /// </summary>
+    /// <returns>A <see cref="Rect"/> representing the camera's viewport in world space.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Rect GetViewport()
+    {
+        return Data.GetViewport();
+    }
 }

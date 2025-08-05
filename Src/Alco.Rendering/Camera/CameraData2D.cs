@@ -89,4 +89,16 @@ public struct CameraData2D : ICamera
     {
         return UtilsCameraMath.ScreenPointToRay2D(screenPosition, screenSize, ViewProjectionMatrix, Near, Near + 1);
     }
+
+    /// <summary>
+    /// Gets the viewport rectangle representing the area visible by the camera in world coordinates.
+    /// </summary>
+    /// <returns>A <see cref="Rect"/> representing the camera's viewport in world space.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Rect GetViewport()
+    {
+        Vector2 halfSize = Transform.Scale * 0.5f;
+        Vector2 origin = Transform.Position - halfSize;
+        return new Rect(origin, Transform.Scale);
+    }
 }

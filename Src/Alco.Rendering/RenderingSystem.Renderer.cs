@@ -77,6 +77,22 @@ public partial class RenderingSystem
     /// <returns>The created tile renderer.</returns>
     public TileRenderer CreateTileRenderer(IRenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer")
     {
-        return new TileRenderer(this, renderContext, tileSet, width, height, name);
+        return new TileRenderer(this, renderContext, tileSet, width, height, 64, 64, name);
+    }
+
+    /// <summary>
+    /// Creates a tile renderer for rendering tile-based graphics with efficient batching and custom batch sizes.
+    /// </summary>
+    /// <param name="renderContext">The render context to use for rendering.</param>
+    /// <param name="tileSet">The tile set containing tile items and materials.</param>
+    /// <param name="width">The width of the tile map in tiles.</param>
+    /// <param name="height">The height of the tile map in tiles.</param>
+    /// <param name="batchSizeX">The width of each batch in tiles.</param>
+    /// <param name="batchSizeY">The height of each batch in tiles.</param>
+    /// <param name="name">The name of the tile renderer.</param>
+    /// <returns>The created tile renderer.</returns>
+    public TileRenderer CreateTileRenderer(IRenderContext renderContext, TileSet tileSet, int width, int height, int batchSizeX, int batchSizeY, string name = "tile_renderer")
+    {
+        return new TileRenderer(this, renderContext, tileSet, width, height, batchSizeX, batchSizeY, name);
     }
 }
