@@ -223,7 +223,7 @@ public class Game : GameEngine
 
         ImGuiIOPtr io = ImGui.GetIO();
 
-        if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+        if (TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
 
             ImGui.Text($"Tile Position: {tilePosition}");
@@ -287,6 +287,42 @@ public class Game : GameEngine
             // Note: TileRenderer doesn't support hot-swapping tile sets
             // A full recreation of the renderer would be needed
         }
+    }
+
+    private bool TryGetTilePositionByRay(Ray3D ray, out int2 tilePosition)
+    {
+        Matrix4x4 matrix = _surfaceBlock.Transform.Matrix;
+        //to local space
+        if (Matrix4x4.Invert(matrix, out Matrix4x4 invMatrix))
+        {
+            Vector3 start = ray.Origin;
+            Vector3 end = ray.Origin + ray.Displacement;
+
+            Vector3 localStart = Vector3.Transform(start, invMatrix);
+            Vector3 localEnd = Vector3.Transform(end, invMatrix);
+
+            Plane3D plane = new Plane3D(Vector3.UnitZ, 0);
+
+            Ray3D localRay = new Ray3D(localStart, localEnd - localStart);
+
+            if (plane.IntersectRay(localRay, out Vector3 hitPoint))
+            {
+                // TileRenderer Transform corresponds to bottom-left corner (0,0)
+                // No offset needed since Transform is already at the correct position
+                int tileX = (int)math.round(hitPoint.X);
+                int tileY = (int)math.round(hitPoint.Y);
+
+                int2 size = _surfaceBlock.Size;
+                if (tileX >= 0 && tileX < size.X && tileY >= 0 && tileY < size.Y)
+                {
+                    tilePosition = new int2(tileX, tileY);
+                    return true;
+                }
+            }
+        }
+
+        tilePosition = new int2(0, 0);
+        return false;
     }
 
     private TileSet BuildSurfaceTileSet()
