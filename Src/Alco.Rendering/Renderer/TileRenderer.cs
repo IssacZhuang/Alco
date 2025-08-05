@@ -139,12 +139,13 @@ public sealed class TileRenderer : AutoDisposable
         private readonly int _batchWidth;
         private readonly int _batchHeight;
         private readonly int _mapWidth;
+        private readonly int _mapHeight;
         private bool _isDirty = true;
 
         public bool IsDirty => _isDirty;
 
         public TileBatch(TileSet tileSet, RenderingSystem rendering, IRenderContext context,
-            int batchX, int batchY, int batchWidth, int batchHeight, int mapWidth, GraphicsBuffer tileMapBuffer)
+            int batchX, int batchY, int batchWidth, int batchHeight, int mapWidth, int mapHeight, GraphicsBuffer tileMapBuffer)
         {
             _tileSet = tileSet;
             _batchX = batchX;
@@ -152,6 +153,7 @@ public sealed class TileRenderer : AutoDisposable
             _batchWidth = batchWidth;
             _batchHeight = batchHeight;
             _mapWidth = mapWidth;
+            _mapHeight = mapHeight;
 
             _renderers = new Renderer[tileSet.Count];
             for (int i = 0; i < tileSet.Count; i++)
@@ -181,21 +183,24 @@ public sealed class TileRenderer : AutoDisposable
             int itemCount = _tileSet.Count;
 
             // Process tiles in this batch region
-            for (int localX = 0; localX < _batchWidth; localX++)
-            {
-                for (int localY = 0; localY < _batchHeight; localY++)
-                {
-                    int globalX = _batchX + localX;
-                    int globalY = _batchY + localY;
+            int startX = _batchX;
+            int startY = _batchY;
+            int endX = startX + _batchWidth;
+            int endY = startY + _batchHeight;
 
-                    if (globalX >= _mapWidth || globalY * _mapWidth + globalX >= tileMap.Length)
+            for (int x = startX; x < endX; x++)
+            {
+                for (int y = startY; y < endY; y++)
+                {
+
+                    if (x >= _mapWidth || y >= _mapHeight)
                         continue;
 
-                    int tileId = tileMap[globalY * _mapWidth + globalX];
+                    int tileId = tileMap[y * _mapWidth + x];
                     if (tileId < 0 || tileId >= itemCount)
                         continue;
 
-                    _renderers[tileId].Add(new TileInstanceData(new Vector2(globalX, globalY)));
+                    _renderers[tileId].Add(new TileInstanceData(new Vector2(x, y)));
                 }
             }
 
@@ -339,7 +344,7 @@ public sealed class TileRenderer : AutoDisposable
                 int actualBatchHeight = Math.Min(batchSizeY, height - startY);
 
                 _batches[batchIndex] = new TileBatch(tileSet, rendering, context,
-                    startX, startY, actualBatchWidth, actualBatchHeight, width, _tileMapBuffer);
+                    startX, startY, actualBatchWidth, actualBatchHeight, width, height, _tileMapBuffer);
             }
         }
 
@@ -360,7 +365,7 @@ public sealed class TileRenderer : AutoDisposable
         _tileMapBuffer.UpdateBuffer(span);
 
         // Update all batches
-        UpdateDirtyBatches();
+        TryUpdateDirtyBatches();
     }
 
     /// <summary>
@@ -396,7 +401,7 @@ public sealed class TileRenderer : AutoDisposable
     /// <summary>
     /// Updates all dirty batches.
     /// </summary>
-    private void UpdateDirtyBatches()
+    private bool TryUpdateDirtyBatches()
     {
         _updateTask.Batches.Clear();
         _updateTask.TileMap = _tileMap;
@@ -423,6 +428,8 @@ public sealed class TileRenderer : AutoDisposable
             // Parallel batch update
             _updateTask.RunParallel(dirtyCount, 1);
         }
+
+        return dirtyCount > 0;
     }
 
     /// <summary>
@@ -534,22 +541,10 @@ public sealed class TileRenderer : AutoDisposable
     /// </summary>
     public void Render()
     {
-        // Update tile map buffer if any batch is dirty
-        bool anyBatchDirty = false;
-        for (int i = 0; i < _batches.Length; i++)
-        {
-            if (_batches[i].IsDirty)
-            {
-                anyBatchDirty = true;
-                break;
-            }
-        }
-
-        if (anyBatchDirty)
+        if (TryUpdateDirtyBatches())
         {
             ReadOnlySpan<int> span = _tileMap;
             _tileMapBuffer.UpdateBuffer(span);
-            UpdateDirtyBatches();
         }
 
         // Render all batches
