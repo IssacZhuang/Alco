@@ -264,12 +264,23 @@ public sealed class TileRenderer : AutoDisposable
     private readonly TileBatch[] _batches;
     private readonly BatchUpdateTask _updateTask;
 
+    // Viewport fields for culling
+    private int2 _viewportFrom;
+    private int2 _viewportTo;
+    private bool _hasViewport;
+
     //The global transform of the tile renderer
     public Transform3D Transform;
 
     public string Name { get; }
 
     public int2 Size => new int2(_width, _height);
+
+    /// <summary>
+    /// Gets whether a viewport is currently set.
+    /// </summary>
+    public bool HasViewport => _hasViewport;
+
 
     /// <summary>
     /// Gets the batch size in the X direction.
@@ -538,6 +549,7 @@ public sealed class TileRenderer : AutoDisposable
 
     /// <summary>
     /// Renders all batches. Only updates dirty batches for better performance.
+    /// Uses viewport culling to only render visible batches.
     /// </summary>
     public void Render()
     {
@@ -547,13 +559,16 @@ public sealed class TileRenderer : AutoDisposable
             _tileMapBuffer.UpdateBuffer(span);
         }
 
-        // Render all batches
+        // Render only visible batches
         Transform3D transform = Transform;
         Constant constant = new(transform.Matrix, new int2(_width, _height));
 
         for (int i = 0; i < _batches.Length; i++)
         {
-            _batches[i].Render(constant);
+            if (IsBatchInViewport(i))
+            {
+                _batches[i].Render(constant);
+            }
         }
     }
 
@@ -562,6 +577,78 @@ public sealed class TileRenderer : AutoDisposable
     public Span<int> AsSpan()
     {
         return _tileMap.AsSpan();
+    }
+
+    /// <summary>
+    /// Sets the viewport for culling. Only batches within the viewport will be rendered.
+    /// </summary>
+    /// <param name="from">The top-left position of the viewport (inclusive).</param>
+    /// <param name="to">The bottom-right position of the viewport (inclusive).</param>
+    public void SetViewport(int2 from, int2 to)
+    {
+        from = math.clamp(from, new int2(0, 0), Size - new int2(1, 1));
+        to = math.clamp(to, new int2(0, 0), Size - new int2(1, 1));
+
+        _viewportFrom = from;
+        _viewportTo = to;
+        _hasViewport = true;
+    }
+
+    /// <summary>
+    /// Clears the viewport, causing all batches to be rendered.
+    /// </summary>
+    public void ClearViewport()
+    {
+        _hasViewport = false;
+    }
+
+    /// <summary>
+    /// Gets the current viewport bounds. Returns default values if no viewport is set.
+    /// </summary>
+    /// <param name="from">The top-left position of the viewport (inclusive).</param>
+    /// <param name="to">The bottom-right position of the viewport (inclusive).</param>
+    public void GetViewport(out int2 from, out int2 to)
+    {
+        if (_hasViewport)
+        {
+            from = _viewportFrom;
+            to = _viewportTo;
+        }
+        else
+        {
+            from = int2.Zero;
+            to = Size - int2.One;
+        }
+    }
+
+    /// <summary>
+    /// Checks if a batch is within the current viewport.
+    /// </summary>
+    /// <param name="batchIndex">The index of the batch to check.</param>
+    /// <returns>True if the batch intersects with the viewport, false otherwise.</returns>
+    private bool IsBatchInViewport(int batchIndex)
+    {
+        // If no viewport is set, all batches are considered visible
+        if (!_hasViewport)
+            return true;
+
+        // Calculate batch coordinates from index
+        int batchX = batchIndex % _batchCountX;
+        int batchY = batchIndex / _batchCountX;
+
+        // Calculate batch world coordinates
+        int batchStartX = batchX * _batchSizeX;
+        int batchStartY = batchY * _batchSizeY;
+        int batchEndX = Math.Min(batchStartX + _batchSizeX - 1, _width - 1);
+        int batchEndY = Math.Min(batchStartY + _batchSizeY - 1, _height - 1);
+
+        // Check if batch intersects with viewport
+        bool intersects = !(batchEndX < _viewportFrom.X ||
+                           batchStartX > _viewportTo.X ||
+                           batchEndY < _viewportFrom.Y ||
+                           batchStartY > _viewportTo.Y);
+
+        return intersects;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
