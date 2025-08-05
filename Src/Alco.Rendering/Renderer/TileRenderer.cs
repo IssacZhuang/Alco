@@ -142,7 +142,21 @@ public sealed class TileRenderer : AutoDisposable
         private readonly int _mapHeight;
         private bool _isDirty = true;
 
+        // Precomputed batch bounds in tile coordinates
+        private readonly int2 _min;
+        private readonly int2 _max;
+
         public bool IsDirty => _isDirty;
+
+        /// <summary>
+        /// Gets the minimum bounds of this batch in tile coordinates (inclusive).
+        /// </summary>
+        public int2 Min => _min;
+
+        /// <summary>
+        /// Gets the maximum bounds of this batch in tile coordinates (inclusive).
+        /// </summary>
+        public int2 Max => _max;
 
         public TileBatch(TileSet tileSet, RenderingSystem rendering, IRenderContext context,
             int batchX, int batchY, int batchWidth, int batchHeight, int mapWidth, int mapHeight, GraphicsBuffer tileMapBuffer)
@@ -154,6 +168,14 @@ public sealed class TileRenderer : AutoDisposable
             _batchHeight = batchHeight;
             _mapWidth = mapWidth;
             _mapHeight = mapHeight;
+
+            // Precompute batch bounds in tile coordinates
+            // batchX and batchY are already tile coordinates (startX, startY)
+            int endX = Math.Min(batchX + batchWidth - 1, mapWidth - 1);
+            int endY = Math.Min(batchY + batchHeight - 1, mapHeight - 1);
+
+            _min = new int2(batchX, batchY);
+            _max = new int2(endX, endY);
 
             _renderers = new Renderer[tileSet.Count];
             for (int i = 0; i < tileSet.Count; i++)
@@ -632,23 +654,18 @@ public sealed class TileRenderer : AutoDisposable
         if (!_hasViewport)
             return true;
 
-        // Calculate batch coordinates from index
-        int batchX = batchIndex % _batchCountX;
-        int batchY = batchIndex / _batchCountX;
+        // Get precomputed batch bounds
+        TileBatch batch = _batches[batchIndex];
+        int2 batchMin = batch.Min;
+        int2 batchMax = batch.Max;
 
-        // Calculate batch world coordinates
-        int batchStartX = batchX * _batchSizeX;
-        int batchStartY = batchY * _batchSizeY;
-        int batchEndX = Math.Min(batchStartX + _batchSizeX - 1, _width - 1);
-        int batchEndY = Math.Min(batchStartY + _batchSizeY - 1, _height - 1);
+        // Use vector-based intersection test (similar to BoundingBox2D)
+        // but adapted for int2 coordinates
+        int2 minMax = math.max(batchMin, _viewportFrom);
+        int2 maxMin = math.min(batchMax, _viewportTo);
+        int2 result = maxMin - minMax;
 
-        // Check if batch intersects with viewport
-        bool intersects = !(batchEndX < _viewportFrom.X ||
-                           batchStartX > _viewportTo.X ||
-                           batchEndY < _viewportFrom.Y ||
-                           batchStartY > _viewportTo.Y);
-
-        return intersects;
+        return result.X >= 0 && result.Y >= 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
