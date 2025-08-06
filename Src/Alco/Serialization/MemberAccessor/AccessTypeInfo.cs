@@ -15,13 +15,12 @@ public class AccessTypeInfo
 {
     /// <summary>
     /// Binding flags used to retrieve all instance members of a type,
-    /// including both public and non-public members that are declared in the type itself.
+    /// including both public and non-public members from the type and its inheritance hierarchy.
     /// </summary>
     private const BindingFlags AllInstanceMembers =
             BindingFlags.Instance |
             BindingFlags.Public |
-            BindingFlags.NonPublic |
-            BindingFlags.DeclaredOnly;
+            BindingFlags.NonPublic;
 
     private readonly Func<object>? _constructor;
 

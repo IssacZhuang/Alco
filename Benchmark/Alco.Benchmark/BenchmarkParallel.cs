@@ -22,7 +22,7 @@ public class BenchmarkParallel
     private LightweightTask _lightweightTask;
 
     private int[] _array;
-    private Random _random;
+    private FastRandom _random;
 
     [GlobalSetup]
     public void Setup()
@@ -31,7 +31,7 @@ public class BenchmarkParallel
         _memoryTask = new MemoryIntensiveTask();
         _lightweightTask = new LightweightTask();
         _array = new int[LargeWorkload];
-        _random = new Random(42);
+        _random = new FastRandom(42);
 
         // Initialize array with random values
         for (int i = 0; i < _array.Length; i++)
@@ -54,7 +54,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for CPU-intensive work (calculating square roots and trigonometric functions)
     /// </summary>
-    private class CpuIntensiveTask : ReuseableParallelTask
+    private class CpuIntensiveTask : ReuseableBatchTask
     {
         private int[] _data;
         private double[] _results;
@@ -120,7 +120,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for memory-intensive work (array operations and memory access patterns)
     /// </summary>
-    private class MemoryIntensiveTask : ReuseableParallelTask
+    private class MemoryIntensiveTask : ReuseableBatchTask
     {
         private int[] _source;
         private int[] _destination;
@@ -189,7 +189,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for lightweight work (simple arithmetic operations)
     /// </summary>
-    private class LightweightTask : ReuseableParallelTask
+    private class LightweightTask : ReuseableBatchTask
     {
         private int[] _source;
         private int[] _destination;
@@ -246,7 +246,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for empty work (no operations) to test pure scheduling overhead
     /// </summary>
-    private class EmptyTask : ReuseableParallelTask
+    private class EmptyTask : ReuseableBatchTask
     {
         protected override void ExecuteCore(int index)
         {
@@ -307,7 +307,7 @@ public class BenchmarkParallel
         return count;
     }
 
-    private class OverheadTask : ReuseableParallelTask
+    private class OverheadTask : ReuseableBatchTask
     {
         private int _count;
 

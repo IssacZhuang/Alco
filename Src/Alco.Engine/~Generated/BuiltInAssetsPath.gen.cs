@@ -45,23 +45,13 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_Sprite = "Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl";
 
-   public const string Shader_Sprite9Slice = "Shaders/Pipelines/Rendering/Sprite/Sprite9Slice.hlsl";
-
-   public const string Shader_SpriteMasked = "Shaders/Pipelines/Rendering/Sprite/SpriteMasked.hlsl";
+   public const string Shader_SpriteInstanced = "Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl";
 
    public const string Shader_Text = "Shaders/Pipelines/Rendering/Text/Text.hlsl";
 
-   public const string Shader_TextMasked = "Shaders/Pipelines/Rendering/Text/TextMasked.hlsl";
+   public const string Shader_TileInstanced = "Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl";
 
-   public const string Shader_TileConnectable = "Shaders/Pipelines/Rendering/TileMap/TileConnectable.hlsl";
-
-   public const string Shader_TileLighting = "Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl";
-
-   public const string Shader_TilePlant = "Shaders/Pipelines/Rendering/TileMap/TilePlant.hlsl";
-
-   public const string Shader_TileSurface = "Shaders/Pipelines/Rendering/TileMap/TileSurface.hlsl";
-
-   public const string Shader_TileWater = "Shaders/Pipelines/Rendering/TileMap/TileWater.hlsl";
+   public const string Shader_TileWaterInstanced = "Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl";
 
 
 }

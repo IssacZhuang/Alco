@@ -146,6 +146,9 @@ public class DepthDebugSystem : BaseEngineSystem
             _renderTarget.RenderTexture.Height,
             "tmp_depth_texture"
             );
+
+        _materialBlitToTmp.SetRenderTextureDepth(ShaderResourceId.Texture, _renderTarget.RenderTexture);
+        _materialBlitToMain.SetRenderTexture(ShaderResourceId.Texture, _tmpTexture);
     }
 
     public override void Dispose()

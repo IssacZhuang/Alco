@@ -73,8 +73,7 @@ public class UIText : UISelectable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            Span<char> span = _text.Data;
-            return span.Slice(0, _textLength);
+            return _text.AsSpan(0, _textLength);
         }
     }
 
@@ -88,7 +87,7 @@ public class UIText : UISelectable
         {
             if (_isTmpStrReadDirty)
             {
-                _tmpStr = new string(_text.AsReadOnlySpan());
+                _tmpStr = new string(_text.AsSpan(0, _textLength));
                 _isTmpStrReadDirty = false;
             }
             return _tmpStr;
@@ -189,7 +188,7 @@ public class UIText : UISelectable
         for (int i = 0; i < _lines.Count; i++)
         {
             //renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
-            DrawLine(canvas, i, _text.Slice(_lines[i].start, _lines[i].count), transform);
+            DrawLine(canvas, i, _text.AsSpan(_lines[i].start, _lines[i].count), transform);
             transform.Position.Y -= lineHeight;
         }
     }
@@ -214,7 +213,7 @@ public class UIText : UISelectable
     {
         _isTmpStrReadDirty = true;
         _isTmpStrWriteDirty = false;
-        _text.EnsureSizeWithoutCopy(length);
+        _text.SetSizeWithoutCopy(length);
 
         _textLength = length;
         for (int i = 0; i < length; i++)
@@ -294,7 +293,7 @@ public class UIText : UISelectable
 
     protected Span<char> ResizeText(int length)
     {
-        _text.EnsureSize(length);
+        _text.SetSize(length);
         _textLength = length;
         return TextSpan;
     }

@@ -12,6 +12,36 @@ namespace Alco
         public uint Z;
         public uint W;
 
+        /// <summary>
+        /// A uint4 with all components set to zero.
+        /// </summary>
+        public static readonly uint4 Zero = new uint4(0u, 0u, 0u, 0u);
+
+        /// <summary>
+        /// A uint4 with all components set to one.
+        /// </summary>
+        public static readonly uint4 One = new uint4(1u, 1u, 1u, 1u);
+
+        /// <summary>
+        /// A unit vector with the X component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly uint4 UnitX = new uint4(1u, 0u, 0u, 0u);
+
+        /// <summary>
+        /// A unit vector with the Y component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly uint4 UnitY = new uint4(0u, 1u, 0u, 0u);
+
+        /// <summary>
+        /// A unit vector with the Z component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly uint4 UnitZ = new uint4(0u, 0u, 1u, 0u);
+
+        /// <summary>
+        /// A unit vector with the W component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly uint4 UnitW = new uint4(0u, 0u, 0u, 1u);
+
         public uint4(uint value)
         {
             this.X = value;

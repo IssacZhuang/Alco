@@ -12,6 +12,36 @@ namespace Alco
         public Half Z;
         public Half W;
 
+        /// <summary>
+        /// A Half4 with all components set to zero.
+        /// </summary>
+        public static readonly Half4 Zero = new Half4(0, 0, 0, 0);
+
+        /// <summary>
+        /// A Half4 with all components set to one.
+        /// </summary>
+        public static readonly Half4 One = new Half4(1, 1, 1, 1);
+
+        /// <summary>
+        /// A unit vector with the X component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half4 UnitX = new Half4(1, 0, 0, 0);
+
+        /// <summary>
+        /// A unit vector with the Y component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half4 UnitY = new Half4(0, 1, 0, 0);
+
+        /// <summary>
+        /// A unit vector with the Z component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half4 UnitZ = new Half4(0, 0, 1, 0);
+
+        /// <summary>
+        /// A unit vector with the W component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly Half4 UnitW = new Half4(0, 0, 0, 1);
+
         public Half4(Half value)
         {
             this.X = value;
@@ -101,6 +131,16 @@ namespace Alco
         public static Half4 operator -(Half4 a, Half4 b)
         {
             return new Half4(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W);
+        }
+        /// <summary>
+        /// Negates the specified Half4 value.
+        /// </summary>
+        /// <param name="a">The value to negate.</param>
+        /// <returns>A new Half4 with all components negated.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Half4 operator -(Half4 a)
+        {
+            return new Half4(-a.X, -a.Y, -a.Z, -a.W);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Half4 operator *(Half4 a, Half4 b)

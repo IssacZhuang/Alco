@@ -3,7 +3,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
-using Random = Alco.Random;
+using FastRandom = Alco.FastRandom;
 using Alco.Graphics;
 
 public class Game : GameEngine
@@ -48,7 +48,7 @@ public class Game : GameEngine
 
         //randomize positions
 
-        Random random = new Random(123);
+        FastRandom random = new FastRandom(123);
         for (int i = 0; i < DrawCount; i++)
         {
             _positions[i] = (random.NextVector2() - Vector2.One*0.5f) * new Vector2(640, 360);

@@ -1,13 +1,14 @@
 using System;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Buffers;
 
 
 namespace Alco
 {
     public class BaseCurve2D<T> : ICurve2D where T : ICurve, new()
     {
-        private readonly List<CurvePoint<Vector2>> _points = new List<CurvePoint<Vector2>>();
+        private readonly List<CurvePoint2Value> _points = new List<CurvePoint2Value>();
 
         private T _curveX;
         private T _curveY;
@@ -20,7 +21,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint<Vector2>> Points
+        public IReadOnlyList<CurvePoint2Value> Points
         {
             get
             {
@@ -34,7 +35,7 @@ namespace Alco
             _curveY = new T();
         }
 
-        public BaseCurve2D(IReadOnlyList<CurvePoint<Vector2>> points)
+        public BaseCurve2D(ReadOnlySpan<CurvePoint2Value> points)
         {
             _curveX = new T();
             _curveY = new T();
@@ -42,27 +43,69 @@ namespace Alco
             SetPoints(points);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint<Vector2>> points)
+        public BaseCurve2D(IReadOnlyList<CurvePoint2Value> points)
+        {
+            _curveX = new T();
+            _curveY = new T();
+
+            SetPoints(points);
+        }
+
+        public void SetPoints(ReadOnlySpan<CurvePoint2Value> points)
+        {
+            _points.Clear();
+
+            int length = points.Length;
+
+            CurvePointValue[] tempPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+
+            // Process X coordinates
+            for (int i = 0; i < length; i++)
+            {
+                _points.Add(points[i]);
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.X);
+            }
+            _curveX.SetPoints(tempPoints.AsSpan(0, length));
+
+            // Process Y coordinates
+            for (int i = 0; i < length; i++)
+            {
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Y);
+            }
+            _curveY.SetPoints(tempPoints.AsSpan(0, length));
+
+            ArrayPool<CurvePointValue>.Shared.Return(tempPoints);
+        }
+
+        public void SetPoints(IReadOnlyList<CurvePoint2Value> points)
         {
             if (points == null)
             {
-                throw ExceptionCurve.NullOrEmptyPoints("points");
+                throw new ArgumentNullException(nameof(points));
             }
 
             _points.Clear();
 
-            List<CurvePoint<float>> xPoints = new List<CurvePoint<float>>();
-            List<CurvePoint<float>> yPoints = new List<CurvePoint<float>>();
+            int length = points.Count;
 
-            for (int i = 0; i < points.Count; i++)
+            CurvePointValue[] tempPoints = ArrayPool<CurvePointValue>.Shared.Rent(length);
+
+            // Process X coordinates
+            for (int i = 0; i < length; i++)
             {
                 _points.Add(points[i]);
-                xPoints.Add(new CurvePoint<float>(points[i].Time, points[i].Value.X));
-                yPoints.Add(new CurvePoint<float>(points[i].Time, points[i].Value.Y));
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.X);
             }
+            _curveX.SetPoints(tempPoints.AsSpan(0, length));
 
-            _curveX.SetPoints(xPoints);
-            _curveY.SetPoints(yPoints);
+            // Process Y coordinates
+            for (int i = 0; i < length; i++)
+            {
+                tempPoints[i] = new CurvePointValue(points[i].Time, points[i].Value.Y);
+            }
+            _curveY.SetPoints(tempPoints.AsSpan(0, length));
+
+            ArrayPool<CurvePointValue>.Shared.Return(tempPoints);
         }
 
         public Vector2 Evaluate(float t)

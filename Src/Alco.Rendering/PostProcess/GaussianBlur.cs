@@ -5,9 +5,6 @@ namespace Alco.Rendering;
 
 public class GaussianBlur : AutoDisposable
 {
-
-    private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _command;
     private readonly ComputeMaterial _material;
 
     private readonly int _kernelSizeX;
@@ -36,10 +33,8 @@ public class GaussianBlur : AutoDisposable
             throw new ArgumentException("Kernel size must be equal to kernel size");
         }
 
-        _device = renderingSystem.GraphicsDevice;
-        _command = _device.CreateCommandBuffer();
         _material = material.CreateInstance();
-        
+
 
         _kernelSizeX = kernelSizeX;
         _kernelSizeY = kernelSizeY;
@@ -66,7 +61,7 @@ public class GaussianBlur : AutoDisposable
         _kernelBuffer.UpdateBuffer();
     }
 
-    public void Blit(RenderTexture input, RenderTexture output)
+    public void Compute(GPUCommandBuffer.ComputePass computePass, RenderTexture input, RenderTexture output)
     {
         if (input.Width != output.Width || input.Height != output.Height)
         {
@@ -83,20 +78,13 @@ public class GaussianBlur : AutoDisposable
         _material.TrySetRenderTexture(ShaderResourceId.Input, input);
         _material.TrySetRenderTexture(ShaderResourceId.Output, output);
 
-        _command.Begin();
-
-        using (var computePass = _command.BeginCompute())
-        {
-            _material.DispatchBySizeWithConstant(
-                computePass,
-                input.Width,
-                input.Height,
-                1,
-                constant
-            );
-        }
-        _command.End();
-        _device.Submit(_command);
+        _material.DispatchBySizeWithConstant(
+            computePass,
+            input.Width,
+            input.Height,
+            1,
+            constant
+        );
     }
 
     protected override void Dispose(bool disposing)
@@ -104,7 +92,6 @@ public class GaussianBlur : AutoDisposable
         if (disposing)
         {
             _kernelBuffer.Dispose();
-            _command.Dispose();
         }
     }
 }

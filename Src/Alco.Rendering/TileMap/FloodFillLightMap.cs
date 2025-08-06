@@ -5,7 +5,6 @@ namespace Alco.Rendering;
 
 public class FloodFillLightMap : AutoDisposable
 {
-    private readonly GPUDevice _device;
     private readonly RenderTexture _lightMapFront;
     private readonly RenderTexture _lightMapBack;
     private readonly DoubleBuffer<RenderTexture> _lightMaps;
@@ -15,30 +14,19 @@ public class FloodFillLightMap : AutoDisposable
     private readonly BitmapUIntRGBA _opacityMapCPU;
 
     private readonly ComputeMaterial _material;
-    private readonly GPUCommandBuffer _command;
 
     private uint _shaderId_front;
     private uint _shaderId_back;
 
-    private FloodFillLightingConstant _data;
-
-    private bool _isDirty = false;
+    private bool _isTextureDirty = false;
+    private bool _isResultDirty = false;
 
 
     public int Iteration { get; set; } = 32;
-    public float AttenuationSide
-    {
-        get => _data.AttenuationSide;
-        set => _data.AttenuationSide = value;
+    public float AttenuationSide { get; set; } = 0.1f;
+    public float AttenuationCorner { get; set; } = 0.14141414f;
 
-    }
-
-    public float AttenuationCorner
-    {
-        get => _data.AttenuationCorner;
-        set => _data.AttenuationCorner = value;
-
-    }
+    public float AttenuationMultiplier { get; set; } = 1f;
 
     public RenderTexture Texture => _lightMaps.Front;
 
@@ -64,14 +52,7 @@ public class FloodFillLightMap : AutoDisposable
         _opacityMap = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedRGBATexturePass, (uint)width, (uint)height, "tile_opacity_map");
         _opacityMapCPU = new BitmapUIntRGBA(width, height, Color32.White);
 
-        _device = renderingSystem.GraphicsDevice;
-        _command = _device.CreateCommandBuffer();
 
-        _data = new FloodFillLightingConstant
-        {
-            AttenuationSide = 0.1f,
-            AttenuationCorner = 0.14141414f,
-        };
 
         _shaderId_front = _material.GetResourceId(ShaderResourceId.FrontBuffer);
         _shaderId_back = _material.GetResourceId(ShaderResourceId.BackBuffer);
@@ -84,17 +65,17 @@ public class FloodFillLightMap : AutoDisposable
 
     public void ClearLightMap(Vector4 color)
     {
-        _lightMapCPU.Clear(color);
+        _lightMapCPU.Fill(color);
     }
 
     public void SetDirty()
     {
-        _isDirty = true;
+        _isTextureDirty = true;
     }
 
     public void ResetOpacity()
     {
-        _opacityMapCPU.Clear(Color32.White);
+        _opacityMapCPU.Fill(Color32.White);
     }
 
     public void AddLight(int x, int y, Half4 light)
@@ -109,7 +90,7 @@ public class FloodFillLightMap : AutoDisposable
 
     public void ClearOpacityMap()
     {
-        _opacityMapCPU.Clear(Color32.White);
+        _opacityMapCPU.Fill(Color32.White);
     }
 
 
@@ -118,9 +99,35 @@ public class FloodFillLightMap : AutoDisposable
         _opacityMapCPU[x, y] = opacity;
     }
 
-    public void Render()
+    public void Compute(GPUCommandBuffer.ComputePass computePass)
     {
-        if (!_isDirty)
+        ResetTexture();
+
+        FloodFillLightingConstant constant = new FloodFillLightingConstant
+        {
+            AttenuationCorner = AttenuationCorner * AttenuationMultiplier,
+            AttenuationSide = AttenuationSide * AttenuationMultiplier,
+        };
+
+        if (_isResultDirty)
+        {
+            _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
+            for (int i = 0; i < Iteration; i++)
+            {
+                _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
+                _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
+                _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, constant);
+                _lightMaps.Swap();
+            }
+
+            _isResultDirty = false;
+        }
+
+    }
+
+    public void ResetTexture(bool force = false)
+    {
+        if (!_isTextureDirty && !force)
         {
             return;
         }
@@ -130,20 +137,8 @@ public class FloodFillLightMap : AutoDisposable
         _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
         _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
 
-        _command.Begin();
-        using (var computePass = _command.BeginCompute())
-        {
-            _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
-            for (int i = 0; i < Iteration; i++)
-            {
-                _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
-                _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
-                _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, _data);
-                _lightMaps.Swap();
-            }
-        }
-        _command.End();
-        _device.Submit(_command);
+        _isTextureDirty = false;
+        _isResultDirty = true;
     }
 
 

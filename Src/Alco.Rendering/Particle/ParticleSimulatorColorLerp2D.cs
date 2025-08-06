@@ -32,7 +32,7 @@ public sealed class ParticleSimulatorColorLerp2D : IParticleSimulator2D
         particle.Color = ColorFloat.Lerp(EndColor, StartColor, t);
     }
 
-    public void SimulateInWorld(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
+    public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
     {
         particle.Position += particle.Velocity * deltaTime;
         particle.Lifetime -= deltaTime;

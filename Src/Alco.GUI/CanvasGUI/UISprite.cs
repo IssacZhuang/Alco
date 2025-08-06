@@ -95,9 +95,9 @@ public class UISprite : UINode
     {
         if (ImageType == ImageType.Sliced && Texture != null)
         {
-            Vertices.EnsureSizeWithoutCopy(16);
-            Indices.EnsureSizeWithoutCopy(54);
-            UtilsMesh.Populate9SliceMeshData(Vertices.AsSpan(), Indices.AsSpan(), new Vector2(Texture.Width, Texture.Height), Size, Texture.SlicePadding);
+            Vertices.SetSizeWithoutCopy(16);
+            Indices.SetSizeWithoutCopy(54);
+            UtilsMesh.Populate9SliceMeshData(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), new Vector2(Texture.Width, Texture.Height), Size, Texture.SlicePadding);
         }
     }
 
@@ -115,7 +115,7 @@ public class UISprite : UINode
         {
             Transform2D transform = RenderTransform;
             transform.Scale = Vector2.One; // already scaled in mesh
-            canvas.DrawSpriteWithCustomMesh(Vertices.AsReadOnlySpan(), Indices.AsReadOnlySpan(), Texture, transform.Matrix, UvRect, Color);
+            canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), Texture, transform.Matrix, UvRect, Color);
             return;
         }
         canvas.DrawSprite(Texture, RenderTransform.Matrix, UvRect, Color);

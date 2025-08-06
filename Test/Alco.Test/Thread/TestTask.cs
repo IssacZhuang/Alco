@@ -34,7 +34,7 @@ public class TestTask
     }
 
     // Test classes for ReuseableParallelTask
-    private class TestParallelCounterTask : ReuseableParallelTask
+    private class TestParallelCounterTask : ReuseableBatchTask
     {
         private int _counter;
         private readonly object _lock = new object();
@@ -58,7 +58,7 @@ public class TestTask
         }
     }
 
-    private class TestParallelArrayTask : ReuseableParallelTask
+    private class TestParallelArrayTask : ReuseableBatchTask
     {
         private readonly int[] _array;
 
@@ -75,7 +75,7 @@ public class TestTask
         }
     }
 
-    private class TestParallelExceptionTask : ReuseableParallelTask
+    private class TestParallelExceptionTask : ReuseableBatchTask
     {
         private readonly int _errorIndex;
 
@@ -94,7 +94,7 @@ public class TestTask
         }
     }
 
-    private class TestParallelConcurrencyTask : ReuseableParallelTask
+    private class TestParallelConcurrencyTask : ReuseableBatchTask
     {
         private readonly List<int> _threadIds = new List<int>();
         private readonly object _lock = new object();

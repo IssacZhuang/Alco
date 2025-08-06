@@ -37,7 +37,7 @@ public class BenchmarkBvh
         int colliderCount = 1500;
         int rayCount = 10000;
 
-        Random random = new Random(12345);
+        FastRandom random = new FastRandom(12345);
         //random collider
         for (int i = 0; i < colliderCount / 2; i++)
         {
@@ -85,8 +85,8 @@ public class BenchmarkBvh
         }
         bvh3D = new NativeBvh3D();
 
-        bvh3D.BuildTree(colliders3D.AsReadOnlySpan());
-        bvh3D.CastBatchRay(rays3D.AsReadOnlySpan());
+        bvh3D.BuildTree(colliders3D.AsSpan());
+        bvh3D.CastBatchRay(rays3D.AsSpan());
     }
 
     private unsafe void Setup2D()
@@ -99,7 +99,7 @@ public class BenchmarkBvh
         int colliderCount = 1500;
         int rayCount = 10000;
 
-        Random random = new Random(12345);
+        FastRandom random = new FastRandom(12345);
         //random collider
         for (int i = 0; i < colliderCount / 2; i++)
         {
@@ -146,8 +146,8 @@ public class BenchmarkBvh
 
         bvh2D = new NativeBvh2D();
 
-        bvh2D.BuildTree(colliders2D.AsReadOnlySpan());
-        bvh2D.CastBatchRay(rays2D.AsReadOnlySpan());
+        bvh2D.BuildTree(colliders2D.AsSpan());
+        bvh2D.CastBatchRay(rays2D.AsSpan());
     }
 
     [GlobalCleanup]
@@ -169,24 +169,24 @@ public class BenchmarkBvh
     [Benchmark(Description = "BVH 3D Build tree: ")]
     public void BuildBvh3D()
     {
-        bvh3D.BuildTree(colliders3D.AsReadOnlySpan());
+        bvh3D.BuildTree(colliders3D.AsSpan());
     }
 
     [Benchmark(Description = "BVH 3D Cast ray: ")]
     public void CastRay3D()
     {
-        bvh3D.CastBatchRay(rays3D.AsReadOnlySpan());
+        bvh3D.CastBatchRay(rays3D.AsSpan());
     }
 
     [Benchmark(Description = "BVH 2D Build tree: ")]
     public void BuildBvh2D()
     {
-        bvh2D.BuildTree(colliders2D.AsReadOnlySpan());
+        bvh2D.BuildTree(colliders2D.AsSpan());
     }
 
     [Benchmark(Description = "BVH 2D Cast ray: ")]
     public void CastRay2D()
     {
-        bvh2D.CastBatchRay(rays2D.AsReadOnlySpan());
+        bvh2D.CastBatchRay(rays2D.AsSpan());
     }
 }

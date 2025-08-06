@@ -50,23 +50,13 @@ public partial class BuiltInAssets
 
     public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
 
-    public Shader Shader_Sprite9Slice => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite9Slice.hlsl");
-
-    public Shader Shader_SpriteMasked => GetShader("Shaders/Pipelines/Rendering/Sprite/SpriteMasked.hlsl");
+    public Shader Shader_SpriteInstanced => GetShader("Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl");
 
     public Shader Shader_Text => GetShader("Shaders/Pipelines/Rendering/Text/Text.hlsl");
 
-    public Shader Shader_TextMasked => GetShader("Shaders/Pipelines/Rendering/Text/TextMasked.hlsl");
+    public Shader Shader_TileInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl");
 
-    public Shader Shader_TileConnectable => GetShader("Shaders/Pipelines/Rendering/TileMap/TileConnectable.hlsl");
-
-    public Shader Shader_TileLighting => GetShader("Shaders/Pipelines/Rendering/TileMap/TileLighting.hlsl");
-
-    public Shader Shader_TilePlant => GetShader("Shaders/Pipelines/Rendering/TileMap/TilePlant.hlsl");
-
-    public Shader Shader_TileSurface => GetShader("Shaders/Pipelines/Rendering/TileMap/TileSurface.hlsl");
-
-    public Shader Shader_TileWater => GetShader("Shaders/Pipelines/Rendering/TileMap/TileWater.hlsl");
+    public Shader Shader_TileWaterInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl");
 
 
 }

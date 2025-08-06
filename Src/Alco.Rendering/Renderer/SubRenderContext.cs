@@ -20,6 +20,8 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     private uint _meshVersion;
     private uint _indexCount;
 
+    public bool HasBuffer => _renderBundle.HasBuffer;
+
     public GPURenderBundle RenderBundle
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -104,11 +106,24 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
     {
+        DrawInstanced(mesh, material, instanceCount, 0, subMeshIndex);
+    }
+
+    /// <summary>
+    /// Draws a mesh multiple times with the specified material.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    /// <param name="instanceStartIndex">The index of the first instance to draw.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
+    {
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
+        _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
     }
 
     /// <summary>
@@ -142,7 +157,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        _renderBundle.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
         _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
@@ -160,7 +175,7 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        _renderBundle.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
         _renderBundle.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
@@ -182,6 +197,20 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         _meshVersion = mesh.Version;
 
         _indexCount = _renderBundle.SetMesh(mesh, subMeshIndex);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private unsafe void PushConstantSafe<T>(ShaderStage stage, in T data, int pushConstantSize) where T : unmanaged
+    {
+        if (pushConstantSize != sizeof(T))
+        {
+            pushConstantSize = Math.Min(pushConstantSize, sizeof(T));
+        }
+
+        fixed (T* ptr = &data)
+        {
+            _renderBundle.PushGraphicsConstants(stage, 0, (byte*)ptr, (uint)pushConstantSize);
+        }
     }
 
     /// <summary>

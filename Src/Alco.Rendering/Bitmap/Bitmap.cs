@@ -80,7 +80,11 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         _data = new GridMap<T>(width, height);
         if (defaultValue.HasValue)
         {
-            Clear(defaultValue.Value);
+            Fill(defaultValue.Value);
+        }
+        else
+        {
+            Clear();
         }
     }
 
@@ -89,7 +93,11 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         _data = new GridMap<T>((int)width, (int)height);
         if (defaultValue.HasValue)
         {
-            Clear(defaultValue.Value);
+            Fill(defaultValue.Value);
+        }
+        else
+        {
+            Clear();
         }
     }
 
@@ -97,19 +105,49 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
     /// Sets all pixels in the bitmap to the specified value.
     /// </summary>
     /// <param name="value">The value to initialize all pixels with.</param>
-    /// <remarks>
-    /// This operation is optimized using SIMD instructions when available.
-    /// </remarks>
-    public void Clear(T value = default)
+    public void Clear()
     {
-        //the Span.Fill has been optimized for SIMD
+        _data.AsSpan().Clear();
+    }
+
+    public void Fill(T value)
+    {
         _data.AsSpan().Fill(value);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set(int x, int y, T value)
+    {
+        _data[x, y] = value;
+    }
+
+    /// <summary>
+    /// Sets all pixels in the specified rectangular region to the given value.
+    /// </summary>
+    /// <param name="from">The top-left corner of the region (inclusive).</param>
+    /// <param name="to">The bottom-right corner of the region (inclusive).</param>
+    /// <param name="value">The value to set for all pixels in the region.</param>
+    public void Set(int2 from, int2 to, T value)
+    {
+        int2 size = new int2(Width, Height);
+
+        // Clamp coordinates to valid bounds
+        from = math.clamp(from, new int2(0, 0), size - new int2(1, 1));
+        to = math.clamp(to, new int2(0, 0), size - new int2(1, 1));
+
+        // Set all pixels in the rectangular region
+        for (int y = from.Y; y <= to.Y; y++)
+        {
+            for (int x = from.X; x <= to.X; x++)
+            {
+                this[x, y] = value;
+            }
+        }
     }
 
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
-
     {
         _data.Dispose();
     }

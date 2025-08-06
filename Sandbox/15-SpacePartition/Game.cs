@@ -3,7 +3,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
-using Random = Alco.Random;
+using Random = Alco.FastRandom;
 using Alco.Graphics;
 using Alco.GUI;
 
@@ -35,7 +35,7 @@ public class Game : GameEngine
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
 
-        _dropletSystem = new DropletSystem(MainRenderTarget, RenderingSystem, _camera, _shaderSprite, _texDroplet);
+        _dropletSystem = new DropletSystem(MainRenderTarget, RenderingSystem, _camera, BuiltInAssets.Shader_SpriteInstanced, _texDroplet);
         Material cubeMaterial = RenderingSystem.CreateMaterial(_shaderSprite, "Sprite");
         cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _cubeSystem = new CubeSystem(RenderingSystem, cubeMaterial, RenderingSystem.TextureWhite);

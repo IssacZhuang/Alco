@@ -61,6 +61,25 @@ public class TestAccessTypeInfo
         }
     }
 
+    /// <summary>
+    /// Base class for testing inheritance.
+    /// </summary>
+    private class BaseTestClass
+    {
+        public string BaseProperty { get; set; } = "BaseValue";
+        public int BaseField = 999;
+        protected string ProtectedProperty { get; set; } = "Protected";
+    }
+
+    /// <summary>
+    /// Derived class for testing inheritance of properties and fields.
+    /// </summary>
+    private class DerivedTestClass : BaseTestClass
+    {
+        public string DerivedProperty { get; set; } = "DerivedValue";
+        public int DerivedField = 123;
+    }
+
     private MemberAccessor _memberAccessor;
 
     [SetUp]
@@ -176,5 +195,52 @@ public class TestAccessTypeInfo
 
         members[0].SetValue(instance, "Modified");
         Assert.That(instance.Name, Is.EqualTo("Modified"));
+    }
+
+    /// <summary>
+    /// Test that inherited properties and fields from base classes are included.
+    /// This test reveals the bug where DeclaredOnly flag prevents inheritance.
+    /// </summary>
+    [Test]
+    public void TestAccessTypeInfoIncludesInheritedMembers()
+    {
+        // Arrange
+        var typeInfo = new AccessTypeInfo(typeof(DerivedTestClass), _memberAccessor);
+
+        // Act
+        var members = typeInfo.Members;
+
+        // Assert
+        Assert.That(members, Is.Not.Null);
+
+        // Should include both derived and inherited members
+        // Expected: DerivedProperty, DerivedField, BaseProperty, BaseField (4 total)
+        // Current behavior with DeclaredOnly: only DerivedProperty, DerivedField (2 total)
+
+        var memberNames = members.Select(m => m.Name).ToArray();
+        Console.WriteLine($"Found members: {string.Join(", ", memberNames)}");
+
+        // Test for derived class members (these should always be present)
+        Assert.That(members.Any(m => m.Name == "DerivedProperty"), Is.True, "Should include DerivedProperty");
+        Assert.That(members.Any(m => m.Name == "DerivedField"), Is.True, "Should include DerivedField");
+
+        // Test for inherited members (these are currently missing due to DeclaredOnly)
+        Assert.That(members.Any(m => m.Name == "BaseProperty"), Is.True, "Should include inherited BaseProperty");
+        Assert.That(members.Any(m => m.Name == "BaseField"), Is.True, "Should include inherited BaseField");
+
+        // Protected members should not be included
+        Assert.That(members.Any(m => m.Name == "ProtectedProperty"), Is.False, "Should not include protected members");
+
+        // Verify total count
+        Assert.That(members.Length, Is.EqualTo(4), "Should have 4 public members (2 derived + 2 inherited)");
+
+        // Test functionality with inherited members
+        var instance = typeInfo.CreateInstance<DerivedTestClass>();
+
+        var basePropertyMember = members.First(m => m.Name == "BaseProperty");
+        Assert.That(basePropertyMember.GetValue<string>(instance), Is.EqualTo("BaseValue"));
+
+        basePropertyMember.SetValue(instance, "ModifiedBase");
+        Assert.That(instance.BaseProperty, Is.EqualTo("ModifiedBase"));
     }
 }

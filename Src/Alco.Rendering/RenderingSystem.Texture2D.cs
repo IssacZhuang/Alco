@@ -263,17 +263,6 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Writes image file data to an existing GPU texture.
-    /// </summary>
-    /// <param name="file">The file bytes containing image data.</param>
-    /// <param name="texture">The target GPU texture.</param>
-    public unsafe void WriteImageFileToTexture(ReadOnlySpan<byte> file, GPUTexture texture)
-    {
-        using ImageResultBuffer image = ImageResultBuffer.FromMemory(file, ColorComponents.RedGreenBlueAlpha);
-        _device.WriteTexture(texture, image.UnsafePointer, (uint)image.Data.Length);
-    }
-
-    /// <summary>
     /// Creates the core GPU texture and texture view.
     /// </summary>
     /// <param name="width">The width of the texture.</param>
@@ -314,5 +303,37 @@ public partial class RenderingSystem
     public TextureCompressorBC3 CreateTextureCompressorBC3(ComputeMaterial material)
     {
         return new TextureCompressorBC3(this, material);
+    }
+
+    /// <summary>
+    /// Hot reloads a Texture2D with new image data, optimizing for when dimensions match.
+    /// </summary>
+    /// <param name="texture2D">The existing Texture2D to hot reload.</param>
+    /// <param name="fileBytes">The new image file bytes.</param>
+    /// <param name="option">Image load options.</param>
+    public unsafe void UnsafeHotReloadTexture2DByFile(Texture2D texture2D, ReadOnlySpan<byte> fileBytes, ImageLoadOption? option = null)
+    {
+        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
+
+        // Check if dimensions match the existing texture
+        if (image.Width == texture2D.Width && image.Height == texture2D.Height)
+        {
+            // Dimensions match - just update the texture data directly using already decoded data
+            _device.WriteTexture(texture2D.NativeTexture, image.UnsafePointer, (uint)image.Data.Length);
+        }
+        else
+        {
+            // Dimensions don't match - create new GPU resources
+            CreateTextureCore(
+                (uint)image.Width,
+                (uint)image.Height,
+                option ?? ImageLoadOption.Default,
+                out GPUTexture texture, out GPUTextureView textureView);
+
+            // Use already decoded data instead of re-decoding
+            _device.WriteTexture(texture, image.UnsafePointer, (uint)image.Data.Length);
+            texture2D.UnsafeHotReload(texture, textureView);
+        }
     }
 }

@@ -8,7 +8,7 @@ namespace Alco
     public class CurveHermite : ICurve
     {
 
-        private readonly List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
+        private readonly List<CurvePointValue> _points = new List<CurvePointValue>();
         private readonly List<float> _slopes = new List<float>();
 
         public int PointsCount
@@ -19,7 +19,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint<float>> Points
+        public IReadOnlyList<CurvePointValue> Points
         {
             get
             {
@@ -32,15 +32,23 @@ namespace Alco
 
         }
 
-        public CurveHermite(IReadOnlyList<CurvePoint<float>> points)
+        public CurveHermite(ReadOnlySpan<CurvePointValue> points)
+        {
+            _points.AddRange(points);
+          
+            Sort();
+            CalculateSlopes(_slopes, _points);
+        }
+
+        public CurveHermite(IReadOnlyList<CurvePointValue> points)
         {
             if (points == null)
             {
-                throw ExceptionCurve.NullOrEmptyPoints("points");
+                throw new ArgumentNullException(nameof(points));
             }
 
             _points.AddRange(points);
-          
+
             Sort();
             CalculateSlopes(_slopes, _points);
         }
@@ -64,14 +72,27 @@ namespace Alco
 
             for (int i = 0; i < t.Length; i++)
             {
-                _points.Add(new CurvePoint<float>(t[i], value[i]));
+                _points.Add(new CurvePointValue(t[i], value[i]));
             }
             Sort();
             CalculateSlopes(_slopes, _points);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
+        public void SetPoints(ReadOnlySpan<CurvePointValue> points)
         {
+            _points.Clear();
+            _points.AddRange(points);
+            Sort();
+            CalculateSlopes(_slopes, _points);
+        }
+
+        public void SetPoints(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
             _points.Clear();
             _points.AddRange(points);
             Sort();
@@ -137,7 +158,7 @@ namespace Alco
             return high;
         }
 
-        private static void CalculateSlopes(List<float> slopes, IReadOnlyList<CurvePoint<float>> points)
+        private static void CalculateSlopes(List<float> slopes, IReadOnlyList<CurvePointValue> points)
         {
             slopes.Clear();
             int count = points.Count;

@@ -64,6 +64,7 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
     {
         _camera.ViewSize = new Vector2(width, height);
         _camera.Position = new Vector2(width / 2, -height / 2);
+        _camera.UpdateMatrixToGPU();
     }
 
     public void Begin()

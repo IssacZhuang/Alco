@@ -26,7 +26,7 @@ public class Game : GameEngine
         }
     }
 
-    private class TestParallelTask : ReuseableParallelTask
+    private class TestParallelTask : ReuseableBatchTask
     {
         protected override void ExecuteCore(int index)
         {

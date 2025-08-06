@@ -1,6 +1,11 @@
 #include "Shaders/Libs/Core.hlsli"
 
-DEFINE_TEX2D_SAMPLE(0, _texture); 
+struct Constants {
+    float gamma;
+};
+
+DEFINE_TEX2D_SAMPLE(0, _texture);
+PUSH_CONSTANT Constants constants;
 
 struct Vertex {
   float3 position : POSITION;
@@ -20,15 +25,13 @@ V2F MainVS(Vertex input) {
   return output;
 }
 
-float grayScale(float3 color) {
-  return dot(color, float3(0.299, 0.587, 0.114));
-}
-
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
-    // use gray scale as alpha
-    float4 source = SAMPLE_TEX2D(_texture, input.uv);
-  float intensityBase = 2;
+    // Sample the bloom texture (this is the processed bloom result from upsampling)
+    float4 bloomColor = SAMPLE_TEX2D(_texture, input.uv);
 
-  return float4(source.rgb * intensityBase, grayScale(source.rgb));
+    float a = max(0.0, bloomColor.a); 
+    a = pow(a, 1.0 / constants.gamma);
+    // Apply intensity and return the bloom color for additive blending
+    return float4(bloomColor.rgb, a);
 }

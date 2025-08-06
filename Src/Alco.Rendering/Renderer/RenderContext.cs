@@ -152,10 +152,9 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        _renderScope.PushConstants(pipelineInfo.PushConstantsStages, constant);
+        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
         _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
-
 
     /// <summary>
     /// Draws a mesh multiple times with the specified material.
@@ -166,12 +165,26 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
     {
+        DrawInstanced(mesh, material, instanceCount, 0, subMeshIndex);
+    }
+
+
+    /// <summary>
+    /// Draws a mesh multiple times with the specified material.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    /// <param name="instanceStartIndex">The index of the first instance to draw.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
+    {
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, 0);
+        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
     }
 
 
@@ -208,7 +221,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        _renderScope.PushConstants(pipelineInfo.PushConstantsStages, constant);
+        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
         _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
@@ -261,6 +274,20 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _meshVersion = mesh.Version;
 
         _indexCount = _renderScope.SetMesh(mesh, subMeshIndex);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private unsafe void PushConstantSafe<T>(ShaderStage stage, in T data, int pushConstantSize) where T : unmanaged
+    {
+        if (pushConstantSize != sizeof(T))
+        {
+            pushConstantSize = Math.Min(pushConstantSize, sizeof(T));
+        }
+
+        fixed (T* ptr = &data)
+        {
+            _renderScope.PushConstants(stage, 0, (byte*)ptr, (uint)pushConstantSize);
+        }
     }
 
     /// <summary>

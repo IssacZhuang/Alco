@@ -26,10 +26,13 @@ public static class ShaderResourceId
     public const string TileIdData = "_tileIdData";
     public const string TileSetData = "_tileSetData";
 
+    public const string TileMap = "_tileMap";
+
     public const string Input = "_input";
     public const string Output = "_output";
 
     public const string Particles = "_particles";
+    public const string Instances = "_instances";
 
     public const string GaussianKernel = "_gaussianKernel";
 }

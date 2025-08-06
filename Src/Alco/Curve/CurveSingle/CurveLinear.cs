@@ -8,7 +8,7 @@ namespace Alco
     public class CurveLinear : ICurve
     {
 
-        private readonly List<CurvePoint<float>> _points = new List<CurvePoint<float>>();
+        private readonly List<CurvePointValue> _points = new List<CurvePointValue>();
         public int PointsCount
         {
             get
@@ -17,7 +17,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint<float>> Points
+        public IReadOnlyList<CurvePointValue> Points
         {
             get
             {
@@ -49,22 +49,29 @@ namespace Alco
 
             for (int i = 0; i < t.Length; i++)
             {
-                _points.Add(new CurvePoint<float>(t[i], value[i]));
+                _points.Add(new CurvePointValue(t[i], value[i]));
             }
             Sort();
         }
 
-        public CurveLinear(IReadOnlyList<CurvePoint<float>> points)
+        public CurveLinear(ReadOnlySpan<CurvePointValue> points)
         {
-            if (points == null)
-            {
-                throw ExceptionCurve.NullOrEmptyPoints("points");
-            }
             _points.AddRange(points);
             Sort();
         }
 
-        public CurvePoint<float> this[int i]
+        public CurveLinear(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
+            _points.AddRange(points);
+            Sort();
+        }
+
+        public CurvePointValue this[int i]
         {
             get
             {
@@ -76,8 +83,20 @@ namespace Alco
             }
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint<float>> points)
+        public void SetPoints(ReadOnlySpan<CurvePointValue> points)
         {
+            _points.Clear();
+            _points.AddRange(points);
+            Sort();
+        }
+
+        public void SetPoints(IReadOnlyList<CurvePointValue> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
             _points.Clear();
             _points.AddRange(points);
             Sort();
@@ -85,7 +104,7 @@ namespace Alco
 
         public void Sort()
         {
-            _points.Sort((CurvePoint<float> a, CurvePoint<float> b) => a.Time.CompareTo(b.Time));
+            _points.Sort((CurvePointValue a, CurvePointValue b) => a.Time.CompareTo(b.Time));
         }
         
 
@@ -105,8 +124,8 @@ namespace Alco
             }
            
             int i = BinarySearchFloor(x);
-            CurvePoint<float> keyFrame1 = _points[i];
-            CurvePoint<float> keyFrame2 = _points[i + 1];
+            CurvePointValue keyFrame1 = _points[i];
+            CurvePointValue keyFrame2 = _points[i + 1];
             float t = (x - keyFrame1.Time) / (keyFrame2.Time - keyFrame1.Time);
             return math.lerp(keyFrame1.Value, keyFrame2.Value, t);
         }

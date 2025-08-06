@@ -95,7 +95,7 @@ public class JsonPreprocessor
         {
             foreach (var filePath in fileSource.AllFileNames)
             {
-                if (filePath.EndsWith(FileExt.TextJSON))
+                if (filePath.EndsWith(FileExt.TextJSON) || filePath.EndsWith(FileExt.TextJSONC))
                 {
                     jsonFiles.Add((filePath, fileSource));
                 }
@@ -103,7 +103,7 @@ public class JsonPreprocessor
         }
 
         //JsonDocument?[] jsonDocuments = new JsonDocument?[jsonFiles.Count];
-        _tempJsonDocuments.EnsureSizeWithoutCopy(jsonFiles.Count);
+        _tempJsonDocuments.SetSizeWithoutCopy(jsonFiles.Count);
         _tempJsonDocuments.Clear();
 
         _abstractJsonItems.Clear();
@@ -120,7 +120,14 @@ public class JsonPreprocessor
                 try
                 {
                     var json = System.Text.Encoding.UTF8.GetString(data.AsReadOnlySpan());
-                    JsonDocument document = JsonDocument.Parse(json);
+
+                    // Use JsonDocumentOptions to support JSONC (comments and trailing commas)
+                    var options = new JsonDocumentOptions
+                    {
+                        CommentHandling = JsonCommentHandling.Skip,
+                        AllowTrailingCommas = true
+                    };
+                    JsonDocument document = JsonDocument.Parse(json, options);
 
                     _tempJsonDocuments[i] = document;
                 }
@@ -246,8 +253,14 @@ public class JsonPreprocessor
         {
             // Merge parent with current document (current document overrides parent)
             var mergedJson = UtilsJson.Merge(processedParent, document, _specialKeywords);
-            var mergedDocument = JsonDocument.Parse(mergedJson);
 
+            // Use JsonDocumentOptions to support JSONC (comments and trailing commas)
+            var options = new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+            var mergedDocument = JsonDocument.Parse(mergedJson, options);
 
             return mergedDocument;
         }

@@ -2233,5 +2233,107 @@ namespace Alco.Engine.Test
         // TODO: Add tests that combine single references, list references, and inheritance
 
         #endregion
+
+        [Test]
+        public void JsoncSupport_ShouldParseJsonWithCommentsAndTrailingCommas()
+        {
+            // Arrange - Create JSONC with both single-line comments, multi-line comments, and trailing commas
+            var jsoncContent = """
+            {
+                // This is a single-line comment
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "jsonc-test-config",
+                /* This is a 
+                   multi-line comment */
+                "Name": "JSONC Test Config", // another comment
+                "Value": 42, // trailing comma should be allowed
+            }
+            """;
+
+            _fileSource.AddFile("jsonc-test.jsonc", jsoncContent);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var result = _configDatabase.TryGetConfig("jsonc-test-config", typeof(TestConfig), out var config);
+
+            // Assert
+            Assert.That(result, Is.True);
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config, Is.InstanceOf<TestConfig>());
+
+            var testConfig = (TestConfig)config;
+            Assert.That(testConfig.Id, Is.EqualTo("jsonc-test-config"));
+            Assert.That(testConfig.Name, Is.EqualTo("JSONC Test Config"));
+            Assert.That(testConfig.Value, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void JsoncSupport_ShouldParseComplexJsoncStructure()
+        {
+            // Arrange - Create complex JSONC with nested objects, arrays, and various comment styles
+            var complexJsoncContent = """
+            {
+                // Configuration for a complex test scenario
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithReferences",
+                "Id": "complex-jsonc-config",
+                "Name": "Complex JSONC Config", // Main config name
+                
+                /* Referenced test config with trailing comma in array */
+                "ReferencedTestConfigs": [
+                    { "Id": "test-1" }, // First reference
+                    { "Id": "test-2" }, // Second reference with trailing comma
+                ], // Array can have trailing comma too
+                
+                // Single config reference
+                "ReferencedTestConfig": { "Id": "test-1" }, // Trailing comma in main object
+            }
+            """;
+
+            // Create the referenced configs
+            var testConfig1Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "test-1",
+                "Name": "Test Config 1",
+                "Value": 10,
+            }
+            """;
+
+            var testConfig2Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "test-2",
+                "Name": "Test Config 2",
+                "Value": 20,
+            }
+            """;
+
+            _fileSource.AddFile("complex-jsonc.jsonc", complexJsoncContent);
+            _fileSource.AddFile("test-1.json", testConfig1Json);
+            _fileSource.AddFile("test-2.json", testConfig2Json);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var result = _configDatabase.TryGetConfig("complex-jsonc-config", typeof(ConfigWithReferences), out var config);
+
+            // Assert
+            Assert.That(result, Is.True);
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config, Is.InstanceOf<ConfigWithReferences>());
+
+            var complexConfig = (ConfigWithReferences)config;
+            Assert.That(complexConfig.Id, Is.EqualTo("complex-jsonc-config"));
+            Assert.That(complexConfig.Name, Is.EqualTo("Complex JSONC Config"));
+
+            // Verify referenced configs are resolved correctly
+            Assert.That(complexConfig.ReferencedTestConfig, Is.Not.Null);
+            Assert.That(complexConfig.ReferencedTestConfig.Id, Is.EqualTo("test-1"));
+            Assert.That(complexConfig.ReferencedTestConfig.Name, Is.EqualTo("Test Config 1"));
+
+            Assert.That(complexConfig.ReferencedTestConfigs, Is.Not.Null);
+            Assert.That(complexConfig.ReferencedTestConfigs.Count, Is.EqualTo(2));
+            Assert.That(complexConfig.ReferencedTestConfigs[0].Id, Is.EqualTo("test-1"));
+            Assert.That(complexConfig.ReferencedTestConfigs[1].Id, Is.EqualTo("test-2"));
+        }
     }
 }

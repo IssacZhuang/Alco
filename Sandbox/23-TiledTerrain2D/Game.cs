@@ -14,9 +14,7 @@ public class Game : GameEngine
     private enum EditMode
     {
         None,
-        Water,
         Surface,
-        Plant,
         Wall
     }
 
@@ -27,40 +25,22 @@ public class Game : GameEngine
     private readonly Material _surfaceMaterial;
     private readonly Material _cliffMaterial;
     private readonly Material _waterMaterial;
-    private readonly Material _plantMaterial;
-    private SurfaceTileSet _surfaceTileSet;
-    private SurfaceTileSet _cliffTileSet;
-    private WaterTileSet _waterTileSet;
-    private PlantTileSet _plantTileSet;
+    private TileSet _surfaceTileSet;
+
     private Material _wallMaterial;
-    private readonly SurfaceTileBlock2D _surfaceBlock;
-    private readonly SurfaceTileBlock2D _cliffBlock;
-    private readonly WaterTileBlock2D _waterBlock;
-    private readonly PlantTileBlock2D _plantBlock;
-    private readonly TileMapHeightBuffer _heightBuffer;
+    private readonly TileRenderer _surfaceBlock;
 
     private readonly LightingManager _lightingManager;
     private readonly WallManager _wallManager;
-
-    private readonly RenderTexture _blurTexture;
-    private GaussianBlur _gaussianBlur;
 
     private float _zoom = 4f;
     private float _targetZoom = 4f;
     private float _zoomVelocity = 0f;
     private ColorFloat _color = new ColorFloat(1, 1, 1, 1);
 
-    private float _blendFactor = 0.35f;
-    private float _edgeSmoothFactor = 0.15f;
-
-    private float _blurCenter = 4;
-    private float _blurSide = 3;
-    private float _blurCorner = 2;
 
     private EditMode _editMode = EditMode.Surface;
     private int _surfaceTileId = 1;
-    private int _waterTileId = 1;
-    private int _plantTileId = 0;
 
     private float _hight = 0.2f;
     private float _brushSize = 0.3f;
@@ -88,19 +68,16 @@ public class Game : GameEngine
             Near = -5,
             Far = 5
         };
+
+        _camera.Transform.Position = new Vector2(width / 2, height / 2);
        
-       RenderingSystem.MainCamera = _camera;
+        RenderingSystem.MainCamera = _camera;
 
         _blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
 
         _renderer = RenderingSystem.CreateRenderContext();
 
-        _heightBuffer = RenderingSystem.CreateTileMapHeightBuffer(width, height);
-
-        ComputeMaterial computeMaterial = RenderingSystem.CreateComputeMaterial(BuiltInAssets.Shader_TileLighting);
-        computeMaterial.SetBuffer(ShaderResourceId.HeightData, _heightBuffer);
-
-        _lightingManager = new LightingManager(this, _heightBuffer, width, height);
+        _lightingManager = new LightingManager(this, width, height);
         _wallManager = new WallManager(this, _lightingManager, width, height);
 
         _lightingManager.AddLight(new Light(new Vector2(width / 2, height / 2), new ColorFloat(1, 1, 1, 1)));
@@ -108,44 +85,23 @@ public class Game : GameEngine
         _lightingManager.SetLightMapDirty();
         _lightingManager.SetOpacityMapDirty();
 
-        _surfaceTileSet = BuildSurfaceTileSet();
-        _surfaceTileSet.SetAllTileColor(_color);
-        _cliffTileSet = BuildCliffTileSet();
-        _cliffTileSet.SetAllTileColor(new Vector4(0.9f, 0.9f, 0.9f, 1f));
-        _waterTileSet = BuildWaterTileSet();
-        _plantTileSet = BuildPlantTileSet();
-
-        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileSurface);
+        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
-       
-        _cliffMaterial = _surfaceMaterial.CreateInstance();
 
-        _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWater);
+        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
+        _cliffMaterial.DepthStencilState = DepthStencilState.Write;
+        _cliffMaterial.SetDefines("IS_FACADE");
+
+        _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWaterInstanced);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
-        _plantMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TilePlant);
-        _plantMaterial.BlendState = BlendState.Opaque;
-        _plantMaterial.DepthStencilState = DepthStencilState.Write;
+        _surfaceTileSet = BuildSurfaceTileSet();
+        _surfaceBlock = RenderingSystem.CreateTileRenderer(_renderer, _surfaceTileSet, width, height, "surface_block");
+        _surfaceBlock.SetAllTiles(1);
 
-        _surfaceBlock = RenderingSystem.CreateSurfaceBlock2D(_surfaceTileSet, _heightBuffer, _surfaceMaterial, width, height);
-        // _surfaceBlock.UseLightMap = true;
-        _surfaceBlock.SetAllItemIds(1);
-
-        _cliffBlock = RenderingSystem.CreateSurfaceBlock2D(_cliffTileSet, _heightBuffer, _cliffMaterial, width, height);
-        _cliffBlock.SetAllItemIds(1);
-        _cliffBlock.IsCliff = true;
-
-
-        _waterBlock = RenderingSystem.CreateWaterTileBlock2D(_waterTileSet, _heightBuffer, _waterMaterial, width, height);
-        _waterBlock.SetAllItemIds(1);
-        _waterBlock.Transform.Position = new Vector3(0, -0.1f, 0.1f);
-
-
-        _plantBlock = RenderingSystem.CreatePlantTileBlock2D(_plantTileSet, _heightBuffer, _plantMaterial, width, height);
-        _plantBlock.SetAllItemIds(0);
-        _plantBlock.Transform.Position = new Vector3(0, 0, 0);
 
 
         _brushMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
@@ -154,7 +110,7 @@ public class Game : GameEngine
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
 
-        _wallMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileConnectable);
+        _wallMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("Shaders/TileConnectable"));
         _wallMaterial.BlendState = BlendState.Opaque;
         _wallMaterial.DepthStencilState = DepthStencilState.Write;
         _wallMaterial.SetTexture(ShaderResourceId.Texture, textureWall);
@@ -169,23 +125,15 @@ public class Game : GameEngine
             UvRect = new Rect(0, 0, 1, 1)
         };
 
-        ComputeMaterial gaussianBlurMaterial = RenderingSystem.CreateComputeMaterial(BuiltInAssets.Shader_GaussianBlurRGBA16F);
-        _blurTexture = RenderingSystem.CreateRenderTexture(RenderingSystem.PrefferedLightMapPass, (uint)width, (uint)height);
-
-        _gaussianBlur = RenderingSystem.CreateGaussianBlur(gaussianBlurMaterial, 3, 3, [
-            _blurCorner, _blurSide, _blurCorner,
-            _blurSide, _blurCenter, _blurSide,
-            _blurCorner, _blurSide, _blurCorner
-        ]);
-
         UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
 
         _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
-        _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _blurTexture);
+        _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightingManager.LightMap);
         _materialLightOverlay.BlendState = BlendState.Multiply;
 
         Transform2D lightOverlayTransform = new Transform2D();
-        lightOverlayTransform.Scale = new Vector2(width, height);
+        lightOverlayTransform.Position = new Vector2((width - 1) * 0.5f, (height - 1) * 0.5f);
+        lightOverlayTransform.Scale = new Vector2(width, -height);
         _lightOverlayConstant = new SpriteConstant()
         {
             Color = new ColorFloat(1, 1, 1, 0.5f),
@@ -209,70 +157,37 @@ public class Game : GameEngine
     protected override void OnUpdate(float delta)
     {
         DebugStats.Text(FrameRate);
-        bool isDebugClicked = false;
 
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
             UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
-            isDebugClicked = true;
         }
 
-        if (ImGui.SliderInt("Surface Tile", ref _surfaceTileId, 0, _surfaceTileSet.ItemCount - 1))
+        if (ImGui.SliderInt("Surface Tile", ref _surfaceTileId, 0, _surfaceTileSet.Count - 1))
         {
-            isDebugClicked = true;
-        }
 
-        if (ImGui.SliderInt("Water Tile", ref _waterTileId, 0, _waterTileSet.ItemCount - 1))
-        {
-            isDebugClicked = true;
-        }
-
-        if (ImGui.SliderInt("Plant Tile", ref _plantTileId, 0, _plantTileSet.ItemCount - 1))
-        {
-            isDebugClicked = true;
         }
 
         if (ImGui.Combo("Edit Mode", ref _editMode))
         {
-            isDebugClicked = true;
+
         }
 
-
-        if (ImGui.SliderFloat("Blend Width", ref _blendFactor, 0.01f, 0.5f))
+        for (int i = 0; i < _surfaceTileSet.Count; i++)
         {
-            isDebugClicked = true;
-            for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
+            TileItem item = _surfaceTileSet.GetItem(i);
+            float blendFactor = item.BlendFactor;
+            if (ImGui.SliderFloat($"Blend Factor {i}", ref blendFactor, 0.01f, 0.5f))
             {
-                _surfaceTileSet.SetTileBlendFactor(i, _blendFactor);
+                item.BlendFactor = blendFactor;
             }
         }
 
         if (ImGui.SliderFloat("Height", ref _hight, -1f, 1f))
         {
-            isDebugClicked = true;
         }
 
-        if (ImGui.SliderFloat("Edge Smooth", ref _edgeSmoothFactor, 0.01f, 0.5f))
-        {
-            isDebugClicked = true;
-            for (uint i = 0; i < _surfaceTileSet.ItemCount; i++)
-            {
-                _surfaceTileSet.SetTileEdgeSmoothFactor(i, _edgeSmoothFactor);
-            }
-        }
-
-        if (ImGui.SliderFloat("Blur Center", ref _blurCenter, 1, 10) ||
-            ImGui.SliderFloat("Blur Side", ref _blurSide, 1, 5) ||
-            ImGui.SliderFloat("Blur Corner", ref _blurCorner, 0, 3))
-        {
-            _gaussianBlur.SetKernel([
-                _blurCorner, _blurSide, _blurCorner,
-                _blurSide, _blurCenter, _blurSide,
-                _blurCorner, _blurSide, _blurCorner
-            ]);
-            isDebugClicked = true;
-        }
 
         if (Input.IsKeyDown(KeyCode.Escape))
         {
@@ -296,41 +211,32 @@ public class Game : GameEngine
         _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
         _camera.Size = new Vector2(_zoom * MainView.AspectRatio, _zoom);
 
-
-        // _lightingManager.SetLightMapDirty();
-        // _lightingManager.SetOpacityMapDirty();
-
+        // Render lighting using internal command buffer
         _lightingManager.Render();
-        _gaussianBlur.Blit(_lightingManager.LightMap, _blurTexture);
 
         _renderer.Begin(MainRenderTarget.FrameBuffer);
-        _surfaceBlock.OnRender(_renderer);
-        _cliffBlock.OnRender(_renderer);
-        _plantBlock.OnRender(_renderer);
-        _waterBlock.OnRender(_renderer);
+        _surfaceBlock.Render();
         _wallManager.Render(_renderer);
 
         _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialLightOverlay, _lightOverlayConstant);
 
 
-        if (_surfaceBlock.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+        ImGuiIOPtr io = ImGui.GetIO();
+
+        if (TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
         {
-            Vector2 tilePositionInWorld = UtilsCoordinates.PixelSpaceToWorldSpace(tilePosition, _surfaceBlock.Size);
 
             ImGui.Text($"Tile Position: {tilePosition}");
 
             for (int i = 0; i < _brushCells.Count; i++)
             {
-                if (isDebugClicked)
+                if (io.WantCaptureMouse)
                 {
                     continue;
                 }
-                int2 pos = _brushCells[i];
-                if (!_heightBuffer.TryGetTileHeight(tilePosition.X + pos.X, tilePosition.Y - pos.Y, out float height))
-                {
-                    continue;
-                }
-                _brushTransform.Position = new Vector3(pos.X + tilePositionInWorld.X, pos.Y + tilePositionInWorld.Y + height, 0);
+                int2 pos = _brushCells[i] + tilePosition;
+
+                _brushTransform.Position = new Vector3(pos.X, pos.Y, 0);
                 Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
                 _brushConstant.Model = tmp.Matrix;
                 _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _brushMaterial, _brushConstant);
@@ -338,27 +244,14 @@ public class Game : GameEngine
 
                 if (Input.IsMousePressing(Mouse.Left))
                 {
-                    if (_editMode == EditMode.Water)
+                    if (_editMode == EditMode.Surface)
                     {
-                        _waterBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_waterTileId);
-                    }
-                    else if (_editMode == EditMode.Surface)
-                    {
-                        _surfaceBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_surfaceTileId);
-                        _cliffBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_surfaceTileId);
-                    }
-                    else if (_editMode == EditMode.Plant)
-                    {
-                        _plantBlock.TrySetItemId(tilePosition.X + pos.X, tilePosition.Y + pos.Y, (uint)_plantTileId);
+                        _surfaceBlock.SetTile(pos.X, pos.Y, _surfaceTileId);
                     }
                     else if (_editMode == EditMode.Wall)
                     {
-                        _wallManager.AddWall(new Wall(tilePosition, _wallMaterial, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f)));
+                        _wallManager.AddWall(new Wall(pos, _wallMaterial, new Vector2(1, 1.5f), new Vector2(0, 0.25f), new ColorFloat(0, 0, 0, 1f)));
                     }
-                }
-                else if (Input.IsMousePressing(Mouse.Right))
-                {
-                    _heightBuffer.TrySetTileHeight(tilePosition.X + pos.X, tilePosition.Y + pos.Y, _hight);
                 }
 
             }
@@ -378,16 +271,61 @@ public class Game : GameEngine
         ImGui.End();
     }
 
+    protected override void OnStop()
+    {
+        _lightingManager?.Dispose();
+    }
+
     private void OnHotReload(string filename, object cachedAsset)
     {
-        if (_surfaceTileSet.Atlas.TryGetSprite(filename, out Sprite? sprite))
+        // Hot reload functionality simplified for NewTileSet
+        // Original implementation relied on Atlas which is not available in NewTileSet
+        if (filename.EndsWith(".png") || filename.EndsWith(".jpg"))
         {
+            // Rebuild the tile set when textures are reloaded
             _surfaceTileSet = BuildSurfaceTileSet();
-            _surfaceBlock.UnsafeSetTileSet(_surfaceTileSet);
+            // Note: TileRenderer doesn't support hot-swapping tile sets
+            // A full recreation of the renderer would be needed
         }
     }
 
-    private SurfaceTileSet BuildSurfaceTileSet()
+    private bool TryGetTilePositionByRay(Ray3D ray, out int2 tilePosition)
+    {
+        Matrix4x4 matrix = _surfaceBlock.Transform.Matrix;
+        //to local space
+        if (Matrix4x4.Invert(matrix, out Matrix4x4 invMatrix))
+        {
+            Vector3 start = ray.Origin;
+            Vector3 end = ray.Origin + ray.Displacement;
+
+            Vector3 localStart = Vector3.Transform(start, invMatrix);
+            Vector3 localEnd = Vector3.Transform(end, invMatrix);
+
+            Plane3D plane = new Plane3D(Vector3.UnitZ, 0);
+
+            Ray3D localRay = new Ray3D(localStart, localEnd - localStart);
+
+            if (plane.IntersectRay(localRay, out Vector3 hitPoint))
+            {
+                // TileRenderer Transform corresponds to bottom-left corner (0,0)
+                // No offset needed since Transform is already at the correct position
+                int tileX = (int)math.round(hitPoint.X);
+                int tileY = (int)math.round(hitPoint.Y);
+
+                int2 size = _surfaceBlock.Size;
+                if (tileX >= 0 && tileX < size.X && tileY >= 0 && tileY < size.Y)
+                {
+                    tilePosition = new int2(tileX, tileY);
+                    return true;
+                }
+            }
+        }
+
+        tilePosition = new int2(0, 0);
+        return false;
+    }
+
+    private TileSet BuildSurfaceTileSet()
     {
         Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
         Task<Texture2D> grass = AssetSystem.LoadAsync<Texture2D>("Textures/Grass.png");
@@ -396,131 +334,35 @@ public class Game : GameEngine
         Task<Texture2D> grass4 = AssetSystem.LoadAsync<Texture2D>("Textures/Grass4.png");
         Task<Texture2D> sand = AssetSystem.LoadAsync<Texture2D>("Textures/Dirt.png");
 
-
         Task.WaitAll(grid, grass, sand);
 
-        List<SurfaceTileItem> items = new();
-        var item1 = new SurfaceTileItem("grid", new SurfaceTileData(){
-            BlendPriority = 0,
-        }, 0, grid.Result);
+        List<TileItem> items = new();
 
+        Material gridMaterial = _surfaceMaterial.CreateInstance();
+        gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
+        var item1 = new TileItem("grid", gridMaterial, 0, null);
 
-        var item2 = new SurfaceTileItem("grass", new SurfaceTileData(){
-            BlendPriority = 1,
-        }, 1, grass.Result, grass2.Result, grass3.Result, grass4.Result);
+        Material grassMaterial = _surfaceMaterial.CreateInstance();
+        grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
+        grassMaterial.SetDefines("TEXTURE_BOMBING");
+        var item2 = new TileItem("grass", grassMaterial, 1, null);
 
+        Material sandMaterial = _surfaceMaterial.CreateInstance();
+        sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
+        sandMaterial.SetDefines("TEXTURE_BOMBING");
+        var item3 = new TileItem("sand", sandMaterial, 2, null);
 
-        var item3 = new SurfaceTileItem("sand", new SurfaceTileData(){
-            BlendPriority = 2,
-        }, 2, sand.Result);
-
-        items.Add(item1);
-        items.Add(item2);
-        items.Add(item3);
-        return RenderingSystem.CreateSurfaceTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
-    }
-
-    private SurfaceTileSet BuildCliffTileSet()
-    {
-        Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
-        Task<Texture2D> grass = AssetSystem.LoadAsync<Texture2D>("Textures/GrassCliff.png");
-        Task<Texture2D> sand = AssetSystem.LoadAsync<Texture2D>("Textures/DirtCliff.png");
-
-        Task.WaitAll(grid, grass, sand);
-
-        List<SurfaceTileItem> items = new();
-        var item1 = new SurfaceTileItem("grid", new SurfaceTileData(){
-            BlendPriority = 0,
-        }, 0, grid.Result);
-
-        var item2 = new SurfaceTileItem("grass", new SurfaceTileData(){
-            BlendPriority = 1,
-        }, 1, grass.Result);
-
-        var item3 = new SurfaceTileItem("sand", new SurfaceTileData(){
-            BlendPriority = 2,
-        }, 2, sand.Result);
+        Material waterMaterial = _waterMaterial.CreateInstance();
+        waterMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
+        var item4 = new TileItem("water", waterMaterial, 1, null);
+        item4.Color = new ColorFloat(0.15f, 0.54f, 0.67f, 0.8f);
+        item4.BlendFactor = 0.35f;
 
         items.Add(item1);
         items.Add(item2);
         items.Add(item3);
+        items.Add(item4);
 
-        return RenderingSystem.CreateSurfaceTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
-    }
-
-    private WaterTileSet BuildWaterTileSet()
-    {
-        Task<Texture2D> grid = AssetSystem.LoadAsync<Texture2D>("Textures/Grid.png");
-        Task.WaitAll(grid);
-        // WaterTileSetParams<int> tileSetParams = new();
-        // tileSetParams.Add(grid.Result, 0, new WaterTileData()
-        // {
-        //     BlendPriority = 0
-        // });
-        // tileSetParams.Add(RenderingSystem.TextureWhite, 0, new WaterTileData()
-        // {
-        //     Color = _waterColor,
-        //     BlendPriority = 1
-        // });
-        // tileSetParams.Add(RenderingSystem.TextureWhite, 0, new WaterTileData()
-        // {
-        //     Color = new ColorFloat(1, 1, 1, 0.5f),
-        //     BlendPriority = 2
-        // });
-
-        List<WaterTileItem> items = new();
-        var item1 = new WaterTileItem("grid", new WaterTileData()
-        {
-            BlendPriority = 0
-        }, 0, grid.Result);
-        items.Add(item1);
-
-        var item2 = new WaterTileItem("water", new WaterTileData()
-        {
-            Color = _waterColor,
-            BlendPriority = 1
-        }, 1, RenderingSystem.TextureWhite);
-        items.Add(item2);
-
-        var item3 = new WaterTileItem("water2", new WaterTileData()
-        {
-            Color = new ColorFloat(1, 1, 1, 0.5f),
-            BlendPriority = 2
-        }, 2, RenderingSystem.TextureWhite);
-        items.Add(item3);
-
-        return RenderingSystem.CreateWaterTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
-    }
-
-
-    private PlantTileSet BuildPlantTileSet()
-    {
-        Task<Texture2D> highGrass1 = AssetSystem.LoadAsync<Texture2D>("Textures/HighGrass1.png");
-        Task<Texture2D> highGrass2 = AssetSystem.LoadAsync<Texture2D>("Textures/HighGrass2.png");
-        Task.WaitAll(highGrass1, highGrass2);
-        // PlantTileSetParams<int> tileSetParams = new();
-        // tileSetParams.Add(highGrass1.Result, 0, new PlantTileData()
-        // {
-            
-        // });
-        // tileSetParams.Add(highGrass2.Result, 1, new PlantTileData()
-        // {
-            
-        // });
-
-        List<PlantTileItem> items = new();
-        //add empty item
-        var item0 = new PlantTileItem("empty", new PlantTileData()
-        {
-            HasContent = 0
-        }, 0, RenderingSystem.TextureWhite);
-        items.Add(item0);
-
-        var item1 = new PlantTileItem("highGrass1", new PlantTileData()
-        {
-        }, 0, highGrass1.Result, highGrass2.Result);
-        items.Add(item1);
-
-        return RenderingSystem.CreatePlantTileSet(_blitMaterial, items, FilterMode.Nearest, "tile_set");
+        return new TileSet(items.ToArray());
     }
 }

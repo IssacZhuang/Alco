@@ -193,6 +193,16 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         return _items.GetEnumerator();
     }
 
+    public Span<T> AsSpan()
+    {
+        return _items.AsSpan(0, _size);
+    }
+
+    public Span<T> AsSpan(int start, int count)
+    {
+        return _items.AsSpan(start, count);
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void AddWithResize(T item)
     {

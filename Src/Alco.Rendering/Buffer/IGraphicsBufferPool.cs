@@ -28,12 +28,4 @@ public interface IGraphicsBufferPool : IDisposable
     /// <param name="buffer">The buffer to return.</param>
     /// <returns>true if the buffer was returned; otherwise, false.</returns>
     bool TryReturnBuffer(GraphicsBuffer buffer);
-
-    /// <summary>
-    /// Attempts to get an entry from the pool that is at least the specified size.
-    /// </summary>
-    /// <param name="bufferSize">The minimum size of the buffer needed.</param>
-    /// <param name="entry">When this method returns, contains the requested entry if found; otherwise, default.</param>
-    /// <returns>true if a suitable entry was found; otherwise, false.</returns>
-    bool TryGetEntry(uint bufferSize, out GraphicsBufferPoolEntry entry);
 }

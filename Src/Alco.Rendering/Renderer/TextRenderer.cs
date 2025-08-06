@@ -221,7 +221,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
             return 0;
         }
 
-        _textBufferFull.EnsureSize(count);
+        _textBufferFull.SetSize(count);
 
         float x = 0;
         float y = 0;

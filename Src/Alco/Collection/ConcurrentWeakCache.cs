@@ -3,41 +3,36 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Alco
+namespace Alco;
+
+public class ConcurrentWeakCache<TKey, TValue> where TKey : notnull where TValue : class
 {
-    public class ConcurrentWeakCache<T> where T : class
+    private readonly ConcurrentDictionary<TKey, WeakReference> _cache = new ConcurrentDictionary<TKey, WeakReference>();
+
+    public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
     {
-        private readonly ConcurrentDictionary<string, WeakReference<T>> _cache = new ConcurrentDictionary<string, WeakReference<T>>();
+        ArgumentNullException.ThrowIfNull(valueFactory);
 
-        public void Set(string key, T value)
+        WeakReference reference = _cache.GetOrAdd(key, (k) => new WeakReference(valueFactory(k)));
+
+        if (reference.Target is TValue value)
         {
-            if (_cache.TryGetValue(key, out var reference))
-            {
-                reference.SetTarget(value);
-            }
-            else
-            {
-                _cache[key] = new WeakReference<T>(value);
-            }
+            return value;
         }
 
-        public bool TryGet(string key, [NotNullWhen(true)] out T? target)
+        lock (reference)
         {
-            if (_cache.TryGetValue(key, out var reference))
+            if (reference.Target is not TValue value2)
             {
-                if (reference.TryGetTarget(out var result))
-                {
-                    target = result;
-                    return true;
-                }
-                else
-                {
-                    _cache.TryRemove(key, out var _);
-                }
+                value = valueFactory(key);
+                reference.Target = value;
+                return value;
             }
-            target = null;
-            return false;
+
+            return value2;
         }
+
     }
 }
+
 

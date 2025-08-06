@@ -95,6 +95,9 @@ public class ConfigDatabase
         {
             TypeInfoResolver = new PolymorphicJsonTypeResolver(polymorphicTypeList.ToArray()),
             WriteIndented = true,
+            AllowTrailingCommas = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
         };
         foreach (var converter in converters)
         {
@@ -233,7 +236,7 @@ public class ConfigDatabase
 
             var documents = _jsonPreprocessor.AllDocuments.ToArray();
 
-            _tempConfigs.EnsureSizeWithoutCopy(documents.Length);
+            _tempConfigs.SetSizeWithoutCopy(documents.Length);
             _tempConfigs.Clear();
 
             //serialize

@@ -11,6 +11,31 @@ namespace Alco
         public int Y;
         public int Z;
 
+        /// <summary>
+        /// A int3 with all components set to zero.
+        /// </summary>
+        public static readonly int3 Zero = new int3(0, 0, 0);
+
+        /// <summary>
+        /// A int3 with all components set to one.
+        /// </summary>
+        public static readonly int3 One = new int3(1, 1, 1);
+
+        /// <summary>
+        /// A unit vector with the X component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly int3 UnitX = new int3(1, 0, 0);
+
+        /// <summary>
+        /// A unit vector with the Y component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly int3 UnitY = new int3(0, 1, 0);
+
+        /// <summary>
+        /// A unit vector with the Z component set to one and all other components set to zero.
+        /// </summary>
+        public static readonly int3 UnitZ = new int3(0, 0, 1);
+
         public int3(int value)
         {
             this.X = value;
@@ -69,6 +94,16 @@ namespace Alco
         public static int3 operator -(int3 a, int3 b)
         {
             return new int3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+        }
+        /// <summary>
+        /// Negates the specified int3 value.
+        /// </summary>
+        /// <param name="a">The value to negate.</param>
+        /// <returns>A new int3 with all components negated.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int3 operator -(int3 a)
+        {
+            return new int3(-a.X, -a.Y, -a.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int3 operator *(int3 a, int3 b)

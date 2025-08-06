@@ -9,25 +9,25 @@ public class GeneratorMath : BaseGenerator
         //del all files in folder
         ClearFolder();
 
-        FileVector int2 = new FileVector("int", 2);
-        FileVector int3 = new FileVector("int", 3);
-        FileVector int4 = new FileVector("int", 4);
+        FileVector int2 = new FileVector("int", 2, true);
+        FileVector int3 = new FileVector("int", 3, true);
+        FileVector int4 = new FileVector("int", 4, true);
 
         FileMathInt mathInt2 = new FileMathInt("int", 2);
         FileMathInt mathInt3 = new FileMathInt("int", 3);
         FileMathInt mathInt4 = new FileMathInt("int", 4);
 
-        FileVector uint2 = new FileVector("uint", 2);
-        FileVector uint3 = new FileVector("uint", 3);
-        FileVector uint4 = new FileVector("uint", 4);
+        FileVector uint2 = new FileVector("uint", 2, false);
+        FileVector uint3 = new FileVector("uint", 3, false);
+        FileVector uint4 = new FileVector("uint", 4, false);
 
         FileMathUint mathUint2 = new FileMathUint("uint", 2);
         FileMathUint mathUint3 = new FileMathUint("uint", 3);
         FileMathUint mathUint4 = new FileMathUint("uint", 4);
 
-        FileVector half2 = new FileVector("Half", 2);
-        FileVector half3 = new FileVector("Half", 3);
-        FileVector half4 = new FileVector("Half", 4);
+        FileVector half2 = new FileVector("Half", 2, true);
+        FileVector half3 = new FileVector("Half", 3, true);
+        FileVector half4 = new FileVector("Half", 4, true);
 
         FileMathHalf mathHalf2 = new FileMathHalf("Half", 2);
         FileMathHalf mathHalf3 = new FileMathHalf("Half", 3);

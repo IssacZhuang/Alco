@@ -3,10 +3,13 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
-using Random = Alco.Random;
+using Random = Alco.FastRandom;
 using Alco.Graphics;
 using Alco.GUI;
 using Alco.ImGUI;
+using Alco.IO;
+
+using SandboxUtils;
 
 public class Game : GameEngine
 {
@@ -17,9 +20,10 @@ public class Game : GameEngine
     private readonly Shader _spriteShader;
     private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _renderer;
-    private float _intensity = 3;
+    private float _intensity = 2;
     private bool _enabled = true;
 
+    private BloomSystem? _bloomSystem;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -35,6 +39,22 @@ public class Game : GameEngine
         material.SetBuffer(ShaderResourceId.Camera, _camera);
         _renderContext = RenderingSystem.CreateRenderContext("renderer");
         _renderer = RenderingSystem.CreateSpriteRenderer(_renderContext, material);
+    }
+
+    public override IEnumerable<IFileSource> CreateDefaultFileSources()
+    {
+        foreach (var fileSource in base.CreateDefaultFileSources())
+        {
+            yield return fileSource;
+        }
+        yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), AssetSystem);
+        yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
+    }
+
+    protected override void OnStart()
+    {
+        // Get BloomSystem reference after systems are initialized
+        TryGetSystem<BloomSystem>(out _bloomSystem);
     }
 
     protected override void OnUpdate(float delta)
@@ -93,6 +113,44 @@ public class Game : GameEngine
             _intensity += 0.1f;
         }
         ImGui.Checkbox("Enabled", ref _enabled);
+
+        // Bloom System Controls
+        if (_bloomSystem != null)
+        {
+            ImGui.Separator();
+            ImGui.Text("Bloom System Controls");
+
+
+            bool bloomEnabled = _bloomSystem.IsEnabled;
+            if (ImGui.Checkbox("Bloom Enabled", ref bloomEnabled))
+            {
+                _bloomSystem.IsEnabled = bloomEnabled;
+            }
+
+            float threshold = _bloomSystem.Threshold;
+            if (ImGui.SliderFloat("Bloom Threshold", ref threshold, 0.0f, 3.0f))
+            {
+                _bloomSystem.Threshold = threshold;
+            }
+
+            float spread = _bloomSystem.Spread;
+            if (ImGui.SliderFloat("Bloom Spread", ref spread, 0.0f, 5.0f))
+            {
+                _bloomSystem.Spread = spread;
+            }
+
+            float bloomIntensity = _bloomSystem.Intensity;
+            if (ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0.0f, 5.0f))
+            {
+                _bloomSystem.Intensity = bloomIntensity;
+            }
+
+            float gamma = _bloomSystem.Gamma;
+            if (ImGui.SliderFloat("Bloom Gamma", ref gamma, 0.5f, 4.0f))
+            {
+                _bloomSystem.Gamma = gamma;
+            }
+        }
 
         ImGui.End();
     }

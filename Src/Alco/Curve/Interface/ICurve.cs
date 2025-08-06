@@ -5,28 +5,52 @@ using System.Collections.Generic;
 
 namespace Alco
 {
-    public interface ICurveBase<T> where T : unmanaged
+    /// <summary>
+    /// Interface for single-dimensional curves
+    /// </summary>
+    public interface ICurve
     {
-        T Evaluate(float t);
+        float Evaluate(float t);
         int PointsCount { get; }
-        void SetPoints(IReadOnlyList<CurvePoint<T>> points);
-        IReadOnlyList <CurvePoint<T>> Points { get; }
+        void SetPoints(ReadOnlySpan<CurvePointValue> points);
+        void SetPoints(IReadOnlyList<CurvePointValue> points);
+        IReadOnlyList<CurvePointValue> Points { get; }
     }
 
-    public interface ICurve: ICurveBase<float>
+    /// <summary>
+    /// Interface for 2D curves
+    /// </summary>
+    public interface ICurve2D
     {
+        Vector2 Evaluate(float t);
+        int PointsCount { get; }
+        void SetPoints(ReadOnlySpan<CurvePoint2Value> points);
+        void SetPoints(IReadOnlyList<CurvePoint2Value> points);
+        IReadOnlyList<CurvePoint2Value> Points { get; }
     }
 
-    public interface ICurve2D : ICurveBase<Vector2>
+    /// <summary>
+    /// Interface for 3D curves
+    /// </summary>
+    public interface ICurve3D
     {
+        Vector3 Evaluate(float t);
+        int PointsCount { get; }
+        void SetPoints(ReadOnlySpan<CurvePoint3Value> points);
+        void SetPoints(IReadOnlyList<CurvePoint3Value> points);
+        IReadOnlyList<CurvePoint3Value> Points { get; }
     }
 
-    public interface ICurve3D : ICurveBase<Vector3>
+    /// <summary>
+    /// Interface for 4D curves
+    /// </summary>
+    public interface ICurve4D
     {
-    }
-
-    public interface ICurve4D : ICurveBase<Vector4>
-    {
+        Vector4 Evaluate(float t);
+        int PointsCount { get; }
+        void SetPoints(ReadOnlySpan<CurvePoint4Value> points);
+        void SetPoints(IReadOnlyList<CurvePoint4Value> points);
+        IReadOnlyList<CurvePoint4Value> Points { get; }
     }
 }
 

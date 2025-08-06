@@ -8,7 +8,7 @@ namespace Alco
 {
     public class CurveCache2D : ICurve2D
     {
-        private CurvePoint<Vector2>[] _points;
+        private CurvePoint2Value[] _points;
         private readonly float _step = ConstCurve.DefaultStep;
 
         public int PointsCount
@@ -19,7 +19,7 @@ namespace Alco
             }
         }
 
-        public IReadOnlyList<CurvePoint<Vector2>> Points
+        public IReadOnlyList<CurvePoint2Value> Points
         {
             get
             {
@@ -36,13 +36,24 @@ namespace Alco
             _points = CacheCurve(curve, step);
         }
 
-        public void SetPoints(IReadOnlyList<CurvePoint<Vector2>> points)
+        public void SetPoints(ReadOnlySpan<CurvePoint2Value> points)
         {
             //default use linear
             ICurve2D curve = new CurveLinear2D(points);
             _points = CacheCurve(curve, _step);
         }
 
+        public void SetPoints(IReadOnlyList<CurvePoint2Value> points)
+        {
+            if (points == null)
+            {
+                throw new ArgumentNullException(nameof(points));
+            }
+
+            //default use linear
+            ICurve2D curve = new CurveLinear2D(points);
+            _points = CacheCurve(curve, _step);
+        }
 
 
         public Vector2 Evaluate(float t)
@@ -66,21 +77,21 @@ namespace Alco
             return math.lerp(v1, v2, (t - t1) / _step);
         }
 
-        public static CurvePoint<Vector2>[] CacheCurve(ICurve2D curve, float step)
+        public static CurvePoint2Value[] CacheCurve(ICurve2D curve, float step)
         {
             if (curve == null) throw new ArgumentNullException(nameof(curve));
 
             int count = (int)math.floor((curve.Points[curve.PointsCount - 1].Time - curve.Points[0].Time) / step) + 2;
 
-            CurvePoint<Vector2>[] points = new CurvePoint<Vector2>[count];
+            CurvePoint2Value[] points = new CurvePoint2Value[count];
             Parallel.For(0, count - 1, (i) =>
             {
                 float t = curve.Points[0].Time + i * step;
                 Vector2 value = curve.Evaluate(t);
 
-                points[i] = new CurvePoint<Vector2>(t, value);
+                points[i] = new CurvePoint2Value(t, value);
             });
-            points[count - 1] = new CurvePoint<Vector2>(curve.Points[curve.PointsCount - 1].Time, curve.Points[curve.PointsCount - 1].Value);
+            points[count - 1] = new CurvePoint2Value(curve.Points[curve.PointsCount - 1].Time, curve.Points[curve.PointsCount - 1].Value);
 
             return points;
         }

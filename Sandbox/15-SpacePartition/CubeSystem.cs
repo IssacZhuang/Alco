@@ -5,7 +5,7 @@ using Alco;
 using Alco.Graphics;
 using Alco.GUI;
 using Alco.Rendering;
-using Random = Alco.Random;
+using FastRandom = Alco.FastRandom;
 
 public class CubeSystem
 {
@@ -17,7 +17,7 @@ public class CubeSystem
     private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _spriteRenderer;
 
-    private Random _random = new Random(123);
+    private FastRandom _random = new FastRandom(123);
 
     public CubeSystem(RenderingSystem rendering, Material material, Texture2D texCube)
     {

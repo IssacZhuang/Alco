@@ -147,8 +147,8 @@ namespace Alco.Test
         //         int startKey = threadId * keyCount;
         //         int endKey = startKey + keyCount;
 
-        //         // Random delay to increase chance of concurrent access
-        //         var random = new System.Random(threadId);
+        //         // FastRandom delay to increase chance of concurrent access
+        //         var random = new System.FastRandom(threadId);
 
         //         for (int i = 0; i < 100; i++)
         //         {

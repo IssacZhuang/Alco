@@ -110,13 +110,8 @@ public sealed class ConcurrentGraphicsBufferPool : AutoDisposable, IGraphicsBuff
         return false;
     }
 
-    /// <summary>
-    /// Attempts to get an entry from the pool that is at least the specified size.
-    /// </summary>
-    /// <param name="bufferSize">The minimum size of the buffer needed.</param>
-    /// <param name="entry">When this method returns, contains the requested entry if found; otherwise, default.</param>
-    /// <returns>true if a suitable entry was found; otherwise, false.</returns>
-    public bool TryGetEntry(uint bufferSize, out GraphicsBufferPoolEntry entry)
+    //mark as internal for test uses
+    internal bool TryGetEntry(uint bufferSize, out GraphicsBufferPoolEntry entry)
     {
         //binary search to find the pool
         int left = 0;

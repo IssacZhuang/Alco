@@ -7,7 +7,7 @@ using Alco.GUI;
 using Alco.Rendering;
 using Alco.ImGUI;
 
-using Random = Alco.Random;
+using FastRandom = Alco.FastRandom;
 
 public class DropletSystem : IDisposable
 {
@@ -20,34 +20,44 @@ public class DropletSystem : IDisposable
         public int end;
     }
 
-    private class JobParallelRender : ReuseableParallelTask
+    private class JobParallelRender : ReuseableBatchTask
     {
         private readonly SubRenderContext[] _renderContext;
-        private readonly SpriteRenderer[] _renderers;
+        private readonly InstanceRenderer<SpriteConstant>[] _renderers;
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
-        private readonly Texture2D _texture;
         private readonly ViewRenderTarget _renderTarget;
+        private readonly Mesh _mesh;
 
 
-        public JobParallelRender(ViewRenderTarget renderTarget, SubRenderContext[] renderContext, SpriteRenderer[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Texture2D texture)
+        public JobParallelRender(ViewRenderTarget renderTarget, SubRenderContext[] renderContext, InstanceRenderer<SpriteConstant>[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Mesh mesh)
         {
             _renderTarget = renderTarget;
             _renderContext = renderContext;
             _renderers = renderers;
             _renderRanges = renderRanges;
             _activeList = activeList;
-            _texture = texture;
+            _mesh = mesh;
         }
 
         protected override void ExecuteCore(int index)
         {
-            _renderContext[index].Begin(_renderTarget.RenderTexture.AttachmentLayout);
-            for (int j = _renderRanges[index].start; j < _renderRanges[index].end; j++)
+            _renderContext[index].Begin(_renderTarget.FrameBuffer.AttachmentLayout);
+            RenderRange range = _renderRanges[index];
+            int i = 0;
+            Span<SpriteConstant> instances = stackalloc SpriteConstant[range.end - range.start];
+            for (int j = range.start; j < range.end; j++)
             {
                 var droplet = _activeList[j];
-                _renderers[index].Draw(_texture, droplet.transform.Matrix, droplet.color);
+                instances[i++] = new SpriteConstant
+                {
+                    Model = droplet.transform.Matrix,
+                    Color = ColorFloat.White,
+                    UvRect = Rect.One
+                };
             }
+
+            _renderers[index].Draw(_mesh, instances);
             _renderContext[index].End();
         }
     }
@@ -55,9 +65,8 @@ public class DropletSystem : IDisposable
     private static readonly ColorFloat DefaultColor = 0xCCCCCC;
     private readonly RenderContext _renderContext;
     private readonly SubRenderContext[] _subRenderContexts;
-    private readonly SpriteRenderer[] _renderers;
+    private readonly InstanceRenderer<SpriteConstant>[] _renderers;
     private readonly RenderRange[] _renderRanges;
-    private readonly Texture2D _texture;
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(200000, () => new Droplet());
     private readonly ViewRenderTarget _renderTarget;
@@ -68,7 +77,7 @@ public class DropletSystem : IDisposable
     private int _spwanRangeX = 480;
     private int _speed = 300;
 
-    private Random _random = new Random(123);
+    private FastRandom _random = new FastRandom(123);
 
     private readonly Profiler _profiler = new Profiler();
 
@@ -76,22 +85,22 @@ public class DropletSystem : IDisposable
     {
         _renderContext = system.CreateRenderContext();
         _subRenderContexts = new SubRenderContext[RenderThreadCount];
-        _renderers = new SpriteRenderer[RenderThreadCount];
+        _renderers = new InstanceRenderer<SpriteConstant>[RenderThreadCount];
         Material material = system.CreateMaterial(shader, "Sprite");
+        material.SetTexture(ShaderResourceId.Texture, texDroplet);
         material.BlendState = BlendState.AlphaBlend;
         material.SetBuffer(ShaderResourceId.Camera, camera);
         for (int i = 0; i < RenderThreadCount; i++)
         {
             _subRenderContexts[i] = system.CreateSubRenderContext();
             //a material instance per thread
-            _renderers[i] = system.CreateSpriteRenderer(_subRenderContexts[i], material.CreateInstance(), "Sprite");
+            _renderers[i] = system.CreateInstanceRenderer<SpriteConstant>(_subRenderContexts[i], material.CreateInstance());
         }
 
         _renderRanges = new RenderRange[RenderThreadCount];
-        _texture = texDroplet;
         _renderTarget = windowRenderTarget;
 
-        _jobParallelRender = new JobParallelRender(_renderTarget, _subRenderContexts, _renderers, _renderRanges, _activeList, _texture);
+        _jobParallelRender = new JobParallelRender(_renderTarget, _subRenderContexts, _renderers, _renderRanges, _activeList, system.MeshCenteredSprite);
     }
 
     public void OnTick(float delta)
@@ -191,5 +200,10 @@ public class DropletSystem : IDisposable
     public void Dispose()
     {
         _jobParallelRender.Dispose();
+        foreach (var renderer in _renderers)
+        {
+            renderer.Dispose();
+        }
+        _renderContext.Dispose();
     }
 }

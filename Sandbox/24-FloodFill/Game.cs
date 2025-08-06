@@ -16,6 +16,7 @@ public class Game : GameEngine
     private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
+    private readonly GPUCommandBuffer _command;
 
 
     private float _intensity = 1;
@@ -36,8 +37,9 @@ public class Game : GameEngine
 
         _tileLightMap = RenderingSystem.CreateTileLightMap(computeMaterial, (int)_size.X, (int)_size.Y, "tile_light_map");
 
-
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.Texture);
+
+        _command = GraphicsDevice.CreateCommandBuffer();
     }
 
     public override IEnumerable<IFileSource> CreateDefaultFileSources()
@@ -109,7 +111,14 @@ public class Game : GameEngine
 
         _tileLightMap.SetLight((int)_size.X / 2, (int)_size.Y / 2, new Half4(_intensity, _intensity, _intensity, 1));
         _tileLightMap.SetDirty();
-        _tileLightMap.Render();
+
+        _command.Begin();
+        using (var computePass = _command.BeginCompute())
+        {
+            _tileLightMap.Compute(computePass);
+        }
+        _command.End();
+        GraphicsDevice.Submit(_command);
 
         //draw atlas texture
         _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
