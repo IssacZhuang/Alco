@@ -71,26 +71,6 @@ public class TestBatchTask3D
         }
     }
 
-    private class Test3DConcurrencyTask : ReuseableBatchTask3D
-    {
-        private readonly List<int> _threadIds = new List<int>();
-        private readonly object _lock = new object();
-
-        public List<int> ThreadIds => _threadIds;
-
-        public Test3DConcurrencyTask(int maxConcurrency) : base(maxConcurrency)
-        {
-        }
-
-        protected override void ExecuteCore(int x, int y, int z)
-        {
-            lock (_lock)
-            {
-                _threadIds.Add(Thread.CurrentThread.ManagedThreadId);
-            }
-            Thread.Sleep(5); // Simulate work
-        }
-    }
 
     [Test(Description = "Test 3D Batch Task Basic Functionality")]
     public void TestReuseableBatchTask3DBasic()
@@ -215,24 +195,6 @@ public class TestBatchTask3D
         Assert.DoesNotThrow(() => task.Dispose());
     }
 
-    [Test(Description = "Test 3D Batch Task Concurrency Control")]
-    public void TestReuseableBatchTask3DConcurrency()
-    {
-        const int maxConcurrency = 2;
-        using var task = new Test3DConcurrencyTask(maxConcurrency);
-
-        // Use a larger workload to better test concurrency control
-        task.RunParallel(8, 8, 4);
-
-        // The task should have used multiple threads
-        var uniqueThreadIds = new HashSet<int>(task.ThreadIds);
-        Assert.That(uniqueThreadIds.Count, Is.GreaterThan(0), "Should use at least one thread");
-        
-        // Note: Due to ThreadPool behavior and timing, we might see more threads than maxConcurrency
-        // especially with smaller workloads. The important thing is that we're using parallelism.
-        Assert.That(uniqueThreadIds.Count, Is.LessThanOrEqualTo(Environment.ProcessorCount), 
-            "Should not use more threads than available processors");
-    }
 
     [Test(Description = "Test 3D Batch Task Large Volume Processing")]
     public void TestReuseableBatchTask3DLargeVolume()

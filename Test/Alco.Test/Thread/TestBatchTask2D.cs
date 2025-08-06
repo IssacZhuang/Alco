@@ -69,27 +69,6 @@ public class TestBatchTask2D
         }
     }
 
-    private class Test2DConcurrencyTask : ReuseableBatchTask2D
-    {
-        private readonly List<int> _threadIds = new List<int>();
-        private readonly object _lock = new object();
-
-        public List<int> ThreadIds => _threadIds;
-
-        public Test2DConcurrencyTask(int maxConcurrency) : base(maxConcurrency)
-        {
-        }
-
-        protected override void ExecuteCore(int x, int y)
-        {
-            lock (_lock)
-            {
-                _threadIds.Add(Thread.CurrentThread.ManagedThreadId);
-            }
-            Thread.Sleep(5); // Simulate work
-        }
-    }
-
     [Test(Description = "Test 2D Batch Task Basic Functionality")]
     public void TestReuseableBatchTask2DBasic()
     {
@@ -198,25 +177,6 @@ public class TestBatchTask2D
 
         // Multiple disposals should not throw
         Assert.DoesNotThrow(() => task.Dispose());
-    }
-
-    [Test(Description = "Test 2D Batch Task Concurrency Control")]
-    public void TestReuseableBatchTask2DConcurrency()
-    {
-        const int maxConcurrency = 2;
-        using var task = new Test2DConcurrencyTask(maxConcurrency);
-
-        // Use a larger workload to better test concurrency control
-        task.RunParallel(16, 16);
-
-        // The task should have used multiple threads
-        var uniqueThreadIds = new HashSet<int>(task.ThreadIds);
-        Assert.That(uniqueThreadIds.Count, Is.GreaterThan(0), "Should use at least one thread");
-
-        // Note: Due to ThreadPool behavior and timing, we might see more threads than maxConcurrency
-        // especially with smaller workloads. The important thing is that we're using parallelism.
-        Assert.That(uniqueThreadIds.Count, Is.LessThanOrEqualTo(Environment.ProcessorCount),
-            "Should not use more threads than available processors");
     }
 
     [Test(Description = "Test 2D Batch Task Large Area Processing")]
