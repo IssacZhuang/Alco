@@ -34,11 +34,11 @@ public struct ParticleData2D
     /// <summary>
     /// The offset of z axis of the particle.
     /// </summary>
-    public float ZOffset;
+    public float Depth;
 
     /// <summary>
-    /// for memory alignment to GPU
+    /// The velocity of the particle in the z axis.
     /// </summary>
-    public float _reserved;
+    public float DepthVelocity;
 }
 

@@ -21,8 +21,8 @@ struct ParticleData2D{
     float4 color;
     float lifetime;
     float duration;
-    float zOffset;
-    float _reserved;
+    float depth;
+    float depthVelocity;
 };
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
@@ -42,7 +42,7 @@ V2F MainVS(Vertex input) {
 #if defined(IS_FACADE)
     position.z = -position.y;
 #endif
-    position.z -= particle.zOffset;
+    position.z += particle.depth;
 
     position.xy += particle.transform.position;
 
