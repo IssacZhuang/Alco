@@ -89,7 +89,7 @@ public struct GraphicsPipelineContext
         {
             return resourceId;
         }
-        throw new KeyNotFoundException($"Resource '{name}' not found in shader {Pipeline!.Name}");
+        throw new KeyNotFoundException($"Resource '{name}' not found in shader");
     }
 
 
