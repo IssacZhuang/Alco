@@ -24,7 +24,7 @@ public sealed unsafe class ParticleSystem2DCPU
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
         {
-            particle.Position += particle.Velocity * deltaTime;
+            particle.Transform.Position += particle.Velocity * deltaTime;
             particle.Lifetime -= deltaTime;
         }
     }

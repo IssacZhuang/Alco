@@ -17,24 +17,10 @@ public sealed class ParticleSimulatorColorLerp2D : IParticleSimulator2D
     /// </summary>
     public ColorFloat EndColor = new ColorFloat(1, 1, 1, 0f);
 
-    /// <summary>
-    /// Simulates the particle by updating its position and color based on lifetime.
-    /// </summary>
-    /// <param name="system">The particle system that owns the particle.</param>
-    /// <param name="particle">Reference to the particle data to update.</param>
-    /// <param name="deltaTime">Time elapsed since last update.</param>
-    public void SimulateInLocal(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
-    {
-        particle.Position += particle.Velocity * deltaTime;
-        particle.Lifetime -= deltaTime;
-        float t = particle.Lifetime / system.ParticleLifetime;
-        //lifetime is decreasing, so we need to lerp from end to start
-        particle.Color = ColorFloat.Lerp(EndColor, StartColor, t);
-    }
 
     public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
     {
-        particle.Position += particle.Velocity * deltaTime;
+        particle.Transform.Position += particle.Velocity * deltaTime;
         particle.Lifetime -= deltaTime;
         float t = particle.Lifetime / particle.Duration;
         //lifetime is decreasing, so we need to lerp from end to start

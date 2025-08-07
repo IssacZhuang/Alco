@@ -8,20 +8,7 @@ namespace Alco.Rendering;
 /// </summary>
 public struct ParticleData2D
 {
-    /// <summary>
-    /// Gets or sets the 2D position of the particle.
-    /// </summary>
-    public Vector2 Position;
-
-    /// <summary>
-    /// Gets or sets the 2D rotation of the particle.
-    /// </summary>
-    public Rotation2D Rotation;
-
-    /// <summary>
-    /// Gets or sets the size (scale) of the particle.
-    /// </summary>
-    public Vector2 Scale;
+    public Transform2D Transform;
 
     /// <summary>
     /// Gets or sets the 2D velocity vector of the particle.
@@ -45,8 +32,13 @@ public struct ParticleData2D
     public float Duration;
 
     /// <summary>
+    /// The offset of z axis of the particle.
+    /// </summary>
+    public float ZOffset;
+
+    /// <summary>
     /// for memory alignment to GPU
     /// </summary>
-    public Vector2 _reserved;
+    public float _reserved;
 }
 
