@@ -65,7 +65,6 @@ public class Game : GameEngine
         _particleSystem = new(_emitter, _simulator)
         {
             EmissionRateOverTime = 100,
-            ParticleLifetime = 1.0f,
             MaxParticles = 100000
         };
         _particleSystem.Play();
@@ -145,12 +144,7 @@ public class Game : GameEngine
             _particleSystem.EmissionRateOverTime = emissionRate;
         }
 
-        float lifetime = _particleSystem.ParticleLifetime;
-        if (ImGui.SliderFloat("Lifetime", ref lifetime, 0.5f, 10.0f))
-        {
-            _particleSystem.ParticleLifetime = lifetime;
-        }
-
+        
         bool isBurst = _particleSystem.IsBurst;
         if (ImGui.Checkbox("Burst Mode", ref isBurst))
         {
@@ -182,6 +176,13 @@ public class Game : GameEngine
 
         // Particle Emitter Controls
         ImGui.TextColored(new Vector4(1, 1, 0, 1), "Particle Emitter");
+
+        float lifetime = _emitter.Lifetime;
+        if (ImGui.SliderFloat("Lifetime", ref lifetime, 0.5f, 10.0f))
+        {
+            _emitter.Lifetime = lifetime;
+        }
+
 
         Vector2 position = _emitter.Shape.Center;
         if (ImGui.SliderFloat2("Box Position", ref position, -300, 300))

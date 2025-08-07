@@ -49,6 +49,11 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     public float MaxSize = 1.0f;
 
     /// <summary>
+    /// The lifetime of the particle.
+    /// </summary>
+    public float Lifetime = 1.0f;
+
+    /// <summary>
     /// Gets or sets whether the rotation should follow the direction of the velocity.
     /// </summary>
     public bool IsRotationFollowDirection = true;
@@ -90,6 +95,8 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         }
 
         particle.Transform.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
+        particle.Lifetime = Lifetime;
+        particle.Duration = Lifetime;
         return particle;
     }
 }
