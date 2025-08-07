@@ -165,8 +165,10 @@ public sealed unsafe class ParticleSystem2DCPU
         Span<ParticleData2D> particles = _particles.AsSpan(spanStart, burstCount);
         for (int i = 0; i < burstCount; i++)
         {
-            particles[i] = _emitter.Emit(Transform);
-            particles[i].Lifetime = ParticleLifetime;
+            ParticleData2D particle = _emitter.Emit(Transform);
+            particle.Lifetime = ParticleLifetime;
+            particle.Duration = ParticleLifetime;
+            particles[i] = particle;
         }
     }
 
@@ -233,8 +235,10 @@ public sealed unsafe class ParticleSystem2DCPU
 
                 for (int i = 0; i < particlesToEmit; i++)
                 {
-                    newParticles[i] = _emitter.Emit(Transform);
-                    newParticles[i].Lifetime = ParticleLifetime;
+                    ParticleData2D particle = _emitter.Emit(Transform);
+                    particle.Lifetime = ParticleLifetime;
+                    particle.Duration = ParticleLifetime;
+                    newParticles[i] = particle;
                 }
 
                 // Update accumulator once after emitting all particles

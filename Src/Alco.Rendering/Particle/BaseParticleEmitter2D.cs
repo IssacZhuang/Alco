@@ -90,9 +90,6 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
         }
 
         particle.Transform.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
-
-        particle.Lifetime = _random.NextFloat(1, 2);
-        particle.Duration = particle.Lifetime;
         return particle;
     }
 }
