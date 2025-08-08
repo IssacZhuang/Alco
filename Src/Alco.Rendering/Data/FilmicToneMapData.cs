@@ -5,23 +5,24 @@ namespace Alco.Rendering;
 /// </summary>
 public struct FilmicToneMapData
 {
-    public float A; // 2.51
-    public float B; // 0.03
-    public float C; // 2.43
-    public float D; // 0.59
-    public float E; // 0.14
+    /// <summary>
+    /// Exposure multiplier applied before tone mapping.
+    /// </summary>
     public float Exposure;
+
+    /// <summary>
+    /// Gamma value for final gamma correction.
+    /// </summary>
     public float Gamma;
 
+    /// <summary>
+    /// Default ACES parameters.
+    /// </summary>
     public static readonly FilmicToneMapData Default = new FilmicToneMapData
     {
-        A = 2.51f,
-        B = 0.03f,
-        C = 2.43f,
-        D = 0.59f,
-        E = 0.14f,
         Exposure = 1.0f,
-        Gamma = 2.2f
+        Gamma = 1f,
     };
+
 }
 

@@ -20,7 +20,6 @@ public class PluginHDR : BaseEnginePlugin
         Linear,
         Reinhard,
         Uncharted2,
-        ReinhardJodie,
         Filmic,
         ACES,
     }
@@ -33,7 +32,6 @@ public class PluginHDR : BaseEnginePlugin
     private TonemapType _tonemapType = TonemapType.Reinhard;
     private ReinhardToneMapData _reinhardData = ReinhardToneMapData.Default;
     private Uncharted2ToneMapData _uncharted2Data = Uncharted2ToneMapData.Default;
-    private ReinhardJodieToneMapData _reinhardJodieData = ReinhardJodieToneMapData.Default;
     private FilmicToneMapData _filmicData = FilmicToneMapData.Default;
     private ACESToneMapData _acesData = ACESToneMapData.Default;
 
@@ -72,24 +70,6 @@ public class PluginHDR : BaseEnginePlugin
             if (_tonemapType == TonemapType.Reinhard)
             {
                 _dataBuffer?.UpdateBuffer(_reinhardData);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Reinhard-Jodie tone mapping parameters. If the current <see cref="Tonemap"/> is
-    /// <see cref="TonemapType.ReinhardJodie"/> or <see cref="TonemapType.ACES"/> (reuses exposure/gamma),
-    /// it updates the GPU buffer immediately.
-    /// </summary>
-    public ReinhardJodieToneMapData ReinhardJodieData
-    {
-        get => _reinhardJodieData;
-        set
-        {
-            _reinhardJodieData = value;
-            if (_tonemapType == TonemapType.ReinhardJodie || _tonemapType == TonemapType.ACES)
-            {
-                _dataBuffer?.UpdateBuffer(_reinhardJodieData);
             }
         }
     }
@@ -234,13 +214,6 @@ public class PluginHDR : BaseEnginePlugin
                 _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Blit);
                 _material = rendering.CreateMaterial(_shader);
                 // No data buffer required for linear blit
-                break;
-            case TonemapType.ReinhardJodie:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardJodieTonemap);
-                _material = rendering.CreateMaterial(_shader);
-                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ReinhardJodieToneMapData), "hdr_tonemap_data");
-                _dataBuffer.UpdateBuffer(_reinhardJodieData);
-                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
                 break;
             case TonemapType.Filmic:
                 _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_FilmicTonemap);

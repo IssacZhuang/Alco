@@ -179,17 +179,6 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.ReinhardJodie:
-                    {
-                        // shares exposure/gamma
-                        var d3 = _hdrPlugin.ReinhardJodieData;
-                        if (ImGui.SliderFloat("Exposure", ref d3.Exposure, 0.1f, 4f) |
-                            ImGui.SliderFloat("Gamma", ref d3.Gamma, 0.5f, 3.0f))
-                        {
-                            _hdrPlugin.ReinhardJodieData = d3;
-                        }
-                        break;
-                    }
                 case PluginHDR.TonemapType.Filmic:
                     {
                         var df = _hdrPlugin.FilmicData;

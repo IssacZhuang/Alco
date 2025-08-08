@@ -35,17 +35,15 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_BloomUpSample = "Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl";
 
+   public const string Shader_ACESTonemap = "Shaders/Pipelines/PostProcess/ToneMap/ACESTonemap.hlsl";
+
+   public const string Shader_FilmicTonemap = "Shaders/Pipelines/PostProcess/ToneMap/FilmicTonemap.hlsl";
+
    public const string Shader_ReinhardLuminanceTonemap = "Shaders/Pipelines/PostProcess/ToneMap/ReinhardLuminanceTonemap.hlsl";
 
    public const string Shader_Uncharted2Tonemap = "Shaders/Pipelines/PostProcess/ToneMap/Uncharted2Tonemap.hlsl";
 
-    public const string Shader_ReinhardJodieTonemap = "Shaders/Pipelines/PostProcess/ToneMap/ReinhardJodieTonemap.hlsl";
-
-    public const string Shader_FilmicTonemap = "Shaders/Pipelines/PostProcess/ToneMap/FilmicTonemap.hlsl";
-
-    public const string Shader_ACESTonemap = "Shaders/Pipelines/PostProcess/ToneMap/ACESTonemap.hlsl";
-
-    public const string Shader_Unlit = "Shaders/Pipelines/Rendering/Basic/Unlit.hlsl";
+   public const string Shader_Unlit = "Shaders/Pipelines/Rendering/Basic/Unlit.hlsl";
 
    public const string Shader_Particle2D = "Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl";
 
