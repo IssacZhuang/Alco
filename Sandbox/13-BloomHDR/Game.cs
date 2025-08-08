@@ -11,6 +11,10 @@ using Alco.IO;
 
 using SandboxUtils;
 
+/// <summary>
+/// Sandbox sample demonstrating Bloom and HDR with runtime ImGui controls,
+/// including tone mapping type switching.
+/// </summary>
 public class Game : GameEngine
 {
     //scence
@@ -24,6 +28,8 @@ public class Game : GameEngine
     private bool _enabled = true;
 
     private BloomSystem? _bloomSystem;
+    private PluginHDR? _hdrPlugin;
+    private int _toneMapIndex;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -51,12 +57,25 @@ public class Game : GameEngine
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
+    /// <summary>
+    /// Called when the game starts; initializes references to systems/plugins used by the sample.
+    /// </summary>
     protected override void OnStart()
     {
         // Get BloomSystem reference after systems are initialized
         TryGetSystem<BloomSystem>(out _bloomSystem);
+
+        // Try get HDR plugin for tone map control
+        if (TryGetPlugin<PluginHDR>(out var hdr))
+        {
+            _hdrPlugin = hdr;
+            _toneMapIndex = _hdrPlugin.Tonemap == PluginHDR.TonemapType.Reinhard ? 0 : 1;
+        }
     }
 
+    /// <summary>
+    /// Per-frame update. Handles input, draws scene, and renders ImGui controls.
+    /// </summary>
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -149,6 +168,19 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("Bloom Gamma", ref gamma, 0.5f, 4.0f))
             {
                 _bloomSystem.Gamma = gamma;
+            }
+        }
+
+        // Tone map controls (HDR Plugin)
+        if (_hdrPlugin != null)
+        {
+            ImGui.Separator();
+            ImGui.Text("Tone Mapping");
+            // Options for tone map type
+            string[] toneMapOptions = { "Reinhard", "Uncharted2" };
+            if (ImGui.Combo("Tone Map Type", ref _toneMapIndex, toneMapOptions, toneMapOptions.Length))
+            {
+                _hdrPlugin.Tonemap = _toneMapIndex == 0 ? PluginHDR.TonemapType.Reinhard : PluginHDR.TonemapType.Uncharted2;
             }
         }
 

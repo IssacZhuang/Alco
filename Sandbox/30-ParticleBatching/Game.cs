@@ -55,7 +55,6 @@ public class Game : GameEngine
     
     // UI state variables
     private float _globalEmissionMultiplier = 1.0f;
-    private float _globalLifetimeMultiplier = 1.0f;
     private bool _allPlaying = true;
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -138,7 +137,6 @@ public class Game : GameEngine
             var particleSystem = new ParticleSystem2DCPU(emitter, simulator)
             {
                 EmissionRateOverTime = Random.Shared.NextSingle() * 100f + 50f,
-                ParticleLifetime = Random.Shared.NextSingle() * 2f + 1f,
                 MaxParticles = ParticlesPerSystem
             };
             
@@ -236,16 +234,6 @@ public class Game : GameEngine
                 // Restore base emission rate and apply multiplier
                 var baseRate = 75f; // Average base rate
                 system.EmissionRateOverTime = baseRate * _globalEmissionMultiplier;
-            }
-        }
-
-        // Global lifetime multiplier
-        if (ImGui.SliderFloat("Global Lifetime Multiplier", ref _globalLifetimeMultiplier, 0.1f, 3.0f))
-        {
-            foreach (var system in _particleSystems)
-            {
-                var baseLifetime = 1.5f; // Average base lifetime
-                system.ParticleLifetime = baseLifetime * _globalLifetimeMultiplier;
             }
         }
 

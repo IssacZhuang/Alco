@@ -110,9 +110,14 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
 
     public void SetAttachmentLayout(GPUAttachmentLayout attachmentLayout, Material? blitMaterial = null)
     {
-        _attachmentLayout = attachmentLayout;
-        _renderTexture.Dispose();
-        _renderTexture = _rendering.CreateRenderTexture(attachmentLayout, _width, _height);
+        ArgumentNullException.ThrowIfNull(attachmentLayout);
+        if (!attachmentLayout.Equals(_attachmentLayout))
+        {
+            _attachmentLayout = attachmentLayout;
+            _renderTexture.Dispose();
+            _renderTexture = _rendering.CreateRenderTexture(attachmentLayout, _width, _height);
+        }
+
         if (blitMaterial != null)
         {
             _customBlitMaterial = blitMaterial.CreateInstance();
