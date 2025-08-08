@@ -27,14 +27,14 @@ public struct NeutralToneMapData
     public float Desaturation;
 
     /// <summary>
-    /// Default parameter set tuned for SDR sRGB output.
+    /// Default parameter set tuned for HDR output.
     /// </summary>
     public static readonly NeutralToneMapData Default = new NeutralToneMapData
     {
         Exposure = 1.0f,
         Gamma = 1.0f,
-        StartCompression = 0.76f,
-        Desaturation = 0.15f,
+        StartCompression = 1f,
+        Desaturation = 2f,
     };
 }
 
