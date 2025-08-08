@@ -3,7 +3,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// Parameters for ACES fitted tone mapping.
 /// </summary>
-public struct ACESToneMapData
+public struct ACESTonemapData
 {
     public float A; // 2.51
     public float B; // 0.03
@@ -13,7 +13,7 @@ public struct ACESToneMapData
     public float Exposure;
     public float Gamma;
 
-    public static readonly ACESToneMapData Default = new ACESToneMapData
+    public static readonly ACESTonemapData Default = new ACESTonemapData
     {
         A = 2.51f,
         B = 0.03f,

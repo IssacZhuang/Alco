@@ -3,7 +3,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// Data parameters for the Uncharted 2 tone mapping operator.
 /// </summary>
-public struct Uncharted2ToneMapData
+public struct Uncharted2TonemapData
 {
     /// <summary>
     /// Filmic curve parameter A.
@@ -45,7 +45,7 @@ public struct Uncharted2ToneMapData
     /// <summary>
     /// Default Uncharted 2 tone mapping parameters.
     /// </summary>
-    public static readonly Uncharted2ToneMapData Default = new Uncharted2ToneMapData
+    public static readonly Uncharted2TonemapData Default = new Uncharted2TonemapData
     {
         A = 0.15f,
         B = 0.50f,

@@ -4,7 +4,7 @@ namespace Alco.Rendering;
 /// Parameters for the Khronos PBR Neutral tone mapping operator used by <c>NeutralTonemap.hlsl</c>.
 /// Field order must match the HLSL uniform buffer: Exposure, Gamma, StartCompression, Desaturation.
 /// </summary>
-public struct NeutralToneMapData
+public struct NeutralTonemapData
 {
     /// <summary>
     /// Exposure multiplier applied before tone mapping.
@@ -29,7 +29,7 @@ public struct NeutralToneMapData
     /// <summary>
     /// Default parameter set tuned for HDR output.
     /// </summary>
-    public static readonly NeutralToneMapData Default = new NeutralToneMapData
+    public static readonly NeutralTonemapData Default = new NeutralTonemapData
     {
         Exposure = 1.0f,
         Gamma = 1.0f,
