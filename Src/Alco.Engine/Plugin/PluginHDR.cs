@@ -14,8 +14,15 @@ public class PluginHDR : BaseEnginePlugin
     /// </summary>
     public enum TonemapType
     {
+        /// <summary>
+        /// Linear tonemapping (no tonemap), directly blits the HDR buffer.
+        /// </summary>
+        Linear,
         Reinhard,
         Uncharted2,
+        ReinhardJodie,
+        Filmic,
+        ACES,
     }
 
     private Shader? _shader;
@@ -26,6 +33,9 @@ public class PluginHDR : BaseEnginePlugin
     private TonemapType _tonemapType = TonemapType.Reinhard;
     private ReinhardToneMapData _reinhardData = ReinhardToneMapData.Default;
     private Uncharted2ToneMapData _uncharted2Data = Uncharted2ToneMapData.Default;
+    private ReinhardJodieToneMapData _reinhardJodieData = ReinhardJodieToneMapData.Default;
+    private FilmicToneMapData _filmicData = FilmicToneMapData.Default;
+    private ACESToneMapData _acesData = ACESToneMapData.Default;
 
     /// <summary>
     /// The execution order of the plugin. Runs early in the post process chain.
@@ -62,6 +72,58 @@ public class PluginHDR : BaseEnginePlugin
             if (_tonemapType == TonemapType.Reinhard)
             {
                 _dataBuffer?.UpdateBuffer(_reinhardData);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reinhard-Jodie tone mapping parameters. If the current <see cref="Tonemap"/> is
+    /// <see cref="TonemapType.ReinhardJodie"/> or <see cref="TonemapType.ACES"/> (reuses exposure/gamma),
+    /// it updates the GPU buffer immediately.
+    /// </summary>
+    public ReinhardJodieToneMapData ReinhardJodieData
+    {
+        get => _reinhardJodieData;
+        set
+        {
+            _reinhardJodieData = value;
+            if (_tonemapType == TonemapType.ReinhardJodie || _tonemapType == TonemapType.ACES)
+            {
+                _dataBuffer?.UpdateBuffer(_reinhardJodieData);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Filmic tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.Filmic"/>,
+    /// it updates the GPU buffer immediately.
+    /// </summary>
+    public FilmicToneMapData FilmicData
+    {
+        get => _filmicData;
+        set
+        {
+            _filmicData = value;
+            if (_tonemapType == TonemapType.Filmic)
+            {
+                _dataBuffer?.UpdateBuffer(_filmicData);
+            }
+        }
+    }
+
+    /// <summary>
+    /// ACES tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.ACES"/>,
+    /// it updates the GPU buffer immediately.
+    /// </summary>
+    public ACESToneMapData ACESData
+    {
+        get => _acesData;
+        set
+        {
+            _acesData = value;
+            if (_tonemapType == TonemapType.ACES)
+            {
+                _dataBuffer?.UpdateBuffer(_acesData);
             }
         }
     }
@@ -166,6 +228,32 @@ public class PluginHDR : BaseEnginePlugin
                 _material = rendering.CreateMaterial(_shader);
                 _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(Uncharted2ToneMapData), "hdr_tonemap_data");
                 _dataBuffer.UpdateBuffer(_uncharted2Data);
+                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
+                break;
+            case TonemapType.Linear:
+                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Blit);
+                _material = rendering.CreateMaterial(_shader);
+                // No data buffer required for linear blit
+                break;
+            case TonemapType.ReinhardJodie:
+                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardJodieTonemap);
+                _material = rendering.CreateMaterial(_shader);
+                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ReinhardJodieToneMapData), "hdr_tonemap_data");
+                _dataBuffer.UpdateBuffer(_reinhardJodieData);
+                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
+                break;
+            case TonemapType.Filmic:
+                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_FilmicTonemap);
+                _material = rendering.CreateMaterial(_shader);
+                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(FilmicToneMapData), "hdr_tonemap_data");
+                _dataBuffer.UpdateBuffer(_filmicData);
+                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
+                break;
+            case TonemapType.ACES:
+                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ACESTonemap);
+                _material = rendering.CreateMaterial(_shader);
+                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ACESToneMapData), "hdr_tonemap_data");
+                _dataBuffer.UpdateBuffer(_acesData);
                 _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
                 break;
         }

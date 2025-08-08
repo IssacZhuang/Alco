@@ -44,6 +44,12 @@ public partial class BuiltInAssets
 
     public Shader Shader_Uncharted2Tonemap => GetShader("Shaders/Pipelines/PostProcess/ToneMap/Uncharted2Tonemap.hlsl");
 
+    public Shader Shader_ReinhardJodieTonemap => GetShader("Shaders/Pipelines/PostProcess/ToneMap/ReinhardJodieTonemap.hlsl");
+
+    public Shader Shader_FilmicTonemap => GetShader("Shaders/Pipelines/PostProcess/ToneMap/FilmicTonemap.hlsl");
+
+    public Shader Shader_ACESTonemap => GetShader("Shaders/Pipelines/PostProcess/ToneMap/ACESTonemap.hlsl");
+
     public Shader Shader_Unlit => GetShader("Shaders/Pipelines/Rendering/Basic/Unlit.hlsl");
 
     public Shader Shader_Particle2D => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl");
