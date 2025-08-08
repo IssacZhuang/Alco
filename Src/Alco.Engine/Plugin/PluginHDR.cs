@@ -22,6 +22,7 @@ public class PluginHDR : BaseEnginePlugin
         Uncharted2,
         Filmic,
         ACES,
+        Neutral,
     }
 
     private Shader? _shader;
@@ -34,6 +35,7 @@ public class PluginHDR : BaseEnginePlugin
     private Uncharted2ToneMapData _uncharted2Data = Uncharted2ToneMapData.Default;
     private FilmicToneMapData _filmicData = FilmicToneMapData.Default;
     private ACESToneMapData _acesData = ACESToneMapData.Default;
+    private NeutralToneMapData _neutralData = NeutralToneMapData.Default;
 
     /// <summary>
     /// The execution order of the plugin. Runs early in the post process chain.
@@ -104,6 +106,23 @@ public class PluginHDR : BaseEnginePlugin
             if (_tonemapType == TonemapType.ACES)
             {
                 _dataBuffer?.UpdateBuffer(_acesData);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Neutral tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.Neutral"/>,
+    /// it updates the GPU buffer immediately.
+    /// </summary>
+    public NeutralToneMapData NeutralData
+    {
+        get => _neutralData;
+        set
+        {
+            _neutralData = value;
+            if (_tonemapType == TonemapType.Neutral)
+            {
+                _dataBuffer?.UpdateBuffer(_neutralData);
             }
         }
     }
@@ -227,6 +246,13 @@ public class PluginHDR : BaseEnginePlugin
                 _material = rendering.CreateMaterial(_shader);
                 _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ACESToneMapData), "hdr_tonemap_data");
                 _dataBuffer.UpdateBuffer(_acesData);
+                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
+                break;
+            case TonemapType.Neutral:
+                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_NeutralTonemap);
+                _material = rendering.CreateMaterial(_shader);
+                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(NeutralToneMapData), "hdr_tonemap_data");
+                _dataBuffer.UpdateBuffer(_neutralData);
                 _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
                 break;
         }

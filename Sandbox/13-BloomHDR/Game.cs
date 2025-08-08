@@ -199,6 +199,18 @@ public class Game : GameEngine
                         }
                         break;
                     }
+                case PluginHDR.TonemapType.Neutral:
+                    {
+                        var dn = _hdrPlugin.NeutralData;
+                        if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref dn.Gamma, 0.5f, 3.0f) |
+                            ImGui.SliderFloat("StartCompression", ref dn.StartCompression, 0.5f, 0.95f) |
+                            ImGui.SliderFloat("Desaturation", ref dn.Desaturation, 0.0f, 1.0f))
+                        {
+                            _hdrPlugin.NeutralData = dn;
+                        }
+                        break;
+                    }
             }
         }
 
