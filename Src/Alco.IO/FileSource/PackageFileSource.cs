@@ -1,9 +1,7 @@
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using Alco;
 
 namespace Alco.IO;
@@ -15,13 +13,12 @@ namespace Alco.IO;
 public sealed class PackageFileSource : AutoDisposable, IFileSource
 {
     private readonly PackageReader _reader;
-    private readonly string[] _allFileNames;
 
     public string Name { get; }
 
     public int Priority => 0;
 
-    public IEnumerable<string> AllFileNames => _allFileNames;
+    public IEnumerable<string> AllFileNames => _reader.AllFileNames;
 
     /// <summary>
     /// Opens a package file from disk.
@@ -32,7 +29,6 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
         try
         {
             _reader = PackageReader.OpenFile(packagePath);
-            _allFileNames = DecodeAllNamesFromFile(packagePath);
         }
         catch (Exception ex)
         {
@@ -52,7 +48,6 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
             stream.CopyTo(ms);
             byte[] bytes = ms.ToArray();
             _reader = PackageReader.OpenMemory(bytes);
-            _allFileNames = DecodeAllNamesFromBytes(bytes);
         }
         catch (Exception ex)
         {
@@ -99,41 +94,6 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
         {
             _reader?.Dispose();
         }
-    }
-
-    private static string[] DecodeAllNamesFromFile(string path)
-    {
-        using FileStream fs = File.OpenRead(path);
-        Span<byte> header = stackalloc byte[8];
-        fs.ReadExactly(header);
-        long metaLength = BinaryPrimitives.ReadInt64LittleEndian(header);
-        if (metaLength < 0 || metaLength > int.MaxValue)
-        {
-            throw new InvalidDataException($"Invalid meta length: {metaLength}");
-        }
-
-        byte[] metaBytes = new byte[(int)metaLength];
-        fs.ReadExactly(metaBytes);
-        PackageMeta meta = BinaryParser.Decode<PackageMeta>(metaBytes);
-        return meta.Entries.Select(e => e.Name.Replace('\\', '/')).ToArray();
-    }
-
-    private static string[] DecodeAllNamesFromBytes(byte[] data)
-    {
-        if (data.Length < 8)
-        {
-            throw new InvalidDataException("Package data too small to contain header.");
-        }
-        long metaLength = BinaryPrimitives.ReadInt64LittleEndian(data.AsSpan(0, 8));
-        if (metaLength < 0 || 8L + metaLength > data.LongLength)
-        {
-            throw new InvalidDataException("Invalid meta length or truncated package data.");
-        }
-        int metaLen = checked((int)metaLength);
-        byte[] metaBytes = new byte[metaLen];
-        Buffer.BlockCopy(data, 8, metaBytes, 0, metaLen);
-        PackageMeta meta = BinaryParser.Decode<PackageMeta>(metaBytes);
-        return meta.Entries.Select(e => e.Name.Replace('\\', '/')).ToArray();
     }
 }
 

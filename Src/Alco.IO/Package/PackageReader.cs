@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
+using System.Collections.Immutable;
 
 
 namespace Alco.IO;
@@ -18,6 +19,9 @@ public unsafe sealed class PackageReader : AutoDisposable
     private readonly long _contentBase;
 
     private readonly FrozenDictionary<string, PackageEntry> _entries;
+    private readonly string[] _allFileNames;
+
+    public IReadOnlyList<string> AllFileNames => _allFileNames;
 
     /// <summary>
     /// Opens a package reader from a file path.
@@ -29,6 +33,8 @@ public unsafe sealed class PackageReader : AutoDisposable
         _file = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.Asynchronous);
         _length = RandomAccess.GetLength(_file);
         _entries = ReadEntries(out _contentBase);
+        _allFileNames = _entries.Keys.ToArray();
+        Array.Sort(_allFileNames, StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -40,6 +46,8 @@ public unsafe sealed class PackageReader : AutoDisposable
         _memory = new SafeMemoryHandle(data);
         _length = data.Length;
         _entries = ReadEntries(out _contentBase);
+        _allFileNames = _entries.Keys.ToArray();
+        Array.Sort(_allFileNames, StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -52,6 +60,8 @@ public unsafe sealed class PackageReader : AutoDisposable
         _memory = new SafeMemoryHandle(data, size);
         _length = size;
         _entries = ReadEntries(out _contentBase);
+        _allFileNames = _entries.Keys.ToArray();
+        Array.Sort(_allFileNames, StringComparer.Ordinal);
     }
 
     /// <summary>
