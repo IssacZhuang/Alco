@@ -26,4 +26,5 @@ Addressing:
 
 Notes:
 - No footer, alignment, or version field.
+- Supports concurrent reads from multiple threads. Readers use positional I/O and do not share mutable state; each thread must provide its own destination buffer.
 
