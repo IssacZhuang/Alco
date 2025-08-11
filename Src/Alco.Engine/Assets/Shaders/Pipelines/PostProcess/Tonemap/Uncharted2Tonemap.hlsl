@@ -38,7 +38,7 @@ V2F MainVS(Vertex input) {
 
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
-    float3 hdrColor = max(0, SAMPLE_TEX2D(_texture, input.uv).rgb - 0.004);
+    float3 hdrColor = max(0, SAMPLE_TEX2D(_texture, input.uv).rgb);
     float3 ldrColor = Uncharted2Tonemap(hdrColor * Exposure);
 
     //white scale

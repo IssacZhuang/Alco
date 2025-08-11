@@ -19,12 +19,12 @@ namespace Alco.Test
             {
                 Value = value;
                 Data = data;
-                Log.Info($"TestObject created: Value={value}, Data={data}");
+                //Log.Info($"TestObject created: Value={value}, Data={data}");
             }
 
             ~TestObject()
             {
-                Log.Info($"TestObject finalized: Value={Value}, Data={Data}");
+                //Log.Info($"TestObject finalized: Value={Value}, Data={Data}");
             }
         }
 

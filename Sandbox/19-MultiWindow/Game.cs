@@ -21,9 +21,9 @@ public class Game : GameEngine
     private readonly SpriteRenderer _renderer;
 
     //hdr
-    private ReinhardToneMapData _toneMapData;
+    private ReinhardTonemapData _toneMapData;
     private readonly Material _toneMapMaterial;
-    private readonly GraphicsValueBuffer<ReinhardToneMapData> _toneMapDataBuffer;
+    private readonly GraphicsValueBuffer<ReinhardTonemapData> _toneMapDataBuffer;
 
     //bloom
     private readonly BloomSystem _bloomSystem1;
@@ -59,7 +59,7 @@ public class Game : GameEngine
         MainView.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
 
-        _toneMapData = ReinhardToneMapData.Default;
+        _toneMapData = ReinhardTonemapData.Default;
         _toneMapMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_ReinhardLuminanceTonemap);
 
         _toneMapDataBuffer = RenderingSystem.CreateGraphicsValueBuffer(_toneMapData, "tonemap_data_buffer");

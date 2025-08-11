@@ -11,6 +11,10 @@ using Alco.IO;
 
 using SandboxUtils;
 
+/// <summary>
+/// Sandbox sample demonstrating Bloom and HDR with runtime ImGui controls,
+/// including tone mapping type switching.
+/// </summary>
 public class Game : GameEngine
 {
     //scence
@@ -20,10 +24,12 @@ public class Game : GameEngine
     private readonly Shader _spriteShader;
     private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _renderer;
-    private float _intensity = 2;
+    private ColorFloat _color = new ColorFloat(4, 2, 2, 1);
     private bool _enabled = true;
 
     private BloomSystem? _bloomSystem;
+    private PluginHDR? _hdrPlugin;
+    private PluginHDR.TonemapType _toneMapType;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -51,12 +57,25 @@ public class Game : GameEngine
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
+    /// <summary>
+    /// Called when the game starts; initializes references to systems/plugins used by the sample.
+    /// </summary>
     protected override void OnStart()
     {
         // Get BloomSystem reference after systems are initialized
         TryGetSystem<BloomSystem>(out _bloomSystem);
+
+        // Try get HDR plugin for tone map control
+        if (TryGetPlugin<PluginHDR>(out var hdr))
+        {
+            _hdrPlugin = hdr;
+            _toneMapType = _hdrPlugin.Tonemap;
+        }
     }
 
+    /// <summary>
+    /// Per-frame update. Handles input, draws scene, and renders ImGui controls.
+    /// </summary>
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -64,17 +83,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        if (Input.IsKeyDown(KeyCode.Up))
-        {
-            _intensity += 0.1f;
-            Log.Info(_intensity);
-        }
-
-        if (Input.IsKeyDown(KeyCode.Down))
-        {
-            _intensity -= 0.1f;
-            Log.Info(_intensity);
-        }
+        // removed intensity hotkeys; color is controlled via ImGui
 
         DebugStats.Text(FrameRate);
 
@@ -86,7 +95,7 @@ public class Game : GameEngine
         //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
 
         if(_enabled){
-            _renderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, new ColorFloat(_intensity*2, _intensity, _intensity, 1));
+            _renderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, _color);
         }
        
 
@@ -95,23 +104,8 @@ public class Game : GameEngine
         // ImGUI Controls
         ImGui.Begin("Bloom HDR Controls");
 
-        // Display intensity value
-        FixedString32 intensityText = new FixedString32();
-        intensityText.Append("Intensity: ");
-        intensityText.Append(_intensity);
-        ImGui.Text(intensityText);
-
-        if (ImGui.Button("-0.1"))
-        {
-            _intensity -= 0.1f;
-        }
-        ImGui.SameLine();
-        ImGui.SliderFloat("Intensity", ref _intensity, 0, 5);
-        ImGui.SameLine();
-        if (ImGui.Button("+0.1"))
-        {
-            _intensity += 0.1f;
-        }
+        // Color control
+        ImGui.ColorEdit4("Color", ref _color, ImGuiColorEditFlags.HDR);
         ImGui.Checkbox("Enabled", ref _enabled);
 
         // Bloom System Controls
@@ -149,6 +143,74 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("Bloom Gamma", ref gamma, 0.5f, 4.0f))
             {
                 _bloomSystem.Gamma = gamma;
+            }
+        }
+
+        // Tone map controls (HDR Plugin)
+        if (_hdrPlugin != null)
+        {
+            ImGui.Separator();
+            ImGui.Text("Tone Mapping");
+            if (ImGui.Combo("Tone Map Type", ref _toneMapType))
+            {
+                _hdrPlugin.Tonemap = _toneMapType;
+            }
+
+            // Optional parameter controls depending on type
+            switch (_toneMapType)
+            {
+                case PluginHDR.TonemapType.Reinhard:
+                    {
+                        var d = _hdrPlugin.ReinhardData;
+                        if (ImGui.SliderFloat("Max Luminance", ref d.MaxLuminance, 0.1f, 10f) |
+                            ImGui.SliderFloat("Gamma", ref d.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.ReinhardData = d;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.Uncharted2:
+                    {
+                        var d2 = _hdrPlugin.Uncharted2Data;
+                        if (ImGui.SliderFloat("Exposure", ref d2.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref d2.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.Uncharted2Data = d2;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.Filmic:
+                    {
+                        var df = _hdrPlugin.FilmicData;
+                        if (ImGui.SliderFloat("Exposure", ref df.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref df.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.FilmicData = df;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.ACES:
+                    {
+                        var da = _hdrPlugin.ACESData;
+                        if (ImGui.SliderFloat("Exposure", ref da.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref da.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.ACESData = da;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.Neutral:
+                    {
+                        var dn = _hdrPlugin.NeutralData;
+                        if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref dn.Gamma, 0.5f, 3.0f) |
+                            ImGui.SliderFloat("StartCompression", ref dn.StartCompression, 0.5f, 1f) |
+                            ImGui.SliderFloat("Desaturation", ref dn.Desaturation, 0.0f, 4f))
+                        {
+                            _hdrPlugin.NeutralData = dn;
+                        }
+                        break;
+                    }
             }
         }
 

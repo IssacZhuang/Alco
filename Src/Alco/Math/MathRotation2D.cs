@@ -49,7 +49,7 @@ namespace Alco
         public static Rotation2D direction(Vector2 a)
         {
             Vector2 norm = normalize(a);
-            return new Rotation2D(norm.Y, norm.X);
+            return new Rotation2D(-norm.Y, norm.X);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Libs/Transform2D.hlsli"
 
 struct Vertex {
     float3 position : POSITION;
@@ -15,13 +16,13 @@ struct V2F {
 
 //same struct as Alco.Rendering.ParticleData2D in CSharp (ParticleData2D.cs)
 struct ParticleData2D{
-    float2 position;
-    float2 rotation; // x, y represent the sin and cos of the rotation
-    float2 scale;
+    Transform2D transform;
     float2 velocity;
     float4 color;
     float lifetime;
     float duration;
+    float depth;
+    float depthVelocity;
 };
 
 DEFINE_UNIFORM(0, _camera) { float4x4 viewProjection; };
@@ -35,18 +36,18 @@ V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
     ParticleData2D particle = _particles[input.instanceId];
     
-    float2 scaledPosition = input.position.xy * particle.scale;
+    float3 position = input.position;
+    position.xy *= particle.transform.scale;
+    position.xy = rotate(position.xy, particle.transform.rotation);
+#if defined(IS_FACADE)
+    position.z = -position.y;
+#endif
+    position.z += particle.depth;
 
-    // rotation
-    float2x2 rotMatrix = {
-        particle.rotation.y, -particle.rotation.x,
-        particle.rotation.x, particle.rotation.y
-    };
-    float2 rotatedPosition = mul(rotMatrix, scaledPosition);
+    position.xy += particle.transform.position;
 
-    // transform mesh by position and apply camera transform
-    float3 worldPosition = float3(rotatedPosition + particle.position, 0.0);
-    output.position = mul(viewProjection, float4(worldPosition, 1.0));
+    //  apply camera transform
+    output.position = mul(viewProjection, float4(position, 1.0));
     
     // Pass UV coordinates and instance ID
     output.uv = input.uv;

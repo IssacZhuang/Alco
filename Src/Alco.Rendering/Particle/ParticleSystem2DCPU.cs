@@ -24,7 +24,7 @@ public sealed unsafe class ParticleSystem2DCPU
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
         {
-            particle.Position += particle.Velocity * deltaTime;
+            particle.Transform.Position += particle.Velocity * deltaTime;
             particle.Lifetime -= deltaTime;
         }
     }
@@ -102,10 +102,6 @@ public sealed unsafe class ParticleSystem2DCPU
     /// </summary>
     public int MaxBurstCount { get; set; } = 20;
 
-    /// <summary>
-    /// Default lifetime for particles in seconds
-    /// </summary>
-    public float ParticleLifetime { get; set; } = 5f;
 
     /// <summary>
     /// The transform of the particle system
@@ -165,8 +161,8 @@ public sealed unsafe class ParticleSystem2DCPU
         Span<ParticleData2D> particles = _particles.AsSpan(spanStart, burstCount);
         for (int i = 0; i < burstCount; i++)
         {
-            particles[i] = _emitter.Emit(Transform);
-            particles[i].Lifetime = ParticleLifetime;
+            ParticleData2D particle = _emitter.Emit(Transform);
+            particles[i] = particle;
         }
     }
 
@@ -233,8 +229,8 @@ public sealed unsafe class ParticleSystem2DCPU
 
                 for (int i = 0; i < particlesToEmit; i++)
                 {
-                    newParticles[i] = _emitter.Emit(Transform);
-                    newParticles[i].Lifetime = ParticleLifetime;
+                    ParticleData2D particle = _emitter.Emit(Transform);
+                    newParticles[i] = particle;
                 }
 
                 // Update accumulator once after emitting all particles

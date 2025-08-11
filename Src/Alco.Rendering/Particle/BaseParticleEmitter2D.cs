@@ -49,6 +49,11 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     public float MaxSize = 1.0f;
 
     /// <summary>
+    /// The lifetime of the particle.
+    /// </summary>
+    public float Lifetime = 1.0f;
+
+    /// <summary>
     /// Gets or sets whether the rotation should follow the direction of the velocity.
     /// </summary>
     public bool IsRotationFollowDirection = true;
@@ -62,37 +67,36 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     {
         ParticleData2D particle = default;
         //generate position in world space
-        particle.Position = GeneratePosition() * transform.Scale + transform.Position;
+        particle.Transform.Position = GeneratePosition() * transform.Scale + transform.Position;
 
         particle.Color = Color;
         float scale = _random.NextFloat(MinSize, MaxSize);
         // transform the scale to world space
-        particle.Scale = new Vector2(scale, scale) * transform.Scale;
+        particle.Transform.Scale = new Vector2(scale, scale) * transform.Scale;
 
         // Create normalized random direction vector
         float halfConeAngle = ConeAngle * 0.5f;
         float directionAngle = _random.NextFloat(-halfConeAngle, halfConeAngle);
-        Rotation2D localDirection = new Rotation2D(directionAngle);
+        Rotation2D direction = new Rotation2D(directionAngle) * transform.Rotation;
 
         // Apply random speed between MinSpeed and MaxSpeed
         float speed = _random.NextFloat(MinSpeed, MaxSpeed);
         //local velocity
-        particle.Velocity = math.rotate(Vector2.UnitX, localDirection) * speed * transform.Scale;
-        particle.Velocity = math.rotate(particle.Velocity, transform.Rotation);
+        particle.Velocity = math.rotate(Vector2.UnitX, direction) * speed * transform.Scale;
 
         if (IsRotationFollowDirection)
         {
-            particle.Rotation = math.direction(particle.Velocity);
+            //particle.Transform.Rotation = math.direction(particle.Velocity);
+            particle.Transform.Rotation = direction;
         }
         else
         {
-            particle.Rotation = Rotation2D.Identity;
+            particle.Transform.Rotation = Rotation2D.Identity;
         }
 
-        particle.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
-
-        particle.Lifetime = _random.NextFloat(1, 2);
-        particle.Duration = particle.Lifetime;
+        particle.Transform.Rotation *= new Rotation2D(_random.NextFloat(MinRotation, MaxRotation));
+        particle.Lifetime = Lifetime;
+        particle.Duration = Lifetime;
         return particle;
     }
 }
