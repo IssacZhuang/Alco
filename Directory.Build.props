@@ -24,7 +24,6 @@
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
-    <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
   <!-- Add conditional Release configuration -->
