@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO;
 
 using Alco;
 
@@ -115,6 +116,46 @@ public sealed class PackageBuilder
         }
 
         return package;
+    }
+
+    public static void PackDirectory(string directory, string packagePath)
+    {
+        if (string.IsNullOrEmpty(directory))
+        {
+            throw new ArgumentException("Directory must not be null or empty.", nameof(directory));
+        }
+        if (string.IsNullOrEmpty(packagePath))
+        {
+            throw new ArgumentException("Package path must not be null or empty.", nameof(packagePath));
+        }
+        if (!Directory.Exists(directory))
+        {
+            throw new DirectoryNotFoundException($"Directory not found: {directory}");
+        }
+
+        // Gather files deterministically
+        string[] files = Directory.GetFiles(directory, "*", SearchOption.AllDirectories);
+        Array.Sort(files, StringComparer.Ordinal);
+
+        var builder = new PackageBuilder();
+        foreach (string file in files)
+        {
+            // Compute entry name relative to root and normalize separators to '/'
+            string relative = Path.GetRelativePath(directory, file);
+            relative = relative.Replace('\\', '/');
+
+            byte[] data = File.ReadAllBytes(file);
+            builder.AddOrUpdateFile(relative, data);
+        }
+
+        byte[] package = builder.Build();
+
+        string? outDir = Path.GetDirectoryName(packagePath);
+        if (!string.IsNullOrEmpty(outDir))
+        {
+            Directory.CreateDirectory(outDir);
+        }
+        File.WriteAllBytes(packagePath, package);
     }
 }
 
