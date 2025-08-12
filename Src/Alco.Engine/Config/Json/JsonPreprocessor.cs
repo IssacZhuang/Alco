@@ -1,4 +1,6 @@
+using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
@@ -6,6 +8,11 @@ using Alco.IO;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Loads JSON files from registered <see cref="IFileSource"/> instances, builds an in-memory index
+/// of JSON documents, and processes inheritance/merge rules across items. Provides events that fire
+/// immediately before and after the processing phase.
+/// </summary>
 public class JsonPreprocessor
 {
     private static readonly HashSet<string> _specialKeywords = new() { "$abstract", "$parent" };
@@ -13,6 +20,84 @@ public class JsonPreprocessor
     public const string Keyward_Abstract = "$abstract";
     public const string Keyward_Parent = "$parent";
     public const string Keyward_Id = "Id";
+
+    /// <summary>
+    /// Context passed to <see cref="BeforeProcessJsonItems"/> providing access to the
+    /// currently loaded JSON items. This is a live view into the preprocessor state
+    /// immediately after loading and before processing.
+    /// </summary>
+    public readonly struct Context
+    {
+        private readonly JsonPreprocessor _preprocessor;
+
+        /// <summary>
+        /// Initializes a new <see cref="Context"/> for the specified preprocessor.
+        /// </summary>
+        /// <param name="preprocessor">The owning <see cref="JsonPreprocessor"/>.</param>
+        internal Context(JsonPreprocessor preprocessor)
+        {
+            _preprocessor = preprocessor;
+        }
+
+        /// <summary>
+        /// Adds an error message to the preprocessor error sink.
+        /// </summary>
+        /// <param name="message">The error message.</param>
+        public void AddError(string message)
+        {
+            _preprocessor.AddError(message);
+        }
+
+        /// <summary>
+        /// Tries to get a non-abstract document by its Id.
+        /// </summary>
+        /// <param name="id">The document Id.</param>
+        /// <param name="document">The resulting <see cref="JsonDocument"/> when found.</param>
+        /// <returns>True if found; otherwise false.</returns>
+        public bool TryGetDocument(string id, [NotNullWhen(true)] out JsonDocument? document)
+        {
+            return _preprocessor.TryGetJsonDocument(id, out document);
+        }
+
+        /// <summary>
+        /// Tries to get an abstract document by its Id.
+        /// </summary>
+        /// <param name="id">The abstract document Id.</param>
+        /// <param name="document">The resulting <see cref="JsonDocument"/> when found.</param>
+        /// <returns>True if found; otherwise false.</returns>
+        public bool TryGetAbstractDocument(string id, [NotNullWhen(true)] out JsonDocument? document)
+        {
+            if (_preprocessor._abstractJsonItems.TryGetValue(id, out var jsonItem))
+            {
+                document = jsonItem.Document;
+                return true;
+            }
+            document = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Enumerates all non-abstract items as pairs of (Id, JsonDocument).
+        /// </summary>
+        public IEnumerable<KeyValuePair<string, JsonDocument>> EnumerateItems()
+        {
+            foreach (var pair in _preprocessor._jsonItems)
+            {
+                yield return new KeyValuePair<string, JsonDocument>(pair.Key, pair.Value.Document);
+            }
+        }
+
+        /// <summary>
+        /// Enumerates all abstract items as pairs of (Id, JsonDocument).
+        /// </summary>
+        public IEnumerable<KeyValuePair<string, JsonDocument>> EnumerateAbstractItems()
+        {
+            foreach (var pair in _preprocessor._abstractJsonItems)
+            {
+                yield return new KeyValuePair<string, JsonDocument>(pair.Key, pair.Value.Document);
+            }
+        }
+    }
 
     private class JsonItem
     {
@@ -33,6 +118,13 @@ public class JsonPreprocessor
     private readonly ArrayBuffer<JsonDocument?> _tempJsonDocuments = new();
 
     private readonly Action<string> _onError;
+
+    /// <summary>
+    /// Occurs right before processing JSON items. Raised after all JSON files are loaded but before
+    /// inheritance/merge is performed. Provides a live <see cref="Context"/> view to inspect and
+    /// query the loaded items.
+    /// </summary>
+    public event Action<Context>? BeforeProcessJsonItems;
 
     public IEnumerable<JsonDocument> AllDocuments
     {
@@ -81,11 +173,17 @@ public class JsonPreprocessor
         return false;
     }
 
+    /// <summary>
+    /// Loads all JSON files from registered sources then processes items (e.g., inheritance/merge).
+    /// Raises <see cref="BeforeProcessJsonItems"/> before processing.
+    /// </summary>
     public void Preprocess()
     {
         LoadJsonItems();
+        BeforeProcessJsonItems?.Invoke(new Context(this));
         ProcessJsonItems();
     }
+
 
     private void LoadJsonItems()
     {
