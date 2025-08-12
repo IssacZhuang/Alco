@@ -211,7 +211,7 @@ public class ImGUILogger : ILogger
             ImGui.PushStyleColor(ImGuiCol.Text, color);
 
             bool isSelected = _selectedLogId == log.Id;
-            string logText = _stringBuilder.AsReadOnlySpan().ToString();
+            ReadOnlySpan<char> logText = _stringBuilder.AsReadOnlySpan();
 
             ImGui.PushID(log.Id);
             if (ImGui.Selectable(logText, isSelected))
