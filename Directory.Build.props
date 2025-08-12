@@ -12,11 +12,10 @@
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-<NoWarn>IDE0130</NoWarn>
+    <NoWarn>IDE0130</NoWarn>
     <RepositoryRootDirectory>$(MSBuildThisFileDirectory)</RepositoryRootDirectory>
     <BinDir>$(RepositoryRootDirectory)Bin</BinDir>
     <OutputPath>$([System.IO.Path]::GetFullPath('$(RepositoryRootDirectory)Bin\$(Configuration)'))\$(MSBuildProjectName)</OutputPath>
-    <BaseIntermediateOutputPath>$([System.IO.Path]::GetFullPath('$(RepositoryRootDirectory)Bin\obj\$(MSBuildProjectName)'))\</BaseIntermediateOutputPath>
     <PackageOutputPath>$(BinDir)\Packages\$(Configuration)</PackageOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <!-- <DebugType>pdbonly</DebugType> -->
