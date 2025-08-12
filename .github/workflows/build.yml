@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 30
     
     strategy:
+      fail-fast: false
       matrix:
         include:
           - build: Windows_Debug

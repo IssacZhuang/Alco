@@ -1,8 +1,4 @@
 <Project>
-<PropertyGroup>
-  <!-- Only  win-x64, linux-x64, osx-x64 -->
-  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-</PropertyGroup>
   <PropertyGroup>
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
