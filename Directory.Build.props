@@ -1,17 +1,21 @@
 <Project>
-<PropertyGroup>
-  <!-- Only  win-x64, linux-x64, osx-x64 -->
-  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-</PropertyGroup>
+  <PropertyGroup>
+    <!-- Set RuntimeIdentifier by OS when not explicitly provided -->
+    <RuntimeIdentifier
+      Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier
+      Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
+    <RuntimeIdentifier
+      Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-arm64</RuntimeIdentifier>
+  </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-<NoWarn>IDE0130</NoWarn>
+    <NoWarn>IDE0130</NoWarn>
     <RepositoryRootDirectory>$(MSBuildThisFileDirectory)</RepositoryRootDirectory>
     <BinDir>$(RepositoryRootDirectory)Bin</BinDir>
     <OutputPath>$([System.IO.Path]::GetFullPath('$(RepositoryRootDirectory)Bin\$(Configuration)'))\$(MSBuildProjectName)</OutputPath>
-    <BaseIntermediateOutputPath>$([System.IO.Path]::GetFullPath('$(RepositoryRootDirectory)Bin\obj\$(MSBuildProjectName)'))\</BaseIntermediateOutputPath>
     <PackageOutputPath>$(BinDir)\Packages\$(Configuration)</PackageOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <!-- <DebugType>pdbonly</DebugType> -->
@@ -24,12 +28,11 @@
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
-    <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
   <!-- Add conditional Release configuration -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <DebugType>pdbonly</DebugType>
+    <DebugType>embedded</DebugType>
     <Optimize>true</Optimize>
   </PropertyGroup>
 
