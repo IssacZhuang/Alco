@@ -17,12 +17,16 @@ public class JsonPointer
     /// <summary>
     /// Initializes the <see cref="JsonPointer"/> class.
     /// </summary>
-    /// <param name="pointer">Pointer as string.</param>
+    /// <param name="pointer">Pointer as string. Leading '/' is optional.</param>
     public JsonPointer(string pointer)
     {
+        // Allow the leading '/' to be optional. Both "/a/b" and "a/b" are accepted.
         Tokens = string.IsNullOrEmpty(pointer) || pointer == "/"
-            ? new string[0]
-            : pointer.Split('/').Skip(1).Select(Decode).ToArray();
+            ? Array.Empty<string>()
+            : pointer.Split('/')
+                .Skip(pointer.StartsWith('/') ? 1 : 0)
+                .Select(Decode)
+                .ToArray();
     }
 
     /// <summary>
@@ -55,6 +59,11 @@ public class JsonPointer
         }
     }
 
+    /// <summary>
+    /// Finds the JSON node referenced by this pointer starting from the provided base node.
+    /// </summary>
+    /// <param name="baseJsonNode">The base <see cref="JsonNode"/> to resolve from.</param>
+    /// <returns>The resolved <see cref="JsonNode"/>, or <c>null</c> if the path cannot be resolved.</returns>
     public JsonNode? Find(JsonNode? baseJsonNode)
     {
         if (baseJsonNode is null)

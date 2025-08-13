@@ -55,6 +55,36 @@ public class TestJsonPointer
     }
 
     [Test]
+    /// <summary>
+    /// Verifies that object property paths work identically without a leading '/'.
+    /// </summary>
+    public void ObjectProperty_Path_WithoutLeadingSlash_Works()
+    {
+        var node = JsonNode.Parse(SampleJson)!;
+        var ptrNoSlash = new JsonPointer("store/name");
+
+        var result = ptrNoSlash.Find(node);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.GetValue<string>(), Is.EqualTo("Shop"));
+    }
+
+    [Test]
+    /// <summary>
+    /// Verifies that array index paths work identically without a leading '/'.
+    /// </summary>
+    public void ArrayIndex_Path_WithoutLeadingSlash_Works()
+    {
+        var node = JsonNode.Parse(SampleJson)!;
+        var ptrNoSlash = new JsonPointer("store/book/0/title");
+
+        var result = ptrNoSlash.Find(node);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.GetValue<string>(), Is.EqualTo("A"));
+    }
+
+    [Test]
     public void Decoding_TildeAndUriPercent_Works()
     {
         var node = JsonNode.Parse(SampleJson)!;
