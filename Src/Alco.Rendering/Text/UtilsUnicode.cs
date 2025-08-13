@@ -22,9 +22,9 @@ public static class UtilsUnicode
     public static readonly int2 RangeDevanagari = new int2(0x0900, 0x097F);
     public static readonly int2 RangeHangulSyllables = new int2(0xAC00, 0xD7AF);
 
-    public static IEnumerable<int2> GetUnicodeRanges(TextLanguage language)
+    public static IEnumerable<int2> GetUnicodeRanges(FontLanguage language)
     {
-        if (language.HasFlag(TextLanguage.Basic))
+        if (language.HasFlag(FontLanguage.Basic))
         {
             yield return RangeBasicLatin;
             yield return RangeLatin1Supplement;
@@ -33,19 +33,19 @@ public static class UtilsUnicode
             yield return RangeCyrillicSupplement;
         }
 
-        if (language.HasFlag(TextLanguage.Chinese))
+        if (language.HasFlag(FontLanguage.Chinese))
         {
             yield return RangeCjkSymbolsAndPunctuation;
             yield return RangeCjkUnifiedIdeographs;
         }
 
-        if (language.HasFlag(TextLanguage.Japanese))
+        if (language.HasFlag(FontLanguage.Japanese))
         {
             yield return RangeHiragana;
             yield return RangeKatakana;
         }
 
-        if (language.HasFlag(TextLanguage.Korean))
+        if (language.HasFlag(FontLanguage.Korean))
         {
             yield return RangeHangulCompatibilityJamo;
             yield return RangeHangulSyllables;

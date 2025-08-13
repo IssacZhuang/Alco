@@ -223,6 +223,15 @@ public class ConfigDatabase
     }
 
     /// <summary>
+    /// [Thread-safe] Marks the configuration database as dirty.
+    /// Forces a reload of configurations on the next access/update.
+    /// </summary>
+    public void SetDirty()
+    {
+        _isDirty = true;
+    }
+
+    /// <summary>
     /// Try to update configs from all file sources if it is dirty.
     /// </summary>
     public void TryUpdateConfigs()

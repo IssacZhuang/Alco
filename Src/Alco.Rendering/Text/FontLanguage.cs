@@ -1,7 +1,7 @@
 namespace Alco.Rendering;
 
 [Flags]
-public enum TextLanguage
+public enum FontLanguage
 {
     /// <summary>
     /// The basic language set for english, numbers and symbols. <br/>
@@ -34,4 +34,30 @@ public enum TextLanguage
     /// - Hangul Syllables (AC00-D7AF), <br/>
     /// </summary>
     Korean = 1 << 3
+    ,
+    /// <summary>
+    /// The language for Cyrillic scripts.
+    /// Unicode range:
+    /// - Cyrillic (0400-04FF),
+    /// - Cyrillic Supplement (0500-052F)
+    /// </summary>
+    Cyrillic = 1 << 4,
+    /// <summary>
+    /// The language for Greek.
+    /// Unicode range:
+    /// - Greek and Coptic (0370-03FF)
+    /// </summary>
+    Greek = 1 << 5,
+    /// <summary>
+    /// The language for Thai.
+    /// Unicode range:
+    /// - Thai (0E00-0E7F)
+    /// </summary>
+    Thai = 1 << 6,
+    /// <summary>
+    /// The language for Vietnamese.
+    /// This corresponds to ImGui's Vietnamese range, which includes Latin
+    /// characters with Vietnamese-specific diacritics.
+    /// </summary>
+    Vietnamese = 1 << 7
 }

@@ -7,6 +7,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Alco.ImGUI;
 
+/// <summary>
+/// Renderer that bridges ImGui draw data to the engine rendering backend, and manages ImGui font atlas.
+/// </summary>
 public unsafe class ImGUIRenderer : AutoDisposable
 {
     public static ImGUIRenderer? Instance { get; private set; }
@@ -21,8 +24,10 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
     private readonly IntPtr _fontTextureId = (IntPtr)(-1);
-    private readonly Texture2D _fontTexture;
+    private Texture2D _fontTexture;
     private NativeBuffer<byte> _tmpIndexBuffer;
+    private bool _fontTextureDirty;
+    private readonly HashSet<FontLanguage> _addedLanguages = new HashSet<FontLanguage>();
 
     private readonly List<Texture2D> _textures = new List<Texture2D>();
 
@@ -71,6 +76,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
         Instance = this;
     }
 
+
+
     public IntPtr AddTexture(Texture2D texture)
     {
         ArgumentNullException.ThrowIfNull(texture);
@@ -83,6 +90,12 @@ public unsafe class ImGUIRenderer : AutoDisposable
         uint width = target.Width;
         uint height = target.Height;
         ImGuiIOPtr io = ImGui.GetIO();
+
+        if (_fontTextureDirty)
+        {
+            UpdateFontTexture();
+            _fontTextureDirty = false;
+        }
         io.DisplaySize = new Vector2(width, height);
         io.DisplayFramebufferScale = new Vector2(1.0f, 1.0f);
         io.DeltaTime = deltaTime;
@@ -202,6 +215,71 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _target = null;
 
         _textures.Clear();
+    }
+
+    /// <summary>
+    /// Add a font from memory with a predefined language range. Pixel size is fixed to 16.
+    /// Deduplicated by language to avoid adding the same language multiple times.
+    /// </summary>
+    /// <param name="fontData">Font bytes.</param>
+    /// <param name="language">Predefined language range.</param>
+    public void AddFontForLanguage(ReadOnlySpan<byte> fontData, FontLanguage language)
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        if (_addedLanguages.Contains(language))
+        {
+            return;
+        }
+        // Basic is already covered by AddFontDefault in constructor
+        if (language == FontLanguage.Basic)
+        {
+            _addedLanguages.Add(language);
+            return;
+        }
+
+        IntPtr ranges = language switch
+        {
+            FontLanguage.Basic => io.Fonts.GetGlyphRangesDefault(),
+            FontLanguage.Chinese => io.Fonts.GetGlyphRangesChineseFull(),
+            FontLanguage.Japanese => io.Fonts.GetGlyphRangesJapanese(),
+            FontLanguage.Korean => io.Fonts.GetGlyphRangesKorean(),
+            FontLanguage.Cyrillic => io.Fonts.GetGlyphRangesCyrillic(),
+            FontLanguage.Greek => io.Fonts.GetGlyphRangesGreek(),
+            FontLanguage.Thai => io.Fonts.GetGlyphRangesThai(),
+            FontLanguage.Vietnamese => io.Fonts.GetGlyphRangesVietnamese(),
+            _ => io.Fonts.GetGlyphRangesDefault(),
+        };
+
+        fixed (byte* fontDataPtr = fontData)
+        {
+            // Merge glyphs into the default font to keep a single active font
+            ImFontConfigPtr cfg = new ImFontConfigPtr(ImGuiNative.ImFontConfig_ImFontConfig());
+            cfg.MergeMode = true;
+            cfg.FontDataOwnedByAtlas = false;
+            io.Fonts.AddFontFromMemoryTTF((IntPtr)fontDataPtr, fontData.Length, 16, cfg, ranges);
+            cfg.Destroy();
+        }
+        _addedLanguages.Add(language);
+        _fontTextureDirty = true;
+    }
+
+    private void UpdateFontTexture()
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        io.Fonts.GetTexDataAsRGBA32(out byte* pixels, out int width, out int height, out int bytesPerPixel);
+        ReadOnlySpan<byte> fontTextureData = new ReadOnlySpan<byte>(pixels, width * height * bytesPerPixel);
+
+        if (_fontTexture != null && !_fontTexture.IsDisposed)
+        {
+            _fontTexture.Dispose();
+        }
+        _fontTexture = _renderingSystem.CreateTexture2D(fontTextureData, (uint)width, (uint)height, ImageLoadOption.Default);
+
+        // after uploading we can drop CPU-side font tex data and mark ready
+        io.Fonts.ClearTexData();
+        io.Fonts.TexReady = true;
+
+        io.Fonts.SetTexID(_fontTextureId);
     }
 
     private bool TryGetTexture(IntPtr textureId, [NotNullWhen(true)] out Texture2D? texture)
