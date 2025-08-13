@@ -4,6 +4,7 @@
 
 using System;
 using System.Linq;
+using System.Text.Json.Nodes;
 
 //namespace Microsoft.OpenApi
 namespace Alco.Engine;
@@ -53,6 +54,42 @@ public class JsonPointer
             return new(Tokens.Take(Tokens.Length - 1).ToArray());
         }
     }
+
+    public JsonNode? Find(JsonNode? baseJsonNode)
+    {
+        if (baseJsonNode is null)
+        {
+            return null;
+        }
+
+        if (Tokens.Length == 0)
+        {
+            return baseJsonNode;
+        }
+
+        try
+        {
+            var pointer = baseJsonNode;
+            foreach (var token in Tokens)
+            {
+                if (pointer is JsonArray array && int.TryParse(token, out var tokenValue))
+                {
+                    pointer = array[tokenValue];
+                }
+                else if (pointer is JsonObject map && !map.TryGetPropertyValue(token, out pointer))
+                {
+                    return null;
+                }
+            }
+
+            return pointer;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
 
     /// <summary>
     /// Decode the string.

@@ -114,7 +114,7 @@ public class ConfigDatabase
     /// Handlers can inspect and modify the in-memory JSON documents before they are merged.
     /// This event is forwarded to <see cref="JsonPreprocessor.BeforeProcessJsonDocument"/>.
     /// </summary>
-    public event Action<JsonPreprocessor.Context> BeforeProcessJsonDocument
+    public event Action<IJsonPreprocessContext> BeforeProcessJsonDocument
     {
         add { _jsonPreprocessor.BeforeProcessJsonDocument += value; }
         remove { _jsonPreprocessor.BeforeProcessJsonDocument -= value; }

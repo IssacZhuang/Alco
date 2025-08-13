@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Alco.IO;
 
 namespace Alco.Engine;
@@ -26,9 +27,11 @@ public class JsonPreprocessor
     /// currently loaded JSON items. This is a live view into the preprocessor state
     /// immediately after loading and before processing.
     /// </summary>
-    public readonly struct Context
+    private sealed class Context : IJsonPreprocessContext
     {
         private readonly JsonPreprocessor _preprocessor;
+        private readonly Dictionary<string, JsonNode> _pendingNodeEdits;
+        private readonly Dictionary<string, JsonNode> _pendingAbstractNodeEdits;
 
         /// <summary>
         /// Initializes a new <see cref="Context"/> for the specified preprocessor.
@@ -37,64 +40,95 @@ public class JsonPreprocessor
         internal Context(JsonPreprocessor preprocessor)
         {
             _preprocessor = preprocessor;
+            _pendingNodeEdits = new Dictionary<string, JsonNode>();
+            _pendingAbstractNodeEdits = new Dictionary<string, JsonNode>();
         }
 
         /// <summary>
-        /// Adds an error message to the preprocessor error sink.
-        /// </summary>
-        /// <param name="message">The error message.</param>
-        public void AddError(string message)
-        {
-            _preprocessor.AddError(message);
-        }
-
-        /// <summary>
-        /// Tries to get a non-abstract document by its Id.
+        /// Tries to get a document as a mutable <see cref="JsonNode"/> by its Id.
+        /// The returned node is cached and will be applied automatically after the event completes.
         /// </summary>
         /// <param name="id">The document Id.</param>
-        /// <param name="document">The resulting <see cref="JsonDocument"/> when found.</param>
+        /// <param name="node">The resulting <see cref="JsonNode"/> when found.</param>
         /// <returns>True if found; otherwise false.</returns>
-        public bool TryGetDocument(string id, [NotNullWhen(true)] out JsonDocument? document)
+        public bool TryGetDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
         {
-            return _preprocessor.TryGetJsonDocument(id, out document);
-        }
-
-        /// <summary>
-        /// Tries to get an abstract document by its Id.
-        /// </summary>
-        /// <param name="id">The abstract document Id.</param>
-        /// <param name="document">The resulting <see cref="JsonDocument"/> when found.</param>
-        /// <returns>True if found; otherwise false.</returns>
-        public bool TryGetAbstractDocument(string id, [NotNullWhen(true)] out JsonDocument? document)
-        {
-            if (_preprocessor._abstractJsonItems.TryGetValue(id, out var jsonItem))
+            if (_pendingNodeEdits.TryGetValue(id, out var cached))
             {
-                document = jsonItem.Document;
+                node = cached;
                 return true;
             }
-            document = null;
+            if (_preprocessor._jsonItems.TryGetValue(id, out var jsonItem))
+            {
+                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
+                _pendingNodeEdits[id] = node;
+                return true;
+            }
+            node = null;
             return false;
         }
 
         /// <summary>
-        /// Enumerates all non-abstract items as pairs of (Id, JsonDocument).
+        /// Tries to get an abstract document as a mutable <see cref="JsonNode"/> by its Id.
+        /// The returned node is cached and will be applied automatically after the event completes.
         /// </summary>
-        public IEnumerable<KeyValuePair<string, JsonDocument>> EnumerateItems()
+        /// <param name="id">The abstract document Id.</param>
+        /// <param name="node">The resulting <see cref="JsonNode"/> when found.</param>
+        /// <returns>True if found; otherwise false.</returns>
+        public bool TryGetAbstractDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
         {
-            foreach (var pair in _preprocessor._jsonItems)
+            if (_pendingAbstractNodeEdits.TryGetValue(id, out var cached))
             {
-                yield return new KeyValuePair<string, JsonDocument>(pair.Key, pair.Value.Document);
+                node = cached;
+                return true;
             }
+            if (_preprocessor._abstractJsonItems.TryGetValue(id, out var jsonItem))
+            {
+                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
+                _pendingAbstractNodeEdits[id] = node;
+                return true;
+            }
+            node = null;
+            return false;
         }
 
         /// <summary>
-        /// Enumerates all abstract items as pairs of (Id, JsonDocument).
+        /// Applies all cached node edits to the underlying documents.
         /// </summary>
-        public IEnumerable<KeyValuePair<string, JsonDocument>> EnumerateAbstractItems()
+        internal void ApplyPendingEdits()
         {
-            foreach (var pair in _preprocessor._abstractJsonItems)
+            var options = new JsonDocumentOptions
             {
-                yield return new KeyValuePair<string, JsonDocument>(pair.Key, pair.Value.Document);
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+
+            foreach (var pair in _pendingNodeEdits)
+            {
+                if (_preprocessor._jsonItems.TryGetValue(pair.Key, out var jsonItem))
+                {
+                    var newDoc = JsonDocument.Parse(pair.Value.ToJsonString(), options);
+                    _preprocessor._jsonItems[pair.Key] = new JsonItem(jsonItem.Path, newDoc);
+
+                    int index = _preprocessor._jsonItemsList.IndexOf(jsonItem.Document);
+                    if (index >= 0)
+                    {
+                        _preprocessor._jsonItemsList[index] = newDoc;
+                    }
+                    else
+                    {
+                        _preprocessor._jsonItemsList.Add(newDoc);
+                    }
+                }
+            }
+
+            foreach (var pair in _pendingAbstractNodeEdits)
+            {
+                if (_preprocessor._abstractJsonItems.TryGetValue(pair.Key, out var jsonItem))
+                {
+                    var newDoc = JsonDocument.Parse(pair.Value.ToJsonString(), options);
+                    _preprocessor._abstractJsonItems[pair.Key] = new JsonItem(jsonItem.Path, newDoc);
+                }
             }
         }
     }
@@ -124,7 +158,7 @@ public class JsonPreprocessor
     /// inheritance/merge is performed. Provides a live <see cref="Context"/> view to inspect and
     /// query the loaded items.
     /// </summary>
-    public event Action<Context>? BeforeProcessJsonDocument;
+    public event Action<IJsonPreprocessContext>? BeforeProcessJsonDocument;
 
     public IEnumerable<JsonDocument> AllDocuments
     {
@@ -180,7 +214,9 @@ public class JsonPreprocessor
     public void Preprocess()
     {
         LoadJsonItems();
-        BeforeProcessJsonDocument?.Invoke(new Context(this));
+        var ctx = new Context(this);
+        BeforeProcessJsonDocument?.Invoke(ctx);
+        ctx.ApplyPendingEdits();
         ProcessJsonItems();
     }
 
