@@ -22,7 +22,7 @@ public class JsonPreprocessor
     public const string Keyward_Id = "Id";
 
     /// <summary>
-    /// Context passed to <see cref="BeforeProcessJsonItems"/> providing access to the
+    /// Context passed to <see cref="BeforeProcessJsonDocument"/> providing access to the
     /// currently loaded JSON items. This is a live view into the preprocessor state
     /// immediately after loading and before processing.
     /// </summary>
@@ -124,7 +124,7 @@ public class JsonPreprocessor
     /// inheritance/merge is performed. Provides a live <see cref="Context"/> view to inspect and
     /// query the loaded items.
     /// </summary>
-    public event Action<Context>? BeforeProcessJsonItems;
+    public event Action<Context>? BeforeProcessJsonDocument;
 
     public IEnumerable<JsonDocument> AllDocuments
     {
@@ -175,12 +175,12 @@ public class JsonPreprocessor
 
     /// <summary>
     /// Loads all JSON files from registered sources then processes items (e.g., inheritance/merge).
-    /// Raises <see cref="BeforeProcessJsonItems"/> before processing.
+    /// Raises <see cref="BeforeProcessJsonDocument"/> before processing.
     /// </summary>
     public void Preprocess()
     {
         LoadJsonItems();
-        BeforeProcessJsonItems?.Invoke(new Context(this));
+        BeforeProcessJsonDocument?.Invoke(new Context(this));
         ProcessJsonItems();
     }
 
