@@ -6,7 +6,11 @@ using Alco;
 namespace Alco;
 
 /// <summary>
-/// A reusable, allocation-conscious A* pathfinder base that is decoupled from any specific map.
+/// A reusable, allocation-conscious A* pathfinder base decoupled from any specific map.
+/// Default configuration searches on an 8-connected grid (orthogonal + diagonal moves).
+/// Diagonal steps have a geometric cost multiplier of √2 and corner-cutting is prevented
+/// (a diagonal move is allowed only if both adjacent orthogonal cells are inside bounds
+/// and traversable).
 /// Implementors provide traversability, bounds, traversal cost, and heuristic estimation.
 /// </summary>
 public abstract class AStarPathFinder : IPathFinder
@@ -49,12 +53,16 @@ public abstract class AStarPathFinder : IPathFinder
         _openSet.Enqueue(startCell, EstimateCostToGoal(startCell, endCell));
         _inOpen.Add(startCell);
 
-        ReadOnlySpan<int2> neighbors = stackalloc int2[4]
+        ReadOnlySpan<int2> neighbors = stackalloc int2[8]
         {
             new int2( 1, 0),
             new int2(-1, 0),
             new int2( 0, 1),
-            new int2( 0,-1)
+            new int2( 0,-1),
+            new int2( 1, 1),
+            new int2( 1,-1),
+            new int2(-1, 1),
+            new int2(-1,-1)
         };
 
         while (_openSet.Count > 0)
@@ -84,7 +92,26 @@ public abstract class AStarPathFinder : IPathFinder
                     continue;
                 }
 
-                float tentativeG = _gScore[current] + GetTraversalCost(current, next);
+                // Prevent corner-cutting on diagonal moves: both adjacent orthogonal cells
+                // must be inside bounds and traversable.
+                bool isDiagonal = delta.X != 0 && delta.Y != 0;
+                if (isDiagonal)
+                {
+                    int2 sideA = new int2(current.X + delta.X, current.Y);
+                    int2 sideB = new int2(current.X, current.Y + delta.Y);
+                    if (!IsInsideBounds(sideA) || !IsTraversable(sideA) ||
+                        !IsInsideBounds(sideB) || !IsTraversable(sideB))
+                    {
+                        continue;
+                    }
+                }
+
+                float stepCost = GetTraversalCost(current, next);
+                if (isDiagonal)
+                {
+                    stepCost *= 1.41421356f; // sqrt(2)
+                }
+                float tentativeG = _gScore[current] + stepCost;
                 if (!_gScore.TryGetValue(next, out float existingG) || tentativeG < existingG)
                 {
                     _cameFrom[next] = current;
@@ -144,7 +171,7 @@ public abstract class AStarPathFinder : IPathFinder
 	}
     /// <summary>
     /// Estimates the remaining cost from <paramref name="from"/> to <paramref name="to"/>.
-    /// Default implementation uses Manhattan distance which is admissible for 4-connected grids.
+    /// Default implementation uses the octile distance which is admissible for 8-connected grids.
     /// Override to provide domain-specific heuristics when appropriate.
     /// </summary>
     /// <param name="from">Current grid cell.</param>
@@ -154,6 +181,9 @@ public abstract class AStarPathFinder : IPathFinder
     {
         int dx = Math.Abs(from.X - to.X);
         int dy = Math.Abs(from.Y - to.Y);
-        return dx + dy;
+        // Octile distance: min(dx,dy)*sqrt(2) + |dx-dy|*1
+        int min = dx < dy ? dx : dy;
+        int max = dx > dy ? dx : dy;
+        return min * 1.41421356f + (max - min);
     }
 }
