@@ -112,5 +112,57 @@ public static class UtilsGrid
         int count = GetCellCountInRadius(radius);
         return new ReadOnlyMemory<int2>(_radialPattern, 0, count);
     }
+
+    /// <summary>
+    /// Computes grid cells along a straight line between two points using Bresenham's algorithm.
+    /// </summary>
+    /// <param name="output">The list to fill with grid coordinates on the line. The list is cleared first.</param>
+    /// <param name="start">The start grid coordinate (inclusive).</param>
+    /// <param name="end">The end grid coordinate (inclusive).</param>
+    public static void GetBresenhamLine(ICollection<int2> output, int2 start, int2 end)
+    {
+        int startX = start.X;
+        int startY = start.Y;
+        int endX = end.X;
+        int endY = end.Y;
+
+        output.Clear();
+
+        int deltaX = Math.Abs(endX - startX);
+        int deltaY = Math.Abs(endY - startY);
+        int signX = (startX < endX) ? 1 : -1;
+        int signY = (startY < endY) ? 1 : -1;
+
+        // Using the (dx + (-dy)) formulation from the canonical integer Bresenham variant
+        int negativeDeltaY = -deltaY;
+        int error = deltaX + negativeDeltaY;
+
+        // Safe guard bounded by the maximum number of points on the line
+        int maxSteps = Math.Max(deltaX, deltaY) + 1;
+        while (true)
+        {
+            output.Add(new int2(startX, startY));
+            if (startX == endX && startY == endY)
+            {
+                break;
+            }
+            int doubleError = 2 * error;
+            if (doubleError >= negativeDeltaY)
+            {
+                error += negativeDeltaY;
+                startX += signX;
+            }
+            if (doubleError <= deltaX)
+            {
+                error += deltaX;
+                startY += signY;
+            }
+            maxSteps--;
+            if (maxSteps <= 0)
+            {
+                break;
+            }
+        }
+    }
 }
 
