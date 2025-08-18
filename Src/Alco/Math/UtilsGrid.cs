@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 using static Alco.math;
 
@@ -163,6 +164,177 @@ public static class UtilsGrid
                 break;
             }
         }
+    }
+
+    public static int GetBresenhamLine(Span<int2> output, int2 start, int2 end)
+    {
+        int startX = start.X;
+        int startY = start.Y;
+        int endX = end.X;
+        int endY = end.Y;
+
+        int deltaX = Math.Abs(endX - startX);
+        int deltaY = Math.Abs(endY - startY);
+        int signX = (startX < endX) ? 1 : -1;
+        int signY = (startY < endY) ? 1 : -1;
+
+        int negativeDeltaY = -deltaY;
+        int error = deltaX + negativeDeltaY;
+
+        int maxSteps = Math.Max(deltaX, deltaY) + 1;
+        int written = 0;
+        while (true)
+        {
+            if (written >= output.Length)
+            {
+                break;
+            }
+            output[written++] = new int2(startX, startY);
+            if (startX == endX && startY == endY)
+            {
+                break;
+            }
+            int doubleError = 2 * error;
+            if (doubleError >= negativeDeltaY)
+            {
+                error += negativeDeltaY;
+                startX += signX;
+            }
+            if (doubleError <= deltaX)
+            {
+                error += deltaX;
+                startY += signY;
+            }
+            maxSteps--;
+            if (maxSteps <= 0)
+            {
+                break;
+            }
+        }
+        return written;
+    }
+
+    /// <summary>
+    /// Traverses all grid cells intersected by the line segment from <paramref name="start"/> to <paramref name="end"/>
+    /// using the 2D DDA (Amanatides–Woo) algorithm.
+    /// </summary>
+    /// <remarks>
+    /// Accepts floating-point endpoints and enumerates each grid cell crossed by the segment.
+    /// When the line hits a grid corner (tMaxX == tMaxY), both axes advance in the same step.
+    /// </remarks>
+    /// <param name="output">Collection filled with traversed cell coordinates. It is cleared first.</param>
+    /// <param name="start">Start point in continuous space.</param>
+    /// <param name="end">End point in continuous space.</param>
+    public static void GetSupercoverLine(ICollection<int2> output, Vector2 start, Vector2 end)
+    {
+        output.Clear();
+
+        int x = (int)MathF.Floor(start.X);
+        int y = (int)MathF.Floor(start.Y);
+        int targetX = (int)MathF.Floor(end.X);
+        int targetY = (int)MathF.Floor(end.Y);
+
+        float dx = end.X - start.X;
+        float dy = end.Y - start.Y;
+
+        int stepX = dx > 0f ? 1 : dx < 0f ? -1 : 0;
+        int stepY = dy > 0f ? 1 : dy < 0f ? -1 : 0;
+
+        float invAbsDx = stepX != 0 ? 1.0f / MathF.Abs(dx) : float.PositiveInfinity;
+        float invAbsDy = stepY != 0 ? 1.0f / MathF.Abs(dy) : float.PositiveInfinity;
+
+        float fracX = start.X - MathF.Floor(start.X);
+        float fracY = start.Y - MathF.Floor(start.Y);
+        float tMaxX = stepX > 0 ? (1f - fracX) * invAbsDx : stepX < 0 ? (fracX) * invAbsDx : float.PositiveInfinity;
+        float tMaxY = stepY > 0 ? (1f - fracY) * invAbsDy : stepY < 0 ? (fracY) * invAbsDy : float.PositiveInfinity;
+
+        float tDeltaX = invAbsDx;
+        float tDeltaY = invAbsDy;
+
+        while (true)
+        {
+            output.Add(new int2(x, y));
+            if (x == targetX && y == targetY)
+            {
+                break;
+            }
+
+            if (tMaxX < tMaxY)
+            {
+                x += stepX;
+                tMaxX += tDeltaX;
+            }
+            else if (tMaxY < tMaxX)
+            {
+                y += stepY;
+                tMaxY += tDeltaY;
+            }
+            else
+            {
+                x += stepX;
+                y += stepY;
+                tMaxX += tDeltaX;
+                tMaxY += tDeltaY;
+            }
+        }
+    }
+
+    public static int GetSupercoverLine(Span<int2> output, Vector2 start, Vector2 end)
+    {
+        int x = (int)MathF.Floor(start.X);
+        int y = (int)MathF.Floor(start.Y);
+        int targetX = (int)MathF.Floor(end.X);
+        int targetY = (int)MathF.Floor(end.Y);
+
+        float dx = end.X - start.X;
+        float dy = end.Y - start.Y;
+
+        int stepX = dx > 0f ? 1 : dx < 0f ? -1 : 0;
+        int stepY = dy > 0f ? 1 : dy < 0f ? -1 : 0;
+
+        float invAbsDx = stepX != 0 ? 1.0f / MathF.Abs(dx) : float.PositiveInfinity;
+        float invAbsDy = stepY != 0 ? 1.0f / MathF.Abs(dy) : float.PositiveInfinity;
+
+        float fracX = start.X - MathF.Floor(start.X);
+        float fracY = start.Y - MathF.Floor(start.Y);
+        float tMaxX = stepX > 0 ? (1f - fracX) * invAbsDx : stepX < 0 ? (fracX) * invAbsDx : float.PositiveInfinity;
+        float tMaxY = stepY > 0 ? (1f - fracY) * invAbsDy : stepY < 0 ? (fracY) * invAbsDy : float.PositiveInfinity;
+
+        float tDeltaX = invAbsDx;
+        float tDeltaY = invAbsDy;
+
+        int written = 0;
+        while (true)
+        {
+            if (written >= output.Length)
+            {
+                break;
+            }
+            output[written++] = new int2(x, y);
+            if (x == targetX && y == targetY)
+            {
+                break;
+            }
+
+            if (tMaxX < tMaxY)
+            {
+                x += stepX;
+                tMaxX += tDeltaX;
+            }
+            else if (tMaxY < tMaxX)
+            {
+                y += stepY;
+                tMaxY += tDeltaY;
+            }
+            else
+            {
+                x += stepX;
+                y += stepY;
+                tMaxX += tDeltaX;
+                tMaxY += tDeltaY;
+            }
+        }
+        return written;
     }
 }
 
