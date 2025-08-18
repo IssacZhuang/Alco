@@ -69,23 +69,23 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, BinaryValue.CreateByMemory(memory));
     }
 
-    public override void BindList<T>(string key, IList<T> value)
+    public override void BindCollection<T>(string key, ICollection<T> value)
     {
         BinaryArray array = new BinaryArray();
-        for (int i = 0; i < value.Count; i++)
+        foreach (var item in value)
         {
-            array.Add(BinaryValue.CreateByValue(value[i]));
+            array.Add(BinaryValue.CreateByValue(item));
         }
 
         _content.Add(key, array);
     }
 
-    public override void BindList(string key, IList<string> value)
+    public override void BindCollection(string key, ICollection<string> value)
     {
         BinaryArray array = new BinaryArray();
-        for (int i = 0; i < value.Count; i++)
+        foreach (var item in value)
         {
-            array.Add(value[i]);
+            array.Add(item);
         }
 
         _content.Add(key, array);
@@ -98,21 +98,23 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
     /// <param name="key">The key identifier for the collection in the serialization format.</param>
     /// <param name="value">The collection of serializable objects to be serialized.</param>
-    public override void BindListSerializable<T>(string key, IList<T> value)
+    public override void BindCollectionSerializable<T>(string key, ICollection<T> value)
     {
         BinaryArray array = new BinaryArray();
-        for (int i = 0; i < value.Count; i++)
+        int i = 0;
+        foreach (var element in value)
         {
             try
             {
                 BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
-                value[i].OnSerialize(node, SerializeMode.Save);
+                element.OnSerialize(node, SerializeMode.Save);
                 array.Add(node._content);
             }
             catch (Exception ex)
             {
                 AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
             }
+            i++;
         }
 
         _content.Add(key, array);
@@ -126,21 +128,23 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     /// <param name="key">The key identifier for the collection in the serialization format.</param>
     /// <param name="value">The collection of serializable objects to be serialized.</param>
     /// <param name="onCreate">Factory function (not used during serialization).</param>
-    public override void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate)
+    public override void BindCollectionSerializable<T>(string key, ICollection<T> value, Func<SerializeReadNode, T> onCreate)
     {
         BinaryArray array = new BinaryArray();
-        for (int i = 0; i < value.Count; i++)
+        int i = 0;
+        foreach (var element in value)
         {
             try
             {
                 BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
-                value[i].OnSerialize(node, SerializeMode.Save);
+                element.OnSerialize(node, SerializeMode.Save);
                 array.Add(node._content);
             }
             catch (Exception ex)
             {
                 AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
             }
+            i++;
         }
 
         _content.Add(key, array);
