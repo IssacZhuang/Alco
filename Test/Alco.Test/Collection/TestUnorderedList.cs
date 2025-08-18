@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Alco.Test;
@@ -58,6 +59,39 @@ public class TestUnorderedList
         }
 
         Assert.That(list2.Count, Is.EqualTo(count - pendingRemove.Count));
+    }
+
+    [Test]
+    public void Foreach_Enumerates_InOrder()
+    {
+        var list = new UnorderedList<int>();
+        for (int i = 0; i < 10; i++) list.Add(i);
+
+        var seen = new List<int>();
+        foreach (var v in list)
+        {
+            seen.Add(v);
+        }
+
+        CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, seen);
+    }
+
+    [Test]
+    public void Foreach_Modify_During_Enumeration_Throws()
+    {
+        var list = new UnorderedList<int>();
+        for (int i = 0; i < 5; i++) list.Add(i);
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (var v in list)
+            {
+                if (v == 2)
+                {
+                    list.Add(99);
+                }
+            }
+        });
     }
 }
 
