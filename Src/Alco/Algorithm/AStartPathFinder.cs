@@ -29,7 +29,7 @@ public abstract class AStarPathFinder : IPathFinder
     /// <param name="start">World-space start position; will be cast to integral grid cell.</param>
     /// <param name="end">World-space goal position; will be cast to integral grid cell.</param>
     /// <returns>True if a path was found; otherwise false.</returns>
-    public bool TryGetPath(Queue<Vector2> path, Vector2 start, Vector2 end)
+    public bool TryGetPath(ICollection<Vector2> path, Vector2 start, Vector2 end)
     {
         ArgumentNullException.ThrowIfNull(path);
         Reset();
@@ -77,7 +77,7 @@ public abstract class AStarPathFinder : IPathFinder
                 path.Clear();
                 for (int i = 0; i < _tmpPath.Count; i++)
                 {
-                    path.Enqueue(_tmpPath[i]);
+                    path.Add(_tmpPath[i]);
                 }
                 return true;
             }
