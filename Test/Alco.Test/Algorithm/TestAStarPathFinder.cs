@@ -48,7 +48,7 @@ public class TestAStarPathFinder
     public void StartEqualsEnd_ReturnsTrue_AndEmptyPath()
     {
         var pf = new GridPathFinder(3, 3);
-        var path = new Queue<Vector2>();
+        var path = new List<Vector2>();
 
         bool ok = pf.TryGetPath(path, new Vector2(1, 1), new Vector2(1, 1));
 
@@ -60,7 +60,7 @@ public class TestAStarPathFinder
     public void GoalBlocked_ReturnsFalse()
     {
         var pf = new GridPathFinder(3, 3, blocked: new[] { new int2(2, 2) });
-        var path = new Queue<Vector2>();
+        var path = new List<Vector2>();
 
         bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(2, 2));
 
@@ -74,7 +74,7 @@ public class TestAStarPathFinder
         // Grid 5x2; only y in {0,1}. Block (2,0) to force detour; with diagonal allowed,
         // shortest path length decreases accordingly but must not pass through (2,0).
         var pf = new GridPathFinder(5, 2, blocked: new[] { new int2(2, 0) });
-        var path = new Queue<Vector2>();
+        var path = new List<Vector2>();
 
         bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(4, 0));
 
@@ -99,7 +99,7 @@ public class TestAStarPathFinder
             [new int2(1, 0)] = 100f,
         };
         var pf = new GridPathFinder(3, 2, blocked: null, cellCost: costs);
-        var path = new Queue<Vector2>();
+        var path = new List<Vector2>();
 
         bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(2, 0));
 
@@ -119,7 +119,7 @@ public class TestAStarPathFinder
         // Goal at (1,1); block (1,0) but keep (0,1) open. Direct diagonal from (0,0)->(1,1)
         // must be disallowed due to corner-cut rule (requires both (1,0) and (0,1) open).
         var pf = new GridPathFinder(3, 3, blocked: new[] { new int2(1, 0) });
-        var path = new Queue<Vector2>();
+        var path = new List<Vector2>();
 
         bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(1, 1));
 

@@ -112,5 +112,40 @@ public class TestDeque
 		Assert.That(dq.TryPeekHead(out var x), Is.True);
 		Assert.That(x, Is.EqualTo(42));
 	}
+
+    [Test]
+    public void Foreach_Enumerates_InOrder()
+    {
+        var dq = new Alco.Deque<int>();
+        for (int i = 0; i < 5; i++) dq.EnqueueTail(i);     // 0..4
+        for (int i = 9; i >= 5; i--) dq.EnqueueHead(i);    // 9..5 then 0..4
+
+        var seen = new List<int>();
+        foreach (var v in dq)
+        {
+            seen.Add(v);
+        }
+
+        CollectionAssert.AreEqual(new[] { 5, 6, 7, 8, 9, 0, 1, 2, 3, 4 }, seen);
+    }
+
+    [Test]
+    public void Foreach_Modify_During_Enumeration_Throws()
+    {
+        var dq = new Alco.Deque<int>();
+        for (int i = 0; i < 5; i++) dq.EnqueueTail(i);
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (var v in dq)
+            {
+                if (v == 2)
+                {
+                    // Modifying the deque during enumeration should invalidate the enumerator
+                    dq.EnqueueTail(99);
+                }
+            }
+        });
+    }
 }
 

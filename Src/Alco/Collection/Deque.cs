@@ -11,6 +11,7 @@ public sealed class Deque<T> : ICollection<T>
     private int _head; // First valid element in the queue
     private int _tail; // First open slot in the dequeue, unless the dequeue is full
     private int _size; // Number of elements.
+    private int _version; // Mutation counter for enumerator versioning
 
     public int Count => _size;
 
@@ -29,6 +30,7 @@ public sealed class Deque<T> : ICollection<T>
             _tail = 0;
         }
         _size++;
+        _version++;
     }
 
     public void EnqueueHead(T item)
@@ -41,6 +43,7 @@ public sealed class Deque<T> : ICollection<T>
        _head = (_head == 0 ? _array.Length : _head) - 1;
        _array[_head] = item;
        _size++;
+        _version++;
     }
 
     public bool TryDequeueHead(out T item)
@@ -58,6 +61,7 @@ public sealed class Deque<T> : ICollection<T>
             _head = 0;
         }
         _size--;
+        _version++;
 
         return true;
     }
@@ -105,24 +109,15 @@ public sealed class Deque<T> : ICollection<T>
         _array[_tail] = default!;
 
         _size--;
+        _version++;
         return true;
     }
 
-    public IEnumerator<T> GetEnumerator() // meant for debug purposes only
-    {
-        int pos = _head;
-        int count = _size;
-        while (count-- > 0)
-        {
-            yield return _array[pos];
-            pos = (pos + 1) % _array.Length;
-        }
-    }
+    public Enumerator GetEnumerator() => new Enumerator(this);
 
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
-    }
+    IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<T>)this).GetEnumerator();
 
     void ICollection<T>.Add(T item)
     {
@@ -185,6 +180,7 @@ public sealed class Deque<T> : ICollection<T>
                         _head = 0;
                     }
                     _size--;
+                    _version++;
                 }
                 else
                 {
@@ -210,6 +206,7 @@ public sealed class Deque<T> : ICollection<T>
                     }
                     _array[_tail] = default!;
                     _size--;
+                    _version++;
                 }
                 return true;
             }
@@ -281,7 +278,11 @@ public sealed class Deque<T> : ICollection<T>
         }
         _head = 0;
         _tail = 0;
-        _size = 0;
+        if (_size != 0)
+        {
+            _size = 0;
+            _version++;
+        }
     }
 
     bool ICollection<T>.IsReadOnly => false;
@@ -318,5 +319,102 @@ public sealed class Deque<T> : ICollection<T>
         _array = newArray;
         _head = 0;
         _tail = _size;
+    }
+
+
+    public struct Enumerator : IEnumerator<T>,
+            IEnumerator
+    {
+        private readonly Deque<T> _q;
+        private readonly int _version;
+        private int _index;   // -1 = not started, -2 = ended/disposed
+        private T? _currentElement;
+
+        internal Enumerator(Deque<T> q)
+        {
+            _q = q;
+            _version = q._version;
+            _index = -1;
+            _currentElement = default;
+        }
+
+        public void Dispose()
+        {
+            _index = -2;
+            _currentElement = default;
+        }
+
+        public bool MoveNext()
+        {
+            if (_version != _q._version)
+            {
+                throw new InvalidOperationException("Collection was modified; enumeration operation may not execute.");
+            }
+
+            if (_index == -2)
+                return false;
+
+            _index++;
+
+            if (_index == _q._size)
+            {
+                // We've run past the last element
+                _index = -2;
+                _currentElement = default;
+                return false;
+            }
+
+            // Cache some fields in locals to decrease code size
+            T[] array = _q._array;
+            uint capacity = (uint)array.Length;
+
+            // _index represents the 0-based index into the queue, however the queue
+            // doesn't have to start from 0 and it may not even be stored contiguously in memory.
+
+            uint arrayIndex = (uint)(_q._head + _index); // this is the actual index into the queue's backing array
+            if (arrayIndex >= capacity)
+            {
+                // NOTE: Originally we were using the modulo operator here, however
+                // on Intel processors it has a very high instruction latency which
+                // was slowing down the loop quite a bit.
+                // Replacing it with simple comparison/subtraction operations sped up
+                // the average foreach loop by 2x.
+
+                arrayIndex -= capacity; // wrap around if needed
+            }
+
+            _currentElement = array[arrayIndex];
+            return true;
+        }
+
+        public T Current
+        {
+            get
+            {
+                if (_index < 0)
+                    ThrowEnumerationNotStartedOrEnded();
+                return _currentElement!;
+            }
+        }
+
+        private void ThrowEnumerationNotStartedOrEnded()
+        {
+            throw new InvalidOperationException(_index == -1 ? "Enumeration has not started." : "Enumeration already finished.");
+        }
+
+        object? IEnumerator.Current
+        {
+            get { return Current; }
+        }
+
+        void IEnumerator.Reset()
+        {
+            if (_version != _q._version)
+            {
+                throw new InvalidOperationException("Collection was modified; enumeration operation may not execute.");
+            }
+            _index = -1;
+            _currentElement = default;
+        }
     }
 }
