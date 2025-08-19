@@ -32,6 +32,28 @@ public class TestCollisionWorld2D
         }
     }
 
+    public class TestRayCaster2D : IRayCaster2D
+    {
+        public int? hitId;
+        public int expectedUserData;
+        public RaycastHit2D? hitInfo;
+
+        public TestRayCaster2D(int expectedUserData)
+        {
+            this.expectedUserData = expectedUserData;
+        }
+
+        public void OnHit(object hitObject, in RaycastHit2D hit, int userData)
+        {
+            Assert.That(userData, Is.EqualTo(this.expectedUserData));
+            if (hitObject is TestBoxTarget target)
+            {
+                hitId = target.id;
+                hitInfo = hit;
+            }
+        }
+    }
+
     [Test(Description = "collision world 3d")]
     public void TestShapeCast2D()
     {
@@ -162,5 +184,39 @@ public class TestCollisionWorld2D
 
         world.CastPoint(caster1, point, caster1.cutomData);
         Assert.That(caster1.hitIds.Count, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void TestRayCast2D()
+    {
+        using CollisionWorld2D world = new CollisionWorld2D();
+
+        // Single hit target to avoid dependency on BVH traversal order
+        TestBoxTarget targetHit = new TestBoxTarget
+        {
+            id = 42,
+            shape = new ShapeBox2D(new Vector2(0, 0), new Vector2(1, 1), Rotation2D.Identity)
+        };
+        world.PushCollisionTarget(targetHit, targetHit.shape);
+
+        world.BuildTree();
+
+        // Ray from left to right along x-axis at y=0; should hit the box with id 0 first
+        int userData1 = 456;
+        TestRayCaster2D rayCaster1 = new TestRayCaster2D(userData1);
+        Ray2D ray1 = new Ray2D(new Vector2(-10, 0), new Vector2(100, 0));
+        world.PushRayCaster(rayCaster1, ray1, userData1);
+
+        // Ray above boxes at y=5, no hit expected
+        int userData2 = 789;
+        TestRayCaster2D rayCaster2 = new TestRayCaster2D(userData2);
+        Ray2D ray2 = new Ray2D(new Vector2(-10, 5), new Vector2(100, 0));
+        world.PushRayCaster(rayCaster2, ray2, userData2);
+
+        world.Simulate();
+
+        Assert.That(rayCaster1.hitId.HasValue, Is.True);
+        Assert.That(rayCaster1.hitId.Value, Is.EqualTo(42));
+        Assert.That(rayCaster2.hitId.HasValue, Is.False);
     }
 }
