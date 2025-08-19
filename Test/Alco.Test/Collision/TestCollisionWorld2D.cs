@@ -49,8 +49,8 @@ public class TestCollisionWorld2D
             Radius = 10.1f
         });
 
-        world.PushCaster(caster1, caster1.shape, caster1.cutomData);
-        world.PushCaster(caster2, caster2.shape, caster2.cutomData);
+        world.PushCollisionCaster(caster1, caster1.shape, caster1.cutomData);
+        world.PushCollisionCaster(caster2, caster2.shape, caster2.cutomData);
 
         int boxCount = 100;
         for (int i = 0; i < boxCount; i++)
@@ -60,7 +60,7 @@ public class TestCollisionWorld2D
                 id = i,
                 shape = new ShapeBox2D(new Vector2(i, 0), new Vector2(1, 1), Rotation2D.Identity)
             };
-            world.PushTarget(target, target.shape);
+            world.PushCollisionTarget(target, target.shape);
             //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision2D.BoxSphere(target.shape, caster1.shape)}");
         };
 
@@ -76,8 +76,8 @@ public class TestCollisionWorld2D
         caster2.hitIds.Clear();
         world.ClearAll();
 
-        world.PushCaster(caster1, caster1.shape);
-        world.PushCaster(caster2, caster2.shape);
+        world.PushCollisionCaster(caster1, caster1.shape);
+        world.PushCollisionCaster(caster2, caster2.shape);
 
         world.BuildTree();
         world.Simulate();
@@ -98,12 +98,12 @@ public class TestCollisionWorld2D
                 id = i,
                 shape = new ShapeBox2D(new Vector2(i, 0), new Vector2(1, 1), Rotation2D.Identity)
             };
-            world.PushTarget(target, target.shape);
+            world.PushCollisionTarget(target, target.shape);
             //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision2D.BoxSphere(target.shape, caster1.shape)}");
         };
 
-        world.PushCaster(caster1, caster1.shape, caster1.cutomData);
-        world.PushCaster(caster2, caster2.shape, caster2.cutomData);
+        world.PushCollisionCaster(caster1, caster1.shape, caster1.cutomData);
+        world.PushCollisionCaster(caster2, caster2.shape, caster2.cutomData);
 
         world.BuildTree();
         world.Simulate();
@@ -153,10 +153,10 @@ public class TestCollisionWorld2D
             shape = new ShapeBox2D(new Vector2(0.6f, 0), new Vector2(1, 1), Rotation2D.Identity)
         };
 
-        world.PushTarget(box1, box1.shape);
-        world.PushTarget(box2, box2.shape);
-        world.PushTarget(box3, box3.shape);
-        world.PushTarget(box4, box4.shape);
+        world.PushCollisionTarget(box1, box1.shape);
+        world.PushCollisionTarget(box2, box2.shape);
+        world.PushCollisionTarget(box3, box3.shape);
+        world.PushCollisionTarget(box4, box4.shape);
 
         world.BuildTree();
 

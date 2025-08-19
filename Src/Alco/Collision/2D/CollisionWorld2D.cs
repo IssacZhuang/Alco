@@ -44,7 +44,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// /// <param name="target"> Object that waits for being hit. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushTarget(object target, in ShapeBox2D shape)
+    public void PushCollisionTarget(object target, in ShapeBox2D shape)
     {
         ColliderBox2D* collider = _targetBoxes.Alloc(new ColliderBox2D
         {
@@ -59,7 +59,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="target"> Object that waits for being hit. </param>
     /// <param name="shape"> Shape of the object. </param>    
-    public void PushTarget(object target, in ShapeSphere2D shape)
+    public void PushCollisionTarget(object target, in ShapeSphere2D shape)
     {
         ColliderSphere2D* collider = _targetSpheres.Alloc(new ColliderSphere2D
         {
@@ -76,7 +76,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushCaster(ICollisionCaster caster, in ShapeBox2D shape, int userData = 0)
+    public void PushCollisionCaster(ICollisionCaster caster, in ShapeBox2D shape, int userData = 0)
     {
         ColliderBox2D* collider = _casterBoxes.Alloc(new ColliderBox2D
         {
@@ -91,7 +91,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushCaster(ICollisionCaster caster, in ShapeSphere2D shape, int userData = 0)
+    public void PushCollisionCaster(ICollisionCaster caster, in ShapeSphere2D shape, int userData = 0)
     {
         ColliderSphere2D* collider = _casterSpheres.Alloc(new ColliderSphere2D
         {
