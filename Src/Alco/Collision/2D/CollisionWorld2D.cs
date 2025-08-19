@@ -6,6 +6,9 @@ using Alco;
 
 namespace Alco;
 
+/// <summary>
+/// 2D collision world supporting both collider casting and ray casting against a BVH of targets.
+/// </summary>
 public unsafe class CollisionWorld2D : AutoDisposable
 {
 
@@ -262,5 +265,8 @@ public unsafe class CollisionWorld2D : AutoDisposable
         _casterBoxes.Dispose();
         _casterSpheres.Dispose();
         _colliderOfCaster.Dispose();
+
+        _rayOfCaster.Dispose();
+        _rayUserDataOfCaster.Dispose();
     }
 }
