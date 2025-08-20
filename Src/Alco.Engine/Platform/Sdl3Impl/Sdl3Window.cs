@@ -179,12 +179,12 @@ public unsafe partial class Sdl3Window : View
 
     public override void Close()
     {
-        
+
     }
 
     protected override void Dispose(bool disposing)
     {
-        if(disposing)
+        if (disposing)
         {
             _swapchain.Dispose();
         }
@@ -381,6 +381,20 @@ public unsafe partial class Sdl3Window : View
         SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, setting.Height);
 
         return props;
+
+    }
+
+    public Task<string[]> OpenFilePicker(string title, string[] filters)
+    {
+        SDL_ShowOpenFileDialog(&DialogFileCallback, IntPtr.Zero, _window, null, 0, ReadOnlySpan<byte>.Empty, false);
+
+        //todo
+        return Task.FromResult(new string[0]);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private unsafe static void DialogFileCallback(nint userdata, byte** fileList, int filter)
+    {
 
     }
 
