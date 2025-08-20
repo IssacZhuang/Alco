@@ -7,6 +7,7 @@ using Alco.Graphics;
 using Alco.Engine.MacOS;
 
 using static SDL3.SDL3;
+using System.Text;
 
 namespace Alco.Engine;
 
@@ -308,7 +309,7 @@ public unsafe partial class Sdl3Window : View
     public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
-        
+
         try
         {
             props = CreateProperties(setting);
@@ -384,9 +385,33 @@ public unsafe partial class Sdl3Window : View
 
     }
 
-    public Task<string[]> OpenFilePicker(string title, string[] filters)
+    public Task<string[]> OpenFilePicker(string title, string defaultPath, bool allowMultiple, params ReadOnlySpan<DialogFileFilter> filters)
     {
-        SDL_ShowOpenFileDialog(&DialogFileCallback, IntPtr.Zero, _window, null, 0, ReadOnlySpan<byte>.Empty, false);
+        Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
+        Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
+        defaultPathBytes[defaultPathBytes.Length - 1] = 0;
+
+
+        SDL_DialogFileFilter* filterPtr = stackalloc SDL_DialogFileFilter[filters.Length];
+        List<NativeUtf8String> filterNames = new();
+        List<NativeUtf8String> filterPatterns = new();
+        for (int i = 0; i < filters.Length; i++)
+        {
+            NativeUtf8String nativeName = new NativeUtf8String(filters[i].Name);
+            NativeUtf8String nativePattern = new NativeUtf8String(filters[i].Pattern);
+            filterPtr[i].name = nativeName.UnsafePointer;
+            filterPtr[i].pattern = nativePattern.UnsafePointer;
+            filterNames.Add(nativeName);
+            filterPatterns.Add(nativePattern);
+        }
+
+        SDL_ShowOpenFileDialog(&DialogFileCallback, IntPtr.Zero, _window, filterPtr, filters.Length, defaultPathBytes, allowMultiple);
+
+        for (int i = 0; i < filterNames.Count; i++)
+        {
+            filterNames[i].Dispose();
+            filterPatterns[i].Dispose();
+        }
 
         //todo
         return Task.FromResult(new string[0]);
