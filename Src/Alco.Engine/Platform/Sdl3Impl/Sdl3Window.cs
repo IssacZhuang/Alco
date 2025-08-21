@@ -385,42 +385,95 @@ public unsafe partial class Sdl3Window : View
 
     }
 
-    public Task<string[]> OpenFilePicker(string title, string defaultPath, bool allowMultiple, params ReadOnlySpan<DialogFileFilter> filters)
+    public Task<string[]> OpenFilePickerAsync(string? defaultPath, bool allowMultiple, params ReadOnlySpan<DialogFileFilter> filters)
     {
+        defaultPath ??= Environment.CurrentDirectory;
+        TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Sdl3FilePickerContext context = new Sdl3FilePickerContext
+        {
+            Completion = tcs
+        };
+        context.Handle = GCHandle.Alloc(context, GCHandleType.Normal);
+
         Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
         Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
         defaultPathBytes[defaultPathBytes.Length - 1] = 0;
 
+        int filterCount = filters.Length;
+        SDL_DialogFileFilter* nativeFilters = stackalloc SDL_DialogFileFilter[filterCount]; ;
+        List<NativeUtf8String> nativeStrings = new();
 
-        SDL_DialogFileFilter* filterPtr = stackalloc SDL_DialogFileFilter[filters.Length];
-        List<NativeUtf8String> filterNames = new();
-        List<NativeUtf8String> filterPatterns = new();
-        for (int i = 0; i < filters.Length; i++)
+        for (int i = 0; i < filterCount; i++)
         {
             NativeUtf8String nativeName = new NativeUtf8String(filters[i].Name);
             NativeUtf8String nativePattern = new NativeUtf8String(filters[i].Pattern);
-            filterPtr[i].name = nativeName.UnsafePointer;
-            filterPtr[i].pattern = nativePattern.UnsafePointer;
-            filterNames.Add(nativeName);
-            filterPatterns.Add(nativePattern);
+            nativeFilters[i].name = nativeName.UnsafePointer;
+            nativeFilters[i].pattern = nativePattern.UnsafePointer;
+            nativeStrings.Add(nativeName);
+            nativeStrings.Add(nativePattern);
         }
 
-        SDL_ShowOpenFileDialog(&DialogFileCallback, IntPtr.Zero, _window, filterPtr, filters.Length, defaultPathBytes, allowMultiple);
 
-        for (int i = 0; i < filterNames.Count; i++)
+        SDL_ShowOpenFileDialog(&DialogFileCallback, (nint)context.Handle, _window, nativeFilters, filterCount, defaultPathBytes, allowMultiple);
+
+        for (int i = 0; i < nativeStrings.Count; i++)
         {
-            filterNames[i].Dispose();
-            filterPatterns[i].Dispose();
+            nativeStrings[i].Dispose();
         }
 
-        //todo
-        return Task.FromResult(new string[0]);
+        return tcs.Task;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private unsafe static void DialogFileCallback(nint userdata, byte** fileList, int filter)
     {
+        if (userdata == 0)
+        {
+            return;
+        }
 
+        GCHandle handle = GCHandle.FromIntPtr(userdata);
+        if (handle.Target is not Sdl3FilePickerContext context)
+        {
+            return;
+        }
+
+        try
+        {
+            if (fileList == null)
+            {
+                context.Completion.TrySetException(new Exception(SDL_GetError() ?? "SDL file dialog error"));
+                return;
+            }
+
+            List<string> results = new List<string>(4);
+            int idx = 0;
+            while (true)
+            {
+                byte* entry = fileList[idx];
+                if (entry == null)
+                {
+                    break;
+                }
+                string? path = Encoding.UTF8.GetString(MemoryMarshal.CreateReadOnlySpanFromNullTerminated(entry));
+                if (path != null)
+                {
+                    results.Add(path);
+                }
+                idx++;
+            }
+
+            context.Completion.TrySetResult(results.ToArray());
+        }
+        catch (Exception e)
+        {
+            context.Completion.TrySetException(e);
+        }
+        finally
+        {
+            context.Cleanup();
+        }
     }
 
 
