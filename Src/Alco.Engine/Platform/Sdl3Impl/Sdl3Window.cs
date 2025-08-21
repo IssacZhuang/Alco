@@ -390,37 +390,13 @@ public unsafe partial class Sdl3Window : View
         defaultPath ??= Environment.CurrentDirectory;
         TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        Sdl3FilePickerContext context = new Sdl3FilePickerContext
-        {
-            Completion = tcs
-        };
-        context.Handle = GCHandle.Alloc(context, GCHandleType.Normal);
+        Sdl3FilePickerContext context = Sdl3FilePickerContext.Create(filters, tcs);
 
         Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
         Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
         defaultPathBytes[defaultPathBytes.Length - 1] = 0;
 
-        int filterCount = filters.Length;
-        SDL_DialogFileFilter* nativeFilters = stackalloc SDL_DialogFileFilter[filterCount]; ;
-        List<NativeUtf8String> nativeStrings = new();
-
-        for (int i = 0; i < filterCount; i++)
-        {
-            NativeUtf8String nativeName = new NativeUtf8String(filters[i].Name);
-            NativeUtf8String nativePattern = new NativeUtf8String(filters[i].Pattern);
-            nativeFilters[i].name = nativeName.UnsafePointer;
-            nativeFilters[i].pattern = nativePattern.UnsafePointer;
-            nativeStrings.Add(nativeName);
-            nativeStrings.Add(nativePattern);
-        }
-
-
-        SDL_ShowOpenFileDialog(&DialogFileCallback, (nint)context.Handle, _window, nativeFilters, filterCount, defaultPathBytes, allowMultiple);
-
-        for (int i = 0; i < nativeStrings.Count; i++)
-        {
-            nativeStrings[i].Dispose();
-        }
+        SDL_ShowOpenFileDialog(&DialogFileCallback, (nint)context.Handle, _window, context.NativeFilters, context.NativeFiltersCount, defaultPathBytes, allowMultiple);
 
         return tcs.Task;
     }
