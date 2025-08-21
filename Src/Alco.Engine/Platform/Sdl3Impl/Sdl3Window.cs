@@ -401,6 +401,38 @@ public unsafe partial class Sdl3Window : View
         return tcs.Task;
     }
 
+    public Task<string[]> OpenFolderPickerAsync(string? defaultPath, bool allowMultiple)
+    {
+        defaultPath ??= Environment.CurrentDirectory;
+        TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Sdl3FilePickerContext context = Sdl3FilePickerContext.Create(ReadOnlySpan<DialogFileFilter>.Empty, tcs);
+
+        Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
+        Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
+        defaultPathBytes[defaultPathBytes.Length - 1] = 0;
+
+        SDL_ShowOpenFolderDialog(&DialogFileCallback, (nint)context.Handle, _window, defaultPathBytes, allowMultiple);
+
+        return tcs.Task;
+    }
+
+    public Task<string[]> OpenSaveFilePickerAsync(string? defaultPath, params ReadOnlySpan<DialogFileFilter> filters)
+    {
+        defaultPath ??= Environment.CurrentDirectory;
+        TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Sdl3FilePickerContext context = Sdl3FilePickerContext.Create(filters, tcs);
+
+        Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
+        Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
+        defaultPathBytes[defaultPathBytes.Length - 1] = 0;
+
+        SDL_ShowSaveFileDialog(&DialogFileCallback, (nint)context.Handle, _window, context.NativeFilters, context.NativeFiltersCount, defaultPathBytes);
+
+        return tcs.Task;
+    }
+
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private unsafe static void DialogFileCallback(nint userdata, byte** fileList, int filter)
     {
