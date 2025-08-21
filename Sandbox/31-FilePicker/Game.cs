@@ -62,7 +62,7 @@ public class Game : GameEngine
 
             DialogFileFilter[] filters =
             {
-                new DialogFileFilter("Images", "*.png;*.jpg;*.jpeg;*.bmp;*.tga"),
+                new DialogFileFilter("Images", "png;jpg;jpeg;bmp;tga"),
                 new DialogFileFilter("All", "*")
             };
 
