@@ -225,7 +225,7 @@ public static class UtilsGrid
     /// <param name="output">Collection filled with traversed cell coordinates. It is cleared first.</param>
     /// <param name="start">Start point in continuous space.</param>
     /// <param name="end">End point in continuous space.</param>
-    public static void GetSupercoverLine(ICollection<int2> output, Vector2 start, Vector2 end)
+    public static void GetSupercoverLineCornerBased(ICollection<int2> output, Vector2 start, Vector2 end)
     {
         output.Clear();
 
@@ -279,7 +279,7 @@ public static class UtilsGrid
         }
     }
 
-    public static int GetSupercoverLine(Span<int2> output, Vector2 start, Vector2 end)
+    public static int GetSupercoverLineCornerBased(Span<int2> output, Vector2 start, Vector2 end)
     {
         int x = (int)MathF.Floor(start.X);
         int y = (int)MathF.Floor(start.Y);
@@ -335,6 +335,49 @@ public static class UtilsGrid
             }
         }
         return written;
+    }
+
+    /// <summary>
+    /// Traverses all grid cells intersected by the line segment when grid indices are center-based.
+    /// The first cell's center is at (0, 0), so cell boundaries are at half-integers.
+    /// This delegates to the corner-based implementation by offsetting coordinates by (+0.5, +0.5).
+    /// </summary>
+    /// <param name="output">Collection filled with traversed cell coordinates. It is cleared first.</param>
+    /// <param name="start">Start point in center-based continuous space.</param>
+    /// <param name="end">End point in center-based continuous space.</param>
+    public static void GetSupercoverLineCenterBased(ICollection<int2> output, Vector2 start, Vector2 end)
+    {
+        Vector2 offset = new Vector2(0.5f, 0.5f);
+        GetSupercoverLineCornerBased(output, start + offset, end + offset);
+    }
+
+    /// <summary>
+    /// Span variant for center-based supercover line traversal.
+    /// </summary>
+    /// <param name="output">Destination span for traversed cell coordinates.</param>
+    /// <param name="start">Start point in center-based continuous space.</param>
+    /// <param name="end">End point in center-based continuous space.</param>
+    /// <returns>The number of cells written to <paramref name="output"/>.</returns>
+    public static int GetSupercoverLineCenterBased(Span<int2> output, Vector2 start, Vector2 end)
+    {
+        Vector2 offset = new Vector2(0.5f, 0.5f);
+        return GetSupercoverLineCornerBased(output, start + offset, end + offset);
+    }
+
+    /// <summary>
+    /// Computes an upper bound on the number of grid cells visited by a supercover line
+    /// between two points. This matches the capacity requirement of GetSupercoverLine* methods.
+    /// Formula: ceil(|dx|) + ceil(|dy|) + 1 (inclusive of the starting cell).
+    /// </summary>
+    /// <param name="start">Start point in continuous space.</param>
+    /// <param name="end">End point in continuous space.</param>
+    /// <returns>Maximum number of cells potentially traversed.</returns>
+    public static int GetMaxCellsOfSupercoverLine(Vector2 start, Vector2 end)
+    {
+        float dx = MathF.Abs(end.X - start.X);
+        float dy = MathF.Abs(end.Y - start.Y);
+        int maxCells = (int)MathF.Ceiling(dx) + (int)MathF.Ceiling(dy) + 1;
+        return (maxCells < 1) ? 1 : maxCells;
     }
 }
 
