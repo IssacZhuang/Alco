@@ -24,7 +24,6 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     private Camera2DBuffer _screenCamera;
 
     private bool _shouldResize = false;
-    private bool _isMinimized = false;
     private uint _width;
     private uint _height;
 
@@ -82,16 +81,14 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     {
         _view = view;
         _view.OnResize += OnWindowResize;
-        _view.OnMinimize += OnWindowMinimize;
-        _view.OnRestore += OnWindowRestore;
-
         _rendering = engine.RenderingSystem;
+
+        _renderer = _rendering.CreateRenderContext();
 
         _width = math.max(1, view.Size.X);
         _height = math.max(1, view.Size.Y);
 
         _attachmentLayout = attachmentLayout;
-        _renderer = _rendering.CreateRenderContext();
 
         _mesh = _rendering.MeshFullScreen;
 
@@ -142,27 +139,26 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
             return;
         }
 
-        if (_isMinimized)
-        {
-            return;
-        }
-
         if (!_viewSwapchain.RequestSurfaceTexture())
         {
             return;
         }
 
         //_converter.Blit(_windowSwapchain.FrameBuffer);
-        _renderer.Begin(_viewSwapchain.FrameBuffer);
-        if (_customBlitMaterial != null)
+        if (_view.WindowMode != WindowMode.Minimized)
         {
-            _renderer.Draw(_mesh, _customBlitMaterial);
+            _renderer.Begin(_viewSwapchain.FrameBuffer);
+            if (_customBlitMaterial != null)
+            {
+                _renderer.Draw(_mesh, _customBlitMaterial);
+            }
+            else
+            {
+                _renderer.Draw(_mesh, _blitMaterial);
+            }
+            _renderer.End();
         }
-        else
-        {
-            _renderer.Draw(_mesh, _blitMaterial);
-        }
-        _renderer.End();
+
         _viewSwapchain.Present();
 
         if (_shouldResize)
@@ -177,9 +173,6 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     public override void Dispose()
     {
         _view.OnResize -= OnWindowResize;
-        _view.OnMinimize -= OnWindowMinimize;
-        _view.OnRestore -= OnWindowRestore;
-
         _screenCamera.Dispose();
     }
 
@@ -205,19 +198,7 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         _shouldResize = true;
         _width = size.X;
         _height = size.Y;
-        
+
         _viewSwapchain?.Resize(_width, _height);
     }
-
-    private void OnWindowMinimize()
-    {
-        _isMinimized = true;
-    }
-
-    private void OnWindowRestore()
-    {
-        _isMinimized = false;
-        //RecreateRenderTexture();
-    }
-
 }

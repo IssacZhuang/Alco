@@ -113,8 +113,6 @@ public unsafe partial class Sdl3Window : View
         get => _swapchain;
     }
 
-
-
     public Sdl3Window(GPUDevice device, ViewSetting setting)
     {
         SDL_WindowFlags flags = ConvetWindowMode(setting.WindowMode);
@@ -206,14 +204,31 @@ public unsafe partial class Sdl3Window : View
 
     private WindowMode ConvertWindowMode(SDL_WindowFlags flags)
     {
-        return flags switch
+        // return flags switch
+        // {
+        //     SDL_WindowFlags.Resizable => WindowMode.Normal,
+        //     SDL_WindowFlags.Minimized => WindowMode.Minimized,
+        //     SDL_WindowFlags.Maximized => WindowMode.Maximized,
+        //     SDL_WindowFlags.Fullscreen => WindowMode.Fullscreen,
+        //     _ => WindowMode.Normal
+        // };
+
+        if (flags.HasFlag(SDL_WindowFlags.Fullscreen))
         {
-            SDL_WindowFlags.Resizable => WindowMode.Normal,
-            SDL_WindowFlags.Minimized => WindowMode.Minimized,
-            SDL_WindowFlags.Maximized => WindowMode.Maximized,
-            SDL_WindowFlags.Fullscreen => WindowMode.Fullscreen,
-            _ => WindowMode.Normal
-        };
+            return WindowMode.Fullscreen;
+        }
+        else if (flags.HasFlag(SDL_WindowFlags.Maximized))
+        {
+            return WindowMode.Maximized;
+        }
+        else if (flags.HasFlag(SDL_WindowFlags.Minimized))
+        {
+            return WindowMode.Minimized;
+        }
+        else
+        {
+            return WindowMode.Normal;
+        }
     }
 
 
