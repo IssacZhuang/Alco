@@ -48,18 +48,32 @@ public class Game : GameEngine
         
         ImGui.Begin("Gamepad Status", ref open);
 
-        
-        ImGui.Text(FrameRate.ToString());
+        FixedString128 str = new FixedString128();
+        str += "Frame rate: ";
+        str += FrameRate;
+
+        ImGui.Text(str);
+
+        str.Clear();
 
         var pads = Input.GetGamepads();
-        ImGui.Text($"Connected Gamepads: {pads.Count}");
+
+        str += "Connected Gamepads: ";
+        str += pads.Count;
+        ImGui.Text(str);
+        str.Clear();
 
         for (int i = 0; i < pads.Count; i++)
         {
             var p = pads[i];
             ImGui.Separator();
-            ImGui.Text($"#{i}: {p.Name}");
-            ImGui.Text($"Connected: {p.IsConnected}");
+            
+            ImGui.Text(p.Name);
+
+            str += "Connected: ";
+            str += p.IsConnected;
+            ImGui.Text(str);
+            str.Clear();
 
             // Axes
             Vector2 left = p.GetLeftStick();
@@ -67,10 +81,25 @@ public class Game : GameEngine
             float lt = p.GetAxis(GamepadAxis.LeftTrigger);
             float rt = p.GetAxis(GamepadAxis.RightTrigger);
 
-            ImGui.Text($"Left Stick: ({left.X:F3}, {left.Y:F3})");
-            ImGui.Text($"Right Stick: ({right.X:F3}, {right.Y:F3})");
-            ImGui.Text($"Left Trigger: {lt:F3}");
-            ImGui.Text($"Right Trigger: {rt:F3}");
+            lt = math.round(lt, 3);
+            rt = math.round(rt, 3);
+
+            str += "Left Stick: ";
+            str += left.X;
+            str += ", ";
+            str += left.Y;
+            ImGui.Text(str);
+            str.Clear();
+
+            str += "Left Trigger: ";
+            str += lt;
+            ImGui.Text(str);
+            str.Clear();
+
+            str += "Right Trigger: ";
+            str += rt;
+            ImGui.Text(str);
+            str.Clear();
 
             // Buttons grid
             ImGui.Separator();
@@ -94,7 +123,7 @@ public class Game : GameEngine
             DrawButton("DPad Left", p.IsButtonPressed(GamepadButton.DPadLeft)); ImGui.SameLine();
             DrawButton("DPad Right", p.IsButtonPressed(GamepadButton.DPadRight));
 
-            if (ImGui.Button($"Vibrate #{i}"))
+            if (ImGui.Button($"Vibrate"))
             {
                 try { p.SetVibration(0.75f, 0.2f); } catch { }
             }

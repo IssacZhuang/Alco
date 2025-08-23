@@ -63,6 +63,12 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float round(float a, int precision)
+        {
+            return MathF.Round(a, precision);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float pow(float a, float b)
         {
             return MathF.Pow(a, b);
