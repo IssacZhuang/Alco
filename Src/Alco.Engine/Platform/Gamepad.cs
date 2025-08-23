@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Alco.Engine;
 
-public abstract class Gamepad : AutoDisposable
+public abstract class Gamepad
 {
     public abstract string Name { get; }
 

@@ -21,9 +21,4 @@ public class NoGamepad : Gamepad
     {
         
     }
-
-    protected override void Dispose(bool disposing)
-    {
-        
-    }
 }

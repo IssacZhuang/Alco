@@ -4,6 +4,10 @@ using static SDL3.SDL3;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// SDL3-backed implementation of <see cref="Gamepad"/>.
+/// Ensures safe queries when disconnected and releases the native handle on cleanup.
+/// </summary>
 public unsafe class Sdl3Gamepad : Gamepad
 {
     private readonly SDL_Gamepad _native;
@@ -15,10 +19,20 @@ public unsafe class Sdl3Gamepad : Gamepad
     }
 
 
+    /// <summary>
+    /// Gets the device name reported by SDL.
+    /// </summary>
     public override string Name {get;}
 
-    public override bool IsConnected => SDL_GamepadConnected(_native);
+    /// <summary>
+    /// Indicates whether the device is currently connected.
+    /// </summary>
+    public override bool IsConnected =>  SDL_GamepadConnected(_native);
 
+    /// <summary>
+    /// Gets the normalized axis value in range [-1, 1] (triggers [0, 1]).
+    /// Returns 0 when disconnected.
+    /// </summary>
     public override float GetAxis(GamepadAxis axis)
     {
         if(!IsConnected)
@@ -30,6 +44,9 @@ public unsafe class Sdl3Gamepad : Gamepad
         return (float)value / short.MaxValue;
     }
 
+    /// <summary>
+    /// Returns whether the specified button is pressed. False when disconnected.
+    /// </summary>
     public override bool IsButtonPressed(GamepadButton button)
     {
         if(!IsConnected)
@@ -40,6 +57,12 @@ public unsafe class Sdl3Gamepad : Gamepad
         return SDL_GetGamepadButton(_native, ConvertButton(button));
     }
 
+    /// <summary>
+    /// Triggers simple vibration with given intensity [0,1] and duration (seconds).
+    /// Does nothing when disconnected.
+    /// </summary>
+    /// <param name="intensity">Strength in [0,1].</param>
+    /// <param name="duration">Duration in seconds.</param>
     public override void SetVibration(float intensity, float duration)
     {
         if(!IsConnected)
@@ -52,11 +75,15 @@ public unsafe class Sdl3Gamepad : Gamepad
         SDL_RumbleGamepad(_native, intensity16, intensity16, durationMs);
     }
 
-    protected override void Dispose(bool disposing)
+    internal void CleanUp()
     {
-
+        SDL_CloseGamepad(_native);
+        Log.Info($"Gamepad {Name} disconnected");
     }
 
+    /// <summary>
+    /// Converts engine axis enum to SDL axis.
+    /// </summary>
     public static SDL_GamepadAxis ConvertAxis(GamepadAxis axis)
     {
         return axis switch
@@ -71,6 +98,9 @@ public unsafe class Sdl3Gamepad : Gamepad
         };
     }
 
+    /// <summary>
+    /// Converts engine button enum to SDL button.
+    /// </summary>
     public static SDL_GamepadButton ConvertButton(GamepadButton button){
         return button switch
         {
