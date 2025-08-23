@@ -30,6 +30,7 @@ public unsafe class Sdl3Input : Input
 
     private readonly List<Sdl3Gamepad> _gamepads = new();
     private Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
+    private readonly List<SDL_JoystickID> _toRemove = new();
     
 
     public override Vector2 MousePosition
@@ -79,27 +80,44 @@ public unsafe class Sdl3Input : Input
         Reset();
 
         // Collect disconnected gamepads first to avoid modifying the dictionary during enumeration
-        List<SDL_JoystickID>? toRemove = null;
+        _toRemove.Clear();
         foreach (var g in _gamepadMap)
         {
             if (!g.Value.IsConnected)
             {
-                toRemove ??= new List<SDL_JoystickID>();
-                toRemove.Add(g.Key);
+                _toRemove.Add(g.Key);
             }
         }
 
-        
-        if (toRemove != null)
+        for (int i = 0; i < _toRemove.Count; i++)
         {
-            for (int i = 0; i < toRemove.Count; i++)
+            SDL_JoystickID id = _toRemove[i];
+            if (_gamepadMap.TryGetValue(id, out var gp))
             {
-                SDL_JoystickID id = toRemove[i];
-                if (_gamepadMap.TryGetValue(id, out var gp))
-                {
-                    gp.CleanUp();
-                    _gamepadMap.Remove(id);
-                }
+                gp.CleanUp();
+                _gamepadMap.Remove(id);
+                DoGamepadDisconnected(gp);
+            }
+        }
+        _toRemove.Clear();
+
+        _gamepads.Clear();
+        ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
+
+        for (int i = 0; i < gamepads.Length; i++)
+        {
+            SDL_JoystickID id = gamepads[i];
+            if (_gamepadMap.TryGetValue(id, out Sdl3Gamepad? g))
+            {
+                _gamepads.Add(g);
+            }
+            else
+            {
+                SDL_Gamepad gamepad = SDL_OpenGamepad(id);
+                g = new Sdl3Gamepad(gamepad);
+                _gamepadMap[id] = g;
+                _gamepads.Add(g);
+                DoGamepadConnected(g);
             }
         }
     }
@@ -354,24 +372,6 @@ public unsafe class Sdl3Input : Input
 
     public override IReadOnlyList<Gamepad> GetGamepads()
     {
-        _gamepads.Clear();
-        ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
-
-        for(int i = 0; i < gamepads.Length; i++)
-        {
-            SDL_JoystickID id = gamepads[i];
-            if (_gamepadMap.TryGetValue(id, out Sdl3Gamepad? g))
-            {
-                _gamepads.Add(g);
-            }
-            else
-            {
-                SDL_Gamepad gamepad = SDL_OpenGamepad(id);
-                g = new Sdl3Gamepad(gamepad);
-                _gamepadMap[id] = g;
-                _gamepads.Add(g);
-            }
-        }
         return _gamepads;
     }
 }

@@ -5,10 +5,31 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
 
+/// <summary>
+/// Sandbox 32: Gamepad tester that displays state and logs connect/disconnect events.
+/// </summary>
 public class Game : GameEngine
 {
     public Game(GameEngineSetting setting) : base(setting)
     {
+    }
+
+    /// <summary>
+    /// Subscribe to gamepad connect/disconnect events.
+    /// </summary>
+    protected override void OnStart()
+    {
+        Input.OnGamepadConnected += OnGamepadConnected;
+        Input.OnGamepadDisconnected += OnGamepadDisconnected;
+    }
+
+    /// <summary>
+    /// Unsubscribe from gamepad events.
+    /// </summary>
+    protected override void OnStop()
+    {
+        Input.OnGamepadConnected -= OnGamepadConnected;
+        Input.OnGamepadDisconnected -= OnGamepadDisconnected;
     }
 
     protected override void OnUpdate(float delta)
@@ -24,7 +45,11 @@ public class Game : GameEngine
     private void RenderImGUI()
     {
         bool open = true;
+        
         ImGui.Begin("Gamepad Status", ref open);
+
+        
+        ImGui.Text(FrameRate.ToString());
 
         var pads = Input.GetGamepads();
         ImGui.Text($"Connected Gamepads: {pads.Count}");
@@ -82,6 +107,16 @@ public class Game : GameEngine
         }
 
         ImGui.End();
+    }
+
+    private static void OnGamepadConnected(Gamepad gamepad)
+    {
+        Log.Info($"Gamepad connected: {gamepad.Name}");
+    }
+
+    private static void OnGamepadDisconnected(Gamepad gamepad)
+    {
+        Log.Info($"Gamepad disconnected: {gamepad.Name}");
     }
 
     private static void DrawButton(string label, bool pressed)

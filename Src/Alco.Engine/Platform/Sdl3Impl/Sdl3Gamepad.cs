@@ -78,7 +78,6 @@ public unsafe class Sdl3Gamepad : Gamepad
     internal void CleanUp()
     {
         SDL_CloseGamepad(_native);
-        Log.Info($"Gamepad {Name} disconnected");
     }
 
     /// <summary>
