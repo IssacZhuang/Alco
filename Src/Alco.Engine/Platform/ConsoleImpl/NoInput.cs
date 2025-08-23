@@ -73,4 +73,9 @@ public class NoInput : Input
         delta = 0;
         return false;
     }
+
+    public override IReadOnlyList<Gamepad> GetGamepads()
+    {
+        return Array.Empty<Gamepad>();
+    }
 }

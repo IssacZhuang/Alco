@@ -98,6 +98,17 @@ public abstract class Input
     /// </summary>
     public abstract ReadOnlySpan<char> GetClipboardText();
 
+    public abstract IReadOnlyList<Gamepad> GetGamepads();
+
+    public Gamepad? PrimaryGamepad
+    {
+        get
+        {
+            var gamepads = GetGamepads();
+            return gamepads.Count > 0 ? gamepads[0] : null;
+        }
+    }
+
     protected void DoKeyDown(KeyCode key)
     {
         OnKeyDown?.Invoke(key);

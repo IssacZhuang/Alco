@@ -27,6 +27,9 @@ public unsafe class Sdl3Input : Input
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
     private float _mouseWheelDelta;
+
+    private readonly List<Sdl3Gamepad> _gamepads = new();
+    private Dictionary<SDL_Gamepad, Sdl3Gamepad> _gamepadMap = new();
     
 
     public override Vector2 MousePosition
@@ -322,6 +325,27 @@ public unsafe class Sdl3Input : Input
     public override ReadOnlySpan<char> GetClipboardText()
     {
         return SDL_GetClipboardText();
+    }
+
+    public override IReadOnlyList<Gamepad> GetGamepads()
+    {
+        _gamepads.Clear();
+        ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
+        for(int i = 0; i < gamepads.Length; i++)
+        {
+            SDL_Gamepad gamepad = SDL_GetGamepadFromID(gamepads[i]);
+            if(_gamepadMap.TryGetValue(gamepad, out Sdl3Gamepad? g))
+            {
+                _gamepads.Add(g);
+            }
+            else
+            {
+                g = new Sdl3Gamepad(gamepad);
+                _gamepadMap[gamepad] = g;
+                _gamepads.Add(g);
+            }
+        }
+        return _gamepads;
     }
 }
 
