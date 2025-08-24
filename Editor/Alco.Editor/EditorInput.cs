@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using System.Collections.Generic;
 
 namespace Alco.Editor;
 
@@ -358,6 +359,11 @@ public class EditorInput : Input, IDisposable
             // Handle other buttons as needed
             _ => Mouse.Unknown,
         };
+    }
+
+    public override IReadOnlyList<Gamepad> GetGamepads()
+    {
+        return Array.Empty<Gamepad>();
     }
 }
 
