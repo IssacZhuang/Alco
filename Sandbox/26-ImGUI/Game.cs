@@ -4,6 +4,7 @@ using Alco.Rendering;
 using Alco;
 using Alco.Graphics;
 using Alco.ImGUI;
+using Alco.IO;
 
 
 public class Game : GameEngine
@@ -21,6 +22,14 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _texture = AssetSystem.Load<Texture2D>("Textures/Grid.png");
+        if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
+        {
+            var span = data.AsSpan();
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Chinese);
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Japanese);
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Korean);
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Cyrillic);
+        }
     }
 
     protected override void OnUpdate(float delta)
@@ -78,6 +87,15 @@ public class Game : GameEngine
             }
 
             ImGui.Spacing();
+
+            ImGui.Separator();
+            ImGui.Text("Chinese (Simplified): 中文测试 你好，世界！");
+            ImGui.Text("Chinese (Traditional): 中文測試 你好，世界！");
+            ImGui.Text("Japanese: 日本語テスト こんにちは、世界！");
+            ImGui.Text("Korean: 한국어 테스트 안녕하세요, 세계!");
+            ImGui.Text("Russian: Русский тест Привет, мир!");
+            ImGui.Text("French: Français test Bonjour le monde !");
+            ImGui.Text("German: Deutsch Test Hallo, Welt!");
 
             if (toggleValue)
             {

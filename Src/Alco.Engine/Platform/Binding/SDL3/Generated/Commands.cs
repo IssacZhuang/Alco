@@ -24,8 +24,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param lock a pointer to a lock variable.<br/>
 	/// @returns true if the lock succeeded, false if the lock is already held.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockSpinlock<br/>
 	/// @sa SDL_UnlockSpinlock
@@ -39,8 +40,9 @@ public unsafe partial class SDL3
 	/// doing. Please be careful using any sort of spinlock!***<br/>
 	/// <br/>
 	/// @param lock a pointer to a lock variable.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_TryLockSpinlock<br/>
 	/// @sa SDL_UnlockSpinlock
@@ -55,8 +57,9 @@ public unsafe partial class SDL3
 	/// doing. Please be careful using any sort of spinlock!***<br/>
 	/// <br/>
 	/// @param lock a pointer to a lock variable.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockSpinlock<br/>
 	/// @sa SDL_TryLockSpinlock
@@ -65,40 +68,39 @@ public unsafe partial class SDL3
 	public static partial void SDL_UnlockSpinlock(SDL_SpinLock* @lock);
 
 	/// <summary>
-	/// Insert a memory release barrier.<br/>
-	/// Memory barriers are designed to prevent reads and writes from being<br/>
-	/// reordered by the compiler and being seen out of order on multi-core CPUs.<br/>
-	/// A typical pattern would be for thread A to write some data and a flag, and<br/>
-	/// for thread B to read the flag and get the data. In this case you would<br/>
-	/// insert a release barrier between writing the data and the flag,<br/>
-	/// guaranteeing that the data write completes no later than the flag is<br/>
-	/// written, and you would insert an acquire barrier between reading the flag<br/>
-	/// and reading the data, to ensure that all the reads associated with the flag<br/>
-	/// have completed.<br/>
-	/// In this pattern you should always see a release barrier paired with an<br/>
-	/// acquire barrier and you should gate the data reads/writes with a single<br/>
-	/// flag variable.<br/>
-	/// For more information on these semantics, take a look at the blog post:<br/>
-	/// http://preshing.com/20120913/acquire-and-release-semantics<br/>
-	/// @threadsafety Obviously this macro is safe to use from any thread at any<br/>
+	/// Insert a memory release barrier (function version).<br/>
+	/// Please refer to SDL_MemoryBarrierRelease for details. This is a function<br/>
+	/// version, which might be useful if you need to use this functionality from a<br/>
+	/// scripting language, etc. Also, some of the macro versions call this<br/>
+	/// function behind the scenes, where more heavy lifting can happen inside of<br/>
+	/// SDL. Generally, though, an app written in C/C++/etc should use the macro<br/>
+	/// version, as it will be more efficient.<br/>
+	/// @threadsafety Obviously this function is safe to use from any thread at any<br/>
 	/// time, but if you find yourself needing this, you are probably<br/>
 	/// dealing with some very sensitive code; be careful!<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_MemoryBarrierRelease
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_MemoryBarrierReleaseFunction")]
 	public static partial void SDL_MemoryBarrierReleaseFunction();
 
 	/// <summary>
-	/// Insert a memory acquire barrier.<br/>
-	/// Please refer to SDL_MemoryBarrierReleaseFunction for the details!<br/>
+	/// Insert a memory acquire barrier (function version).<br/>
+	/// Please refer to SDL_MemoryBarrierRelease for details. This is a function<br/>
+	/// version, which might be useful if you need to use this functionality from a<br/>
+	/// scripting language, etc. Also, some of the macro versions call this<br/>
+	/// function behind the scenes, where more heavy lifting can happen inside of<br/>
+	/// SDL. Generally, though, an app written in C/C++/etc should use the macro<br/>
+	/// version, as it will be more efficient.<br/>
 	/// @threadsafety Obviously this function is safe to use from any thread at any<br/>
 	/// time, but if you find yourself needing this, you are probably<br/>
 	/// dealing with some very sensitive code; be careful!<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_MemoryBarrierReleaseFunction
+	/// @sa SDL_MemoryBarrierAcquire
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_MemoryBarrierAcquireFunction")]
 	public static partial void SDL_MemoryBarrierAcquireFunction();
@@ -114,7 +116,7 @@ public unsafe partial class SDL3
 	/// @returns true if the atomic variable was set, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAtomicInt<br/>
 	/// @sa SDL_SetAtomicInt
@@ -133,7 +135,7 @@ public unsafe partial class SDL3
 	/// @returns the previous value of the atomic variable.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAtomicInt
 	/// </summary>
@@ -149,7 +151,7 @@ public unsafe partial class SDL3
 	/// @returns the current value of an atomic variable.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAtomicInt
 	/// </summary>
@@ -167,7 +169,7 @@ public unsafe partial class SDL3
 	/// @returns the previous value of the atomic variable.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AtomicDecRef<br/>
 	/// @sa SDL_AtomicIncRef
@@ -186,7 +188,7 @@ public unsafe partial class SDL3
 	/// @returns true if the atomic variable was set, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAtomicU32<br/>
 	/// @sa SDL_SetAtomicU32
@@ -205,7 +207,7 @@ public unsafe partial class SDL3
 	/// @returns the previous value of the atomic variable.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAtomicU32
 	/// </summary>
@@ -221,7 +223,7 @@ public unsafe partial class SDL3
 	/// @returns the current value of an atomic variable.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAtomicU32
 	/// </summary>
@@ -239,7 +241,7 @@ public unsafe partial class SDL3
 	/// @returns true if the pointer was set, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CompareAndSwapAtomicInt<br/>
 	/// @sa SDL_GetAtomicPointer<br/>
@@ -258,7 +260,7 @@ public unsafe partial class SDL3
 	/// @returns the previous value of the pointer.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CompareAndSwapAtomicPointer<br/>
 	/// @sa SDL_GetAtomicPointer
@@ -275,13 +277,341 @@ public unsafe partial class SDL3
 	/// @returns the current value of a pointer.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CompareAndSwapAtomicPointer<br/>
 	/// @sa SDL_SetAtomicPointer
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAtomicPointer")]
 	public static partial nint SDL_GetAtomicPointer(nint a);
+
+	/// <summary>
+	/// Use this function to create a new SDL_AsyncIO object for reading from<br/>
+	/// and/or writing to a named file.<br/>
+	/// The `mode` string understands the following values:<br/>
+	/// - "r": Open a file for reading only. It must exist.<br/>
+	/// - "w": Open a file for writing only. It will create missing files or<br/>
+	/// truncate existing ones.<br/>
+	/// - "r+": Open a file for update both reading and writing. The file must<br/>
+	/// exist.<br/>
+	/// - "w+": Create an empty file for both reading and writing. If a file with<br/>
+	/// the same name already exists its content is erased and the file is<br/>
+	/// treated as a new empty file.<br/>
+	/// There is no "b" mode, as there is only "binary" style I/O, and no "a" mode<br/>
+	/// for appending, since you specify the position when starting a task.<br/>
+	/// This function supports Unicode filenames, but they must be encoded in UTF-8<br/>
+	/// format, regardless of the underlying operating system.<br/>
+	/// This call is _not_ asynchronous; it will open the file before returning,<br/>
+	/// under the assumption that doing so is generally a fast operation. Future<br/>
+	/// reads and writes to the opened file will be async, however.<br/>
+	/// <br/>
+	/// @param file a UTF-8 string representing the filename to open.<br/>
+	/// @param mode an ASCII string representing the mode to be used for opening<br/>
+	/// the file.<br/>
+	/// @returns a pointer to the SDL_AsyncIO structure that is created or NULL on<br/>
+	/// failure; call SDL_GetError() for more information.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CloseAsyncIO<br/>
+	/// @sa SDL_ReadAsyncIO<br/>
+	/// @sa SDL_WriteAsyncIO
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_AsyncIOFromFile")]
+	public static partial SDL_AsyncIO SDL_AsyncIOFromFile(byte* file, byte* mode);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_AsyncIOFromFile")]
+	public static partial SDL_AsyncIO SDL_AsyncIOFromFile(ReadOnlySpan<byte> file, ReadOnlySpan<byte> mode);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_AsyncIOFromFile")]
+	public static partial SDL_AsyncIO SDL_AsyncIOFromFile([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> file, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> mode);
+
+	/// <summary>
+	/// Use this function to get the size of the data stream in an SDL_AsyncIO.<br/>
+	/// This call is _not_ asynchronous; it assumes that obtaining this info is a<br/>
+	/// non-blocking operation in most reasonable cases.<br/>
+	/// <br/>
+	/// @param asyncio the SDL_AsyncIO to get the size of the data stream from.<br/>
+	/// @returns the size of the data stream in the SDL_IOStream on success or a<br/>
+	/// negative error code on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetAsyncIOSize")]
+	public static partial long SDL_GetAsyncIOSize(SDL_AsyncIO asyncio);
+
+	/// <summary>
+	/// Start an async read.<br/>
+	/// This function reads up to `size` bytes from `offset` position in the data<br/>
+	/// source to the area pointed at by `ptr`. This function may read less bytes<br/>
+	/// than requested.<br/>
+	/// This function returns as quickly as possible; it does not wait for the read<br/>
+	/// to complete. On a successful return, this work will continue in the<br/>
+	/// background. If the work begins, even failure is asynchronous: a failing<br/>
+	/// return value from this function only means the work couldn't start at all.<br/>
+	/// `ptr` must remain available until the work is done, and may be accessed by<br/>
+	/// the system at any time until then. Do not allocate it on the stack, as this<br/>
+	/// might take longer than the life of the calling function to complete!<br/>
+	/// An SDL_AsyncIOQueue must be specified. The newly-created task will be added<br/>
+	/// to it when it completes its work.<br/>
+	/// <br/>
+	/// @param asyncio a pointer to an SDL_AsyncIO structure.<br/>
+	/// @param ptr a pointer to a buffer to read data into.<br/>
+	/// @param offset the position to start reading in the data source.<br/>
+	/// @param size the number of bytes to read from the data source.<br/>
+	/// @param queue a queue to add the new SDL_AsyncIO to.<br/>
+	/// @param userdata an app-defined pointer that will be provided with the task<br/>
+	/// results.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_WriteAsyncIO<br/>
+	/// @sa SDL_CreateAsyncIOQueue
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_ReadAsyncIO")]
+	public static partial SDLBool SDL_ReadAsyncIO(SDL_AsyncIO asyncio, nint ptr, ulong offset, ulong size, SDL_AsyncIOQueue queue, nint userdata);
+
+	/// <summary>
+	/// Start an async write.<br/>
+	/// This function writes `size` bytes from `offset` position in the data source<br/>
+	/// to the area pointed at by `ptr`.<br/>
+	/// This function returns as quickly as possible; it does not wait for the<br/>
+	/// write to complete. On a successful return, this work will continue in the<br/>
+	/// background. If the work begins, even failure is asynchronous: a failing<br/>
+	/// return value from this function only means the work couldn't start at all.<br/>
+	/// `ptr` must remain available until the work is done, and may be accessed by<br/>
+	/// the system at any time until then. Do not allocate it on the stack, as this<br/>
+	/// might take longer than the life of the calling function to complete!<br/>
+	/// An SDL_AsyncIOQueue must be specified. The newly-created task will be added<br/>
+	/// to it when it completes its work.<br/>
+	/// <br/>
+	/// @param asyncio a pointer to an SDL_AsyncIO structure.<br/>
+	/// @param ptr a pointer to a buffer to write data from.<br/>
+	/// @param offset the position to start writing to the data source.<br/>
+	/// @param size the number of bytes to write to the data source.<br/>
+	/// @param queue a queue to add the new SDL_AsyncIO to.<br/>
+	/// @param userdata an app-defined pointer that will be provided with the task<br/>
+	/// results.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_ReadAsyncIO<br/>
+	/// @sa SDL_CreateAsyncIOQueue
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_WriteAsyncIO")]
+	public static partial SDLBool SDL_WriteAsyncIO(SDL_AsyncIO asyncio, nint ptr, ulong offset, ulong size, SDL_AsyncIOQueue queue, nint userdata);
+
+	/// <summary>
+	/// Close and free any allocated resources for an async I/O object.<br/>
+	/// Closing a file is _also_ an asynchronous task! If a write failure were to<br/>
+	/// happen during the closing process, for example, the task results will<br/>
+	/// report it as usual.<br/>
+	/// Closing a file that has been written to does not guarantee the data has<br/>
+	/// made it to physical media; it may remain in the operating system's file<br/>
+	/// cache, for later writing to disk. This means that a successfully-closed<br/>
+	/// file can be lost if the system crashes or loses power in this small window.<br/>
+	/// To prevent this, call this function with the `flush` parameter set to true.<br/>
+	/// This will make the operation take longer, and perhaps increase system load<br/>
+	/// in general, but a successful result guarantees that the data has made it to<br/>
+	/// physical storage. Don't use this for temporary files, caches, and<br/>
+	/// unimportant data, and definitely use it for crucial irreplaceable files,<br/>
+	/// like game saves.<br/>
+	/// This function guarantees that the close will happen after any other pending<br/>
+	/// tasks to `asyncio`, so it's safe to open a file, start several operations,<br/>
+	/// close the file immediately, then check for all results later. This function<br/>
+	/// will not block until the tasks have completed.<br/>
+	/// Once this function returns true, `asyncio` is no longer valid, regardless<br/>
+	/// of any future outcomes. Any completed tasks might still contain this<br/>
+	/// pointer in their SDL_AsyncIOOutcome data, in case the app was using this<br/>
+	/// value to track information, but it should not be used again.<br/>
+	/// If this function returns false, the close wasn't started at all, and it's<br/>
+	/// safe to attempt to close again later.<br/>
+	/// An SDL_AsyncIOQueue must be specified. The newly-created task will be added<br/>
+	/// to it when it completes its work.<br/>
+	/// <br/>
+	/// @param asyncio a pointer to an SDL_AsyncIO structure to close.<br/>
+	/// @param flush true if data should sync to disk before the task completes.<br/>
+	/// @param queue a queue to add the new SDL_AsyncIO to.<br/>
+	/// @param userdata an app-defined pointer that will be provided with the task<br/>
+	/// results.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety It is safe to call this function from any thread, but two<br/>
+	/// threads should not attempt to close the same object.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_CloseAsyncIO")]
+	public static partial SDLBool SDL_CloseAsyncIO(SDL_AsyncIO asyncio, SDLBool flush, SDL_AsyncIOQueue queue, nint userdata);
+
+	/// <summary>
+	/// Create a task queue for tracking multiple I/O operations.<br/>
+	/// Async I/O operations are assigned to a queue when started. The queue can be<br/>
+	/// checked for completed tasks thereafter.<br/>
+	/// <br/>
+	/// @returns a new task queue object or NULL if there was an error; call<br/>
+	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_DestroyAsyncIOQueue<br/>
+	/// @sa SDL_GetAsyncIOResult<br/>
+	/// @sa SDL_WaitAsyncIOResult
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_CreateAsyncIOQueue")]
+	public static partial SDL_AsyncIOQueue SDL_CreateAsyncIOQueue();
+
+	/// <summary>
+	/// Destroy a previously-created async I/O task queue.<br/>
+	/// If there are still tasks pending for this queue, this call will block until<br/>
+	/// those tasks are finished. All those tasks will be deallocated. Their<br/>
+	/// results will be lost to the app.<br/>
+	/// Any pending reads from SDL_LoadFileAsync() that are still in this queue<br/>
+	/// will have their buffers deallocated by this function, to prevent a memory<br/>
+	/// leak.<br/>
+	/// Once this function is called, the queue is no longer valid and should not<br/>
+	/// be used, including by other threads that might access it while destruction<br/>
+	/// is blocking on pending tasks.<br/>
+	/// Do not destroy a queue that still has threads waiting on it through<br/>
+	/// SDL_WaitAsyncIOResult(). You can call SDL_SignalAsyncIOQueue() first to<br/>
+	/// unblock those threads, and take measures (such as SDL_WaitThread()) to make<br/>
+	/// sure they have finished their wait and won't wait on the queue again.<br/>
+	/// <br/>
+	/// @param queue the task queue to destroy.<br/>
+	/// @threadsafety It is safe to call this function from any thread, so long as<br/>
+	/// no other thread is waiting on the queue with<br/>
+	/// SDL_WaitAsyncIOResult.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_DestroyAsyncIOQueue")]
+	public static partial void SDL_DestroyAsyncIOQueue(SDL_AsyncIOQueue queue);
+
+	/// <summary>
+	/// Query an async I/O task queue for completed tasks.<br/>
+	/// If a task assigned to this queue has finished, this will return true and<br/>
+	/// fill in `outcome` with the details of the task. If no task in the queue has<br/>
+	/// finished, this function will return false. This function does not block.<br/>
+	/// If a task has completed, this function will free its resources and the task<br/>
+	/// pointer will no longer be valid. The task will be removed from the queue.<br/>
+	/// It is safe for multiple threads to call this function on the same queue at<br/>
+	/// once; a completed task will only go to one of the threads.<br/>
+	/// <br/>
+	/// @param queue the async I/O task queue to query.<br/>
+	/// @param outcome details of a finished task will be written here. May not be<br/>
+	/// NULL.<br/>
+	/// @returns true if a task has completed, false otherwise.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_WaitAsyncIOResult
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetAsyncIOResult")]
+	public static partial SDLBool SDL_GetAsyncIOResult(SDL_AsyncIOQueue queue, SDL_AsyncIOOutcome* outcome);
+
+	/// <summary>
+	/// Block until an async I/O task queue has a completed task.<br/>
+	/// This function puts the calling thread to sleep until there a task assigned<br/>
+	/// to the queue that has finished.<br/>
+	/// If a task assigned to the queue has finished, this will return true and<br/>
+	/// fill in `outcome` with the details of the task. If no task in the queue has<br/>
+	/// finished, this function will return false.<br/>
+	/// If a task has completed, this function will free its resources and the task<br/>
+	/// pointer will no longer be valid. The task will be removed from the queue.<br/>
+	/// It is safe for multiple threads to call this function on the same queue at<br/>
+	/// once; a completed task will only go to one of the threads.<br/>
+	/// Note that by the nature of various platforms, more than one waiting thread<br/>
+	/// may wake to handle a single task, but only one will obtain it, so<br/>
+	/// `timeoutMS` is a _maximum_ wait time, and this function may return false<br/>
+	/// sooner.<br/>
+	/// This function may return false if there was a system error, the OS<br/>
+	/// inadvertently awoke multiple threads, or if SDL_SignalAsyncIOQueue() was<br/>
+	/// called to wake up all waiting threads without a finished task.<br/>
+	/// A timeout can be used to specify a maximum wait time, but rather than<br/>
+	/// polling, it is possible to have a timeout of -1 to wait forever, and use<br/>
+	/// SDL_SignalAsyncIOQueue() to wake up the waiting threads later.<br/>
+	/// <br/>
+	/// @param queue the async I/O task queue to wait on.<br/>
+	/// @param outcome details of a finished task will be written here. May not be<br/>
+	/// NULL.<br/>
+	/// @param timeoutMS the maximum time to wait, in milliseconds, or -1 to wait<br/>
+	/// indefinitely.<br/>
+	/// @returns true if task has completed, false otherwise.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_SignalAsyncIOQueue
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_WaitAsyncIOResult")]
+	public static partial SDLBool SDL_WaitAsyncIOResult(SDL_AsyncIOQueue queue, SDL_AsyncIOOutcome* outcome, int timeoutMS);
+
+	/// <summary>
+	/// Wake up any threads that are blocking in SDL_WaitAsyncIOResult().<br/>
+	/// This will unblock any threads that are sleeping in a call to<br/>
+	/// SDL_WaitAsyncIOResult for the specified queue, and cause them to return<br/>
+	/// from that function.<br/>
+	/// This can be useful when destroying a queue to make sure nothing is touching<br/>
+	/// it indefinitely. In this case, once this call completes, the caller should<br/>
+	/// take measures to make sure any previously-blocked threads have returned<br/>
+	/// from their wait and will not touch the queue again (perhaps by setting a<br/>
+	/// flag to tell the threads to terminate and then using SDL_WaitThread() to<br/>
+	/// make sure they've done so).<br/>
+	/// <br/>
+	/// @param queue the async I/O task queue to signal.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_WaitAsyncIOResult
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SignalAsyncIOQueue")]
+	public static partial void SDL_SignalAsyncIOQueue(SDL_AsyncIOQueue queue);
+
+	/// <summary>
+	/// Load all the data from a file path, asynchronously.<br/>
+	/// This function returns as quickly as possible; it does not wait for the read<br/>
+	/// to complete. On a successful return, this work will continue in the<br/>
+	/// background. If the work begins, even failure is asynchronous: a failing<br/>
+	/// return value from this function only means the work couldn't start at all.<br/>
+	/// The data is allocated with a zero byte at the end (null terminated) for<br/>
+	/// convenience. This extra byte is not included in SDL_AsyncIOOutcome's<br/>
+	/// bytes_transferred value.<br/>
+	/// This function will allocate the buffer to contain the file. It must be<br/>
+	/// deallocated by calling SDL_free() on SDL_AsyncIOOutcome's buffer field<br/>
+	/// after completion.<br/>
+	/// An SDL_AsyncIOQueue must be specified. The newly-created task will be added<br/>
+	/// to it when it completes its work.<br/>
+	/// <br/>
+	/// @param file the path to read all available data from.<br/>
+	/// @param queue a queue to add the new SDL_AsyncIO to.<br/>
+	/// @param userdata an app-defined pointer that will be provided with the task<br/>
+	/// results.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_LoadFile_IO
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_LoadFileAsync")]
+	public static partial SDLBool SDL_LoadFileAsync(byte* file, SDL_AsyncIOQueue queue, nint userdata);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_LoadFileAsync")]
+	public static partial SDLBool SDL_LoadFileAsync(ReadOnlySpan<byte> file, SDL_AsyncIOQueue queue, nint userdata);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_LoadFileAsync")]
+	public static partial SDLBool SDL_LoadFileAsync([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> file, SDL_AsyncIOQueue queue, nint userdata);
 
 	/// <summary>
 	/// Use this function to get the number of built-in audio drivers.<br/>
@@ -297,7 +627,7 @@ public unsafe partial class SDL3
 	/// @returns the number of built-in audio drivers.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioDriver
 	/// </summary>
@@ -319,7 +649,7 @@ public unsafe partial class SDL3
 	/// invalid index was specified.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumAudioDrivers
 	/// </summary>
@@ -341,7 +671,7 @@ public unsafe partial class SDL3
 	/// initialized.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetCurrentAudioDriver")]
 	public static partial byte* SDL_GetCurrentAudioDriverPtr();
@@ -369,7 +699,7 @@ public unsafe partial class SDL3
 	/// SDL_free() when it is no longer needed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenAudioDevice<br/>
 	/// @sa SDL_GetAudioRecordingDevices
@@ -395,7 +725,7 @@ public unsafe partial class SDL3
 	/// with SDL_free() when it is no longer needed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenAudioDevice<br/>
 	/// @sa SDL_GetAudioPlaybackDevices
@@ -411,11 +741,10 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioPlaybackDevices<br/>
-	/// @sa SDL_GetAudioRecordingDevices<br/>
-	/// @sa SDL_GetDefaultAudioInfo
+	/// @sa SDL_GetAudioRecordingDevices
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAudioDeviceName")]
 	public static partial byte* SDL_GetAudioDeviceNamePtr(SDL_AudioDeviceID devid);
@@ -450,7 +779,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAudioDeviceFormat")]
 	public static partial SDLBool SDL_GetAudioDeviceFormat(SDL_AudioDeviceID devid, SDL_AudioSpec* spec, int* sample_frames);
@@ -469,7 +798,7 @@ public unsafe partial class SDL3
 	/// should be freed with SDL_free() when it is no longer needed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamInputChannelMap
 	/// </summary>
@@ -535,13 +864,48 @@ public unsafe partial class SDL3
 	/// more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseAudioDevice<br/>
 	/// @sa SDL_GetAudioDeviceFormat
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OpenAudioDevice")]
 	public static partial SDL_AudioDeviceID SDL_OpenAudioDevice(SDL_AudioDeviceID devid, SDL_AudioSpec* spec);
+
+	/// <summary>
+	/// Determine if an audio device is physical (instead of logical).<br/>
+	/// An SDL_AudioDeviceID that represents physical hardware is a physical<br/>
+	/// device; there is one for each piece of hardware that SDL can see. Logical<br/>
+	/// devices are created by calling SDL_OpenAudioDevice or<br/>
+	/// SDL_OpenAudioDeviceStream, and while each is associated with a physical<br/>
+	/// device, there can be any number of logical devices on one physical device.<br/>
+	/// For the most part, logical and physical IDs are interchangeable--if you try<br/>
+	/// to open a logical device, SDL understands to assign that effort to the<br/>
+	/// underlying physical device, etc. However, it might be useful to know if an<br/>
+	/// arbitrary device ID is physical or logical. This function reports which.<br/>
+	/// This function may return either true or false for invalid device IDs.<br/>
+	/// <br/>
+	/// @param devid the device ID to query.<br/>
+	/// @returns true if devid is a physical device, false if it is logical.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_IsAudioDevicePhysical")]
+	public static partial SDLBool SDL_IsAudioDevicePhysical(SDL_AudioDeviceID devid);
+
+	/// <summary>
+	/// Determine if an audio device is a playback device (instead of recording).<br/>
+	/// This function may return either true or false for invalid device IDs.<br/>
+	/// <br/>
+	/// @param devid the device ID to query.<br/>
+	/// @returns true if devid is a playback device, false if it is recording.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_IsAudioDevicePlayback")]
+	public static partial SDLBool SDL_IsAudioDevicePlayback(SDL_AudioDeviceID devid);
 
 	/// <summary>
 	/// Use this function to pause audio playback on a specified device.<br/>
@@ -557,18 +921,18 @@ public unsafe partial class SDL3
 	/// Physical devices can not be paused or unpaused, only logical devices<br/>
 	/// created through SDL_OpenAudioDevice() can be.<br/>
 	/// <br/>
-	/// @param dev a device opened by SDL_OpenAudioDevice().<br/>
+	/// @param devid a device opened by SDL_OpenAudioDevice().<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ResumeAudioDevice<br/>
 	/// @sa SDL_AudioDevicePaused
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PauseAudioDevice")]
-	public static partial SDLBool SDL_PauseAudioDevice(SDL_AudioDeviceID dev);
+	public static partial SDLBool SDL_PauseAudioDevice(SDL_AudioDeviceID devid);
 
 	/// <summary>
 	/// Use this function to unpause audio playback on a specified device.<br/>
@@ -582,18 +946,18 @@ public unsafe partial class SDL3
 	/// Physical devices can not be paused or unpaused, only logical devices<br/>
 	/// created through SDL_OpenAudioDevice() can be.<br/>
 	/// <br/>
-	/// @param dev a device opened by SDL_OpenAudioDevice().<br/>
+	/// @param devid a device opened by SDL_OpenAudioDevice().<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AudioDevicePaused<br/>
 	/// @sa SDL_PauseAudioDevice
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ResumeAudioDevice")]
-	public static partial SDLBool SDL_ResumeAudioDevice(SDL_AudioDeviceID dev);
+	public static partial SDLBool SDL_ResumeAudioDevice(SDL_AudioDeviceID devid);
 
 	/// <summary>
 	/// Use this function to query if an audio device is paused.<br/>
@@ -603,17 +967,17 @@ public unsafe partial class SDL3
 	/// created through SDL_OpenAudioDevice() can be. Physical and invalid device<br/>
 	/// IDs will report themselves as unpaused here.<br/>
 	/// <br/>
-	/// @param dev a device opened by SDL_OpenAudioDevice().<br/>
+	/// @param devid a device opened by SDL_OpenAudioDevice().<br/>
 	/// @returns true if device is valid and paused, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PauseAudioDevice<br/>
 	/// @sa SDL_ResumeAudioDevice
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_AudioDevicePaused")]
-	public static partial SDLBool SDL_AudioDevicePaused(SDL_AudioDeviceID dev);
+	public static partial SDLBool SDL_AudioDevicePaused(SDL_AudioDeviceID devid);
 
 	/// <summary>
 	/// Get the gain of an audio device.<br/>
@@ -628,7 +992,7 @@ public unsafe partial class SDL3
 	/// for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioDeviceGain
 	/// </summary>
@@ -659,7 +1023,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioDeviceGain
 	/// </summary>
@@ -678,7 +1042,7 @@ public unsafe partial class SDL3
 	/// SDL_OpenAudioDevice().<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenAudioDevice
 	/// </summary>
@@ -700,7 +1064,7 @@ public unsafe partial class SDL3
 	/// Binding a stream to a device will set its output format for playback<br/>
 	/// devices, and its input format for recording devices, so they match the<br/>
 	/// device's settings. The caller is welcome to change the other end of the<br/>
-	/// stream's format at any time.<br/>
+	/// stream's format at any time with SDL_SetAudioStreamFormat().<br/>
 	/// <br/>
 	/// @param devid an audio device to bind a stream to.<br/>
 	/// @param streams an array of audio streams to bind.<br/>
@@ -709,14 +1073,14 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BindAudioStreams<br/>
 	/// @sa SDL_UnbindAudioStream<br/>
 	/// @sa SDL_GetAudioStreamDevice
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindAudioStreams")]
-	public static partial SDLBool SDL_BindAudioStreams(SDL_AudioDeviceID devid, SDL_AudioStream streams, int num_streams);
+	public static partial SDLBool SDL_BindAudioStreams(SDL_AudioDeviceID devid, SDL_AudioStream** streams, int num_streams);
 
 	/// <summary>
 	/// Bind a single audio stream to an audio device.<br/>
@@ -731,7 +1095,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BindAudioStreams<br/>
 	/// @sa SDL_UnbindAudioStream<br/>
@@ -747,16 +1111,17 @@ public unsafe partial class SDL3
 	/// flowing through all unbound streams on the same device at the same time).<br/>
 	/// Unbinding a stream that isn't bound to a device is a legal no-op.<br/>
 	/// <br/>
-	/// @param streams an array of audio streams to unbind.<br/>
+	/// @param streams an array of audio streams to unbind. Can be NULL or contain<br/>
+	/// NULL.<br/>
 	/// @param num_streams number streams listed in the `streams` array.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BindAudioStreams
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UnbindAudioStreams")]
-	public static partial void SDL_UnbindAudioStreams(SDL_AudioStream streams, int num_streams);
+	public static partial void SDL_UnbindAudioStreams(SDL_AudioStream** streams, int num_streams);
 
 	/// <summary>
 	/// Unbind a single audio stream from its audio device.<br/>
@@ -765,10 +1130,10 @@ public unsafe partial class SDL3
 	/// &stream<br/>
 	/// , 1)`.<br/>
 	/// <br/>
-	/// @param stream an audio stream to unbind from a device.<br/>
+	/// @param stream an audio stream to unbind from a device. Can be NULL.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BindAudioStream
 	/// </summary>
@@ -785,7 +1150,7 @@ public unsafe partial class SDL3
 	/// @returns the bound audio device, or 0 if not bound or invalid.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BindAudioStream<br/>
 	/// @sa SDL_BindAudioStreams
@@ -802,7 +1167,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PutAudioStreamData<br/>
 	/// @sa SDL_GetAudioStreamData<br/>
@@ -821,8 +1186,9 @@ public unsafe partial class SDL3
 	/// @param stream the SDL_AudioStream to query.<br/>
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAudioStreamProperties")]
 	public static partial SDL_PropertiesID SDL_GetAudioStreamProperties(SDL_AudioStream stream);
@@ -838,7 +1204,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamFormat
 	/// </summary>
@@ -855,6 +1221,11 @@ public unsafe partial class SDL3
 	/// the end of a sound file in one format to a stream, change formats for the<br/>
 	/// next sound file, and start putting that new data while the previous sound<br/>
 	/// file is still queued, and everything will still play back correctly.<br/>
+	/// If a stream is bound to a device, then the format of the side of the stream<br/>
+	/// bound to a device cannot be changed (src_spec for recording devices,<br/>
+	/// dst_spec for playback devices). Attempts to make a change to this side will<br/>
+	/// be ignored, but this will not report an error. The other side's format can<br/>
+	/// be changed.<br/>
 	/// <br/>
 	/// @param stream the stream the format is being changed.<br/>
 	/// @param src_spec the new format of the audio input; if NULL, it is not<br/>
@@ -866,7 +1237,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioStreamFormat<br/>
 	/// @sa SDL_SetAudioStreamFrequencyRatio
@@ -883,7 +1254,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamFrequencyRatio
 	/// </summary>
@@ -908,7 +1279,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioStreamFrequencyRatio<br/>
 	/// @sa SDL_SetAudioStreamFormat
@@ -928,7 +1299,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamGain
 	/// </summary>
@@ -950,7 +1321,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioStreamGain
 	/// </summary>
@@ -972,7 +1343,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamInputChannelMap
 	/// </summary>
@@ -994,7 +1365,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as it holds<br/>
 	/// a stream-specific mutex while running.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamInputChannelMap
 	/// </summary>
@@ -1012,8 +1383,11 @@ public unsafe partial class SDL3
 	/// channel that it should be remapped to. To reverse a stereo signal's left<br/>
 	/// and right values, you'd have an array of `{ 1, 0 }`. It is legal to remap<br/>
 	/// multiple channels to the same thing, so `{ 1, 1 }` would duplicate the<br/>
-	/// right channel to both channels of a stereo signal. You cannot change the<br/>
-	/// number of channels through a channel map, just reorder them.<br/>
+	/// right channel to both channels of a stereo signal. An element in the<br/>
+	/// channel map set to -1 instead of a valid channel will mute that channel,<br/>
+	/// setting it to a silence value.<br/>
+	/// You cannot change the number of channels through a channel map, just<br/>
+	/// reorder/mute them.<br/>
 	/// Data that was previously queued in the stream will still be operated on in<br/>
 	/// the order that was current when it was added, which is to say you can put<br/>
 	/// the end of a sound file in one order to a stream, change orders for the<br/>
@@ -1024,9 +1398,13 @@ public unsafe partial class SDL3
 	/// SDL will copy the channel map; the caller does not have to save this array<br/>
 	/// after this call.<br/>
 	/// If `count` is not equal to the current number of channels in the audio<br/>
-	/// stream's format, this will fail. This is a safety measure to make sure a a<br/>
-	/// race condition hasn't changed the format while you this call is setting the<br/>
+	/// stream's format, this will fail. This is a safety measure to make sure a<br/>
+	/// race condition hasn't changed the format while this call is setting the<br/>
 	/// channel map.<br/>
+	/// Unlike attempting to change the stream's format, the input channel map on a<br/>
+	/// stream bound to a recording device is permitted to change at any time; any<br/>
+	/// data added to the stream from the device after this call will have the new<br/>
+	/// mapping, but previously-added data will still have the prior mapping.<br/>
 	/// <br/>
 	/// @param stream the SDL_AudioStream to change.<br/>
 	/// @param chmap the new channel map, NULL to reset to default.<br/>
@@ -1038,7 +1416,7 @@ public unsafe partial class SDL3
 	/// stream's format to have a different number of channels from a<br/>
 	/// a different thread at the same time, though!<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamInputChannelMap
 	/// </summary>
@@ -1051,12 +1429,15 @@ public unsafe partial class SDL3
 	/// data in the [order that SDL expects](CategoryAudio#channel-layouts).<br/>
 	/// The output channel map reorders data that leaving a stream via<br/>
 	/// SDL_GetAudioStreamData.<br/>
-	/// Each item in the array represents an output channel, and its value is the<br/>
+	/// Each item in the array represents an input channel, and its value is the<br/>
 	/// channel that it should be remapped to. To reverse a stereo signal's left<br/>
 	/// and right values, you'd have an array of `{ 1, 0 }`. It is legal to remap<br/>
 	/// multiple channels to the same thing, so `{ 1, 1 }` would duplicate the<br/>
-	/// right channel to both channels of a stereo signal. You cannot change the<br/>
-	/// number of channels through a channel map, just reorder them.<br/>
+	/// right channel to both channels of a stereo signal. An element in the<br/>
+	/// channel map set to -1 instead of a valid channel will mute that channel,<br/>
+	/// setting it to a silence value.<br/>
+	/// You cannot change the number of channels through a channel map, just<br/>
+	/// reorder/mute them.<br/>
 	/// The output channel map can be changed at any time, as output remapping is<br/>
 	/// applied during SDL_GetAudioStreamData.<br/>
 	/// Audio streams default to no remapping applied. Passing a NULL channel map<br/>
@@ -1064,9 +1445,15 @@ public unsafe partial class SDL3
 	/// SDL will copy the channel map; the caller does not have to save this array<br/>
 	/// after this call.<br/>
 	/// If `count` is not equal to the current number of channels in the audio<br/>
-	/// stream's format, this will fail. This is a safety measure to make sure a a<br/>
-	/// race condition hasn't changed the format while you this call is setting the<br/>
+	/// stream's format, this will fail. This is a safety measure to make sure a<br/>
+	/// race condition hasn't changed the format while this call is setting the<br/>
 	/// channel map.<br/>
+	/// Unlike attempting to change the stream's format, the output channel map on<br/>
+	/// a stream bound to a recording device is permitted to change at any time;<br/>
+	/// any data added to the stream after this call will have the new mapping, but<br/>
+	/// previously-added data will still have the prior mapping. When the channel<br/>
+	/// map doesn't match the hardware's channel layout, SDL will convert the data<br/>
+	/// before feeding it to the device for playback.<br/>
 	/// <br/>
 	/// @param stream the SDL_AudioStream to change.<br/>
 	/// @param chmap the new channel map, NULL to reset to default.<br/>
@@ -1078,7 +1465,7 @@ public unsafe partial class SDL3
 	/// stream's format to have a different number of channels from a<br/>
 	/// a different thread at the same time, though!<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamInputChannelMap
 	/// </summary>
@@ -1103,7 +1490,7 @@ public unsafe partial class SDL3
 	/// stream has a callback set, the caller might need to manage<br/>
 	/// extra locking.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClearAudioStream<br/>
 	/// @sa SDL_FlushAudioStream<br/>
@@ -1132,7 +1519,7 @@ public unsafe partial class SDL3
 	/// stream has a callback set, the caller might need to manage<br/>
 	/// extra locking.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClearAudioStream<br/>
 	/// @sa SDL_GetAudioStreamAvailable<br/>
@@ -1157,7 +1544,7 @@ public unsafe partial class SDL3
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioStreamData<br/>
 	/// @sa SDL_PutAudioStreamData
@@ -1191,7 +1578,7 @@ public unsafe partial class SDL3
 	/// for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PutAudioStreamData<br/>
 	/// @sa SDL_ClearAudioStream
@@ -1211,7 +1598,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PutAudioStreamData
 	/// </summary>
@@ -1228,7 +1615,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioStreamAvailable<br/>
 	/// @sa SDL_GetAudioStreamData<br/>
@@ -1253,7 +1640,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ResumeAudioStreamDevice
 	/// </summary>
@@ -1266,18 +1653,38 @@ public unsafe partial class SDL3
 	/// This function unpauses audio processing for a given device that has<br/>
 	/// previously been paused. Once unpaused, any bound audio streams will begin<br/>
 	/// to progress again, and audio can be generated.<br/>
+	/// Remember, SDL_OpenAudioDeviceStream opens device in a paused state, so this<br/>
+	/// function call is required for audio playback to begin on such device.<br/>
 	/// <br/>
 	/// @param stream the audio stream associated with the audio device to resume.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PauseAudioStreamDevice
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ResumeAudioStreamDevice")]
 	public static partial SDLBool SDL_ResumeAudioStreamDevice(SDL_AudioStream stream);
+
+	/// <summary>
+	/// Use this function to query if an audio device associated with a stream is<br/>
+	/// paused.<br/>
+	/// Unlike in SDL2, audio devices start in an _unpaused_ state, since an app<br/>
+	/// has to bind a stream before any audio will flow.<br/>
+	/// <br/>
+	/// @param stream the audio stream associated with the audio device to query.<br/>
+	/// @returns true if device is valid and paused, false otherwise.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_PauseAudioStreamDevice<br/>
+	/// @sa SDL_ResumeAudioStreamDevice
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_AudioStreamDevicePaused")]
+	public static partial SDLBool SDL_AudioStreamDevicePaused(SDL_AudioStream stream);
 
 	/// <summary>
 	/// Lock an audio stream for serialized access.<br/>
@@ -1297,7 +1704,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UnlockAudioStream
 	/// </summary>
@@ -1314,7 +1721,7 @@ public unsafe partial class SDL3
 	/// @threadsafety You should only call this from the same thread that<br/>
 	/// previously called SDL_LockAudioStream.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockAudioStream
 	/// </summary>
@@ -1353,7 +1760,7 @@ public unsafe partial class SDL3
 	/// information. This only fails if `stream` is NULL.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamPutCallback
 	/// </summary>
@@ -1394,7 +1801,7 @@ public unsafe partial class SDL3
 	/// information. This only fails if `stream` is NULL.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAudioStreamGetCallback
 	/// </summary>
@@ -1413,7 +1820,7 @@ public unsafe partial class SDL3
 	/// @param stream the audio stream to destroy.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateAudioStream
 	/// </summary>
@@ -1465,7 +1872,7 @@ public unsafe partial class SDL3
 	/// device.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAudioStreamDevice<br/>
 	/// @sa SDL_ResumeAudioStreamDevice
@@ -1513,7 +1920,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetAudioPostmixCallback")]
 	public static partial SDLBool SDL_SetAudioPostmixCallback(SDL_AudioDeviceID devid, delegate* unmanaged[Cdecl]<nint, SDL_AudioSpec*, float*, int, void> callback, nint userdata);
@@ -1550,7 +1957,7 @@ public unsafe partial class SDL3
 	/// It is required that the data source supports seeking.<br/>
 	/// Example:<br/>
 	/// ```c<br/>
-	/// SDL_LoadWAV_IO(SDL_IOFromFile("sample.wav", "rb"), 1,<br/>
+	/// SDL_LoadWAV_IO(SDL_IOFromFile("sample.wav", "rb"), true,<br/>
 	/// &spec<br/>
 	/// ,<br/>
 	/// &buf<br/>
@@ -1589,7 +1996,7 @@ public unsafe partial class SDL3
 	/// `audio_buf`, it should call SDL_free() to dispose of it.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_free<br/>
 	/// @sa SDL_LoadWAV
@@ -1621,7 +2028,7 @@ public unsafe partial class SDL3
 	/// `audio_buf`, it should call SDL_free() to dispose of it.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_free<br/>
 	/// @sa SDL_LoadWAV_IO
@@ -1662,7 +2069,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_MixAudio")]
 	public static partial SDLBool SDL_MixAudio(byte* dst, byte* src, SDL_AudioFormat format, uint len, float volume);
@@ -1690,7 +2097,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ConvertAudioSamples")]
 	public static partial SDLBool SDL_ConvertAudioSamples(SDL_AudioSpec* src_spec, byte* src_data, int src_len, SDL_AudioSpec* dst_spec, byte** dst_data, int* dst_len);
@@ -1703,7 +2110,7 @@ public unsafe partial class SDL3
 	/// "SDL_AUDIO_UNKNOWN" if the format isn't recognized.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAudioFormatName")]
 	public static partial byte* SDL_GetAudioFormatNamePtr(SDL_AudioFormat format);
@@ -1723,7 +2130,7 @@ public unsafe partial class SDL3
 	/// @returns a byte value that can be passed to memset.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSilenceValueForFormat")]
 	public static partial int SDL_GetSilenceValueForFormat(SDL_AudioFormat format);
@@ -1793,8 +2200,9 @@ public unsafe partial class SDL3
 	/// component of the source and destination pixels.<br/>
 	/// @returns an SDL_BlendMode that represents the chosen factors and<br/>
 	/// operations.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderDrawBlendMode<br/>
 	/// @sa SDL_GetRenderDrawBlendMode<br/>
@@ -1818,7 +2226,7 @@ public unsafe partial class SDL3
 	/// @returns the number of built-in camera drivers.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCameraDriver
 	/// </summary>
@@ -1840,7 +2248,7 @@ public unsafe partial class SDL3
 	/// an invalid index was specified.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumCameraDrivers
 	/// </summary>
@@ -1862,7 +2270,7 @@ public unsafe partial class SDL3
 	/// been initialized.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetCurrentCameraDriver")]
 	public static partial byte* SDL_GetCurrentCameraDriverPtr();
@@ -1882,7 +2290,7 @@ public unsafe partial class SDL3
 	/// with SDL_free() when it is no longer needed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenCamera
 	/// </summary>
@@ -1907,7 +2315,7 @@ public unsafe partial class SDL3
 	/// there _is_ a camera until the user has given you permission to check<br/>
 	/// through a scary warning popup.<br/>
 	/// <br/>
-	/// @param devid the camera device instance ID to query.<br/>
+	/// @param instance_id the camera device instance ID.<br/>
 	/// @param count a pointer filled in with the number of elements in the list,<br/>
 	/// may be NULL.<br/>
 	/// @returns a NULL terminated array of pointers to SDL_CameraSpec or NULL on<br/>
@@ -1916,13 +2324,13 @@ public unsafe partial class SDL3
 	/// no longer needed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCameras<br/>
 	/// @sa SDL_OpenCamera
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetCameraSupportedFormats")]
-	public static partial SDL_CameraSpec** SDL_GetCameraSupportedFormats(SDL_CameraID devid, out int count);
+	public static partial SDL_CameraSpec** SDL_GetCameraSupportedFormats(SDL_CameraID instance_id, out int count);
 
 	/// <summary>
 	/// Get the human-readable device name for a camera.<br/>
@@ -1932,7 +2340,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCameras
 	/// </summary>
@@ -1955,7 +2363,7 @@ public unsafe partial class SDL3
 	/// @returns the position of the camera on the system hardware.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCameras
 	/// </summary>
@@ -1972,7 +2380,7 @@ public unsafe partial class SDL3
 	/// SDL_Surface's conversion/scaling functions directly if necessary).<br/>
 	/// You can call SDL_GetCameraFormat() to get the actual data format if passing<br/>
 	/// a NULL spec here. You can see the exact specs a device can support without<br/>
-	/// conversion with SDL_GetCameraSupportedSpecs().<br/>
+	/// conversion with SDL_GetCameraSupportedFormats().<br/>
 	/// SDL will not attempt to emulate framerate; it will try to set the hardware<br/>
 	/// to the rate closest to the requested speed, but it won't attempt to limit<br/>
 	/// or duplicate frames artificially; call SDL_GetCameraFormat() to see the<br/>
@@ -1983,10 +2391,11 @@ public unsafe partial class SDL3
 	/// the camera, and they can choose Yes or No at that point. Until they do, the<br/>
 	/// camera will not be usable. The app should either wait for an<br/>
 	/// SDL_EVENT_CAMERA_DEVICE_APPROVED (or SDL_EVENT_CAMERA_DEVICE_DENIED) event,<br/>
-	/// or poll SDL_IsCameraApproved() occasionally until it returns non-zero. On<br/>
-	/// platforms that don't require explicit user approval (and perhaps in places<br/>
-	/// where the user previously permitted access), the approval event might come<br/>
-	/// immediately, but it might come seconds, minutes, or hours later!<br/>
+	/// or poll SDL_GetCameraPermissionState() occasionally until it returns<br/>
+	/// non-zero. On platforms that don't require explicit user approval (and<br/>
+	/// perhaps in places where the user previously permitted access), the approval<br/>
+	/// event might come immediately, but it might come seconds, minutes, or hours<br/>
+	/// later!<br/>
 	/// <br/>
 	/// @param instance_id the camera device instance ID.<br/>
 	/// @param spec the desired format for data the device will provide. Can be<br/>
@@ -1995,7 +2404,7 @@ public unsafe partial class SDL3
 	/// more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCameras<br/>
 	/// @sa SDL_GetCameraFormat
@@ -2024,7 +2433,7 @@ public unsafe partial class SDL3
 	/// 0 if no decision has been made yet.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenCamera<br/>
 	/// @sa SDL_CloseCamera
@@ -2040,7 +2449,7 @@ public unsafe partial class SDL3
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenCamera
 	/// </summary>
@@ -2055,7 +2464,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetCameraProperties")]
 	public static partial SDL_PropertiesID SDL_GetCameraProperties(SDL_Camera camera);
@@ -2068,7 +2477,8 @@ public unsafe partial class SDL3
 	/// some platforms require, this will return false, but this isn't necessarily<br/>
 	/// a fatal error; you should either wait for an<br/>
 	/// SDL_EVENT_CAMERA_DEVICE_APPROVED (or SDL_EVENT_CAMERA_DEVICE_DENIED) event,<br/>
-	/// or poll SDL_IsCameraApproved() occasionally until it returns non-zero.<br/>
+	/// or poll SDL_GetCameraPermissionState() occasionally until it returns<br/>
+	/// non-zero.<br/>
 	/// <br/>
 	/// @param camera opened camera device.<br/>
 	/// @param spec the SDL_CameraSpec to be initialized by this function.<br/>
@@ -2076,7 +2486,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenCamera
 	/// </summary>
@@ -2098,13 +2508,13 @@ public unsafe partial class SDL3
 	/// of memory condition.<br/>
 	/// After use, the frame should be released with SDL_ReleaseCameraFrame(). If<br/>
 	/// you don't do this, the system may stop providing more video!<br/>
-	/// Do not call SDL_FreeSurface() on the returned surface! It must be given<br/>
+	/// Do not call SDL_DestroySurface() on the returned surface! It must be given<br/>
 	/// back to the camera subsystem with SDL_ReleaseCameraFrame!<br/>
 	/// If the system is waiting for the user to approve access to the camera, as<br/>
 	/// some platforms require, this will return NULL (no frames available); you<br/>
 	/// should either wait for an SDL_EVENT_CAMERA_DEVICE_APPROVED (or<br/>
-	/// SDL_EVENT_CAMERA_DEVICE_DENIED) event, or poll SDL_IsCameraApproved()<br/>
-	/// occasionally until it returns non-zero.<br/>
+	/// SDL_EVENT_CAMERA_DEVICE_DENIED) event, or poll<br/>
+	/// SDL_GetCameraPermissionState() occasionally until it returns non-zero.<br/>
 	/// <br/>
 	/// @param camera opened camera device.<br/>
 	/// @param timestampNS a pointer filled in with the frame's timestamp, or 0 on<br/>
@@ -2113,7 +2523,7 @@ public unsafe partial class SDL3
 	/// available.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ReleaseCameraFrame
 	/// </summary>
@@ -2137,7 +2547,7 @@ public unsafe partial class SDL3
 	/// @param frame the video frame surface to release.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AcquireCameraFrame
 	/// </summary>
@@ -2152,9 +2562,8 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, but no<br/>
 	/// thread may reference `device` once this function is called.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_OpenCameraWithSpec<br/>
 	/// @sa SDL_OpenCamera
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CloseCamera")]
@@ -2166,8 +2575,9 @@ public unsafe partial class SDL3
 	/// @param text the text to store in the clipboard.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetClipboardText<br/>
 	/// @sa SDL_HasClipboardText
@@ -2183,14 +2593,15 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Get UTF-8 text from the clipboard.<br/>
-	/// This functions returns empty string if there was not enough memory left for<br/>
-	/// a copy of the clipboard's content.<br/>
+	/// This functions returns an empty string if there was not enough memory left<br/>
+	/// for a copy of the clipboard's content.<br/>
 	/// <br/>
 	/// @returns the clipboard text on success or an empty string on failure; call<br/>
 	/// SDL_GetError() for more information. This should be freed with<br/>
 	/// SDL_free() when it is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasClipboardText<br/>
 	/// @sa SDL_SetClipboardText
@@ -2210,8 +2621,9 @@ public unsafe partial class SDL3
 	/// Query whether the clipboard exists and contains a non-empty text string.<br/>
 	/// <br/>
 	/// @returns true if the clipboard has text, or false if it does not.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetClipboardText<br/>
 	/// @sa SDL_SetClipboardText
@@ -2225,8 +2637,9 @@ public unsafe partial class SDL3
 	/// @param text the text to store in the primary selection.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPrimarySelectionText<br/>
 	/// @sa SDL_HasPrimarySelectionText
@@ -2242,14 +2655,15 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Get UTF-8 text from the primary selection.<br/>
-	/// This functions returns empty string if there was not enough memory left for<br/>
-	/// a copy of the primary selection's content.<br/>
+	/// This functions returns an empty string if there was not enough memory left<br/>
+	/// for a copy of the primary selection's content.<br/>
 	/// <br/>
 	/// @returns the primary selection text on success or an empty string on<br/>
 	/// failure; call SDL_GetError() for more information. This should be<br/>
 	/// freed with SDL_free() when it is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasPrimarySelectionText<br/>
 	/// @sa SDL_SetPrimarySelectionText
@@ -2270,8 +2684,9 @@ public unsafe partial class SDL3
 	/// string.<br/>
 	/// <br/>
 	/// @returns true if the primary selection has text, or false if it does not.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPrimarySelectionText<br/>
 	/// @sa SDL_SetPrimarySelectionText
@@ -2282,12 +2697,12 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Offer clipboard data to the OS.<br/>
 	/// Tell the operating system that the application is offering clipboard data<br/>
-	/// for each of the proivded mime-types. Once another application requests the<br/>
-	/// data the callback function will be called allowing it to generate and<br/>
+	/// for each of the provided mime-types. Once another application requests the<br/>
+	/// data the callback function will be called, allowing it to generate and<br/>
 	/// respond with the data for the requested mime-type.<br/>
 	/// The size of text data does not include any terminator, and the text does<br/>
 	/// not need to be null terminated (e.g. you can directly copy a portion of a<br/>
-	/// document)<br/>
+	/// document).<br/>
 	/// <br/>
 	/// @param callback a function pointer to the function that provides the<br/>
 	/// clipboard data.<br/>
@@ -2298,8 +2713,9 @@ public unsafe partial class SDL3
 	/// @param num_mime_types the number of mime-types in the mime_types list.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClearClipboardData<br/>
 	/// @sa SDL_GetClipboardData<br/>
@@ -2313,8 +2729,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetClipboardData
 	/// </summary>
@@ -2331,8 +2748,9 @@ public unsafe partial class SDL3
 	/// @returns the retrieved data buffer or NULL on failure; call SDL_GetError()<br/>
 	/// for more information. This should be freed with SDL_free() when it<br/>
 	/// is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasClipboardData<br/>
 	/// @sa SDL_SetClipboardData
@@ -2352,8 +2770,9 @@ public unsafe partial class SDL3
 	/// @param mime_type the mime type to check for data for.<br/>
 	/// @returns true if there exists data in clipboard for the provided mime type,<br/>
 	/// false if it does not.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetClipboardData<br/>
 	/// @sa SDL_GetClipboardData
@@ -2375,8 +2794,9 @@ public unsafe partial class SDL3
 	/// @returns a null terminated array of strings with mime types, or NULL on<br/>
 	/// failure; call SDL_GetError() for more information. This should be<br/>
 	/// freed with SDL_free() when it is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetClipboardData
 	/// </summary>
@@ -2389,8 +2809,9 @@ public unsafe partial class SDL3
 	/// @returns the total number of logical CPU cores. On CPUs that include<br/>
 	/// technologies such as hyperthreading, the number of logical cores<br/>
 	/// may be more than the number of physical cores.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetNumLogicalCPUCores")]
 	public static partial int SDL_GetNumLogicalCPUCores();
@@ -2401,8 +2822,9 @@ public unsafe partial class SDL3
 	/// prefetch sizes.<br/>
 	/// <br/>
 	/// @returns the L1 cache line size of the CPU, in bytes.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetCPUCacheLineSize")]
 	public static partial int SDL_GetCPUCacheLineSize();
@@ -2413,8 +2835,9 @@ public unsafe partial class SDL3
 	/// sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has AltiVec features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_HasAltiVec")]
 	public static partial SDLBool SDL_HasAltiVec();
@@ -2424,8 +2847,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has MMX features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_HasMMX")]
 	public static partial SDLBool SDL_HasMMX();
@@ -2435,8 +2859,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has SSE features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasSSE2<br/>
 	/// @sa SDL_HasSSE3<br/>
@@ -2451,8 +2876,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has SSE2 features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasSSE<br/>
 	/// @sa SDL_HasSSE3<br/>
@@ -2467,8 +2893,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has SSE3 features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasSSE<br/>
 	/// @sa SDL_HasSSE2<br/>
@@ -2483,8 +2910,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has SSE4.1 features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasSSE<br/>
 	/// @sa SDL_HasSSE2<br/>
@@ -2499,8 +2927,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has SSE4.2 features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasSSE<br/>
 	/// @sa SDL_HasSSE2<br/>
@@ -2515,8 +2944,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has AVX features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasAVX2<br/>
 	/// @sa SDL_HasAVX512F
@@ -2529,8 +2959,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has AVX2 features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasAVX<br/>
 	/// @sa SDL_HasAVX512F
@@ -2543,8 +2974,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using Intel instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has AVX-512F features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasAVX<br/>
 	/// @sa SDL_HasAVX2
@@ -2558,8 +2990,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using ARM instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has ARM SIMD features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasNEON
 	/// </summary>
@@ -2571,8 +3004,9 @@ public unsafe partial class SDL3
 	/// This always returns false on CPUs that aren't using ARM instruction sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has ARM NEON features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_HasNEON")]
 	public static partial SDLBool SDL_HasNEON();
@@ -2583,8 +3017,9 @@ public unsafe partial class SDL3
 	/// sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has LOONGARCH LSX features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_HasLSX")]
 	public static partial SDLBool SDL_HasLSX();
@@ -2595,8 +3030,9 @@ public unsafe partial class SDL3
 	/// sets.<br/>
 	/// <br/>
 	/// @returns true if the CPU has LOONGARCH LASX features or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_HasLASX")]
 	public static partial SDLBool SDL_HasLASX();
@@ -2605,8 +3041,9 @@ public unsafe partial class SDL3
 	/// Get the amount of RAM configured in the system.<br/>
 	/// <br/>
 	/// @returns the amount of RAM configured in the system in MiB.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSystemRAM")]
 	public static partial int SDL_GetSystemRAM();
@@ -2624,8 +3061,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the alignment in bytes needed for available, known SIMD<br/>
 	/// instructions.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_aligned_alloc<br/>
 	/// @sa SDL_aligned_free
@@ -2635,7 +3073,6 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Displays a dialog that lets the user select a file on their filesystem.<br/>
-	/// This function should only be invoked from the main thread.<br/>
 	/// This is an asynchronous function; it will return immediately, and the<br/>
 	/// result will be passed to the callback.<br/>
 	/// The callback will be invoked with a null-terminated list of files the user<br/>
@@ -2649,38 +3086,33 @@ public unsafe partial class SDL3
 	/// requires an event-handling loop. Apps that do not use SDL to handle events<br/>
 	/// should add a call to SDL_PumpEvents in their main loop.<br/>
 	/// <br/>
-	/// @param callback an SDL_DialogFileCallback to be invoked when the user<br/>
-	/// selects a file and accepts, or cancels the dialog, or an<br/>
-	/// error occurs. The first argument is a null-terminated list<br/>
-	/// of C strings, representing the paths chosen by the user.<br/>
-	/// The list will be empty if the user canceled the dialog, and<br/>
-	/// it will be NULL if an error occurred. If an error occurred,<br/>
-	/// it can be fetched with SDL_GetError(). The second argument<br/>
-	/// is the userdata pointer passed to the function. The third<br/>
-	/// argument is the index of the filter selected by the user,<br/>
-	/// or one past the index of the last filter (therefore the<br/>
-	/// index of the terminating NULL filter) if no filter was<br/>
-	/// chosen, or -1 if the platform does not support detecting<br/>
-	/// the selected filter.<br/>
+	/// @param callback a function pointer to be invoked when the user selects a<br/>
+	/// file and accepts, or cancels the dialog, or an error<br/>
+	/// occurs.<br/>
 	/// @param userdata an optional pointer to pass extra data to the callback when<br/>
 	/// it will be invoked.<br/>
 	/// @param window the window that the dialog should be modal for, may be NULL.<br/>
 	/// Not all platforms support this option.<br/>
-	/// @param filters a list of SDL_DialogFileFilter's, may be NULL. Not all<br/>
-	/// platforms support this option, and platforms that do support<br/>
-	/// it may allow the user to ignore the filters.<br/>
+	/// @param filters a list of filters, may be NULL. Not all platforms support<br/>
+	/// this option, and platforms that do support it may allow the<br/>
+	/// user to ignore the filters. If non-NULL, it must remain<br/>
+	/// valid at least until the callback is invoked.<br/>
 	/// @param nfilters the number of filters. Ignored if filters is NULL.<br/>
 	/// @param default_location the default folder or file to start the dialog at,<br/>
 	/// may be NULL. Not all platforms support this option.<br/>
 	/// @param allow_many if non-zero, the user will be allowed to select multiple<br/>
 	/// entries. Not all platforms support this option.<br/>
+	/// @threadsafety This function should be called only from the main thread. The<br/>
+	/// callback may be invoked from the same thread or from a<br/>
+	/// different one, depending on the OS's constraints.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DialogFileCallback<br/>
 	/// @sa SDL_DialogFileFilter<br/>
 	/// @sa SDL_ShowSaveFileDialog<br/>
-	/// @sa SDL_ShowOpenFolderDialog
+	/// @sa SDL_ShowOpenFolderDialog<br/>
+	/// @sa SDL_ShowFileDialogWithProperties
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ShowOpenFileDialog")]
 	public static partial void SDL_ShowOpenFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, SDL_Window window, SDL_DialogFileFilter* filters, int nfilters, byte* default_location, SDLBool allow_many);
@@ -2694,7 +3126,6 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Displays a dialog that lets the user choose a new or existing file on their<br/>
 	/// filesystem.<br/>
-	/// This function should only be invoked from the main thread.<br/>
 	/// This is an asynchronous function; it will return immediately, and the<br/>
 	/// result will be passed to the callback.<br/>
 	/// The callback will be invoked with a null-terminated list of files the user<br/>
@@ -2707,36 +3138,31 @@ public unsafe partial class SDL3
 	/// requires an event-handling loop. Apps that do not use SDL to handle events<br/>
 	/// should add a call to SDL_PumpEvents in their main loop.<br/>
 	/// <br/>
-	/// @param callback an SDL_DialogFileCallback to be invoked when the user<br/>
-	/// selects a file and accepts, or cancels the dialog, or an<br/>
-	/// error occurs. The first argument is a null-terminated list<br/>
-	/// of C strings, representing the paths chosen by the user.<br/>
-	/// The list will be empty if the user canceled the dialog, and<br/>
-	/// it will be NULL if an error occurred. If an error occurred,<br/>
-	/// it can be fetched with SDL_GetError(). The second argument<br/>
-	/// is the userdata pointer passed to the function. The third<br/>
-	/// argument is the index of the filter selected by the user,<br/>
-	/// or one past the index of the last filter (therefore the<br/>
-	/// index of the terminating NULL filter) if no filter was<br/>
-	/// chosen, or -1 if the platform does not support detecting<br/>
-	/// the selected filter.<br/>
+	/// @param callback a function pointer to be invoked when the user selects a<br/>
+	/// file and accepts, or cancels the dialog, or an error<br/>
+	/// occurs.<br/>
 	/// @param userdata an optional pointer to pass extra data to the callback when<br/>
 	/// it will be invoked.<br/>
 	/// @param window the window that the dialog should be modal for, may be NULL.<br/>
 	/// Not all platforms support this option.<br/>
-	/// @param filters a list of SDL_DialogFileFilter's, may be NULL. Not all<br/>
-	/// platforms support this option, and platforms that do support<br/>
-	/// it may allow the user to ignore the filters.<br/>
+	/// @param filters a list of filters, may be NULL. Not all platforms support<br/>
+	/// this option, and platforms that do support it may allow the<br/>
+	/// user to ignore the filters. If non-NULL, it must remain<br/>
+	/// valid at least until the callback is invoked.<br/>
 	/// @param nfilters the number of filters. Ignored if filters is NULL.<br/>
 	/// @param default_location the default folder or file to start the dialog at,<br/>
 	/// may be NULL. Not all platforms support this option.<br/>
+	/// @threadsafety This function should be called only from the main thread. The<br/>
+	/// callback may be invoked from the same thread or from a<br/>
+	/// different one, depending on the OS's constraints.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DialogFileCallback<br/>
 	/// @sa SDL_DialogFileFilter<br/>
 	/// @sa SDL_ShowOpenFileDialog<br/>
-	/// @sa SDL_ShowOpenFolderDialog
+	/// @sa SDL_ShowOpenFolderDialog<br/>
+	/// @sa SDL_ShowFileDialogWithProperties
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ShowSaveFileDialog")]
 	public static partial void SDL_ShowSaveFileDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, SDL_Window window, SDL_DialogFileFilter* filters, int nfilters, byte* default_location);
@@ -2749,7 +3175,6 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Displays a dialog that lets the user select a folder on their filesystem.<br/>
-	/// This function should only be invoked from the main thread.<br/>
 	/// This is an asynchronous function; it will return immediately, and the<br/>
 	/// result will be passed to the callback.<br/>
 	/// The callback will be invoked with a null-terminated list of files the user<br/>
@@ -2763,15 +3188,9 @@ public unsafe partial class SDL3
 	/// requires an event-handling loop. Apps that do not use SDL to handle events<br/>
 	/// should add a call to SDL_PumpEvents in their main loop.<br/>
 	/// <br/>
-	/// @param callback an SDL_DialogFileCallback to be invoked when the user<br/>
-	/// selects a file and accepts, or cancels the dialog, or an<br/>
-	/// error occurs. The first argument is a null-terminated list<br/>
-	/// of C strings, representing the paths chosen by the user.<br/>
-	/// The list will be empty if the user canceled the dialog, and<br/>
-	/// it will be NULL if an error occurred. If an error occurred,<br/>
-	/// it can be fetched with SDL_GetError(). The second argument<br/>
-	/// is the userdata pointer passed to the function. The third<br/>
-	/// argument is always -1 for SDL_ShowOpenFolderDialog.<br/>
+	/// @param callback a function pointer to be invoked when the user selects a<br/>
+	/// file and accepts, or cancels the dialog, or an error<br/>
+	/// occurs.<br/>
 	/// @param userdata an optional pointer to pass extra data to the callback when<br/>
 	/// it will be invoked.<br/>
 	/// @param window the window that the dialog should be modal for, may be NULL.<br/>
@@ -2780,12 +3199,16 @@ public unsafe partial class SDL3
 	/// may be NULL. Not all platforms support this option.<br/>
 	/// @param allow_many if non-zero, the user will be allowed to select multiple<br/>
 	/// entries. Not all platforms support this option.<br/>
+	/// @threadsafety This function should be called only from the main thread. The<br/>
+	/// callback may be invoked from the same thread or from a<br/>
+	/// different one, depending on the OS's constraints.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DialogFileCallback<br/>
 	/// @sa SDL_ShowOpenFileDialog<br/>
-	/// @sa SDL_ShowSaveFileDialog
+	/// @sa SDL_ShowSaveFileDialog<br/>
+	/// @sa SDL_ShowFileDialogWithProperties
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ShowOpenFolderDialog")]
 	public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, SDL_Window window, byte* default_location, SDLBool allow_many);
@@ -2795,6 +3218,52 @@ public unsafe partial class SDL3
 
 	[LibraryImport(LibName, EntryPoint = "SDL_ShowOpenFolderDialog")]
 	public static partial void SDL_ShowOpenFolderDialog(delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, SDL_Window window, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> default_location, SDLBool allow_many);
+
+	/// <summary>
+	/// Create and launch a file dialog with the specified properties.<br/>
+	/// These are the supported properties:<br/>
+	/// - `SDL_PROP_FILE_DIALOG_FILTERS_POINTER`: a pointer to a list of<br/>
+	/// SDL_DialogFileFilter structs, which will be used as filters for<br/>
+	/// file-based selections. Ignored if the dialog is an "Open Folder" dialog.<br/>
+	/// If non-NULL, the array of filters must remain valid at least until the<br/>
+	/// callback is invoked.<br/>
+	/// - `SDL_PROP_FILE_DIALOG_NFILTERS_NUMBER`: the number of filters in the<br/>
+	/// array of filters, if it exists.<br/>
+	/// - `SDL_PROP_FILE_DIALOG_WINDOW_POINTER`: the window that the dialog should<br/>
+	/// be modal for.<br/>
+	/// - `SDL_PROP_FILE_DIALOG_LOCATION_STRING`: the default folder or file to<br/>
+	/// start the dialog at.<br/>
+	/// - `SDL_PROP_FILE_DIALOG_MANY_BOOLEAN`: true to allow the user to select<br/>
+	/// more than one entry.<br/>
+	/// - `SDL_PROP_FILE_DIALOG_TITLE_STRING`: the title for the dialog.<br/>
+	/// - `SDL_PROP_FILE_DIALOG_ACCEPT_STRING`: the label that the accept button<br/>
+	/// should have.<br/>
+	/// - `SDL_PROP_FILE_DIALOG_CANCEL_STRING`: the label that the cancel button<br/>
+	/// should have.<br/>
+	/// Note that each platform may or may not support any of the properties.<br/>
+	/// <br/>
+	/// @param type the type of file dialog.<br/>
+	/// @param callback a function pointer to be invoked when the user selects a<br/>
+	/// file and accepts, or cancels the dialog, or an error<br/>
+	/// occurs.<br/>
+	/// @param userdata an optional pointer to pass extra data to the callback when<br/>
+	/// it will be invoked.<br/>
+	/// @param props the properties to use.<br/>
+	/// @threadsafety This function should be called only from the main thread. The<br/>
+	/// callback may be invoked from the same thread or from a<br/>
+	/// different one, depending on the OS's constraints.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_FileDialogType<br/>
+	/// @sa SDL_DialogFileCallback<br/>
+	/// @sa SDL_DialogFileFilter<br/>
+	/// @sa SDL_ShowOpenFileDialog<br/>
+	/// @sa SDL_ShowSaveFileDialog<br/>
+	/// @sa SDL_ShowOpenFolderDialog
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_ShowFileDialogWithProperties")]
+	public static partial void SDL_ShowFileDialogWithProperties(SDL_FileDialogType type, delegate* unmanaged[Cdecl]<nint, byte**, int, void> callback, nint userdata, SDL_PropertiesID props);
 
 	/// <summary>
 	/// Set the SDL error message for the current thread.<br/>
@@ -2811,11 +3280,13 @@ public unsafe partial class SDL3
 	/// @param ... additional parameters matching % tokens in the `fmt` string, if<br/>
 	/// any.<br/>
 	/// @returns false.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClearError<br/>
-	/// @sa SDL_GetError
+	/// @sa SDL_GetError<br/>
+	/// @sa SDL_SetErrorV
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetError")]
 	public static partial SDLBool SDL_SetError(byte* fmt);
@@ -2827,12 +3298,37 @@ public unsafe partial class SDL3
 	public static partial SDLBool SDL_SetError([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt);
 
 	/// <summary>
+	/// Set the SDL error message for the current thread.<br/>
+	/// Calling this function will replace any previous error message that was set.<br/>
+	/// <br/>
+	/// @param fmt a printf()-style message format string.<br/>
+	/// @param ap a variable argument list.<br/>
+	/// @returns false.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_ClearError<br/>
+	/// @sa SDL_GetError<br/>
+	/// @sa SDL_SetError
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetErrorV")]
+	public static partial SDLBool SDL_SetErrorV(byte* fmt, byte* ap);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SetErrorV")]
+	public static partial SDLBool SDL_SetErrorV(ReadOnlySpan<byte> fmt, byte* ap);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SetErrorV")]
+	public static partial SDLBool SDL_SetErrorV([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt, byte* ap);
+
+	/// <summary>
 	/// Set an error indicating that memory allocation failed.<br/>
 	/// This function does not do any memory allocation.<br/>
 	/// <br/>
 	/// @returns false.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OutOfMemory")]
 	public static partial SDLBool SDL_OutOfMemory();
@@ -2859,8 +3355,9 @@ public unsafe partial class SDL3
 	/// @returns a message with information about the specific error that occurred,<br/>
 	/// or an empty string if there hasn't been an error message set since<br/>
 	/// the last call to SDL_ClearError().<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClearError<br/>
 	/// @sa SDL_SetError
@@ -2877,8 +3374,9 @@ public unsafe partial class SDL3
 	/// Clear any previous error message for this thread.<br/>
 	/// <br/>
 	/// @returns true.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetError<br/>
 	/// @sa SDL_SetError
@@ -2889,9 +3387,6 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Pump the event loop, gathering events from the input devices.<br/>
 	/// This function updates the event queue and internal input device state.<br/>
-	/// **WARNING**: This should only be run in the thread that initialized the<br/>
-	/// video subsystem, and for extra safety, you should consider only doing those<br/>
-	/// things on the main thread in any case.<br/>
 	/// SDL_PumpEvents() gathers all the pending input information from devices and<br/>
 	/// places it in the event queue. Without calls to SDL_PumpEvents() no events<br/>
 	/// would ever be placed on the queue. Often the need for calls to<br/>
@@ -2899,8 +3394,9 @@ public unsafe partial class SDL3
 	/// SDL_WaitEvent() implicitly call SDL_PumpEvents(). However, if you are not<br/>
 	/// polling or waiting for events (e.g. you are filtering them), then you must<br/>
 	/// call SDL_PumpEvents() to force an event queue update.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PollEvent<br/>
 	/// @sa SDL_WaitEvent
@@ -2924,7 +3420,6 @@ public unsafe partial class SDL3
 	/// You may have to call SDL_PumpEvents() before calling this function.<br/>
 	/// Otherwise, the events may not be ready to be filtered when you call<br/>
 	/// SDL_PeepEvents().<br/>
-	/// This function is thread-safe.<br/>
 	/// <br/>
 	/// @param events destination buffer for the retrieved events, may be NULL to<br/>
 	/// leave the events in the queue and return the number of events<br/>
@@ -2932,15 +3427,16 @@ public unsafe partial class SDL3
 	/// @param numevents if action is SDL_ADDEVENT, the number of events to add<br/>
 	/// back to the event queue; if action is SDL_PEEKEVENT or<br/>
 	/// SDL_GETEVENT, the maximum number of events to retrieve.<br/>
-	/// @param action action to take; see [[#action|Remarks]] for details.<br/>
+	/// @param action action to take; see [Remarks](#remarks) for details.<br/>
 	/// @param minType minimum value of the event type to be considered;<br/>
 	/// SDL_EVENT_FIRST is a safe choice.<br/>
 	/// @param maxType maximum value of the event type to be considered;<br/>
 	/// SDL_EVENT_LAST is a safe choice.<br/>
 	/// @returns the number of events actually stored or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PollEvent<br/>
 	/// @sa SDL_PumpEvents<br/>
@@ -2957,8 +3453,9 @@ public unsafe partial class SDL3
 	/// @param type the type of event to be queried; see SDL_EventType for details.<br/>
 	/// @returns true if events matching `type` are present, or false if events<br/>
 	/// matching `type` are not present.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasEvents
 	/// </summary>
@@ -2977,8 +3474,9 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = `maxType` are<br/>
 	/// present, or false if not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasEvents
 	/// </summary>
@@ -3000,8 +3498,9 @@ public unsafe partial class SDL3
 	/// this function.<br/>
 	/// <br/>
 	/// @param type the type of event to be cleared; see SDL_EventType for details.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_FlushEvents
 	/// </summary>
@@ -3023,8 +3522,9 @@ public unsafe partial class SDL3
 	/// SDL_EventType for details.<br/>
 	/// @param maxType the high end of event type to be cleared, inclusive; see<br/>
 	/// SDL_EventType for details.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_FlushEvent
 	/// </summary>
@@ -3061,8 +3561,9 @@ public unsafe partial class SDL3
 	/// @param event the SDL_Event structure to be filled with the next event from<br/>
 	/// the queue, or NULL.<br/>
 	/// @returns true if this got an event or false if there are none available.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PushEvent<br/>
 	/// @sa SDL_WaitEvent<br/>
@@ -3082,8 +3583,9 @@ public unsafe partial class SDL3
 	/// from the queue, or NULL.<br/>
 	/// @returns true on success or false if there was an error while waiting for<br/>
 	/// events; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PollEvent<br/>
 	/// @sa SDL_PushEvent<br/>
@@ -3108,8 +3610,9 @@ public unsafe partial class SDL3
 	/// available event.<br/>
 	/// @returns true if this got an event or false if the timeout elapsed without<br/>
 	/// any events available.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PollEvent<br/>
 	/// @sa SDL_PushEvent<br/>
@@ -3127,7 +3630,6 @@ public unsafe partial class SDL3
 	/// caller may dispose of the memory pointed to after SDL_PushEvent() returns.<br/>
 	/// Note: Pushing device input events onto the queue doesn't modify the state<br/>
 	/// of the device within SDL.<br/>
-	/// This function is thread-safe, and can be called from other threads safely.<br/>
 	/// Note: Events pushed onto the queue with SDL_PushEvent() get passed through<br/>
 	/// the event filter but events added with SDL_PeepEvents() do not.<br/>
 	/// For pushing application-specific events, please use SDL_RegisterEvents() to<br/>
@@ -3138,8 +3640,9 @@ public unsafe partial class SDL3
 	/// @returns true on success, false if the event was filtered or on failure;<br/>
 	/// call SDL_GetError() for more information. A common reason for<br/>
 	/// error is the event queue being full.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PeepEvents<br/>
 	/// @sa SDL_PollEvent<br/>
@@ -3149,8 +3652,10 @@ public unsafe partial class SDL3
 	public static partial SDLBool SDL_PushEvent(SDL_Event* @event);
 
 	/// <summary>
-	/// Set up a filter to process all events before they change internal state and<br/>
-	/// are posted to the internal event queue.<br/>
+	/// Set up a filter to process all events before they are added to the internal<br/>
+	/// event queue.<br/>
+	/// If you just want to see events without modifying them or preventing them<br/>
+	/// from being queued, you should use SDL_AddEventWatch() instead.<br/>
 	/// If the filter function returns true when called, then the event will be<br/>
 	/// added to the internal queue. If it returns false, then the event will be<br/>
 	/// dropped from the queue, but the internal state will still be updated. This<br/>
@@ -3160,25 +3665,17 @@ public unsafe partial class SDL3
 	/// On platforms that support it, if the quit event is generated by an<br/>
 	/// interrupt signal (e.g. pressing Ctrl-C), it will be delivered to the<br/>
 	/// application at the next event poll.<br/>
-	/// There is one caveat when dealing with the SDL_QuitEvent event type. The<br/>
-	/// event filter is only called when the window manager desires to close the<br/>
-	/// application window. If the event filter returns 1, then the window will be<br/>
-	/// closed, otherwise the window will remain open if possible.<br/>
 	/// Note: Disabled events never make it to the event filter function; see<br/>
 	/// SDL_SetEventEnabled().<br/>
-	/// Note: If you just want to inspect events without filtering, you should use<br/>
-	/// SDL_AddEventWatch() instead.<br/>
 	/// Note: Events pushed onto the queue with SDL_PushEvent() get passed through<br/>
 	/// the event filter, but events pushed onto the queue with SDL_PeepEvents() do<br/>
 	/// not.<br/>
 	/// <br/>
 	/// @param filter an SDL_EventFilter function to call when an event happens.<br/>
 	/// @param userdata a pointer that is passed to `filter`.<br/>
-	/// @threadsafety SDL may call the filter callback at any time from any thread;<br/>
-	/// the application is responsible for locking resources the<br/>
-	/// callback touches that need to be protected.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddEventWatch<br/>
 	/// @sa SDL_SetEventEnabled<br/>
@@ -3198,8 +3695,9 @@ public unsafe partial class SDL3
 	/// @param userdata the pointer that is passed to the current event filter will<br/>
 	/// be stored here.<br/>
 	/// @returns true on success or false if there is no event filter set.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetEventFilter
 	/// </summary>
@@ -3226,7 +3724,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RemoveEventWatch<br/>
 	/// @sa SDL_SetEventFilter
@@ -3241,8 +3739,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param filter the function originally passed to SDL_AddEventWatch().<br/>
 	/// @param userdata the pointer originally passed to SDL_AddEventWatch().<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddEventWatch
 	/// </summary>
@@ -3258,8 +3757,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param filter the SDL_EventFilter function to call when an event happens.<br/>
 	/// @param userdata a pointer that is passed to `filter`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetEventFilter<br/>
 	/// @sa SDL_SetEventFilter
@@ -3272,8 +3772,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param type the type of event; see SDL_EventType for details.<br/>
 	/// @param enabled whether to process the event or not.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_EventEnabled
 	/// </summary>
@@ -3285,8 +3786,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param type the type of event; see SDL_EventType for details.<br/>
 	/// @returns true if the event is being processed, false otherwise.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetEventEnabled
 	/// </summary>
@@ -3300,8 +3802,9 @@ public unsafe partial class SDL3
 	/// @param numevents the number of events to be allocated.<br/>
 	/// @returns the beginning event number, or 0 if numevents is invalid or if<br/>
 	/// there are not enough user-defined events left.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PushEvent
 	/// </summary>
@@ -3313,8 +3816,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param event an event containing a `windowID`.<br/>
 	/// @returns the associated window on success or NULL if there is none.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PollEvent<br/>
 	/// @sa SDL_WaitEvent<br/>
@@ -3354,7 +3858,7 @@ public unsafe partial class SDL3
 	/// doesn't implement this functionality, call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPrefPath
 	/// </summary>
@@ -3419,7 +3923,7 @@ public unsafe partial class SDL3
 	/// etc.). This should be freed with SDL_free() when it is no longer<br/>
 	/// needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetBasePath
 	/// </summary>
@@ -3459,7 +3963,7 @@ public unsafe partial class SDL3
 	/// @returns either a null-terminated C string containing the full path to the<br/>
 	/// folder, or NULL if an error happened.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetUserFolder")]
 	public static partial byte* SDL_GetUserFolderPtr(SDL_Folder folder);
@@ -3479,7 +3983,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CreateDirectory")]
 	public static partial SDLBool SDL_CreateDirectory(byte* path);
@@ -3494,12 +3998,12 @@ public unsafe partial class SDL3
 	/// Enumerate a directory through a callback function.<br/>
 	/// This function provides every directory entry through an app-provided<br/>
 	/// callback, called once for each directory entry, until all results have been<br/>
-	/// provided or the callback returns<br/>
-	/// <<br/>
-	/// = 0.<br/>
+	/// provided or the callback returns either SDL_ENUM_SUCCESS or<br/>
+	/// SDL_ENUM_FAILURE.<br/>
 	/// This will return false if there was a system problem in general, or if a<br/>
-	/// callback returns -1. A successful return means a callback returned 1 to<br/>
-	/// halt enumeration, or all directory entries were enumerated.<br/>
+	/// callback returns SDL_ENUM_FAILURE. A successful return means a callback<br/>
+	/// returned SDL_ENUM_SUCCESS to halt enumeration, or all directory entries<br/>
+	/// were enumerated.<br/>
 	/// <br/>
 	/// @param path the path of the directory to enumerate.<br/>
 	/// @param callback a function that is called for each entry in the directory.<br/>
@@ -3507,7 +4011,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EnumerateDirectory")]
 	public static partial SDLBool SDL_EnumerateDirectory(byte* path, delegate* unmanaged[Cdecl]<nint, byte*, byte*, SDL_EnumerationResult> callback, nint userdata);
@@ -3527,7 +4031,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RemovePath")]
 	public static partial SDLBool SDL_RemovePath(byte* path);
@@ -3554,7 +4058,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RenamePath")]
 	public static partial SDLBool SDL_RenamePath(byte* oldpath, byte* newpath);
@@ -3576,7 +4080,7 @@ public unsafe partial class SDL3
 	/// Note that this is not an atomic operation! If something tries to read from<br/>
 	/// `newpath` while the copy is in progress, it will see an incomplete copy of<br/>
 	/// the data, and if the calling thread terminates (or the power goes out)<br/>
-	/// during the copy, `oldpath`'s previous contents will be gone, replaced with<br/>
+	/// during the copy, `newpath`'s previous contents will be gone, replaced with<br/>
 	/// an incomplete copy of the data. To avoid this risk, it is recommended that<br/>
 	/// the app copy to a temporary file in the same directory as `newpath`, and if<br/>
 	/// the copy is successful, use SDL_RenamePath() to replace `newpath` with the<br/>
@@ -3596,7 +4100,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CopyFile")]
 	public static partial SDLBool SDL_CopyFile(byte* oldpath, byte* newpath);
@@ -3616,7 +4120,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false if the file doesn't exist, or another<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetPathInfo")]
 	public static partial SDLBool SDL_GetPathInfo(byte* path, SDL_PathInfo* info);
@@ -3630,10 +4134,14 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Enumerate a directory tree, filtered by pattern, and return a list.<br/>
 	/// Files are filtered out if they don't match the string in `pattern`, which<br/>
-	/// may contain wildcard characters '*' (match everything) and '?' (match one<br/>
+	/// may contain wildcard characters '<br/>
+	/// \<br/>
+	/// *' (match everything) and '?' (match one<br/>
 	/// character). If pattern is NULL, no filtering is done and all results are<br/>
 	/// returned. Subdirectories are permitted, and are specified with a path<br/>
-	/// separator of '/'. Wildcard characters '*' and '?' never match a path<br/>
+	/// separator of '/'. Wildcard characters '<br/>
+	/// \<br/>
+	/// *' and '?' never match a path<br/>
 	/// separator.<br/>
 	/// `flags` may be set to SDL_GLOB_CASEINSENSITIVE to make the pattern matching<br/>
 	/// case-insensitive.<br/>
@@ -3652,7 +4160,7 @@ public unsafe partial class SDL3
 	/// that should be freed with SDL_free() when it is no longer needed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GlobDirectory")]
 	public static partial byte** SDL_GlobDirectory(byte* path, byte* pattern, SDL_GlobFlags flags, int* count);
@@ -3662,6 +4170,35 @@ public unsafe partial class SDL3
 
 	[LibraryImport(LibName, EntryPoint = "SDL_GlobDirectory")]
 	public static partial byte** SDL_GlobDirectory([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> path, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> pattern, SDL_GlobFlags flags, int* count);
+
+	/// <summary>
+	/// Get what the system believes is the "current working directory."<br/>
+	/// For systems without a concept of a current working directory, this will<br/>
+	/// still attempt to provide something reasonable.<br/>
+	/// SDL does not provide a means to _change_ the current working directory; for<br/>
+	/// platforms without this concept, this would cause surprises with file access<br/>
+	/// outside of SDL.<br/>
+	/// The returned path is guaranteed to end with a path separator ('<br/>
+	/// \<br/>
+	/// ' on<br/>
+	/// Windows, '/' on most other platforms).<br/>
+	/// <br/>
+	/// @returns a UTF-8 string of the current working directory in<br/>
+	/// platform-dependent notation. NULL if there's a problem. This<br/>
+	/// should be freed with SDL_free() when it is no longer needed.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetCurrentDirectory")]
+	public static partial byte* SDL_GetCurrentDirectoryPtr();
+
+	public static string? SDL_GetCurrentDirectory()
+	{
+		byte* resultPtr = SDL_GetCurrentDirectoryPtr();
+		string? result = ConvertToManaged(resultPtr);
+		SDL_free(resultPtr);
+		return result;
+	}
 
 	/// <summary>
 	/// Add support for gamepads that SDL is unaware of or change the binding of an<br/>
@@ -3675,6 +4212,8 @@ public unsafe partial class SDL3
 	/// - `hX.Y`: hat X with value Y<br/>
 	/// - `aX`: axis X of the joystick<br/>
 	/// Buttons can be used as a gamepad axes and vice versa.<br/>
+	/// If a device with this GUID is already plugged in, SDL will generate an<br/>
+	/// SDL_EVENT_GAMEPAD_ADDED event.<br/>
 	/// This string shows an example of a valid mapping for a gamepad:<br/>
 	/// ```c<br/>
 	/// "341a3608000000000000504944564944,Afterglow PS3 Controller,a:b1,b:b2,y:b3,x:b0,start:b9,guide:b12,back:b8,dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,leftshoulder:b4,rightshoulder:b5,leftstick:b10,rightstick:b11,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:b6,righttrigger:b7"<br/>
@@ -3685,10 +4224,15 @@ public unsafe partial class SDL3
 	/// -1 on failure; call SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
+	/// @sa SDL_AddGamepadMappingsFromFile<br/>
+	/// @sa SDL_AddGamepadMappingsFromIO<br/>
 	/// @sa SDL_GetGamepadMapping<br/>
-	/// @sa SDL_GetGamepadMappingForGUID
+	/// @sa SDL_GetGamepadMappingForGUID<br/>
+	/// @sa SDL_HINT_GAMECONTROLLERCONFIG<br/>
+	/// @sa SDL_HINT_GAMECONTROLLERCONFIG_FILE<br/>
+	/// @sa SDL_EVENT_GAMEPAD_ADDED
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_AddGamepadMapping")]
 	public static partial int SDL_AddGamepadMapping(byte* mapping);
@@ -3705,6 +4249,8 @@ public unsafe partial class SDL3
 	/// database files.<br/>
 	/// If a new mapping is loaded for an already known gamepad GUID, the later<br/>
 	/// version will overwrite the one currently loaded.<br/>
+	/// Any new mappings for already plugged in controllers will generate<br/>
+	/// SDL_EVENT_GAMEPAD_ADDED events.<br/>
 	/// Mappings not belonging to the current platform or with no platform field<br/>
 	/// specified will be ignored (i.e. mappings for Linux will be ignored in<br/>
 	/// Windows, etc).<br/>
@@ -3719,12 +4265,15 @@ public unsafe partial class SDL3
 	/// for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddGamepadMapping<br/>
 	/// @sa SDL_AddGamepadMappingsFromFile<br/>
 	/// @sa SDL_GetGamepadMapping<br/>
-	/// @sa SDL_GetGamepadMappingForGUID
+	/// @sa SDL_GetGamepadMappingForGUID<br/>
+	/// @sa SDL_HINT_GAMECONTROLLERCONFIG<br/>
+	/// @sa SDL_HINT_GAMECONTROLLERCONFIG_FILE<br/>
+	/// @sa SDL_EVENT_GAMEPAD_ADDED
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_AddGamepadMappingsFromIO")]
 	public static partial int SDL_AddGamepadMappingsFromIO(SDL_IOStream src, SDLBool closeio);
@@ -3735,6 +4284,8 @@ public unsafe partial class SDL3
 	/// database files.<br/>
 	/// If a new mapping is loaded for an already known gamepad GUID, the later<br/>
 	/// version will overwrite the one currently loaded.<br/>
+	/// Any new mappings for already plugged in controllers will generate<br/>
+	/// SDL_EVENT_GAMEPAD_ADDED events.<br/>
 	/// Mappings not belonging to the current platform or with no platform field<br/>
 	/// specified will be ignored (i.e. mappings for Linux will be ignored in<br/>
 	/// Windows, etc).<br/>
@@ -3744,12 +4295,15 @@ public unsafe partial class SDL3
 	/// for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddGamepadMapping<br/>
 	/// @sa SDL_AddGamepadMappingsFromIO<br/>
 	/// @sa SDL_GetGamepadMapping<br/>
-	/// @sa SDL_GetGamepadMappingForGUID
+	/// @sa SDL_GetGamepadMappingForGUID<br/>
+	/// @sa SDL_HINT_GAMECONTROLLERCONFIG<br/>
+	/// @sa SDL_HINT_GAMECONTROLLERCONFIG_FILE<br/>
+	/// @sa SDL_EVENT_GAMEPAD_ADDED
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_AddGamepadMappingsFromFile")]
 	public static partial int SDL_AddGamepadMappingsFromFile(byte* file);
@@ -3767,7 +4321,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReloadGamepadMappings")]
 	public static partial SDLBool SDL_ReloadGamepadMappings();
@@ -3782,7 +4336,7 @@ public unsafe partial class SDL3
 	/// single allocation that should be freed with SDL_free() when it is<br/>
 	/// no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadMappings")]
 	public static partial byte** SDL_GetGamepadMappings(out int count);
@@ -3795,7 +4349,7 @@ public unsafe partial class SDL3
 	/// information. This should be freed with SDL_free() when it is no<br/>
 	/// longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickGUIDForID<br/>
 	/// @sa SDL_GetJoystickGUID
@@ -3820,7 +4374,7 @@ public unsafe partial class SDL3
 	/// available; call SDL_GetError() for more information. This should<br/>
 	/// be freed with SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddGamepadMapping<br/>
 	/// @sa SDL_GetGamepadMappingForID<br/>
@@ -3848,7 +4402,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddGamepadMapping<br/>
 	/// @sa SDL_GetGamepadMapping
@@ -3867,7 +4421,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if a gamepad is connected, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepads
 	/// </summary>
@@ -3883,7 +4437,7 @@ public unsafe partial class SDL3
 	/// call SDL_GetError() for more information. This should be freed<br/>
 	/// with SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasGamepad<br/>
 	/// @sa SDL_OpenGamepad
@@ -3898,7 +4452,7 @@ public unsafe partial class SDL3
 	/// @returns true if the given joystick is supported by the gamepad interface,<br/>
 	/// false if it isn't or it's an invalid index.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoysticks<br/>
 	/// @sa SDL_OpenGamepad
@@ -3914,7 +4468,7 @@ public unsafe partial class SDL3
 	/// @returns the name of the selected gamepad. If no name can be found, this<br/>
 	/// function returns NULL; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadName<br/>
 	/// @sa SDL_GetGamepads
@@ -3935,7 +4489,7 @@ public unsafe partial class SDL3
 	/// @returns the path of the selected gamepad. If no path can be found, this<br/>
 	/// function returns NULL; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadPath<br/>
 	/// @sa SDL_GetGamepads
@@ -3955,7 +4509,7 @@ public unsafe partial class SDL3
 	/// @param instance_id the joystick instance ID.<br/>
 	/// @returns the player index of a gamepad, or -1 if it's not available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadPlayerIndex<br/>
 	/// @sa SDL_GetGamepads
@@ -3971,7 +4525,7 @@ public unsafe partial class SDL3
 	/// @returns the GUID of the selected gamepad. If called on an invalid index,<br/>
 	/// this function returns a zero GUID.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GUIDToString<br/>
 	/// @sa SDL_GetGamepads
@@ -3988,7 +4542,7 @@ public unsafe partial class SDL3
 	/// @returns the USB vendor ID of the selected gamepad. If called on an invalid<br/>
 	/// index, this function returns zero.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadVendor<br/>
 	/// @sa SDL_GetGamepads
@@ -4005,7 +4559,7 @@ public unsafe partial class SDL3
 	/// @returns the USB product ID of the selected gamepad. If called on an<br/>
 	/// invalid index, this function returns zero.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadProduct<br/>
 	/// @sa SDL_GetGamepads
@@ -4022,7 +4576,7 @@ public unsafe partial class SDL3
 	/// @returns the product version of the selected gamepad. If called on an<br/>
 	/// invalid index, this function returns zero.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadProductVersion<br/>
 	/// @sa SDL_GetGamepads
@@ -4037,7 +4591,7 @@ public unsafe partial class SDL3
 	/// @param instance_id the joystick instance ID.<br/>
 	/// @returns the gamepad type.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadType<br/>
 	/// @sa SDL_GetGamepads<br/>
@@ -4053,7 +4607,7 @@ public unsafe partial class SDL3
 	/// @param instance_id the joystick instance ID.<br/>
 	/// @returns the gamepad type.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadTypeForID<br/>
 	/// @sa SDL_GetGamepads<br/>
@@ -4070,7 +4624,7 @@ public unsafe partial class SDL3
 	/// @returns the mapping string. Returns NULL if no mapping is available. This<br/>
 	/// should be freed with SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepads<br/>
 	/// @sa SDL_GetGamepadMapping
@@ -4093,7 +4647,7 @@ public unsafe partial class SDL3
 	/// @returns a gamepad identifier or NULL if an error occurred; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseGamepad<br/>
 	/// @sa SDL_IsGamepad
@@ -4109,7 +4663,7 @@ public unsafe partial class SDL3
 	/// @returns an SDL_Gamepad on success or NULL on failure or if it hasn't been<br/>
 	/// opened yet; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadFromID")]
 	public static partial SDL_Gamepad SDL_GetGamepadFromID(SDL_JoystickID instance_id);
@@ -4120,7 +4674,7 @@ public unsafe partial class SDL3
 	/// @param player_index the player index, which different from the instance ID.<br/>
 	/// @returns the SDL_Gamepad associated with a player index.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadPlayerIndex<br/>
 	/// @sa SDL_SetGamepadPlayerIndex
@@ -4148,7 +4702,7 @@ public unsafe partial class SDL3
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadProperties")]
 	public static partial SDL_PropertiesID SDL_GetGamepadProperties(SDL_Gamepad gamepad);
@@ -4161,7 +4715,7 @@ public unsafe partial class SDL3
 	/// @returns the instance ID of the specified gamepad on success or 0 on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadID")]
 	public static partial SDL_JoystickID SDL_GetGamepadID(SDL_Gamepad gamepad);
@@ -4174,7 +4728,7 @@ public unsafe partial class SDL3
 	/// @returns the implementation dependent name for the gamepad, or NULL if<br/>
 	/// there is no name or the identifier passed is invalid.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadNameForID
 	/// </summary>
@@ -4194,7 +4748,7 @@ public unsafe partial class SDL3
 	/// @returns the implementation dependent path for the gamepad, or NULL if<br/>
 	/// there is no path or the identifier passed is invalid.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadPathForID
 	/// </summary>
@@ -4213,7 +4767,7 @@ public unsafe partial class SDL3
 	/// @returns the gamepad type, or SDL_GAMEPAD_TYPE_UNKNOWN if it's not<br/>
 	/// available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadTypeForID
 	/// </summary>
@@ -4227,7 +4781,7 @@ public unsafe partial class SDL3
 	/// @returns the gamepad type, or SDL_GAMEPAD_TYPE_UNKNOWN if it's not<br/>
 	/// available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRealGamepadTypeForID
 	/// </summary>
@@ -4241,7 +4795,7 @@ public unsafe partial class SDL3
 	/// @param gamepad the gamepad object to query.<br/>
 	/// @returns the player index for gamepad, or -1 if it's not available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetGamepadPlayerIndex
 	/// </summary>
@@ -4257,7 +4811,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadPlayerIndex
 	/// </summary>
@@ -4271,7 +4825,7 @@ public unsafe partial class SDL3
 	/// @param gamepad the gamepad object to query.<br/>
 	/// @returns the USB vendor ID, or zero if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadVendorForID
 	/// </summary>
@@ -4285,7 +4839,7 @@ public unsafe partial class SDL3
 	/// @param gamepad the gamepad object to query.<br/>
 	/// @returns the USB product ID, or zero if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadProductForID
 	/// </summary>
@@ -4299,7 +4853,7 @@ public unsafe partial class SDL3
 	/// @param gamepad the gamepad object to query.<br/>
 	/// @returns the USB product version, or zero if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadProductVersionForID
 	/// </summary>
@@ -4313,7 +4867,7 @@ public unsafe partial class SDL3
 	/// @param gamepad the gamepad object to query.<br/>
 	/// @returns the gamepad firmware version, or zero if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadFirmwareVersion")]
 	public static partial ushort SDL_GetGamepadFirmwareVersion(SDL_Gamepad gamepad);
@@ -4325,7 +4879,7 @@ public unsafe partial class SDL3
 	/// @param gamepad the gamepad object to query.<br/>
 	/// @returns the serial number, or NULL if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadSerial")]
 	public static partial byte* SDL_GetGamepadSerialPtr(SDL_Gamepad gamepad);
@@ -4343,7 +4897,7 @@ public unsafe partial class SDL3
 	/// @param gamepad the gamepad object to query.<br/>
 	/// @returns the gamepad handle, or 0 if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadSteamHandle")]
 	public static partial ulong SDL_GetGamepadSteamHandle(SDL_Gamepad gamepad);
@@ -4356,7 +4910,7 @@ public unsafe partial class SDL3
 	/// `SDL_JOYSTICK_CONNECTION_INVALID` on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadConnectionState")]
 	public static partial SDL_JoystickConnectionState SDL_GetGamepadConnectionState(SDL_Gamepad gamepad);
@@ -4376,7 +4930,7 @@ public unsafe partial class SDL3
 	/// battery.<br/>
 	/// @returns the current battery state.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadPowerInfo")]
 	public static partial SDL_PowerState SDL_GetGamepadPowerInfo(SDL_Gamepad gamepad, int* percent);
@@ -4389,7 +4943,7 @@ public unsafe partial class SDL3
 	/// @returns true if the gamepad has been opened and is currently connected, or<br/>
 	/// false if not.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GamepadConnected")]
 	public static partial SDLBool SDL_GamepadConnected(SDL_Gamepad gamepad);
@@ -4408,7 +4962,7 @@ public unsafe partial class SDL3
 	/// @returns an SDL_Joystick object, or NULL on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadJoystick")]
 	public static partial SDL_Joystick SDL_GetGamepadJoystick(SDL_Gamepad gamepad);
@@ -4420,7 +4974,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param enabled whether to process gamepad events or not.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GamepadEventsEnabled<br/>
 	/// @sa SDL_UpdateGamepads
@@ -4435,7 +4989,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if gamepad events are being processed, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetGamepadEventsEnabled
 	/// </summary>
@@ -4452,7 +5006,7 @@ public unsafe partial class SDL3
 	/// single allocation that should be freed with SDL_free() when it is<br/>
 	/// no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadBindings")]
 	public static partial SDL_GamepadBinding** SDL_GetGamepadBindings(SDL_Gamepad gamepad, out int count);
@@ -4463,7 +5017,7 @@ public unsafe partial class SDL3
 	/// enabled. Under such circumstances, it will not be necessary to call this<br/>
 	/// function.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UpdateGamepads")]
 	public static partial void SDL_UpdateGamepads();
@@ -4479,7 +5033,7 @@ public unsafe partial class SDL3
 	/// @returns the SDL_GamepadType enum corresponding to the input string, or<br/>
 	/// `SDL_GAMEPAD_TYPE_UNKNOWN` if no match was found.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadStringForType
 	/// </summary>
@@ -4500,7 +5054,7 @@ public unsafe partial class SDL3
 	/// specified. The string returned is of the format used by<br/>
 	/// SDL_Gamepad mapping strings.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadTypeFromString
 	/// </summary>
@@ -4526,7 +5080,7 @@ public unsafe partial class SDL3
 	/// @returns the SDL_GamepadAxis enum corresponding to the input string, or<br/>
 	/// `SDL_GAMEPAD_AXIS_INVALID` if no match was found.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadStringForAxis
 	/// </summary>
@@ -4547,7 +5101,7 @@ public unsafe partial class SDL3
 	/// specified. The string returned is of the format used by<br/>
 	/// SDL_Gamepad mapping strings.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadAxisFromString
 	/// </summary>
@@ -4568,7 +5122,7 @@ public unsafe partial class SDL3
 	/// @param axis an axis enum value (an SDL_GamepadAxis value).<br/>
 	/// @returns true if the gamepad has this axis, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GamepadHasButton<br/>
 	/// @sa SDL_GetGamepadAxis
@@ -4590,7 +5144,7 @@ public unsafe partial class SDL3
 	/// @returns axis state (including 0) on success or 0 (also) on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GamepadHasAxis<br/>
 	/// @sa SDL_GetGamepadButton
@@ -4609,7 +5163,7 @@ public unsafe partial class SDL3
 	/// @returns the SDL_GamepadButton enum corresponding to the input string, or<br/>
 	/// `SDL_GAMEPAD_BUTTON_INVALID` if no match was found.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadStringForButton
 	/// </summary>
@@ -4630,7 +5184,7 @@ public unsafe partial class SDL3
 	/// specified. The string returned is of the format used by<br/>
 	/// SDL_Gamepad mapping strings.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadButtonFromString
 	/// </summary>
@@ -4651,7 +5205,7 @@ public unsafe partial class SDL3
 	/// @param button a button enum value (an SDL_GamepadButton value).<br/>
 	/// @returns true if the gamepad has this button, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GamepadHasAxis
 	/// </summary>
@@ -4665,7 +5219,7 @@ public unsafe partial class SDL3
 	/// @param button a button index (one of the SDL_GamepadButton values).<br/>
 	/// @returns true if the button is pressed, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GamepadHasButton<br/>
 	/// @sa SDL_GetGamepadAxis
@@ -4680,7 +5234,7 @@ public unsafe partial class SDL3
 	/// @param button a button index (one of the SDL_GamepadButton values).<br/>
 	/// @returns the SDL_GamepadButtonLabel enum corresponding to the button label.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadButtonLabel
 	/// </summary>
@@ -4694,7 +5248,7 @@ public unsafe partial class SDL3
 	/// @param button a button index (one of the SDL_GamepadButton values).<br/>
 	/// @returns the SDL_GamepadButtonLabel enum corresponding to the button label.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadButtonLabelForType
 	/// </summary>
@@ -4707,7 +5261,7 @@ public unsafe partial class SDL3
 	/// @param gamepad a gamepad.<br/>
 	/// @returns number of touchpads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumGamepadTouchpadFingers
 	/// </summary>
@@ -4722,7 +5276,7 @@ public unsafe partial class SDL3
 	/// @param touchpad a touchpad.<br/>
 	/// @returns number of supported simultaneous fingers.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadTouchpadFinger<br/>
 	/// @sa SDL_GetNumGamepadTouchpads
@@ -4746,7 +5300,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumGamepadTouchpadFingers
 	/// </summary>
@@ -4760,7 +5314,7 @@ public unsafe partial class SDL3
 	/// @param type the type of sensor to query.<br/>
 	/// @returns true if the sensor exists, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadSensorData<br/>
 	/// @sa SDL_GetGamepadSensorDataRate<br/>
@@ -4778,7 +5332,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GamepadHasSensor<br/>
 	/// @sa SDL_GamepadSensorEnabled
@@ -4793,7 +5347,7 @@ public unsafe partial class SDL3
 	/// @param type the type of sensor to query.<br/>
 	/// @returns true if the sensor is enabled, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetGamepadSensorEnabled
 	/// </summary>
@@ -4807,7 +5361,7 @@ public unsafe partial class SDL3
 	/// @param type the type of sensor to query.<br/>
 	/// @returns the data rate, or 0.0f if the data rate is not available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadSensorDataRate")]
 	public static partial float SDL_GetGamepadSensorDataRate(SDL_Gamepad gamepad, SDL_SensorType type);
@@ -4824,7 +5378,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGamepadSensorData")]
 	public static partial SDLBool SDL_GetGamepadSensorData(SDL_Gamepad gamepad, SDL_SensorType type, float* data, int num_values);
@@ -4845,7 +5399,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RumbleGamepad")]
 	public static partial SDLBool SDL_RumbleGamepad(SDL_Gamepad gamepad, ushort low_frequency_rumble, ushort high_frequency_rumble, uint duration_ms);
@@ -4869,7 +5423,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RumbleGamepad
 	/// </summary>
@@ -4890,7 +5444,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetGamepadLED")]
 	public static partial SDLBool SDL_SetGamepadLED(SDL_Gamepad gamepad, byte red, byte green, byte blue);
@@ -4904,7 +5458,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SendGamepadEffect")]
 	public static partial SDLBool SDL_SendGamepadEffect(SDL_Gamepad gamepad, nint data, int size);
@@ -4915,7 +5469,7 @@ public unsafe partial class SDL3
 	/// @param gamepad a gamepad identifier previously returned by<br/>
 	/// SDL_OpenGamepad().<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenGamepad
 	/// </summary>
@@ -4930,7 +5484,7 @@ public unsafe partial class SDL3
 	/// @param button a button on the gamepad.<br/>
 	/// @returns the sfSymbolsName or NULL if the name can't be found.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadAppleSFSymbolsNameForAxis
 	/// </summary>
@@ -4949,7 +5503,7 @@ public unsafe partial class SDL3
 	/// @param axis an axis on the gamepad.<br/>
 	/// @returns the sfSymbolsName or NULL if the name can't be found.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGamepadAppleSFSymbolsNameForButton
 	/// </summary>
@@ -4969,8 +5523,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param pchGUID string containing an ASCII representation of a GUID.<br/>
 	/// @returns a SDL_GUID structure.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GUIDToString
 	/// </summary>
@@ -4992,7 +5547,7 @@ public unsafe partial class SDL3
 	/// failure; call SDL_GetError() for more information. This should be<br/>
 	/// freed with SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenHaptic
 	/// </summary>
@@ -5008,7 +5563,7 @@ public unsafe partial class SDL3
 	/// this function returns NULL; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHapticName<br/>
 	/// @sa SDL_OpenHaptic
@@ -5033,7 +5588,7 @@ public unsafe partial class SDL3
 	/// @returns the device identifier or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseHaptic<br/>
 	/// @sa SDL_GetHaptics<br/>
@@ -5052,7 +5607,7 @@ public unsafe partial class SDL3
 	/// @returns an SDL_Haptic on success or NULL on failure or if it hasn't been<br/>
 	/// opened yet; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetHapticFromID")]
 	public static partial SDL_Haptic SDL_GetHapticFromID(SDL_HapticID instance_id);
@@ -5064,7 +5619,7 @@ public unsafe partial class SDL3
 	/// @returns the instance ID of the specified haptic device on success or 0 on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetHapticID")]
 	public static partial SDL_HapticID SDL_GetHapticID(SDL_Haptic haptic);
@@ -5077,7 +5632,7 @@ public unsafe partial class SDL3
 	/// this function returns NULL; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHapticNameForID
 	/// </summary>
@@ -5094,7 +5649,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if the mouse is haptic or false if it isn't.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenHapticFromMouse
 	/// </summary>
@@ -5107,7 +5662,7 @@ public unsafe partial class SDL3
 	/// @returns the haptic device identifier or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseHaptic<br/>
 	/// @sa SDL_IsMouseHaptic
@@ -5121,7 +5676,7 @@ public unsafe partial class SDL3
 	/// @param joystick the SDL_Joystick to test for haptic capabilities.<br/>
 	/// @returns true if the joystick is haptic or false if it isn't.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenHapticFromJoystick
 	/// </summary>
@@ -5141,7 +5696,7 @@ public unsafe partial class SDL3
 	/// @returns a valid haptic device identifier on success or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseHaptic<br/>
 	/// @sa SDL_IsJoystickHaptic
@@ -5154,7 +5709,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param haptic the SDL_Haptic device to close.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenHaptic
 	/// </summary>
@@ -5171,7 +5726,7 @@ public unsafe partial class SDL3
 	/// @returns the number of effects the haptic device can store or a negative<br/>
 	/// error code on failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetMaxHapticEffectsPlaying<br/>
 	/// @sa SDL_GetHapticFeatures
@@ -5187,7 +5742,7 @@ public unsafe partial class SDL3
 	/// @returns the number of effects the haptic device can play at the same time<br/>
 	/// or -1 on failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetMaxHapticEffects<br/>
 	/// @sa SDL_GetHapticFeatures
@@ -5202,7 +5757,7 @@ public unsafe partial class SDL3
 	/// @returns a list of supported haptic features in bitwise manner (OR'd), or 0<br/>
 	/// on failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HapticEffectSupported<br/>
 	/// @sa SDL_GetMaxHapticEffects
@@ -5219,7 +5774,7 @@ public unsafe partial class SDL3
 	/// @returns the number of axes on success or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetNumHapticAxes")]
 	public static partial int SDL_GetNumHapticAxes(SDL_Haptic haptic);
@@ -5231,7 +5786,7 @@ public unsafe partial class SDL3
 	/// @param effect the desired effect to query.<br/>
 	/// @returns true if the effect is supported or false if it isn't.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateHapticEffect<br/>
 	/// @sa SDL_GetHapticFeatures
@@ -5248,7 +5803,7 @@ public unsafe partial class SDL3
 	/// @returns the ID of the effect on success or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyHapticEffect<br/>
 	/// @sa SDL_RunHapticEffect<br/>
@@ -5271,7 +5826,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateHapticEffect<br/>
 	/// @sa SDL_RunHapticEffect
@@ -5294,7 +5849,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHapticEffectStatus<br/>
 	/// @sa SDL_StopHapticEffect<br/>
@@ -5311,7 +5866,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RunHapticEffect<br/>
 	/// @sa SDL_StopHapticEffects
@@ -5327,7 +5882,7 @@ public unsafe partial class SDL3
 	/// @param haptic the SDL_Haptic device to destroy the effect on.<br/>
 	/// @param effect the ID of the haptic effect to destroy.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateHapticEffect
 	/// </summary>
@@ -5343,7 +5898,7 @@ public unsafe partial class SDL3
 	/// @returns true if it is playing, false if it isn't playing or haptic status<br/>
 	/// isn't supported.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHapticFeatures
 	/// </summary>
@@ -5364,7 +5919,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHapticFeatures
 	/// </summary>
@@ -5382,7 +5937,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHapticFeatures
 	/// </summary>
@@ -5400,7 +5955,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ResumeHaptic
 	/// </summary>
@@ -5415,7 +5970,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PauseHaptic
 	/// </summary>
@@ -5429,7 +5984,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RunHapticEffect<br/>
 	/// @sa SDL_StopHapticEffects
@@ -5443,7 +5998,7 @@ public unsafe partial class SDL3
 	/// @param haptic haptic device to check for rumble support.<br/>
 	/// @returns true if the effect is supported or false if it isn't.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_InitHapticRumble
 	/// </summary>
@@ -5457,7 +6012,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PlayHapticRumble<br/>
 	/// @sa SDL_StopHapticRumble<br/>
@@ -5475,7 +6030,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_InitHapticRumble<br/>
 	/// @sa SDL_StopHapticRumble
@@ -5490,7 +6045,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PlayHapticRumble
 	/// </summary>
@@ -5509,7 +6064,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_hid_exit
 	/// </summary>
@@ -5524,7 +6079,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_hid_init
 	/// </summary>
@@ -5544,7 +6099,7 @@ public unsafe partial class SDL3
 	/// @returns a change counter that is incremented with each potential device<br/>
 	/// change, or 0 if device change detection isn't available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_hid_enumerate
 	/// </summary>
@@ -5571,7 +6126,7 @@ public unsafe partial class SDL3
 	/// in the case of failure. Free this linked list by calling<br/>
 	/// SDL_hid_free_enumeration().<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_hid_device_change_count
 	/// </summary>
@@ -5585,7 +6140,7 @@ public unsafe partial class SDL3
 	/// @param devs pointer to a list of struct_device returned from<br/>
 	/// SDL_hid_enumerate().<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_free_enumeration")]
 	public static partial void SDL_hid_free_enumeration(SDL_hid_device_info* devs);
@@ -5603,7 +6158,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to a SDL_hid_device object on success or NULL on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_open")]
 	public static partial SDL_hid_device SDL_hid_open(ushort vendor_id, ushort product_id, char* serial_number);
@@ -5617,7 +6172,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to a SDL_hid_device object on success or NULL on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_open_path")]
 	public static partial SDL_hid_device SDL_hid_open_path(byte* path);
@@ -5649,7 +6204,7 @@ public unsafe partial class SDL3
 	/// @returns the actual number of bytes written and -1 on on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_write")]
 	public static partial int SDL_hid_write(SDL_hid_device dev, byte* data, nuint length);
@@ -5670,7 +6225,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information. If no packet was available to<br/>
 	/// be read within the timeout period, this function returns 0.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_read_timeout")]
 	public static partial int SDL_hid_read_timeout(SDL_hid_device dev, byte* data, nuint length, int milliseconds);
@@ -5691,7 +6246,7 @@ public unsafe partial class SDL3
 	/// be read and the handle is in non-blocking mode, this function<br/>
 	/// returns 0.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_read")]
 	public static partial int SDL_hid_read(SDL_hid_device dev, byte* data, nuint length);
@@ -5709,7 +6264,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_set_nonblocking")]
 	public static partial int SDL_hid_set_nonblocking(SDL_hid_device dev, int nonblock);
@@ -5734,7 +6289,7 @@ public unsafe partial class SDL3
 	/// @returns the actual number of bytes written and -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_send_feature_report")]
 	public static partial int SDL_hid_send_feature_report(SDL_hid_device dev, byte* data, nuint length);
@@ -5757,7 +6312,7 @@ public unsafe partial class SDL3
 	/// still in the first byte), or -1 on on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_feature_report")]
 	public static partial int SDL_hid_get_feature_report(SDL_hid_device dev, byte* data, nuint length);
@@ -5780,7 +6335,7 @@ public unsafe partial class SDL3
 	/// still in the first byte), or -1 on on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_input_report")]
 	public static partial int SDL_hid_get_input_report(SDL_hid_device dev, byte* data, nuint length);
@@ -5792,7 +6347,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_close")]
 	public static partial int SDL_hid_close(SDL_hid_device dev);
@@ -5806,7 +6361,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_manufacturer_string")]
 	public static partial int SDL_hid_get_manufacturer_string(SDL_hid_device dev, char* @string, nuint maxlen);
@@ -5820,7 +6375,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_product_string")]
 	public static partial int SDL_hid_get_product_string(SDL_hid_device dev, char* @string, nuint maxlen);
@@ -5834,7 +6389,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_serial_number_string")]
 	public static partial int SDL_hid_get_serial_number_string(SDL_hid_device dev, char* @string, nuint maxlen);
@@ -5849,7 +6404,7 @@ public unsafe partial class SDL3
 	/// @returns 0 on success or a negative error code on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_indexed_string")]
 	public static partial int SDL_hid_get_indexed_string(SDL_hid_device dev, int string_index, char* @string, nuint maxlen);
@@ -5862,7 +6417,7 @@ public unsafe partial class SDL3
 	/// on failure; call SDL_GetError() for more information. This struct<br/>
 	/// is valid until the device is closed with SDL_hid_close().<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_device_info")]
 	public static partial SDL_hid_device_info* SDL_hid_get_device_info(SDL_hid_device dev);
@@ -5878,7 +6433,7 @@ public unsafe partial class SDL3
 	/// @returns the number of bytes actually copied or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_get_report_descriptor")]
 	public static partial int SDL_hid_get_report_descriptor(SDL_hid_device dev, byte* buf, nuint buf_size);
@@ -5888,7 +6443,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param active true to start the scan, false to stop the scan.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_hid_ble_scan")]
 	public static partial void SDL_hid_ble_scan(SDLBool active);
@@ -5906,7 +6461,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHint<br/>
 	/// @sa SDL_ResetHint<br/>
@@ -5933,7 +6488,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHint<br/>
 	/// @sa SDL_ResetHint<br/>
@@ -5959,7 +6514,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetHint<br/>
 	/// @sa SDL_ResetHints
@@ -5980,7 +6535,7 @@ public unsafe partial class SDL3
 	/// normally with this change.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ResetHint
 	/// </summary>
@@ -5999,7 +6554,7 @@ public unsafe partial class SDL3
 	/// callback instead is always thread-safe, as SDL holds a lock<br/>
 	/// on the thread subsystem during the callback.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetHint<br/>
 	/// @sa SDL_SetHintWithPriority
@@ -6027,7 +6582,7 @@ public unsafe partial class SDL3
 	/// hint does not exist.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetHint<br/>
 	/// @sa SDL_SetHint
@@ -6054,7 +6609,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RemoveHintCallback
 	/// </summary>
@@ -6076,7 +6631,7 @@ public unsafe partial class SDL3
 	/// @param userdata a pointer being passed to the callback function.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddHintCallback
 	/// </summary>
@@ -6105,7 +6660,7 @@ public unsafe partial class SDL3
 	/// - `SDL_INIT_AUDIO`: audio subsystem; automatically initializes the events<br/>
 	/// subsystem<br/>
 	/// - `SDL_INIT_VIDEO`: video subsystem; automatically initializes the events<br/>
-	/// subsystem<br/>
+	/// subsystem, should be initialized on the main thread.<br/>
 	/// - `SDL_INIT_JOYSTICK`: joystick subsystem; automatically initializes the<br/>
 	/// events subsystem<br/>
 	/// - `SDL_INIT_HAPTIC`: haptic (force feedback) subsystem<br/>
@@ -6128,7 +6683,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAppMetadata<br/>
 	/// @sa SDL_SetAppMetadataProperty<br/>
@@ -6148,7 +6703,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Init<br/>
 	/// @sa SDL_Quit<br/>
@@ -6164,7 +6719,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param flags any of the flags used by SDL_Init(); see SDL_Init for details.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_InitSubSystem<br/>
 	/// @sa SDL_Quit
@@ -6179,7 +6734,7 @@ public unsafe partial class SDL3
 	/// @returns a mask of all initialized subsystems if `flags` is 0, otherwise it<br/>
 	/// returns the initialization status of the specified subsystems.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Init<br/>
 	/// @sa SDL_InitSubSystem
@@ -6196,13 +6751,56 @@ public unsafe partial class SDL3
 	/// application is shutdown, but it is not wise to do this from a library or<br/>
 	/// other dynamically loaded code.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Init<br/>
 	/// @sa SDL_QuitSubSystem
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_Quit")]
 	public static partial void SDL_Quit();
+
+	/// <summary>
+	/// Return whether this is the main thread.<br/>
+	/// On Apple platforms, the main thread is the thread that runs your program's<br/>
+	/// main() entry point. On other platforms, the main thread is the one that<br/>
+	/// calls SDL_Init(SDL_INIT_VIDEO), which should usually be the one that runs<br/>
+	/// your program's main() entry point. If you are using the main callbacks,<br/>
+	/// SDL_AppInit(), SDL_AppIterate(), and SDL_AppQuit() are all called on the<br/>
+	/// main thread.<br/>
+	/// <br/>
+	/// @returns true if this thread is the main thread, or false otherwise.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_RunOnMainThread
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_IsMainThread")]
+	public static partial SDLBool SDL_IsMainThread();
+
+	/// <summary>
+	/// Call a function on the main thread during event processing.<br/>
+	/// If this is called on the main thread, the callback is executed immediately.<br/>
+	/// If this is called on another thread, this callback is queued for execution<br/>
+	/// on the main thread during event processing.<br/>
+	/// Be careful of deadlocks when using this functionality. You should not have<br/>
+	/// the main thread wait for the current thread while this function is being<br/>
+	/// called with `wait_complete` true.<br/>
+	/// <br/>
+	/// @param callback the callback to call on the main thread.<br/>
+	/// @param userdata a pointer that is passed to `callback`.<br/>
+	/// @param wait_complete true to wait for the callback to complete, false to<br/>
+	/// return immediately.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_IsMainThread
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_RunOnMainThread")]
+	public static partial SDLBool SDL_RunOnMainThread(delegate* unmanaged[Cdecl]<nint, void> callback, nint userdata, SDLBool wait_complete);
 
 	/// <summary>
 	/// Specify basic metadata about your app.<br/>
@@ -6230,7 +6828,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAppMetadataProperty
 	/// </summary>
@@ -6254,7 +6852,7 @@ public unsafe partial class SDL3
 	/// This function should be called as early as possible, before SDL_Init.<br/>
 	/// Multiple calls to this function are allowed, but various state might not<br/>
 	/// change once it has been set up with a previous call to this function.<br/>
-	/// Once set, this metadata can be read using SDL_GetMetadataProperty().<br/>
+	/// Once set, this metadata can be read using SDL_GetAppMetadataProperty().<br/>
 	/// These are the supported properties:<br/>
 	/// - `SDL_PROP_APP_METADATA_NAME_STRING`: The human-readable name of the<br/>
 	/// application, like "My Game 2: Bad Guy's Revenge!". This will show up<br/>
@@ -6292,7 +6890,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAppMetadataProperty<br/>
 	/// @sa SDL_SetAppMetadata
@@ -6320,7 +6918,7 @@ public unsafe partial class SDL3
 	/// freed if you call SDL_SetAppMetadataProperty() to set that<br/>
 	/// property from another thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetAppMetadata<br/>
 	/// @sa SDL_SetAppMetadataProperty
@@ -6400,8 +6998,9 @@ public unsafe partial class SDL3
 	/// the file.<br/>
 	/// @returns a pointer to the SDL_IOStream structure that is created or NULL on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseIO<br/>
 	/// @sa SDL_FlushIO<br/>
@@ -6440,8 +7039,9 @@ public unsafe partial class SDL3
 	/// @param size the buffer size, in bytes.<br/>
 	/// @returns a pointer to a new SDL_IOStream structure or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_IOFromConstMem<br/>
 	/// @sa SDL_CloseIO<br/>
@@ -6476,8 +7076,9 @@ public unsafe partial class SDL3
 	/// @param size the buffer size, in bytes.<br/>
 	/// @returns a pointer to a new SDL_IOStream structure or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_IOFromMem<br/>
 	/// @sa SDL_CloseIO<br/>
@@ -6503,8 +7104,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns a pointer to a new SDL_IOStream structure or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseIO<br/>
 	/// @sa SDL_ReadIO<br/>
@@ -6529,8 +7131,9 @@ public unsafe partial class SDL3
 	/// @param userdata the pointer that will be passed to the interface functions.<br/>
 	/// @returns a pointer to the allocated memory on success or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseIO<br/>
 	/// @sa SDL_INIT_INTERFACE<br/>
@@ -6561,8 +7164,9 @@ public unsafe partial class SDL3
 	/// @param context SDL_IOStream structure to close.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenIO
 	/// </summary>
@@ -6575,8 +7179,9 @@ public unsafe partial class SDL3
 	/// @param context a pointer to an SDL_IOStream structure.<br/>
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetIOProperties")]
 	public static partial SDL_PropertiesID SDL_GetIOProperties(SDL_IOStream context);
@@ -6592,10 +7197,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param context the SDL_IOStream to query.<br/>
 	/// @returns an SDL_IOStatus enum with the current state.<br/>
-	/// @threadsafety This function should not be called at the same time that<br/>
-	/// another thread is operating on the same SDL_IOStream.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetIOStatus")]
 	public static partial SDL_IOStatus SDL_GetIOStatus(SDL_IOStream context);
@@ -6607,8 +7211,9 @@ public unsafe partial class SDL3
 	/// @returns the size of the data stream in the SDL_IOStream on success or a<br/>
 	/// negative error code on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetIOSize")]
 	public static partial long SDL_GetIOSize(SDL_IOStream context);
@@ -6629,8 +7234,9 @@ public unsafe partial class SDL3
 	/// `SDL_IO_SEEK_END`.<br/>
 	/// @returns the final offset in the data stream after the seek or -1 on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_TellIO
 	/// </summary>
@@ -6647,8 +7253,9 @@ public unsafe partial class SDL3
 	/// current offset.<br/>
 	/// @returns the current offset in the stream, or -1 if the information can not<br/>
 	/// be determined.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SeekIO
 	/// </summary>
@@ -6658,18 +7265,20 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Read from a data source.<br/>
 	/// This function reads up `size` bytes from the data source to the area<br/>
-	/// pointed at by `ptr`. This function may read less bytes than requested. It<br/>
-	/// will return zero when the data stream is completely read, and<br/>
-	/// SDL_GetIOStatus() will return SDL_IO_STATUS_EOF, or on error, and<br/>
-	/// SDL_GetIOStatus() will return SDL_IO_STATUS_ERROR.<br/>
+	/// pointed at by `ptr`. This function may read less bytes than requested.<br/>
+	/// This function will return zero when the data stream is completely read, and<br/>
+	/// SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If zero is returned and<br/>
+	/// the stream is not at EOF, SDL_GetIOStatus() will return a different error<br/>
+	/// value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param context a pointer to an SDL_IOStream structure.<br/>
 	/// @param ptr a pointer to a buffer to read data into.<br/>
 	/// @param size the number of bytes to read from the data source.<br/>
 	/// @returns the number of bytes read, or 0 on end of file or other failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_WriteIO<br/>
 	/// @sa SDL_GetIOStatus
@@ -6693,8 +7302,9 @@ public unsafe partial class SDL3
 	/// @param size the number of bytes to write.<br/>
 	/// @returns the number of bytes written, which will be less than `size` on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_IOprintf<br/>
 	/// @sa SDL_ReadIO<br/>
@@ -6714,8 +7324,9 @@ public unsafe partial class SDL3
 	/// @param context SDL_IOStream structure to flush.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenIO<br/>
 	/// @sa SDL_WriteIO
@@ -6737,10 +7348,12 @@ public unsafe partial class SDL3
 	/// in the case of an error.<br/>
 	/// @returns the data or NULL on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_LoadFile
+	/// @sa SDL_LoadFile<br/>
+	/// @sa SDL_SaveFile_IO
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_LoadFile_IO")]
 	public static partial nint SDL_LoadFile_IO(SDL_IOStream src, nuint* datasize, SDLBool closeio);
@@ -6756,10 +7369,12 @@ public unsafe partial class SDL3
 	/// @param datasize if not NULL, will store the number of bytes read.<br/>
 	/// @returns the data or NULL on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_LoadFile_IO
+	/// @sa SDL_LoadFile_IO<br/>
+	/// @sa SDL_SaveFile
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_LoadFile")]
 	public static partial nint SDL_LoadFile(byte* file, nuint* datasize);
@@ -6771,27 +7386,83 @@ public unsafe partial class SDL3
 	public static partial nint SDL_LoadFile([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> file, nuint* datasize);
 
 	/// <summary>
+	/// Save all the data into an SDL data stream.<br/>
+	/// <br/>
+	/// @param src the SDL_IOStream to write all data to.<br/>
+	/// @param data the data to be written. If datasize is 0, may be NULL or a<br/>
+	/// invalid pointer.<br/>
+	/// @param datasize the number of bytes to be written.<br/>
+	/// @param closeio if true, calls SDL_CloseIO() on `src` before returning, even<br/>
+	/// in the case of an error.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_SaveFile<br/>
+	/// @sa SDL_LoadFile_IO
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SaveFile_IO")]
+	public static partial SDLBool SDL_SaveFile_IO(SDL_IOStream src, nint data, nuint datasize, SDLBool closeio);
+
+	/// <summary>
+	/// Save all the data into a file path.<br/>
+	/// <br/>
+	/// @param file the path to write all available data into.<br/>
+	/// @param data the data to be written. If datasize is 0, may be NULL or a<br/>
+	/// invalid pointer.<br/>
+	/// @param datasize the number of bytes to be written.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_SaveFile_IO<br/>
+	/// @sa SDL_LoadFile
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SaveFile")]
+	public static partial SDLBool SDL_SaveFile(byte* file, nint data, nuint datasize);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SaveFile")]
+	public static partial SDLBool SDL_SaveFile(ReadOnlySpan<byte> file, nint data, nuint datasize);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SaveFile")]
+	public static partial SDLBool SDL_SaveFile([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> file, nint data, nuint datasize);
+
+	/// <summary>
 	/// Use this function to read a byte from an SDL_IOStream.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the SDL_IOStream to read from.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
-	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
-	/// information.<br/>
+	/// @returns true on success or false on failure or EOF; call SDL_GetError()<br/>
+	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadU8")]
 	public static partial SDLBool SDL_ReadU8(SDL_IOStream src, byte* value);
 
 	/// <summary>
 	/// Use this function to read a signed byte from an SDL_IOStream.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the SDL_IOStream to read from.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadS8")]
 	public static partial SDLBool SDL_ReadS8(SDL_IOStream src, sbyte* value);
@@ -6801,13 +7472,18 @@ public unsafe partial class SDL3
 	/// SDL_IOStream and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadU16LE")]
 	public static partial SDLBool SDL_ReadU16LE(SDL_IOStream src, ushort* value);
@@ -6817,13 +7493,18 @@ public unsafe partial class SDL3
 	/// SDL_IOStream and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadS16LE")]
 	public static partial SDLBool SDL_ReadS16LE(SDL_IOStream src, short* value);
@@ -6833,13 +7514,18 @@ public unsafe partial class SDL3
 	/// and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadU16BE")]
 	public static partial SDLBool SDL_ReadU16BE(SDL_IOStream src, ushort* value);
@@ -6849,13 +7535,18 @@ public unsafe partial class SDL3
 	/// and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadS16BE")]
 	public static partial SDLBool SDL_ReadS16BE(SDL_IOStream src, short* value);
@@ -6865,13 +7556,18 @@ public unsafe partial class SDL3
 	/// SDL_IOStream and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadU32LE")]
 	public static partial SDLBool SDL_ReadU32LE(SDL_IOStream src, uint* value);
@@ -6881,13 +7577,18 @@ public unsafe partial class SDL3
 	/// SDL_IOStream and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadS32LE")]
 	public static partial SDLBool SDL_ReadS32LE(SDL_IOStream src, int* value);
@@ -6897,13 +7598,18 @@ public unsafe partial class SDL3
 	/// and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadU32BE")]
 	public static partial SDLBool SDL_ReadU32BE(SDL_IOStream src, uint* value);
@@ -6913,13 +7619,18 @@ public unsafe partial class SDL3
 	/// and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadS32BE")]
 	public static partial SDLBool SDL_ReadS32BE(SDL_IOStream src, int* value);
@@ -6929,13 +7640,18 @@ public unsafe partial class SDL3
 	/// SDL_IOStream and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadU64LE")]
 	public static partial SDLBool SDL_ReadU64LE(SDL_IOStream src, ulong* value);
@@ -6945,13 +7661,18 @@ public unsafe partial class SDL3
 	/// SDL_IOStream and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadS64LE")]
 	public static partial SDLBool SDL_ReadS64LE(SDL_IOStream src, long* value);
@@ -6961,13 +7682,18 @@ public unsafe partial class SDL3
 	/// and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadU64BE")]
 	public static partial SDLBool SDL_ReadU64BE(SDL_IOStream src, ulong* value);
@@ -6977,13 +7703,18 @@ public unsafe partial class SDL3
 	/// and return in native format.<br/>
 	/// SDL byteswaps the data only if necessary, so the data returned will be in<br/>
 	/// the native byte order.<br/>
+	/// This function will return false when the data stream is completely read,<br/>
+	/// and SDL_GetIOStatus() will return SDL_IO_STATUS_EOF. If false is returned<br/>
+	/// and the stream is not at EOF, SDL_GetIOStatus() will return a different<br/>
+	/// error value and SDL_GetError() will offer a human-readable message.<br/>
 	/// <br/>
 	/// @param src the stream from which to read data.<br/>
 	/// @param value a pointer filled in with the data read.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadS64BE")]
 	public static partial SDLBool SDL_ReadS64BE(SDL_IOStream src, long* value);
@@ -6995,8 +7726,9 @@ public unsafe partial class SDL3
 	/// @param value the byte value to write.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteU8")]
 	public static partial SDLBool SDL_WriteU8(SDL_IOStream dst, byte value);
@@ -7008,8 +7740,9 @@ public unsafe partial class SDL3
 	/// @param value the byte value to write.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteS8")]
 	public static partial SDLBool SDL_WriteS8(SDL_IOStream dst, sbyte value);
@@ -7025,8 +7758,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteU16LE")]
 	public static partial SDLBool SDL_WriteU16LE(SDL_IOStream dst, ushort value);
@@ -7042,8 +7776,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteS16LE")]
 	public static partial SDLBool SDL_WriteS16LE(SDL_IOStream dst, short value);
@@ -7058,8 +7793,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteU16BE")]
 	public static partial SDLBool SDL_WriteU16BE(SDL_IOStream dst, ushort value);
@@ -7074,8 +7810,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteS16BE")]
 	public static partial SDLBool SDL_WriteS16BE(SDL_IOStream dst, short value);
@@ -7091,8 +7828,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteU32LE")]
 	public static partial SDLBool SDL_WriteU32LE(SDL_IOStream dst, uint value);
@@ -7108,8 +7846,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteS32LE")]
 	public static partial SDLBool SDL_WriteS32LE(SDL_IOStream dst, int value);
@@ -7124,8 +7863,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteU32BE")]
 	public static partial SDLBool SDL_WriteU32BE(SDL_IOStream dst, uint value);
@@ -7140,8 +7880,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteS32BE")]
 	public static partial SDLBool SDL_WriteS32BE(SDL_IOStream dst, int value);
@@ -7157,8 +7898,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteU64LE")]
 	public static partial SDLBool SDL_WriteU64LE(SDL_IOStream dst, ulong value);
@@ -7174,8 +7916,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteS64LE")]
 	public static partial SDLBool SDL_WriteS64LE(SDL_IOStream dst, long value);
@@ -7190,8 +7933,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteU64BE")]
 	public static partial SDLBool SDL_WriteU64BE(SDL_IOStream dst, ulong value);
@@ -7206,8 +7950,9 @@ public unsafe partial class SDL3
 	/// @param value the data to be written, in native format.<br/>
 	/// @returns true on successful write or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteS64BE")]
 	public static partial SDLBool SDL_WriteS64BE(SDL_IOStream dst, long value);
@@ -7218,7 +7963,7 @@ public unsafe partial class SDL3
 	/// joysticks while processing to guarantee that the joystick list won't change<br/>
 	/// and joystick and gamepad events will not be delivered.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_LockJoysticks")]
 	public static partial void SDL_LockJoysticks();
@@ -7226,7 +7971,7 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Unlocking for atomic access to the joystick API.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UnlockJoysticks")]
 	public static partial void SDL_UnlockJoysticks();
@@ -7236,7 +7981,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if a joystick is connected, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoysticks
 	/// </summary>
@@ -7252,7 +7997,7 @@ public unsafe partial class SDL3
 	/// call SDL_GetError() for more information. This should be freed<br/>
 	/// with SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasJoystick<br/>
 	/// @sa SDL_OpenJoystick
@@ -7268,7 +8013,7 @@ public unsafe partial class SDL3
 	/// @returns the name of the selected joystick. If no name can be found, this<br/>
 	/// function returns NULL; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickName<br/>
 	/// @sa SDL_GetJoysticks
@@ -7289,7 +8034,7 @@ public unsafe partial class SDL3
 	/// @returns the path of the selected joystick. If no path can be found, this<br/>
 	/// function returns NULL; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickPath<br/>
 	/// @sa SDL_GetJoysticks
@@ -7309,7 +8054,7 @@ public unsafe partial class SDL3
 	/// @param instance_id the joystick instance ID.<br/>
 	/// @returns the player index of a joystick, or -1 if it's not available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickPlayerIndex<br/>
 	/// @sa SDL_GetJoysticks
@@ -7325,7 +8070,7 @@ public unsafe partial class SDL3
 	/// @returns the GUID of the selected joystick. If called with an invalid<br/>
 	/// instance_id, this function returns a zero GUID.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickGUID<br/>
 	/// @sa SDL_GUIDToString
@@ -7342,7 +8087,7 @@ public unsafe partial class SDL3
 	/// @returns the USB vendor ID of the selected joystick. If called with an<br/>
 	/// invalid instance_id, this function returns 0.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickVendor<br/>
 	/// @sa SDL_GetJoysticks
@@ -7359,7 +8104,7 @@ public unsafe partial class SDL3
 	/// @returns the USB product ID of the selected joystick. If called with an<br/>
 	/// invalid instance_id, this function returns 0.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickProduct<br/>
 	/// @sa SDL_GetJoysticks
@@ -7376,7 +8121,7 @@ public unsafe partial class SDL3
 	/// @returns the product version of the selected joystick. If called with an<br/>
 	/// invalid instance_id, this function returns 0.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickProductVersion<br/>
 	/// @sa SDL_GetJoysticks
@@ -7393,7 +8138,7 @@ public unsafe partial class SDL3
 	/// invalid instance_id, this function returns<br/>
 	/// `SDL_JOYSTICK_TYPE_UNKNOWN`.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickType<br/>
 	/// @sa SDL_GetJoysticks
@@ -7410,7 +8155,7 @@ public unsafe partial class SDL3
 	/// @returns a joystick identifier or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseJoystick
 	/// </summary>
@@ -7424,7 +8169,7 @@ public unsafe partial class SDL3
 	/// @returns an SDL_Joystick on success or NULL on failure or if it hasn't been<br/>
 	/// opened yet; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickFromID")]
 	public static partial SDL_Joystick SDL_GetJoystickFromID(SDL_JoystickID instance_id);
@@ -7436,7 +8181,7 @@ public unsafe partial class SDL3
 	/// @returns an SDL_Joystick on success or NULL on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickPlayerIndex<br/>
 	/// @sa SDL_SetJoystickPlayerIndex
@@ -7451,7 +8196,7 @@ public unsafe partial class SDL3
 	/// @returns the joystick instance ID, or 0 on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DetachVirtualJoystick
 	/// </summary>
@@ -7466,7 +8211,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AttachVirtualJoystick
 	/// </summary>
@@ -7479,7 +8224,7 @@ public unsafe partial class SDL3
 	/// @param instance_id the joystick instance ID.<br/>
 	/// @returns true if the joystick is virtual, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_IsJoystickVirtual")]
 	public static partial SDLBool SDL_IsJoystickVirtual(SDL_JoystickID instance_id);
@@ -7501,7 +8246,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetJoystickVirtualAxis")]
 	public static partial SDLBool SDL_SetJoystickVirtualAxis(SDL_Joystick joystick, int axis, short value);
@@ -7521,7 +8266,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetJoystickVirtualBall")]
 	public static partial SDLBool SDL_SetJoystickVirtualBall(SDL_Joystick joystick, int ball, short xrel, short yrel);
@@ -7540,7 +8285,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetJoystickVirtualButton")]
 	public static partial SDLBool SDL_SetJoystickVirtualButton(SDL_Joystick joystick, int button, SDLBool down);
@@ -7559,7 +8304,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetJoystickVirtualHat")]
 	public static partial SDLBool SDL_SetJoystickVirtualHat(SDL_Joystick joystick, int hat, byte value);
@@ -7585,7 +8330,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetJoystickVirtualTouchpad")]
 	public static partial SDLBool SDL_SetJoystickVirtualTouchpad(SDL_Joystick joystick, int touchpad, int finger, SDLBool down, float x, float y, float pressure);
@@ -7607,7 +8352,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SendJoystickVirtualSensorData")]
 	public static partial SDLBool SDL_SendJoystickVirtualSensorData(SDL_Joystick joystick, SDL_SensorType type, ulong sensor_timestamp, float* data, int num_values);
@@ -7630,7 +8375,7 @@ public unsafe partial class SDL3
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickProperties")]
 	public static partial SDL_PropertiesID SDL_GetJoystickProperties(SDL_Joystick joystick);
@@ -7642,7 +8387,7 @@ public unsafe partial class SDL3
 	/// @returns the name of the selected joystick. If no name can be found, this<br/>
 	/// function returns NULL; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickNameForID
 	/// </summary>
@@ -7661,7 +8406,7 @@ public unsafe partial class SDL3
 	/// @returns the path of the selected joystick. If no path can be found, this<br/>
 	/// function returns NULL; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickPathForID
 	/// </summary>
@@ -7681,7 +8426,7 @@ public unsafe partial class SDL3
 	/// @param joystick the SDL_Joystick obtained from SDL_OpenJoystick().<br/>
 	/// @returns the player index, or -1 if it's not available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetJoystickPlayerIndex
 	/// </summary>
@@ -7697,7 +8442,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickPlayerIndex
 	/// </summary>
@@ -7713,7 +8458,7 @@ public unsafe partial class SDL3
 	/// this function returns a zero GUID; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickGUIDForID<br/>
 	/// @sa SDL_GUIDToString
@@ -7728,7 +8473,7 @@ public unsafe partial class SDL3
 	/// @param joystick the SDL_Joystick obtained from SDL_OpenJoystick().<br/>
 	/// @returns the USB vendor ID of the selected joystick, or 0 if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickVendorForID
 	/// </summary>
@@ -7742,7 +8487,7 @@ public unsafe partial class SDL3
 	/// @param joystick the SDL_Joystick obtained from SDL_OpenJoystick().<br/>
 	/// @returns the USB product ID of the selected joystick, or 0 if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickProductForID
 	/// </summary>
@@ -7756,7 +8501,7 @@ public unsafe partial class SDL3
 	/// @param joystick the SDL_Joystick obtained from SDL_OpenJoystick().<br/>
 	/// @returns the product version of the selected joystick, or 0 if unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickProductVersionForID
 	/// </summary>
@@ -7771,7 +8516,7 @@ public unsafe partial class SDL3
 	/// @returns the firmware version of the selected joystick, or 0 if<br/>
 	/// unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickFirmwareVersion")]
 	public static partial ushort SDL_GetJoystickFirmwareVersion(SDL_Joystick joystick);
@@ -7784,7 +8529,7 @@ public unsafe partial class SDL3
 	/// @returns the serial number of the selected joystick, or NULL if<br/>
 	/// unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickSerial")]
 	public static partial byte* SDL_GetJoystickSerialPtr(SDL_Joystick joystick);
@@ -7800,7 +8545,7 @@ public unsafe partial class SDL3
 	/// @param joystick the SDL_Joystick obtained from SDL_OpenJoystick().<br/>
 	/// @returns the SDL_JoystickType of the selected joystick.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickTypeForID
 	/// </summary>
@@ -7820,7 +8565,7 @@ public unsafe partial class SDL3
 	/// @param crc16 a pointer filled in with a CRC used to distinguish different<br/>
 	/// products with the same VID/PID, or 0 if not available.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickGUIDForID
 	/// </summary>
@@ -7834,7 +8579,7 @@ public unsafe partial class SDL3
 	/// @returns true if the joystick has been opened, false if it has not; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_JoystickConnected")]
 	public static partial SDLBool SDL_JoystickConnected(SDL_Joystick joystick);
@@ -7846,7 +8591,7 @@ public unsafe partial class SDL3
 	/// @returns the instance ID of the specified joystick on success or 0 on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickID")]
 	public static partial SDL_JoystickID SDL_GetJoystickID(SDL_Joystick joystick);
@@ -7861,7 +8606,7 @@ public unsafe partial class SDL3
 	/// @returns the number of axis controls/number of axes on success or -1 on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickAxis<br/>
 	/// @sa SDL_GetNumJoystickBalls<br/>
@@ -7881,7 +8626,7 @@ public unsafe partial class SDL3
 	/// @returns the number of trackballs on success or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickBall<br/>
 	/// @sa SDL_GetNumJoystickAxes<br/>
@@ -7898,7 +8643,7 @@ public unsafe partial class SDL3
 	/// @returns the number of POV hats on success or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickHat<br/>
 	/// @sa SDL_GetNumJoystickAxes<br/>
@@ -7915,7 +8660,7 @@ public unsafe partial class SDL3
 	/// @returns the number of buttons on success or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetJoystickButton<br/>
 	/// @sa SDL_GetNumJoystickAxes<br/>
@@ -7933,7 +8678,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param enabled whether to process joystick events or not.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_JoystickEventsEnabled<br/>
 	/// @sa SDL_UpdateJoysticks
@@ -7949,7 +8694,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if joystick events are being processed, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetJoystickEventsEnabled
 	/// </summary>
@@ -7961,7 +8706,7 @@ public unsafe partial class SDL3
 	/// This is called automatically by the event loop if any joystick events are<br/>
 	/// enabled.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UpdateJoysticks")]
 	public static partial void SDL_UpdateJoysticks();
@@ -7982,7 +8727,7 @@ public unsafe partial class SDL3
 	/// @returns a 16-bit signed integer representing the current position of the<br/>
 	/// axis or 0 on failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumJoystickAxes
 	/// </summary>
@@ -7999,7 +8744,7 @@ public unsafe partial class SDL3
 	/// @param state upon return, the initial value is supplied here.<br/>
 	/// @returns true if this axis has any initial value, or false if not.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickAxisInitialState")]
 	public static partial SDLBool SDL_GetJoystickAxisInitialState(SDL_Joystick joystick, int axis, short* state);
@@ -8017,7 +8762,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumJoystickBalls
 	/// </summary>
@@ -8032,7 +8777,7 @@ public unsafe partial class SDL3
 	/// @param hat the hat index to get the state from; indices start at index 0.<br/>
 	/// @returns the current hat position.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumJoystickHats
 	/// </summary>
@@ -8047,7 +8792,7 @@ public unsafe partial class SDL3
 	/// index 0.<br/>
 	/// @returns true if the button is pressed, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumJoystickButtons
 	/// </summary>
@@ -8069,7 +8814,7 @@ public unsafe partial class SDL3
 	/// @param duration_ms the duration of the rumble effect, in milliseconds.<br/>
 	/// @returns true, or false if rumble isn't supported on this joystick.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RumbleJoystick")]
 	public static partial SDLBool SDL_RumbleJoystick(SDL_Joystick joystick, ushort low_frequency_rumble, ushort high_frequency_rumble, uint duration_ms);
@@ -8094,7 +8839,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RumbleJoystick
 	/// </summary>
@@ -8115,7 +8860,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetJoystickLED")]
 	public static partial SDLBool SDL_SetJoystickLED(SDL_Joystick joystick, byte red, byte green, byte blue);
@@ -8129,7 +8874,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SendJoystickEffect")]
 	public static partial SDLBool SDL_SendJoystickEffect(SDL_Joystick joystick, nint data, int size);
@@ -8139,7 +8884,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param joystick the joystick device to close.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenJoystick
 	/// </summary>
@@ -8154,7 +8899,7 @@ public unsafe partial class SDL3
 	/// `SDL_JOYSTICK_CONNECTION_INVALID` on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickConnectionState")]
 	public static partial SDL_JoystickConnectionState SDL_GetJoystickConnectionState(SDL_Joystick joystick);
@@ -8175,7 +8920,7 @@ public unsafe partial class SDL3
 	/// @returns the current battery state or `SDL_POWERSTATE_ERROR` on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetJoystickPowerInfo")]
 	public static partial SDL_PowerState SDL_GetJoystickPowerInfo(SDL_Joystick joystick, int* percent);
@@ -8184,8 +8929,9 @@ public unsafe partial class SDL3
 	/// Return whether a keyboard is currently connected.<br/>
 	/// <br/>
 	/// @returns true if a keyboard is connected, false otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyboards
 	/// </summary>
@@ -8204,8 +8950,9 @@ public unsafe partial class SDL3
 	/// @returns a 0 terminated array of keyboards instance IDs or NULL on failure;<br/>
 	/// call SDL_GetError() for more information. This should be freed<br/>
 	/// with SDL_free() when it is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyboardNameForID<br/>
 	/// @sa SDL_HasKeyboard
@@ -8220,8 +8967,9 @@ public unsafe partial class SDL3
 	/// @param instance_id the keyboard instance ID.<br/>
 	/// @returns the name of the selected keyboard or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyboards
 	/// </summary>
@@ -8237,8 +8985,9 @@ public unsafe partial class SDL3
 	/// Query the window which currently has keyboard focus.<br/>
 	/// <br/>
 	/// @returns the window with keyboard focus.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetKeyboardFocus")]
 	public static partial SDL_Window SDL_GetKeyboardFocus();
@@ -8261,8 +9010,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param numkeys if non-NULL, receives the length of the returned array.<br/>
 	/// @returns a pointer to an array of key states.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PumpEvents<br/>
 	/// @sa SDL_ResetKeyboard
@@ -8273,8 +9023,9 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Clear the state of the keyboard.<br/>
 	/// This function will generate key up events for all pressed keys.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyboardState
 	/// </summary>
@@ -8286,8 +9037,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns an OR'd combination of the modifier keys for the keyboard. See<br/>
 	/// SDL_Keymod for details.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyboardState<br/>
 	/// @sa SDL_SetModState
@@ -8305,8 +9057,9 @@ public unsafe partial class SDL3
 	/// SDL reports.<br/>
 	/// <br/>
 	/// @param modstate the desired SDL_Keymod for the keyboard.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetModState
 	/// </summary>
@@ -8326,8 +9079,9 @@ public unsafe partial class SDL3
 	/// a keycode.<br/>
 	/// @param key_event true if the keycode will be used in key events.<br/>
 	/// @returns the SDL_Keycode that corresponds to the given SDL_Scancode.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyName<br/>
 	/// @sa SDL_GetScancodeFromKey
@@ -8345,8 +9099,9 @@ public unsafe partial class SDL3
 	/// @param modstate a pointer to the modifier state that would be used when the<br/>
 	/// scancode generates this key, may be NULL.<br/>
 	/// @returns the SDL_Scancode that corresponds to the given SDL_Keycode.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyFromScancode<br/>
 	/// @sa SDL_GetScancodeName
@@ -8363,8 +9118,9 @@ public unsafe partial class SDL3
 	/// valid while SDL is being used.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetScancodeName
 	/// </summary>
@@ -8391,8 +9147,9 @@ public unsafe partial class SDL3
 	/// @param scancode the desired SDL_Scancode to query.<br/>
 	/// @returns a pointer to the name for the scancode. If the scancode doesn't<br/>
 	/// have a name this function returns an empty string ("").<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetScancodeFromKey<br/>
 	/// @sa SDL_GetScancodeFromName<br/>
@@ -8412,8 +9169,9 @@ public unsafe partial class SDL3
 	/// @param name the human-readable scancode name.<br/>
 	/// @returns the SDL_Scancode, or `SDL_SCANCODE_UNKNOWN` if the name wasn't<br/>
 	/// recognized; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyFromName<br/>
 	/// @sa SDL_GetScancodeFromKey<br/>
@@ -8431,11 +9189,13 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Get a human-readable name for a key.<br/>
 	/// If the key doesn't have a name, this function returns an empty string ("").<br/>
+	/// Letters will be presented in their uppercase form, if applicable.<br/>
 	/// <br/>
 	/// @param key the desired SDL_Keycode to query.<br/>
 	/// @returns a UTF-8 encoded string of the key name.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyFromName<br/>
 	/// @sa SDL_GetKeyFromScancode<br/>
@@ -8455,8 +9215,9 @@ public unsafe partial class SDL3
 	/// @param name the human-readable key name.<br/>
 	/// @returns key code, or `SDLK_UNKNOWN` if the name wasn't recognized; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetKeyFromScancode<br/>
 	/// @sa SDL_GetKeyName<br/>
@@ -8477,13 +9238,16 @@ public unsafe partial class SDL3
 	/// SDL_EVENT_TEXT_EDITING events) in the specified window. Please use this<br/>
 	/// function paired with SDL_StopTextInput().<br/>
 	/// Text input events are not received by default.<br/>
-	/// On some platforms using this function shows the screen keyboard.<br/>
+	/// On some platforms using this function shows the screen keyboard and/or<br/>
+	/// activates an IME, which can prevent some key press events from being passed<br/>
+	/// through.<br/>
 	/// <br/>
 	/// @param window the window to enable text input.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetTextInputArea<br/>
 	/// @sa SDL_StartTextInputWithProperties<br/>
@@ -8500,7 +9264,9 @@ public unsafe partial class SDL3
 	/// SDL_EVENT_TEXT_EDITING events) in the specified window. Please use this<br/>
 	/// function paired with SDL_StopTextInput().<br/>
 	/// Text input events are not received by default.<br/>
-	/// On some platforms using this function shows the screen keyboard.<br/>
+	/// On some platforms using this function shows the screen keyboard and/or<br/>
+	/// activates an IME, which can prevent some key press events from being passed<br/>
+	/// through.<br/>
 	/// These are the supported properties:<br/>
 	/// - `SDL_PROP_TEXTINPUT_TYPE_NUMBER` - an SDL_TextInputType value that<br/>
 	/// describes text being input, defaults to SDL_TEXTINPUT_TYPE_TEXT.<br/>
@@ -8524,8 +9290,9 @@ public unsafe partial class SDL3
 	/// @param props the properties to use.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetTextInputArea<br/>
 	/// @sa SDL_StartTextInput<br/>
@@ -8540,8 +9307,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param window the window to check.<br/>
 	/// @returns true if text input events are enabled else false.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StartTextInput
 	/// </summary>
@@ -8556,8 +9324,9 @@ public unsafe partial class SDL3
 	/// @param window the window to disable text input.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StartTextInput
 	/// </summary>
@@ -8570,8 +9339,9 @@ public unsafe partial class SDL3
 	/// @param window the window to affect.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StartTextInput<br/>
 	/// @sa SDL_StopTextInput
@@ -8591,8 +9361,9 @@ public unsafe partial class SDL3
 	/// `rect->x`, in window coordinates.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextInputArea<br/>
 	/// @sa SDL_StartTextInput
@@ -8611,8 +9382,9 @@ public unsafe partial class SDL3
 	/// relative to `rect->x`, may be NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetTextInputArea
 	/// </summary>
@@ -8624,8 +9396,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if the platform has some screen keyboard support or false if<br/>
 	/// not.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StartTextInput<br/>
 	/// @sa SDL_ScreenKeyboardShown
@@ -8638,8 +9411,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param window the window for which screen keyboard should be queried.<br/>
 	/// @returns true if screen keyboard is shown or false if not.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasScreenKeyboardSupport
 	/// </summary>
@@ -8654,7 +9428,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LoadFunction<br/>
 	/// @sa SDL_UnloadObject
@@ -8685,7 +9459,7 @@ public unsafe partial class SDL3
 	/// for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LoadObject
 	/// </summary>
@@ -8706,7 +9480,7 @@ public unsafe partial class SDL3
 	/// @param handle a valid shared object handle returned by SDL_LoadObject().<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LoadObject
 	/// </summary>
@@ -8747,7 +9521,7 @@ public unsafe partial class SDL3
 	/// allocation that should be freed with SDL_free() when it is no<br/>
 	/// longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetPreferredLocales")]
 	public static partial SDL_Locale** SDL_GetPreferredLocales(out int count);
@@ -8758,7 +9532,7 @@ public unsafe partial class SDL3
 	/// @param priority the SDL_LogPriority to assign.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ResetLogPriorities<br/>
 	/// @sa SDL_SetLogPriority
@@ -8773,7 +9547,7 @@ public unsafe partial class SDL3
 	/// @param priority the SDL_LogPriority to assign.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetLogPriority<br/>
 	/// @sa SDL_ResetLogPriorities<br/>
@@ -8789,7 +9563,7 @@ public unsafe partial class SDL3
 	/// @returns the SDL_LogPriority for the requested category.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetLogPriority
 	/// </summary>
@@ -8801,7 +9575,7 @@ public unsafe partial class SDL3
 	/// This is called by SDL_Quit().<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetLogPriorities<br/>
 	/// @sa SDL_SetLogPriority
@@ -8822,7 +9596,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetLogPriorities<br/>
 	/// @sa SDL_SetLogPriority
@@ -8844,7 +9618,7 @@ public unsafe partial class SDL3
 	/// any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LogCritical<br/>
 	/// @sa SDL_LogDebug<br/>
@@ -8874,7 +9648,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogCritical<br/>
@@ -8905,7 +9679,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogCritical<br/>
@@ -8934,7 +9708,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogCritical<br/>
@@ -8964,7 +9738,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogCritical<br/>
@@ -8994,7 +9768,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogCritical<br/>
@@ -9024,7 +9798,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogCritical<br/>
@@ -9054,7 +9828,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogDebug<br/>
@@ -9085,7 +9859,7 @@ public unsafe partial class SDL3
 	/// if any.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Log<br/>
 	/// @sa SDL_LogCritical<br/>
@@ -9107,6 +9881,20 @@ public unsafe partial class SDL3
 	public static partial void SDL_LogMessage(int category, SDL_LogPriority priority, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt);
 
 	/// <summary>
+	/// Get the default log output function.<br/>
+	/// <br/>
+	/// @returns the default log output callback.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_SetLogOutputFunction<br/>
+	/// @sa SDL_GetLogOutputFunction
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetDefaultLogOutputFunction")]
+	public static partial delegate* unmanaged[Cdecl]<nint, int, SDL_LogPriority, byte*, void>* SDL_GetDefaultLogOutputFunction();
+
+	/// <summary>
 	/// Get the current log output function.<br/>
 	/// <br/>
 	/// @param callback an SDL_LogOutputFunction filled in with the current log<br/>
@@ -9115,8 +9903,9 @@ public unsafe partial class SDL3
 	/// `callback`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
+	/// @sa SDL_GetDefaultLogOutputFunction<br/>
 	/// @sa SDL_SetLogOutputFunction
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetLogOutputFunction")]
@@ -9129,8 +9918,9 @@ public unsafe partial class SDL3
 	/// @param userdata a pointer that is passed to `callback`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
+	/// @sa SDL_GetDefaultLogOutputFunction<br/>
 	/// @sa SDL_GetLogOutputFunction
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetLogOutputFunction")]
@@ -9161,7 +9951,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ShowSimpleMessageBox
 	/// </summary>
@@ -9191,13 +9981,13 @@ public unsafe partial class SDL3
 	/// to stderr if you can.<br/>
 	/// <br/>
 	/// @param flags an SDL_MessageBoxFlags value.<br/>
-	/// @param title uTF-8 title text.<br/>
-	/// @param message uTF-8 message text.<br/>
+	/// @param title UTF-8 title text.<br/>
+	/// @param message UTF-8 message text.<br/>
 	/// @param window the parent window, or NULL for no parent.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ShowMessageBox
 	/// </summary>
@@ -9221,7 +10011,7 @@ public unsafe partial class SDL3
 	/// @param window the window.<br/>
 	/// @returns handle NSView or UIView.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Metal_DestroyView<br/>
 	/// @sa SDL_Metal_GetLayer
@@ -9236,7 +10026,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param view the SDL_MetalView object.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Metal_CreateView
 	/// </summary>
@@ -9249,7 +10039,7 @@ public unsafe partial class SDL3
 	/// @param view the SDL_MetalView object.<br/>
 	/// @returns a pointer.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_Metal_GetLayer")]
 	public static partial nint SDL_Metal_GetLayer(nint view);
@@ -9277,7 +10067,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OpenURL")]
 	public static partial SDLBool SDL_OpenURL(byte* url);
@@ -9292,8 +10082,9 @@ public unsafe partial class SDL3
 	/// Return whether a mouse is currently connected.<br/>
 	/// <br/>
 	/// @returns true if a mouse is connected, false otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetMice
 	/// </summary>
@@ -9312,8 +10103,9 @@ public unsafe partial class SDL3
 	/// @returns a 0 terminated array of mouse instance IDs or NULL on failure;<br/>
 	/// call SDL_GetError() for more information. This should be freed<br/>
 	/// with SDL_free() when it is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetMouseNameForID<br/>
 	/// @sa SDL_HasMouse
@@ -9328,8 +10120,9 @@ public unsafe partial class SDL3
 	/// @param instance_id the mouse instance ID.<br/>
 	/// @returns the name of the selected mouse, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetMice
 	/// </summary>
@@ -9345,27 +10138,35 @@ public unsafe partial class SDL3
 	/// Get the window which currently has mouse focus.<br/>
 	/// <br/>
 	/// @returns the window with mouse focus.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetMouseFocus")]
 	public static partial SDL_Window SDL_GetMouseFocus();
 
 	/// <summary>
-	/// Retrieve the current state of the mouse.<br/>
-	/// The current button state is returned as a button bitmask, which can be<br/>
-	/// tested using the SDL_BUTTON_MASK(X) macro (where `X` is generally 1 for the<br/>
-	/// left, 2 for middle, 3 for the right button), and `x` and `y` are set to the<br/>
-	/// mouse cursor position relative to the focus window. You can pass NULL for<br/>
-	/// either `x` or `y`.<br/>
+	/// Query SDL's cache for the synchronous mouse button state and the<br/>
+	/// window-relative SDL-cursor position.<br/>
+	/// This function returns the cached synchronous state as SDL understands it<br/>
+	/// from the last pump of the event queue.<br/>
+	/// To query the platform for immediate asynchronous state, use<br/>
+	/// SDL_GetGlobalMouseState.<br/>
+	/// Passing non-NULL pointers to `x` or `y` will write the destination with<br/>
+	/// respective x or y coordinates relative to the focused window.<br/>
+	/// In Relative Mode, the SDL-cursor's position usually contradicts the<br/>
+	/// platform-cursor's position as manually calculated from<br/>
+	/// SDL_GetGlobalMouseState() and SDL_GetWindowPosition.<br/>
 	/// <br/>
-	/// @param x the x coordinate of the mouse cursor position relative to the<br/>
-	/// focus window.<br/>
-	/// @param y the y coordinate of the mouse cursor position relative to the<br/>
-	/// focus window.<br/>
-	/// @returns a 32-bit button bitmask of the current button state.<br/>
+	/// @param x a pointer to receive the SDL-cursor's x-position from the focused<br/>
+	/// window's top left corner, can be NULL if unused.<br/>
+	/// @param y a pointer to receive the SDL-cursor's y-position from the focused<br/>
+	/// window's top left corner, can be NULL if unused.<br/>
+	/// @returns a 32-bit bitmask of the button state that can be bitwise-compared<br/>
+	/// against the SDL_BUTTON_MASK(X) macro.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGlobalMouseState<br/>
 	/// @sa SDL_GetRelativeMouseState
@@ -9374,49 +10175,65 @@ public unsafe partial class SDL3
 	public static partial SDL_MouseButtonFlags SDL_GetMouseState(float* x, float* y);
 
 	/// <summary>
-	/// Get the current state of the mouse in relation to the desktop.<br/>
-	/// This works similarly to SDL_GetMouseState(), but the coordinates will be<br/>
-	/// reported relative to the top-left of the desktop. This can be useful if you<br/>
-	/// need to track the mouse outside of a specific window and SDL_CaptureMouse()<br/>
-	/// doesn't fit your needs. For example, it could be useful if you need to<br/>
-	/// track the mouse while dragging a window, where coordinates relative to a<br/>
-	/// window might not be in sync at all times.<br/>
-	/// Note: SDL_GetMouseState() returns the mouse position as SDL understands it<br/>
-	/// from the last pump of the event queue. This function, however, queries the<br/>
-	/// OS for the current mouse position, and as such, might be a slightly less<br/>
-	/// efficient function. Unless you know what you're doing and have a good<br/>
-	/// reason to use this function, you probably want SDL_GetMouseState() instead.<br/>
+	/// Query the platform for the asynchronous mouse button state and the<br/>
+	/// desktop-relative platform-cursor position.<br/>
+	/// This function immediately queries the platform for the most recent<br/>
+	/// asynchronous state, more costly than retrieving SDL's cached state in<br/>
+	/// SDL_GetMouseState().<br/>
+	/// Passing non-NULL pointers to `x` or `y` will write the destination with<br/>
+	/// respective x or y coordinates relative to the desktop.<br/>
+	/// In Relative Mode, the platform-cursor's position usually contradicts the<br/>
+	/// SDL-cursor's position as manually calculated from SDL_GetMouseState() and<br/>
+	/// SDL_GetWindowPosition.<br/>
+	/// This function can be useful if you need to track the mouse outside of a<br/>
+	/// specific window and SDL_CaptureMouse() doesn't fit your needs. For example,<br/>
+	/// it could be useful if you need to track the mouse while dragging a window,<br/>
+	/// where coordinates relative to a window might not be in sync at all times.<br/>
 	/// <br/>
-	/// @param x filled in with the current X coord relative to the desktop; can be<br/>
-	/// NULL.<br/>
-	/// @param y filled in with the current Y coord relative to the desktop; can be<br/>
-	/// NULL.<br/>
-	/// @returns the current button state as a bitmask which can be tested using<br/>
-	/// the SDL_BUTTON_MASK(X) macros.<br/>
+	/// @param x a pointer to receive the platform-cursor's x-position from the<br/>
+	/// desktop's top left corner, can be NULL if unused.<br/>
+	/// @param y a pointer to receive the platform-cursor's y-position from the<br/>
+	/// desktop's top left corner, can be NULL if unused.<br/>
+	/// @returns a 32-bit bitmask of the button state that can be bitwise-compared<br/>
+	/// against the SDL_BUTTON_MASK(X) macro.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CaptureMouse<br/>
-	/// @sa SDL_GetMouseState
+	/// @sa SDL_GetMouseState<br/>
+	/// @sa SDL_GetGlobalMouseState
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGlobalMouseState")]
 	public static partial SDL_MouseButtonFlags SDL_GetGlobalMouseState(float* x, float* y);
 
 	/// <summary>
-	/// Retrieve the relative state of the mouse.<br/>
-	/// The current button state is returned as a button bitmask, which can be<br/>
-	/// tested using the `SDL_BUTTON_MASK(X)` macros (where `X` is generally 1 for<br/>
-	/// the left, 2 for middle, 3 for the right button), and `x` and `y` are set to<br/>
-	/// the mouse deltas since the last call to SDL_GetRelativeMouseState() or<br/>
-	/// since event initialization. You can pass NULL for either `x` or `y`.<br/>
+	/// Query SDL's cache for the synchronous mouse button state and accumulated<br/>
+	/// mouse delta since last call.<br/>
+	/// This function returns the cached synchronous state as SDL understands it<br/>
+	/// from the last pump of the event queue.<br/>
+	/// To query the platform for immediate asynchronous state, use<br/>
+	/// SDL_GetGlobalMouseState.<br/>
+	/// Passing non-NULL pointers to `x` or `y` will write the destination with<br/>
+	/// respective x or y deltas accumulated since the last call to this function<br/>
+	/// (or since event initialization).<br/>
+	/// This function is useful for reducing overhead by processing relative mouse<br/>
+	/// inputs in one go per-frame instead of individually per-event, at the<br/>
+	/// expense of losing the order between events within the frame (e.g. quickly<br/>
+	/// pressing and releasing a button within the same frame).<br/>
 	/// <br/>
-	/// @param x a pointer filled with the last recorded x coordinate of the mouse.<br/>
-	/// @param y a pointer filled with the last recorded y coordinate of the mouse.<br/>
-	/// @returns a 32-bit button bitmask of the relative button state.<br/>
+	/// @param x a pointer to receive the x mouse delta accumulated since last<br/>
+	/// call, can be NULL if unused.<br/>
+	/// @param y a pointer to receive the y mouse delta accumulated since last<br/>
+	/// call, can be NULL if unused.<br/>
+	/// @returns a 32-bit bitmask of the button state that can be bitwise-compared<br/>
+	/// against the SDL_BUTTON_MASK(X) macro.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_GetMouseState
+	/// @sa SDL_GetMouseState<br/>
+	/// @sa SDL_GetGlobalMouseState
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRelativeMouseState")]
 	public static partial SDL_MouseButtonFlags SDL_GetRelativeMouseState(float* x, float* y);
@@ -9433,8 +10250,9 @@ public unsafe partial class SDL3
 	/// mouse focus.<br/>
 	/// @param x the x coordinate within the window.<br/>
 	/// @param y the y coordinate within the window.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_WarpMouseGlobal
 	/// </summary>
@@ -9453,8 +10271,9 @@ public unsafe partial class SDL3
 	/// @param y the y coordinate.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_WarpMouseInWindow
 	/// </summary>
@@ -9467,14 +10286,19 @@ public unsafe partial class SDL3
 	/// is hidden, the mouse position is constrained to the window, and SDL will<br/>
 	/// report continuous relative mouse motion even if the mouse is at the edge of<br/>
 	/// the window.<br/>
+	/// If you'd like to keep the mouse position fixed while in relative mode you<br/>
+	/// can use SDL_SetWindowMouseRect(). If you'd like the cursor to be at a<br/>
+	/// specific location when relative mode ends, you should use<br/>
+	/// SDL_WarpMouseInWindow() before disabling relative mode.<br/>
 	/// This function will flush any pending mouse motion for this window.<br/>
 	/// <br/>
 	/// @param window the window to change.<br/>
 	/// @param enabled true to enable relative mode, false to disable.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowRelativeMouseMode
 	/// </summary>
@@ -9486,8 +10310,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param window the window to query.<br/>
 	/// @returns true if relative mode is enabled for a window or false otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowRelativeMouseMode
 	/// </summary>
@@ -9528,8 +10353,9 @@ public unsafe partial class SDL3
 	/// @param enabled true to enable capturing, false to disable.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGlobalMouseState
 	/// </summary>
@@ -9563,8 +10389,9 @@ public unsafe partial class SDL3
 	/// mouse y position, in the range of 0 to `h` - 1.<br/>
 	/// @returns a new cursor with the specified parameters on success or NULL on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateColorCursor<br/>
 	/// @sa SDL_CreateSystemCursor<br/>
@@ -9591,8 +10418,9 @@ public unsafe partial class SDL3
 	/// @param hot_y the y position of the cursor hot spot.<br/>
 	/// @returns the new cursor on success or NULL on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateCursor<br/>
 	/// @sa SDL_CreateSystemCursor<br/>
@@ -9608,8 +10436,9 @@ public unsafe partial class SDL3
 	/// @param id an SDL_SystemCursor enum value.<br/>
 	/// @returns a cursor on success or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyCursor
 	/// </summary>
@@ -9626,8 +10455,9 @@ public unsafe partial class SDL3
 	/// @param cursor a cursor to make active.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCursor
 	/// </summary>
@@ -9640,8 +10470,9 @@ public unsafe partial class SDL3
 	/// library. It is not necessary to free the cursor with SDL_DestroyCursor().<br/>
 	/// <br/>
 	/// @returns the active cursor or NULL if there is no mouse.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetCursor
 	/// </summary>
@@ -9655,8 +10486,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the default cursor on success or NULL on failuree; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDefaultCursor")]
 	public static partial SDL_Cursor SDL_GetDefaultCursor();
@@ -9667,8 +10499,9 @@ public unsafe partial class SDL3
 	/// SDL_CreateColorCursor() or SDL_CreateSystemCursor().<br/>
 	/// <br/>
 	/// @param cursor the cursor to free.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateColorCursor<br/>
 	/// @sa SDL_CreateCursor<br/>
@@ -9682,8 +10515,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CursorVisible<br/>
 	/// @sa SDL_HideCursor
@@ -9696,8 +10530,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CursorVisible<br/>
 	/// @sa SDL_ShowCursor
@@ -9710,8 +10545,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns `true` if the cursor is being shown, or `false` if the cursor is<br/>
 	/// hidden.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HideCursor<br/>
 	/// @sa SDL_ShowCursor
@@ -9729,7 +10565,7 @@ public unsafe partial class SDL3
 	/// @returns the initialized and unlocked mutex or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyMutex<br/>
 	/// @sa SDL_LockMutex<br/>
@@ -9753,7 +10589,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param mutex the mutex to lock.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_TryLockMutex<br/>
 	/// @sa SDL_UnlockMutex
@@ -9772,7 +10608,7 @@ public unsafe partial class SDL3
 	/// @param mutex the mutex to try to lock.<br/>
 	/// @returns true on success, false if the mutex would block.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockMutex<br/>
 	/// @sa SDL_UnlockMutex
@@ -9790,7 +10626,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param mutex the mutex to unlock.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockMutex<br/>
 	/// @sa SDL_TryLockMutex
@@ -9808,7 +10644,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param mutex the mutex to destroy.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateMutex
 	/// </summary>
@@ -9841,7 +10677,7 @@ public unsafe partial class SDL3
 	/// @returns the initialized and unlocked read/write lock or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyRWLock<br/>
 	/// @sa SDL_LockRWLockForReading<br/>
@@ -9877,7 +10713,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param rwlock the read/write lock to lock.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockRWLockForWriting<br/>
 	/// @sa SDL_TryLockRWLockForReading<br/>
@@ -9905,7 +10741,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param rwlock the read/write lock to lock.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockRWLockForReading<br/>
 	/// @sa SDL_TryLockRWLockForWriting<br/>
@@ -9927,7 +10763,7 @@ public unsafe partial class SDL3
 	/// @param rwlock the rwlock to try to lock.<br/>
 	/// @returns true on success, false if the lock would block.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockRWLockForReading<br/>
 	/// @sa SDL_TryLockRWLockForWriting<br/>
@@ -9953,7 +10789,7 @@ public unsafe partial class SDL3
 	/// @param rwlock the rwlock to try to lock.<br/>
 	/// @returns true on success, false if the lock would block.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockRWLockForWriting<br/>
 	/// @sa SDL_TryLockRWLockForReading<br/>
@@ -9975,7 +10811,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param rwlock the rwlock to unlock.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockRWLockForReading<br/>
 	/// @sa SDL_LockRWLockForWriting<br/>
@@ -9995,7 +10831,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param rwlock the rwlock to destroy.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateRWLock
 	/// </summary>
@@ -10014,7 +10850,7 @@ public unsafe partial class SDL3
 	/// @returns a new semaphore or NULL on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroySemaphore<br/>
 	/// @sa SDL_SignalSemaphore<br/>
@@ -10033,7 +10869,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param sem the semaphore to destroy.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateSemaphore
 	/// </summary>
@@ -10050,7 +10886,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param sem the semaphore wait on.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SignalSemaphore<br/>
 	/// @sa SDL_TryWaitSemaphore<br/>
@@ -10069,7 +10905,7 @@ public unsafe partial class SDL3
 	/// @param sem the semaphore to wait on.<br/>
 	/// @returns true if the wait succeeds, false if the wait would block.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SignalSemaphore<br/>
 	/// @sa SDL_WaitSemaphore<br/>
@@ -10089,7 +10925,7 @@ public unsafe partial class SDL3
 	/// indefinitely.<br/>
 	/// @returns true if the wait succeeds or false if the wait times out.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SignalSemaphore<br/>
 	/// @sa SDL_TryWaitSemaphore<br/>
@@ -10103,7 +10939,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param sem the semaphore to increment.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_TryWaitSemaphore<br/>
 	/// @sa SDL_WaitSemaphore<br/>
@@ -10118,7 +10954,7 @@ public unsafe partial class SDL3
 	/// @param sem the semaphore to query.<br/>
 	/// @returns the current value of the semaphore.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSemaphoreValue")]
 	public static partial uint SDL_GetSemaphoreValue(SDL_Semaphore sem);
@@ -10129,7 +10965,7 @@ public unsafe partial class SDL3
 	/// @returns a new condition variable or NULL on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BroadcastCondition<br/>
 	/// @sa SDL_SignalCondition<br/>
@@ -10145,7 +10981,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param cond the condition variable to destroy.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateCondition
 	/// </summary>
@@ -10158,7 +10994,7 @@ public unsafe partial class SDL3
 	/// @param cond the condition variable to signal.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BroadcastCondition<br/>
 	/// @sa SDL_WaitCondition<br/>
@@ -10173,7 +11009,7 @@ public unsafe partial class SDL3
 	/// @param cond the condition variable to signal.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SignalCondition<br/>
 	/// @sa SDL_WaitCondition<br/>
@@ -10198,7 +11034,7 @@ public unsafe partial class SDL3
 	/// @param mutex the mutex used to coordinate thread access.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BroadcastCondition<br/>
 	/// @sa SDL_SignalCondition<br/>
@@ -10226,7 +11062,7 @@ public unsafe partial class SDL3
 	/// is not signaled in the allotted time.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BroadcastCondition<br/>
 	/// @sa SDL_SignalCondition<br/>
@@ -10248,7 +11084,7 @@ public unsafe partial class SDL3
 	/// @returns true if initialization needs to be done, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetInitialized<br/>
 	/// @sa SDL_ShouldQuit
@@ -10267,7 +11103,7 @@ public unsafe partial class SDL3
 	/// @returns true if cleanup needs to be done, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetInitialized<br/>
 	/// @sa SDL_ShouldInit
@@ -10285,7 +11121,7 @@ public unsafe partial class SDL3
 	/// @param initialized the new initialization state.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ShouldInit<br/>
 	/// @sa SDL_ShouldQuit
@@ -10301,7 +11137,7 @@ public unsafe partial class SDL3
 	/// "SDL_PIXELFORMAT_UNKNOWN" if the format isn't recognized.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetPixelFormatName")]
 	public static partial byte* SDL_GetPixelFormatNamePtr(SDL_PixelFormat format);
@@ -10324,7 +11160,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPixelFormatForMasks
 	/// </summary>
@@ -10345,7 +11181,7 @@ public unsafe partial class SDL3
 	/// SDL_PIXELFORMAT_UNKNOWN if there isn't a match.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetMasksForPixelFormat
 	/// </summary>
@@ -10363,7 +11199,7 @@ public unsafe partial class SDL3
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetPixelFormatDetails")]
 	public static partial SDL_PixelFormatDetails* SDL_GetPixelFormatDetails(SDL_PixelFormat format);
@@ -10378,7 +11214,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyPalette<br/>
 	/// @sa SDL_SetPaletteColors<br/>
@@ -10399,7 +11235,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as long as<br/>
 	/// the palette is not modified or destroyed in another thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetPaletteColors")]
 	public static partial SDLBool SDL_SetPaletteColors(SDL_Palette* palette, SDL_Color* colors, int firstcolor, int ncolors);
@@ -10411,7 +11247,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as long as<br/>
 	/// the palette is not modified or destroyed in another thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreatePalette
 	/// </summary>
@@ -10442,7 +11278,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as long as<br/>
 	/// the palette is not modified.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPixelFormatDetails<br/>
 	/// @sa SDL_GetRGB<br/>
@@ -10477,7 +11313,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as long as<br/>
 	/// the palette is not modified.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPixelFormatDetails<br/>
 	/// @sa SDL_GetRGBA<br/>
@@ -10504,7 +11340,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as long as<br/>
 	/// the palette is not modified.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPixelFormatDetails<br/>
 	/// @sa SDL_GetRGBA<br/>
@@ -10534,7 +11370,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as long as<br/>
 	/// the palette is not modified.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPixelFormatDetails<br/>
 	/// @sa SDL_GetRGB<br/>
@@ -10556,7 +11392,7 @@ public unsafe partial class SDL3
 	/// @returns the name of the platform. If the correct platform name is not<br/>
 	/// available, returns a string beginning with the text "Unknown".<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetPlatform")]
 	public static partial byte* SDL_GetPlatformPtr();
@@ -10589,7 +11425,7 @@ public unsafe partial class SDL3
 	/// @returns the current battery state or `SDL_POWERSTATE_ERROR` on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetPowerInfo")]
 	public static partial SDL_PowerState SDL_GetPowerInfo(int* seconds, int* percent);
@@ -10600,7 +11436,7 @@ public unsafe partial class SDL3
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGlobalProperties")]
 	public static partial SDL_PropertiesID SDL_GetGlobalProperties();
@@ -10613,7 +11449,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyProperties
 	/// </summary>
@@ -10633,7 +11469,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CopyProperties")]
 	public static partial SDLBool SDL_CopyProperties(SDL_PropertiesID src, SDL_PropertiesID dst);
@@ -10653,7 +11489,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UnlockProperties
 	/// </summary>
@@ -10666,7 +11502,7 @@ public unsafe partial class SDL3
 	/// @param props the properties to unlock.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockProperties
 	/// </summary>
@@ -10693,7 +11529,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPointerProperty<br/>
 	/// @sa SDL_SetPointerProperty<br/>
@@ -10718,7 +11554,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPointerProperty<br/>
 	/// @sa SDL_HasProperty<br/>
@@ -10749,7 +11585,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetStringProperty
 	/// </summary>
@@ -10772,7 +11608,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumberProperty
 	/// </summary>
@@ -10795,7 +11631,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetFloatProperty
 	/// </summary>
@@ -10818,7 +11654,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetBooleanProperty
 	/// </summary>
@@ -10839,7 +11675,7 @@ public unsafe partial class SDL3
 	/// @returns true if the property exists, or false if it doesn't.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPropertyType
 	/// </summary>
@@ -10861,7 +11697,7 @@ public unsafe partial class SDL3
 	/// not set.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasProperty
 	/// </summary>
@@ -10893,7 +11729,7 @@ public unsafe partial class SDL3
 	/// If you need to avoid this, use SDL_LockProperties() and<br/>
 	/// SDL_UnlockProperties().<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetBooleanProperty<br/>
 	/// @sa SDL_GetFloatProperty<br/>
@@ -10927,7 +11763,7 @@ public unsafe partial class SDL3
 	/// If you need to avoid this, use SDL_LockProperties() and<br/>
 	/// SDL_UnlockProperties().<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPropertyType<br/>
 	/// @sa SDL_HasProperty<br/>
@@ -10959,7 +11795,7 @@ public unsafe partial class SDL3
 	/// not a number property.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPropertyType<br/>
 	/// @sa SDL_HasProperty<br/>
@@ -10986,7 +11822,7 @@ public unsafe partial class SDL3
 	/// not a float property.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPropertyType<br/>
 	/// @sa SDL_HasProperty<br/>
@@ -11013,7 +11849,7 @@ public unsafe partial class SDL3
 	/// not a boolean property.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPropertyType<br/>
 	/// @sa SDL_HasProperty<br/>
@@ -11037,7 +11873,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ClearProperty")]
 	public static partial SDLBool SDL_ClearProperty(SDL_PropertiesID props, byte* name);
@@ -11060,7 +11896,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EnumerateProperties")]
 	public static partial SDLBool SDL_EnumerateProperties(SDL_PropertiesID props, delegate* unmanaged[Cdecl]<nint, SDL_PropertiesID, byte*, void> callback, nint userdata);
@@ -11075,7 +11911,7 @@ public unsafe partial class SDL3
 	/// locked or other threads might be setting or getting values<br/>
 	/// from these properties.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProperties
 	/// </summary>
@@ -11090,7 +11926,7 @@ public unsafe partial class SDL3
 	/// `rect`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RectToFRect")]
 	public static partial void SDL_RectToFRect(Rectangle* rect, RectangleF* frect);
@@ -11113,7 +11949,7 @@ public unsafe partial class SDL3
 	/// @returns true if `p` is contained by `r`, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PointInRect")]
 	public static partial SDLBool SDL_PointInRect(Point* p, Rectangle* r);
@@ -11133,7 +11969,7 @@ public unsafe partial class SDL3
 	/// @returns true if the rectangle is "empty", false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RectEmpty")]
 	public static partial SDLBool SDL_RectEmpty(Rectangle* r);
@@ -11152,7 +11988,7 @@ public unsafe partial class SDL3
 	/// @returns true if the rectangles are equal, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RectsEqual")]
 	public static partial SDLBool SDL_RectsEqual(Rectangle* a, Rectangle* b);
@@ -11166,7 +12002,7 @@ public unsafe partial class SDL3
 	/// @returns true if there is an intersection, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRectIntersection
 	/// </summary>
@@ -11183,7 +12019,7 @@ public unsafe partial class SDL3
 	/// rectangles `A` and `B`.<br/>
 	/// @returns true if there is an intersection, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasRectIntersection
 	/// </summary>
@@ -11200,7 +12036,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRectUnion")]
 	public static partial SDLBool SDL_GetRectUnion(Rectangle* A, Rectangle* B, Rectangle* result);
@@ -11219,7 +12055,7 @@ public unsafe partial class SDL3
 	/// @returns true if any points were enclosed or false if all the points were<br/>
 	/// outside of the clipping rectangle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRectEnclosingPoints")]
 	public static partial SDLBool SDL_GetRectEnclosingPoints(Point* points, int count, Rectangle* clip, Rectangle* result);
@@ -11239,7 +12075,7 @@ public unsafe partial class SDL3
 	/// @param Y2 a pointer to the ending Y-coordinate of the line.<br/>
 	/// @returns true if there is an intersection, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRectAndLineIntersection")]
 	public static partial SDLBool SDL_GetRectAndLineIntersection(Rectangle* rect, int* X1, int* Y1, int* X2, int* Y2);
@@ -11262,7 +12098,7 @@ public unsafe partial class SDL3
 	/// @returns true if `p` is contained by `r`, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PointInRectFloat")]
 	public static partial SDLBool SDL_PointInRectFloat(PointF* p, RectangleF* r);
@@ -11282,7 +12118,7 @@ public unsafe partial class SDL3
 	/// @returns true if the rectangle is "empty", false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RectEmptyFloat")]
 	public static partial SDLBool SDL_RectEmptyFloat(RectangleF* r);
@@ -11305,7 +12141,7 @@ public unsafe partial class SDL3
 	/// @returns true if the rectangles are equal, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RectsEqualFloat
 	/// </summary>
@@ -11330,7 +12166,7 @@ public unsafe partial class SDL3
 	/// @returns true if the rectangles are equal, false otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RectsEqualEpsilon
 	/// </summary>
@@ -11345,7 +12181,7 @@ public unsafe partial class SDL3
 	/// @param B an SDL_FRect structure representing the second rectangle.<br/>
 	/// @returns true if there is an intersection, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRectIntersection
 	/// </summary>
@@ -11362,7 +12198,7 @@ public unsafe partial class SDL3
 	/// rectangles `A` and `B`.<br/>
 	/// @returns true if there is an intersection, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HasRectIntersectionFloat
 	/// </summary>
@@ -11379,7 +12215,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRectUnionFloat")]
 	public static partial SDLBool SDL_GetRectUnionFloat(RectangleF* A, RectangleF* B, RectangleF* result);
@@ -11399,7 +12235,7 @@ public unsafe partial class SDL3
 	/// @returns true if any points were enclosed or false if all the points were<br/>
 	/// outside of the clipping rectangle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRectEnclosingPointsFloat")]
 	public static partial SDLBool SDL_GetRectEnclosingPointsFloat(PointF* points, int count, RectangleF* clip, RectangleF* result);
@@ -11420,7 +12256,7 @@ public unsafe partial class SDL3
 	/// @param Y2 a pointer to the ending Y-coordinate of the line.<br/>
 	/// @returns true if there is an intersection, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRectAndLineIntersectionFloat")]
 	public static partial SDLBool SDL_GetRectAndLineIntersectionFloat(RectangleF* rect, float* X1, float* Y1, float* X2, float* Y2);
@@ -11435,7 +12271,7 @@ public unsafe partial class SDL3
 	/// @returns the number of built in render drivers.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateRenderer<br/>
 	/// @sa SDL_GetRenderDriver
@@ -11458,7 +12294,7 @@ public unsafe partial class SDL3
 	/// if an invalid index was specified.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumRenderDrivers
 	/// </summary>
@@ -11482,9 +12318,9 @@ public unsafe partial class SDL3
 	/// @param renderer a pointer filled with the renderer, or NULL on error.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateRenderer<br/>
 	/// @sa SDL_CreateWindow
@@ -11501,22 +12337,24 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Create a 2D rendering context for a window.<br/>
 	/// If you want a specific renderer, you can specify its name here. A list of<br/>
-	/// available renderers can be obtained by calling SDL_GetRenderDriver multiple<br/>
-	/// times, with indices from 0 to SDL_GetNumRenderDrivers()-1. If you don't<br/>
-	/// need a specific renderer, specify NULL and SDL will attempt to choose the<br/>
-	/// best option for you, based on what is available on the user's system.<br/>
+	/// available renderers can be obtained by calling SDL_GetRenderDriver()<br/>
+	/// multiple times, with indices from 0 to SDL_GetNumRenderDrivers()-1. If you<br/>
+	/// don't need a specific renderer, specify NULL and SDL will attempt to choose<br/>
+	/// the best option for you, based on what is available on the user's system.<br/>
+	/// If `name` is a comma-separated list, SDL will try each name, in the order<br/>
+	/// listed, until one succeeds or all of them fail.<br/>
 	/// By default the rendering size matches the window size in pixels, but you<br/>
 	/// can call SDL_SetRenderLogicalPresentation() to change the content size and<br/>
 	/// scaling options.<br/>
 	/// <br/>
 	/// @param window the window where rendering is displayed.<br/>
-	/// @param name the name of the rendering driver to initialize, or NULL to<br/>
-	/// initialize the first one supporting the requested flags.<br/>
+	/// @param name the name of the rendering driver to initialize, or NULL to let<br/>
+	/// SDL choose one.<br/>
 	/// @returns a valid rendering context or NULL if there was an error; call<br/>
 	/// SDL_GetError() for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateRendererWithProperties<br/>
 	/// @sa SDL_CreateSoftwareRenderer<br/>
@@ -11543,7 +12381,7 @@ public unsafe partial class SDL3
 	/// displayed, required if this isn't a software renderer using a surface<br/>
 	/// - `SDL_PROP_RENDERER_CREATE_SURFACE_POINTER`: the surface where rendering<br/>
 	/// is displayed, if you want a software renderer without a window<br/>
-	/// - `SDL_PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER`: an SDL_ColorSpace<br/>
+	/// - `SDL_PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER`: an SDL_Colorspace<br/>
 	/// value describing the colorspace for output to the display, defaults to<br/>
 	/// SDL_COLORSPACE_SRGB. The direct3d11, direct3d12, and metal renderers<br/>
 	/// support SDL_COLORSPACE_SRGB_LINEAR, which is a linear color space and<br/>
@@ -11570,9 +12408,9 @@ public unsafe partial class SDL3
 	/// @param props the properties to use.<br/>
 	/// @returns a valid rendering context or NULL if there was an error; call<br/>
 	/// SDL_GetError() for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProperties<br/>
 	/// @sa SDL_CreateRenderer<br/>
@@ -11594,9 +12432,9 @@ public unsafe partial class SDL3
 	/// rendering is done.<br/>
 	/// @returns a valid rendering context or NULL if there was an error; call<br/>
 	/// SDL_GetError() for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyRenderer
 	/// </summary>
@@ -11611,7 +12449,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRenderer")]
 	public static partial SDL_Renderer SDL_GetRenderer(SDL_Window window);
@@ -11624,7 +12462,7 @@ public unsafe partial class SDL3
 	/// more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRenderWindow")]
 	public static partial SDL_Window SDL_GetRenderWindow(SDL_Renderer renderer);
@@ -11637,7 +12475,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateRenderer<br/>
 	/// @sa SDL_CreateRendererWithProperties
@@ -11664,21 +12502,21 @@ public unsafe partial class SDL3
 	/// - `SDL_PROP_RENDERER_TEXTURE_FORMATS_POINTER`: a (const SDL_PixelFormat *)<br/>
 	/// array of pixel formats, terminated with SDL_PIXELFORMAT_UNKNOWN,<br/>
 	/// representing the available texture formats for this renderer.<br/>
-	/// - `SDL_PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER`: an SDL_ColorSpace value<br/>
+	/// - `SDL_PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER`: an SDL_Colorspace value<br/>
 	/// describing the colorspace for output to the display, defaults to<br/>
 	/// SDL_COLORSPACE_SRGB.<br/>
 	/// - `SDL_PROP_RENDERER_HDR_ENABLED_BOOLEAN`: true if the output colorspace is<br/>
 	/// SDL_COLORSPACE_SRGB_LINEAR and the renderer is showing on a display with<br/>
 	/// HDR enabled. This property can change dynamically when<br/>
-	/// SDL_EVENT_DISPLAY_HDR_STATE_CHANGED is sent.<br/>
+	/// SDL_EVENT_WINDOW_HDR_STATE_CHANGED is sent.<br/>
 	/// - `SDL_PROP_RENDERER_SDR_WHITE_POINT_FLOAT`: the value of SDR white in the<br/>
 	/// SDL_COLORSPACE_SRGB_LINEAR colorspace. When HDR is enabled, this value is<br/>
 	/// automatically multiplied into the color scale. This property can change<br/>
-	/// dynamically when SDL_EVENT_DISPLAY_HDR_STATE_CHANGED is sent.<br/>
+	/// dynamically when SDL_EVENT_WINDOW_HDR_STATE_CHANGED is sent.<br/>
 	/// - `SDL_PROP_RENDERER_HDR_HEADROOM_FLOAT`: the additional high dynamic range<br/>
 	/// that can be displayed, in terms of the SDR white point. When HDR is not<br/>
 	/// enabled, this will be 1.0. This property can change dynamically when<br/>
-	/// SDL_EVENT_DISPLAY_HDR_STATE_CHANGED is sent.<br/>
+	/// SDL_EVENT_WINDOW_HDR_STATE_CHANGED is sent.<br/>
 	/// With the direct3d renderer:<br/>
 	/// - `SDL_PROP_RENDERER_D3D9_DEVICE_POINTER`: the IDirect3DDevice9 associated<br/>
 	/// with the renderer<br/>
@@ -11710,13 +12548,16 @@ public unsafe partial class SDL3
 	/// - `SDL_PROP_RENDERER_VULKAN_SWAPCHAIN_IMAGE_COUNT_NUMBER`: the number of<br/>
 	/// swapchain images, or potential frames in flight, used by the Vulkan<br/>
 	/// renderer<br/>
+	/// With the gpu renderer:<br/>
+	/// - `SDL_PROP_RENDERER_GPU_DEVICE_POINTER`: the SDL_GPUDevice associated with<br/>
+	/// the renderer<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRendererProperties")]
 	public static partial SDL_PropertiesID SDL_GetRendererProperties(SDL_Renderer renderer);
@@ -11725,15 +12566,17 @@ public unsafe partial class SDL3
 	/// Get the output size in pixels of a rendering context.<br/>
 	/// This returns the true output size in pixels, ignoring any render targets or<br/>
 	/// logical size and presentation.<br/>
+	/// For the output size of the current rendering target, with logical size<br/>
+	/// adjustments, use SDL_GetCurrentRenderOutputSize() instead.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param w a pointer filled in with the width in pixels.<br/>
 	/// @param h a pointer filled in with the height in pixels.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCurrentRenderOutputSize
 	/// </summary>
@@ -11743,18 +12586,18 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Get the current output size in pixels of a rendering context.<br/>
 	/// If a rendering target is active, this will return the size of the rendering<br/>
-	/// target in pixels, otherwise if a logical size is set, it will return the<br/>
-	/// logical size, otherwise it will return the value of<br/>
-	/// SDL_GetRenderOutputSize().<br/>
+	/// target in pixels, otherwise return the value of SDL_GetRenderOutputSize().<br/>
+	/// Rendering target or not, the output will be adjusted by the current logical<br/>
+	/// presentation state, dictated by SDL_SetRenderLogicalPresentation().<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param w a pointer filled in with the current width.<br/>
 	/// @param h a pointer filled in with the current height.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderOutputSize
 	/// </summary>
@@ -11770,12 +12613,11 @@ public unsafe partial class SDL3
 	/// @param access one of the enumerated values in SDL_TextureAccess.<br/>
 	/// @param w the width of the texture in pixels.<br/>
 	/// @param h the height of the texture in pixels.<br/>
-	/// @returns a pointer to the created texture or NULL if no rendering context<br/>
-	/// was active, the format was unsupported, or the width or height<br/>
-	/// were out of range; call SDL_GetError() for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @returns the created texture or NULL on failure; call SDL_GetError() for<br/>
+	/// more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateTextureFromSurface<br/>
 	/// @sa SDL_CreateTextureWithProperties<br/>
@@ -11800,9 +12642,9 @@ public unsafe partial class SDL3
 	/// the texture.<br/>
 	/// @returns the created texture or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateTexture<br/>
 	/// @sa SDL_CreateTextureWithProperties<br/>
@@ -11814,7 +12656,7 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Create a texture for a rendering context with the specified properties.<br/>
 	/// These are the supported properties:<br/>
-	/// - `SDL_PROP_TEXTURE_CREATE_COLORSPACE_NUMBER`: an SDL_ColorSpace value<br/>
+	/// - `SDL_PROP_TEXTURE_CREATE_COLORSPACE_NUMBER`: an SDL_Colorspace value<br/>
 	/// describing the texture colorspace, defaults to SDL_COLORSPACE_SRGB_LINEAR<br/>
 	/// for floating point textures, SDL_COLORSPACE_HDR10 for 10-bit textures,<br/>
 	/// SDL_COLORSPACE_SRGB for other RGB textures and SDL_COLORSPACE_JPEG for<br/>
@@ -11893,12 +12735,11 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param props the properties to use.<br/>
-	/// @returns a pointer to the created texture or NULL if no rendering context<br/>
-	/// was active, the format was unsupported, or the width or height<br/>
-	/// were out of range; call SDL_GetError() for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @returns the created texture or NULL on failure; call SDL_GetError() for<br/>
+	/// more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProperties<br/>
 	/// @sa SDL_CreateTexture<br/>
@@ -11913,7 +12754,7 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Get the properties associated with a texture.<br/>
 	/// The following read-only properties are provided by SDL:<br/>
-	/// - `SDL_PROP_TEXTURE_COLORSPACE_NUMBER`: an SDL_ColorSpace value describing<br/>
+	/// - `SDL_PROP_TEXTURE_COLORSPACE_NUMBER`: an SDL_Colorspace value describing<br/>
 	/// the texture colorspace.<br/>
 	/// - `SDL_PROP_TEXTURE_FORMAT_NUMBER`: one of the enumerated values in<br/>
 	/// SDL_PixelFormat.<br/>
@@ -11947,14 +12788,8 @@ public unsafe partial class SDL3
 	/// - `SDL_PROP_TEXTURE_D3D12_TEXTURE_V_POINTER`: the ID3D12Resource associated<br/>
 	/// with the V plane of a YUV texture<br/>
 	/// With the vulkan renderer:<br/>
-	/// - `SDL_PROP_TEXTURE_VULKAN_TEXTURE_POINTER`: the VkImage associated with<br/>
-	/// the texture<br/>
-	/// - `SDL_PROP_TEXTURE_VULKAN_TEXTURE_U_POINTER`: the VkImage associated with<br/>
-	/// the U plane of a YUV texture<br/>
-	/// - `SDL_PROP_TEXTURE_VULKAN_TEXTURE_V_POINTER`: the VkImage associated with<br/>
-	/// the V plane of a YUV texture<br/>
-	/// - `SDL_PROP_TEXTURE_VULKAN_TEXTURE_UV_POINTER`: the VkImage associated with<br/>
-	/// the UV plane of a NV12/NV21 texture<br/>
+	/// - `SDL_PROP_TEXTURE_VULKAN_TEXTURE_NUMBER`: the VkImage associated with the<br/>
+	/// texture<br/>
 	/// With the opengl renderer:<br/>
 	/// - `SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER`: the GLuint texture associated<br/>
 	/// with the texture<br/>
@@ -11981,16 +12816,13 @@ public unsafe partial class SDL3
 	/// associated with the V plane of a YUV texture<br/>
 	/// - `SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_TARGET_NUMBER`: the GLenum for the<br/>
 	/// texture target (`GL_TEXTURE_2D`, `GL_TEXTURE_EXTERNAL_OES`, etc)<br/>
-	/// With the vulkan renderer:<br/>
-	/// - `SDL_PROP_TEXTURE_VULKAN_TEXTURE_NUMBER`: the VkImage associated with the<br/>
-	/// texture<br/>
 	/// <br/>
 	/// @param texture the texture to query.<br/>
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTextureProperties")]
 	public static partial SDL_PropertiesID SDL_GetTextureProperties(SDL_Texture* texture);
@@ -12003,7 +12835,7 @@ public unsafe partial class SDL3
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRendererFromTexture")]
 	public static partial SDL_Renderer SDL_GetRendererFromTexture(SDL_Texture* texture);
@@ -12018,9 +12850,9 @@ public unsafe partial class SDL3
 	/// argument can be NULL if you don't need this information.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTextureSize")]
 	public static partial SDLBool SDL_GetTextureSize(SDL_Texture* texture, float* w, float* h);
@@ -12040,9 +12872,9 @@ public unsafe partial class SDL3
 	/// @param b the blue color value multiplied into copy operations.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureColorMod<br/>
 	/// @sa SDL_SetTextureAlphaMod<br/>
@@ -12066,9 +12898,9 @@ public unsafe partial class SDL3
 	/// @param b the blue color value multiplied into copy operations.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureColorModFloat<br/>
 	/// @sa SDL_SetTextureAlphaModFloat<br/>
@@ -12086,9 +12918,9 @@ public unsafe partial class SDL3
 	/// @param b a pointer filled in with the current blue color value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureAlphaMod<br/>
 	/// @sa SDL_GetTextureColorModFloat<br/>
@@ -12106,9 +12938,9 @@ public unsafe partial class SDL3
 	/// @param b a pointer filled in with the current blue color value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureAlphaModFloat<br/>
 	/// @sa SDL_GetTextureColorMod<br/>
@@ -12129,9 +12961,9 @@ public unsafe partial class SDL3
 	/// @param alpha the source alpha value multiplied into copy operations.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureAlphaMod<br/>
 	/// @sa SDL_SetTextureAlphaModFloat<br/>
@@ -12152,9 +12984,9 @@ public unsafe partial class SDL3
 	/// @param alpha the source alpha value multiplied into copy operations.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureAlphaModFloat<br/>
 	/// @sa SDL_SetTextureAlphaMod<br/>
@@ -12170,9 +13002,9 @@ public unsafe partial class SDL3
 	/// @param alpha a pointer filled in with the current alpha value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureAlphaModFloat<br/>
 	/// @sa SDL_GetTextureColorMod<br/>
@@ -12188,9 +13020,9 @@ public unsafe partial class SDL3
 	/// @param alpha a pointer filled in with the current alpha value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureAlphaMod<br/>
 	/// @sa SDL_GetTextureColorModFloat<br/>
@@ -12208,9 +13040,9 @@ public unsafe partial class SDL3
 	/// @param blendMode the SDL_BlendMode to use for texture blending.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureBlendMode
 	/// </summary>
@@ -12224,9 +13056,9 @@ public unsafe partial class SDL3
 	/// @param blendMode a pointer filled in with the current SDL_BlendMode.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetTextureBlendMode
 	/// </summary>
@@ -12242,9 +13074,9 @@ public unsafe partial class SDL3
 	/// @param scaleMode the SDL_ScaleMode to use for texture scaling.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTextureScaleMode
 	/// </summary>
@@ -12258,9 +13090,9 @@ public unsafe partial class SDL3
 	/// @param scaleMode a pointer filled in with the current scale mode.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetTextureScaleMode
 	/// </summary>
@@ -12286,9 +13118,9 @@ public unsafe partial class SDL3
 	/// between lines.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockTexture<br/>
 	/// @sa SDL_UnlockTexture<br/>
@@ -12319,9 +13151,9 @@ public unsafe partial class SDL3
 	/// plane.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UpdateNVTexture<br/>
 	/// @sa SDL_UpdateTexture
@@ -12346,9 +13178,9 @@ public unsafe partial class SDL3
 	/// plane.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UpdateTexture<br/>
 	/// @sa SDL_UpdateYUVTexture
@@ -12376,9 +13208,9 @@ public unsafe partial class SDL3
 	/// @returns true on success or false if the texture is not valid or was not<br/>
 	/// created with `SDL_TEXTUREACCESS_STREAMING`; call SDL_GetError()<br/>
 	/// for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockTextureToSurface<br/>
 	/// @sa SDL_UnlockTexture
@@ -12404,13 +13236,13 @@ public unsafe partial class SDL3
 	/// `SDL_TEXTUREACCESS_STREAMING`.<br/>
 	/// @param rect a pointer to the rectangle to lock for access. If the rect is<br/>
 	/// NULL, the entire texture will be locked.<br/>
-	/// @param surface this is filled in with an SDL surface representing the<br/>
-	/// locked area.<br/>
+	/// @param surface a pointer to an SDL surface of size **rect**. Don't assume<br/>
+	/// any specific pixel content.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockTexture<br/>
 	/// @sa SDL_UnlockTexture
@@ -12428,9 +13260,9 @@ public unsafe partial class SDL3
 	/// corrupted textures, depending on the renderer in use.<br/>
 	/// <br/>
 	/// @param texture a texture locked by SDL_LockTexture().<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockTexture
 	/// </summary>
@@ -12442,6 +13274,10 @@ public unsafe partial class SDL3
 	/// The default render target is the window for which the renderer was created.<br/>
 	/// To stop rendering to a texture and render to the window again, call this<br/>
 	/// function with a NULL `texture`.<br/>
+	/// Viewport, cliprect, scale, and logical presentation are unique to each<br/>
+	/// render target. Get and set functions for these states apply to the current<br/>
+	/// render target set by this function, and those states persist on each target<br/>
+	/// when the current render target changes.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param texture the targeted texture, which must be created with the<br/>
@@ -12449,9 +13285,9 @@ public unsafe partial class SDL3
 	/// window instead of a texture.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderTarget
 	/// </summary>
@@ -12465,9 +13301,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @returns the current render target or NULL for the default render target.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderTarget
 	/// </summary>
@@ -12475,21 +13311,34 @@ public unsafe partial class SDL3
 	public static partial SDL_Texture* SDL_GetRenderTarget(SDL_Renderer renderer);
 
 	/// <summary>
-	/// Set a device independent resolution and presentation mode for rendering.<br/>
+	/// Set a device-independent resolution and presentation mode for rendering.<br/>
 	/// This function sets the width and height of the logical rendering output.<br/>
-	/// The renderer will act as if the window is always the requested dimensions,<br/>
-	/// scaling to the actual window resolution as necessary.<br/>
+	/// The renderer will act as if the current render target is always the<br/>
+	/// requested dimensions, scaling to the actual resolution as necessary.<br/>
 	/// This can be useful for games that expect a fixed size, but would like to<br/>
 	/// scale the output to whatever is available, regardless of how a user resizes<br/>
 	/// a window, or if the display is high DPI.<br/>
+	/// Logical presentation can be used with both render target textures and the<br/>
+	/// renderer's window; the state is unique to each render target, and this<br/>
+	/// function sets the state for the current render target. It might be useful<br/>
+	/// to draw to a texture that matches the window dimensions with logical<br/>
+	/// presentation enabled, and then draw that texture across the entire window<br/>
+	/// with logical presentation disabled. Be careful not to render both with<br/>
+	/// logical presentation enabled, however, as this could produce<br/>
+	/// double-letterboxing, etc.<br/>
 	/// You can disable logical coordinates by setting the mode to<br/>
 	/// SDL_LOGICAL_PRESENTATION_DISABLED, and in that case you get the full pixel<br/>
-	/// resolution of the output window; it is safe to toggle logical presentation<br/>
+	/// resolution of the render target; it is safe to toggle logical presentation<br/>
 	/// during the rendering of a frame: perhaps most of the rendering is done to<br/>
 	/// specific dimensions but to make fonts look sharp, the app turns off logical<br/>
-	/// presentation while drawing text.<br/>
-	/// Letterboxing will only happen if logical presentation is enabled during<br/>
-	/// SDL_RenderPresent; be sure to reenable it first if you were using it.<br/>
+	/// presentation while drawing text, for example.<br/>
+	/// For the renderer's window, letterboxing is drawn into the framebuffer if<br/>
+	/// logical presentation is enabled during SDL_RenderPresent; be sure to<br/>
+	/// reenable it before presenting if you were toggling it, otherwise the<br/>
+	/// letterbox areas might have artifacts from previous frames (or artifacts<br/>
+	/// from external overlays, etc). Letterboxing is never drawn into texture<br/>
+	/// render targets; be sure to call SDL_RenderClear() before drawing into the<br/>
+	/// texture so the letterboxing areas are cleared, if appropriate.<br/>
 	/// You can convert coordinates in an event into rendering coordinates using<br/>
 	/// SDL_ConvertEventToRenderCoordinates().<br/>
 	/// <br/>
@@ -12499,9 +13348,9 @@ public unsafe partial class SDL3
 	/// @param mode the presentation mode used.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ConvertEventToRenderCoordinates<br/>
 	/// @sa SDL_GetRenderLogicalPresentation<br/>
@@ -12514,6 +13363,8 @@ public unsafe partial class SDL3
 	/// Get device independent resolution and presentation mode for rendering.<br/>
 	/// This function gets the width and height of the logical rendering output, or<br/>
 	/// the output size in pixels if a logical resolution is not enabled.<br/>
+	/// Each render target has its own logical presentation state. This function<br/>
+	/// gets the state for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param w an int to be filled with the width.<br/>
@@ -12521,9 +13372,9 @@ public unsafe partial class SDL3
 	/// @param mode the presentation mode used.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderLogicalPresentation
 	/// </summary>
@@ -12536,15 +13387,17 @@ public unsafe partial class SDL3
 	/// presentation, based on the presentation mode and output size. If logical<br/>
 	/// presentation is disabled, it will fill the rectangle with the output size,<br/>
 	/// in pixels.<br/>
+	/// Each render target has its own logical presentation state. This function<br/>
+	/// gets the rectangle for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param rect a pointer filled in with the final presentation rectangle, may<br/>
 	/// be NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderLogicalPresentation
 	/// </summary>
@@ -12566,9 +13419,9 @@ public unsafe partial class SDL3
 	/// @param y a pointer filled with the y coordinate in render coordinates.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderLogicalPresentation<br/>
 	/// @sa SDL_SetRenderScale
@@ -12593,9 +13446,9 @@ public unsafe partial class SDL3
 	/// coordinates.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderLogicalPresentation<br/>
 	/// @sa SDL_SetRenderScale<br/>
@@ -12611,17 +13464,23 @@ public unsafe partial class SDL3
 	/// - The logical presentation settings (SDL_SetRenderLogicalPresentation)<br/>
 	/// - The scale (SDL_SetRenderScale)<br/>
 	/// - The viewport (SDL_SetRenderViewport)<br/>
+	/// Various event types are converted with this function: mouse, touch, pen,<br/>
+	/// etc.<br/>
 	/// Touch coordinates are converted from normalized coordinates in the window<br/>
 	/// to non-normalized rendering coordinates.<br/>
-	/// Once converted, the coordinates may be outside the rendering area.<br/>
+	/// Relative mouse coordinates (xrel and yrel event fields) are _also_<br/>
+	/// converted. Applications that do not want these fields converted should use<br/>
+	/// SDL_RenderCoordinatesFromWindow() on the specific event fields instead of<br/>
+	/// converting the entire event structure.<br/>
+	/// Once converted, coordinates may be outside the rendering area.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param event the event to modify.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderCoordinatesFromWindow
 	/// </summary>
@@ -12634,15 +13493,17 @@ public unsafe partial class SDL3
 	/// SDL_SetRenderClipRect), and the top left of the area will become coordinate<br/>
 	/// (0, 0) for future drawing commands.<br/>
 	/// The area's width and height must be >= 0.<br/>
+	/// Each render target has its own viewport. This function sets the viewport<br/>
+	/// for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param rect the SDL_Rect structure representing the drawing area, or NULL<br/>
 	/// to set the viewport to the entire target.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderViewport<br/>
 	/// @sa SDL_RenderViewportSet
@@ -12652,14 +13513,16 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Get the drawing area for the current target.<br/>
+	/// Each render target has its own viewport. This function gets the viewport<br/>
+	/// for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param rect an SDL_Rect structure filled in with the current drawing area.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderViewportSet<br/>
 	/// @sa SDL_SetRenderViewport
@@ -12672,13 +13535,15 @@ public unsafe partial class SDL3
 	/// This is useful if you're saving and restoring the viewport and want to know<br/>
 	/// whether you should restore a specific rectangle or NULL. Note that the<br/>
 	/// viewport is always reset when changing rendering targets.<br/>
+	/// Each render target has its own viewport. This function checks the viewport<br/>
+	/// for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @returns true if the viewport was set to a specific rectangle, or false if<br/>
 	/// it was set to NULL (the entire target).<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderViewport<br/>
 	/// @sa SDL_SetRenderViewport
@@ -12700,24 +13565,26 @@ public unsafe partial class SDL3
 	/// content.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRenderSafeArea")]
 	public static partial SDLBool SDL_GetRenderSafeArea(SDL_Renderer renderer, Rectangle* rect);
 
 	/// <summary>
 	/// Set the clip rectangle for rendering on the specified target.<br/>
+	/// Each render target has its own clip rectangle. This function sets the<br/>
+	/// cliprect for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param rect an SDL_Rect structure representing the clip area, relative to<br/>
 	/// the viewport, or NULL to disable clipping.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderClipRect<br/>
 	/// @sa SDL_RenderClipEnabled
@@ -12727,15 +13594,17 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Get the clip rectangle for the current target.<br/>
+	/// Each render target has its own clip rectangle. This function gets the<br/>
+	/// cliprect for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param rect an SDL_Rect structure filled in with the current clipping area<br/>
 	/// or an empty rectangle if clipping is disabled.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderClipEnabled<br/>
 	/// @sa SDL_SetRenderClipRect
@@ -12744,14 +13613,16 @@ public unsafe partial class SDL3
 	public static partial SDLBool SDL_GetRenderClipRect(SDL_Renderer renderer, Rectangle* rect);
 
 	/// <summary>
-	/// Get whether clipping is enabled on the given renderer.<br/>
+	/// Get whether clipping is enabled on the given render target.<br/>
+	/// Each render target has its own clip rectangle. This function checks the<br/>
+	/// cliprect for the current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @returns true if clipping is enabled or false if not; call SDL_GetError()<br/>
 	/// for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderClipRect<br/>
 	/// @sa SDL_SetRenderClipRect
@@ -12767,15 +13638,17 @@ public unsafe partial class SDL3
 	/// If this results in scaling or subpixel drawing by the rendering backend, it<br/>
 	/// will be handled using the appropriate quality hints. For best results use<br/>
 	/// integer scaling factors.<br/>
+	/// Each render target has its own scale. This function sets the scale for the<br/>
+	/// current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param scaleX the horizontal scaling factor.<br/>
 	/// @param scaleY the vertical scaling factor.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderScale
 	/// </summary>
@@ -12784,15 +13657,17 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Get the drawing scale for the current target.<br/>
+	/// Each render target has its own scale. This function gets the scale for the<br/>
+	/// current render target.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
 	/// @param scaleX a pointer filled in with the horizontal scaling factor.<br/>
 	/// @param scaleY a pointer filled in with the vertical scaling factor.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderScale
 	/// </summary>
@@ -12813,9 +13688,9 @@ public unsafe partial class SDL3
 	/// specify how the alpha channel is used.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderDrawColor<br/>
 	/// @sa SDL_SetRenderDrawColorFloat
@@ -12837,9 +13712,9 @@ public unsafe partial class SDL3
 	/// used.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderDrawColorFloat<br/>
 	/// @sa SDL_SetRenderDrawColor
@@ -12861,9 +13736,9 @@ public unsafe partial class SDL3
 	/// rendering target; usually `SDL_ALPHA_OPAQUE` (255).<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderDrawColorFloat<br/>
 	/// @sa SDL_SetRenderDrawColor
@@ -12885,9 +13760,9 @@ public unsafe partial class SDL3
 	/// rendering target.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderDrawColorFloat<br/>
 	/// @sa SDL_GetRenderDrawColor
@@ -12908,9 +13783,9 @@ public unsafe partial class SDL3
 	/// @param scale the color scale value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderColorScale
 	/// </summary>
@@ -12924,9 +13799,9 @@ public unsafe partial class SDL3
 	/// @param scale a pointer filled in with the current color scale value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderColorScale
 	/// </summary>
@@ -12941,9 +13816,9 @@ public unsafe partial class SDL3
 	/// @param blendMode the SDL_BlendMode to use for blending.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderDrawBlendMode
 	/// </summary>
@@ -12957,9 +13832,9 @@ public unsafe partial class SDL3
 	/// @param blendMode a pointer filled in with the current SDL_BlendMode.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderDrawBlendMode
 	/// </summary>
@@ -12976,9 +13851,9 @@ public unsafe partial class SDL3
 	/// @param renderer the rendering context.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderDrawColor
 	/// </summary>
@@ -12993,9 +13868,9 @@ public unsafe partial class SDL3
 	/// @param y the y coordinate of the point.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderPoints
 	/// </summary>
@@ -13010,9 +13885,9 @@ public unsafe partial class SDL3
 	/// @param count the number of points to draw.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderPoint
 	/// </summary>
@@ -13029,9 +13904,9 @@ public unsafe partial class SDL3
 	/// @param y2 the y coordinate of the end point.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderLines
 	/// </summary>
@@ -13047,9 +13922,9 @@ public unsafe partial class SDL3
 	/// @param count the number of points, drawing count-1 lines.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderLine
 	/// </summary>
@@ -13064,9 +13939,9 @@ public unsafe partial class SDL3
 	/// entire rendering target.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderRects
 	/// </summary>
@@ -13082,9 +13957,9 @@ public unsafe partial class SDL3
 	/// @param count the number of rectangles.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderRect
 	/// </summary>
@@ -13100,9 +13975,9 @@ public unsafe partial class SDL3
 	/// rendering target.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderFillRects
 	/// </summary>
@@ -13118,9 +13993,9 @@ public unsafe partial class SDL3
 	/// @param count the number of rectangles.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderFillRect
 	/// </summary>
@@ -13139,9 +14014,9 @@ public unsafe partial class SDL3
 	/// entire rendering target.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderTextureRotated<br/>
 	/// @sa SDL_RenderTextureTiled
@@ -13168,14 +14043,42 @@ public unsafe partial class SDL3
 	/// performed on the texture.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderTexture
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RenderTextureRotated")]
 	public static partial SDLBool SDL_RenderTextureRotated(SDL_Renderer renderer, SDL_Texture* texture, RectangleF* srcrect, RectangleF* dstrect, double angle, PointF* center, SDL_FlipMode flip);
+
+	/// <summary>
+	/// Copy a portion of the source texture to the current rendering target, with<br/>
+	/// affine transform, at subpixel precision.<br/>
+	/// <br/>
+	/// @param renderer the renderer which should copy parts of a texture.<br/>
+	/// @param texture the source texture.<br/>
+	/// @param srcrect a pointer to the source rectangle, or NULL for the entire<br/>
+	/// texture.<br/>
+	/// @param origin a pointer to a point indicating where the top-left corner of<br/>
+	/// srcrect should be mapped to, or NULL for the rendering<br/>
+	/// target's origin.<br/>
+	/// @param right a pointer to a point indicating where the top-right corner of<br/>
+	/// srcrect should be mapped to, or NULL for the rendering<br/>
+	/// target's top-right corner.<br/>
+	/// @param down a pointer to a point indicating where the bottom-left corner of<br/>
+	/// srcrect should be mapped to, or NULL for the rendering target's<br/>
+	/// bottom-left corner.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_RenderTexture
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_RenderTextureAffine")]
+	public static partial SDLBool SDL_RenderTextureAffine(SDL_Renderer renderer, SDL_Texture* texture, RectangleF* srcrect, PointF* origin, PointF* right, PointF* down);
 
 	/// <summary>
 	/// Tile a portion of the texture to the current rendering target at subpixel<br/>
@@ -13194,9 +14097,9 @@ public unsafe partial class SDL3
 	/// entire rendering target.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderTexture
 	/// </summary>
@@ -13227,9 +14130,9 @@ public unsafe partial class SDL3
 	/// entire rendering target.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderTexture
 	/// </summary>
@@ -13251,9 +14154,9 @@ public unsafe partial class SDL3
 	/// @param num_indices number of indices.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderGeometryRaw
 	/// </summary>
@@ -13280,9 +14183,9 @@ public unsafe partial class SDL3
 	/// @param size_indices index size: 1 (byte), 2 (short), 4 (int).<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RenderGeometry
 	/// </summary>
@@ -13291,19 +14194,24 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Read pixels from the current rendering target.<br/>
-	/// The returned surface should be freed with SDL_DestroySurface()<br/>
+	/// The returned surface contains pixels inside the desired area clipped to the<br/>
+	/// current viewport, and should be freed with SDL_DestroySurface().<br/>
+	/// Note that this returns the actual pixels on the screen, so if you are using<br/>
+	/// logical presentation you should use SDL_GetRenderLogicalPresentationRect()<br/>
+	/// to get the area containing your content.<br/>
 	/// **WARNING**: This is a very slow operation, and should not be used<br/>
 	/// frequently. If you're using this on the main rendering target, it should be<br/>
 	/// called after rendering and before SDL_RenderPresent().<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
-	/// @param rect an SDL_Rect structure representing the area in pixels relative<br/>
-	/// to the to current viewport, or NULL for the entire viewport.<br/>
+	/// @param rect an SDL_Rect structure representing the area to read, which will<br/>
+	/// be clipped to the current viewport, or NULL for the entire<br/>
+	/// viewport.<br/>
 	/// @returns a new SDL_Surface on success or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RenderReadPixels")]
 	public static partial SDL_Surface* SDL_RenderReadPixels(SDL_Renderer renderer, Rectangle* rect);
@@ -13334,9 +14242,9 @@ public unsafe partial class SDL3
 	/// @param renderer the rendering context.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateRenderer<br/>
 	/// @sa SDL_RenderClear<br/>
@@ -13360,9 +14268,9 @@ public unsafe partial class SDL3
 	/// to "Invalid texture".<br/>
 	/// <br/>
 	/// @param texture the texture to destroy.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateTexture<br/>
 	/// @sa SDL_CreateTextureFromSurface
@@ -13376,9 +14284,9 @@ public unsafe partial class SDL3
 	/// This should be called before destroying the associated window.<br/>
 	/// <br/>
 	/// @param renderer the rendering context.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateRenderer
 	/// </summary>
@@ -13406,9 +14314,9 @@ public unsafe partial class SDL3
 	/// @param renderer the rendering context.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_FlushRenderer")]
 	public static partial SDLBool SDL_FlushRenderer(SDL_Renderer renderer);
@@ -13421,9 +14329,9 @@ public unsafe partial class SDL3
 	/// @param renderer the renderer to query.<br/>
 	/// @returns a `CAMetalLayer *` on success, or NULL if the renderer isn't a<br/>
 	/// Metal renderer.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderMetalCommandEncoder
 	/// </summary>
@@ -13446,9 +14354,9 @@ public unsafe partial class SDL3
 	/// <MTLRenderCommandEncoder<br/>
 	/// >` on success, or NULL if the<br/>
 	/// renderer isn't a Metal renderer or there was an error.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderMetalLayer
 	/// </summary>
@@ -13478,7 +14386,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is **NOT** safe to call this function from two threads at<br/>
 	/// once.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_AddVulkanRenderSemaphores")]
 	public static partial SDLBool SDL_AddVulkanRenderSemaphores(SDL_Renderer renderer, uint wait_stage_mask, long wait_semaphore, long signal_semaphore);
@@ -13488,18 +14396,18 @@ public unsafe partial class SDL3
 	/// When a renderer is created, vsync defaults to SDL_RENDERER_VSYNC_DISABLED.<br/>
 	/// The `vsync` parameter can be 1 to synchronize present with every vertical<br/>
 	/// refresh, 2 to synchronize present with every second vertical refresh, etc.,<br/>
-	/// SDL_WINDOW_SURFACE_VSYNC_ADAPTIVE for late swap tearing (adaptive vsync),<br/>
-	/// or SDL_WINDOW_SURFACE_VSYNC_DISABLED to disable. Not every value is<br/>
-	/// supported by every driver, so you should check the return value to see<br/>
-	/// whether the requested setting is supported.<br/>
+	/// SDL_RENDERER_VSYNC_ADAPTIVE for late swap tearing (adaptive vsync), or<br/>
+	/// SDL_RENDERER_VSYNC_DISABLED to disable. Not every value is supported by<br/>
+	/// every driver, so you should check the return value to see whether the<br/>
+	/// requested setting is supported.<br/>
 	/// <br/>
 	/// @param renderer the renderer to toggle.<br/>
 	/// @param vsync the vertical refresh sync interval.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderVSync
 	/// </summary>
@@ -13514,14 +14422,87 @@ public unsafe partial class SDL3
 	/// See SDL_SetRenderVSync() for the meaning of the value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
-	/// @threadsafety You may only call this function from the main thread.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetRenderVSync
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetRenderVSync")]
 	public static partial SDLBool SDL_GetRenderVSync(SDL_Renderer renderer, int* vsync);
+
+	/// <summary>
+	/// Draw debug text to an SDL_Renderer.<br/>
+	/// This function will render a string of text to an SDL_Renderer. Note that<br/>
+	/// this is a convenience function for debugging, with severe limitations, and<br/>
+	/// not intended to be used for production apps and games.<br/>
+	/// Among these limitations:<br/>
+	/// - It accepts UTF-8 strings, but will only renders ASCII characters.<br/>
+	/// - It has a single, tiny size (8x8 pixels). One can use logical presentation<br/>
+	/// or scaling to adjust it, but it will be blurry.<br/>
+	/// - It uses a simple, hardcoded bitmap font. It does not allow different font<br/>
+	/// selections and it does not support truetype, for proper scaling.<br/>
+	/// - It does no word-wrapping and does not treat newline characters as a line<br/>
+	/// break. If the text goes out of the window, it's gone.<br/>
+	/// For serious text rendering, there are several good options, such as<br/>
+	/// SDL_ttf, stb_truetype, or other external libraries.<br/>
+	/// On first use, this will create an internal texture for rendering glyphs.<br/>
+	/// This texture will live until the renderer is destroyed.<br/>
+	/// The text is drawn in the color specified by SDL_SetRenderDrawColor().<br/>
+	/// <br/>
+	/// @param renderer the renderer which should draw a line of text.<br/>
+	/// @param x the x coordinate where the top-left corner of the text will draw.<br/>
+	/// @param y the y coordinate where the top-left corner of the text will draw.<br/>
+	/// @param str the string to render.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_RenderDebugTextFormat<br/>
+	/// @sa SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_RenderDebugText")]
+	public static partial SDLBool SDL_RenderDebugText(SDL_Renderer renderer, float x, float y, byte* str);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_RenderDebugText")]
+	public static partial SDLBool SDL_RenderDebugText(SDL_Renderer renderer, float x, float y, ReadOnlySpan<byte> str);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_RenderDebugText")]
+	public static partial SDLBool SDL_RenderDebugText(SDL_Renderer renderer, float x, float y, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str);
+
+	/// <summary>
+	/// Draw debug text to an SDL_Renderer.<br/>
+	/// This function will render a printf()-style format string to a renderer.<br/>
+	/// Note that this is a convinence function for debugging, with severe<br/>
+	/// limitations, and is not intended to be used for production apps and games.<br/>
+	/// For the full list of limitations and other useful information, see<br/>
+	/// SDL_RenderDebugText.<br/>
+	/// <br/>
+	/// @param renderer the renderer which should draw the text.<br/>
+	/// @param x the x coordinate where the top-left corner of the text will draw.<br/>
+	/// @param y the y coordinate where the top-left corner of the text will draw.<br/>
+	/// @param fmt the format string to draw.<br/>
+	/// @param ... additional parameters matching % tokens in the `fmt` string, if<br/>
+	/// any.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_RenderDebugText<br/>
+	/// @sa SDL_DEBUG_TEXT_FONT_CHARACTER_SIZE
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_RenderDebugTextFormat")]
+	public static partial SDLBool SDL_RenderDebugTextFormat(SDL_Renderer renderer, float x, float y, byte* fmt);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_RenderDebugTextFormat")]
+	public static partial SDLBool SDL_RenderDebugTextFormat(SDL_Renderer renderer, float x, float y, ReadOnlySpan<byte> fmt);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_RenderDebugTextFormat")]
+	public static partial SDLBool SDL_RenderDebugTextFormat(SDL_Renderer renderer, float x, float y, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt);
 
 	/// <summary>
 	/// Get a list of currently connected sensors.<br/>
@@ -13532,7 +14513,7 @@ public unsafe partial class SDL3
 	/// call SDL_GetError() for more information. This should be freed<br/>
 	/// with SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensors")]
 	public static partial SDL_SensorID* SDL_GetSensors(out int count);
@@ -13544,7 +14525,7 @@ public unsafe partial class SDL3
 	/// @param instance_id the sensor instance ID.<br/>
 	/// @returns the sensor name, or NULL if `instance_id` is not valid.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorNameForID")]
 	public static partial byte* SDL_GetSensorNameForIDPtr(SDL_SensorID instance_id);
@@ -13562,7 +14543,7 @@ public unsafe partial class SDL3
 	/// @returns the SDL_SensorType, or `SDL_SENSOR_INVALID` if `instance_id` is<br/>
 	/// not valid.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorTypeForID")]
 	public static partial SDL_SensorType SDL_GetSensorTypeForID(SDL_SensorID instance_id);
@@ -13575,7 +14556,7 @@ public unsafe partial class SDL3
 	/// @returns the sensor platform dependent type, or -1 if `instance_id` is not<br/>
 	/// valid.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorNonPortableTypeForID")]
 	public static partial int SDL_GetSensorNonPortableTypeForID(SDL_SensorID instance_id);
@@ -13587,7 +14568,7 @@ public unsafe partial class SDL3
 	/// @returns an SDL_Sensor object or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OpenSensor")]
 	public static partial SDL_Sensor SDL_OpenSensor(SDL_SensorID instance_id);
@@ -13599,7 +14580,7 @@ public unsafe partial class SDL3
 	/// @returns an SDL_Sensor object or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorFromID")]
 	public static partial SDL_Sensor SDL_GetSensorFromID(SDL_SensorID instance_id);
@@ -13611,7 +14592,7 @@ public unsafe partial class SDL3
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorProperties")]
 	public static partial SDL_PropertiesID SDL_GetSensorProperties(SDL_Sensor sensor);
@@ -13623,7 +14604,7 @@ public unsafe partial class SDL3
 	/// @returns the sensor name or NULL on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorName")]
 	public static partial byte* SDL_GetSensorNamePtr(SDL_Sensor sensor);
@@ -13640,7 +14621,7 @@ public unsafe partial class SDL3
 	/// @returns the SDL_SensorType type, or `SDL_SENSOR_INVALID` if `sensor` is<br/>
 	/// NULL.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorType")]
 	public static partial SDL_SensorType SDL_GetSensorType(SDL_Sensor sensor);
@@ -13651,7 +14632,7 @@ public unsafe partial class SDL3
 	/// @param sensor the SDL_Sensor object to inspect.<br/>
 	/// @returns the sensor platform dependent type, or -1 if `sensor` is NULL.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorNonPortableType")]
 	public static partial int SDL_GetSensorNonPortableType(SDL_Sensor sensor);
@@ -13663,7 +14644,7 @@ public unsafe partial class SDL3
 	/// @returns the sensor instance ID, or 0 on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorID")]
 	public static partial SDL_SensorID SDL_GetSensorID(SDL_Sensor sensor);
@@ -13678,7 +14659,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSensorData")]
 	public static partial SDLBool SDL_GetSensorData(SDL_Sensor sensor, float* data, int num_values);
@@ -13688,7 +14669,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param sensor the SDL_Sensor object to close.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CloseSensor")]
 	public static partial void SDL_CloseSensor(SDL_Sensor sensor);
@@ -13700,7 +14681,7 @@ public unsafe partial class SDL3
 	/// This needs to be called from the thread that initialized the sensor<br/>
 	/// subsystem.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UpdateSensors")]
 	public static partial void SDL_UpdateSensors();
@@ -13717,7 +14698,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to the allocated memory, or NULL if allocation failed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_free<br/>
 	/// @sa SDL_calloc<br/>
@@ -13737,7 +14718,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to the allocated array, or NULL if allocation failed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_free<br/>
 	/// @sa SDL_malloc<br/>
@@ -13768,7 +14749,7 @@ public unsafe partial class SDL3
 	/// failed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_free<br/>
 	/// @sa SDL_malloc<br/>
@@ -13786,7 +14767,7 @@ public unsafe partial class SDL3
 	/// @param mem a pointer to allocated memory, or NULL.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_malloc<br/>
 	/// @sa SDL_calloc<br/>
@@ -13808,7 +14789,7 @@ public unsafe partial class SDL3
 	/// @param free_func filled with free function.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetOriginalMemoryFunctions")]
 	public static partial void SDL_GetOriginalMemoryFunctions(delegate* unmanaged[Cdecl]<nuint, nint> malloc_func, delegate* unmanaged[Cdecl]<nuint, nuint, nint> calloc_func, delegate* unmanaged[Cdecl]<nint, nuint, nint> realloc_func, delegate* unmanaged[Cdecl]<nint, void> free_func);
@@ -13824,7 +14805,7 @@ public unsafe partial class SDL3
 	/// unlikely event of a background thread calling<br/>
 	/// SDL_SetMemoryFunctions simultaneously.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetMemoryFunctions<br/>
 	/// @sa SDL_GetOriginalMemoryFunctions
@@ -13850,7 +14831,7 @@ public unsafe partial class SDL3
 	/// should not replace the memory functions once any allocations<br/>
 	/// are made!<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetMemoryFunctions<br/>
 	/// @sa SDL_GetOriginalMemoryFunctions
@@ -13872,7 +14853,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to the aligned memory, or NULL if allocation failed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_aligned_free
 	/// </summary>
@@ -13888,7 +14869,7 @@ public unsafe partial class SDL3
 	/// @param mem a pointer previously returned by SDL_aligned_alloc(), or NULL.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_aligned_alloc
 	/// </summary>
@@ -13898,10 +14879,11 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Get the number of outstanding (unfreed) allocations.<br/>
 	/// <br/>
-	/// @returns the number of allocations.<br/>
+	/// @returns the number of allocations or -1 if allocation counting is<br/>
+	/// disabled.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetNumAllocations")]
 	public static partial int SDL_GetNumAllocations();
@@ -13918,7 +14900,7 @@ public unsafe partial class SDL3
 	/// call SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetEnvironmentVariable<br/>
 	/// @sa SDL_GetEnvironmentVariables<br/>
@@ -13939,7 +14921,7 @@ public unsafe partial class SDL3
 	/// from any thread, otherwise it is safe if no other threads are<br/>
 	/// calling setenv() or unsetenv()<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetEnvironmentVariable<br/>
 	/// @sa SDL_GetEnvironmentVariables<br/>
@@ -13959,7 +14941,7 @@ public unsafe partial class SDL3
 	/// found.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetEnvironment<br/>
 	/// @sa SDL_CreateEnvironment<br/>
@@ -13991,7 +14973,7 @@ public unsafe partial class SDL3
 	/// freed with SDL_free() when it is no longer needed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetEnvironment<br/>
 	/// @sa SDL_CreateEnvironment<br/>
@@ -14015,7 +14997,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetEnvironment<br/>
 	/// @sa SDL_CreateEnvironment<br/>
@@ -14041,7 +15023,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetEnvironment<br/>
 	/// @sa SDL_CreateEnvironment<br/>
@@ -14066,7 +15048,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, as long as<br/>
 	/// the environment is no longer in use.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateEnvironment
 	/// </summary>
@@ -14082,7 +15064,7 @@ public unsafe partial class SDL3
 	/// found.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_getenv")]
 	public static partial byte* SDL_getenvPtr(byte* name);
@@ -14109,7 +15091,7 @@ public unsafe partial class SDL3
 	/// @threadsafety This function is not thread safe, consider using SDL_getenv()<br/>
 	/// instead.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_getenv
 	/// </summary>
@@ -14138,7 +15120,7 @@ public unsafe partial class SDL3
 	/// @threadsafety This function is not thread safe, consider using<br/>
 	/// SDL_SetEnvironmentVariable() instead.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetEnvironmentVariable
 	/// </summary>
@@ -14159,7 +15141,7 @@ public unsafe partial class SDL3
 	/// @threadsafety This function is not thread safe, consider using<br/>
 	/// SDL_UnsetEnvironmentVariable() instead.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UnsetEnvironmentVariable
 	/// </summary>
@@ -14206,8 +15188,9 @@ public unsafe partial class SDL3
 	/// @param nmemb the number of elements in the array.<br/>
 	/// @param size the size of the elements in the array.<br/>
 	/// @param compare a function used to compare elements in the array.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_bsearch<br/>
 	/// @sa SDL_qsort_r
@@ -14255,8 +15238,9 @@ public unsafe partial class SDL3
 	/// @param compare a function used to compare elements in the array.<br/>
 	/// @returns a pointer to the matching element in the array, or NULL if not<br/>
 	/// found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_bsearch_r<br/>
 	/// @sa SDL_qsort
@@ -14281,13 +15265,13 @@ public unsafe partial class SDL3
 	/// sort_method method = (sort_method)(uintptr_t)userdata;<br/>
 	/// const data *A = (const data *)a;<br/>
 	/// const data *B = (const data *)b;<br/>
-	/// if (A->n<br/>
+	/// if (A->key<br/>
 	/// <<br/>
-	/// B->n) {<br/>
+	/// B->key) {<br/>
 	/// return (method == sort_increasing) ? -1 : 1;<br/>
-	/// } else if (B->n<br/>
+	/// } else if (B->key<br/>
 	/// <<br/>
-	/// A->n) {<br/>
+	/// A->key) {<br/>
 	/// return (method == sort_increasing) ? 1 : -1;<br/>
 	/// } else {<br/>
 	/// return 0;<br/>
@@ -14304,8 +15288,9 @@ public unsafe partial class SDL3
 	/// @param size the size of the elements in the array.<br/>
 	/// @param compare a function used to compare elements in the array.<br/>
 	/// @param userdata a pointer to pass to the compare function.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_bsearch_r<br/>
 	/// @sa SDL_qsort
@@ -14331,13 +15316,13 @@ public unsafe partial class SDL3
 	/// sort_method method = (sort_method)(uintptr_t)userdata;<br/>
 	/// const data *A = (const data *)a;<br/>
 	/// const data *B = (const data *)b;<br/>
-	/// if (A->n<br/>
+	/// if (A->key<br/>
 	/// <<br/>
-	/// B->n) {<br/>
+	/// B->key) {<br/>
 	/// return (method == sort_increasing) ? -1 : 1;<br/>
-	/// } else if (B->n<br/>
+	/// } else if (B->key<br/>
 	/// <<br/>
-	/// A->n) {<br/>
+	/// A->key) {<br/>
 	/// return (method == sort_increasing) ? 1 : -1;<br/>
 	/// } else {<br/>
 	/// return 0;<br/>
@@ -14360,8 +15345,9 @@ public unsafe partial class SDL3
 	/// @param userdata a pointer to pass to the compare function.<br/>
 	/// @returns a pointer to the matching element in the array, or NULL if not<br/>
 	/// found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_bsearch<br/>
 	/// @sa SDL_qsort_r
@@ -14369,6 +15355,15 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_bsearch_r")]
 	public static partial nint SDL_bsearch_r(nint key, nint @base, nuint nmemb, nuint size, delegate* unmanaged[Cdecl]<nint, nint, nint, int> compare, nint userdata);
 
+	/// <summary>
+	/// Compute the absolute value of `x`.<br/>
+	/// <br/>
+	/// @param x an integer value.<br/>
+	/// @returns the absolute value of x.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_abs")]
 	public static partial int SDL_abs(int x);
 
@@ -14381,7 +15376,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isalpha")]
 	public static partial int SDL_isalpha(int x);
@@ -14395,7 +15390,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isalnum")]
 	public static partial int SDL_isalnum(int x);
@@ -14409,7 +15404,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isblank")]
 	public static partial int SDL_isblank(int x);
@@ -14423,7 +15418,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_iscntrl")]
 	public static partial int SDL_iscntrl(int x);
@@ -14437,7 +15432,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isdigit")]
 	public static partial int SDL_isdigit(int x);
@@ -14451,7 +15446,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isxdigit")]
 	public static partial int SDL_isxdigit(int x);
@@ -14468,7 +15463,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_isgraph<br/>
 	/// @sa SDL_isalnum
@@ -14491,7 +15486,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isspace")]
 	public static partial int SDL_isspace(int x);
@@ -14505,7 +15500,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isupper")]
 	public static partial int SDL_isupper(int x);
@@ -14519,7 +15514,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_islower")]
 	public static partial int SDL_islower(int x);
@@ -14536,7 +15531,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_isprint")]
 	public static partial int SDL_isprint(int x);
@@ -14556,7 +15551,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if x falls within the character class, zero otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_isprint
 	/// </summary>
@@ -14574,7 +15569,7 @@ public unsafe partial class SDL3
 	/// @returns capitalized version of x, or x if no conversion available.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_toupper")]
 	public static partial int SDL_toupper(int x);
@@ -14590,17 +15585,69 @@ public unsafe partial class SDL3
 	/// @returns lowercase version of x, or x if no conversion available.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_tolower")]
 	public static partial int SDL_tolower(int x);
 
+	/// <summary>
+	/// Calculate a CRC-16 value.<br/>
+	/// https://en.wikipedia.org/wiki/Cyclic_redundancy_check<br/>
+	/// This function can be called multiple times, to stream data to be<br/>
+	/// checksummed in blocks. Each call must provide the previous CRC-16 return<br/>
+	/// value to be updated with the next block. The first call to this function<br/>
+	/// for a set of blocks should pass in a zero CRC value.<br/>
+	/// <br/>
+	/// @param crc the current checksum for this data set, or 0 for a new data set.<br/>
+	/// @param data a new block of data to add to the checksum.<br/>
+	/// @param len the size, in bytes, of the new block of data.<br/>
+	/// @returns a CRC-16 checksum value of all blocks in the data set.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_crc16")]
 	public static partial ushort SDL_crc16(ushort crc, nint data, nuint len);
 
+	/// <summary>
+	/// Calculate a CRC-32 value.<br/>
+	/// https://en.wikipedia.org/wiki/Cyclic_redundancy_check<br/>
+	/// This function can be called multiple times, to stream data to be<br/>
+	/// checksummed in blocks. Each call must provide the previous CRC-32 return<br/>
+	/// value to be updated with the next block. The first call to this function<br/>
+	/// for a set of blocks should pass in a zero CRC value.<br/>
+	/// <br/>
+	/// @param crc the current checksum for this data set, or 0 for a new data set.<br/>
+	/// @param data a new block of data to add to the checksum.<br/>
+	/// @param len the size, in bytes, of the new block of data.<br/>
+	/// @returns a CRC-32 checksum value of all blocks in the data set.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_crc32")]
 	public static partial uint SDL_crc32(uint crc, nint data, nuint len);
 
+	/// <summary>
+	/// Calculate a 32-bit MurmurHash3 value for a block of data.<br/>
+	/// https://en.wikipedia.org/wiki/MurmurHash<br/>
+	/// A seed may be specified, which changes the final results consistently, but<br/>
+	/// this does not work like SDL_crc16 and SDL_crc32: you can't feed a previous<br/>
+	/// result from this function back into itself as the next seed value to<br/>
+	/// calculate a hash in chunks; it won't produce the same hash as it would if<br/>
+	/// the same data was provided in a single call.<br/>
+	/// If you aren't sure what to provide for a seed, zero is fine. Murmur3 is not<br/>
+	/// cryptographically secure, so it shouldn't be used for hashing top-secret<br/>
+	/// data.<br/>
+	/// <br/>
+	/// @param data the data to be hashed.<br/>
+	/// @param len the size of data, in bytes.<br/>
+	/// @param seed a value that alters the final hash value.<br/>
+	/// @returns a Murmur3 32-bit hash value.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_murmur3_32")]
 	public static partial uint SDL_murmur3_32(nint data, nuint len, uint seed);
 
@@ -14616,7 +15663,7 @@ public unsafe partial class SDL3
 	/// @returns `dst`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_memmove
 	/// </summary>
@@ -14624,7 +15671,7 @@ public unsafe partial class SDL3
 	public static partial nint SDL_memcpy(nint dst, nint src, nuint len);
 
 	/// <summary>
-	/// Copy memory.<br/>
+	/// Copy memory ranges that might overlap.<br/>
 	/// It is okay for the memory regions to overlap. If you are confident that the<br/>
 	/// regions never overlap, using SDL_memcpy() may improve performance.<br/>
 	/// <br/>
@@ -14634,25 +15681,113 @@ public unsafe partial class SDL3
 	/// @returns `dst`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_memcpy
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_memmove")]
 	public static partial nint SDL_memmove(nint dst, nint src, nuint len);
 
+	/// <summary>
+	/// Initialize all bytes of buffer of memory to a specific value.<br/>
+	/// This function will set `len` bytes, pointed to by `dst`, to the value<br/>
+	/// specified in `c`.<br/>
+	/// Despite `c` being an `int` instead of a `char`, this only operates on<br/>
+	/// bytes; `c` must be a value between 0 and 255, inclusive.<br/>
+	/// <br/>
+	/// @param dst the destination memory region. Must not be NULL.<br/>
+	/// @param c the byte value to set.<br/>
+	/// @param len the length, in bytes, to set in `dst`.<br/>
+	/// @returns `dst`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_memset")]
 	public static partial nint SDL_memset(nint dst, int c, nuint len);
 
+	/// <summary>
+	/// Initialize all 32-bit words of buffer of memory to a specific value.<br/>
+	/// This function will set a buffer of `dwords` Uint32 values, pointed to by<br/>
+	/// `dst`, to the value specified in `val`.<br/>
+	/// Unlike SDL_memset, this sets 32-bit values, not bytes, so it's not limited<br/>
+	/// to a range of 0-255.<br/>
+	/// <br/>
+	/// @param dst the destination memory region. Must not be NULL.<br/>
+	/// @param val the Uint32 value to set.<br/>
+	/// @param dwords the number of Uint32 values to set in `dst`.<br/>
+	/// @returns `dst`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_memset4")]
 	public static partial nint SDL_memset4(nint dst, uint val, nuint dwords);
 
+	/// <summary>
+	/// Compare two buffers of memory.<br/>
+	/// <br/>
+	/// @param s1 the first buffer to compare. NULL is not permitted!<br/>
+	/// @param s2 the second buffer to compare. NULL is not permitted!<br/>
+	/// @param len the number of bytes to compare between the buffers.<br/>
+	/// @returns less than zero if s1 is "less than" s2, greater than zero if s1 is<br/>
+	/// "greater than" s2, and zero if the buffers match exactly for `len`<br/>
+	/// bytes.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_memcmp")]
 	public static partial int SDL_memcmp(nint s1, nint s2, nuint len);
 
+	/// <summary>
+	/// This works exactly like wcslen() but doesn't require access to a C runtime.<br/>
+	/// Counts the number of wchar_t values in `wstr`, excluding the null<br/>
+	/// terminator.<br/>
+	/// Like SDL_strlen only counts bytes and not codepoints in a UTF-8 string,<br/>
+	/// this counts wchar_t values in a string, even if the string's encoding is of<br/>
+	/// variable width, like UTF-16.<br/>
+	/// Also be aware that wchar_t is different sizes on different platforms (4<br/>
+	/// bytes on Linux, 2 on Windows, etc).<br/>
+	/// <br/>
+	/// @param wstr The null-terminated wide string to read. Must not be NULL.<br/>
+	/// @returns the length (in wchar_t values, excluding the null terminator) of<br/>
+	/// `wstr`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_wcsnlen<br/>
+	/// @sa SDL_utf8strlen<br/>
+	/// @sa SDL_utf8strnlen
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcslen")]
 	public static partial nuint SDL_wcslen(char* wstr);
 
+	/// <summary>
+	/// This works exactly like wcsnlen() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Counts up to a maximum of `maxlen` wchar_t values in `wstr`, excluding the<br/>
+	/// null terminator.<br/>
+	/// Like SDL_strnlen only counts bytes and not codepoints in a UTF-8 string,<br/>
+	/// this counts wchar_t values in a string, even if the string's encoding is of<br/>
+	/// variable width, like UTF-16.<br/>
+	/// Also be aware that wchar_t is different sizes on different platforms (4<br/>
+	/// bytes on Linux, 2 on Windows, etc).<br/>
+	/// Also, `maxlen` is a count of wide characters, not bytes!<br/>
+	/// <br/>
+	/// @param wstr The null-terminated wide string to read. Must not be NULL.<br/>
+	/// @param maxlen The maximum amount of wide characters to count.<br/>
+	/// @returns the length (in wide characters, excluding the null terminator) of<br/>
+	/// `wstr` but never more than `maxlen`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_wcslen<br/>
+	/// @sa SDL_utf8strlen<br/>
+	/// @sa SDL_utf8strnlen
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcsnlen")]
 	public static partial nuint SDL_wcsnlen(char* wstr, nuint maxlen);
 
@@ -14669,11 +15804,11 @@ public unsafe partial class SDL3
 	/// @param src The null-terminated wide string to copy. Must not be NULL, and<br/>
 	/// must not overlap with `dst`.<br/>
 	/// @param maxlen The length (in wide characters) of the destination buffer.<br/>
-	/// @returns The length (in wide characters, excluding the null terminator) of<br/>
+	/// @returns the length (in wide characters, excluding the null terminator) of<br/>
 	/// `src`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_wcslcat
 	/// </summary>
@@ -14695,23 +15830,71 @@ public unsafe partial class SDL3
 	/// @param src The second null-terminated wide string. Must not be NULL, and<br/>
 	/// must not overlap with `dst`.<br/>
 	/// @param maxlen The length (in wide characters) of the destination buffer.<br/>
-	/// @returns The length (in wide characters, excluding the null terminator) of<br/>
+	/// @returns the length (in wide characters, excluding the null terminator) of<br/>
 	/// the string in `dst` plus the length of `src`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_wcslcpy
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcslcat")]
 	public static partial nuint SDL_wcslcat(char* dst, char* src, nuint maxlen);
 
+	/// <summary>
+	/// Allocate a copy of a wide string.<br/>
+	/// This allocates enough space for a null-terminated copy of `wstr`, using<br/>
+	/// SDL_malloc, and then makes a copy of the string into this space.<br/>
+	/// The returned string is owned by the caller, and should be passed to<br/>
+	/// SDL_free when no longer needed.<br/>
+	/// <br/>
+	/// @param wstr the string to copy.<br/>
+	/// @returns a pointer to the newly-allocated wide string.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcsdup")]
 	public static partial char* SDL_wcsdup(char* wstr);
 
+	/// <summary>
+	/// Search a wide string for the first instance of a specific substring.<br/>
+	/// The search ends once it finds the requested substring, or a null terminator<br/>
+	/// byte to end the string.<br/>
+	/// Note that this looks for strings of _wide characters_, not _codepoints_, so<br/>
+	/// it's legal to search for malformed and incomplete UTF-16 sequences.<br/>
+	/// <br/>
+	/// @param haystack the wide string to search. Must not be NULL.<br/>
+	/// @param needle the wide string to search for. Must not be NULL.<br/>
+	/// @returns a pointer to the first instance of `needle` in the string, or NULL<br/>
+	/// if not found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcsstr")]
 	public static partial char* SDL_wcsstr(char* haystack, char* needle);
 
+	/// <summary>
+	/// Search a wide string, up to n wide chars, for the first instance of a<br/>
+	/// specific substring.<br/>
+	/// The search ends once it finds the requested substring, or a null terminator<br/>
+	/// value to end the string, or `maxlen` wide character have been examined. It<br/>
+	/// is possible to use this function on a wide string without a null<br/>
+	/// terminator.<br/>
+	/// Note that this looks for strings of _wide characters_, not _codepoints_, so<br/>
+	/// it's legal to search for malformed and incomplete UTF-16 sequences.<br/>
+	/// <br/>
+	/// @param haystack the wide string to search. Must not be NULL.<br/>
+	/// @param needle the wide string to search for. Must not be NULL.<br/>
+	/// @param maxlen the maximum number of wide characters to search in<br/>
+	/// `haystack`.<br/>
+	/// @returns a pointer to the first instance of `needle` in the string, or NULL<br/>
+	/// if not found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcsnstr")]
 	public static partial char* SDL_wcsnstr(char* haystack, char* needle, nuint maxlen);
 
@@ -14728,7 +15911,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcscmp")]
 	public static partial int SDL_wcscmp(char* str1, char* str2);
@@ -14756,7 +15939,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcsncmp")]
 	public static partial int SDL_wcsncmp(char* str1, char* str2, nuint maxlen);
@@ -14784,7 +15967,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcscasecmp")]
 	public static partial int SDL_wcscasecmp(char* str1, char* str2);
@@ -14822,7 +16005,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcsncasecmp")]
 	public static partial int SDL_wcsncasecmp(char* str1, char* str2, nuint maxlen);
@@ -14842,16 +16025,31 @@ public unsafe partial class SDL3
 	/// to 36 inclusive. If 0, the base will be inferred from the<br/>
 	/// number's prefix (0x for hexadecimal, 0 for octal, decimal<br/>
 	/// otherwise).<br/>
-	/// @returns The parsed `long`, or 0 if no number could be parsed.<br/>
+	/// @returns the parsed `long`, or 0 if no number could be parsed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_strtol
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_wcstol")]
 	public static partial global::System.Runtime.InteropServices.CLong SDL_wcstol(char* str, char** endp, int @base);
 
+	/// <summary>
+	/// This works exactly like strlen() but doesn't require access to a C runtime.<br/>
+	/// Counts the bytes in `str`, excluding the null terminator.<br/>
+	/// If you need the length of a UTF-8 string, consider using SDL_utf8strlen().<br/>
+	/// <br/>
+	/// @param str The null-terminated string to read. Must not be NULL.<br/>
+	/// @returns the length (in bytes, excluding the null terminator) of `src`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_strnlen<br/>
+	/// @sa SDL_utf8strlen<br/>
+	/// @sa SDL_utf8strnlen
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strlen")]
 	public static partial nuint SDL_strlen(byte* str);
 
@@ -14861,6 +16059,25 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strlen")]
 	public static partial nuint SDL_strlen([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str);
 
+	/// <summary>
+	/// This works exactly like strnlen() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Counts up to a maximum of `maxlen` bytes in `str`, excluding the null<br/>
+	/// terminator.<br/>
+	/// If you need the length of a UTF-8 string, consider using SDL_utf8strnlen().<br/>
+	/// <br/>
+	/// @param str The null-terminated string to read. Must not be NULL.<br/>
+	/// @param maxlen The maximum amount of bytes to count.<br/>
+	/// @returns the length (in bytes, excluding the null terminator) of `src` but<br/>
+	/// never more than `maxlen`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_strlen<br/>
+	/// @sa SDL_utf8strlen<br/>
+	/// @sa SDL_utf8strnlen
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strnlen")]
 	public static partial nuint SDL_strnlen(byte* str, nuint maxlen);
 
@@ -14884,11 +16101,11 @@ public unsafe partial class SDL3
 	/// @param src The null-terminated string to copy. Must not be NULL, and must<br/>
 	/// not overlap with `dst`.<br/>
 	/// @param maxlen The length (in characters) of the destination buffer.<br/>
-	/// @returns The length (in characters, excluding the null terminator) of<br/>
+	/// @returns the length (in characters, excluding the null terminator) of<br/>
 	/// `src`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_strlcat<br/>
 	/// @sa SDL_utf8strlcpy
@@ -14917,10 +16134,10 @@ public unsafe partial class SDL3
 	/// must not overlap with `dst`.<br/>
 	/// @param dst_bytes The length (in bytes) of the destination buffer. Must not<br/>
 	/// be 0.<br/>
-	/// @returns The number of bytes written, excluding the null terminator.<br/>
+	/// @returns the number of bytes written, excluding the null terminator.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_strlcpy
 	/// </summary>
@@ -14947,11 +16164,11 @@ public unsafe partial class SDL3
 	/// @param src The second null-terminated string. Must not be NULL, and must<br/>
 	/// not overlap with `dst`.<br/>
 	/// @param maxlen The length (in characters) of the destination buffer.<br/>
-	/// @returns The length (in characters, excluding the null terminator) of the<br/>
+	/// @returns the length (in characters, excluding the null terminator) of the<br/>
 	/// string in `dst` plus the length of `src`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_strlcpy
 	/// </summary>
@@ -14964,6 +16181,19 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strlcat")]
 	public static partial nuint SDL_strlcat([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> dst, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> src, nuint maxlen);
 
+	/// <summary>
+	/// Allocate a copy of a string.<br/>
+	/// This allocates enough space for a null-terminated copy of `str`, using<br/>
+	/// SDL_malloc, and then makes a copy of the string into this space.<br/>
+	/// The returned string is owned by the caller, and should be passed to<br/>
+	/// SDL_free when no longer needed.<br/>
+	/// <br/>
+	/// @param str the string to copy.<br/>
+	/// @returns a pointer to the newly-allocated string.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strdup")]
 	public static partial byte* SDL_strdupPtr(byte* str);
 
@@ -14981,6 +16211,25 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strdup")]
 	public static partial byte* SDL_strdupPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str);
 
+	/// <summary>
+	/// Allocate a copy of a string, up to n characters.<br/>
+	/// This allocates enough space for a null-terminated copy of `str`, up to<br/>
+	/// `maxlen` bytes, using SDL_malloc, and then makes a copy of the string into<br/>
+	/// this space.<br/>
+	/// If the string is longer than `maxlen` bytes, the returned string will be<br/>
+	/// `maxlen` bytes long, plus a null-terminator character that isn't included<br/>
+	/// in the count.<br/>
+	/// The returned string is owned by the caller, and should be passed to<br/>
+	/// SDL_free when no longer needed.<br/>
+	/// <br/>
+	/// @param str the string to copy.<br/>
+	/// @param maxlen the maximum length of the copied string, not counting the<br/>
+	/// null-terminator character.<br/>
+	/// @returns a pointer to the newly-allocated string.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strndup")]
 	public static partial byte* SDL_strndupPtr(byte* str, nuint maxlen);
 
@@ -14998,6 +16247,22 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strndup")]
 	public static partial byte* SDL_strndupPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, nuint maxlen);
 
+	/// <summary>
+	/// Reverse a string's contents.<br/>
+	/// This reverses a null-terminated string in-place. Only the content of the<br/>
+	/// string is reversed; the null-terminator character remains at the end of the<br/>
+	/// reversed string.<br/>
+	/// **WARNING**: This function reverses the _bytes_ of the string, not the<br/>
+	/// codepoints. If `str` is a UTF-8 string with Unicode codepoints > 127, this<br/>
+	/// will ruin the string data. You should only use this function on strings<br/>
+	/// that are completely comprised of low ASCII characters.<br/>
+	/// <br/>
+	/// @param str the string to reverse.<br/>
+	/// @returns `str`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strrev")]
 	public static partial byte* SDL_strrevPtr(byte* str);
 
@@ -15027,7 +16292,7 @@ public unsafe partial class SDL3
 	/// @returns the `str` pointer passed into this function.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_strlwr
 	/// </summary>
@@ -15060,7 +16325,7 @@ public unsafe partial class SDL3
 	/// @returns the `str` pointer passed into this function.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_strupr
 	/// </summary>
@@ -15081,6 +16346,21 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strlwr")]
 	public static partial byte* SDL_strlwrPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str);
 
+	/// <summary>
+	/// Search a string for the first instance of a specific byte.<br/>
+	/// The search ends once it finds the requested byte value, or a null<br/>
+	/// terminator byte to end the string.<br/>
+	/// Note that this looks for _bytes_, not _characters_, so you cannot match<br/>
+	/// against a Unicode codepoint > 255, regardless of character encoding.<br/>
+	/// <br/>
+	/// @param str the string to search. Must not be NULL.<br/>
+	/// @param c the byte value to search for.<br/>
+	/// @returns a pointer to the first instance of `c` in the string, or NULL if<br/>
+	/// not found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strchr")]
 	public static partial byte* SDL_strchrPtr(byte* str, int c);
 
@@ -15098,6 +16378,20 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strchr")]
 	public static partial byte* SDL_strchrPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, int c);
 
+	/// <summary>
+	/// Search a string for the last instance of a specific byte.<br/>
+	/// The search must go until it finds a null terminator byte to end the string.<br/>
+	/// Note that this looks for _bytes_, not _characters_, so you cannot match<br/>
+	/// against a Unicode codepoint > 255, regardless of character encoding.<br/>
+	/// <br/>
+	/// @param str the string to search. Must not be NULL.<br/>
+	/// @param c the byte value to search for.<br/>
+	/// @returns a pointer to the last instance of `c` in the string, or NULL if<br/>
+	/// not found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strrchr")]
 	public static partial byte* SDL_strrchrPtr(byte* str, int c);
 
@@ -15115,6 +16409,21 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strrchr")]
 	public static partial byte* SDL_strrchrPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, int c);
 
+	/// <summary>
+	/// Search a string for the first instance of a specific substring.<br/>
+	/// The search ends once it finds the requested substring, or a null terminator<br/>
+	/// byte to end the string.<br/>
+	/// Note that this looks for strings of _bytes_, not _characters_, so it's<br/>
+	/// legal to search for malformed and incomplete UTF-8 sequences.<br/>
+	/// <br/>
+	/// @param haystack the string to search. Must not be NULL.<br/>
+	/// @param needle the string to search for. Must not be NULL.<br/>
+	/// @returns a pointer to the first instance of `needle` in the string, or NULL<br/>
+	/// if not found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strstr")]
 	public static partial byte* SDL_strstrPtr(byte* haystack, byte* needle);
 
@@ -15132,6 +16441,24 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strstr")]
 	public static partial byte* SDL_strstrPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> haystack, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> needle);
 
+	/// <summary>
+	/// Search a string, up to n bytes, for the first instance of a specific<br/>
+	/// substring.<br/>
+	/// The search ends once it finds the requested substring, or a null terminator<br/>
+	/// byte to end the string, or `maxlen` bytes have been examined. It is<br/>
+	/// possible to use this function on a string without a null terminator.<br/>
+	/// Note that this looks for strings of _bytes_, not _characters_, so it's<br/>
+	/// legal to search for malformed and incomplete UTF-8 sequences.<br/>
+	/// <br/>
+	/// @param haystack the string to search. Must not be NULL.<br/>
+	/// @param needle the string to search for. Must not be NULL.<br/>
+	/// @param maxlen the maximum number of bytes to search in `haystack`.<br/>
+	/// @returns a pointer to the first instance of `needle` in the string, or NULL<br/>
+	/// if not found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strnstr")]
 	public static partial byte* SDL_strnstrPtr(byte* haystack, byte* needle, nuint maxlen);
 
@@ -15149,6 +16476,29 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strnstr")]
 	public static partial byte* SDL_strnstrPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> haystack, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> needle, nuint maxlen);
 
+	/// <summary>
+	/// Search a UTF-8 string for the first instance of a specific substring,<br/>
+	/// case-insensitively.<br/>
+	/// This will work with Unicode strings, using a technique called<br/>
+	/// "case-folding" to handle the vast majority of case-sensitive human<br/>
+	/// languages regardless of system locale. It can deal with expanding values: a<br/>
+	/// German Eszett character can compare against two ASCII 's' chars and be<br/>
+	/// considered a match, for example. A notable exception: it does not handle<br/>
+	/// the Turkish 'i' character; human language is complicated!<br/>
+	/// Since this handles Unicode, it expects the strings to be well-formed UTF-8<br/>
+	/// and not a null-terminated string of arbitrary bytes. Bytes that are not<br/>
+	/// valid UTF-8 are treated as Unicode character U+FFFD (REPLACEMENT<br/>
+	/// CHARACTER), which is to say two strings of random bits may turn out to<br/>
+	/// match if they convert to the same amount of replacement characters.<br/>
+	/// <br/>
+	/// @param haystack the string to search. Must not be NULL.<br/>
+	/// @param needle the string to search for. Must not be NULL.<br/>
+	/// @returns a pointer to the first instance of `needle` in the string, or NULL<br/>
+	/// if not found.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strcasestr")]
 	public static partial byte* SDL_strcasestrPtr(byte* haystack, byte* needle);
 
@@ -15166,23 +16516,67 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_strcasestr")]
 	public static partial byte* SDL_strcasestrPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> haystack, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> needle);
 
+	/// <summary>
+	/// This works exactly like strtok_r() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Break a string up into a series of tokens.<br/>
+	/// To start tokenizing a new string, `str` should be the non-NULL address of<br/>
+	/// the string to start tokenizing. Future calls to get the next token from the<br/>
+	/// same string should specify a NULL.<br/>
+	/// Note that this function will overwrite pieces of `str` with null chars to<br/>
+	/// split it into tokens. This function cannot be used with const/read-only<br/>
+	/// strings!<br/>
+	/// `saveptr` just needs to point to a `char *` that can be overwritten; SDL<br/>
+	/// will use this to save tokenizing state between calls. It is initialized if<br/>
+	/// `str` is non-NULL, and used to resume tokenizing when `str` is NULL.<br/>
+	/// <br/>
+	/// @param str the string to tokenize, or NULL to continue tokenizing.<br/>
+	/// @param delim the delimiter string that separates tokens.<br/>
+	/// @param saveptr pointer to a char *, used for ongoing state.<br/>
+	/// @returns A pointer to the next token, or NULL if no tokens remain.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strtok_r")]
-	public static partial byte* SDL_strtok_rPtr(byte* s1, byte* s2, byte** saveptr);
+	public static partial byte* SDL_strtok_rPtr(byte* str, byte* delim, byte** saveptr);
 
-	public static string? SDL_strtok_r(byte* s1, byte* s2, byte** saveptr)
+	public static string? SDL_strtok_r(byte* str, byte* delim, byte** saveptr)
 	{
-		byte* resultPtr = SDL_strtok_rPtr(s1, s2, saveptr);
+		byte* resultPtr = SDL_strtok_rPtr(str, delim, saveptr);
 		string? result = ConvertToManaged(resultPtr);
 		SDL_free(resultPtr);
 		return result;
 	}
 
 	[LibraryImport(LibName, EntryPoint = "SDL_strtok_r")]
-	public static partial byte* SDL_strtok_rPtr(ReadOnlySpan<byte> s1, ReadOnlySpan<byte> s2, byte** saveptr);
+	public static partial byte* SDL_strtok_rPtr(ReadOnlySpan<byte> str, ReadOnlySpan<byte> delim, byte** saveptr);
 
 	[LibraryImport(LibName, EntryPoint = "SDL_strtok_r")]
-	public static partial byte* SDL_strtok_rPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> s1, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> s2, byte** saveptr);
+	public static partial byte* SDL_strtok_rPtr([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> delim, byte** saveptr);
 
+	/// <summary>
+	/// Count the number of codepoints in a UTF-8 string.<br/>
+	/// Counts the _codepoints_, not _bytes_, in `str`, excluding the null<br/>
+	/// terminator.<br/>
+	/// If you need to count the bytes in a string instead, consider using<br/>
+	/// SDL_strlen().<br/>
+	/// Since this handles Unicode, it expects the strings to be well-formed UTF-8<br/>
+	/// and not a null-terminated string of arbitrary bytes. Bytes that are not<br/>
+	/// valid UTF-8 are treated as Unicode character U+FFFD (REPLACEMENT<br/>
+	/// CHARACTER), so a malformed or incomplete UTF-8 sequence might increase the<br/>
+	/// count by several replacement characters.<br/>
+	/// <br/>
+	/// @param str The null-terminated UTF-8 string to read. Must not be NULL.<br/>
+	/// @returns The length (in codepoints, excluding the null terminator) of<br/>
+	/// `src`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_utf8strnlen<br/>
+	/// @sa SDL_strlen
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_utf8strlen")]
 	public static partial nuint SDL_utf8strlen(byte* str);
 
@@ -15192,6 +16586,32 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_utf8strlen")]
 	public static partial nuint SDL_utf8strlen([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str);
 
+	/// <summary>
+	/// Count the number of codepoints in a UTF-8 string, up to n bytes.<br/>
+	/// Counts the _codepoints_, not _bytes_, in `str`, excluding the null<br/>
+	/// terminator.<br/>
+	/// If you need to count the bytes in a string instead, consider using<br/>
+	/// SDL_strnlen().<br/>
+	/// The counting stops at `bytes` bytes (not codepoints!). This seems<br/>
+	/// counterintuitive, but makes it easy to express the total size of the<br/>
+	/// string's buffer.<br/>
+	/// Since this handles Unicode, it expects the strings to be well-formed UTF-8<br/>
+	/// and not a null-terminated string of arbitrary bytes. Bytes that are not<br/>
+	/// valid UTF-8 are treated as Unicode character U+FFFD (REPLACEMENT<br/>
+	/// CHARACTER), so a malformed or incomplete UTF-8 sequence might increase the<br/>
+	/// count by several replacement characters.<br/>
+	/// <br/>
+	/// @param str The null-terminated UTF-8 string to read. Must not be NULL.<br/>
+	/// @param bytes The maximum amount of bytes to count.<br/>
+	/// @returns The length (in codepoints, excluding the null terminator) of `src`<br/>
+	/// but never more than `maxlen`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_utf8strlen<br/>
+	/// @sa SDL_strnlen
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_utf8strnlen")]
 	public static partial nuint SDL_utf8strnlen(byte* str, nuint bytes);
 
@@ -15201,6 +16621,29 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_utf8strnlen")]
 	public static partial nuint SDL_utf8strnlen([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, nuint bytes);
 
+	/// <summary>
+	/// Convert an integer into a string.<br/>
+	/// This requires a radix to specified for string format. Specifying 10<br/>
+	/// produces a decimal number, 16 hexidecimal, etc. Must be in the range of 2<br/>
+	/// to 36.<br/>
+	/// Note that this function will overflow a buffer if `str` is not large enough<br/>
+	/// to hold the output! It may be safer to use SDL_snprintf to clamp output, or<br/>
+	/// SDL_asprintf to allocate a buffer. Otherwise, it doesn't hurt to allocate<br/>
+	/// much more space than you expect to use (and don't forget possible negative<br/>
+	/// signs, null terminator bytes, etc).<br/>
+	/// <br/>
+	/// @param value the integer to convert.<br/>
+	/// @param str the buffer to write the string into.<br/>
+	/// @param radix the radix to use for string generation.<br/>
+	/// @returns `str`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_uitoa<br/>
+	/// @sa SDL_ltoa<br/>
+	/// @sa SDL_lltoa
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_itoa")]
 	public static partial byte* SDL_itoaPtr(int value, byte* str, int radix);
 
@@ -15218,6 +16661,29 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_itoa")]
 	public static partial byte* SDL_itoaPtr(int value, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, int radix);
 
+	/// <summary>
+	/// Convert an unsigned integer into a string.<br/>
+	/// This requires a radix to specified for string format. Specifying 10<br/>
+	/// produces a decimal number, 16 hexidecimal, etc. Must be in the range of 2<br/>
+	/// to 36.<br/>
+	/// Note that this function will overflow a buffer if `str` is not large enough<br/>
+	/// to hold the output! It may be safer to use SDL_snprintf to clamp output, or<br/>
+	/// SDL_asprintf to allocate a buffer. Otherwise, it doesn't hurt to allocate<br/>
+	/// much more space than you expect to use (and don't forget null terminator<br/>
+	/// bytes, etc).<br/>
+	/// <br/>
+	/// @param value the unsigned integer to convert.<br/>
+	/// @param str the buffer to write the string into.<br/>
+	/// @param radix the radix to use for string generation.<br/>
+	/// @returns `str`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_itoa<br/>
+	/// @sa SDL_ultoa<br/>
+	/// @sa SDL_ulltoa
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_uitoa")]
 	public static partial byte* SDL_uitoaPtr(uint value, byte* str, int radix);
 
@@ -15235,6 +16701,29 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_uitoa")]
 	public static partial byte* SDL_uitoaPtr(uint value, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, int radix);
 
+	/// <summary>
+	/// Convert a long integer into a string.<br/>
+	/// This requires a radix to specified for string format. Specifying 10<br/>
+	/// produces a decimal number, 16 hexidecimal, etc. Must be in the range of 2<br/>
+	/// to 36.<br/>
+	/// Note that this function will overflow a buffer if `str` is not large enough<br/>
+	/// to hold the output! It may be safer to use SDL_snprintf to clamp output, or<br/>
+	/// SDL_asprintf to allocate a buffer. Otherwise, it doesn't hurt to allocate<br/>
+	/// much more space than you expect to use (and don't forget possible negative<br/>
+	/// signs, null terminator bytes, etc).<br/>
+	/// <br/>
+	/// @param value the long integer to convert.<br/>
+	/// @param str the buffer to write the string into.<br/>
+	/// @param radix the radix to use for string generation.<br/>
+	/// @returns `str`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_ultoa<br/>
+	/// @sa SDL_itoa<br/>
+	/// @sa SDL_lltoa
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ltoa")]
 	public static partial byte* SDL_ltoaPtr(global::System.Runtime.InteropServices.CLong value, byte* str, int radix);
 
@@ -15252,6 +16741,29 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_ltoa")]
 	public static partial byte* SDL_ltoaPtr(global::System.Runtime.InteropServices.CLong value, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, int radix);
 
+	/// <summary>
+	/// Convert an unsigned long integer into a string.<br/>
+	/// This requires a radix to specified for string format. Specifying 10<br/>
+	/// produces a decimal number, 16 hexidecimal, etc. Must be in the range of 2<br/>
+	/// to 36.<br/>
+	/// Note that this function will overflow a buffer if `str` is not large enough<br/>
+	/// to hold the output! It may be safer to use SDL_snprintf to clamp output, or<br/>
+	/// SDL_asprintf to allocate a buffer. Otherwise, it doesn't hurt to allocate<br/>
+	/// much more space than you expect to use (and don't forget null terminator<br/>
+	/// bytes, etc).<br/>
+	/// <br/>
+	/// @param value the unsigned long integer to convert.<br/>
+	/// @param str the buffer to write the string into.<br/>
+	/// @param radix the radix to use for string generation.<br/>
+	/// @returns `str`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_ltoa<br/>
+	/// @sa SDL_uitoa<br/>
+	/// @sa SDL_ulltoa
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ultoa")]
 	public static partial byte* SDL_ultoaPtr(global::System.Runtime.InteropServices.CULong value, byte* str, int radix);
 
@@ -15269,6 +16781,29 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_ultoa")]
 	public static partial byte* SDL_ultoaPtr(global::System.Runtime.InteropServices.CULong value, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, int radix);
 
+	/// <summary>
+	/// Convert a long long integer into a string.<br/>
+	/// This requires a radix to specified for string format. Specifying 10<br/>
+	/// produces a decimal number, 16 hexidecimal, etc. Must be in the range of 2<br/>
+	/// to 36.<br/>
+	/// Note that this function will overflow a buffer if `str` is not large enough<br/>
+	/// to hold the output! It may be safer to use SDL_snprintf to clamp output, or<br/>
+	/// SDL_asprintf to allocate a buffer. Otherwise, it doesn't hurt to allocate<br/>
+	/// much more space than you expect to use (and don't forget possible negative<br/>
+	/// signs, null terminator bytes, etc).<br/>
+	/// <br/>
+	/// @param value the long long integer to convert.<br/>
+	/// @param str the buffer to write the string into.<br/>
+	/// @param radix the radix to use for string generation.<br/>
+	/// @returns `str`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_ulltoa<br/>
+	/// @sa SDL_itoa<br/>
+	/// @sa SDL_ltoa
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_lltoa")]
 	public static partial byte* SDL_lltoaPtr(long value, byte* str, int radix);
 
@@ -15286,6 +16821,29 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_lltoa")]
 	public static partial byte* SDL_lltoaPtr(long value, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> str, int radix);
 
+	/// <summary>
+	/// Convert an unsigned long long integer into a string.<br/>
+	/// This requires a radix to specified for string format. Specifying 10<br/>
+	/// produces a decimal number, 16 hexidecimal, etc. Must be in the range of 2<br/>
+	/// to 36.<br/>
+	/// Note that this function will overflow a buffer if `str` is not large enough<br/>
+	/// to hold the output! It may be safer to use SDL_snprintf to clamp output, or<br/>
+	/// SDL_asprintf to allocate a buffer. Otherwise, it doesn't hurt to allocate<br/>
+	/// much more space than you expect to use (and don't forget null terminator<br/>
+	/// bytes, etc).<br/>
+	/// <br/>
+	/// @param value the unsigned long long integer to convert.<br/>
+	/// @param str the buffer to write the string into.<br/>
+	/// @param radix the radix to use for string generation.<br/>
+	/// @returns `str`.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_lltoa<br/>
+	/// @sa SDL_uitoa<br/>
+	/// @sa SDL_ultoa
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ulltoa")]
 	public static partial byte* SDL_ulltoaPtr(ulong value, byte* str, int radix);
 
@@ -15309,10 +16867,10 @@ public unsafe partial class SDL3
 	/// `(int)SDL_strtol(str, NULL, 10)`.<br/>
 	/// <br/>
 	/// @param str The null-terminated string to read. Must not be NULL.<br/>
-	/// @returns The parsed `int`.<br/>
+	/// @returns the parsed `int`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atof<br/>
 	/// @sa SDL_strtol<br/>
@@ -15337,10 +16895,10 @@ public unsafe partial class SDL3
 	/// NULL)`.<br/>
 	/// <br/>
 	/// @param str The null-terminated string to read. Must not be NULL.<br/>
-	/// @returns The parsed `double`.<br/>
+	/// @returns the parsed `double`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atoi<br/>
 	/// @sa SDL_strtol<br/>
@@ -15373,10 +16931,10 @@ public unsafe partial class SDL3
 	/// to 36 inclusive. If 0, the base will be inferred from the<br/>
 	/// number's prefix (0x for hexadecimal, 0 for octal, decimal<br/>
 	/// otherwise).<br/>
-	/// @returns The parsed `long`, or 0 if no number could be parsed.<br/>
+	/// @returns the parsed `long`, or 0 if no number could be parsed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atoi<br/>
 	/// @sa SDL_atof<br/>
@@ -15411,10 +16969,10 @@ public unsafe partial class SDL3
 	/// to 36 inclusive. If 0, the base will be inferred from the<br/>
 	/// number's prefix (0x for hexadecimal, 0 for octal, decimal<br/>
 	/// otherwise).<br/>
-	/// @returns The parsed `unsigned long`, or 0 if no number could be parsed.<br/>
+	/// @returns the parsed `unsigned long`, or 0 if no number could be parsed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atoi<br/>
 	/// @sa SDL_atof<br/>
@@ -15448,10 +17006,10 @@ public unsafe partial class SDL3
 	/// to 36 inclusive. If 0, the base will be inferred from the<br/>
 	/// number's prefix (0x for hexadecimal, 0 for octal, decimal<br/>
 	/// otherwise).<br/>
-	/// @returns The parsed `long long`, or 0 if no number could be parsed.<br/>
+	/// @returns the parsed `long long`, or 0 if no number could be parsed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atoi<br/>
 	/// @sa SDL_atof<br/>
@@ -15485,11 +17043,11 @@ public unsafe partial class SDL3
 	/// to 36 inclusive. If 0, the base will be inferred from the<br/>
 	/// number's prefix (0x for hexadecimal, 0 for octal, decimal<br/>
 	/// otherwise).<br/>
-	/// @returns The parsed `unsigned long long`, or 0 if no number could be<br/>
+	/// @returns the parsed `unsigned long long`, or 0 if no number could be<br/>
 	/// parsed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atoi<br/>
 	/// @sa SDL_atof<br/>
@@ -15516,14 +17074,14 @@ public unsafe partial class SDL3
 	/// - Whether or not INF and NAN can be parsed is unspecified.<br/>
 	/// - The precision of the result is unspecified.<br/>
 	/// <br/>
-	/// @param str The null-terminated string to read. Must not be NULL.<br/>
-	/// @param endp If not NULL, the address of the first invalid character (i.e.<br/>
+	/// @param str the null-terminated string to read. Must not be NULL.<br/>
+	/// @param endp if not NULL, the address of the first invalid character (i.e.<br/>
 	/// the next character after the parsed number) will be written to<br/>
 	/// this pointer.<br/>
-	/// @returns The parsed `double`, or 0 if no number could be parsed.<br/>
+	/// @returns the parsed `double`, or 0 if no number could be parsed.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atoi<br/>
 	/// @sa SDL_atof<br/>
@@ -15555,7 +17113,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strcmp")]
 	public static partial int SDL_strcmp(byte* str1, byte* str2);
@@ -15588,7 +17146,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strncmp")]
 	public static partial int SDL_strncmp(byte* str1, byte* str2, nuint maxlen);
@@ -15620,7 +17178,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strcasecmp")]
 	public static partial int SDL_strcasecmp(byte* str1, byte* str2);
@@ -15661,7 +17219,7 @@ public unsafe partial class SDL3
 	/// exactly.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strncasecmp")]
 	public static partial int SDL_strncasecmp(byte* str1, byte* str2, nuint maxlen);
@@ -15685,7 +17243,7 @@ public unsafe partial class SDL3
 	/// character present in the breakset, or NULL if none is found.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_strpbrk")]
 	public static partial byte* SDL_strpbrkPtr(byte* str, byte* breakset);
@@ -15736,10 +17294,42 @@ public unsafe partial class SDL3
 	/// @returns the first Unicode codepoint in the string.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_StepUTF8")]
 	public static partial uint SDL_StepUTF8(byte** pstr, nuint* pslen);
+
+	/// <summary>
+	/// Decode a UTF-8 string in reverse, one Unicode codepoint at a time.<br/>
+	/// This will go to the start of the previous Unicode codepoint in the string,<br/>
+	/// move `*pstr` to that location and return that codepoint.<br/>
+	/// If `*pstr` is already at the start of the string), it will not advance<br/>
+	/// `*pstr` at all.<br/>
+	/// Generally this function is called in a loop until it returns zero,<br/>
+	/// adjusting its parameter each iteration.<br/>
+	/// If an invalid UTF-8 sequence is encountered, this function returns<br/>
+	/// SDL_INVALID_UNICODE_CODEPOINT.<br/>
+	/// Several things can generate invalid UTF-8 sequences, including overlong<br/>
+	/// encodings, the use of UTF-16 surrogate values, and truncated data. Please<br/>
+	/// refer to<br/>
+	/// [RFC3629](https://www.ietf.org/rfc/rfc3629.txt)<br/>
+	/// for details.<br/>
+	/// <br/>
+	/// @param start a pointer to the beginning of the UTF-8 string.<br/>
+	/// @param pstr a pointer to a UTF-8 string pointer to be read and adjusted.<br/>
+	/// @returns the previous Unicode codepoint in the string.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_StepBackUTF8")]
+	public static partial uint SDL_StepBackUTF8(byte* start, byte** pstr);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_StepBackUTF8")]
+	public static partial uint SDL_StepBackUTF8(ReadOnlySpan<byte> start, byte** pstr);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_StepBackUTF8")]
+	public static partial uint SDL_StepBackUTF8([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> start, byte** pstr);
 
 	/// <summary>
 	/// Convert a single Unicode codepoint to UTF-8.<br/>
@@ -15761,7 +17351,7 @@ public unsafe partial class SDL3
 	/// @returns the first byte past the newly-written UTF-8 sequence.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UCS4ToUTF8")]
 	public static partial byte* SDL_UCS4ToUTF8Ptr(uint codepoint, byte* dst);
@@ -15780,6 +17370,19 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_UCS4ToUTF8")]
 	public static partial byte* SDL_UCS4ToUTF8Ptr(uint codepoint, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> dst);
 
+	/// <summary>
+	/// This works exactly like sscanf() but doesn't require access to a C runtime.<br/>
+	/// Scan a string, matching a format string, converting each '%' item and<br/>
+	/// storing it to pointers provided through variable arguments.<br/>
+	/// <br/>
+	/// @param text the string to scan. Must not be NULL.<br/>
+	/// @param fmt a printf-style format string. Must not be NULL.<br/>
+	/// @param ... a list of pointers to values to be filled in with scanned items.<br/>
+	/// @returns the number of items that matched the format string.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_sscanf")]
 	public static partial int SDL_sscanf(byte* text, byte* fmt);
 
@@ -15789,6 +17392,21 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_sscanf")]
 	public static partial int SDL_sscanf([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> text, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt);
 
+	/// <summary>
+	/// This works exactly like vsscanf() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Functions identically to SDL_sscanf(), except it takes a `va_list` instead<br/>
+	/// of using `...` variable arguments.<br/>
+	/// <br/>
+	/// @param text the string to scan. Must not be NULL.<br/>
+	/// @param fmt a printf-style format string. Must not be NULL.<br/>
+	/// @param ap a `va_list` of pointers to values to be filled in with scanned<br/>
+	/// items.<br/>
+	/// @returns the number of items that matched the format string.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_vsscanf")]
 	public static partial int SDL_vsscanf(byte* text, byte* fmt, byte* ap);
 
@@ -15798,6 +17416,32 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_vsscanf")]
 	public static partial int SDL_vsscanf([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> text, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt, byte* ap);
 
+	/// <summary>
+	/// This works exactly like snprintf() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Format a string of up to `maxlen`-1 bytes, converting each '%' item with<br/>
+	/// values provided through variable arguments.<br/>
+	/// While some C runtimes differ on how to deal with too-large strings, this<br/>
+	/// function null-terminates the output, by treating the null-terminator as<br/>
+	/// part of the `maxlen` count. Note that if `maxlen` is zero, however, no<br/>
+	/// bytes will be written at all.<br/>
+	/// This function returns the number of _bytes_ (not _characters_) that should<br/>
+	/// be written, excluding the null-terminator character. If this returns a<br/>
+	/// number >= `maxlen`, it means the output string was truncated. A negative<br/>
+	/// return value means an error occurred.<br/>
+	/// Referencing the output string's pointer with a format item is undefined<br/>
+	/// behavior.<br/>
+	/// <br/>
+	/// @param text the buffer to write the string into. Must not be NULL.<br/>
+	/// @param maxlen the maximum bytes to write, including the null-terminator.<br/>
+	/// @param fmt a printf-style format string. Must not be NULL.<br/>
+	/// @param ... a list of values to be used with the format string.<br/>
+	/// @returns the number of bytes that should be written, not counting the<br/>
+	/// null-terminator char, or a negative value on error.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_snprintf")]
 	public static partial int SDL_snprintf(byte* text, nuint maxlen, byte* fmt);
 
@@ -15807,9 +17451,52 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_snprintf")]
 	public static partial int SDL_snprintf([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> text, nuint maxlen, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt);
 
+	/// <summary>
+	/// This works exactly like swprintf() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Format a wide string of up to `maxlen`-1 wchar_t values, converting each<br/>
+	/// '%' item with values provided through variable arguments.<br/>
+	/// While some C runtimes differ on how to deal with too-large strings, this<br/>
+	/// function null-terminates the output, by treating the null-terminator as<br/>
+	/// part of the `maxlen` count. Note that if `maxlen` is zero, however, no wide<br/>
+	/// characters will be written at all.<br/>
+	/// This function returns the number of _wide characters_ (not _codepoints_)<br/>
+	/// that should be written, excluding the null-terminator character. If this<br/>
+	/// returns a number >= `maxlen`, it means the output string was truncated. A<br/>
+	/// negative return value means an error occurred.<br/>
+	/// Referencing the output string's pointer with a format item is undefined<br/>
+	/// behavior.<br/>
+	/// <br/>
+	/// @param text the buffer to write the wide string into. Must not be NULL.<br/>
+	/// @param maxlen the maximum wchar_t values to write, including the<br/>
+	/// null-terminator.<br/>
+	/// @param fmt a printf-style format string. Must not be NULL.<br/>
+	/// @param ... a list of values to be used with the format string.<br/>
+	/// @returns the number of wide characters that should be written, not counting<br/>
+	/// the null-terminator char, or a negative value on error.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_swprintf")]
 	public static partial int SDL_swprintf(char* text, nuint maxlen, char* fmt);
 
+	/// <summary>
+	/// This works exactly like vsnprintf() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Functions identically to SDL_snprintf(), except it takes a `va_list`<br/>
+	/// instead of using `...` variable arguments.<br/>
+	/// <br/>
+	/// @param text the buffer to write the string into. Must not be NULL.<br/>
+	/// @param maxlen the maximum bytes to write, including the null-terminator.<br/>
+	/// @param fmt a printf-style format string. Must not be NULL.<br/>
+	/// @param ap a `va_list` values to be used with the format string.<br/>
+	/// @returns the number of bytes that should be written, not counting the<br/>
+	/// null-terminator char, or a negative value on error.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_vsnprintf")]
 	public static partial int SDL_vsnprintf(byte* text, nuint maxlen, byte* fmt, byte* ap);
 
@@ -15819,9 +17506,48 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_vsnprintf")]
 	public static partial int SDL_vsnprintf([global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> text, nuint maxlen, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt, byte* ap);
 
+	/// <summary>
+	/// This works exactly like vswprintf() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Functions identically to SDL_swprintf(), except it takes a `va_list`<br/>
+	/// instead of using `...` variable arguments.<br/>
+	/// <br/>
+	/// @param text the buffer to write the string into. Must not be NULL.<br/>
+	/// @param maxlen the maximum wide characters to write, including the<br/>
+	/// null-terminator.<br/>
+	/// @param fmt a printf-style format wide string. Must not be NULL.<br/>
+	/// @param ap a `va_list` values to be used with the format string.<br/>
+	/// @returns the number of wide characters that should be written, not counting<br/>
+	/// the null-terminator char, or a negative value on error.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_vswprintf")]
 	public static partial int SDL_vswprintf(char* text, nuint maxlen, char* fmt, byte* ap);
 
+	/// <summary>
+	/// This works exactly like asprintf() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Functions identically to SDL_snprintf(), except it allocates a buffer large<br/>
+	/// enough to hold the output string on behalf of the caller.<br/>
+	/// On success, this function returns the number of bytes (not characters)<br/>
+	/// comprising the output string, not counting the null-terminator character,<br/>
+	/// and sets `*strp` to the newly-allocated string.<br/>
+	/// On error, this function returns a negative number, and the value of `*strp`<br/>
+	/// is undefined.<br/>
+	/// The returned string is owned by the caller, and should be passed to<br/>
+	/// SDL_free when no longer needed.<br/>
+	/// <br/>
+	/// @param strp on output, is set to the new string. Must not be NULL.<br/>
+	/// @param fmt a printf-style format string. Must not be NULL.<br/>
+	/// @param ... a list of values to be used with the format string.<br/>
+	/// @returns the number of bytes in the newly-allocated string, not counting<br/>
+	/// the null-terminator char, or a negative value on error.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_asprintf")]
 	public static partial int SDL_asprintf(byte** strp, byte* fmt);
 
@@ -15831,6 +17557,21 @@ public unsafe partial class SDL3
 	[LibraryImport(LibName, EntryPoint = "SDL_asprintf")]
 	public static partial int SDL_asprintf(byte** strp, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> fmt);
 
+	/// <summary>
+	/// This works exactly like vasprintf() but doesn't require access to a C<br/>
+	/// runtime.<br/>
+	/// Functions identically to SDL_asprintf(), except it takes a `va_list`<br/>
+	/// instead of using `...` variable arguments.<br/>
+	/// <br/>
+	/// @param strp on output, is set to the new string. Must not be NULL.<br/>
+	/// @param fmt a printf-style format string. Must not be NULL.<br/>
+	/// @param ap a `va_list` values to be used with the format string.<br/>
+	/// @returns the number of bytes in the newly-allocated string, not counting<br/>
+	/// the null-terminator char, or a negative value on error.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_vasprintf")]
 	public static partial int SDL_vasprintf(byte** strp, byte* fmt, byte* ap);
 
@@ -15842,15 +17583,15 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Seeds the pseudo-random number generator.<br/>
-	/// Reusing the seed number will cause SDL_rand_*() to repeat the same stream<br/>
-	/// of 'random' numbers.<br/>
+	/// Reusing the seed number will cause SDL_rand() to repeat the same stream of<br/>
+	/// 'random' numbers.<br/>
 	/// <br/>
 	/// @param seed the value to use as a random number seed, or 0 to use<br/>
 	/// SDL_GetPerformanceCounter().<br/>
 	/// @threadsafety This should be called on the same thread that calls<br/>
-	/// SDL_rand*()<br/>
+	/// SDL_rand()<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_rand<br/>
 	/// @sa SDL_rand_bits<br/>
@@ -15880,7 +17621,7 @@ public unsafe partial class SDL3
 	/// @returns a random value in the range of [0 .. n-1].<br/>
 	/// @threadsafety All calls should be made from a single thread<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_srand<br/>
 	/// @sa SDL_randf
@@ -15901,7 +17642,7 @@ public unsafe partial class SDL3
 	/// @returns a random value in the range of [0.0, 1.0).<br/>
 	/// @threadsafety All calls should be made from a single thread<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_srand<br/>
 	/// @sa SDL_rand
@@ -15921,7 +17662,7 @@ public unsafe partial class SDL3
 	/// @returns a random value in the range of [0-SDL_MAX_UINT32].<br/>
 	/// @threadsafety All calls should be made from a single thread<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_rand<br/>
 	/// @sa SDL_randf<br/>
@@ -15952,7 +17693,7 @@ public unsafe partial class SDL3
 	/// @threadsafety This function is thread-safe, as long as the state pointer<br/>
 	/// isn't shared between threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_rand<br/>
 	/// @sa SDL_rand_bits_r<br/>
@@ -15977,7 +17718,7 @@ public unsafe partial class SDL3
 	/// @threadsafety This function is thread-safe, as long as the state pointer<br/>
 	/// isn't shared between threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_rand_bits_r<br/>
 	/// @sa SDL_rand_r<br/>
@@ -16001,7 +17742,7 @@ public unsafe partial class SDL3
 	/// @threadsafety This function is thread-safe, as long as the state pointer<br/>
 	/// isn't shared between threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_rand_r<br/>
 	/// @sa SDL_randf_r
@@ -16033,7 +17774,7 @@ public unsafe partial class SDL3
 	/// @returns arc cosine of `x`, in radians.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_acosf<br/>
 	/// @sa SDL_asin<br/>
@@ -16066,7 +17807,7 @@ public unsafe partial class SDL3
 	/// @returns arc cosine of `x`, in radians.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_acos<br/>
 	/// @sa SDL_asinf<br/>
@@ -16099,7 +17840,7 @@ public unsafe partial class SDL3
 	/// @returns arc sine of `x`, in radians.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_asinf<br/>
 	/// @sa SDL_acos<br/>
@@ -16132,7 +17873,7 @@ public unsafe partial class SDL3
 	/// @returns arc sine of `x`, in radians.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_asin<br/>
 	/// @sa SDL_acosf<br/>
@@ -16166,7 +17907,7 @@ public unsafe partial class SDL3
 	/// @returns arc tangent of of `x` in radians, or 0 if `x = 0`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atanf<br/>
 	/// @sa SDL_atan2<br/>
@@ -16200,7 +17941,7 @@ public unsafe partial class SDL3
 	/// @returns arc tangent of of `x` in radians, or 0 if `x = 0`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atan<br/>
 	/// @sa SDL_atan2f<br/>
@@ -16242,7 +17983,7 @@ public unsafe partial class SDL3
 	/// `-Pi/2`, `0`, or `Pi/2`, depending on the value of `y`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_atan2f<br/>
 	/// @sa SDL_atan<br/>
@@ -16284,9 +18025,9 @@ public unsafe partial class SDL3
 	/// `-Pi/2`, `0`, or `Pi/2`, depending on the value of `y`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_atan2f<br/>
+	/// @sa SDL_atan2<br/>
 	/// @sa SDL_atan<br/>
 	/// @sa SDL_tan
 	/// </summary>
@@ -16314,7 +18055,7 @@ public unsafe partial class SDL3
 	/// @returns the ceiling of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ceilf<br/>
 	/// @sa SDL_floor<br/>
@@ -16346,7 +18087,7 @@ public unsafe partial class SDL3
 	/// @returns the ceiling of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ceil<br/>
 	/// @sa SDL_floorf<br/>
@@ -16383,7 +18124,7 @@ public unsafe partial class SDL3
 	/// x.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_copysignf<br/>
 	/// @sa SDL_fabs
@@ -16417,9 +18158,9 @@ public unsafe partial class SDL3
 	/// x.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_copysignf<br/>
+	/// @sa SDL_copysign<br/>
 	/// @sa SDL_fabsf
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_copysignf")]
@@ -16448,7 +18189,7 @@ public unsafe partial class SDL3
 	/// @returns cosine of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_cosf<br/>
 	/// @sa SDL_acos<br/>
@@ -16480,7 +18221,7 @@ public unsafe partial class SDL3
 	/// @returns cosine of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_cos<br/>
 	/// @sa SDL_acosf<br/>
@@ -16515,7 +18256,7 @@ public unsafe partial class SDL3
 	/// @returns value of `e^x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_expf<br/>
 	/// @sa SDL_log
@@ -16549,7 +18290,7 @@ public unsafe partial class SDL3
 	/// @returns value of `e^x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_exp<br/>
 	/// @sa SDL_logf
@@ -16570,13 +18311,13 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = INF`<br/>
 	/// This function operates on double-precision floating point values, use<br/>
-	/// SDL_copysignf for single-precision floats.<br/>
+	/// SDL_fabsf for single-precision floats.<br/>
 	/// <br/>
 	/// @param x floating point value to use as the magnitude.<br/>
 	/// @returns the absolute value of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_fabsf
 	/// </summary>
@@ -16596,13 +18337,13 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = INF`<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_copysignf for double-precision floats.<br/>
+	/// SDL_fabs for double-precision floats.<br/>
 	/// <br/>
 	/// @param x floating point value to use as the magnitude.<br/>
 	/// @returns the absolute value of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_fabs
 	/// </summary>
@@ -16630,7 +18371,7 @@ public unsafe partial class SDL3
 	/// @returns the floor of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_floorf<br/>
 	/// @sa SDL_ceil<br/>
@@ -16656,13 +18397,13 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = INF`, y integer<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_floorf for double-precision floats.<br/>
+	/// SDL_floor for double-precision floats.<br/>
 	/// <br/>
 	/// @param x floating point value.<br/>
 	/// @returns the floor of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_floor<br/>
 	/// @sa SDL_ceilf<br/>
@@ -16694,7 +18435,7 @@ public unsafe partial class SDL3
 	/// @returns `x` truncated to an integer.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_truncf<br/>
 	/// @sa SDL_fmod<br/>
@@ -16721,13 +18462,13 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = INF`, y integer<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_truncf for double-precision floats.<br/>
+	/// SDL_trunc for double-precision floats.<br/>
 	/// <br/>
 	/// @param x floating point value.<br/>
 	/// @returns `x` truncated to an integer.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_trunc<br/>
 	/// @sa SDL_fmodf<br/>
@@ -16764,7 +18505,7 @@ public unsafe partial class SDL3
 	/// @returns the remainder of `x / y`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_fmodf<br/>
 	/// @sa SDL_modf<br/>
@@ -16795,14 +18536,14 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = y`<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_fmod for single-precision floats.<br/>
+	/// SDL_fmod for double-precision floats.<br/>
 	/// <br/>
 	/// @param x the numerator.<br/>
 	/// @param y the denominator. Must not be 0.<br/>
 	/// @returns the remainder of `x / y`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_fmod<br/>
 	/// @sa SDL_truncf<br/>
@@ -16822,7 +18563,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if the value is infinity, 0 otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_isinff
 	/// </summary>
@@ -16836,7 +18577,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if the value is infinity, 0 otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_isinf
 	/// </summary>
@@ -16850,7 +18591,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if the value is NaN, 0 otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_isnanf
 	/// </summary>
@@ -16864,7 +18605,7 @@ public unsafe partial class SDL3
 	/// @returns non-zero if the value is NaN, 0 otherwise.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_isnan
 	/// </summary>
@@ -16895,7 +18636,7 @@ public unsafe partial class SDL3
 	/// @returns the natural logarithm of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_logf<br/>
 	/// @sa SDL_log10<br/>
@@ -16928,7 +18669,7 @@ public unsafe partial class SDL3
 	/// @returns the natural logarithm of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_log<br/>
 	/// @sa SDL_expf
@@ -16960,7 +18701,7 @@ public unsafe partial class SDL3
 	/// @returns the logarithm of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_log10f<br/>
 	/// @sa SDL_log<br/>
@@ -16993,7 +18734,7 @@ public unsafe partial class SDL3
 	/// @returns the logarithm of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_log10<br/>
 	/// @sa SDL_logf<br/>
@@ -17012,7 +18753,7 @@ public unsafe partial class SDL3
 	/// @returns the fractional part of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_modff<br/>
 	/// @sa SDL_trunc<br/>
@@ -17031,7 +18772,7 @@ public unsafe partial class SDL3
 	/// @returns the fractional part of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_modf<br/>
 	/// @sa SDL_truncf<br/>
@@ -17070,7 +18811,7 @@ public unsafe partial class SDL3
 	/// @returns `x` raised to the power `y`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_powf<br/>
 	/// @sa SDL_exp<br/>
@@ -17098,7 +18839,7 @@ public unsafe partial class SDL3
 	/// If `y` is the base of the natural logarithm (e), consider using SDL_exp<br/>
 	/// instead.<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_powf for double-precision floats.<br/>
+	/// SDL_pow for double-precision floats.<br/>
 	/// This function may use a different approximation across different versions,<br/>
 	/// platforms and configurations. i.e, it can return a different value given<br/>
 	/// the same input on different machines or operating systems, or if SDL is<br/>
@@ -17109,7 +18850,7 @@ public unsafe partial class SDL3
 	/// @returns `x` raised to the power `y`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_pow<br/>
 	/// @sa SDL_expf<br/>
@@ -17140,7 +18881,7 @@ public unsafe partial class SDL3
 	/// @returns the nearest integer to `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_roundf<br/>
 	/// @sa SDL_lround<br/>
@@ -17165,15 +18906,15 @@ public unsafe partial class SDL3
 	/// = y<br/>
 	/// <<br/>
 	/// = INF`, y integer<br/>
-	/// This function operates on double-precision floating point values, use<br/>
-	/// SDL_roundf for single-precision floats. To get the result as an integer<br/>
+	/// This function operates on single-precision floating point values, use<br/>
+	/// SDL_round for double-precision floats. To get the result as an integer<br/>
 	/// type, use SDL_lroundf.<br/>
 	/// <br/>
 	/// @param x floating point value.<br/>
 	/// @returns the nearest integer to `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_round<br/>
 	/// @sa SDL_lroundf<br/>
@@ -17199,14 +18940,14 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = MAX_LONG`<br/>
 	/// This function operates on double-precision floating point values, use<br/>
-	/// SDL_lround for single-precision floats. To get the result as a<br/>
+	/// SDL_lroundf for single-precision floats. To get the result as a<br/>
 	/// floating-point type, use SDL_round.<br/>
 	/// <br/>
 	/// @param x floating point value.<br/>
 	/// @returns the nearest integer to `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_lroundf<br/>
 	/// @sa SDL_round<br/>
@@ -17232,14 +18973,14 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = MAX_LONG`<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_lroundf for double-precision floats. To get the result as a<br/>
-	/// floating-point type, use SDL_roundf,<br/>
+	/// SDL_lround for double-precision floats. To get the result as a<br/>
+	/// floating-point type, use SDL_roundf.<br/>
 	/// <br/>
 	/// @param x floating point value.<br/>
 	/// @returns the nearest integer to `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_lround<br/>
 	/// @sa SDL_roundf<br/>
@@ -17271,7 +19012,7 @@ public unsafe partial class SDL3
 	/// @returns `x * 2^n`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_scalbnf<br/>
 	/// @sa SDL_pow
@@ -17300,7 +19041,7 @@ public unsafe partial class SDL3
 	/// @returns `x * 2^n`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_scalbn<br/>
 	/// @sa SDL_powf
@@ -17331,7 +19072,7 @@ public unsafe partial class SDL3
 	/// @returns sine of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_sinf<br/>
 	/// @sa SDL_asin<br/>
@@ -17353,7 +19094,7 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = 1`<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_sinf for double-precision floats.<br/>
+	/// SDL_sin for double-precision floats.<br/>
 	/// This function may use a different approximation across different versions,<br/>
 	/// platforms and configurations. i.e, it can return a different value given<br/>
 	/// the same input on different machines or operating systems, or if SDL is<br/>
@@ -17363,7 +19104,7 @@ public unsafe partial class SDL3
 	/// @returns sine of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_sin<br/>
 	/// @sa SDL_asinf<br/>
@@ -17395,7 +19136,7 @@ public unsafe partial class SDL3
 	/// @returns square root of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_sqrtf
 	/// </summary>
@@ -17425,7 +19166,7 @@ public unsafe partial class SDL3
 	/// @returns square root of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_sqrt
 	/// </summary>
@@ -17455,7 +19196,7 @@ public unsafe partial class SDL3
 	/// @returns tangent of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_tanf<br/>
 	/// @sa SDL_sin<br/>
@@ -17479,7 +19220,7 @@ public unsafe partial class SDL3
 	/// <<br/>
 	/// = INF`<br/>
 	/// This function operates on single-precision floating point values, use<br/>
-	/// SDL_tanf for double-precision floats.<br/>
+	/// SDL_tan for double-precision floats.<br/>
 	/// This function may use a different approximation across different versions,<br/>
 	/// platforms and configurations. i.e, it can return a different value given<br/>
 	/// the same input on different machines or operating systems, or if SDL is<br/>
@@ -17489,7 +19230,7 @@ public unsafe partial class SDL3
 	/// @returns tangent of `x`.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_tan<br/>
 	/// @sa SDL_sinf<br/>
@@ -17509,7 +19250,7 @@ public unsafe partial class SDL3
 	/// @returns a handle that must be freed with SDL_iconv_close, or<br/>
 	/// SDL_ICONV_ERROR on failure.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_iconv<br/>
 	/// @sa SDL_iconv_close<br/>
@@ -17530,7 +19271,7 @@ public unsafe partial class SDL3
 	/// @param cd The character set conversion handle.<br/>
 	/// @returns 0 on success, or -1 on failure.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_iconv<br/>
 	/// @sa SDL_iconv_open<br/>
@@ -17542,7 +19283,20 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// This function converts text between encodings, reading from and writing to<br/>
 	/// a buffer.<br/>
-	/// It returns the number of succesful conversions.<br/>
+	/// It returns the number of succesful conversions on success. On error,<br/>
+	/// SDL_ICONV_E2BIG is returned when the output buffer is too small, or<br/>
+	/// SDL_ICONV_EILSEQ is returned when an invalid input sequence is encountered,<br/>
+	/// or SDL_ICONV_EINVAL is returned when an incomplete input sequence is<br/>
+	/// encountered.<br/>
+	/// On exit:<br/>
+	/// - inbuf will point to the beginning of the next multibyte sequence. On<br/>
+	/// error, this is the location of the problematic input sequence. On<br/>
+	/// success, this is the end of the input sequence.<br/>
+	/// - inbytesleft will be set to the number of bytes left to convert, which<br/>
+	/// will be 0 on success.<br/>
+	/// - outbuf will point to the location where to store the next output byte.<br/>
+	/// - outbytesleft will be set to the number of bytes left in the output<br/>
+	/// buffer.<br/>
 	/// <br/>
 	/// @param cd The character set conversion context, created in<br/>
 	/// SDL_iconv_open().<br/>
@@ -17551,21 +19305,9 @@ public unsafe partial class SDL3
 	/// @param inbytesleft The number of bytes in the input buffer.<br/>
 	/// @param outbuf Address of variable that points to the output buffer.<br/>
 	/// @param outbytesleft The number of bytes in the output buffer.<br/>
-	/// @returns the number of conversions on success, else SDL_ICONV_E2BIG is<br/>
-	/// returned when the output buffer is too small, or SDL_ICONV_EILSEQ<br/>
-	/// is returned when an invalid input sequence is encountered, or<br/>
-	/// SDL_ICONV_EINVAL is returned when an incomplete input sequence is<br/>
-	/// encountered.<br/>
-	/// On exit:<br/>
-	/// - inbuf will point to the beginning of the next multibyte<br/>
-	/// sequence. On error, this is the location of the problematic<br/>
-	/// input sequence. On success, this is the end of the input<br/>
-	/// sequence. - inbytesleft will be set to the number of bytes left<br/>
-	/// to convert, which will be 0 on success. - outbuf will point to<br/>
-	/// the location where to store the next output byte. - outbytesleft<br/>
-	/// will be set to the number of bytes left in the output buffer.<br/>
+	/// @returns the number of conversions on success, or a negative error code.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_iconv_open<br/>
 	/// @sa SDL_iconv_close<br/>
@@ -17590,7 +19332,7 @@ public unsafe partial class SDL3
 	/// @param inbytesleft the size of the input string _in bytes_.<br/>
 	/// @returns a new string, converted to the new encoding, or NULL on error.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_iconv_open<br/>
 	/// @sa SDL_iconv_close<br/>
@@ -17625,7 +19367,7 @@ public unsafe partial class SDL3
 	/// @returns false on overflow, true if result is multiplied without overflow.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_size_mul_check_overflow")]
 	public static partial SDLBool SDL_size_mul_check_overflow(nuint a, nuint b, nuint* ret);
@@ -17640,8 +19382,8 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Add two integers, checking for overflow.<br/>
-	/// If `a + b` would overflow, return -1.<br/>
-	/// Otherwise store `a + b` via ret and return 0.<br/>
+	/// If `a + b` would overflow, return false.<br/>
+	/// Otherwise store `a + b` via ret and return true.<br/>
 	/// <br/>
 	/// @param a the first addend.<br/>
 	/// @param b the second addend.<br/>
@@ -17650,7 +19392,7 @@ public unsafe partial class SDL3
 	/// @returns false on overflow, true if result is added without overflow.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_size_add_check_overflow")]
 	public static partial SDLBool SDL_size_add_check_overflow(nuint a, nuint b, nuint* ret);
@@ -17670,7 +19412,7 @@ public unsafe partial class SDL3
 	/// @returns a title storage container on success or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseStorage<br/>
 	/// @sa SDL_GetStorageFileSize<br/>
@@ -17699,7 +19441,7 @@ public unsafe partial class SDL3
 	/// @returns a user storage container on success or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseStorage<br/>
 	/// @sa SDL_GetStorageFileSize<br/>
@@ -17729,7 +19471,7 @@ public unsafe partial class SDL3
 	/// @returns a filesystem storage container on success or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseStorage<br/>
 	/// @sa SDL_GetStorageFileSize<br/>
@@ -17763,7 +19505,7 @@ public unsafe partial class SDL3
 	/// @returns a storage container on success or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CloseStorage<br/>
 	/// @sa SDL_GetStorageFileSize<br/>
@@ -17785,7 +19527,7 @@ public unsafe partial class SDL3
 	/// returns an error, the container data will be freed; the error is<br/>
 	/// only for informational purposes.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_OpenFileStorage<br/>
 	/// @sa SDL_OpenStorage<br/>
@@ -17799,12 +19541,13 @@ public unsafe partial class SDL3
 	/// Checks if the storage container is ready to use.<br/>
 	/// This function should be called in regular intervals until it returns true -<br/>
 	/// however, it is not recommended to spinwait on this call, as the backend may<br/>
-	/// depend on a synchronous message loop.<br/>
+	/// depend on a synchronous message loop. You might instead poll this in your<br/>
+	/// game's main loop while processing events and drawing a loading screen.<br/>
 	/// <br/>
 	/// @param storage a storage container to query.<br/>
 	/// @returns true if the container is ready, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_StorageReady")]
 	public static partial SDLBool SDL_StorageReady(SDL_Storage storage);
@@ -17818,7 +19561,7 @@ public unsafe partial class SDL3
 	/// @returns true if the file could be queried or false on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ReadStorageFile<br/>
 	/// @sa SDL_StorageReady
@@ -17835,6 +19578,9 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Synchronously read a file from a storage container into a client-provided<br/>
 	/// buffer.<br/>
+	/// The value of `length` must match the length of the file exactly; call<br/>
+	/// SDL_GetStorageFileSize() to get this value. This behavior may be relaxed in<br/>
+	/// a future release.<br/>
 	/// <br/>
 	/// @param storage a storage container to read from.<br/>
 	/// @param path the relative path of the file to read.<br/>
@@ -17843,7 +19589,7 @@ public unsafe partial class SDL3
 	/// @returns true if the file was read or false on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetStorageFileSize<br/>
 	/// @sa SDL_StorageReady<br/>
@@ -17868,7 +19614,7 @@ public unsafe partial class SDL3
 	/// @returns true if the file was written or false on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetStorageSpaceRemaining<br/>
 	/// @sa SDL_ReadStorageFile<br/>
@@ -17891,7 +19637,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StorageReady
 	/// </summary>
@@ -17908,21 +19654,23 @@ public unsafe partial class SDL3
 	/// Enumerate a directory in a storage container through a callback function.<br/>
 	/// This function provides every directory entry through an app-provided<br/>
 	/// callback, called once for each directory entry, until all results have been<br/>
-	/// provided or the callback returns<br/>
-	/// <<br/>
-	/// = 0.<br/>
+	/// provided or the callback returns either SDL_ENUM_SUCCESS or<br/>
+	/// SDL_ENUM_FAILURE.<br/>
 	/// This will return false if there was a system problem in general, or if a<br/>
-	/// callback returns -1. A successful return means a callback returned 1 to<br/>
-	/// halt enumeration, or all directory entries were enumerated.<br/>
+	/// callback returns SDL_ENUM_FAILURE. A successful return means a callback<br/>
+	/// returned SDL_ENUM_SUCCESS to halt enumeration, or all directory entries<br/>
+	/// were enumerated.<br/>
+	/// If `path` is NULL, this is treated as a request to enumerate the root of<br/>
+	/// the storage container's tree. An empty string also works for this.<br/>
 	/// <br/>
 	/// @param storage a storage container.<br/>
-	/// @param path the path of the directory to enumerate.<br/>
+	/// @param path the path of the directory to enumerate, or NULL for the root.<br/>
 	/// @param callback a function that is called for each entry in the directory.<br/>
 	/// @param userdata a pointer that is passed to `callback`.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StorageReady
 	/// </summary>
@@ -17943,7 +19691,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StorageReady
 	/// </summary>
@@ -17965,7 +19713,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StorageReady
 	/// </summary>
@@ -17987,7 +19735,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StorageReady
 	/// </summary>
@@ -18010,7 +19758,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false if the file doesn't exist, or another<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StorageReady
 	/// </summary>
@@ -18029,7 +19777,7 @@ public unsafe partial class SDL3
 	/// @param storage a storage container to query.<br/>
 	/// @returns the amount of remaining space, in bytes.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_StorageReady<br/>
 	/// @sa SDL_WriteStorageFile
@@ -18040,19 +19788,21 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Enumerate a directory tree, filtered by pattern, and return a list.<br/>
 	/// Files are filtered out if they don't match the string in `pattern`, which<br/>
-	/// may contain wildcard characters '*' (match everything) and '?' (match one<br/>
+	/// may contain wildcard characters `*` (match everything) and `?` (match one<br/>
 	/// character). If pattern is NULL, no filtering is done and all results are<br/>
 	/// returned. Subdirectories are permitted, and are specified with a path<br/>
-	/// separator of '/'. Wildcard characters '*' and '?' never match a path<br/>
+	/// separator of '/'. Wildcard characters `*` and `?` never match a path<br/>
 	/// separator.<br/>
 	/// `flags` may be set to SDL_GLOB_CASEINSENSITIVE to make the pattern matching<br/>
 	/// case-insensitive.<br/>
 	/// The returned array is always NULL-terminated, for your iterating<br/>
 	/// convenience, but if `count` is non-NULL, on return it will contain the<br/>
 	/// number of items in the array, not counting the NULL terminator.<br/>
+	/// If `path` is NULL, this is treated as a request to enumerate the root of<br/>
+	/// the storage container's tree. An empty string also works for this.<br/>
 	/// <br/>
 	/// @param storage a storage container.<br/>
-	/// @param path the path of the directory to enumerate.<br/>
+	/// @param path the path of the directory to enumerate, or NULL for the root.<br/>
 	/// @param pattern the pattern that files in the directory must match. Can be<br/>
 	/// NULL.<br/>
 	/// @param flags `SDL_GLOB_*` bitflags that affect this search.<br/>
@@ -18066,7 +19816,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is safe to call this function from any thread, assuming<br/>
 	/// the `storage` object is thread-safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GlobStorageDirectory")]
 	public static partial byte** SDL_GlobStorageDirectory(SDL_Storage storage, byte* path, byte* pattern, SDL_GlobFlags flags, int* count);
@@ -18087,7 +19837,7 @@ public unsafe partial class SDL3
 	/// @returns the new SDL_Surface structure that is created or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateSurfaceFrom<br/>
 	/// @sa SDL_DestroySurface
@@ -18113,7 +19863,7 @@ public unsafe partial class SDL3
 	/// @returns the new SDL_Surface structure that is created or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateSurface<br/>
 	/// @sa SDL_DestroySurface
@@ -18127,9 +19877,8 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param surface the SDL_Surface to free.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_CreateStackSurface<br/>
 	/// @sa SDL_CreateSurface<br/>
 	/// @sa SDL_CreateSurfaceFrom
 	/// </summary>
@@ -18153,12 +19902,16 @@ public unsafe partial class SDL3
 	/// the same tone mapping that Chrome uses for HDR content, the form "*=N",<br/>
 	/// where N is a floating point scale factor applied in linear space, and<br/>
 	/// "none", which disables tone mapping. This defaults to "chrome".<br/>
+	/// - `SDL_PROP_SURFACE_HOTSPOT_X_NUMBER`: the hotspot pixel offset from the<br/>
+	/// left edge of the image, if this surface is being used as a cursor.<br/>
+	/// - `SDL_PROP_SURFACE_HOTSPOT_Y_NUMBER`: the hotspot pixel offset from the<br/>
+	/// top edge of the image, if this surface is being used as a cursor.<br/>
 	/// <br/>
 	/// @param surface the SDL_Surface structure to query.<br/>
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSurfaceProperties")]
 	public static partial SDL_PropertiesID SDL_GetSurfaceProperties(SDL_Surface* surface);
@@ -18169,12 +19922,12 @@ public unsafe partial class SDL3
 	/// interpreted in color operations.<br/>
 	/// <br/>
 	/// @param surface the SDL_Surface structure to update.<br/>
-	/// @param colorspace an SDL_ColorSpace value describing the surface<br/>
+	/// @param colorspace an SDL_Colorspace value describing the surface<br/>
 	/// colorspace.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceColorspace
 	/// </summary>
@@ -18191,7 +19944,7 @@ public unsafe partial class SDL3
 	/// @returns the colorspace used by the surface, or SDL_COLORSPACE_UNKNOWN if<br/>
 	/// the surface is NULL.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetSurfaceColorspace
 	/// </summary>
@@ -18217,7 +19970,7 @@ public unsafe partial class SDL3
 	/// the surface didn't have an index format); call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetPaletteColors
 	/// </summary>
@@ -18233,7 +19986,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreatePalette<br/>
 	/// @sa SDL_GetSurfacePalette
@@ -18248,7 +20001,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to the palette used by the surface, or NULL if there is<br/>
 	/// no palette used.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetSurfacePalette
 	/// </summary>
@@ -18270,7 +20023,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_RemoveSurfaceAlternateImages<br/>
 	/// @sa SDL_GetSurfaceImages<br/>
@@ -18283,9 +20036,9 @@ public unsafe partial class SDL3
 	/// Return whether a surface has alternate versions available.<br/>
 	/// <br/>
 	/// @param surface the SDL_Surface structure to query.<br/>
-	/// @returns true if alternate versions are available or true otherwise.<br/>
+	/// @returns true if alternate versions are available or false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddSurfaceAlternateImage<br/>
 	/// @sa SDL_RemoveSurfaceAlternateImages<br/>
@@ -18309,7 +20062,7 @@ public unsafe partial class SDL3
 	/// failure; call SDL_GetError() for more information. This should be<br/>
 	/// freed with SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddSurfaceAlternateImage<br/>
 	/// @sa SDL_RemoveSurfaceAlternateImages<br/>
@@ -18325,7 +20078,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param surface the SDL_Surface structure to update.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddSurfaceAlternateImage<br/>
 	/// @sa SDL_GetSurfaceImages<br/>
@@ -18348,7 +20101,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_MUSTLOCK<br/>
 	/// @sa SDL_UnlockSurface
@@ -18361,7 +20114,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param surface the SDL_Surface structure to be unlocked.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LockSurface
 	/// </summary>
@@ -18379,7 +20132,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to a new SDL_Surface structure or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroySurface<br/>
 	/// @sa SDL_LoadBMP<br/>
@@ -18397,7 +20150,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to a new SDL_Surface structure or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroySurface<br/>
 	/// @sa SDL_LoadBMP_IO<br/>
@@ -18427,7 +20180,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LoadBMP_IO<br/>
 	/// @sa SDL_SaveBMP
@@ -18448,7 +20201,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_LoadBMP<br/>
 	/// @sa SDL_SaveBMP_IO
@@ -18472,7 +20225,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurface<br/>
 	/// @sa SDL_LockSurface<br/>
@@ -18488,7 +20241,7 @@ public unsafe partial class SDL3
 	/// @param surface the SDL_Surface structure to query.<br/>
 	/// @returns true if the surface is RLE enabled, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetSurfaceRLE
 	/// </summary>
@@ -18509,7 +20262,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceColorKey<br/>
 	/// @sa SDL_SetSurfaceRLE<br/>
@@ -18525,7 +20278,7 @@ public unsafe partial class SDL3
 	/// @param surface the SDL_Surface structure to query.<br/>
 	/// @returns true if the surface has a color key, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetSurfaceColorKey<br/>
 	/// @sa SDL_GetSurfaceColorKey
@@ -18544,7 +20297,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetSurfaceColorKey<br/>
 	/// @sa SDL_SurfaceHasColorKey
@@ -18566,7 +20319,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceColorMod<br/>
 	/// @sa SDL_SetSurfaceAlphaMod
@@ -18584,7 +20337,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceAlphaMod<br/>
 	/// @sa SDL_SetSurfaceColorMod
@@ -18603,7 +20356,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceAlphaMod<br/>
 	/// @sa SDL_SetSurfaceColorMod
@@ -18619,7 +20372,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceColorMod<br/>
 	/// @sa SDL_SetSurfaceAlphaMod
@@ -18638,7 +20391,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceBlendMode
 	/// </summary>
@@ -18653,7 +20406,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetSurfaceBlendMode
 	/// </summary>
@@ -18673,7 +20426,7 @@ public unsafe partial class SDL3
 	/// @returns true if the rectangle intersects the surface, otherwise false and<br/>
 	/// blits will be completely clipped.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetSurfaceClipRect
 	/// </summary>
@@ -18692,7 +20445,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetSurfaceClipRect
 	/// </summary>
@@ -18707,7 +20460,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_FlipSurface")]
 	public static partial SDLBool SDL_FlipSurface(SDL_Surface* surface, SDL_FlipMode flip);
@@ -18722,7 +20475,7 @@ public unsafe partial class SDL3
 	/// @returns a copy of the surface or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroySurface
 	/// </summary>
@@ -18741,7 +20494,7 @@ public unsafe partial class SDL3
 	/// @returns a copy of the surface or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroySurface
 	/// </summary>
@@ -18764,7 +20517,7 @@ public unsafe partial class SDL3
 	/// @returns the new SDL_Surface structure that is created or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ConvertSurfaceAndColorspace<br/>
 	/// @sa SDL_DestroySurface
@@ -18789,9 +20542,8 @@ public unsafe partial class SDL3
 	/// @returns the new SDL_Surface structure that is created or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_ConvertSurface<br/>
 	/// @sa SDL_ConvertSurface<br/>
 	/// @sa SDL_DestroySurface
 	/// </summary>
@@ -18809,10 +20561,10 @@ public unsafe partial class SDL3
 	/// @param dst_format an SDL_PixelFormat value of the `dst` pixels format.<br/>
 	/// @param dst a pointer to be filled in with new pixel data.<br/>
 	/// @param dst_pitch the pitch of the destination pixels, in bytes.<br/>
-	/// @returns false on success or false on failure; call SDL_GetError() for more<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ConvertPixelsAndColorspace
 	/// </summary>
@@ -18826,23 +20578,23 @@ public unsafe partial class SDL3
 	/// @param width the width of the block to copy, in pixels.<br/>
 	/// @param height the height of the block to copy, in pixels.<br/>
 	/// @param src_format an SDL_PixelFormat value of the `src` pixels format.<br/>
-	/// @param src_colorspace an SDL_ColorSpace value describing the colorspace of<br/>
+	/// @param src_colorspace an SDL_Colorspace value describing the colorspace of<br/>
 	/// the `src` pixels.<br/>
 	/// @param src_properties an SDL_PropertiesID with additional source color<br/>
 	/// properties, or 0.<br/>
 	/// @param src a pointer to the source pixels.<br/>
 	/// @param src_pitch the pitch of the source pixels, in bytes.<br/>
 	/// @param dst_format an SDL_PixelFormat value of the `dst` pixels format.<br/>
-	/// @param dst_colorspace an SDL_ColorSpace value describing the colorspace of<br/>
+	/// @param dst_colorspace an SDL_Colorspace value describing the colorspace of<br/>
 	/// the `dst` pixels.<br/>
 	/// @param dst_properties an SDL_PropertiesID with additional destination color<br/>
 	/// properties, or 0.<br/>
 	/// @param dst a pointer to be filled in with new pixel data.<br/>
 	/// @param dst_pitch the pitch of the destination pixels, in bytes.<br/>
-	/// @returns false on success or false on failure; call SDL_GetError() for more<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ConvertPixels
 	/// </summary>
@@ -18866,7 +20618,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PremultiplyAlpha")]
 	public static partial SDLBool SDL_PremultiplyAlpha(int width, int height, SDL_PixelFormat src_format, nint src, int src_pitch, SDL_PixelFormat dst_format, nint dst, int dst_pitch, SDLBool linear);
@@ -18881,7 +20633,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PremultiplySurfaceAlpha")]
 	public static partial SDLBool SDL_PremultiplySurfaceAlpha(SDL_Surface* surface, SDLBool linear);
@@ -18900,7 +20652,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ClearSurface")]
 	public static partial SDLBool SDL_ClearSurface(SDL_Surface* surface, float r, float g, float b, float a);
@@ -18922,7 +20674,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_FillSurfaceRects
 	/// </summary>
@@ -18946,7 +20698,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_FillSurfaceRect
 	/// </summary>
@@ -18954,11 +20706,12 @@ public unsafe partial class SDL3
 	public static partial SDLBool SDL_FillSurfaceRects(SDL_Surface* dst, Rectangle* rects, int count, uint color);
 
 	/// <summary>
-	/// Performs a fast blit from the source surface to the destination surface.<br/>
-	/// This assumes that the source and destination rectangles are the same size.<br/>
+	/// Performs a fast blit from the source surface to the destination surface<br/>
+	/// with clipping.<br/>
 	/// If either `srcrect` or `dstrect` are NULL, the entire surface (`src` or<br/>
-	/// `dst`) is copied. The final blit rectangles are saved in `srcrect` and<br/>
-	/// `dstrect` after all clipping is performed.<br/>
+	/// `dst`) is copied while ensuring clipping to `dst->clip_rect`.<br/>
+	/// The final blit rectangles are saved in `srcrect` and `dstrect` after all<br/>
+	/// clipping is performed.<br/>
 	/// The blit function should not be called on a locked surface.<br/>
 	/// The blit semantics for surfaces with and without blending and colorkey are<br/>
 	/// defined as follows:<br/>
@@ -19014,7 +20767,7 @@ public unsafe partial class SDL3
 	/// threads at once. It is safe to use the same source surface<br/>
 	/// from multiple threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurfaceScaled
 	/// </summary>
@@ -19038,7 +20791,7 @@ public unsafe partial class SDL3
 	/// threads at once. It is safe to use the same source surface<br/>
 	/// from multiple threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurface
 	/// </summary>
@@ -19063,7 +20816,7 @@ public unsafe partial class SDL3
 	/// threads at once. It is safe to use the same source surface<br/>
 	/// from multiple threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurface
 	/// </summary>
@@ -19088,12 +20841,35 @@ public unsafe partial class SDL3
 	/// threads at once. It is safe to use the same source surface<br/>
 	/// from multiple threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurfaceScaled
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BlitSurfaceUncheckedScaled")]
 	public static partial SDLBool SDL_BlitSurfaceUncheckedScaled(SDL_Surface* src, Rectangle* srcrect, SDL_Surface* dst, Rectangle* dstrect, SDL_ScaleMode scaleMode);
+
+	/// <summary>
+	/// Perform a stretched pixel copy from one surface to another.<br/>
+	/// <br/>
+	/// @param src the SDL_Surface structure to be copied from.<br/>
+	/// @param srcrect the SDL_Rect structure representing the rectangle to be<br/>
+	/// copied, may not be NULL.<br/>
+	/// @param dst the SDL_Surface structure that is the blit target.<br/>
+	/// @param dstrect the SDL_Rect structure representing the target rectangle in<br/>
+	/// the destination surface, may not be NULL.<br/>
+	/// @param scaleMode the SDL_ScaleMode to be used.<br/>
+	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety The same destination surface should not be used from two<br/>
+	/// threads at once. It is safe to use the same source surface<br/>
+	/// from multiple threads.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.4.0.<br/>
+	/// <br/>
+	/// @sa SDL_BlitSurfaceScaled
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_StretchSurface")]
+	public static partial SDLBool SDL_StretchSurface(SDL_Surface* src, Rectangle* srcrect, SDL_Surface* dst, Rectangle* dstrect, SDL_ScaleMode scaleMode);
 
 	/// <summary>
 	/// Perform a tiled blit to a destination surface, which may be of a different<br/>
@@ -19113,7 +20889,7 @@ public unsafe partial class SDL3
 	/// threads at once. It is safe to use the same source surface<br/>
 	/// from multiple threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurface
 	/// </summary>
@@ -19142,7 +20918,7 @@ public unsafe partial class SDL3
 	/// threads at once. It is safe to use the same source surface<br/>
 	/// from multiple threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurface
 	/// </summary>
@@ -19178,7 +20954,7 @@ public unsafe partial class SDL3
 	/// threads at once. It is safe to use the same source surface<br/>
 	/// from multiple threads.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BlitSurface
 	/// </summary>
@@ -19205,7 +20981,7 @@ public unsafe partial class SDL3
 	/// @param b the blue component of the pixel in the range 0-255.<br/>
 	/// @returns a pixel value.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_MapSurfaceRGBA
 	/// </summary>
@@ -19233,7 +21009,7 @@ public unsafe partial class SDL3
 	/// @param a the alpha component of the pixel in the range 0-255.<br/>
 	/// @returns a pixel value.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_MapSurfaceRGB
 	/// </summary>
@@ -19269,7 +21045,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadSurfacePixel")]
 	public static partial SDLBool SDL_ReadSurfacePixel(SDL_Surface* surface, int x, int y, byte* r, byte* g, byte* b, byte* a);
@@ -19301,7 +21077,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReadSurfacePixelFloat")]
 	public static partial SDLBool SDL_ReadSurfacePixelFloat(SDL_Surface* surface, int x, int y, float* r, float* g, float* b, float* a);
@@ -19331,7 +21107,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteSurfacePixel")]
 	public static partial SDLBool SDL_WriteSurfacePixel(SDL_Surface* surface, int x, int y, byte r, byte g, byte b, byte a);
@@ -19359,7 +21135,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WriteSurfacePixelFloat")]
 	public static partial SDLBool SDL_WriteSurfacePixelFloat(SDL_Surface* surface, int x, int y, float r, float g, float b, float a);
@@ -19377,7 +21153,7 @@ public unsafe partial class SDL3
 	/// new thread could not be created; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CreateThreadRuntime")]
 	public static partial SDL_Thread SDL_CreateThreadRuntime(delegate* unmanaged[Cdecl]<nint, int> fn, byte* name, nint data, delegate* unmanaged[Cdecl]<void> pfnBeginThread, delegate* unmanaged[Cdecl]<void> pfnEndThread);
@@ -19398,7 +21174,7 @@ public unsafe partial class SDL3
 	/// new thread could not be created; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CreateThreadWithPropertiesRuntime")]
 	public static partial SDL_Thread SDL_CreateThreadWithPropertiesRuntime(SDL_PropertiesID props, delegate* unmanaged[Cdecl]<void> pfnBeginThread, delegate* unmanaged[Cdecl]<void> pfnEndThread);
@@ -19410,7 +21186,7 @@ public unsafe partial class SDL3
 	/// @returns a pointer to a UTF-8 string that names the specified thread, or<br/>
 	/// NULL if it doesn't have a name.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetThreadName")]
 	public static partial byte* SDL_GetThreadNamePtr(SDL_Thread thread);
@@ -19430,7 +21206,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the ID of the current thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetThreadID
 	/// </summary>
@@ -19447,7 +21223,7 @@ public unsafe partial class SDL3
 	/// @returns the ID of the specified thread, or the ID of the current thread if<br/>
 	/// `thread` is NULL.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCurrentThreadID
 	/// </summary>
@@ -19464,20 +21240,20 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetCurrentThreadPriority")]
 	public static partial SDLBool SDL_SetCurrentThreadPriority(SDL_ThreadPriority priority);
 
 	/// <summary>
 	/// Wait for a thread to finish.<br/>
-	/// Threads that haven't been detached will remain (as a "zombie") until this<br/>
-	/// function cleans them up. Not doing so is a resource leak.<br/>
+	/// Threads that haven't been detached will remain until this function cleans<br/>
+	/// them up. Not doing so is a resource leak.<br/>
 	/// Once a thread has been cleaned up through this function, the SDL_Thread<br/>
 	/// that references it becomes invalid and should not be referenced again. As<br/>
 	/// such, only one thread may call SDL_WaitThread() on another.<br/>
-	/// The return code for the thread function is placed in the area pointed to by<br/>
-	/// `status`, if `status` is not NULL.<br/>
+	/// The return code from the thread function is placed in the area pointed to<br/>
+	/// by `status`, if `status` is not NULL.<br/>
 	/// You may not wait on a thread that has been used in a call to<br/>
 	/// SDL_DetachThread(). Use either that function or this one, but not both, or<br/>
 	/// behavior is undefined.<br/>
@@ -19487,17 +21263,31 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param thread the SDL_Thread pointer that was returned from the<br/>
 	/// SDL_CreateThread() call that started this thread.<br/>
-	/// @param status pointer to an integer that will receive the value returned<br/>
-	/// from the thread function by its 'return', or NULL to not<br/>
-	/// receive such value back.<br/>
+	/// @param status a pointer filled in with the value returned from the thread<br/>
+	/// function by its 'return', or -1 if the thread has been<br/>
+	/// detached or isn't valid, may be NULL.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateThread<br/>
 	/// @sa SDL_DetachThread
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_WaitThread")]
 	public static partial void SDL_WaitThread(SDL_Thread thread, int* status);
+
+	/// <summary>
+	/// Get the current state of a thread.<br/>
+	/// <br/>
+	/// @param thread the thread to query.<br/>
+	/// @returns the current state of a thread, or SDL_THREAD_UNKNOWN if the thread<br/>
+	/// isn't valid.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_ThreadState
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetThreadState")]
+	public static partial SDL_ThreadState SDL_GetThreadState(SDL_Thread thread);
 
 	/// <summary>
 	/// Let a thread clean up on exit without intervention.<br/>
@@ -19522,7 +21312,7 @@ public unsafe partial class SDL3
 	/// @param thread the SDL_Thread pointer that was returned from the<br/>
 	/// SDL_CreateThread() call that started this thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateThread<br/>
 	/// @sa SDL_WaitThread
@@ -19538,7 +21328,7 @@ public unsafe partial class SDL3
 	/// no value has been set; call SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetTLS
 	/// </summary>
@@ -19563,7 +21353,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetTLS
 	/// </summary>
@@ -19577,7 +21367,7 @@ public unsafe partial class SDL3
 	/// properly clean up SDL memory.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CleanupTLS")]
 	public static partial void SDL_CleanupTLS();
@@ -19596,7 +21386,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDateTimeLocalePreferences")]
 	public static partial SDLBool SDL_GetDateTimeLocalePreferences(SDL_DateFormat* dateFormat, SDL_TimeFormat* timeFormat);
@@ -19609,7 +21399,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetCurrentTime")]
 	public static partial SDLBool SDL_GetCurrentTime(long* ticks);
@@ -19626,7 +21416,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_TimeToDateTime")]
 	public static partial SDLBool SDL_TimeToDateTime(long ticks, SDL_DateTime* dt, SDLBool localTime);
@@ -19641,7 +21431,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DateTimeToTime")]
 	public static partial SDLBool SDL_DateTimeToTime(SDL_DateTime* dt, long* ticks);
@@ -19657,7 +21447,7 @@ public unsafe partial class SDL3
 	/// @param dwHighDateTime a pointer filled in with the high portion of the<br/>
 	/// Windows FILETIME value.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_TimeToWindows")]
 	public static partial void SDL_TimeToWindows(long ticks, uint* dwLowDateTime, uint* dwHighDateTime);
@@ -19672,7 +21462,7 @@ public unsafe partial class SDL3
 	/// @param dwHighDateTime the high portion of the Windows FILETIME value.<br/>
 	/// @returns the converted SDL time.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_TimeFromWindows")]
 	public static partial long SDL_TimeFromWindows(uint dwLowDateTime, uint dwHighDateTime);
@@ -19685,7 +21475,7 @@ public unsafe partial class SDL3
 	/// @returns the number of days in the requested month or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDaysInMonth")]
 	public static partial int SDL_GetDaysInMonth(int year, int month);
@@ -19699,7 +21489,7 @@ public unsafe partial class SDL3
 	/// @returns the day of year [0-365] if the date is valid or -1 on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDayOfYear")]
 	public static partial int SDL_GetDayOfYear(int year, int month, int day);
@@ -19713,7 +21503,7 @@ public unsafe partial class SDL3
 	/// @returns a value between 0 and 6 (0 being Sunday) if the date is valid or<br/>
 	/// -1 on failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDayOfWeek")]
 	public static partial int SDL_GetDayOfWeek(int year, int month, int day);
@@ -19723,8 +21513,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns an unsigned 64-bit value representing the number of milliseconds<br/>
 	/// since the SDL library initialized.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTicks")]
 	public static partial ulong SDL_GetTicks();
@@ -19734,8 +21525,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns an unsigned 64-bit value representing the number of nanoseconds<br/>
 	/// since the SDL library initialized.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTicksNS")]
 	public static partial ulong SDL_GetTicksNS();
@@ -19748,8 +21540,9 @@ public unsafe partial class SDL3
 	/// SDL_GetPerformanceFrequency().<br/>
 	/// <br/>
 	/// @returns the current counter value.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPerformanceFrequency
 	/// </summary>
@@ -19760,8 +21553,9 @@ public unsafe partial class SDL3
 	/// Get the count per second of the high resolution counter.<br/>
 	/// <br/>
 	/// @returns a platform-specific count per second.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetPerformanceCounter
 	/// </summary>
@@ -19775,11 +21569,32 @@ public unsafe partial class SDL3
 	/// scheduling.<br/>
 	/// <br/>
 	/// @param ms the number of milliseconds to delay.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_DelayNS<br/>
+	/// @sa SDL_DelayPrecise
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_Delay")]
 	public static partial void SDL_Delay(uint ms);
+
+	/// <summary>
+	/// Wait a specified number of nanoseconds before returning.<br/>
+	/// This function waits a specified number of nanoseconds before returning. It<br/>
+	/// waits at least the specified time, but possibly longer due to OS<br/>
+	/// scheduling.<br/>
+	/// <br/>
+	/// @param ns the number of nanoseconds to delay.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_Delay<br/>
+	/// @sa SDL_DelayPrecise
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_DelayNS")]
+	public static partial void SDL_DelayNS(ulong ns);
 
 	/// <summary>
 	/// Wait a specified number of nanoseconds before returning.<br/>
@@ -19788,11 +21603,15 @@ public unsafe partial class SDL3
 	/// waiting if necessary, but could return later due to OS scheduling.<br/>
 	/// <br/>
 	/// @param ns the number of nanoseconds to delay.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_Delay<br/>
+	/// @sa SDL_DelayNS
 	/// </summary>
-	[LibraryImport(LibName, EntryPoint = "SDL_DelayNS")]
-	public static partial void SDL_DelayNS(ulong ns);
+	[LibraryImport(LibName, EntryPoint = "SDL_DelayPrecise")]
+	public static partial void SDL_DelayPrecise(ulong ns);
 
 	/// <summary>
 	/// Call a callback function at a future time.<br/>
@@ -19818,7 +21637,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddTimerNS<br/>
 	/// @sa SDL_RemoveTimer
@@ -19850,7 +21669,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddTimer<br/>
 	/// @sa SDL_RemoveTimer
@@ -19864,8 +21683,9 @@ public unsafe partial class SDL3
 	/// @param id the ID of the timer to remove.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AddTimer
 	/// </summary>
@@ -19884,7 +21704,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information. This should be freed with<br/>
 	/// SDL_free() when it is no longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTouchDevices")]
 	public static partial SDL_TouchID* SDL_GetTouchDevices(out int count);
@@ -19896,7 +21716,7 @@ public unsafe partial class SDL3
 	/// @returns touch device name, or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTouchDeviceName")]
 	public static partial byte* SDL_GetTouchDeviceNamePtr(SDL_TouchID touchID);
@@ -19912,7 +21732,7 @@ public unsafe partial class SDL3
 	/// @param touchID the ID of a touch device.<br/>
 	/// @returns touch device type.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTouchDeviceType")]
 	public static partial SDL_TouchDeviceType SDL_GetTouchDeviceType(SDL_TouchID touchID);
@@ -19928,7 +21748,7 @@ public unsafe partial class SDL3
 	/// allocation that should be freed with SDL_free() when it is no<br/>
 	/// longer needed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetTouchFingers")]
 	public static partial SDL_Finger** SDL_GetTouchFingers(SDL_TouchID touchID, out int count);
@@ -19943,7 +21763,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the version of the linked library.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRevision
 	/// </summary>
@@ -19966,7 +21786,7 @@ public unsafe partial class SDL3
 	/// @returns an arbitrary string, uniquely identifying the exact revision of<br/>
 	/// the SDL library in use.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetVersion
 	/// </summary>
@@ -19982,8 +21802,9 @@ public unsafe partial class SDL3
 	/// Get the number of video drivers compiled into SDL.<br/>
 	/// <br/>
 	/// @returns the number of built in video drivers.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetVideoDriver
 	/// </summary>
@@ -20000,8 +21821,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param index the index of a video driver.<br/>
 	/// @returns the name of the video driver with the given **index**.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumVideoDrivers
 	/// </summary>
@@ -20021,8 +21843,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the name of the current video driver or NULL if no driver has been<br/>
 	/// initialized.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumVideoDrivers<br/>
 	/// @sa SDL_GetVideoDriver
@@ -20039,8 +21862,9 @@ public unsafe partial class SDL3
 	/// Get the current system theme.<br/>
 	/// <br/>
 	/// @returns the current system theme, light, dark, or unknown.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetSystemTheme")]
 	public static partial SDL_SystemTheme SDL_GetSystemTheme();
@@ -20053,8 +21877,9 @@ public unsafe partial class SDL3
 	/// @returns a 0 terminated array of display instance IDs or NULL on failure;<br/>
 	/// call SDL_GetError() for more information. This should be freed<br/>
 	/// with SDL_free() when it is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDisplays")]
 	public static partial SDL_DisplayID* SDL_GetDisplays(out int count);
@@ -20064,8 +21889,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the instance ID of the primary display on success or 0 on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplays
 	/// </summary>
@@ -20089,8 +21915,9 @@ public unsafe partial class SDL3
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDisplayProperties")]
 	public static partial SDL_PropertiesID SDL_GetDisplayProperties(SDL_DisplayID displayID);
@@ -20101,8 +21928,9 @@ public unsafe partial class SDL3
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @returns the name of a display or NULL on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplays
 	/// </summary>
@@ -20116,14 +21944,16 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Get the desktop area represented by a display.<br/>
-	/// The primary display is always located at (0,0).<br/>
+	/// The primary display is often located at (0,0), but may be placed at a<br/>
+	/// different location depending on monitor layout.<br/>
 	/// <br/>
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @param rect the SDL_Rect structure filled in with the display bounds.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplayUsableBounds<br/>
 	/// @sa SDL_GetDisplays
@@ -20145,8 +21975,9 @@ public unsafe partial class SDL3
 	/// @param rect the SDL_Rect structure filled in with the display bounds.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplayBounds<br/>
 	/// @sa SDL_GetDisplays
@@ -20160,8 +21991,9 @@ public unsafe partial class SDL3
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @returns the SDL_DisplayOrientation enum value of the display, or<br/>
 	/// `SDL_ORIENTATION_UNKNOWN` if it isn't available.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplays
 	/// </summary>
@@ -20174,8 +22006,9 @@ public unsafe partial class SDL3
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @returns the SDL_DisplayOrientation enum value of the display, or<br/>
 	/// `SDL_ORIENTATION_UNKNOWN` if it isn't available.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplays
 	/// </summary>
@@ -20188,13 +22021,20 @@ public unsafe partial class SDL3
 	/// settings of the display. For example, a 4K display might have a 2.0 (200%)<br/>
 	/// display scale, which means that the user expects UI elements to be twice as<br/>
 	/// big on this display, to aid in readability.<br/>
+	/// After window creation, SDL_GetWindowDisplayScale() should be used to query<br/>
+	/// the content scale factor for individual windows instead of querying the<br/>
+	/// display for a window and calling this function, as the per-window content<br/>
+	/// scale factor may differ from the base value of the display it is on,<br/>
+	/// particularly on high-DPI and/or multi-monitor desktop configurations.<br/>
 	/// <br/>
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @returns the content scale of the display, or 0.0f on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
+	/// @sa SDL_GetWindowDisplayScale<br/>
 	/// @sa SDL_GetDisplays
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDisplayContentScale")]
@@ -20217,8 +22057,9 @@ public unsafe partial class SDL3
 	/// failure; call SDL_GetError() for more information. This is a<br/>
 	/// single allocation that should be freed with SDL_free() when it is<br/>
 	/// no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplays
 	/// </summary>
@@ -20232,7 +22073,7 @@ public unsafe partial class SDL3
 	/// refresh rate default to the desktop mode if they are set to 0. The modes<br/>
 	/// are scanned with size being first priority, format being second priority,<br/>
 	/// and finally checking the refresh rate. If all the available modes are too<br/>
-	/// small, then NULL is returned.<br/>
+	/// small, then false is returned.<br/>
 	/// <br/>
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @param w the width in pixels of the desired display mode.<br/>
@@ -20241,18 +22082,19 @@ public unsafe partial class SDL3
 	/// for the desktop refresh rate.<br/>
 	/// @param include_high_density_modes boolean to include high density modes in<br/>
 	/// the search.<br/>
-	/// @param mode a pointer filled in with the closest display mode equal to or<br/>
-	/// larger than the desired mode.<br/>
+	/// @param closest a pointer filled in with the closest display mode equal to<br/>
+	/// or larger than the desired mode.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplays<br/>
 	/// @sa SDL_GetFullscreenDisplayModes
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetClosestFullscreenDisplayMode")]
-	public static partial SDLBool SDL_GetClosestFullscreenDisplayMode(SDL_DisplayID displayID, int w, int h, float refresh_rate, SDLBool include_high_density_modes, SDL_DisplayMode* mode);
+	public static partial SDLBool SDL_GetClosestFullscreenDisplayMode(SDL_DisplayID displayID, int w, int h, float refresh_rate, SDLBool include_high_density_modes, SDL_DisplayMode* closest);
 
 	/// <summary>
 	/// Get information about the desktop's display mode.<br/>
@@ -20264,8 +22106,9 @@ public unsafe partial class SDL3
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @returns a pointer to the desktop display mode or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetCurrentDisplayMode<br/>
 	/// @sa SDL_GetDisplays
@@ -20283,8 +22126,9 @@ public unsafe partial class SDL3
 	/// @param displayID the instance ID of the display to query.<br/>
 	/// @returns a pointer to the desktop display mode or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDesktopDisplayMode<br/>
 	/// @sa SDL_GetDisplays
@@ -20298,8 +22142,9 @@ public unsafe partial class SDL3
 	/// @param point the point to query.<br/>
 	/// @returns the instance ID of the display containing the point or 0 on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplayBounds<br/>
 	/// @sa SDL_GetDisplays
@@ -20314,8 +22159,9 @@ public unsafe partial class SDL3
 	/// @returns the instance ID of the display entirely containing the rect or<br/>
 	/// closest to the center of the rect on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplayBounds<br/>
 	/// @sa SDL_GetDisplays
@@ -20330,8 +22176,9 @@ public unsafe partial class SDL3
 	/// @returns the instance ID of the display containing the center of the window<br/>
 	/// on success or 0 on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetDisplayBounds<br/>
 	/// @sa SDL_GetDisplays
@@ -20348,8 +22195,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns the pixel density or 0.0f on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowDisplayScale
 	/// </summary>
@@ -20371,8 +22219,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns the display scale, or 0.0f on failure; call SDL_GetError() for<br/>
 	/// more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindowDisplayScale")]
 	public static partial float SDL_GetWindowDisplayScale(SDL_Window window);
@@ -20398,8 +22247,9 @@ public unsafe partial class SDL3
 	/// exclusive fullscreen mode.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowFullscreenMode<br/>
 	/// @sa SDL_SetWindowFullscreen<br/>
@@ -20414,8 +22264,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns a pointer to the exclusive fullscreen mode to use or NULL for<br/>
 	/// borderless fullscreen desktop mode.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowFullscreenMode<br/>
 	/// @sa SDL_SetWindowFullscreen
@@ -20431,8 +22282,9 @@ public unsafe partial class SDL3
 	/// @returns the raw ICC profile data on success or NULL on failure; call<br/>
 	/// SDL_GetError() for more information. This should be freed with<br/>
 	/// SDL_free() when it is no longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindowICCProfile")]
 	public static partial nint SDL_GetWindowICCProfile(SDL_Window window, nuint* size);
@@ -20444,8 +22296,9 @@ public unsafe partial class SDL3
 	/// @returns the pixel format of the window on success or<br/>
 	/// SDL_PIXELFORMAT_UNKNOWN on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindowPixelFormat")]
 	public static partial SDL_PixelFormat SDL_GetWindowPixelFormat(SDL_Window window);
@@ -20459,8 +22312,9 @@ public unsafe partial class SDL3
 	/// call SDL_GetError() for more information. This is a single<br/>
 	/// allocation that should be freed with SDL_free() when it is no<br/>
 	/// longer needed.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindows")]
 	public static partial SDL_Window SDL_GetWindows(out int count);
@@ -20513,7 +22367,7 @@ public unsafe partial class SDL3
 	/// (SDL_GL_LoadLibrary or SDL_Vulkan_LoadLibrary) is called and the<br/>
 	/// corresponding UnloadLibrary function is called by SDL_DestroyWindow().<br/>
 	/// If SDL_WINDOW_VULKAN is specified and there isn't a working Vulkan driver,<br/>
-	/// SDL_CreateWindow() will fail because SDL_Vulkan_LoadLibrary() will fail.<br/>
+	/// SDL_CreateWindow() will fail, because SDL_Vulkan_LoadLibrary() will fail.<br/>
 	/// If SDL_WINDOW_METAL is specified on an OS that does not support Metal,<br/>
 	/// SDL_CreateWindow() will fail.<br/>
 	/// If you intend to use this window with an SDL_Renderer, you should use<br/>
@@ -20529,9 +22383,11 @@ public unsafe partial class SDL3
 	/// @param flags 0, or one or more SDL_WindowFlags OR'd together.<br/>
 	/// @returns the window that was created or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
+	/// @sa SDL_CreateWindowAndRenderer<br/>
 	/// @sa SDL_CreatePopupWindow<br/>
 	/// @sa SDL_CreateWindowWithProperties<br/>
 	/// @sa SDL_DestroyWindow
@@ -20547,29 +22403,32 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Create a child popup window of the specified parent window.<br/>
-	/// 'flags' **must** contain exactly one of the following: -<br/>
-	/// 'SDL_WINDOW_TOOLTIP': The popup window is a tooltip and will not pass any<br/>
-	/// input events. - 'SDL_WINDOW_POPUP_MENU': The popup window is a popup menu.<br/>
-	/// The topmost popup menu will implicitly gain the keyboard focus.<br/>
+	/// The flags parameter **must** contain at least one of the following:<br/>
+	/// - `SDL_WINDOW_TOOLTIP`: The popup window is a tooltip and will not pass any<br/>
+	/// input events.<br/>
+	/// - `SDL_WINDOW_POPUP_MENU`: The popup window is a popup menu. The topmost<br/>
+	/// popup menu will implicitly gain the keyboard focus.<br/>
 	/// The following flags are not relevant to popup window creation and will be<br/>
 	/// ignored:<br/>
-	/// - 'SDL_WINDOW_MINIMIZED'<br/>
-	/// - 'SDL_WINDOW_MAXIMIZED'<br/>
-	/// - 'SDL_WINDOW_FULLSCREEN'<br/>
-	/// - 'SDL_WINDOW_BORDERLESS'<br/>
+	/// - `SDL_WINDOW_MINIMIZED`<br/>
+	/// - `SDL_WINDOW_MAXIMIZED`<br/>
+	/// - `SDL_WINDOW_FULLSCREEN`<br/>
+	/// - `SDL_WINDOW_BORDERLESS`<br/>
+	/// The following flags are incompatible with popup window creation and will<br/>
+	/// cause it to fail:<br/>
+	/// - `SDL_WINDOW_UTILITY`<br/>
+	/// - `SDL_WINDOW_MODAL`<br/>
 	/// The parent parameter **must** be non-null and a valid window. The parent of<br/>
 	/// a popup window can be either a regular, toplevel window, or another popup<br/>
 	/// window.<br/>
 	/// Popup windows cannot be minimized, maximized, made fullscreen, raised,<br/>
-	/// flash, be made a modal window, be the parent of a modal window, or grab the<br/>
-	/// mouse and/or keyboard. Attempts to do so will fail.<br/>
+	/// flash, be made a modal window, be the parent of a toplevel window, or grab<br/>
+	/// the mouse and/or keyboard. Attempts to do so will fail.<br/>
 	/// Popup windows implicitly do not have a border/decorations and do not appear<br/>
 	/// on the taskbar/dock or in lists of windows such as alt-tab menus.<br/>
-	/// If a parent window is hidden, any child popup windows will be recursively<br/>
-	/// hidden as well. Child popup windows not explicitly hidden will be restored<br/>
-	/// when the parent is shown.<br/>
-	/// If the parent window is destroyed, any child popup windows will be<br/>
-	/// recursively destroyed as well.<br/>
+	/// If a parent window is hidden or destroyed, any child popup windows will be<br/>
+	/// recursively hidden or destroyed as well. Child popup windows not explicitly<br/>
+	/// hidden will be restored when the parent is shown.<br/>
 	/// <br/>
 	/// @param parent the parent of the window, must not be NULL.<br/>
 	/// @param offset_x the x position of the popup window relative to the origin<br/>
@@ -20582,8 +22441,9 @@ public unsafe partial class SDL3
 	/// additional SDL_WindowFlags OR'd together.<br/>
 	/// @returns the window that was created or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateWindow<br/>
 	/// @sa SDL_CreateWindowWithProperties<br/>
@@ -20625,7 +22485,7 @@ public unsafe partial class SDL3
 	/// - `SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN`: true if the window will be used<br/>
 	/// with OpenGL rendering<br/>
 	/// - `SDL_PROP_WINDOW_CREATE_PARENT_POINTER`: an SDL_Window that will be the<br/>
-	/// parent of this window, required for windows with the "toolip", "menu",<br/>
+	/// parent of this window, required for windows with the "tooltip", "menu",<br/>
 	/// and "modal" properties<br/>
 	/// - `SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN`: true if the window should be<br/>
 	/// resizable<br/>
@@ -20641,10 +22501,12 @@ public unsafe partial class SDL3
 	/// - `SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER`: the width of the window<br/>
 	/// - `SDL_PROP_WINDOW_CREATE_X_NUMBER`: the x position of the window, or<br/>
 	/// `SDL_WINDOWPOS_CENTERED`, defaults to `SDL_WINDOWPOS_UNDEFINED`. This is<br/>
-	/// relative to the parent for windows with the "parent" property set.<br/>
+	/// relative to the parent for windows with the "tooltip" or "menu" property<br/>
+	/// set.<br/>
 	/// - `SDL_PROP_WINDOW_CREATE_Y_NUMBER`: the y position of the window, or<br/>
 	/// `SDL_WINDOWPOS_CENTERED`, defaults to `SDL_WINDOWPOS_UNDEFINED`. This is<br/>
-	/// relative to the parent for windows with the "parent" property set.<br/>
+	/// relative to the parent for windows with the "tooltip" or "menu" property<br/>
+	/// set.<br/>
 	/// These are additional supported properties on macOS:<br/>
 	/// - `SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER`: the<br/>
 	/// `(__unsafe_unretained)` NSWindow associated with the window, if you want<br/>
@@ -20658,8 +22520,9 @@ public unsafe partial class SDL3
 	/// [README/wayland](README/wayland) for more information on using custom<br/>
 	/// surfaces.<br/>
 	/// - `SDL_PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN` - true if the<br/>
-	/// application wants an associated `wl_egl_window` object to be created,<br/>
-	/// even if the window does not have the OpenGL property or flag set.<br/>
+	/// application wants an associated `wl_egl_window` object to be created and<br/>
+	/// attached to the window, even if the window does not have the OpenGL<br/>
+	/// property or `SDL_WINDOW_OPENGL` flag set.<br/>
 	/// - `SDL_PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER` - the wl_surface<br/>
 	/// associated with the window, if you want to wrap an existing window. See<br/>
 	/// [README/wayland](README/wayland) for more information.<br/>
@@ -20687,8 +22550,9 @@ public unsafe partial class SDL3
 	/// @param props the properties to use.<br/>
 	/// @returns the window that was created or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProperties<br/>
 	/// @sa SDL_CreateWindow<br/>
@@ -20705,8 +22569,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns the ID of the window on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowFromID
 	/// </summary>
@@ -20721,8 +22586,9 @@ public unsafe partial class SDL3
 	/// @param id the ID of the window.<br/>
 	/// @returns the window associated with `id` or NULL if it doesn't exist; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowID
 	/// </summary>
@@ -20735,8 +22601,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns the parent of the window on success or NULL if the window has no<br/>
 	/// parent.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreatePopupWindow
 	/// </summary>
@@ -20769,7 +22636,7 @@ public unsafe partial class SDL3
 	/// - `SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER`: the `(__unsafe_unretained)`<br/>
 	/// UIWindow associated with the window<br/>
 	/// - `SDL_PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER`: the NSInteger tag<br/>
-	/// assocated with metal views on the window<br/>
+	/// associated with metal views on the window<br/>
 	/// - `SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER`: the OpenGL view's<br/>
 	/// framebuffer object. It must be bound when rendering to the screen using<br/>
 	/// OpenGL.<br/>
@@ -20789,6 +22656,9 @@ public unsafe partial class SDL3
 	/// NSWindow associated with the window<br/>
 	/// - `SDL_PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER`: the NSInteger tag<br/>
 	/// assocated with metal views on the window<br/>
+	/// On OpenVR:<br/>
+	/// - `SDL_PROP_WINDOW_OPENVR_OVERLAY_ID`: the OpenVR Overlay Handle ID for the<br/>
+	/// associated overlay window.<br/>
 	/// On Vivante:<br/>
 	/// - `SDL_PROP_WINDOW_VIVANTE_DISPLAY_POINTER`: the EGLNativeDisplayType<br/>
 	/// associated with the window<br/>
@@ -20809,6 +22679,8 @@ public unsafe partial class SDL3
 	/// the window<br/>
 	/// - `SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER`: the wl_surface associated with<br/>
 	/// the window<br/>
+	/// - `SDL_PROP_WINDOW_WAYLAND_VIEWPORT_POINTER`: the wp_viewport associated<br/>
+	/// with the window<br/>
 	/// - `SDL_PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER`: the wl_egl_window<br/>
 	/// associated with the window<br/>
 	/// - `SDL_PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER`: the xdg_surface associated<br/>
@@ -20832,8 +22704,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns a valid property ID on success or 0 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindowProperties")]
 	public static partial SDL_PropertiesID SDL_GetWindowProperties(SDL_Window window);
@@ -20843,8 +22716,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param window the window to query.<br/>
 	/// @returns a mask of the SDL_WindowFlags associated with `window`.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateWindow<br/>
 	/// @sa SDL_HideWindow<br/>
@@ -20865,8 +22739,9 @@ public unsafe partial class SDL3
 	/// @param title the desired window title in UTF-8 format.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowTitle
 	/// </summary>
@@ -20885,8 +22760,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns the title of the window in UTF-8 format or "" if there is no<br/>
 	/// title.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowTitle
 	/// </summary>
@@ -20914,20 +22790,20 @@ public unsafe partial class SDL3
 	/// @param icon an SDL_Surface structure containing the icon for the window.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowIcon")]
 	public static partial SDLBool SDL_SetWindowIcon(SDL_Window window, SDL_Surface* icon);
 
 	/// <summary>
 	/// Request that the window's position be set.<br/>
-	/// If, at the time of this request, the window is in a fixed-size state such<br/>
-	/// as maximized, this request may be deferred until the window returns to a<br/>
-	/// resizable state.<br/>
+	/// If the window is in an exclusive fullscreen or maximized state, this<br/>
+	/// request has no effect.<br/>
 	/// This can be used to reposition fullscreen-desktop windows onto a different<br/>
-	/// display, however, exclusive fullscreen windows are locked to a specific<br/>
-	/// display and can only be repositioned programmatically via<br/>
+	/// display, however, as exclusive fullscreen windows are locked to a specific<br/>
+	/// display, they can only be repositioned programmatically via<br/>
 	/// SDL_SetWindowFullscreenMode().<br/>
 	/// On some windowing systems this request is asynchronous and the new<br/>
 	/// coordinates may not have have been applied immediately upon the return of<br/>
@@ -20948,8 +22824,9 @@ public unsafe partial class SDL3
 	/// `SDL_WINDOWPOS_UNDEFINED`.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowPosition<br/>
 	/// @sa SDL_SyncWindow
@@ -20971,8 +22848,9 @@ public unsafe partial class SDL3
 	/// NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowPosition
 	/// </summary>
@@ -20981,11 +22859,10 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Request that the size of a window's client area be set.<br/>
-	/// If, at the time of this request, the window in a fixed-size state, such as<br/>
-	/// maximized or fullscreen, the request will be deferred until the window<br/>
-	/// exits this state and becomes resizable again.<br/>
-	/// To change the fullscreen mode of a window, use<br/>
-	/// SDL_SetWindowFullscreenMode()<br/>
+	/// If the window is in a fullscreen or maximized state, this request has no<br/>
+	/// effect.<br/>
+	/// To change the exclusive fullscreen mode of a window, use<br/>
+	/// SDL_SetWindowFullscreenMode().<br/>
 	/// On some windowing systems, this request is asynchronous and the new window<br/>
 	/// size may not have have been applied immediately upon the return of this<br/>
 	/// function. If an immediate change is required, call SDL_SyncWindow() to<br/>
@@ -21002,8 +22879,9 @@ public unsafe partial class SDL3
 	/// @param h the height of the window, must be > 0.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowSize<br/>
 	/// @sa SDL_SetWindowFullscreenMode<br/>
@@ -21023,8 +22901,9 @@ public unsafe partial class SDL3
 	/// @param h a pointer filled in with the height of the window, may be NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetRenderOutputSize<br/>
 	/// @sa SDL_GetWindowSizeInPixels<br/>
@@ -21038,7 +22917,7 @@ public unsafe partial class SDL3
 	/// Some devices have portions of the screen which are partially obscured or<br/>
 	/// not interactive, possibly due to on-screen controls, curved edges, camera<br/>
 	/// notches, TV overscan, etc. This function provides the area of the window<br/>
-	/// which is safe to have interactible content. You should continue rendering<br/>
+	/// which is safe to have interactable content. You should continue rendering<br/>
 	/// into the rest of the window, but it should not contain visually important<br/>
 	/// or interactible content.<br/>
 	/// <br/>
@@ -21047,8 +22926,9 @@ public unsafe partial class SDL3
 	/// interactive content.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindowSafeArea")]
 	public static partial SDLBool SDL_GetWindowSafeArea(SDL_Window window, Rectangle* rect);
@@ -21080,8 +22960,9 @@ public unsafe partial class SDL3
 	/// limit.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowAspectRatio<br/>
 	/// @sa SDL_SyncWindow
@@ -21099,8 +22980,9 @@ public unsafe partial class SDL3
 	/// window, may be NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowAspectRatio
 	/// </summary>
@@ -21132,8 +23014,9 @@ public unsafe partial class SDL3
 	/// NULL is permitted.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowSize
 	/// </summary>
@@ -21150,8 +23033,9 @@ public unsafe partial class SDL3
 	/// NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateWindow<br/>
 	/// @sa SDL_GetWindowSize
@@ -21167,8 +23051,9 @@ public unsafe partial class SDL3
 	/// @param min_h the minimum height of the window, or 0 for no limit.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowMinimumSize<br/>
 	/// @sa SDL_SetWindowMaximumSize
@@ -21186,8 +23071,9 @@ public unsafe partial class SDL3
 	/// NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowMaximumSize<br/>
 	/// @sa SDL_SetWindowMinimumSize
@@ -21203,8 +23089,9 @@ public unsafe partial class SDL3
 	/// @param max_h the maximum height of the window, or 0 for no limit.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowMaximumSize<br/>
 	/// @sa SDL_SetWindowMinimumSize
@@ -21222,8 +23109,9 @@ public unsafe partial class SDL3
 	/// NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowMinimumSize<br/>
 	/// @sa SDL_SetWindowMaximumSize
@@ -21242,8 +23130,9 @@ public unsafe partial class SDL3
 	/// @param bordered false to remove border, true to add border.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowFlags
 	/// </summary>
@@ -21261,8 +23150,9 @@ public unsafe partial class SDL3
 	/// @param resizable true to allow resizing, false to disallow.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowFlags
 	/// </summary>
@@ -21278,8 +23168,9 @@ public unsafe partial class SDL3
 	/// @param on_top true to set the window always on top, false to disable.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowFlags
 	/// </summary>
@@ -21292,8 +23183,9 @@ public unsafe partial class SDL3
 	/// @param window the window to show.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_HideWindow<br/>
 	/// @sa SDL_RaiseWindow
@@ -21307,10 +23199,12 @@ public unsafe partial class SDL3
 	/// @param window the window to hide.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_ShowWindow
+	/// @sa SDL_ShowWindow<br/>
+	/// @sa SDL_WINDOW_HIDDEN
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_HideWindow")]
 	public static partial SDLBool SDL_HideWindow(SDL_Window window);
@@ -21327,8 +23221,9 @@ public unsafe partial class SDL3
 	/// @param window the window to raise.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RaiseWindow")]
 	public static partial SDLBool SDL_RaiseWindow(SDL_Window window);
@@ -21352,8 +23247,9 @@ public unsafe partial class SDL3
 	/// @param window the window to maximize.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_MinimizeWindow<br/>
 	/// @sa SDL_RestoreWindow<br/>
@@ -21364,8 +23260,10 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Request that the window be minimized to an iconic representation.<br/>
+	/// If the window is in a fullscreen state, this request has no direct effect.<br/>
+	/// It may alter the state the window is returned to when leaving fullscreen.<br/>
 	/// On some windowing systems this request is asynchronous and the new window<br/>
-	/// state may not have have been applied immediately upon the return of this<br/>
+	/// state may not have been applied immediately upon the return of this<br/>
 	/// function. If an immediate change is required, call SDL_SyncWindow() to<br/>
 	/// block until the changes have taken effect.<br/>
 	/// When the window state changes, an SDL_EVENT_WINDOW_MINIMIZED event will be<br/>
@@ -21375,8 +23273,9 @@ public unsafe partial class SDL3
 	/// @param window the window to minimize.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_MaximizeWindow<br/>
 	/// @sa SDL_RestoreWindow<br/>
@@ -21388,6 +23287,8 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Request that the size and position of a minimized or maximized window be<br/>
 	/// restored.<br/>
+	/// If the window is in a fullscreen state, this request has no direct effect.<br/>
+	/// It may alter the state the window is returned to when leaving fullscreen.<br/>
 	/// On some windowing systems this request is asynchronous and the new window<br/>
 	/// state may not have have been applied immediately upon the return of this<br/>
 	/// function. If an immediate change is required, call SDL_SyncWindow() to<br/>
@@ -21399,8 +23300,9 @@ public unsafe partial class SDL3
 	/// @param window the window to restore.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_MaximizeWindow<br/>
 	/// @sa SDL_MinimizeWindow<br/>
@@ -21426,12 +23328,14 @@ public unsafe partial class SDL3
 	/// @param fullscreen true for fullscreen mode, false for windowed mode.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowFullscreenMode<br/>
 	/// @sa SDL_SetWindowFullscreenMode<br/>
-	/// @sa SDL_SyncWindow
+	/// @sa SDL_SyncWindow<br/>
+	/// @sa SDL_WINDOW_FULLSCREEN
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowFullscreen")]
 	public static partial SDLBool SDL_SetWindowFullscreen(SDL_Window window, SDLBool fullscreen);
@@ -21450,8 +23354,9 @@ public unsafe partial class SDL3
 	/// applied.<br/>
 	/// @returns true on success or false if the operation timed out before the<br/>
 	/// window was in the requested state.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowSize<br/>
 	/// @sa SDL_SetWindowPosition<br/>
@@ -21470,8 +23375,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns true if there is a surface associated with the window, or false<br/>
 	/// otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowSurface
 	/// </summary>
@@ -21491,8 +23397,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns the surface associated with the window, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DestroyWindowSurface<br/>
 	/// @sa SDL_WindowHasSurface<br/>
@@ -21517,8 +23424,9 @@ public unsafe partial class SDL3
 	/// @param vsync the vertical refresh sync interval.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowSurfaceVSync
 	/// </summary>
@@ -21533,8 +23441,9 @@ public unsafe partial class SDL3
 	/// See SDL_SetWindowSurfaceVSync() for the meaning of the value.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowSurfaceVSync
 	/// </summary>
@@ -21550,8 +23459,9 @@ public unsafe partial class SDL3
 	/// @param window the window to update.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowSurface<br/>
 	/// @sa SDL_UpdateWindowSurfaceRects
@@ -21575,8 +23485,9 @@ public unsafe partial class SDL3
 	/// @param numrects the number of rectangles.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowSurface<br/>
 	/// @sa SDL_UpdateWindowSurface
@@ -21590,8 +23501,9 @@ public unsafe partial class SDL3
 	/// @param window the window to update.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowSurface<br/>
 	/// @sa SDL_WindowHasSurface
@@ -21618,8 +23530,9 @@ public unsafe partial class SDL3
 	/// @param grabbed this is true to grab keyboard, and false to release.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowKeyboardGrab<br/>
 	/// @sa SDL_SetWindowMouseGrab
@@ -21635,10 +23548,13 @@ public unsafe partial class SDL3
 	/// @param grabbed this is true to grab mouse, and false to release.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_GetWindowMouseGrab<br/>
+	/// @sa SDL_GetWindowMouseRect<br/>
+	/// @sa SDL_SetWindowMouseRect<br/>
+	/// @sa SDL_SetWindowMouseGrab<br/>
 	/// @sa SDL_SetWindowKeyboardGrab
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowMouseGrab")]
@@ -21649,8 +23565,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param window the window to query.<br/>
 	/// @returns true if keyboard is grabbed, and false otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowKeyboardGrab
 	/// </summary>
@@ -21662,9 +23579,13 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param window the window to query.<br/>
 	/// @returns true if mouse is grabbed, and false otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
+	/// @sa SDL_GetWindowMouseRect<br/>
+	/// @sa SDL_SetWindowMouseRect<br/>
+	/// @sa SDL_SetWindowMouseGrab<br/>
 	/// @sa SDL_SetWindowKeyboardGrab
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindowMouseGrab")]
@@ -21674,8 +23595,9 @@ public unsafe partial class SDL3
 	/// Get the window that currently has an input grab enabled.<br/>
 	/// <br/>
 	/// @returns the window if input is grabbed or NULL otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowMouseGrab<br/>
 	/// @sa SDL_SetWindowKeyboardGrab
@@ -21693,10 +23615,12 @@ public unsafe partial class SDL3
 	/// barrier for the specified window will be destroyed.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowMouseRect<br/>
+	/// @sa SDL_GetWindowMouseGrab<br/>
 	/// @sa SDL_SetWindowMouseGrab
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowMouseRect")]
@@ -21708,10 +23632,13 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns a pointer to the mouse confinement rectangle of a window, or NULL<br/>
 	/// if there isn't one.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_SetWindowMouseRect
+	/// @sa SDL_SetWindowMouseRect<br/>
+	/// @sa SDL_GetWindowMouseGrab<br/>
+	/// @sa SDL_SetWindowMouseGrab
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetWindowMouseRect")]
 	public static partial Rectangle* SDL_GetWindowMouseRect(SDL_Window window);
@@ -21726,8 +23653,9 @@ public unsafe partial class SDL3
 	/// @param opacity the opacity value (0.0f - transparent, 1.0f - opaque).<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetWindowOpacity
 	/// </summary>
@@ -21742,8 +23670,9 @@ public unsafe partial class SDL3
 	/// @param window the window to get the current opacity value from.<br/>
 	/// @returns the opacity, (0.0f - transparent, 1.0f - opaque), or -1.0f on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowOpacity
 	/// </summary>
@@ -21755,9 +23684,14 @@ public unsafe partial class SDL3
 	/// If the window is already the child of an existing window, it will be<br/>
 	/// reparented to the new owner. Setting the parent window to NULL unparents<br/>
 	/// the window and removes child window status.<br/>
+	/// If a parent window is hidden or destroyed, the operation will be<br/>
+	/// recursively applied to child windows. Child windows hidden with the parent<br/>
+	/// that did not have their hidden status explicitly set will be restored when<br/>
+	/// the parent is shown.<br/>
 	/// Attempting to set the parent of a window that is currently in the modal<br/>
-	/// state will fail. Use SDL_SetWindowModalFor() to cancel the modal status<br/>
-	/// before attempting to change the parent.<br/>
+	/// state will fail. Use SDL_SetWindowModal() to cancel the modal status before<br/>
+	/// attempting to change the parent.<br/>
+	/// Popup windows cannot change parents and attempts to do so will fail.<br/>
 	/// Setting a parent window that is currently the sibling or descendent of the<br/>
 	/// child window results in undefined behavior.<br/>
 	/// <br/>
@@ -21765,8 +23699,9 @@ public unsafe partial class SDL3
 	/// @param parent the new parent window for the child window.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetWindowModal
 	/// </summary>
@@ -21782,10 +23717,12 @@ public unsafe partial class SDL3
 	/// @param modal true to toggle modal status on, false to toggle it off.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_SetWindowParent
+	/// @sa SDL_SetWindowParent<br/>
+	/// @sa SDL_WINDOW_MODAL
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowModal")]
 	public static partial SDLBool SDL_SetWindowModal(SDL_Window window, SDLBool modal);
@@ -21797,8 +23734,9 @@ public unsafe partial class SDL3
 	/// @param focusable true to allow input focus, false to not allow input focus.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowFocusable")]
 	public static partial SDLBool SDL_SetWindowFocusable(SDL_Window window, SDLBool focusable);
@@ -21819,8 +23757,9 @@ public unsafe partial class SDL3
 	/// the client area.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ShowWindowSystemMenu")]
 	public static partial SDLBool SDL_ShowWindowSystemMenu(SDL_Window window, int x, int y);
@@ -21856,8 +23795,9 @@ public unsafe partial class SDL3
 	/// @param callback_data an app-defined void pointer passed to **callback**.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowHitTest")]
 	public static partial SDLBool SDL_SetWindowHitTest(SDL_Window window, delegate* unmanaged[Cdecl]<SDL_Window, Point*, nint, SDL_HitTestResult> callback, nint callback_data);
@@ -21866,11 +23806,13 @@ public unsafe partial class SDL3
 	/// Set the shape of a transparent window.<br/>
 	/// This sets the alpha channel of a transparent window and any fully<br/>
 	/// transparent areas are also transparent to mouse clicks. If you are using<br/>
-	/// something besides the SDL render API, then you are responsible for setting<br/>
-	/// the alpha channel of the window yourself.<br/>
+	/// something besides the SDL render API, then you are responsible for drawing<br/>
+	/// the alpha channel of the window to match the shape alpha channel to get<br/>
+	/// consistent cross-platform results.<br/>
 	/// The shape is copied inside this function, so you can free it afterwards. If<br/>
 	/// your shape surface changes, you should call SDL_SetWindowShape() again to<br/>
-	/// update the window.<br/>
+	/// update the window. This is an expensive operation, so should be done<br/>
+	/// sparingly.<br/>
 	/// The window must have been created with the SDL_WINDOW_TRANSPARENT flag.<br/>
 	/// <br/>
 	/// @param window the window.<br/>
@@ -21878,8 +23820,9 @@ public unsafe partial class SDL3
 	/// remove any current shape.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetWindowShape")]
 	public static partial SDLBool SDL_SetWindowShape(SDL_Window window, SDL_Surface* shape);
@@ -21891,20 +23834,25 @@ public unsafe partial class SDL3
 	/// @param operation the operation to perform.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_FlashWindow")]
 	public static partial SDLBool SDL_FlashWindow(SDL_Window window, SDL_FlashOperation operation);
 
 	/// <summary>
 	/// Destroy a window.<br/>
-	/// Any popups or modal windows owned by the window will be recursively<br/>
-	/// destroyed as well.<br/>
+	/// Any child windows owned by the window will be recursively destroyed as<br/>
+	/// well.<br/>
+	/// Note that on some platforms, the visible window may not actually be removed<br/>
+	/// from the screen until the SDL event loop is pumped again, even though the<br/>
+	/// SDL_Window is no longer valid after this call.<br/>
 	/// <br/>
 	/// @param window the window to destroy.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreatePopupWindow<br/>
 	/// @sa SDL_CreateWindow<br/>
@@ -21919,8 +23867,9 @@ public unsafe partial class SDL3
 	/// The default can also be changed using `SDL_HINT_VIDEO_ALLOW_SCREENSAVER`.<br/>
 	/// <br/>
 	/// @returns true if the screensaver is enabled, false if it is disabled.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DisableScreenSaver<br/>
 	/// @sa SDL_EnableScreenSaver
@@ -21933,8 +23882,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_DisableScreenSaver<br/>
 	/// @sa SDL_ScreenSaverEnabled
@@ -21951,8 +23901,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_EnableScreenSaver<br/>
 	/// @sa SDL_ScreenSaverEnabled
@@ -21972,8 +23923,9 @@ public unsafe partial class SDL3
 	/// default OpenGL library.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_GetProcAddress<br/>
 	/// @sa SDL_GL_UnloadLibrary
@@ -22028,8 +23980,9 @@ public unsafe partial class SDL3
 	/// @param proc the name of an OpenGL function.<br/>
 	/// @returns a pointer to the named OpenGL function. The returned pointer<br/>
 	/// should be cast to the appropriate function signature.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_ExtensionSupported<br/>
 	/// @sa SDL_GL_LoadLibrary<br/>
@@ -22053,8 +24006,9 @@ public unsafe partial class SDL3
 	/// @param proc the name of an EGL function.<br/>
 	/// @returns a pointer to the named EGL function. The returned pointer should<br/>
 	/// be cast to the appropriate function signature.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_EGL_GetCurrentDisplay
 	/// </summary>
@@ -22069,8 +24023,9 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Unload the OpenGL library previously loaded by SDL_GL_LoadLibrary().<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_LoadLibrary
 	/// </summary>
@@ -22091,8 +24046,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param extension the name of the extension to check.<br/>
 	/// @returns true if the extension is supported, false otherwise.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GL_ExtensionSupported")]
 	public static partial SDLBool SDL_GL_ExtensionSupported(byte* extension);
@@ -22105,8 +24061,9 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Reset all previously set OpenGL context attributes to their default values.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_GetAttribute<br/>
 	/// @sa SDL_GL_SetAttribute
@@ -22121,36 +24078,38 @@ public unsafe partial class SDL3
 	/// SDL_GL_GetAttribute() to check the values after creating the OpenGL<br/>
 	/// context, since the values obtained can differ from the requested ones.<br/>
 	/// <br/>
-	/// @param attr an SDL_GLattr enum value specifying the OpenGL attribute to<br/>
+	/// @param attr an SDL_GLAttr enum value specifying the OpenGL attribute to<br/>
 	/// set.<br/>
 	/// @param value the desired value for the attribute.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_GetAttribute<br/>
 	/// @sa SDL_GL_ResetAttributes
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GL_SetAttribute")]
-	public static partial SDLBool SDL_GL_SetAttribute(SDL_GLattr attr, int value);
+	public static partial SDLBool SDL_GL_SetAttribute(SDL_GLAttr attr, int value);
 
 	/// <summary>
 	/// Get the actual value for an attribute from the current context.<br/>
 	/// <br/>
-	/// @param attr an SDL_GLattr enum value specifying the OpenGL attribute to<br/>
+	/// @param attr an SDL_GLAttr enum value specifying the OpenGL attribute to<br/>
 	/// get.<br/>
 	/// @param value a pointer filled in with the current value of `attr`.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_ResetAttributes<br/>
 	/// @sa SDL_GL_SetAttribute
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GL_GetAttribute")]
-	public static partial SDLBool SDL_GL_GetAttribute(SDL_GLattr attr, int* value);
+	public static partial SDLBool SDL_GL_GetAttribute(SDL_GLAttr attr, int* value);
 
 	/// <summary>
 	/// Create an OpenGL context for an OpenGL window, and make it current.<br/>
@@ -22164,8 +24123,9 @@ public unsafe partial class SDL3
 	/// @param window the window to associate with the context.<br/>
 	/// @returns the OpenGL context associated with `window` or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_DestroyContext<br/>
 	/// @sa SDL_GL_MakeCurrent
@@ -22181,8 +24141,9 @@ public unsafe partial class SDL3
 	/// @param context the OpenGL context to associate with the window.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_CreateContext
 	/// </summary>
@@ -22194,8 +24155,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the currently active OpenGL window on success or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GL_GetCurrentWindow")]
 	public static partial SDL_Window SDL_GL_GetCurrentWindow();
@@ -22205,8 +24167,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the currently active OpenGL context or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_MakeCurrent
 	/// </summary>
@@ -22218,8 +24181,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the currently active EGL display or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EGL_GetCurrentDisplay")]
 	public static partial nint SDL_EGL_GetCurrentDisplay();
@@ -22229,8 +24193,9 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the currently active EGL config or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EGL_GetCurrentConfig")]
 	public static partial nint SDL_EGL_GetCurrentConfig();
@@ -22241,8 +24206,9 @@ public unsafe partial class SDL3
 	/// @param window the window to query.<br/>
 	/// @returns the EGLSurface pointer associated with the window, or NULL on<br/>
 	/// failure.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EGL_GetWindowSurface")]
 	public static partial nint SDL_EGL_GetWindowSurface(SDL_Window window);
@@ -22260,8 +24226,9 @@ public unsafe partial class SDL3
 	/// @param contextAttribCallback callback for attributes to pass to<br/>
 	/// eglCreateContext. May be NULL.<br/>
 	/// @param userdata a pointer that is passed to the callbacks.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EGL_SetAttributeCallbacks")]
 	public static partial void SDL_EGL_SetAttributeCallbacks(delegate* unmanaged[Cdecl]<nint, nint> platformAttribCallback, delegate* unmanaged[Cdecl]<nint, nint, nint, int*> surfaceAttribCallback, delegate* unmanaged[Cdecl]<nint, nint, nint, int*> contextAttribCallback, nint userdata);
@@ -22285,8 +24252,9 @@ public unsafe partial class SDL3
 	/// the vertical retrace, -1 for adaptive vsync.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_GetSwapInterval
 	/// </summary>
@@ -22304,8 +24272,9 @@ public unsafe partial class SDL3
 	/// immediately instead of waiting for the next retrace.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_SetSwapInterval
 	/// </summary>
@@ -22323,8 +24292,9 @@ public unsafe partial class SDL3
 	/// @param window the window to change.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GL_SwapWindow")]
 	public static partial SDLBool SDL_GL_SwapWindow(SDL_Window window);
@@ -22335,8 +24305,9 @@ public unsafe partial class SDL3
 	/// @param context the OpenGL context to be deleted.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GL_CreateContext
 	/// </summary>
@@ -22348,6 +24319,12 @@ public unsafe partial class SDL3
 	/// This should be called after initializing the video driver, but before<br/>
 	/// creating any Vulkan windows. If no Vulkan loader library is loaded, the<br/>
 	/// default library will be loaded upon creation of the first Vulkan window.<br/>
+	/// SDL keeps a counter of how many times this function has been successfully<br/>
+	/// called, so it is safe to call this function multiple times, so long as it<br/>
+	/// is eventually paired with an equivalent number of calls to<br/>
+	/// SDL_Vulkan_UnloadLibrary. The `path` argument is ignored unless there is no<br/>
+	/// library currently loaded, and and the library isn't actually unloaded until<br/>
+	/// there have been an equivalent number of calls to SDL_Vulkan_UnloadLibrary.<br/>
 	/// It is fairly common for Vulkan applications to link with libvulkan instead<br/>
 	/// of explicitly loading it at run time. This will work with SDL provided the<br/>
 	/// application links to a dynamic library and both it and SDL use the same<br/>
@@ -22373,8 +24350,9 @@ public unsafe partial class SDL3
 	/// @param path the platform dependent Vulkan loader library name or NULL.<br/>
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Vulkan_GetVkGetInstanceProcAddr<br/>
 	/// @sa SDL_Vulkan_UnloadLibrary
@@ -22402,15 +24380,25 @@ public unsafe partial class SDL3
 	/// @returns the function pointer for `vkGetInstanceProcAddr` or NULL on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_Vulkan_GetVkGetInstanceProcAddr")]
 	public static partial delegate* unmanaged[Cdecl]<void>* SDL_Vulkan_GetVkGetInstanceProcAddr();
 
 	/// <summary>
 	/// Unload the Vulkan library previously loaded by SDL_Vulkan_LoadLibrary().<br/>
+	/// SDL keeps a counter of how many times this function has been called, so it<br/>
+	/// is safe to call this function multiple times, so long as it is paired with<br/>
+	/// an equivalent number of calls to SDL_Vulkan_LoadLibrary. The library isn't<br/>
+	/// actually unloaded until there have been an equivalent number of calls to<br/>
+	/// SDL_Vulkan_UnloadLibrary.<br/>
+	/// Once the library has actually been unloaded, if any Vulkan instances<br/>
+	/// remain, they will likely crash the program. Clean up any existing Vulkan<br/>
+	/// resources, and destroy appropriate windows, renderers and GPU devices<br/>
+	/// before calling this function.<br/>
+	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Vulkan_LoadLibrary
 	/// </summary>
@@ -22432,7 +24420,7 @@ public unsafe partial class SDL3
 	/// @returns an array of extension name strings on success, NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Vulkan_CreateSurface
 	/// </summary>
@@ -22456,7 +24444,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Vulkan_GetInstanceExtensions<br/>
 	/// @sa SDL_Vulkan_DestroySurface
@@ -22479,7 +24467,7 @@ public unsafe partial class SDL3
 	/// @param allocator a VkAllocationCallbacks struct, which lets the app set the<br/>
 	/// allocator that destroys the surface. Can be NULL.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Vulkan_GetInstanceExtensions<br/>
 	/// @sa SDL_Vulkan_CreateSurface
@@ -22499,7 +24487,7 @@ public unsafe partial class SDL3
 	/// device.<br/>
 	/// @returns true if supported, false if unsupported or an error occurred.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Vulkan_GetInstanceExtensions
 	/// </summary>
@@ -22514,7 +24502,7 @@ public unsafe partial class SDL3
 	/// @param callback the SDL_WindowsMessageHook function to call.<br/>
 	/// @param userdata a pointer to pass to every iteration of `callback`.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_WindowsMessageHook<br/>
 	/// @sa SDL_HINT_WINDOWS_ENABLE_MESSAGELOOP
@@ -22531,7 +24519,7 @@ public unsafe partial class SDL3
 	/// @returns the D3D9 adapter index on success or -1 on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDirect3D9AdapterIndex")]
 	public static partial int SDL_GetDirect3D9AdapterIndex(SDL_DisplayID displayID);
@@ -22548,7 +24536,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetDXGIOutputInfo")]
 	public static partial SDLBool SDL_GetDXGIOutputInfo(SDL_DisplayID displayID, int* adapterIndex, int* outputIndex);
@@ -22561,7 +24549,7 @@ public unsafe partial class SDL3
 	/// @param callback the SDL_X11EventHook function to call.<br/>
 	/// @param userdata a pointer to pass to every iteration of `callback`.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetX11EventHook")]
 	public static partial void SDL_SetX11EventHook(delegate* unmanaged[Cdecl]<nint, _XEvent, SDLBool> callback, nint userdata);
@@ -22590,7 +24578,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetiOSEventPump
 	/// </summary>
@@ -22603,7 +24591,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param enabled true to enable the event pump, false to disable it.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SetiOSAnimationCallback
 	/// </summary>
@@ -22623,7 +24611,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAndroidActivity
 	/// </summary>
@@ -22645,7 +24633,7 @@ public unsafe partial class SDL3
 	/// more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAndroidJNIEnv
 	/// </summary>
@@ -22683,7 +24671,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the Android API level.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAndroidSDKVersion")]
 	public static partial int SDL_GetAndroidSDKVersion();
@@ -22693,7 +24681,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if this is a Chromebook, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_IsChromebook")]
 	public static partial SDLBool SDL_IsChromebook();
@@ -22703,7 +24691,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if this is a DeX docking station, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_IsDeXMode")]
 	public static partial SDLBool SDL_IsDeXMode();
@@ -22712,7 +24700,7 @@ public unsafe partial class SDL3
 	/// Trigger the Android system back button behavior.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SendAndroidBackButton")]
 	public static partial void SDL_SendAndroidBackButton();
@@ -22729,9 +24717,10 @@ public unsafe partial class SDL3
 	/// @returns the path used for internal storage or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_GetAndroidExternalStorageState
+	/// @sa SDL_GetAndroidExternalStoragePath<br/>
+	/// @sa SDL_GetAndroidCachePath
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAndroidInternalStoragePath")]
 	public static partial byte* SDL_GetAndroidInternalStoragePathPtr();
@@ -22750,7 +24739,7 @@ public unsafe partial class SDL3
 	/// @returns the current state of external storage, or 0 if external storage is<br/>
 	/// currently unavailable.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetAndroidExternalStoragePath
 	/// </summary>
@@ -22769,9 +24758,11 @@ public unsafe partial class SDL3
 	/// @returns the path used for external storage for this application on success<br/>
 	/// or NULL on failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_GetAndroidExternalStorageState
+	/// @sa SDL_GetAndroidExternalStorageState<br/>
+	/// @sa SDL_GetAndroidInternalStoragePath<br/>
+	/// @sa SDL_GetAndroidCachePath
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAndroidExternalStoragePath")]
 	public static partial byte* SDL_GetAndroidExternalStoragePathPtr();
@@ -22792,7 +24783,10 @@ public unsafe partial class SDL3
 	/// @returns the path used for caches for this application on success or NULL<br/>
 	/// on failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetAndroidInternalStoragePath<br/>
+	/// @sa SDL_GetAndroidExternalStoragePath
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetAndroidCachePath")]
 	public static partial byte* SDL_GetAndroidCachePathPtr();
@@ -22817,6 +24811,8 @@ public unsafe partial class SDL3
 	/// will NOT be called, but this should only happen in catastrophic conditions,<br/>
 	/// like memory running out. Normally there will be a yes or no to the request<br/>
 	/// through the callback.<br/>
+	/// For the `permission` parameter, choose a value from here:<br/>
+	/// https://developer.android.com/reference/android/Manifest.permission<br/>
 	/// <br/>
 	/// @param permission the permission to request.<br/>
 	/// @param cb the callback to trigger when the request has a response.<br/>
@@ -22826,7 +24822,7 @@ public unsafe partial class SDL3
 	/// through the callback, not this return value.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RequestAndroidPermission")]
 	public static partial SDLBool SDL_RequestAndroidPermission(byte* permission, delegate* unmanaged[Cdecl]<nint, byte*, SDLBool, void> cb, nint userdata);
@@ -22855,7 +24851,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ShowAndroidToast")]
 	public static partial SDLBool SDL_ShowAndroidToast(byte* message, int duration, int gravity, int xoffset, int yoffset);
@@ -22876,7 +24872,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SendAndroidMessage")]
 	public static partial SDLBool SDL_SendAndroidMessage(uint command, int param);
@@ -22887,7 +24883,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if the device is a tablet, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_IsTablet")]
 	public static partial SDLBool SDL_IsTablet();
@@ -22898,10 +24894,21 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns true if the device is a TV, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_IsTV")]
 	public static partial SDLBool SDL_IsTV();
+
+	/// <summary>
+	/// Get the application sandbox environment, if any.<br/>
+	/// <br/>
+	/// @returns the application sandbox environment or SDL_SANDBOX_NONE if the<br/>
+	/// application is not running in a sandbox environment.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetSandbox")]
+	public static partial SDL_Sandbox SDL_GetSandbox();
 
 	/// <summary>
 	/// Let iOS apps with external event handling report<br/>
@@ -22914,7 +24921,7 @@ public unsafe partial class SDL3
 	/// code will handle all this for windows created by SDL_CreateWindow!<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OnApplicationWillTerminate")]
 	public static partial void SDL_OnApplicationWillTerminate();
@@ -22930,7 +24937,7 @@ public unsafe partial class SDL3
 	/// code will handle all this for windows created by SDL_CreateWindow!<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OnApplicationDidReceiveMemoryWarning")]
 	public static partial void SDL_OnApplicationDidReceiveMemoryWarning();
@@ -22946,7 +24953,7 @@ public unsafe partial class SDL3
 	/// code will handle all this for windows created by SDL_CreateWindow!<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OnApplicationWillEnterBackground")]
 	public static partial void SDL_OnApplicationWillEnterBackground();
@@ -22962,7 +24969,7 @@ public unsafe partial class SDL3
 	/// code will handle all this for windows created by SDL_CreateWindow!<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OnApplicationDidEnterBackground")]
 	public static partial void SDL_OnApplicationDidEnterBackground();
@@ -22978,7 +24985,7 @@ public unsafe partial class SDL3
 	/// code will handle all this for windows created by SDL_CreateWindow!<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OnApplicationWillEnterForeground")]
 	public static partial void SDL_OnApplicationWillEnterForeground();
@@ -22994,7 +25001,7 @@ public unsafe partial class SDL3
 	/// code will handle all this for windows created by SDL_CreateWindow!<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OnApplicationDidEnterForeground")]
 	public static partial void SDL_OnApplicationDidEnterForeground();
@@ -23010,7 +25017,7 @@ public unsafe partial class SDL3
 	/// code will handle all this for windows created by SDL_CreateWindow!<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_OnApplicationDidChangeStatusBarOrientation")]
 	public static partial void SDL_OnApplicationDidChangeStatusBarOrientation();
@@ -23024,7 +25031,7 @@ public unsafe partial class SDL3
 	/// driver.<br/>
 	/// @returns true if supported, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateGPUDevice
 	/// </summary>
@@ -23043,7 +25050,7 @@ public unsafe partial class SDL3
 	/// @param props the properties to use.<br/>
 	/// @returns true if supported, false otherwise.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateGPUDeviceWithProperties
 	/// </summary>
@@ -23061,7 +25068,7 @@ public unsafe partial class SDL3
 	/// @returns a GPU context on success or NULL on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGPUShaderFormats<br/>
 	/// @sa SDL_GetGPUDeviceDriver<br/>
@@ -23080,24 +25087,24 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Creates a GPU context.<br/>
 	/// These are the supported properties:<br/>
-	/// - `SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOL`: enable debug mode properties<br/>
-	/// and validations, defaults to true.<br/>
-	/// - `SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOL`: enable to prefer energy<br/>
-	/// efficiency over maximum GPU performance, defaults to false.<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN`: enable debug mode<br/>
+	/// properties and validations, defaults to true.<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN`: enable to prefer<br/>
+	/// energy efficiency over maximum GPU performance, defaults to false.<br/>
 	/// - `SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING`: the name of the GPU driver to<br/>
 	/// use, if a specific one is desired.<br/>
 	/// These are the current shader format properties:<br/>
-	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOL`: The app is able to<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOLEAN`: The app is able to<br/>
 	/// provide shaders for an NDA platform.<br/>
-	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOL`: The app is able to<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN`: The app is able to<br/>
 	/// provide SPIR-V shaders if applicable.<br/>
-	/// - SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOL`: The app is able to provide<br/>
-	/// DXBC shaders if applicable<br/>
-	/// `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOL`: The app is able to<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN`: The app is able to<br/>
+	/// provide DXBC shaders if applicable<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN`: The app is able to<br/>
 	/// provide DXIL shaders if applicable.<br/>
-	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOL`: The app is able to provide<br/>
-	/// MSL shaders if applicable.<br/>
-	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOL`: The app is able to<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN`: The app is able to<br/>
+	/// provide MSL shaders if applicable.<br/>
+	/// - `SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN`: The app is able to<br/>
 	/// provide Metal shader libraries if applicable.<br/>
 	/// With the D3D12 renderer:<br/>
 	/// - `SDL_PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING`: the prefix to<br/>
@@ -23107,7 +25114,7 @@ public unsafe partial class SDL3
 	/// @returns a GPU context on success or NULL on failure; call SDL_GetError()<br/>
 	/// for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGPUShaderFormats<br/>
 	/// @sa SDL_GetGPUDeviceDriver<br/>
@@ -23122,7 +25129,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param device a GPU Context to destroy.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateGPUDevice
 	/// </summary>
@@ -23134,7 +25141,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @returns the number of built in GPU drivers.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetGPUDriver
 	/// </summary>
@@ -23152,7 +25159,7 @@ public unsafe partial class SDL3
 	/// @param index the index of a GPU driver.<br/>
 	/// @returns the name of the GPU driver with the given **index**.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GetNumGPUDrivers
 	/// </summary>
@@ -23170,7 +25177,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context to query.<br/>
 	/// @returns the name of the device's driver, or NULL on error.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGPUDeviceDriver")]
 	public static partial byte* SDL_GetGPUDeviceDriverPtr(SDL_GPUDevice device);
@@ -23187,7 +25194,7 @@ public unsafe partial class SDL3
 	/// @returns a bitflag indicating which shader formats the driver is able to<br/>
 	/// consume.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGPUShaderFormats")]
 	public static partial SDL_GPUShaderFormat SDL_GetGPUShaderFormats(SDL_GPUDevice device);
@@ -23199,25 +25206,23 @@ public unsafe partial class SDL3
 	/// For SPIR-V shaders, use the following resource sets:<br/>
 	/// - 0: Sampled textures, followed by read-only storage textures, followed by<br/>
 	/// read-only storage buffers<br/>
-	/// - 1: Write-only storage textures, followed by write-only storage buffers<br/>
+	/// - 1: Read-write storage textures, followed by read-write storage buffers<br/>
 	/// - 2: Uniform buffers<br/>
-	/// For DXBC Shader Model 5_0 shaders, use the following register order:<br/>
-	/// - t registers: Sampled textures, followed by read-only storage textures,<br/>
-	/// followed by read-only storage buffers<br/>
-	/// - u registers: Write-only storage textures, followed by write-only storage<br/>
-	/// buffers<br/>
-	/// - b registers: Uniform buffers<br/>
-	/// For DXIL shaders, use the following register order:<br/>
+	/// For DXBC and DXIL shaders, use the following register order:<br/>
 	/// - (t[n], space0): Sampled textures, followed by read-only storage textures,<br/>
 	/// followed by read-only storage buffers<br/>
-	/// - (u[n], space1): Write-only storage textures, followed by write-only<br/>
+	/// - (u[n], space1): Read-write storage textures, followed by read-write<br/>
 	/// storage buffers<br/>
 	/// - (b[n], space2): Uniform buffers<br/>
 	/// For MSL/metallib, use the following order:<br/>
-	/// - [[buffer]]: Uniform buffers, followed by write-only storage buffers,<br/>
-	/// followed by write-only storage buffers<br/>
+	/// - [[buffer]]: Uniform buffers, followed by read-only storage buffers,<br/>
+	/// followed by read-write storage buffers<br/>
 	/// - [[texture]]: Sampled textures, followed by read-only storage textures,<br/>
-	/// followed by write-only storage textures<br/>
+	/// followed by read-write storage textures<br/>
+	/// There are optional properties that can be provided through `props`. These<br/>
+	/// are the supported properties:<br/>
+	/// - `SDL_PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING`: a name that can be<br/>
+	/// displayed in debugging tools.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param createinfo a struct describing the state of the compute pipeline to<br/>
@@ -23225,7 +25230,7 @@ public unsafe partial class SDL3
 	/// @returns a compute pipeline object on success, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BindGPUComputePipeline<br/>
 	/// @sa SDL_ReleaseGPUComputePipeline
@@ -23235,6 +25240,10 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Creates a pipeline object to be used in a graphics workflow.<br/>
+	/// There are optional properties that can be provided through `props`. These<br/>
+	/// are the supported properties:<br/>
+	/// - `SDL_PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING`: a name that can be<br/>
+	/// displayed in debugging tools.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param createinfo a struct describing the state of the graphics pipeline to<br/>
@@ -23242,7 +25251,7 @@ public unsafe partial class SDL3
 	/// @returns a graphics pipeline object on success, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateGPUShader<br/>
 	/// @sa SDL_BindGPUGraphicsPipeline<br/>
@@ -23254,17 +25263,21 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Creates a sampler object to be used when binding textures in a graphics<br/>
 	/// workflow.<br/>
+	/// There are optional properties that can be provided through `props`. These<br/>
+	/// are the supported properties:<br/>
+	/// - `SDL_PROP_GPU_SAMPLER_CREATE_NAME_STRING`: a name that can be displayed<br/>
+	/// in debugging tools.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param createinfo a struct describing the state of the sampler to create.<br/>
 	/// @returns a sampler object on success, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_BindGPUVertexSamplers<br/>
 	/// @sa SDL_BindGPUFragmentSamplers<br/>
-	/// @sa SDL_ReleaseSampler
+	/// @sa SDL_ReleaseGPUSampler
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CreateGPUSampler")]
 	public static partial SDL_GPUSampler SDL_CreateGPUSampler(SDL_GPUDevice device, SDL_GPUSamplerCreateInfo* createinfo);
@@ -23282,12 +25295,7 @@ public unsafe partial class SDL3
 	/// - 2: Sampled textures, followed by storage textures, followed by storage<br/>
 	/// buffers<br/>
 	/// - 3: Uniform buffers<br/>
-	/// For DXBC Shader Model 5_0 shaders, use the following register order:<br/>
-	/// - t registers: Sampled textures, followed by storage textures, followed by<br/>
-	/// storage buffers<br/>
-	/// - s registers: Samplers with indices corresponding to the sampled textures<br/>
-	/// - b registers: Uniform buffers<br/>
-	/// For DXIL shaders, use the following register order:<br/>
+	/// For DXBC and DXIL shaders, use the following register order:<br/>
 	/// For vertex shaders:<br/>
 	/// - (t[n], space0): Sampled textures, followed by storage textures, followed<br/>
 	/// by storage buffers<br/>
@@ -23307,14 +25315,26 @@ public unsafe partial class SDL3
 	/// is bound at [[buffer(14)]], vertex buffer 1 at [[buffer(15)]], and so on.<br/>
 	/// Rather than manually authoring vertex buffer indices, use the<br/>
 	/// [[stage_in]] attribute which will automatically use the vertex input<br/>
-	/// information from the SDL_GPUPipeline.<br/>
+	/// information from the SDL_GPUGraphicsPipeline.<br/>
+	/// Shader semantics other than system-value semantics do not matter in D3D12<br/>
+	/// and for ease of use the SDL implementation assumes that non system-value<br/>
+	/// semantics will all be TEXCOORD. If you are using HLSL as the shader source<br/>
+	/// language, your vertex semantics should start at TEXCOORD0 and increment<br/>
+	/// like so: TEXCOORD1, TEXCOORD2, etc. If you wish to change the semantic<br/>
+	/// prefix to something other than TEXCOORD you can use<br/>
+	/// SDL_PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING with<br/>
+	/// SDL_CreateGPUDeviceWithProperties().<br/>
+	/// There are optional properties that can be provided through `props`. These<br/>
+	/// are the supported properties:<br/>
+	/// - `SDL_PROP_GPU_SHADER_CREATE_NAME_STRING`: a name that can be displayed in<br/>
+	/// debugging tools.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param createinfo a struct describing the state of the shader to create.<br/>
 	/// @returns a shader object on success, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateGPUGraphicsPipeline<br/>
 	/// @sa SDL_ReleaseGPUShader
@@ -23331,13 +25351,35 @@ public unsafe partial class SDL3
 	/// If you request a sample count higher than the hardware supports, the<br/>
 	/// implementation will automatically fall back to the highest available sample<br/>
 	/// count.<br/>
+	/// There are optional properties that can be provided through<br/>
+	/// SDL_GPUTextureCreateInfo's `props`. These are the supported properties:<br/>
+	/// - `SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_R_FLOAT`: (Direct3D 12 only) if<br/>
+	/// the texture usage is SDL_GPU_TEXTUREUSAGE_COLOR_TARGET, clear the texture<br/>
+	/// to a color with this red intensity. Defaults to zero.<br/>
+	/// - `SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_G_FLOAT`: (Direct3D 12 only) if<br/>
+	/// the texture usage is SDL_GPU_TEXTUREUSAGE_COLOR_TARGET, clear the texture<br/>
+	/// to a color with this green intensity. Defaults to zero.<br/>
+	/// - `SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_B_FLOAT`: (Direct3D 12 only) if<br/>
+	/// the texture usage is SDL_GPU_TEXTUREUSAGE_COLOR_TARGET, clear the texture<br/>
+	/// to a color with this blue intensity. Defaults to zero.<br/>
+	/// - `SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_A_FLOAT`: (Direct3D 12 only) if<br/>
+	/// the texture usage is SDL_GPU_TEXTUREUSAGE_COLOR_TARGET, clear the texture<br/>
+	/// to a color with this alpha intensity. Defaults to zero.<br/>
+	/// - `SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT`: (Direct3D 12 only)<br/>
+	/// if the texture usage is SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET, clear<br/>
+	/// the texture to a depth of this value. Defaults to zero.<br/>
+	/// - `SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_STENCIL_UINT8`: (Direct3D 12<br/>
+	/// only) if the texture usage is SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,<br/>
+	/// clear the texture to a stencil of this value. Defaults to zero.<br/>
+	/// - `SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING`: a name that can be displayed<br/>
+	/// in debugging tools.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param createinfo a struct describing the state of the texture to create.<br/>
 	/// @returns a texture object on success, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UploadToGPUTexture<br/>
 	/// @sa SDL_DownloadFromGPUTexture<br/>
@@ -23359,15 +25401,25 @@ public unsafe partial class SDL3
 	/// buffer.<br/>
 	/// Note that certain combinations of usage flags are invalid. For example, a<br/>
 	/// buffer cannot have both the VERTEX and INDEX flags.<br/>
+	/// If you use a STORAGE flag, the data in the buffer must respect std140<br/>
+	/// layout conventions. In practical terms this means you must ensure that vec3<br/>
+	/// and vec4 fields are 16-byte aligned.<br/>
+	/// For better understanding of underlying concepts and memory management with<br/>
+	/// SDL GPU API, you may refer<br/>
+	/// [this blog post](https://moonside.games/posts/sdl-gpu-concepts-cycling/)<br/>
+	/// .<br/>
+	/// There are optional properties that can be provided through `props`. These<br/>
+	/// are the supported properties:<br/>
+	/// - `SDL_PROP_GPU_BUFFER_CREATE_NAME_STRING`: a name that can be displayed in<br/>
+	/// debugging tools.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param createinfo a struct describing the state of the buffer to create.<br/>
 	/// @returns a buffer object on success, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_SetGPUBufferName<br/>
 	/// @sa SDL_UploadToGPUBuffer<br/>
 	/// @sa SDL_DownloadFromGPUBuffer<br/>
 	/// @sa SDL_CopyGPUBufferToBuffer<br/>
@@ -23387,6 +25439,12 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Creates a transfer buffer to be used when uploading to or downloading from<br/>
 	/// graphics resources.<br/>
+	/// Download buffers can be particularly expensive to create, so it is good<br/>
+	/// practice to reuse them if data will be downloaded regularly.<br/>
+	/// There are optional properties that can be provided through `props`. These<br/>
+	/// are the supported properties:<br/>
+	/// - `SDL_PROP_GPU_TRANSFERBUFFER_CREATE_NAME_STRING`: a name that can be<br/>
+	/// displayed in debugging tools.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param createinfo a struct describing the state of the transfer buffer to<br/>
@@ -23394,7 +25452,7 @@ public unsafe partial class SDL3
 	/// @returns a transfer buffer on success, or NULL on failure; call<br/>
 	/// SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UploadToGPUBuffer<br/>
 	/// @sa SDL_DownloadFromGPUBuffer<br/>
@@ -23407,13 +25465,18 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Sets an arbitrary string constant to label a buffer.<br/>
-	/// Useful for debugging.<br/>
+	/// You should use SDL_PROP_GPU_BUFFER_CREATE_NAME_STRING with<br/>
+	/// SDL_CreateGPUBuffer instead of this function to avoid thread safety issues.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param buffer a buffer to attach the name to.<br/>
 	/// @param text a UTF-8 string constant to mark as the name of the buffer.<br/>
+	/// @threadsafety This function is not thread safe, you must make sure the<br/>
+	/// buffer is not simultaneously used by any other thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUBuffer
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetGPUBufferName")]
 	public static partial void SDL_SetGPUBufferName(SDL_GPUDevice device, SDL_GPUBuffer buffer, byte* text);
@@ -23426,13 +25489,19 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Sets an arbitrary string constant to label a texture.<br/>
-	/// Useful for debugging.<br/>
+	/// You should use SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING with<br/>
+	/// SDL_CreateGPUTexture instead of this function to avoid thread safety<br/>
+	/// issues.<br/>
 	/// <br/>
 	/// @param device a GPU Context.<br/>
 	/// @param texture a texture to attach the name to.<br/>
 	/// @param text a UTF-8 string constant to mark as the name of the texture.<br/>
+	/// @threadsafety This function is not thread safe, you must make sure the<br/>
+	/// texture is not simultaneously used by any other thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUTexture
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetGPUTextureName")]
 	public static partial void SDL_SetGPUTextureName(SDL_GPUDevice device, SDL_GPUTexture texture, byte* text);
@@ -23450,7 +25519,7 @@ public unsafe partial class SDL3
 	/// @param command_buffer a command buffer.<br/>
 	/// @param text a UTF-8 string constant to insert as the label.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_InsertGPUDebugLabel")]
 	public static partial void SDL_InsertGPUDebugLabel(SDL_GPUCommandBuffer command_buffer, byte* text);
@@ -23475,7 +25544,7 @@ public unsafe partial class SDL3
 	/// @param command_buffer a command buffer.<br/>
 	/// @param name a UTF-8 string constant that names the group.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PopGPUDebugGroup
 	/// </summary>
@@ -23493,7 +25562,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param command_buffer a command buffer.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_PushGPUDebugGroup
 	/// </summary>
@@ -23507,7 +25576,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param texture a texture to be destroyed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReleaseGPUTexture")]
 	public static partial void SDL_ReleaseGPUTexture(SDL_GPUDevice device, SDL_GPUTexture texture);
@@ -23519,7 +25588,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param sampler a sampler to be destroyed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReleaseGPUSampler")]
 	public static partial void SDL_ReleaseGPUSampler(SDL_GPUDevice device, SDL_GPUSampler sampler);
@@ -23531,7 +25600,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param buffer a buffer to be destroyed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReleaseGPUBuffer")]
 	public static partial void SDL_ReleaseGPUBuffer(SDL_GPUDevice device, SDL_GPUBuffer buffer);
@@ -23543,7 +25612,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param transfer_buffer a transfer buffer to be destroyed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReleaseGPUTransferBuffer")]
 	public static partial void SDL_ReleaseGPUTransferBuffer(SDL_GPUDevice device, SDL_GPUTransferBuffer transfer_buffer);
@@ -23555,7 +25624,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param compute_pipeline a compute pipeline to be destroyed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReleaseGPUComputePipeline")]
 	public static partial void SDL_ReleaseGPUComputePipeline(SDL_GPUDevice device, SDL_GPUComputePipeline compute_pipeline);
@@ -23567,7 +25636,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param shader a shader to be destroyed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReleaseGPUShader")]
 	public static partial void SDL_ReleaseGPUShader(SDL_GPUDevice device, SDL_GPUShader shader);
@@ -23579,7 +25648,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param graphics_pipeline a graphics pipeline to be destroyed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_ReleaseGPUGraphicsPipeline")]
 	public static partial void SDL_ReleaseGPUGraphicsPipeline(SDL_GPUDevice device, SDL_GPUGraphicsPipeline graphics_pipeline);
@@ -23590,12 +25659,18 @@ public unsafe partial class SDL3
 	/// freed by the user. The command buffer may only be used on the thread it was<br/>
 	/// acquired on. The command buffer should be submitted on the thread it was<br/>
 	/// acquired on.<br/>
+	/// It is valid to acquire multiple command buffers on the same thread at once.<br/>
+	/// In fact a common design pattern is to acquire two command buffers per frame<br/>
+	/// where one is dedicated to render and compute passes and the other is<br/>
+	/// dedicated to copy passes and other preparatory work such as generating<br/>
+	/// mipmaps. Interleaving commands between the two command buffers reduces the<br/>
+	/// total amount of passes overall which improves rendering performance.<br/>
 	/// <br/>
 	/// @param device a GPU context.<br/>
 	/// @returns a command buffer, or NULL on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SubmitGPUCommandBuffer<br/>
 	/// @sa SDL_SubmitGPUCommandBufferAndAcquireFence
@@ -23606,13 +25681,16 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Pushes data to a vertex uniform slot on the command buffer.<br/>
 	/// Subsequent draw calls will use this uniform data.<br/>
+	/// The data being pushed must respect std140 layout conventions. In practical<br/>
+	/// terms this means you must ensure that vec3 and vec4 fields are 16-byte<br/>
+	/// aligned.<br/>
 	/// <br/>
 	/// @param command_buffer a command buffer.<br/>
 	/// @param slot_index the vertex uniform slot to push data to.<br/>
 	/// @param data client data to write.<br/>
 	/// @param length the length of the data to write.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PushGPUVertexUniformData")]
 	public static partial void SDL_PushGPUVertexUniformData(SDL_GPUCommandBuffer command_buffer, uint slot_index, nint data, uint length);
@@ -23620,13 +25698,16 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Pushes data to a fragment uniform slot on the command buffer.<br/>
 	/// Subsequent draw calls will use this uniform data.<br/>
+	/// The data being pushed must respect std140 layout conventions. In practical<br/>
+	/// terms this means you must ensure that vec3 and vec4 fields are 16-byte<br/>
+	/// aligned.<br/>
 	/// <br/>
 	/// @param command_buffer a command buffer.<br/>
 	/// @param slot_index the fragment uniform slot to push data to.<br/>
 	/// @param data client data to write.<br/>
 	/// @param length the length of the data to write.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PushGPUFragmentUniformData")]
 	public static partial void SDL_PushGPUFragmentUniformData(SDL_GPUCommandBuffer command_buffer, uint slot_index, nint data, uint length);
@@ -23634,13 +25715,16 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Pushes data to a uniform slot on the command buffer.<br/>
 	/// Subsequent draw calls will use this uniform data.<br/>
+	/// The data being pushed must respect std140 layout conventions. In practical<br/>
+	/// terms this means you must ensure that vec3 and vec4 fields are 16-byte<br/>
+	/// aligned.<br/>
 	/// <br/>
 	/// @param command_buffer a command buffer.<br/>
 	/// @param slot_index the uniform slot to push data to.<br/>
 	/// @param data client data to write.<br/>
 	/// @param length the length of the data to write.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_PushGPUComputeUniformData")]
 	public static partial void SDL_PushGPUComputeUniformData(SDL_GPUCommandBuffer command_buffer, uint slot_index, nint data, uint length);
@@ -23665,7 +25749,7 @@ public unsafe partial class SDL3
 	/// NULL.<br/>
 	/// @returns a render pass handle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_EndGPURenderPass
 	/// </summary>
@@ -23679,7 +25763,7 @@ public unsafe partial class SDL3
 	/// @param render_pass a render pass handle.<br/>
 	/// @param graphics_pipeline the graphics pipeline to bind.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUGraphicsPipeline")]
 	public static partial void SDL_BindGPUGraphicsPipeline(SDL_GPURenderPass render_pass, SDL_GPUGraphicsPipeline graphics_pipeline);
@@ -23690,7 +25774,7 @@ public unsafe partial class SDL3
 	/// @param render_pass a render pass handle.<br/>
 	/// @param viewport the viewport to set.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetGPUViewport")]
 	public static partial void SDL_SetGPUViewport(SDL_GPURenderPass render_pass, SDL_GPUViewport* viewport);
@@ -23701,7 +25785,7 @@ public unsafe partial class SDL3
 	/// @param render_pass a render pass handle.<br/>
 	/// @param scissor the scissor area to set.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetGPUScissor")]
 	public static partial void SDL_SetGPUScissor(SDL_GPURenderPass render_pass, Rectangle* scissor);
@@ -23712,7 +25796,7 @@ public unsafe partial class SDL3
 	/// @param render_pass a render pass handle.<br/>
 	/// @param blend_constants the blend constant color.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_GPU_BLENDFACTOR_CONSTANT_COLOR<br/>
 	/// @sa SDL_GPU_BLENDFACTOR_ONE_MINUS_CONSTANT_COLOR
@@ -23726,7 +25810,7 @@ public unsafe partial class SDL3
 	/// @param render_pass a render pass handle.<br/>
 	/// @param reference the stencil reference value to set.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetGPUStencilReference")]
 	public static partial void SDL_SetGPUStencilReference(SDL_GPURenderPass render_pass, byte reference);
@@ -23741,7 +25825,7 @@ public unsafe partial class SDL3
 	/// buffers and offset values.<br/>
 	/// @param num_bindings the number of bindings in the bindings array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUVertexBuffers")]
 	public static partial void SDL_BindGPUVertexBuffers(SDL_GPURenderPass render_pass, uint first_slot, SDL_GPUBufferBinding* bindings, uint num_bindings);
@@ -23755,7 +25839,7 @@ public unsafe partial class SDL3
 	/// @param index_element_size whether the index values in the buffer are 16- or<br/>
 	/// 32-bit.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUIndexBuffer")]
 	public static partial void SDL_BindGPUIndexBuffer(SDL_GPURenderPass render_pass, SDL_GPUBufferBinding* binding, SDL_GPUIndexElementSize index_element_size);
@@ -23763,6 +25847,8 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Binds texture-sampler pairs for use on the vertex shader.<br/>
 	/// The textures must have been created with SDL_GPU_TEXTUREUSAGE_SAMPLER.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param first_slot the vertex sampler slot to begin binding from.<br/>
@@ -23771,7 +25857,9 @@ public unsafe partial class SDL3
 	/// @param num_bindings the number of texture-sampler pairs to bind from the<br/>
 	/// array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUVertexSamplers")]
 	public static partial void SDL_BindGPUVertexSamplers(SDL_GPURenderPass render_pass, uint first_slot, SDL_GPUTextureSamplerBinding* texture_sampler_bindings, uint num_bindings);
@@ -23780,13 +25868,17 @@ public unsafe partial class SDL3
 	/// Binds storage textures for use on the vertex shader.<br/>
 	/// These textures must have been created with<br/>
 	/// SDL_GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param first_slot the vertex storage texture slot to begin binding from.<br/>
 	/// @param storage_textures an array of storage textures.<br/>
 	/// @param num_bindings the number of storage texture to bind from the array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUVertexStorageTextures")]
 	public static partial void SDL_BindGPUVertexStorageTextures(SDL_GPURenderPass render_pass, uint first_slot, SDL_GPUTexture** storage_textures, uint num_bindings);
@@ -23795,13 +25887,17 @@ public unsafe partial class SDL3
 	/// Binds storage buffers for use on the vertex shader.<br/>
 	/// These buffers must have been created with<br/>
 	/// SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param first_slot the vertex storage buffer slot to begin binding from.<br/>
 	/// @param storage_buffers an array of buffers.<br/>
 	/// @param num_bindings the number of buffers to bind from the array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUVertexStorageBuffers")]
 	public static partial void SDL_BindGPUVertexStorageBuffers(SDL_GPURenderPass render_pass, uint first_slot, SDL_GPUBuffer** storage_buffers, uint num_bindings);
@@ -23809,6 +25905,8 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Binds texture-sampler pairs for use on the fragment shader.<br/>
 	/// The textures must have been created with SDL_GPU_TEXTUREUSAGE_SAMPLER.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param first_slot the fragment sampler slot to begin binding from.<br/>
@@ -23817,7 +25915,9 @@ public unsafe partial class SDL3
 	/// @param num_bindings the number of texture-sampler pairs to bind from the<br/>
 	/// array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUFragmentSamplers")]
 	public static partial void SDL_BindGPUFragmentSamplers(SDL_GPURenderPass render_pass, uint first_slot, SDL_GPUTextureSamplerBinding* texture_sampler_bindings, uint num_bindings);
@@ -23826,13 +25926,17 @@ public unsafe partial class SDL3
 	/// Binds storage textures for use on the fragment shader.<br/>
 	/// These textures must have been created with<br/>
 	/// SDL_GPU_TEXTUREUSAGE_GRAPHICS_STORAGE_READ.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param first_slot the fragment storage texture slot to begin binding from.<br/>
 	/// @param storage_textures an array of storage textures.<br/>
 	/// @param num_bindings the number of storage textures to bind from the array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUFragmentStorageTextures")]
 	public static partial void SDL_BindGPUFragmentStorageTextures(SDL_GPURenderPass render_pass, uint first_slot, SDL_GPUTexture** storage_textures, uint num_bindings);
@@ -23841,13 +25945,17 @@ public unsafe partial class SDL3
 	/// Binds storage buffers for use on the fragment shader.<br/>
 	/// These buffers must have been created with<br/>
 	/// SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param first_slot the fragment storage buffer slot to begin binding from.<br/>
 	/// @param storage_buffers an array of storage buffers.<br/>
 	/// @param num_bindings the number of storage buffers to bind from the array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUFragmentStorageBuffers")]
 	public static partial void SDL_BindGPUFragmentStorageBuffers(SDL_GPURenderPass render_pass, uint first_slot, SDL_GPUBuffer** storage_buffers, uint num_bindings);
@@ -23858,8 +25966,10 @@ public unsafe partial class SDL3
 	/// You must not call this function before binding a graphics pipeline.<br/>
 	/// Note that the `first_vertex` and `first_instance` parameters are NOT<br/>
 	/// compatible with built-in vertex/instance ID variables in shaders (for<br/>
-	/// example, SV_VertexID). If your shader depends on these variables, the<br/>
-	/// correlating draw call parameter MUST be 0.<br/>
+	/// example, SV_VertexID); GPU APIs and shader languages do not define these<br/>
+	/// built-in variables consistently, so if your shader depends on them, the<br/>
+	/// only way to keep behavior consistent and portable is to always pass 0 for<br/>
+	/// the correlating parameter in the draw calls.<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param num_indices the number of indices to draw per instance.<br/>
@@ -23869,7 +25979,7 @@ public unsafe partial class SDL3
 	/// vertex buffer.<br/>
 	/// @param first_instance the ID of the first instance to draw.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DrawGPUIndexedPrimitives")]
 	public static partial void SDL_DrawGPUIndexedPrimitives(SDL_GPURenderPass render_pass, uint num_indices, uint num_instances, uint first_index, int vertex_offset, uint first_instance);
@@ -23879,8 +25989,10 @@ public unsafe partial class SDL3
 	/// You must not call this function before binding a graphics pipeline.<br/>
 	/// Note that the `first_vertex` and `first_instance` parameters are NOT<br/>
 	/// compatible with built-in vertex/instance ID variables in shaders (for<br/>
-	/// example, SV_VertexID). If your shader depends on these variables, the<br/>
-	/// correlating draw call parameter MUST be 0.<br/>
+	/// example, SV_VertexID); GPU APIs and shader languages do not define these<br/>
+	/// built-in variables consistently, so if your shader depends on them, the<br/>
+	/// only way to keep behavior consistent and portable is to always pass 0 for<br/>
+	/// the correlating parameter in the draw calls.<br/>
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// @param num_vertices the number of vertices to draw.<br/>
@@ -23888,7 +26000,7 @@ public unsafe partial class SDL3
 	/// @param first_vertex the index of the first vertex to draw.<br/>
 	/// @param first_instance the ID of the first instance to draw.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DrawGPUPrimitives")]
 	public static partial void SDL_DrawGPUPrimitives(SDL_GPURenderPass render_pass, uint num_vertices, uint num_instances, uint first_vertex, uint first_instance);
@@ -23906,7 +26018,7 @@ public unsafe partial class SDL3
 	/// @param draw_count the number of draw parameter sets that should be read<br/>
 	/// from the draw buffer.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DrawGPUPrimitivesIndirect")]
 	public static partial void SDL_DrawGPUPrimitivesIndirect(SDL_GPURenderPass render_pass, SDL_GPUBuffer buffer, uint offset, uint draw_count);
@@ -23924,7 +26036,7 @@ public unsafe partial class SDL3
 	/// @param draw_count the number of draw parameter sets that should be read<br/>
 	/// from the draw buffer.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DrawGPUIndexedPrimitivesIndirect")]
 	public static partial void SDL_DrawGPUIndexedPrimitivesIndirect(SDL_GPURenderPass render_pass, SDL_GPUBuffer buffer, uint offset, uint draw_count);
@@ -23936,7 +26048,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param render_pass a render pass handle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EndGPURenderPass")]
 	public static partial void SDL_EndGPURenderPass(SDL_GPURenderPass render_pass);
@@ -23972,7 +26084,7 @@ public unsafe partial class SDL3
 	/// from the array.<br/>
 	/// @returns a compute pass handle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_EndGPUComputePass
 	/// </summary>
@@ -23985,7 +26097,7 @@ public unsafe partial class SDL3
 	/// @param compute_pass a compute pass handle.<br/>
 	/// @param compute_pipeline a compute pipeline to bind.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUComputePipeline")]
 	public static partial void SDL_BindGPUComputePipeline(SDL_GPUComputePass compute_pass, SDL_GPUComputePipeline compute_pipeline);
@@ -23993,6 +26105,8 @@ public unsafe partial class SDL3
 	/// <summary>
 	/// Binds texture-sampler pairs for use on the compute shader.<br/>
 	/// The textures must have been created with SDL_GPU_TEXTUREUSAGE_SAMPLER.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param compute_pass a compute pass handle.<br/>
 	/// @param first_slot the compute sampler slot to begin binding from.<br/>
@@ -24001,7 +26115,9 @@ public unsafe partial class SDL3
 	/// @param num_bindings the number of texture-sampler bindings to bind from the<br/>
 	/// array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUComputeSamplers")]
 	public static partial void SDL_BindGPUComputeSamplers(SDL_GPUComputePass compute_pass, uint first_slot, SDL_GPUTextureSamplerBinding* texture_sampler_bindings, uint num_bindings);
@@ -24010,13 +26126,17 @@ public unsafe partial class SDL3
 	/// Binds storage textures as readonly for use on the compute pipeline.<br/>
 	/// These textures must have been created with<br/>
 	/// SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_READ.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param compute_pass a compute pass handle.<br/>
 	/// @param first_slot the compute storage texture slot to begin binding from.<br/>
 	/// @param storage_textures an array of storage textures.<br/>
 	/// @param num_bindings the number of storage textures to bind from the array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUComputeStorageTextures")]
 	public static partial void SDL_BindGPUComputeStorageTextures(SDL_GPUComputePass compute_pass, uint first_slot, SDL_GPUTexture** storage_textures, uint num_bindings);
@@ -24025,13 +26145,17 @@ public unsafe partial class SDL3
 	/// Binds storage buffers as readonly for use on the compute pipeline.<br/>
 	/// These buffers must have been created with<br/>
 	/// SDL_GPU_BUFFERUSAGE_COMPUTE_STORAGE_READ.<br/>
+	/// Be sure your shader is set up according to the requirements documented in<br/>
+	/// SDL_CreateGPUShader().<br/>
 	/// <br/>
 	/// @param compute_pass a compute pass handle.<br/>
 	/// @param first_slot the compute storage buffer slot to begin binding from.<br/>
 	/// @param storage_buffers an array of storage buffer binding structs.<br/>
 	/// @param num_bindings the number of storage buffers to bind from the array.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateGPUShader
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BindGPUComputeStorageBuffers")]
 	public static partial void SDL_BindGPUComputeStorageBuffers(SDL_GPUComputePass compute_pass, uint first_slot, SDL_GPUBuffer** storage_buffers, uint num_bindings);
@@ -24052,7 +26176,7 @@ public unsafe partial class SDL3
 	/// @param groupcount_z number of local workgroups to dispatch in the Z<br/>
 	/// dimension.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DispatchGPUCompute")]
 	public static partial void SDL_DispatchGPUCompute(SDL_GPUComputePass compute_pass, uint groupcount_x, uint groupcount_y, uint groupcount_z);
@@ -24071,7 +26195,7 @@ public unsafe partial class SDL3
 	/// @param buffer a buffer containing dispatch parameters.<br/>
 	/// @param offset the offset to start reading from the dispatch buffer.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DispatchGPUComputeIndirect")]
 	public static partial void SDL_DispatchGPUComputeIndirect(SDL_GPUComputePass compute_pass, SDL_GPUBuffer buffer, uint offset);
@@ -24083,14 +26207,16 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param compute_pass a compute pass handle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EndGPUComputePass")]
 	public static partial void SDL_EndGPUComputePass(SDL_GPUComputePass compute_pass);
 
 	/// <summary>
 	/// Maps a transfer buffer into application address space.<br/>
-	/// You must unmap the transfer buffer before encoding upload commands.<br/>
+	/// You must unmap the transfer buffer before encoding upload commands. The<br/>
+	/// memory is owned by the graphics driver - do NOT call SDL_free() on the<br/>
+	/// returned pointer.<br/>
 	/// <br/>
 	/// @param device a GPU context.<br/>
 	/// @param transfer_buffer a transfer buffer.<br/>
@@ -24098,7 +26224,7 @@ public unsafe partial class SDL3
 	/// @returns the address of the mapped transfer buffer memory, or NULL on<br/>
 	/// failure; call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_MapGPUTransferBuffer")]
 	public static partial nint SDL_MapGPUTransferBuffer(SDL_GPUDevice device, SDL_GPUTransferBuffer transfer_buffer, SDLBool cycle);
@@ -24109,7 +26235,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param transfer_buffer a previously mapped transfer buffer.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UnmapGPUTransferBuffer")]
 	public static partial void SDL_UnmapGPUTransferBuffer(SDL_GPUDevice device, SDL_GPUTransferBuffer transfer_buffer);
@@ -24123,7 +26249,7 @@ public unsafe partial class SDL3
 	/// @param command_buffer a command buffer.<br/>
 	/// @returns a copy pass handle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BeginGPUCopyPass")]
 	public static partial SDL_GPUCopyPass SDL_BeginGPUCopyPass(SDL_GPUCommandBuffer command_buffer);
@@ -24141,7 +26267,7 @@ public unsafe partial class SDL3
 	/// @param cycle if true, cycles the texture if the texture is bound, otherwise<br/>
 	/// overwrites the data.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UploadToGPUTexture")]
 	public static partial void SDL_UploadToGPUTexture(SDL_GPUCopyPass copy_pass, SDL_GPUTextureTransferInfo* source, SDL_GPUTextureRegion* destination, SDLBool cycle);
@@ -24157,7 +26283,7 @@ public unsafe partial class SDL3
 	/// @param cycle if true, cycles the buffer if it is already bound, otherwise<br/>
 	/// overwrites the data.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UploadToGPUBuffer")]
 	public static partial void SDL_UploadToGPUBuffer(SDL_GPUCopyPass copy_pass, SDL_GPUTransferBufferLocation* source, SDL_GPUBufferRegion* destination, SDLBool cycle);
@@ -24176,7 +26302,7 @@ public unsafe partial class SDL3
 	/// @param cycle if true, cycles the destination texture if the destination<br/>
 	/// texture is bound, otherwise overwrites the data.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CopyGPUTextureToTexture")]
 	public static partial void SDL_CopyGPUTextureToTexture(SDL_GPUCopyPass copy_pass, SDL_GPUTextureLocation* source, SDL_GPUTextureLocation* destination, uint w, uint h, uint d, SDLBool cycle);
@@ -24193,7 +26319,7 @@ public unsafe partial class SDL3
 	/// @param cycle if true, cycles the destination buffer if it is already bound,<br/>
 	/// otherwise overwrites the data.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_CopyGPUBufferToBuffer")]
 	public static partial void SDL_CopyGPUBufferToBuffer(SDL_GPUCopyPass copy_pass, SDL_GPUBufferLocation* source, SDL_GPUBufferLocation* destination, uint size, SDLBool cycle);
@@ -24208,7 +26334,7 @@ public unsafe partial class SDL3
 	/// @param destination the destination transfer buffer with image layout<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DownloadFromGPUTexture")]
 	public static partial void SDL_DownloadFromGPUTexture(SDL_GPUCopyPass copy_pass, SDL_GPUTextureRegion* source, SDL_GPUTextureTransferInfo* destination);
@@ -24222,7 +26348,7 @@ public unsafe partial class SDL3
 	/// @param source the source buffer with offset and size.<br/>
 	/// @param destination the destination transfer buffer with offset.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DownloadFromGPUBuffer")]
 	public static partial void SDL_DownloadFromGPUBuffer(SDL_GPUCopyPass copy_pass, SDL_GPUBufferRegion* source, SDL_GPUTransferBufferLocation* destination);
@@ -24232,7 +26358,7 @@ public unsafe partial class SDL3
 	/// <br/>
 	/// @param copy_pass a copy pass handle.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EndGPUCopyPass")]
 	public static partial void SDL_EndGPUCopyPass(SDL_GPUCopyPass copy_pass);
@@ -24244,7 +26370,7 @@ public unsafe partial class SDL3
 	/// @param command_buffer a command_buffer.<br/>
 	/// @param texture a texture with more than 1 mip level.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GenerateMipmapsForGPUTexture")]
 	public static partial void SDL_GenerateMipmapsForGPUTexture(SDL_GPUCommandBuffer command_buffer, SDL_GPUTexture texture);
@@ -24256,7 +26382,7 @@ public unsafe partial class SDL3
 	/// @param command_buffer a command buffer.<br/>
 	/// @param info the blit info struct containing the blit parameters.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_BlitGPUTexture")]
 	public static partial void SDL_BlitGPUTexture(SDL_GPUCommandBuffer command_buffer, SDL_GPUBlitInfo* info);
@@ -24270,7 +26396,7 @@ public unsafe partial class SDL3
 	/// @param swapchain_composition the swapchain composition to check.<br/>
 	/// @returns true if supported, false if unsupported.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClaimWindowForGPUDevice
 	/// </summary>
@@ -24286,7 +26412,7 @@ public unsafe partial class SDL3
 	/// @param present_mode the presentation mode to check.<br/>
 	/// @returns true if supported, false if unsupported.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClaimWindowForGPUDevice
 	/// </summary>
@@ -24307,10 +26433,12 @@ public unsafe partial class SDL3
 	/// @param window an SDL_Window.<br/>
 	/// @returns true on success, or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called from the thread that<br/>
+	/// created the window.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
-	/// @sa SDL_AcquireGPUSwapchainTexture<br/>
+	/// @sa SDL_WaitAndAcquireGPUSwapchainTexture<br/>
 	/// @sa SDL_ReleaseWindowFromGPUDevice<br/>
 	/// @sa SDL_WindowSupportsGPUPresentMode<br/>
 	/// @sa SDL_WindowSupportsGPUSwapchainComposition
@@ -24324,7 +26452,7 @@ public unsafe partial class SDL3
 	/// @param device a GPU context.<br/>
 	/// @param window an SDL_Window that has been claimed.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClaimWindowForGPUDevice
 	/// </summary>
@@ -24347,13 +26475,37 @@ public unsafe partial class SDL3
 	/// @returns true if successful, false on error; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_WindowSupportsGPUPresentMode<br/>
 	/// @sa SDL_WindowSupportsGPUSwapchainComposition
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_SetGPUSwapchainParameters")]
 	public static partial SDLBool SDL_SetGPUSwapchainParameters(SDL_GPUDevice device, SDL_Window window, SDL_GPUSwapchainComposition swapchain_composition, SDL_GPUPresentMode present_mode);
+
+	/// <summary>
+	/// Configures the maximum allowed number of frames in flight.<br/>
+	/// The default value when the device is created is 2. This means that after<br/>
+	/// you have submitted 2 frames for presentation, if the GPU has not finished<br/>
+	/// working on the first frame, SDL_AcquireGPUSwapchainTexture() will fill the<br/>
+	/// swapchain texture pointer with NULL, and<br/>
+	/// SDL_WaitAndAcquireGPUSwapchainTexture() will block.<br/>
+	/// Higher values increase throughput at the expense of visual latency. Lower<br/>
+	/// values decrease visual latency at the expense of throughput.<br/>
+	/// Note that calling this function will stall and flush the command queue to<br/>
+	/// prevent synchronization issues.<br/>
+	/// The minimum value of allowed frames in flight is 1, and the maximum is 3.<br/>
+	/// <br/>
+	/// @param device a GPU context.<br/>
+	/// @param allowed_frames_in_flight the maximum number of frames that can be<br/>
+	/// pending on the GPU.<br/>
+	/// @returns true if successful, false on error; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetGPUAllowedFramesInFlight")]
+	public static partial SDLBool SDL_SetGPUAllowedFramesInFlight(SDL_GPUDevice device, uint allowed_frames_in_flight);
 
 	/// <summary>
 	/// Obtains the texture format of the swapchain for the given window.<br/>
@@ -24363,7 +26515,7 @@ public unsafe partial class SDL3
 	/// @param window an SDL_Window that has been claimed.<br/>
 	/// @returns the texture format of the swapchain.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GetGPUSwapchainTextureFormat")]
 	public static partial SDL_GPUTextureFormat SDL_GetGPUSwapchainTextureFormat(SDL_GPUDevice device, SDL_Window window);
@@ -24373,9 +26525,14 @@ public unsafe partial class SDL3
 	/// When a swapchain texture is acquired on a command buffer, it will<br/>
 	/// automatically be submitted for presentation when the command buffer is<br/>
 	/// submitted. The swapchain texture should only be referenced by the command<br/>
-	/// buffer used to acquire it. The swapchain texture handle can be filled in<br/>
-	/// with NULL under certain conditions. This is not necessarily an error. If<br/>
-	/// this function returns false then there is an error.<br/>
+	/// buffer used to acquire it.<br/>
+	/// This function will fill the swapchain texture handle with NULL if too many<br/>
+	/// frames are in flight. This is not an error.<br/>
+	/// If you use this function, it is possible to create a situation where many<br/>
+	/// command buffers are allocated while the rendering context waits for the GPU<br/>
+	/// to catch up, which will cause memory usage to grow. You should use<br/>
+	/// SDL_WaitAndAcquireGPUSwapchainTexture() unless you know what you are doing<br/>
+	/// with timing.<br/>
 	/// The swapchain texture is managed by the implementation and must not be<br/>
 	/// freed by the user. You MUST NOT call this function from any thread other<br/>
 	/// than the one that created the window.<br/>
@@ -24390,16 +26547,81 @@ public unsafe partial class SDL3
 	/// texture height, may be NULL.<br/>
 	/// @returns true on success, false on error; call SDL_GetError() for more<br/>
 	/// information.<br/>
+	/// @threadsafety This function should only be called from the thread that<br/>
+	/// created the window.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_ClaimWindowForGPUDevice<br/>
 	/// @sa SDL_SubmitGPUCommandBuffer<br/>
 	/// @sa SDL_SubmitGPUCommandBufferAndAcquireFence<br/>
-	/// @sa SDL_GetWindowSizeInPixels
+	/// @sa SDL_CancelGPUCommandBuffer<br/>
+	/// @sa SDL_GetWindowSizeInPixels<br/>
+	/// @sa SDL_WaitForGPUSwapchain<br/>
+	/// @sa SDL_WaitAndAcquireGPUSwapchainTexture<br/>
+	/// @sa SDL_SetGPUAllowedFramesInFlight
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_AcquireGPUSwapchainTexture")]
 	public static partial SDLBool SDL_AcquireGPUSwapchainTexture(SDL_GPUCommandBuffer command_buffer, SDL_Window window, SDL_GPUTexture swapchain_texture, uint* swapchain_texture_width, uint* swapchain_texture_height);
+
+	/// <summary>
+	/// Blocks the thread until a swapchain texture is available to be acquired.<br/>
+	/// <br/>
+	/// @param device a GPU context.<br/>
+	/// @param window a window that has been claimed.<br/>
+	/// @returns true on success, false on failure; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety This function should only be called from the thread that<br/>
+	/// created the window.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_AcquireGPUSwapchainTexture<br/>
+	/// @sa SDL_WaitAndAcquireGPUSwapchainTexture<br/>
+	/// @sa SDL_SetGPUAllowedFramesInFlight
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_WaitForGPUSwapchain")]
+	public static partial SDLBool SDL_WaitForGPUSwapchain(SDL_GPUDevice device, SDL_Window window);
+
+	/// <summary>
+	/// Blocks the thread until a swapchain texture is available to be acquired,<br/>
+	/// and then acquires it.<br/>
+	/// When a swapchain texture is acquired on a command buffer, it will<br/>
+	/// automatically be submitted for presentation when the command buffer is<br/>
+	/// submitted. The swapchain texture should only be referenced by the command<br/>
+	/// buffer used to acquire it. It is an error to call<br/>
+	/// SDL_CancelGPUCommandBuffer() after a swapchain texture is acquired.<br/>
+	/// This function can fill the swapchain texture handle with NULL in certain<br/>
+	/// cases, for example if the window is minimized. This is not an error. You<br/>
+	/// should always make sure to check whether the pointer is NULL before<br/>
+	/// actually using it.<br/>
+	/// The swapchain texture is managed by the implementation and must not be<br/>
+	/// freed by the user. You MUST NOT call this function from any thread other<br/>
+	/// than the one that created the window.<br/>
+	/// The swapchain texture is write-only and cannot be used as a sampler or for<br/>
+	/// another reading operation.<br/>
+	/// <br/>
+	/// @param command_buffer a command buffer.<br/>
+	/// @param window a window that has been claimed.<br/>
+	/// @param swapchain_texture a pointer filled in with a swapchain texture<br/>
+	/// handle.<br/>
+	/// @param swapchain_texture_width a pointer filled in with the swapchain<br/>
+	/// texture width, may be NULL.<br/>
+	/// @param swapchain_texture_height a pointer filled in with the swapchain<br/>
+	/// texture height, may be NULL.<br/>
+	/// @returns true on success, false on error; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// @threadsafety This function should only be called from the thread that<br/>
+	/// created the window.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_SubmitGPUCommandBuffer<br/>
+	/// @sa SDL_SubmitGPUCommandBufferAndAcquireFence<br/>
+	/// @sa SDL_AcquireGPUSwapchainTexture
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_WaitAndAcquireGPUSwapchainTexture")]
+	public static partial SDLBool SDL_WaitAndAcquireGPUSwapchainTexture(SDL_GPUCommandBuffer command_buffer, SDL_Window window, SDL_GPUTexture swapchain_texture, uint* swapchain_texture_width, uint* swapchain_texture_height);
 
 	/// <summary>
 	/// Submits a command buffer so its commands can be processed on the GPU.<br/>
@@ -24412,9 +26634,10 @@ public unsafe partial class SDL3
 	/// @returns true on success, false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AcquireGPUCommandBuffer<br/>
+	/// @sa SDL_WaitAndAcquireGPUSwapchainTexture<br/>
 	/// @sa SDL_AcquireGPUSwapchainTexture<br/>
 	/// @sa SDL_SubmitGPUCommandBufferAndAcquireFence
 	/// </summary>
@@ -24434,9 +26657,10 @@ public unsafe partial class SDL3
 	/// @returns a fence associated with the command buffer, or NULL on failure;<br/>
 	/// call SDL_GetError() for more information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_AcquireGPUCommandBuffer<br/>
+	/// @sa SDL_WaitAndAcquireGPUSwapchainTexture<br/>
 	/// @sa SDL_AcquireGPUSwapchainTexture<br/>
 	/// @sa SDL_SubmitGPUCommandBuffer<br/>
 	/// @sa SDL_ReleaseGPUFence
@@ -24445,13 +26669,34 @@ public unsafe partial class SDL3
 	public static partial SDL_GPUFence SDL_SubmitGPUCommandBufferAndAcquireFence(SDL_GPUCommandBuffer command_buffer);
 
 	/// <summary>
+	/// Cancels a command buffer.<br/>
+	/// None of the enqueued commands are executed.<br/>
+	/// It is an error to call this function after a swapchain texture has been<br/>
+	/// acquired.<br/>
+	/// This must be called from the thread the command buffer was acquired on.<br/>
+	/// You must not reference the command buffer after calling this function.<br/>
+	/// <br/>
+	/// @param command_buffer a command buffer.<br/>
+	/// @returns true on success, false on error; call SDL_GetError() for more<br/>
+	/// information.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_WaitAndAcquireGPUSwapchainTexture<br/>
+	/// @sa SDL_AcquireGPUCommandBuffer<br/>
+	/// @sa SDL_AcquireGPUSwapchainTexture
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_CancelGPUCommandBuffer")]
+	public static partial SDLBool SDL_CancelGPUCommandBuffer(SDL_GPUCommandBuffer command_buffer);
+
+	/// <summary>
 	/// Blocks the thread until the GPU is completely idle.<br/>
 	/// <br/>
 	/// @param device a GPU context.<br/>
 	/// @returns true on success, false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_WaitForGPUFences
 	/// </summary>
@@ -24469,7 +26714,7 @@ public unsafe partial class SDL3
 	/// @returns true on success, false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SubmitGPUCommandBufferAndAcquireFence<br/>
 	/// @sa SDL_WaitForGPUIdle
@@ -24484,7 +26729,7 @@ public unsafe partial class SDL3
 	/// @param fence a fence.<br/>
 	/// @returns true if the fence is signaled, false if it is not.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SubmitGPUCommandBufferAndAcquireFence
 	/// </summary>
@@ -24493,11 +26738,12 @@ public unsafe partial class SDL3
 
 	/// <summary>
 	/// Releases a fence obtained from SDL_SubmitGPUCommandBufferAndAcquireFence.<br/>
+	/// You must not reference the fence after calling this function.<br/>
 	/// <br/>
 	/// @param device a GPU context.<br/>
 	/// @param fence a fence.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_SubmitGPUCommandBufferAndAcquireFence
 	/// </summary>
@@ -24510,7 +26756,7 @@ public unsafe partial class SDL3
 	/// @param format the texture format you want to know the texel size of.<br/>
 	/// @returns the texel block size of the texture format.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_UploadToGPUTexture
 	/// </summary>
@@ -24527,7 +26773,7 @@ public unsafe partial class SDL3
 	/// @param usage a bitmask of all usage scenarios to check.<br/>
 	/// @returns whether the texture format is supported for this type and usage.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GPUTextureSupportsFormat")]
 	public static partial SDLBool SDL_GPUTextureSupportsFormat(SDL_GPUDevice device, SDL_GPUTextureFormat format, SDL_GPUTextureType type, SDL_GPUTextureUsageFlags usage);
@@ -24540,10 +26786,24 @@ public unsafe partial class SDL3
 	/// @param sample_count the sample count to check.<br/>
 	/// @returns a hardware-specific version of min(preferred, possible).<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_GPUTextureSupportsSampleCount")]
 	public static partial SDLBool SDL_GPUTextureSupportsSampleCount(SDL_GPUDevice device, SDL_GPUTextureFormat format, SDL_GPUSampleCount sample_count);
+
+	/// <summary>
+	/// Calculate the size in bytes of a texture format with dimensions.<br/>
+	/// <br/>
+	/// @param format a texture format.<br/>
+	/// @param width width in pixels.<br/>
+	/// @param height height in pixels.<br/>
+	/// @param depth_or_layer_count depth for 3D textures or layer count otherwise.<br/>
+	/// @returns the size of a texture with this format and dimensions.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_CalculateGPUTextureFormatSize")]
+	public static partial uint SDL_CalculateGPUTextureFormatSize(SDL_GPUTextureFormat format, uint width, uint height, uint depth_or_layer_count);
 
 	/// <summary>
 	/// An app-supplied function for program entry.<br/>
@@ -24569,7 +26829,7 @@ public unsafe partial class SDL3
 	/// errors.<br/>
 	/// @threadsafety This is the program entry point.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_main")]
 	public static partial int SDL_main(int argc, byte** argv);
@@ -24582,7 +26842,7 @@ public unsafe partial class SDL3
 	/// will not be changed it is necessary to define SDL_MAIN_HANDLED before<br/>
 	/// including SDL.h.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_Init
 	/// </summary>
@@ -24613,7 +26873,7 @@ public unsafe partial class SDL3
 	/// @threadsafety Generally this is called once, near startup, from the<br/>
 	/// process's initial thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RunApp")]
 	public static partial int SDL_RunApp(int argc, byte** argv, delegate* unmanaged[Cdecl]<int, byte**, int> mainFunction, nint reserved);
@@ -24638,7 +26898,7 @@ public unsafe partial class SDL3
 	/// @threadsafety It is not safe to call this anywhere except as the only<br/>
 	/// function call in SDL_main.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_EnterAppMainCallbacks")]
 	public static partial int SDL_EnterAppMainCallbacks(int argc, byte** argv, delegate* unmanaged[Cdecl]<nint, int, byte**, SDL_AppResult> appinit, delegate* unmanaged[Cdecl]<nint, SDL_AppResult> appiter, delegate* unmanaged[Cdecl]<nint, SDL_Event*, SDL_AppResult> appevent, delegate* unmanaged[Cdecl]<nint, SDL_AppResult, void> appquit);
@@ -24663,7 +26923,7 @@ public unsafe partial class SDL3
 	/// @returns true on success or false on failure; call SDL_GetError() for more<br/>
 	/// information.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_RegisterApp")]
 	public static partial SDLBool SDL_RegisterApp(byte* name, uint style, nint hInst);
@@ -24684,10 +26944,20 @@ public unsafe partial class SDL3
 	/// deregistered when the registration counter in SDL_RegisterApp decrements to<br/>
 	/// zero through calls to this function.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.
+	/// @since This function is available since SDL 3.2.0.
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_UnregisterApp")]
 	public static partial void SDL_UnregisterApp();
+
+	/// <summary>
+	/// Callback from the application to let the suspend continue.<br/>
+	/// This function is only needed for Xbox GDK support; all other platforms will<br/>
+	/// do nothing and set an "unsupported" error message.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GDKSuspendComplete")]
+	public static partial void SDL_GDKSuspendComplete();
 
 	/// <summary>
 	/// Create a new process.<br/>
@@ -24713,7 +26983,7 @@ public unsafe partial class SDL3
 	/// couldn't be created.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcessWithProperties<br/>
 	/// @sa SDL_GetProcessProperties<br/>
@@ -24743,13 +27013,13 @@ public unsafe partial class SDL3
 	/// standard input when `SDL_PROP_PROCESS_CREATE_STDIN_NUMBER` is set to<br/>
 	/// `SDL_PROCESS_STDIO_REDIRECT`.<br/>
 	/// - `SDL_PROP_PROCESS_CREATE_STDOUT_NUMBER`: an SDL_ProcessIO value<br/>
-	/// describing where standard output for the process goes go, defaults to<br/>
+	/// describing where standard output for the process goes to, defaults to<br/>
 	/// `SDL_PROCESS_STDIO_INHERITED`.<br/>
 	/// - `SDL_PROP_PROCESS_CREATE_STDOUT_POINTER`: an SDL_IOStream pointer used<br/>
 	/// for standard output when `SDL_PROP_PROCESS_CREATE_STDOUT_NUMBER` is set<br/>
 	/// to `SDL_PROCESS_STDIO_REDIRECT`.<br/>
 	/// - `SDL_PROP_PROCESS_CREATE_STDERR_NUMBER`: an SDL_ProcessIO value<br/>
-	/// describing where standard error for the process goes go, defaults to<br/>
+	/// describing where standard error for the process goes to, defaults to<br/>
 	/// `SDL_PROCESS_STDIO_INHERITED`.<br/>
 	/// - `SDL_PROP_PROCESS_CREATE_STDERR_POINTER`: an SDL_IOStream pointer used<br/>
 	/// for standard error when `SDL_PROP_PROCESS_CREATE_STDERR_NUMBER` is set to<br/>
@@ -24772,7 +27042,7 @@ public unsafe partial class SDL3
 	/// couldn't be created.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_GetProcessProperties<br/>
@@ -24807,7 +27077,7 @@ public unsafe partial class SDL3
 	/// SDL_GetError() for more information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_CreateProcessWithProperties
@@ -24834,7 +27104,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_CreateProcessWithProperties<br/>
@@ -24850,7 +27120,7 @@ public unsafe partial class SDL3
 	/// `SDL_PROP_PROCESS_CREATE_STDIN_NUMBER` set to `SDL_PROCESS_STDIO_APP`.<br/>
 	/// Writing to this stream can return less data than expected if the process<br/>
 	/// hasn't read its input. It may be blocked waiting for its output to be read,<br/>
-	/// so if you may need to call SDL_GetOutputStream() and read the output in<br/>
+	/// if so you may need to call SDL_GetProcessOutput() and read the output in<br/>
 	/// parallel with writing input.<br/>
 	/// <br/>
 	/// @param process The process to get the input stream for.<br/>
@@ -24858,7 +27128,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_CreateProcessWithProperties<br/>
@@ -24880,7 +27150,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety It is safe to call this function from any thread.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_CreateProcessWithProperties<br/>
@@ -24902,7 +27172,7 @@ public unsafe partial class SDL3
 	/// information.<br/>
 	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_CreateProcessWithProperties<br/>
@@ -24918,6 +27188,11 @@ public unsafe partial class SDL3
 	/// The exit code will be the exit code of the process if it terminates<br/>
 	/// normally, a negative signal if it terminated due to a signal, or -255<br/>
 	/// otherwise. It will not be changed if the process is still running.<br/>
+	/// If you create a process with standard output piped to the application<br/>
+	/// (`pipe_stdio` being true) then you should read all of the process output<br/>
+	/// before calling SDL_WaitProcess(). If you don't do this the process might be<br/>
+	/// blocked indefinitely waiting for output to be read and SDL_WaitProcess()<br/>
+	/// will never return true;<br/>
 	/// <br/>
 	/// @param process The process to wait for.<br/>
 	/// @param block If true, block until the process finishes; otherwise, report<br/>
@@ -24927,7 +27202,7 @@ public unsafe partial class SDL3
 	/// @returns true if the process exited, false otherwise.<br/>
 	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_CreateProcessWithProperties<br/>
@@ -24946,7 +27221,7 @@ public unsafe partial class SDL3
 	/// @param process The process object to destroy.<br/>
 	/// @threadsafety This function is not thread safe.<br/>
 	/// <br/>
-	/// @since This function is available since SDL 3.0.0.<br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
 	/// <br/>
 	/// @sa SDL_CreateProcess<br/>
 	/// @sa SDL_CreateProcessWithProperties<br/>
@@ -24954,5 +27229,449 @@ public unsafe partial class SDL3
 	/// </summary>
 	[LibraryImport(LibName, EntryPoint = "SDL_DestroyProcess")]
 	public static partial void SDL_DestroyProcess(SDL_Process process);
+
+	/// <summary>
+	/// Create an icon to be placed in the operating system's tray, or equivalent.<br/>
+	/// Many platforms advise not using a system tray unless persistence is a<br/>
+	/// necessary feature. Avoid needlessly creating a tray icon, as the user may<br/>
+	/// feel like it clutters their interface.<br/>
+	/// Using tray icons require the video subsystem.<br/>
+	/// <br/>
+	/// @param icon a surface to be used as icon. May be NULL.<br/>
+	/// @param tooltip a tooltip to be displayed when the mouse hovers the icon in<br/>
+	/// UTF-8 encoding. Not supported on all platforms. May be NULL.<br/>
+	/// @returns The newly created system tray icon.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTrayMenu<br/>
+	/// @sa SDL_GetTrayMenu<br/>
+	/// @sa SDL_DestroyTray
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_CreateTray")]
+	public static partial SDL_Tray SDL_CreateTray(SDL_Surface* icon, byte* tooltip);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_CreateTray")]
+	public static partial SDL_Tray SDL_CreateTray(SDL_Surface* icon, ReadOnlySpan<byte> tooltip);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_CreateTray")]
+	public static partial SDL_Tray SDL_CreateTray(SDL_Surface* icon, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> tooltip);
+
+	/// <summary>
+	/// Updates the system tray icon's icon.<br/>
+	/// <br/>
+	/// @param tray the tray icon to be updated.<br/>
+	/// @param icon the new icon. May be NULL.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTray
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayIcon")]
+	public static partial void SDL_SetTrayIcon(SDL_Tray tray, SDL_Surface* icon);
+
+	/// <summary>
+	/// Updates the system tray icon's tooltip.<br/>
+	/// <br/>
+	/// @param tray the tray icon to be updated.<br/>
+	/// @param tooltip the new tooltip in UTF-8 encoding. May be NULL.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTray
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayTooltip")]
+	public static partial void SDL_SetTrayTooltip(SDL_Tray tray, byte* tooltip);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayTooltip")]
+	public static partial void SDL_SetTrayTooltip(SDL_Tray tray, ReadOnlySpan<byte> tooltip);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayTooltip")]
+	public static partial void SDL_SetTrayTooltip(SDL_Tray tray, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> tooltip);
+
+	/// <summary>
+	/// Create a menu for a system tray.<br/>
+	/// This should be called at most once per tray icon.<br/>
+	/// This function does the same thing as SDL_CreateTraySubmenu(), except that<br/>
+	/// it takes a SDL_Tray instead of a SDL_TrayEntry.<br/>
+	/// A menu does not need to be destroyed; it will be destroyed with the tray.<br/>
+	/// <br/>
+	/// @param tray the tray to bind the menu to.<br/>
+	/// @returns the newly created menu.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTray<br/>
+	/// @sa SDL_GetTrayMenu<br/>
+	/// @sa SDL_GetTrayMenuParentTray
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_CreateTrayMenu")]
+	public static partial SDL_TrayMenu SDL_CreateTrayMenu(SDL_Tray tray);
+
+	/// <summary>
+	/// Create a submenu for a system tray entry.<br/>
+	/// This should be called at most once per tray entry.<br/>
+	/// This function does the same thing as SDL_CreateTrayMenu, except that it<br/>
+	/// takes a SDL_TrayEntry instead of a SDL_Tray.<br/>
+	/// A menu does not need to be destroyed; it will be destroyed with the tray.<br/>
+	/// <br/>
+	/// @param entry the tray entry to bind the menu to.<br/>
+	/// @returns the newly created menu.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_GetTraySubmenu<br/>
+	/// @sa SDL_GetTrayMenuParentEntry
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_CreateTraySubmenu")]
+	public static partial SDL_TrayMenu SDL_CreateTraySubmenu(SDL_TrayEntry entry);
+
+	/// <summary>
+	/// Gets a previously created tray menu.<br/>
+	/// You should have called SDL_CreateTrayMenu() on the tray object. This<br/>
+	/// function allows you to fetch it again later.<br/>
+	/// This function does the same thing as SDL_GetTraySubmenu(), except that it<br/>
+	/// takes a SDL_Tray instead of a SDL_TrayEntry.<br/>
+	/// A menu does not need to be destroyed; it will be destroyed with the tray.<br/>
+	/// <br/>
+	/// @param tray the tray entry to bind the menu to.<br/>
+	/// @returns the newly created menu.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTray<br/>
+	/// @sa SDL_CreateTrayMenu
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayMenu")]
+	public static partial SDL_TrayMenu SDL_GetTrayMenu(SDL_Tray tray);
+
+	/// <summary>
+	/// Gets a previously created tray entry submenu.<br/>
+	/// You should have called SDL_CreateTraySubmenu() on the entry object. This<br/>
+	/// function allows you to fetch it again later.<br/>
+	/// This function does the same thing as SDL_GetTrayMenu(), except that it<br/>
+	/// takes a SDL_TrayEntry instead of a SDL_Tray.<br/>
+	/// A menu does not need to be destroyed; it will be destroyed with the tray.<br/>
+	/// <br/>
+	/// @param entry the tray entry to bind the menu to.<br/>
+	/// @returns the newly created menu.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_CreateTraySubmenu
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTraySubmenu")]
+	public static partial SDL_TrayMenu SDL_GetTraySubmenu(SDL_TrayEntry entry);
+
+	/// <summary>
+	/// Returns a list of entries in the menu, in order.<br/>
+	/// <br/>
+	/// @param menu The menu to get entries from.<br/>
+	/// @param count An optional pointer to obtain the number of entries in the<br/>
+	/// menu.<br/>
+	/// @returns a NULL-terminated list of entries within the given menu. The<br/>
+	/// pointer becomes invalid when any function that inserts or deletes<br/>
+	/// entries in the menu is called.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_RemoveTrayEntry<br/>
+	/// @sa SDL_InsertTrayEntryAt
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayEntries")]
+	public static partial SDL_TrayEntry SDL_GetTrayEntries(SDL_TrayMenu menu, out int count);
+
+	/// <summary>
+	/// Removes a tray entry.<br/>
+	/// <br/>
+	/// @param entry The entry to be deleted.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_RemoveTrayEntry")]
+	public static partial void SDL_RemoveTrayEntry(SDL_TrayEntry entry);
+
+	/// <summary>
+	/// Insert a tray entry at a given position.<br/>
+	/// If label is NULL, the entry will be a separator. Many functions won't work<br/>
+	/// for an entry that is a separator.<br/>
+	/// An entry does not need to be destroyed; it will be destroyed with the tray.<br/>
+	/// <br/>
+	/// @param menu the menu to append the entry to.<br/>
+	/// @param pos the desired position for the new entry. Entries at or following<br/>
+	/// this place will be moved. If pos is -1, the entry is appended.<br/>
+	/// @param label the text to be displayed on the entry, in UTF-8 encoding, or<br/>
+	/// NULL for a separator.<br/>
+	/// @param flags a combination of flags, some of which are mandatory.<br/>
+	/// @returns the newly created entry, or NULL if pos is out of bounds.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_TrayEntryFlags<br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_RemoveTrayEntry<br/>
+	/// @sa SDL_GetTrayEntryParent
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_InsertTrayEntryAt")]
+	public static partial SDL_TrayEntry SDL_InsertTrayEntryAt(SDL_TrayMenu menu, int pos, byte* label, SDL_TrayEntryFlags flags);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_InsertTrayEntryAt")]
+	public static partial SDL_TrayEntry SDL_InsertTrayEntryAt(SDL_TrayMenu menu, int pos, ReadOnlySpan<byte> label, SDL_TrayEntryFlags flags);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_InsertTrayEntryAt")]
+	public static partial SDL_TrayEntry SDL_InsertTrayEntryAt(SDL_TrayMenu menu, int pos, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> label, SDL_TrayEntryFlags flags);
+
+	/// <summary>
+	/// Sets the label of an entry.<br/>
+	/// An entry cannot change between a separator and an ordinary entry; that is,<br/>
+	/// it is not possible to set a non-NULL label on an entry that has a NULL<br/>
+	/// label (separators), or to set a NULL label to an entry that has a non-NULL<br/>
+	/// label. The function will silently fail if that happens.<br/>
+	/// <br/>
+	/// @param entry the entry to be updated.<br/>
+	/// @param label the new label for the entry in UTF-8 encoding.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_GetTrayEntryLabel
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayEntryLabel")]
+	public static partial void SDL_SetTrayEntryLabel(SDL_TrayEntry entry, byte* label);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayEntryLabel")]
+	public static partial void SDL_SetTrayEntryLabel(SDL_TrayEntry entry, ReadOnlySpan<byte> label);
+
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayEntryLabel")]
+	public static partial void SDL_SetTrayEntryLabel(SDL_TrayEntry entry, [global::System.Runtime.InteropServices.Marshalling.MarshalUsing(typeof(Utf8CustomMarshaller))] ReadOnlySpan<char> label);
+
+	/// <summary>
+	/// Gets the label of an entry.<br/>
+	/// If the returned value is NULL, the entry is a separator.<br/>
+	/// <br/>
+	/// @param entry the entry to be read.<br/>
+	/// @returns the label of the entry in UTF-8 encoding.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_SetTrayEntryLabel
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayEntryLabel")]
+	public static partial byte* SDL_GetTrayEntryLabelPtr(SDL_TrayEntry entry);
+
+	public static string? SDL_GetTrayEntryLabel(SDL_TrayEntry entry)
+	{
+		return ConvertToManaged(SDL_GetTrayEntryLabelPtr(entry));
+	}
+
+	/// <summary>
+	/// Sets whether or not an entry is checked.<br/>
+	/// The entry must have been created with the SDL_TRAYENTRY_CHECKBOX flag.<br/>
+	/// <br/>
+	/// @param entry the entry to be updated.<br/>
+	/// @param checked true if the entry should be checked; false otherwise.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_GetTrayEntryChecked
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayEntryChecked")]
+	public static partial void SDL_SetTrayEntryChecked(SDL_TrayEntry entry, SDLBool @checked);
+
+	/// <summary>
+	/// Gets whether or not an entry is checked.<br/>
+	/// The entry must have been created with the SDL_TRAYENTRY_CHECKBOX flag.<br/>
+	/// <br/>
+	/// @param entry the entry to be read.<br/>
+	/// @returns true if the entry is checked; false otherwise.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_SetTrayEntryChecked
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayEntryChecked")]
+	public static partial SDLBool SDL_GetTrayEntryChecked(SDL_TrayEntry entry);
+
+	/// <summary>
+	/// Sets whether or not an entry is enabled.<br/>
+	/// <br/>
+	/// @param entry the entry to be updated.<br/>
+	/// @param enabled true if the entry should be enabled; false otherwise.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_GetTrayEntryEnabled
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayEntryEnabled")]
+	public static partial void SDL_SetTrayEntryEnabled(SDL_TrayEntry entry, SDLBool enabled);
+
+	/// <summary>
+	/// Gets whether or not an entry is enabled.<br/>
+	/// <br/>
+	/// @param entry the entry to be read.<br/>
+	/// @returns true if the entry is enabled; false otherwise.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt<br/>
+	/// @sa SDL_SetTrayEntryEnabled
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayEntryEnabled")]
+	public static partial SDLBool SDL_GetTrayEntryEnabled(SDL_TrayEntry entry);
+
+	/// <summary>
+	/// Sets a callback to be invoked when the entry is selected.<br/>
+	/// <br/>
+	/// @param entry the entry to be updated.<br/>
+	/// @param callback a callback to be invoked when the entry is selected.<br/>
+	/// @param userdata an optional pointer to pass extra data to the callback when<br/>
+	/// it will be invoked.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_GetTrayEntries<br/>
+	/// @sa SDL_InsertTrayEntryAt
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_SetTrayEntryCallback")]
+	public static partial void SDL_SetTrayEntryCallback(SDL_TrayEntry entry, delegate* unmanaged[Cdecl]<nint, SDL_TrayEntry, void> callback, nint userdata);
+
+	/// <summary>
+	/// Simulate a click on a tray entry.<br/>
+	/// <br/>
+	/// @param entry The entry to activate.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_ClickTrayEntry")]
+	public static partial void SDL_ClickTrayEntry(SDL_TrayEntry entry);
+
+	/// <summary>
+	/// Destroys a tray object.<br/>
+	/// This also destroys all associated menus and entries.<br/>
+	/// <br/>
+	/// @param tray the tray icon to be destroyed.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTray
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_DestroyTray")]
+	public static partial void SDL_DestroyTray(SDL_Tray tray);
+
+	/// <summary>
+	/// Gets the menu containing a certain tray entry.<br/>
+	/// <br/>
+	/// @param entry the entry for which to get the parent menu.<br/>
+	/// @returns the parent menu.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_InsertTrayEntryAt
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayEntryParent")]
+	public static partial SDL_TrayMenu SDL_GetTrayEntryParent(SDL_TrayEntry entry);
+
+	/// <summary>
+	/// Gets the entry for which the menu is a submenu, if the current menu is a<br/>
+	/// submenu.<br/>
+	/// Either this function or SDL_GetTrayMenuParentTray() will return non-NULL<br/>
+	/// for any given menu.<br/>
+	/// <br/>
+	/// @param menu the menu for which to get the parent entry.<br/>
+	/// @returns the parent entry, or NULL if this menu is not a submenu.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTraySubmenu<br/>
+	/// @sa SDL_GetTrayMenuParentTray
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayMenuParentEntry")]
+	public static partial SDL_TrayEntry SDL_GetTrayMenuParentEntry(SDL_TrayMenu menu);
+
+	/// <summary>
+	/// Gets the tray for which this menu is the first-level menu, if the current<br/>
+	/// menu isn't a submenu.<br/>
+	/// Either this function or SDL_GetTrayMenuParentEntry() will return non-NULL<br/>
+	/// for any given menu.<br/>
+	/// <br/>
+	/// @param menu the menu for which to get the parent enttrayry.<br/>
+	/// @returns the parent tray, or NULL if this menu is a submenu.<br/>
+	/// @threadsafety This function should be called on the thread that created the<br/>
+	/// tray.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.<br/>
+	/// <br/>
+	/// @sa SDL_CreateTrayMenu<br/>
+	/// @sa SDL_GetTrayMenuParentEntry
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_GetTrayMenuParentTray")]
+	public static partial SDL_Tray SDL_GetTrayMenuParentTray(SDL_TrayMenu menu);
+
+	/// <summary>
+	/// Update the trays.<br/>
+	/// This is called automatically by the event loop and is only needed if you're<br/>
+	/// using trays but aren't handling SDL events.<br/>
+	/// @threadsafety This function should only be called on the main thread.<br/>
+	/// <br/>
+	/// @since This function is available since SDL 3.2.0.
+	/// </summary>
+	[LibraryImport(LibName, EntryPoint = "SDL_UpdateTrays")]
+	public static partial void SDL_UpdateTrays();
 
 }

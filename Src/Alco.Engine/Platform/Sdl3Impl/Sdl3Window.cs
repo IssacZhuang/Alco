@@ -7,6 +7,7 @@ using Alco.Graphics;
 using Alco.Engine.MacOS;
 
 using static SDL3.SDL3;
+using System.Text;
 
 namespace Alco.Engine;
 
@@ -112,8 +113,6 @@ public unsafe partial class Sdl3Window : View
         get => _swapchain;
     }
 
-
-
     public Sdl3Window(GPUDevice device, ViewSetting setting)
     {
         SDL_WindowFlags flags = ConvetWindowMode(setting.WindowMode);
@@ -179,12 +178,12 @@ public unsafe partial class Sdl3Window : View
 
     public override void Close()
     {
-        
+
     }
 
     protected override void Dispose(bool disposing)
     {
-        if(disposing)
+        if (disposing)
         {
             _swapchain.Dispose();
         }
@@ -205,14 +204,22 @@ public unsafe partial class Sdl3Window : View
 
     private WindowMode ConvertWindowMode(SDL_WindowFlags flags)
     {
-        return flags switch
+        if ((flags & SDL_WindowFlags.Fullscreen) != 0)
         {
-            SDL_WindowFlags.Resizable => WindowMode.Normal,
-            SDL_WindowFlags.Minimized => WindowMode.Minimized,
-            SDL_WindowFlags.Maximized => WindowMode.Maximized,
-            SDL_WindowFlags.Fullscreen => WindowMode.Fullscreen,
-            _ => WindowMode.Normal
-        };
+            return WindowMode.Fullscreen;
+        }
+        else if ((flags & SDL_WindowFlags.Maximized) != 0)
+        {
+            return WindowMode.Maximized;
+        }
+        else if ((flags & SDL_WindowFlags.Minimized) != 0)
+        {
+            return WindowMode.Minimized;
+        }
+        else
+        {
+            return WindowMode.Normal;
+        }
     }
 
 
@@ -308,7 +315,7 @@ public unsafe partial class Sdl3Window : View
     public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
-        
+
         try
         {
             props = CreateProperties(setting);
@@ -382,6 +389,105 @@ public unsafe partial class Sdl3Window : View
 
         return props;
 
+    }
+
+    public Task<string[]> OpenFilePickerAsync(string? defaultPath, bool allowMultiple, params ReadOnlySpan<DialogFileFilter> filters)
+    {
+        defaultPath ??= Environment.CurrentDirectory;
+        TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Sdl3FilePickerContext context = Sdl3FilePickerContext.Create(filters, tcs);
+
+        Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
+        Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
+        defaultPathBytes[defaultPathBytes.Length - 1] = 0;
+
+        SDL_ShowOpenFileDialog(&DialogFileCallback, (nint)context.Handle, _window, context.NativeFilters, context.NativeFiltersCount, defaultPathBytes, allowMultiple);
+
+        return tcs.Task;
+    }
+
+    public Task<string[]> OpenFolderPickerAsync(string? defaultPath, bool allowMultiple)
+    {
+        defaultPath ??= Environment.CurrentDirectory;
+        TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Sdl3FilePickerContext context = Sdl3FilePickerContext.Create(ReadOnlySpan<DialogFileFilter>.Empty, tcs);
+
+        Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
+        Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
+        defaultPathBytes[defaultPathBytes.Length - 1] = 0;
+
+        SDL_ShowOpenFolderDialog(&DialogFileCallback, (nint)context.Handle, _window, defaultPathBytes, allowMultiple);
+
+        return tcs.Task;
+    }
+
+    public Task<string[]> OpenSaveFilePickerAsync(string? defaultPath, params ReadOnlySpan<DialogFileFilter> filters)
+    {
+        defaultPath ??= Environment.CurrentDirectory;
+        TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Sdl3FilePickerContext context = Sdl3FilePickerContext.Create(filters, tcs);
+
+        Span<byte> defaultPathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(defaultPath) + 1];
+        Encoding.UTF8.GetBytes(defaultPath, defaultPathBytes);
+        defaultPathBytes[defaultPathBytes.Length - 1] = 0;
+
+        SDL_ShowSaveFileDialog(&DialogFileCallback, (nint)context.Handle, _window, context.NativeFilters, context.NativeFiltersCount, defaultPathBytes);
+
+        return tcs.Task;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private unsafe static void DialogFileCallback(nint userdata, byte** fileList, int filter)
+    {
+        if (userdata == 0)
+        {
+            return;
+        }
+
+        GCHandle handle = GCHandle.FromIntPtr(userdata);
+        if (handle.Target is not Sdl3FilePickerContext context)
+        {
+            return;
+        }
+
+        try
+        {
+            if (fileList == null)
+            {
+                context.Completion.TrySetException(new Exception(SDL_GetError() ?? "SDL file dialog error"));
+                return;
+            }
+
+            List<string> results = new List<string>(4);
+            int idx = 0;
+            while (true)
+            {
+                byte* entry = fileList[idx];
+                if (entry == null)
+                {
+                    break;
+                }
+                string? path = Encoding.UTF8.GetString(MemoryMarshal.CreateReadOnlySpanFromNullTerminated(entry));
+                if (path != null)
+                {
+                    results.Add(path);
+                }
+                idx++;
+            }
+
+            context.Completion.TrySetResult(results.ToArray());
+        }
+        catch (Exception e)
+        {
+            context.Completion.TrySetException(e);
+        }
+        finally
+        {
+            context.Cleanup();
+        }
     }
 
 

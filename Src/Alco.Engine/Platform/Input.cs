@@ -12,6 +12,8 @@ public abstract class Input
     public event Action<KeyCode>? OnKeyUp;
     public event Action<Mouse>? OnMouseDown;
     public event Action<Mouse>? OnMouseUp;
+    public event Action<Gamepad>? OnGamepadConnected;
+    public event Action<Gamepad>? OnGamepadDisconnected;
 
     /// <summary>
     /// Gets or sets the position of the mouse. The zero of coordinate system is top-left 
@@ -98,6 +100,17 @@ public abstract class Input
     /// </summary>
     public abstract ReadOnlySpan<char> GetClipboardText();
 
+    public abstract IReadOnlyList<Gamepad> GetGamepads();
+
+    public Gamepad? PrimaryGamepad
+    {
+        get
+        {
+            var gamepads = GetGamepads();
+            return gamepads.Count > 0 ? gamepads[0] : null;
+        }
+    }
+
     protected void DoKeyDown(KeyCode key)
     {
         OnKeyDown?.Invoke(key);
@@ -116,5 +129,15 @@ public abstract class Input
     protected void DoMouseUp(Mouse button)
     {
         OnMouseUp?.Invoke(button);
+    }
+
+    protected void DoGamepadConnected(Gamepad gamepad)
+    {
+        OnGamepadConnected?.Invoke(gamepad);
+    }
+
+    protected void DoGamepadDisconnected(Gamepad gamepad)
+    {
+        OnGamepadDisconnected?.Invoke(gamepad);
     }
 }

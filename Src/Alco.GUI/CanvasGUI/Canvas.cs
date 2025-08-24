@@ -311,7 +311,7 @@ public partial class Canvas : AutoDisposable
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)
     {
-        _collisionWorld.PushTarget(node, shape);
+        _collisionWorld.PushCollisionTarget(node, shape);
     }
 
     public void SetTextInputArea(ITextInput node, BoundingBox2D inputArea, int cursor)

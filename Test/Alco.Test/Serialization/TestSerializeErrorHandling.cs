@@ -60,7 +60,7 @@ public class TestSerializeErrorHandling
                 string name = subNode.GetString("name");
                 return new FaultySerializableObject { Name = name };
             });
-            node.BindListSerializable("objectList", ObjectList, static (SerializeReadNode subNode) =>
+            node.BindCollectionSerializable("objectList", ObjectList, static (SerializeReadNode subNode) =>
             {
                 string name = subNode.GetString("name");
                 return new FaultySerializableObject { Name = name };
@@ -227,7 +227,7 @@ public class TestSerializeErrorHandling
 
         // First bind the container name, then manually bind the list with a custom factory
         readNode.BindString("containerName", ref deserializedContainer.ContainerName);
-        readNode.BindListSerializable("objectList", deserializedContainer.ObjectList, (SerializeReadNode subNode) =>
+        readNode.BindCollectionSerializable("objectList", deserializedContainer.ObjectList, (SerializeReadNode subNode) =>
         {
             string name = subNode.GetString("name");
             if (name == "Item1" || name == "Item3")

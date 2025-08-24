@@ -27,6 +27,10 @@ public unsafe class Sdl3Input : Input
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
     private float _mouseWheelDelta;
+
+    private readonly List<Sdl3Gamepad> _gamepads = new();
+    private Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
+    private readonly List<SDL_JoystickID> _toRemove = new();
     
 
     public override Vector2 MousePosition
@@ -74,6 +78,48 @@ public unsafe class Sdl3Input : Input
         _mouseDelta = _mousePosition - _lastMousePosition;
         _lastMousePosition = _mousePosition;
         Reset();
+
+        // Collect disconnected gamepads first to avoid modifying the dictionary during enumeration
+        _toRemove.Clear();
+        foreach (var g in _gamepadMap)
+        {
+            if (!g.Value.IsConnected)
+            {
+                _toRemove.Add(g.Key);
+            }
+        }
+
+        for (int i = 0; i < _toRemove.Count; i++)
+        {
+            SDL_JoystickID id = _toRemove[i];
+            if (_gamepadMap.TryGetValue(id, out var gp))
+            {
+                gp.CleanUp();
+                _gamepadMap.Remove(id);
+                DoGamepadDisconnected(gp);
+            }
+        }
+        _toRemove.Clear();
+
+        _gamepads.Clear();
+        ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
+
+        for (int i = 0; i < gamepads.Length; i++)
+        {
+            SDL_JoystickID id = gamepads[i];
+            if (_gamepadMap.TryGetValue(id, out Sdl3Gamepad? g))
+            {
+                _gamepads.Add(g);
+            }
+            else
+            {
+                SDL_Gamepad gamepad = SDL_OpenGamepad(id);
+                g = new Sdl3Gamepad(gamepad);
+                _gamepadMap[id] = g;
+                _gamepads.Add(g);
+                DoGamepadConnected(g);
+            }
+        }
     }
 
     public override bool IsKeyDown(KeyCode key)
@@ -322,6 +368,11 @@ public unsafe class Sdl3Input : Input
     public override ReadOnlySpan<char> GetClipboardText()
     {
         return SDL_GetClipboardText();
+    }
+
+    public override IReadOnlyList<Gamepad> GetGamepads()
+    {
+        return _gamepads;
     }
 }
 

@@ -15,6 +15,7 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
     private static readonly bool IsReferenceType = RuntimeHelpers.IsReferenceOrContainsReferences<T>();
     private T[] _items;
     private int _size;
+    private int _version;
 
     public UnorderedList()
     {
@@ -34,7 +35,7 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
             return _items[index];
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        set => _items[index] = value;
+        set { _items[index] = value; _version++; }
     }
 
     public int Count
@@ -69,6 +70,7 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
             {
                 _items = Array.Empty<T>();
             }
+            _version++;
         }
     }
 
@@ -87,7 +89,9 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         else
         {
             AddWithResize(item);
+            return;
         }
+        _version++;
     }
 
     public void Clear()
@@ -105,6 +109,7 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         {
             _size = 0;
         }
+        _version++;
     }
 
     public bool Contains(T item)
@@ -121,10 +126,9 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         Array.Copy(_items, 0, array, arrayIndex, _size);
     }
 
-    public IEnumerator<T> GetEnumerator()
-    {
-        return new ArraySegment<T>(_items, 0, _size).GetEnumerator();
-    }
+    public Enumerator GetEnumerator() => new Enumerator(this);
+
+    IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
 
     public int IndexOf(T item)
     {
@@ -147,6 +151,7 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         }
         _items[index] = item;
         _size++;
+        _version++;
     }
 
     public bool Remove(T item)
@@ -171,6 +176,7 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         _items[index] = last;
         _size--;
         _items[_size] = default!;
+        _version++;
     }
 
     public T RemoveLast()
@@ -185,13 +191,11 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         {
             _items[_size] = default!;
         }
+        _version++;
         return item;
     }
 
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return _items.GetEnumerator();
-    }
+    IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<T>)this).GetEnumerator();
 
     public Span<T> AsSpan()
     {
@@ -210,6 +214,7 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         EnsureCapacity(size + 1);
         _size = size + 1;
         _items[size] = item;
+        _version++;
     }
 
     private void EnsureCapacity(int capacity)
@@ -224,5 +229,72 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
             num = capacity;
         }
         Capacity = num;
+    }
+
+    public struct Enumerator : IEnumerator<T>, IEnumerator
+    {
+        private readonly UnorderedList<T> _list;
+        private int _index;
+        private readonly int _version;
+        private T? _current;
+
+        internal Enumerator(UnorderedList<T> list)
+        {
+            _list = list;
+            _index = 0;
+            _version = list._version;
+            _current = default;
+        }
+
+        public T Current => _current!;
+
+        object? IEnumerator.Current
+        {
+            get
+            {
+                if (_index == 0 || _index == _list._size + 1)
+                {
+                    throw new InvalidOperationException("Enumeration has not started or has already finished.");
+                }
+                return Current;
+            }
+        }
+
+        public void Dispose()
+        {
+        }
+
+        public bool MoveNext()
+        {
+            UnorderedList<T> localList = _list;
+            if (_version == localList._version && ((uint)_index < (uint)localList._size))
+            {
+                _current = localList._items[_index];
+                _index++;
+                return true;
+            }
+            return MoveNextRare();
+        }
+
+        private bool MoveNextRare()
+        {
+            if (_version != _list._version)
+            {
+                throw new InvalidOperationException("Collection was modified; enumeration operation may not execute.");
+            }
+            _index = _list._size + 1;
+            _current = default;
+            return false;
+        }
+
+        void IEnumerator.Reset()
+        {
+            if (_version != _list._version)
+            {
+                throw new InvalidOperationException("Collection was modified; enumeration operation may not execute.");
+            }
+            _index = 0;
+            _current = default;
+        }
     }
 }

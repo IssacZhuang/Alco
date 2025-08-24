@@ -6,9 +6,9 @@ namespace Alco
 {
     public class PriorityList<T> : IReadOnlyList<T>, ICollection<T>
     {
-        private List<T> _innerList = new List<T>();
+        private readonly List<T> _innerList = new List<T>();
 
-        private Comparison<T> _comparer;
+        private readonly Comparison<T> _comparer;
 
         public int Count
         {
@@ -82,7 +82,12 @@ namespace Alco
             return index != -1;
         }
 
-        public IEnumerator<T> GetEnumerator()
+        public List<T>.Enumerator GetEnumerator()
+        {
+            return _innerList.GetEnumerator();
+        }
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator()
         {
             return _innerList.GetEnumerator();
         }

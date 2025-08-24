@@ -75,7 +75,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindList<T>(string key, IList<T> value)
+    public override void BindCollection<T>(string key, ICollection<T> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -90,7 +90,7 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindList(string key, IList<string> value)
+    public override void BindCollection(string key, ICollection<string> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -112,7 +112,7 @@ public class BinarySerializeReadNode : SerializeReadNode
     /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
     /// <param name="key">The key identifier for the collection in the serialization format.</param>
     /// <param name="value">The collection of serializable objects to be deserialized.</param>
-    public override void BindListSerializable<T>(string key, IList<T> value)
+    public override void BindCollectionSerializable<T>(string key, ICollection<T> value)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
@@ -144,7 +144,7 @@ public class BinarySerializeReadNode : SerializeReadNode
     /// <param name="key">The key identifier for the collection in the serialization format.</param>
     /// <param name="value">The collection of serializable objects to be deserialized.</param>
     /// <param name="onCreate">Factory function to create a new instance during deserialization.</param>
-    public override void BindListSerializable<T>(string key, IList<T> value, Func<SerializeReadNode, T> onCreate)
+    public override void BindCollectionSerializable<T>(string key, ICollection<T> value, Func<SerializeReadNode, T> onCreate)
     {
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))

@@ -110,6 +110,17 @@ public class ConfigDatabase
     }
 
     /// <summary>
+    /// Occurs right before processing JSON items in the underlying preprocessor.
+    /// Handlers can inspect and modify the in-memory JSON documents before they are merged.
+    /// This event is forwarded to <see cref="JsonPreprocessor.BeforeProcessJsonDocument"/>.
+    /// </summary>
+    public event Action<IJsonPreprocessContext> BeforeProcessJsonDocument
+    {
+        add { _jsonPreprocessor.BeforeProcessJsonDocument += value; }
+        remove { _jsonPreprocessor.BeforeProcessJsonDocument -= value; }
+    }
+
+    /// <summary>
     /// [Thread-safe] Gets a configuration object by ID and type.
     /// </summary>
     /// <param name="id">The unique identifier of the configuration</param>
@@ -208,6 +219,15 @@ public class ConfigDatabase
     public void RemoveFileSource(IFileSource fileSource)
     {
         _jsonPreprocessor.RemoveFileSource(fileSource);
+        _isDirty = true;
+    }
+
+    /// <summary>
+    /// [Thread-safe] Marks the configuration database as dirty.
+    /// Forces a reload of configurations on the next access/update.
+    /// </summary>
+    public void SetDirty()
+    {
         _isDirty = true;
     }
 

@@ -221,6 +221,11 @@ public sealed class Shader : AutoDisposable
         
         using (_lockCreateModules.EnterScope())
         {
+            if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
+            {
+                return modulesInfo2;
+            }
+            
             IShaderCache? shaderCache = _renderingSystem.ShaderCache;
             if (shaderCache != null)
             {
@@ -231,11 +236,6 @@ public sealed class Shader : AutoDisposable
                     _modulesCache[hash] = modulesInfo;
                     return modulesInfo;
                 }
-            }
-
-            if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
-            {
-                return modulesInfo2;
             }
 
             modulesInfo = UtilsShader.CompileHLSL(_shaderText, Name, defines);

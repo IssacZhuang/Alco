@@ -1,11 +1,19 @@
+using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Alco.IO;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Loads JSON files from registered <see cref="IFileSource"/> instances, builds an in-memory index
+/// of JSON documents, and processes inheritance/merge rules across items. Provides events that fire
+/// immediately before and after the processing phase.
+/// </summary>
 public class JsonPreprocessor
 {
     private static readonly HashSet<string> _specialKeywords = new() { "$abstract", "$parent" };
@@ -13,6 +21,117 @@ public class JsonPreprocessor
     public const string Keyward_Abstract = "$abstract";
     public const string Keyward_Parent = "$parent";
     public const string Keyward_Id = "Id";
+
+    /// <summary>
+    /// Context passed to <see cref="BeforeProcessJsonDocument"/> providing access to the
+    /// currently loaded JSON items. This is a live view into the preprocessor state
+    /// immediately after loading and before processing.
+    /// </summary>
+    private sealed class Context : IJsonPreprocessContext
+    {
+        private readonly JsonPreprocessor _preprocessor;
+        private readonly Dictionary<string, JsonNode> _pendingNodeEdits;
+        private readonly Dictionary<string, JsonNode> _pendingAbstractNodeEdits;
+
+        /// <summary>
+        /// Initializes a new <see cref="Context"/> for the specified preprocessor.
+        /// </summary>
+        /// <param name="preprocessor">The owning <see cref="JsonPreprocessor"/>.</param>
+        internal Context(JsonPreprocessor preprocessor)
+        {
+            _preprocessor = preprocessor;
+            _pendingNodeEdits = new Dictionary<string, JsonNode>();
+            _pendingAbstractNodeEdits = new Dictionary<string, JsonNode>();
+        }
+
+        /// <summary>
+        /// Tries to get a document as a mutable <see cref="JsonNode"/> by its Id.
+        /// The returned node is cached and will be applied automatically after the event completes.
+        /// </summary>
+        /// <param name="id">The document Id.</param>
+        /// <param name="node">The resulting <see cref="JsonNode"/> when found.</param>
+        /// <returns>True if found; otherwise false.</returns>
+        public bool TryGetDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
+        {
+            if (_pendingNodeEdits.TryGetValue(id, out var cached))
+            {
+                node = cached;
+                return true;
+            }
+            if (_preprocessor._jsonItems.TryGetValue(id, out var jsonItem))
+            {
+                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
+                _pendingNodeEdits[id] = node;
+                return true;
+            }
+            node = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Tries to get an abstract document as a mutable <see cref="JsonNode"/> by its Id.
+        /// The returned node is cached and will be applied automatically after the event completes.
+        /// </summary>
+        /// <param name="id">The abstract document Id.</param>
+        /// <param name="node">The resulting <see cref="JsonNode"/> when found.</param>
+        /// <returns>True if found; otherwise false.</returns>
+        public bool TryGetAbstractDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
+        {
+            if (_pendingAbstractNodeEdits.TryGetValue(id, out var cached))
+            {
+                node = cached;
+                return true;
+            }
+            if (_preprocessor._abstractJsonItems.TryGetValue(id, out var jsonItem))
+            {
+                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
+                _pendingAbstractNodeEdits[id] = node;
+                return true;
+            }
+            node = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Applies all cached node edits to the underlying documents.
+        /// </summary>
+        internal void ApplyPendingEdits()
+        {
+            var options = new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+
+            foreach (var pair in _pendingNodeEdits)
+            {
+                if (_preprocessor._jsonItems.TryGetValue(pair.Key, out var jsonItem))
+                {
+                    var newDoc = JsonDocument.Parse(pair.Value.ToJsonString(), options);
+                    _preprocessor._jsonItems[pair.Key] = new JsonItem(jsonItem.Path, newDoc);
+
+                    int index = _preprocessor._jsonItemsList.IndexOf(jsonItem.Document);
+                    if (index >= 0)
+                    {
+                        _preprocessor._jsonItemsList[index] = newDoc;
+                    }
+                    else
+                    {
+                        _preprocessor._jsonItemsList.Add(newDoc);
+                    }
+                }
+            }
+
+            foreach (var pair in _pendingAbstractNodeEdits)
+            {
+                if (_preprocessor._abstractJsonItems.TryGetValue(pair.Key, out var jsonItem))
+                {
+                    var newDoc = JsonDocument.Parse(pair.Value.ToJsonString(), options);
+                    _preprocessor._abstractJsonItems[pair.Key] = new JsonItem(jsonItem.Path, newDoc);
+                }
+            }
+        }
+    }
 
     private class JsonItem
     {
@@ -33,6 +152,13 @@ public class JsonPreprocessor
     private readonly ArrayBuffer<JsonDocument?> _tempJsonDocuments = new();
 
     private readonly Action<string> _onError;
+
+    /// <summary>
+    /// Occurs right before processing JSON items. Raised after all JSON files are loaded but before
+    /// inheritance/merge is performed. Provides a live <see cref="Context"/> view to inspect and
+    /// query the loaded items.
+    /// </summary>
+    public event Action<IJsonPreprocessContext>? BeforeProcessJsonDocument;
 
     public IEnumerable<JsonDocument> AllDocuments
     {
@@ -81,11 +207,19 @@ public class JsonPreprocessor
         return false;
     }
 
+    /// <summary>
+    /// Loads all JSON files from registered sources then processes items (e.g., inheritance/merge).
+    /// Raises <see cref="BeforeProcessJsonDocument"/> before processing.
+    /// </summary>
     public void Preprocess()
     {
         LoadJsonItems();
+        var ctx = new Context(this);
+        BeforeProcessJsonDocument?.Invoke(ctx);
+        ctx.ApplyPendingEdits();
         ProcessJsonItems();
     }
+
 
     private void LoadJsonItems()
     {

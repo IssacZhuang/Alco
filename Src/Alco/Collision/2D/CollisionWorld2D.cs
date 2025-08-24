@@ -6,6 +6,9 @@ using Alco;
 
 namespace Alco;
 
+/// <summary>
+/// 2D collision world supporting both collider casting and ray casting against a BVH of targets.
+/// </summary>
 public unsafe class CollisionWorld2D : AutoDisposable
 {
 
@@ -15,7 +18,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
     //the index of the target in the list is the index of the collider in the list
     private readonly List<object> _targets = new List<object>();
-    private readonly List<ICollisionCaster> _casters = new List<ICollisionCaster>();
+
 
     private MiniHeap<ColliderBox2D> _targetBoxes;
     private MiniHeap<ColliderSphere2D> _targetSpheres;
@@ -23,7 +26,12 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
     private MiniHeap<ColliderBox2D> _casterBoxes;
     private MiniHeap<ColliderSphere2D> _casterSpheres;
-    private NativeArrayList<ColliderRef2D> _casterColliders;
+    private NativeArrayList<ColliderRef2D> _colliderOfCaster;//same index as _colliderCasters
+    private readonly List<ICollisionCaster> _colliderCasters = new List<ICollisionCaster>();
+
+    private NativeArrayList<Ray2D> _rayOfCaster;//same index as _rayCasters
+    private NativeArrayList<int> _rayUserDataOfCaster;//same index as _rayCasters
+    private readonly List<IRayCaster2D> _rayCasters = new List<IRayCaster2D>();
 
 
     public CollisionWorld2D()
@@ -36,7 +44,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// /// <param name="target"> Object that waits for being hit. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushTarget(object target, ShapeBox2D shape)
+    public void PushCollisionTarget(object target, in ShapeBox2D shape)
     {
         ColliderBox2D* collider = _targetBoxes.Alloc(new ColliderBox2D
         {
@@ -51,7 +59,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="target"> Object that waits for being hit. </param>
     /// <param name="shape"> Shape of the object. </param>    
-    public void PushTarget(object target, ShapeSphere2D shape)
+    public void PushCollisionTarget(object target, in ShapeSphere2D shape)
     {
         ColliderSphere2D* collider = _targetSpheres.Alloc(new ColliderSphere2D
         {
@@ -68,14 +76,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushCaster(ICollisionCaster caster, ShapeBox2D shape, int userData = 0)
+    public void PushCollisionCaster(ICollisionCaster caster, in ShapeBox2D shape, int userData = 0)
     {
         ColliderBox2D* collider = _casterBoxes.Alloc(new ColliderBox2D
         {
             Shape = shape
         });
 
-        PushCasterCore(caster, collider, userData);
+        PushColliderCasterCore(caster, collider, userData);
     }
 
     /// <summary>
@@ -83,14 +91,19 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     /// <param name="caster"> Object that can hit other objects. </param>
     /// <param name="shape"> Shape of the object. </param>
-    public void PushCaster(ICollisionCaster caster, ShapeSphere2D shape, int userData = 0)
+    public void PushCollisionCaster(ICollisionCaster caster, in ShapeSphere2D shape, int userData = 0)
     {
         ColliderSphere2D* collider = _casterSpheres.Alloc(new ColliderSphere2D
         {
             Shape = shape
         });
 
-        PushCasterCore(caster, collider, userData);
+        PushColliderCasterCore(caster, collider, userData);
+    }
+
+    public void PushRayCaster(IRayCaster2D caster, in Ray2D ray, int userData = 0)
+    {
+        PushRayCasterCore(caster, ray, userData);
     }
 
     /// <summary>
@@ -107,21 +120,37 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     public void Simulate()
     {
-        if (_casters.Count == 0)
+        if (_colliderCasters.Count != 0)
         {
-            return;
-        }
-        ReadOnlySpan<NativeArrayList<ColliderCastResult2D>> result = _bvh.CastBatchColliderRefCollector(_casterColliders.AsSpan());
-        for (int i = 0; i < _casters.Count; i++)
-        {
-            NativeArrayList<ColliderCastResult2D> hitTargets = result[i];
-            ICollisionCaster caster = _casters[i];
-            ColliderRef2D casterCollider = _casterColliders[i];
-            for (int j = 0; j < hitTargets.Length; j++)
+            ReadOnlySpan<NativeArrayList<ColliderCastResult2D>> result = _bvh.CastBatchColliderRefCollector(_colliderOfCaster.AsSpan());
+            for (int i = 0; i < _colliderCasters.Count; i++)
             {
-                ColliderCastResult2D target = hitTargets[j];
-                int targetIndex = target.Collider.UserData;
-                caster.OnHit(_targets[targetIndex], casterCollider.UserData);
+                NativeArrayList<ColliderCastResult2D> hitTargets = result[i];
+                ICollisionCaster caster = _colliderCasters[i];
+                ColliderRef2D casterCollider = _colliderOfCaster[i];
+                for (int j = 0; j < hitTargets.Length; j++)
+                {
+                    ColliderCastResult2D target = hitTargets[j];
+                    int targetIndex = target.Collider.UserData;
+                    caster.OnHit(_targets[targetIndex], casterCollider.UserData);
+                }
+            }
+        }
+
+        if (_rayCasters.Count != 0)
+        {
+            ReadOnlySpan<RayCastResult2D> result2 = _bvh.CastBatchRayFirstHit(_rayOfCaster.AsSpan());
+            for (int i = 0; i < _rayCasters.Count; i++)
+            {
+                RayCastResult2D hit = result2[i];
+
+                if (!hit.Hit)
+                {
+                    continue;
+                }
+                IRayCaster2D caster = _rayCasters[i];
+                int targetIndex = hit.Collider.UserData;
+                caster.OnHit(_targets[targetIndex], hit.HitInfo, _rayUserDataOfCaster[i]);
             }
         }
     }
@@ -182,10 +211,16 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
     public void ClearCasters()
     {
-        _casters.Clear();
+
         _casterBoxes.Reset();
         _casterSpheres.Reset();
-        _casterColliders.Clear();
+
+        _colliderCasters.Clear();
+        _colliderOfCaster.Clear();
+
+        _rayOfCaster.Clear();
+        _rayUserDataOfCaster.Clear();
+        _rayCasters.Clear();
     }
 
     public void ClearAll()
@@ -204,12 +239,19 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
 
-    private void PushCasterCore<T>(ICollisionCaster caster, T* collider, int userData) where T : unmanaged, ICollider2D
+    private void PushColliderCasterCore<T>(ICollisionCaster caster, T* collider, int userData) where T : unmanaged, ICollider2D
     {
         ColliderRef2D colliderRef = ColliderRef2D.Create(collider);
         colliderRef.UserData = userData;
-        _casterColliders.Add(colliderRef);
-        _casters.Add(caster);
+        _colliderOfCaster.Add(colliderRef);
+        _colliderCasters.Add(caster);
+    }
+
+    private void PushRayCasterCore(IRayCaster2D caster, in Ray2D ray, int userData)
+    {
+        _rayOfCaster.Add(ray);
+        _rayUserDataOfCaster.Add(userData);
+        _rayCasters.Add(caster);
     }
 
     protected override void Dispose(bool disposing)
@@ -222,6 +264,9 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
         _casterBoxes.Dispose();
         _casterSpheres.Dispose();
-        _casterColliders.Dispose();
+        _colliderOfCaster.Dispose();
+
+        _rayOfCaster.Dispose();
+        _rayUserDataOfCaster.Dispose();
     }
 }

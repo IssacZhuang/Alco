@@ -33,7 +33,7 @@ public struct NeutralTonemapData
     {
         Exposure = 1.0f,
         Gamma = 1.0f,
-        StartCompression = 1f,
+        StartCompression = 0.9f,
         Desaturation = 2f,
     };
 }

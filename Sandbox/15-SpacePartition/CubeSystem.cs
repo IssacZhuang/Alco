@@ -65,7 +65,7 @@ public class CubeSystem
         for (int i = 0; i < _activeList.Count; i++)
         {
             Cube entity = _activeList[i];
-            collisionWorld.PushCaster(entity, entity.Shape);
+            collisionWorld.PushCollisionCaster(entity, entity.Shape);
         }
     }
 

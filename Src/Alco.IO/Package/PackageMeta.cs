@@ -44,7 +44,7 @@ public sealed class PackageMeta : ISerializable
     public void OnSerialize(SerializeNode node, SerializeMode mode)
     {
         node.BindString(nameof(_name), ref _name);
-        node.BindListSerializable(nameof(_entries), _entries);
+        node.BindCollectionSerializable(nameof(_entries), _entries);
     }
 
     public void AddEntry(string name, long start, long size)
