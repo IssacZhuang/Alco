@@ -14,12 +14,20 @@ namespace SharpMSDF.Utilities
 
         public PtrSpan<T> Reserve(int amount)
         {
-#if DEBUG
-            if ((uint)(_Reserved + amount) > (uint)Capacity || amount <= 0)
-                throw new ArgumentOutOfRangeException("amount");
-#endif
-            var reserveIdx = _Reserved; _Reserved += amount;
-            return new PtrSpan<T>(Data+reserveIdx, amount, 0);
+            // Handle edge cases gracefully
+            if (amount == 0)
+                return new PtrSpan<T>(Data + _Reserved, 0, 0);
+            
+            if (amount < 0)
+                throw new ArgumentOutOfRangeException(nameof(amount), amount, "Amount cannot be negative");
+            
+            if ((uint)(_Reserved + amount) > (uint)Capacity)
+                throw new ArgumentOutOfRangeException(nameof(amount), amount, 
+                    $"Insufficient capacity. Requested: {amount}, Available: {Capacity - _Reserved}, Total Capacity: {Capacity}");
+            
+            var reserveIdx = _Reserved; 
+            _Reserved += amount;
+            return new PtrSpan<T>(Data + reserveIdx, amount, 0);
         }
         public T* ReserveOne()
         {

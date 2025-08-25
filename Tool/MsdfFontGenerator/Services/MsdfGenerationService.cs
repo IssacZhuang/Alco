@@ -41,7 +41,17 @@ public class MsdfGenerationService
         var charset = CreateCharsetFromLanguages(settings.SelectedLanguages);
         
         if (charset.Empty())
-            throw new InvalidOperationException("No characters selected for generation");
+        {
+            throw new InvalidOperationException("No characters selected for generation. Please select at least one language.");
+        }
+        
+        // Log charset info for debugging
+        var charsetSize = charset.Size();
+        if (charsetSize > 50000)
+        {
+            throw new InvalidOperationException($"Character set too large ({charsetSize} characters). " +
+                "Maximum supported is 50,000 characters. Try selecting fewer language ranges.");
+        }
 
         // Initialize font geometry
         var glyphs = new List<GlyphGeometry>(font.GlyphCount);
@@ -49,24 +59,76 @@ public class MsdfGenerationService
 
         // Pre-estimate memory requirements
         fontGeometry.PreEstimateGlyphCharset(font, charset, out var maxContours, out var maxSegments);
+        
+        // Handle edge cases and provide better estimation
+        if (maxContours <= 0 && maxSegments <= 0)
+        {
+            // Fallback estimation based on charset size
+            maxContours = Math.Max(charsetSize * 4, 1000);  // Average 4 contours per glyph
+            maxSegments = Math.Max(charsetSize * 20, 10000); // Average 20 segments per glyph
+        }
+        else if (maxContours <= 0)
+        {
+            maxContours = Math.Max(maxSegments / 5, 1000); // Estimate from segments
+        }
+        else if (maxSegments <= 0)
+        {
+            maxSegments = Math.Max(maxContours * 5, 10000); // Estimate from contours
+        }
+        
+        // Add safety margins and enforce minimums for stability
+        maxContours = Math.Max(maxContours + (maxContours / 10), 1000);  // +10% safety margin, min 1000
+        maxSegments = Math.Max(maxSegments + (maxSegments / 10), 10000); // +10% safety margin, min 10000
+        
+        // Enforce reasonable maximums to prevent excessive memory usage
+        const int MAX_CONTOURS = 1000000;  // 1M contours
+        const int MAX_SEGMENTS = 10000000; // 10M segments
+        
+        if (maxContours > MAX_CONTOURS)
+        {
+            throw new InvalidOperationException($"Character set requires too many contours ({maxContours}). " +
+                $"Maximum supported is {MAX_CONTOURS}. Try selecting fewer languages.");
+        }
+        
+        if (maxSegments > MAX_SEGMENTS)
+        {
+            throw new InvalidOperationException($"Character set requires too many segments ({maxSegments}). " +
+                $"Maximum supported is {MAX_SEGMENTS}. Try selecting fewer languages.");
+        }
 
-        // Allocate memory pools
-        var contoursPtr = stackalloc Contour[maxContours];
+        // Allocate memory pools - use heap for large allocations to avoid stack overflow
+        Contour* contoursPtr;
+        Contour[]? contourArray = null;
+        GCHandle contourHandle = new();
+        bool useStackForContours = maxContours <= 10000; // Use stack only for smaller allocations
+        
+        if (useStackForContours)
+        {
+            var stackContours = stackalloc Contour[maxContours];
+            contoursPtr = stackContours;
+        }
+        else
+        {
+            contourArray = new Contour[maxContours];
+            contourHandle = GCHandle.Alloc(contourArray, GCHandleType.Pinned);
+            contoursPtr = (Contour*)contourHandle.AddrOfPinnedObject();
+        }
+        
         var contoursPool = new PtrPool<Contour>(contoursPtr, maxContours);
         
         PtrPool<EdgeSegment> segmentsPool;
         EdgeSegment[]? segmentArr = null;
-        GCHandle handle = new();
+        GCHandle segmentHandle = new();
         EdgeSegment* allocatedSegmentsPtr = null;
         
         try
         {
-            // Platform-specific memory allocation
-            if (OperatingSystem.IsBrowser())
+            // Platform-specific memory allocation for segments
+            if (OperatingSystem.IsBrowser() || maxSegments > 100000) // Use managed memory for large sets or browser
             {
                 segmentArr = ArrayPool<EdgeSegment>.Shared.Rent(maxSegments);
-                handle = GCHandle.Alloc(segmentArr, GCHandleType.Pinned);
-                var segmentsPtr = (EdgeSegment*)handle.AddrOfPinnedObject();
+                segmentHandle = GCHandle.Alloc(segmentArr, GCHandleType.Pinned);
+                var segmentsPtr = (EdgeSegment*)segmentHandle.AddrOfPinnedObject();
                 segmentsPool = new(segmentsPtr, maxSegments);
             }
             else
@@ -88,18 +150,24 @@ public class MsdfGenerationService
         }
         finally
         {
-            // Cleanup memory
-            if (OperatingSystem.IsBrowser())
+            // Cleanup segment memory
+            if (segmentHandle.IsAllocated)
             {
-                if (handle.IsAllocated)
-                    handle.Free();
-                if (segmentArr != null)
-                    ArrayPool<EdgeSegment>.Shared.Return(segmentArr);
+                segmentHandle.Free();
             }
-            else
+            if (segmentArr != null)
             {
-                if (allocatedSegmentsPtr != null)
-                    NativeMemory.Free(allocatedSegmentsPtr);
+                ArrayPool<EdgeSegment>.Shared.Return(segmentArr);
+            }
+            if (allocatedSegmentsPtr != null)
+            {
+                NativeMemory.Free(allocatedSegmentsPtr);
+            }
+            
+            // Cleanup contour memory
+            if (contourHandle.IsAllocated)
+            {
+                contourHandle.Free();
             }
         }
     }
@@ -107,6 +175,11 @@ public class MsdfGenerationService
     private static Charset CreateCharsetFromLanguages(int selectedLanguages)
     {
         var charset = new Charset();
+        
+        if (selectedLanguages == 0)
+        {
+            throw new InvalidOperationException("No languages selected. Please select at least one language from the list.");
+        }
 
         // Add Unicode ranges based on selected languages (matching FontLanguage enum)
         if ((selectedLanguages & 1) != 0) // Basic
@@ -159,6 +232,13 @@ public class MsdfGenerationService
             AddUnicodeRange(charset, 0x00A0, 0x00FF); // Latin-1 Supplement
             AddUnicodeRange(charset, 0x0100, 0x017F); // Latin Extended-A
             AddUnicodeRange(charset, 0x0180, 0x024F); // Latin Extended-B
+        }
+
+        // Final validation
+        if (charset.Empty())
+        {
+            throw new InvalidOperationException($"No characters found for selected languages (flags: {selectedLanguages}). " +
+                "This may indicate that the selected languages don't map to any Unicode ranges.");
         }
 
         return charset;
