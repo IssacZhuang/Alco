@@ -15,7 +15,9 @@ public partial class MainView : UserControl
     {
         if (DataContext is MainViewModel viewModel)
         {
-            viewModel.StorageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            var topLevel = TopLevel.GetTopLevel(this);
+            viewModel.StorageProvider = topLevel?.StorageProvider;
+            viewModel.Clipboard = topLevel?.Clipboard;
         }
     }
 }

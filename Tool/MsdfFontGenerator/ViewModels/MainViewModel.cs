@@ -1,9 +1,12 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using MsdfFontGenerator.Services;
 
 namespace MsdfFontGenerator.ViewModels;
 
@@ -17,8 +20,19 @@ public partial class MainViewModel : ViewModelBase
     
     [ObservableProperty]
     private bool _isGenerating = false;
+    
+    [ObservableProperty]
+    private string _generationStatus = string.Empty;
+    
+    [ObservableProperty]
+    private bool _hasError = false;
+    
+    [ObservableProperty]
+    private string _errorDetails = string.Empty;
 
     public IStorageProvider? StorageProvider { get; set; }
+    public IClipboard? Clipboard { get; set; }
+    private readonly MsdfGenerationService _msdfService = new();
     
     public ObservableCollection<LanguageSelectionItem> AvailableLanguages { get; }
 
@@ -100,11 +114,39 @@ public partial class MainViewModel : ViewModelBase
         
         try
         {
+            // Clear previous errors and reset status
+            HasError = false;
+            ErrorDetails = string.Empty;
+            GenerationStatus = string.Empty;
+            
             var selectedLanguages = GetSelectedLanguages();
             
-            // TODO: Implement MSDF generation logic here
-            // Use: SelectedFontPath, SelectedOutputPath, selectedLanguages
-            await Task.Delay(2000); // Placeholder for actual generation
+            GenerationStatus = "Loading font...";
+            await Task.Delay(100); // Small delay to update UI
+            
+            var settings = new MsdfGenerationService.GenerationSettings
+            {
+                FontPath = SelectedFontPath,
+                OutputPath = SelectedOutputPath,
+                SelectedLanguages = selectedLanguages,
+                PixelRange = 6.0f,
+                GlyphScale = 64.0f,
+                AtlasName = System.IO.Path.GetFileNameWithoutExtension(SelectedFontPath) + "-msdf"
+            };
+
+            GenerationStatus = "Generating MSDF atlas...";
+            
+            await Task.Run(() => _msdfService.GenerateMsdfAtlas(settings));
+            
+            GenerationStatus = "✅ Generation completed successfully!";
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            GenerationStatus = "❌ Generation failed";
+            ErrorDetails = $"Error Type: {ex.GetType().Name}\n\n" +
+                          $"Message: {ex.Message}\n\n" +
+                          $"Stack Trace:\n{ex.StackTrace}";
         }
         finally
         {
@@ -133,6 +175,16 @@ public partial class MainViewModel : ViewModelBase
         foreach (var language in AvailableLanguages)
         {
             language.IsSelected = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyErrorToClipboardAsync()
+    {
+        if (Clipboard != null && !string.IsNullOrEmpty(ErrorDetails))
+        {
+            await Clipboard.SetTextAsync(ErrorDetails);
+            GenerationStatus = "📋 Error details copied to clipboard";
         }
     }
 

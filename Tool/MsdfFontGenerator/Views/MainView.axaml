@@ -218,11 +218,61 @@
                        CornerRadius="3"
                        Background="#e9ecef"
                        Foreground="#6f42c1"/>
-          <TextBlock Text="Generating MSDF font..." 
+          <TextBlock Text="{Binding GenerationStatus}" 
                      VerticalAlignment="Center"
                      FontStyle="Italic"
                      Foreground="#6c757d"/>
         </StackPanel>
+        
+        <!-- Status Message -->
+        <TextBlock Text="{Binding GenerationStatus}"
+                   HorizontalAlignment="Center"
+                   FontSize="12"
+                   Foreground="#6c757d"
+                   IsVisible="{Binding !IsGenerating}"
+                   Margin="0,5,0,0"/>
+        
+        <!-- Error Details Section -->
+        <Border Background="#fff5f5"
+                BorderBrush="#fed7d7"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="15"
+                Margin="0,15,0,0"
+                IsVisible="{Binding HasError}">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0"
+                         Text="⚠️ Error Details"
+                         FontWeight="SemiBold"
+                         FontSize="14"
+                         Foreground="#c53030"
+                         VerticalAlignment="Center"/>
+              <Button Grid.Column="1"
+                      Content="📋 Copy to Clipboard"
+                      Command="{Binding CopyErrorToClipboardCommand}"
+                      Background="#c53030"
+                      Foreground="White"
+                      Padding="10,5"
+                      CornerRadius="4"
+                      FontSize="11"/>
+            </Grid>
+            
+            <ScrollViewer MaxHeight="200" 
+                          Background="White"
+                          BorderBrush="#e2e8f0"
+                          BorderThickness="1"
+                          CornerRadius="4">
+              <SelectableTextBlock Text="{Binding ErrorDetails}"
+                                   Padding="10"
+                                   FontFamily="Consolas,Monaco,monospace"
+                                   FontSize="11"
+                                   Foreground="#2d3748"
+                                   Background="White"
+                                   TextWrapping="Wrap"/>
+            </ScrollViewer>
+          </StackPanel>
+        </Border>
         
       </StackPanel>
     </Border>
