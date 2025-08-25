@@ -44,4 +44,16 @@ public partial class RenderingSystem
             );
         }
     }
+
+    /// <summary>
+    /// Creates a font from an existing texture and glyph information.
+    /// Used for SDF fonts where the texture is generated via compute shader.
+    /// </summary>
+    /// <param name="texture">The font atlas texture (typically SDF)</param>
+    /// <param name="glyphs">Array of glyph information</param>
+    /// <returns>A new Font instance</returns>
+    public Font CreateFont(Texture2D texture, GlyphInfo[] glyphs)
+    {
+        return new Font(texture, glyphs);
+    }
 }

@@ -10,13 +10,13 @@ public partial class GameEngine
 {
     public virtual IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
-        // texture
-        yield return new AssetLoaderFontTTF(RenderingSystem);
-        yield return new AssetLoaderTexture2D(RenderingSystem);
-
         // shader
         yield return new AssetLoaderShaderHLSLInclude();
         yield return new AssetLoaderShaderHLSL(RenderingSystem);
+
+        // texture
+        yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
+        yield return new AssetLoaderTexture2D(RenderingSystem);
 
         // audio
         yield return new AssetLoaderAudioVorbis(AudioDevice);
