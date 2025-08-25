@@ -3,14 +3,229 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:MsdfFontGenerator.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
              x:Class="MsdfFontGenerator.Views.MainView"
              x:DataType="vm:MainViewModel">
   <Design.DataContext>
-    <!-- This only sets the DataContext for the previewer in an IDE,
-         to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
     <vm:MainViewModel />
   </Design.DataContext>
 
-  <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+  <Grid Margin="30">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    
+    <!-- Header -->
+    <Border Grid.Row="0" 
+            Background="#f8f9fa" 
+            CornerRadius="8" 
+            Padding="20"
+            Margin="0,0,0,20">
+      <StackPanel HorizontalAlignment="Center" Spacing="5">
+        <TextBlock Text="MSDF Font Generator" 
+                   FontSize="28" 
+                   FontWeight="Bold" 
+                   HorizontalAlignment="Center"
+                   Foreground="#2c3e50"/>
+        <TextBlock Text="Generate Multi-channel Signed Distance Field fonts from TTF files" 
+                   FontSize="12" 
+                   HorizontalAlignment="Center"
+                   Foreground="#7f8c8d"
+                   FontStyle="Italic"/>
+      </StackPanel>
+    </Border>
+    
+    <!-- Main Content -->
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Spacing="25">
+        
+        <!-- File Selection Section -->
+        <Border Background="White" 
+                BorderBrush="#e9ecef" 
+                BorderThickness="2" 
+                CornerRadius="10" 
+                Padding="20">
+          <StackPanel Spacing="20">
+            <TextBlock Text="📁 File Selection" 
+                       FontSize="18" 
+                       FontWeight="SemiBold"
+                       Foreground="#495057"/>
+            
+            <!-- Font Selection -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="Font File (TTF):" 
+                         FontWeight="SemiBold"
+                         Foreground="#6c757d"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" 
+                         Text="{Binding SelectedFontPath}" 
+                         IsReadOnly="True" 
+                         Watermark="Click 'Browse' to select a TTF font file..."
+                         Padding="12,8"
+                         CornerRadius="6"
+                         BorderBrush="#ced4da"
+                         BorderThickness="1"/>
+                <Button Grid.Column="1" 
+                        Content="Browse..."
+                        Command="{Binding SelectFontCommand}"
+                        Margin="10,0,0,0"
+                        Padding="16,8"
+                        CornerRadius="6"
+                        Background="#007bff"
+                        Foreground="White"
+                        FontWeight="SemiBold"/>
+              </Grid>
+            </StackPanel>
+            
+            <!-- Output Path Selection -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="Output Folder:" 
+                         FontWeight="SemiBold"
+                         Foreground="#6c757d"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" 
+                         Text="{Binding SelectedOutputPath}" 
+                         IsReadOnly="True" 
+                         Watermark="Click 'Browse' to select output folder..."
+                         Padding="12,8"
+                         CornerRadius="6"
+                         BorderBrush="#ced4da"
+                         BorderThickness="1"/>
+                <Button Grid.Column="1" 
+                        Content="Browse..."
+                        Command="{Binding SelectOutputPathCommand}"
+                        Margin="10,0,0,0"
+                        Padding="16,8"
+                        CornerRadius="6"
+                        Background="#28a745"
+                        Foreground="White"
+                        FontWeight="SemiBold"/>
+              </Grid>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        
+        <!-- Language Selection Section -->
+        <Border Background="White" 
+                BorderBrush="#e9ecef" 
+                BorderThickness="2" 
+                CornerRadius="10" 
+                Padding="20">
+          <StackPanel Spacing="15">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <TextBlock Grid.Column="0"
+                         Text="🌐 Font Languages" 
+                         FontSize="18" 
+                         FontWeight="SemiBold"
+                         Foreground="#495057"
+                         VerticalAlignment="Center"/>
+              <Button Grid.Column="1"
+                      Content="Select All"
+                      Command="{Binding SelectAllLanguagesCommand}"
+                      Margin="0,0,10,0"
+                      Padding="12,6"
+                      CornerRadius="4"
+                      FontSize="11"
+                      Background="#17a2b8"
+                      Foreground="White"/>
+              <Button Grid.Column="2"
+                      Content="Deselect All"
+                      Command="{Binding DeselectAllLanguagesCommand}"
+                      Padding="12,6"
+                      CornerRadius="4"
+                      FontSize="11"
+                      Background="#dc3545"
+                      Foreground="White"/>
+            </Grid>
+            
+            <TextBlock Text="Select the Unicode ranges to include in your MSDF font:" 
+                       FontSize="12" 
+                       Foreground="#6c757d"
+                       Margin="0,-5,0,0"/>
+            
+            <Border BorderBrush="#dee2e6" 
+                    BorderThickness="1" 
+                    CornerRadius="8" 
+                    Padding="15" 
+                    MaxHeight="280"
+                    Background="#f8f9fa">
+              <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding AvailableLanguages}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Background="White"
+                              BorderBrush="#e9ecef"
+                              BorderThickness="1"
+                              CornerRadius="6"
+                              Padding="12"
+                              Margin="0,4">
+                        <CheckBox IsChecked="{Binding IsSelected}">
+                          <CheckBox.Content>
+                            <StackPanel Spacing="4">
+                              <TextBlock Text="{Binding Name}" 
+                                         FontWeight="SemiBold"
+                                         FontSize="13"
+                                         Foreground="#495057"/>
+                              <TextBlock Text="{Binding Description}" 
+                                         FontSize="11" 
+                                         Foreground="#6c757d" 
+                                         TextWrapping="Wrap"/>
+                            </StackPanel>
+                          </CheckBox.Content>
+                        </CheckBox>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+          </StackPanel>
+        </Border>
+        
+      </StackPanel>
+    </ScrollViewer>
+    
+    <!-- Action Section -->
+    <Border Grid.Row="2" 
+            Background="#f8f9fa" 
+            CornerRadius="8" 
+            Padding="20"
+            Margin="0,20,0,0">
+      <StackPanel HorizontalAlignment="Center" Spacing="15">
+        
+        <!-- Generate Button -->
+        <Button Content="🚀 Generate MSDF Font"
+                Command="{Binding GenerateMsdfCommand}"
+                HorizontalAlignment="Center"
+                Padding="40,15"
+                FontSize="16"
+                FontWeight="Bold"
+                CornerRadius="25"
+                Background="#6f42c1"
+                Foreground="White"
+                IsEnabled="{Binding !IsGenerating}"/>
+        
+        <!-- Progress Indicator -->
+        <StackPanel Orientation="Horizontal" 
+                    HorizontalAlignment="Center"
+                    Spacing="15"
+                    IsVisible="{Binding IsGenerating}">
+          <ProgressBar IsIndeterminate="True" 
+                       Width="250" 
+                       Height="6"
+                       CornerRadius="3"
+                       Background="#e9ecef"
+                       Foreground="#6f42c1"/>
+          <TextBlock Text="Generating MSDF font..." 
+                     VerticalAlignment="Center"
+                     FontStyle="Italic"
+                     Foreground="#6c757d"/>
+        </StackPanel>
+        
+      </StackPanel>
+    </Border>
+    
+  </Grid>
 </UserControl>
