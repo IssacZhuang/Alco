@@ -6,7 +6,7 @@ using Alco.IO;
 namespace Alco.Engine;
 
 /// <summary>
-/// The loader for true type font file
+/// The loader for true type font file with SDF (Signed Distance Field) generation
 /// </summary>
 public class AssetLoaderFontTTF : BaseAssetLoader<Font>
 {
@@ -23,8 +23,15 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
 
     public override object CreateAsset(in AssetLoadContext context)
     {
+        // Generate regular atlas with padding for compute shader SDF generation
+        using FontAtlasPacker packer = new FontAtlasPacker(
+            width: 8192, 
+            height: 8192,
+            padding: 6  // Padding around glyphs for SDF conversion
+        );
 
-        using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
+        // Old SDF generation (too slow, commented out)
+        //using SdfFontAtlasPacker packer = new SdfFontAtlasPacker(8192, 8192, 32.0f, 4, 128);
 
         packer.Add(context.Data, 32, new int2[]{
                 UtilsUnicode.RangeBasicLatin,

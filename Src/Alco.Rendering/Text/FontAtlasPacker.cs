@@ -16,25 +16,29 @@ public sealed unsafe class FontAtlasPacker : AutoDisposable
     private readonly NativeBuffer<byte> _bitmap;
     private readonly int _width;
     private readonly int _height;
+    private readonly int _padding;
 
     public GlyphInfo[] Glyphs => _glyphs;
     public ReadOnlySpan<byte> Bitmap => _bitmap.AsSpan();
     public int Width => _width;
     public int Height => _height;
+    public int Padding => _padding;
 
-    public FontAtlasPacker(int width, int height)
+    public FontAtlasPacker(int width, int height, int padding = 1)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        ArgumentOutOfRangeException.ThrowIfNegative(padding);
 
         _width = width;
         _height = height;
+        _padding = padding;
 
         _bitmap = new NativeBuffer<byte>(width * height);
         _glyphs = new GlyphInfo[MaxArrayLength];
         _context = new stbtt_pack_context();
 
-        stbtt_PackBegin(_context, _bitmap.UnsafePointer, width, height, width, 1, null);
+        stbtt_PackBegin(_context, _bitmap.UnsafePointer, width, height, width, padding, null);
     }
 
     public void Add(ReadOnlySpan<byte> ttf, float fontSize, IEnumerable<int2> unicodeRanges)
