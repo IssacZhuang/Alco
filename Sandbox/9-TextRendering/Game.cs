@@ -1,6 +1,7 @@
 using System.Numerics;
 using Alco.Engine;
 using Alco.Rendering;
+using Alco.Graphics;
 using Alco;
 using Alco.IO;
 
@@ -28,6 +29,8 @@ public class Game : GameEngine
 
         _material = RenderingSystem.CreateMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
+        _material.BlendState = BlendState.AlphaBlend;
+        _material.DepthStencilState = DepthStencilState.Read;
         _renderContext = RenderingSystem.CreateRenderContext();
         _textRenderer = RenderingSystem.CreateTextRenderer(_renderContext, _material);
     }
