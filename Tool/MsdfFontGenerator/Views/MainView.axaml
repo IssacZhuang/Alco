@@ -208,20 +208,64 @@
                 IsEnabled="{Binding !IsGenerating}"/>
         
         <!-- Progress Indicator -->
-        <StackPanel Orientation="Horizontal" 
-                    HorizontalAlignment="Center"
-                    Spacing="15"
-                    IsVisible="{Binding IsGenerating}">
-          <ProgressBar IsIndeterminate="True" 
-                       Width="250" 
-                       Height="6"
-                       CornerRadius="3"
-                       Background="#e9ecef"
-                       Foreground="#6f42c1"/>
-          <TextBlock Text="{Binding GenerationStatus}" 
-                     VerticalAlignment="Center"
-                     FontStyle="Italic"
-                     Foreground="#6c757d"/>
+        <StackPanel IsVisible="{Binding IsGenerating}" Spacing="15">
+          
+          <!-- Progress Bar with Percentage -->
+          <StackPanel>
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+              <TextBlock Grid.Column="0" 
+                         Text="{Binding CurrentPhase}" 
+                         FontWeight="SemiBold"
+                         FontSize="14"
+                         Foreground="#495057"/>
+              <TextBlock Grid.Column="1" 
+                         Text="{Binding ProgressPercentage, StringFormat='{}{0:F0}%'}"
+                         FontWeight="Bold"
+                         FontSize="14"
+                         Foreground="#6f42c1"/>
+            </Grid>
+            
+            <ProgressBar Value="{Binding ProgressPercentage}"
+                         Maximum="100"
+                         Height="8"
+                         CornerRadius="4"
+                         Background="#e9ecef"
+                         Foreground="#6f42c1"/>
+          </StackPanel>
+          
+          <!-- Current Operation -->
+          <StackPanel Orientation="Horizontal" 
+                      HorizontalAlignment="Center"
+                      Spacing="10">
+            <TextBlock Text="⚙️"
+                       FontSize="16"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding CurrentOperation}" 
+                       VerticalAlignment="Center"
+                       FontStyle="Italic"
+                       Foreground="#6c757d"
+                       FontSize="12"/>
+          </StackPanel>
+          
+          <!-- Glyph Progress (when available) -->
+          <StackPanel IsVisible="{Binding !!TotalGlyphs}"
+                      Orientation="Horizontal"
+                      HorizontalAlignment="Center"
+                      Spacing="5">
+            <TextBlock Text="📝" FontSize="12"/>
+            <TextBlock Text="{Binding ProcessedGlyphs}" 
+                       FontWeight="SemiBold"
+                       FontSize="12"
+                       Foreground="#495057"/>
+            <TextBlock Text="/" FontSize="12" Foreground="#6c757d"/>
+            <TextBlock Text="{Binding TotalGlyphs}" 
+                       FontSize="12"
+                       Foreground="#6c757d"/>
+            <TextBlock Text="glyphs processed" 
+                       FontSize="12"
+                       Foreground="#6c757d"/>
+          </StackPanel>
+          
         </StackPanel>
         
         <!-- Status Message -->

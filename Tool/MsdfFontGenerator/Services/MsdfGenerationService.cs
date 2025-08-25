@@ -24,6 +24,16 @@ public class MsdfGenerationService
         public float MaxCornerAngle { get; set; } = 3.0f;
         public float MiterLimit { get; set; } = 2.0f;
         public string AtlasName { get; set; } = "font-atlas";
+        public IProgress<GenerationProgress>? Progress { get; set; }
+    }
+
+    public class GenerationProgress
+    {
+        public double Percentage { get; set; }
+        public string CurrentOperation { get; set; } = string.Empty;
+        public int ProcessedGlyphs { get; set; }
+        public int TotalGlyphs { get; set; }
+        public string Phase { get; set; } = string.Empty;
     }
 
     public unsafe void GenerateMsdfAtlas(GenerationSettings settings)
@@ -34,8 +44,12 @@ public class MsdfGenerationService
         if (!Directory.Exists(settings.OutputPath))
             Directory.CreateDirectory(settings.OutputPath);
 
+        // Report initial progress
+        ReportProgress(settings.Progress, 0, "Initializing", "Loading font file...");
+
         // Load the font
         var font = FontImporter.LoadFont(settings.FontPath);
+        ReportProgress(settings.Progress, 5, "Font Loaded", "Analyzing character set...");
         
         // Create charset from selected languages
         var charset = CreateCharsetFromLanguages(settings.SelectedLanguages);
@@ -52,6 +66,8 @@ public class MsdfGenerationService
             throw new InvalidOperationException($"Character set too large ({charsetSize} characters). " +
                 "Maximum supported is 50,000 characters. Try selecting fewer language ranges.");
         }
+
+        ReportProgress(settings.Progress, 10, "Character Set Ready", $"Processing {charsetSize} characters...");
 
         // Initialize font geometry
         var glyphs = new List<GlyphGeometry>(font.GlyphCount);
@@ -138,14 +154,22 @@ public class MsdfGenerationService
                 segmentsPool = new(allocatedSegmentsPtr, maxSegments);
             }
 
+            ReportProgress(settings.Progress, 20, "Memory Allocated", "Loading character glyphs...");
+
             // Load character glyphs
             fontGeometry.LoadCharset(font, ref contoursPool, ref segmentsPool, 1.0f, charset);
+            
+            ReportProgress(settings.Progress, 40, "Glyphs Loaded", $"Processing {glyphs.Count} glyphs...");
 
             // Process glyphs
             ProcessGlyphs(glyphs, settings);
 
+            ReportProgress(settings.Progress, 70, "Glyphs Processed", "Generating atlas layout...");
+
             // Generate atlas
             GenerateAtlas(glyphs, settings);
+
+            ReportProgress(settings.Progress, 100, "Complete", "MSDF generation completed successfully!");
             
         }
         finally
@@ -254,6 +278,7 @@ public class MsdfGenerationService
 
     private static void ProcessGlyphs(List<GlyphGeometry> glyphs, GenerationSettings settings)
     {
+        var totalGlyphs = glyphs.Count;
         for (int i = 0; i < glyphs.Count; i++)
         {
             var glyph = glyphs[i];
@@ -273,11 +298,21 @@ public class MsdfGenerationService
             });
 
             glyphs[i] = glyph;
+
+            // Report progress for every 10th glyph or significant milestones
+            if (i % Math.Max(1, totalGlyphs / 20) == 0 || i == totalGlyphs - 1)
+            {
+                var progress = 40 + (30 * (i + 1) / totalGlyphs); // 40% to 70%
+                ReportProgress(settings.Progress, progress, "Processing Glyphs", 
+                    $"Processed {i + 1}/{totalGlyphs} glyphs", i + 1, totalGlyphs, "Glyph Processing");
+            }
         }
     }
 
     private static void GenerateAtlas(List<GlyphGeometry> glyphs, GenerationSettings settings)
     {
+        ReportProgress(settings.Progress, 70, "Atlas Layout", "Configuring atlas packer...");
+        
         // Configure atlas packer
         var packer = new TightAtlasPacker();
         packer.SetDimensionsConstraint(DimensionsConstraint.Square);
@@ -286,20 +321,28 @@ public class MsdfGenerationService
         packer.SetMiterLimit(settings.MiterLimit);
         packer.SetOriginPixelAlignment(false, true);
 
+        ReportProgress(settings.Progress, 75, "Atlas Layout", "Packing glyphs into atlas...");
+        
         // Pack glyphs
         packer.Pack(ref glyphs);
         packer.GetDimensions(out int width, out int height);
 
+        ReportProgress(settings.Progress, 80, "Atlas Generation", $"Generating {width}x{height} MSDF atlas...");
+        
         // Generate atlas
         var generator = new ImmediateAtlasGenerator<BitmapAtlasStorage>(width, height, 3, GenType.MSDF);
         var attributes = new GeneratorAttributes();
         generator.SetAttributes(attributes);
         generator.Generate(glyphs);
 
+        ReportProgress(settings.Progress, 90, "Saving Files", "Saving atlas image...");
+        
         // Save atlas as PNG
         var atlasPath = Path.Combine(settings.OutputPath, $"{settings.AtlasName}.png");
         Png.SavePng(generator.Storage.Bitmap, atlasPath);
 
+        ReportProgress(settings.Progress, 95, "Saving Files", "Generating font metrics...");
+        
         // Generate font metrics file (JSON)
         GenerateFontMetrics(glyphs, settings, width, height);
     }
@@ -349,5 +392,17 @@ public class MsdfGenerationService
             WriteIndented = true 
         });
         File.WriteAllText(jsonPath, json);
+    }
+
+    private static void ReportProgress(IProgress<GenerationProgress>? progress, double percentage, string phase, string operation, int processed = 0, int total = 0, string currentPhase = "")
+    {
+        progress?.Report(new GenerationProgress
+        {
+            Percentage = percentage,
+            CurrentOperation = operation,
+            ProcessedGlyphs = processed,
+            TotalGlyphs = total,
+            Phase = string.IsNullOrEmpty(currentPhase) ? phase : currentPhase
+        });
     }
 }

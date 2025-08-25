@@ -29,6 +29,21 @@ public partial class MainViewModel : ViewModelBase
     
     [ObservableProperty]
     private string _errorDetails = string.Empty;
+    
+    [ObservableProperty]
+    private double _progressPercentage = 0.0;
+    
+    [ObservableProperty]
+    private string _currentOperation = string.Empty;
+    
+    [ObservableProperty]
+    private string _currentPhase = string.Empty;
+    
+    [ObservableProperty]
+    private int _processedGlyphs = 0;
+    
+    [ObservableProperty]
+    private int _totalGlyphs = 0;
 
     public IStorageProvider? StorageProvider { get; set; }
     public IClipboard? Clipboard { get; set; }
@@ -118,11 +133,33 @@ public partial class MainViewModel : ViewModelBase
             HasError = false;
             ErrorDetails = string.Empty;
             GenerationStatus = string.Empty;
+            ProgressPercentage = 0.0;
+            ProcessedGlyphs = 0;
+            TotalGlyphs = 0;
+            CurrentOperation = string.Empty;
+            CurrentPhase = string.Empty;
             
             var selectedLanguages = GetSelectedLanguages();
             
-            GenerationStatus = "Loading font...";
-            await Task.Delay(100); // Small delay to update UI
+            // Create progress handler
+            var progress = new Progress<MsdfGenerationService.GenerationProgress>(progressInfo =>
+            {
+                ProgressPercentage = progressInfo.Percentage;
+                CurrentOperation = progressInfo.CurrentOperation;
+                CurrentPhase = progressInfo.Phase;
+                ProcessedGlyphs = progressInfo.ProcessedGlyphs;
+                TotalGlyphs = progressInfo.TotalGlyphs;
+                
+                // Update generation status with progress info
+                if (progressInfo.TotalGlyphs > 0)
+                {
+                    GenerationStatus = $"{progressInfo.Phase}: {progressInfo.ProcessedGlyphs}/{progressInfo.TotalGlyphs} glyphs";
+                }
+                else
+                {
+                    GenerationStatus = $"{progressInfo.Phase}: {progressInfo.CurrentOperation}";
+                }
+            });
             
             var settings = new MsdfGenerationService.GenerationSettings
             {
@@ -131,10 +168,9 @@ public partial class MainViewModel : ViewModelBase
                 SelectedLanguages = selectedLanguages,
                 PixelRange = 6.0f,
                 GlyphScale = 64.0f,
-                AtlasName = System.IO.Path.GetFileNameWithoutExtension(SelectedFontPath) + "-msdf"
+                AtlasName = System.IO.Path.GetFileNameWithoutExtension(SelectedFontPath) + "-msdf",
+                Progress = progress
             };
-
-            GenerationStatus = "Generating MSDF atlas...";
             
             await Task.Run(() => _msdfService.GenerateMsdfAtlas(settings));
             
