@@ -7,7 +7,7 @@ namespace Alco.GUI;
 /// <summary>
 /// The base class for all UI nodes.
 /// </summary>
-public class UINode
+public class UINode : IEnumerable<UINode>
 {
     private readonly List<UINode> _children = new();
     private Vector2 _sizeDelta = Vector2.Zero;
@@ -33,6 +33,10 @@ public class UINode
     public event Action<Canvas, Vector2>? EventOnSelect;
     public event Action<Canvas, Vector2>? EventOnDeselect;
 
+    public UINode()
+    {
+        Children = new UINodeChildCollection(this);
+    }
 
     /// <summary>
     /// The parent of the node. Must be null if the node is a root node.
@@ -241,13 +245,44 @@ public class UINode
     #endregion
 
     /// <summary>
-    /// The children of the node.
+    /// The children of the node. Supports both read access and collection initializer syntax.
+    /// Use like: new UINode { Name = "Root", Children = { child1, child2 } }
     /// </summary>
     /// <value></value>
-    public IReadOnlyList<UINode> Children
+    public UINodeChildCollection Children { get; }
+
+    /// <summary>
+    /// Collection wrapper that supports both read access (IReadOnlyList) and 
+    /// collection initializer syntax while ensuring proper Add logic.
+    /// </summary>
+    public class UINodeChildCollection : IReadOnlyList<UINode>
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _children;
+        private readonly UINode _parent;
+
+        public UINodeChildCollection(UINode parent)
+        {
+            _parent = parent;
+        }
+
+        // Collection initializer support
+        public void Add(UINode node)
+        {
+            _parent.Add(node);
+        }
+
+        // IReadOnlyList implementation
+        public UINode this[int index] => _parent._children[index];
+        public int Count => _parent._children.Count;
+
+        public IEnumerator<UINode> GetEnumerator()
+        {
+            return _parent._children.GetEnumerator();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return _parent._children.GetEnumerator();
+        }
     }
 
     /// <summary>
@@ -693,6 +728,28 @@ public class UINode
         {
             Parent.OnDeselect(canvas, mousePosition);
         }
+    }
+
+    #endregion
+
+    #region IEnumerable Implementation
+
+    /// <summary>
+    /// Returns an enumerator that iterates through the children.
+    /// </summary>
+    /// <returns>An enumerator for the children collection.</returns>
+    public IEnumerator<UINode> GetEnumerator()
+    {
+        return _children.GetEnumerator();
+    }
+
+    /// <summary>
+    /// Returns an enumerator that iterates through the children.
+    /// </summary>
+    /// <returns>An enumerator for the children collection.</returns>
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+    {
+        return _children.GetEnumerator();
     }
 
     #endregion

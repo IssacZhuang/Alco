@@ -74,17 +74,20 @@ public class Game : GameEngine
         _canvas.Size = new Vector2(setting.View.Width, setting.View.Height);
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
 
-        _root = new UINode
+        _root = new UINode()
         {
             Name = "Root",
+            Children = 
+            {
+                new UISprite()
+                {
+                    Position = new Vector2(50, 0),
+                    Size = new Vector2(100, 100),
+                    Color = 0x2c2c2c
+                }
+            }
         };
 
-        UISprite bg = new UISprite()
-        {
-            Position = new Vector2(50, 0),
-            Size = new Vector2(100, 100),
-            Color = 0x2c2c2c
-        };
 
         UIInputBox inputBox = new UIInputBox()
         {
@@ -102,7 +105,7 @@ public class Game : GameEngine
 
         _inputBox = inputBox;
 
-        _root.Add(bg);
+        // _root.Add(bg);
         _root.Add(inputBox);
 
         UIText label = new UIText()
