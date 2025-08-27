@@ -184,6 +184,70 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
     /// <summary>
+    /// Casts a 2D oriented box shape and collects hit targets directly into a provided set.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination set for collected targets.</param>
+    /// <param name="shape">The box shape to cast.</param>
+    public void CastBox<TTarget>(ISet<TTarget> collector, in ShapeBox2D shape) where TTarget : class
+    {
+        ColliderBox2D collider = new ColliderBox2D { Shape = shape };
+        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
+        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastColliderRefCollector(colliderRef);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult2D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Casts a 2D sphere shape and collects hit targets directly into a provided set.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination set for collected targets.</param>
+    /// <param name="shape">The sphere shape to cast.</param>
+    public void CastSphere<TTarget>(ISet<TTarget> collector, in ShapeSphere2D shape) where TTarget : class
+    {
+        ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
+        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
+        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastColliderRefCollector(colliderRef);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult2D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Casts a point and collects hit targets directly into a provided set.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination set for collected targets.</param>
+    /// <param name="point">The point to cast in world space.</param>
+    public void CastPoint<TTarget>(ISet<TTarget> collector, in Vector2 point) where TTarget : class
+    {
+        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastPointRefCollector(point);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult2D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
     /// Cast a point to hit the targets.
     /// <br/> Not thread safe.
     /// </summary>
