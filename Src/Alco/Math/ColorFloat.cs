@@ -14,6 +14,7 @@ public struct ColorFloat
 {
     public static readonly ColorFloat Black = new(0, 0, 0, 1);
     public static readonly ColorFloat White = new(1, 1, 1, 1);
+    public static readonly ColorFloat Transparent = new(0, 0, 0, 0);
 
     private const float invMaxByte = 1.0f / 255.0f;
     private static readonly Vector4 invMaxByteVec4 = new(invMaxByte);
