@@ -7,6 +7,28 @@ namespace Alco.Test
 {
     public class TestBinaryParser
     {
+        private class SerializableForPostLoad : ISerializable
+        {
+            public bool Loaded;
+            public bool PostLoaded;
+            public SerializableForPostLoad Child;
+
+            public void OnSerialize(SerializeNode node, SerializeMode mode)
+            {
+                node.BindSerializableOptional("child", ref Child, (SerializeReadNode rn) => new SerializableForPostLoad());
+
+                if (mode == SerializeMode.Load)
+                {
+                    Loaded = true;
+                }
+                
+                if (mode == SerializeMode.PostLoad)
+                {
+                    PostLoaded = true;
+                }
+            }
+        }
+
         public static BinaryArray NoiseArray()
         {
             string[] data = new string[5]{
@@ -257,6 +279,47 @@ namespace Alco.Test
 
             Assert.IsTrue(decodedNestedTable.TryGetValue<int>("nestedNumber", out int nestedIntValue));
             Assert.IsTrue(nestedIntValue == 789);
+        }
+
+        [Test(Description = "BinaryParser should trigger PostLoad after TableToObject new() path")]
+        public void TestPostLoad_TableToObject_New()
+        {
+            // prepare a table with a child node to ensure recursion
+            BinaryTable table = new BinaryTable();
+            table["child"] = new BinaryTable();
+
+            var obj = BinaryParser.TableToObject<SerializableForPostLoad>(table, (string error) => Assert.Fail(error));
+            Assert.IsTrue(obj.Loaded);
+            Assert.IsTrue(obj.PostLoaded);
+        }
+
+        [Test(Description = "BinaryParser should trigger PostLoad after TableToObject factory path")]
+        public void TestPostLoad_TableToObject_Factory()
+        {
+            BinaryTable table = new BinaryTable();
+            table["child"] = new BinaryTable();
+
+            var obj = BinaryParser.TableToObject<SerializableForPostLoad>(
+                table,
+                (SerializeReadNode rn) => new SerializableForPostLoad(),
+                (string error) => Assert.Fail(error));
+
+            Assert.IsTrue(obj.Loaded);
+            Assert.IsTrue(obj.PostLoaded);
+        }
+
+        [Test(Description = "BinaryParser should trigger PostLoad after Populate path")]
+        public void TestPostLoad_Populate()
+        {
+            BinaryTable table = new BinaryTable();
+            table["child"] = new BinaryTable();
+            byte[] bytes = BinaryParser.EncodeTable(table);
+
+            var obj = new SerializableForPostLoad();
+            BinaryParser.Populate(bytes.AsSpan(), obj, (string error) => Assert.Fail(error));
+
+            Assert.IsTrue(obj.Loaded);
+            Assert.IsTrue(obj.PostLoaded);
         }
 
         struct StructForSerialize

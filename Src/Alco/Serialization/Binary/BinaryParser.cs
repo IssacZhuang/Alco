@@ -78,6 +78,8 @@ namespace Alco
         {
             T obj = new T();
             obj.OnSerialize(new BinarySerializeReadNode(content, onError), SerializeMode.Load);
+            // Post-load pass to resolve references and finalize state
+            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
             return obj;
         }
 
@@ -93,6 +95,8 @@ namespace Alco
             BinarySerializeReadNode node = new BinarySerializeReadNode(content, onError);
             T obj = onCreate(node);
             obj.OnSerialize(node, SerializeMode.Load);
+            // Post-load pass to resolve references and finalize state
+            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
             return obj;
         }
 
@@ -163,6 +167,20 @@ namespace Alco
         public static void Populate<T>(ReadOnlySpan<byte> bytes, T obj, Action<string>? onError = null) where T : ISerializable
         {
             obj.OnSerialize(new BinarySerializeReadNode(DecodeTable(bytes), onError), SerializeMode.Load);
+            // Post-load pass to resolve references and finalize state
+            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
+        }
+
+        /// <summary>
+        /// Executes a post-load traversal on an object to resolve references and finalize state.
+        /// This does not read or write any data; it only calls OnSerialize with PostLoad mode.
+        /// </summary>
+        /// <typeparam name="T">The type implementing ISerializable.</typeparam>
+        /// <param name="obj">The object to process.</param>
+        /// <param name="onError">Optional error callback.</param>
+        public static void PostLoad<T>(T obj, Action<string>? onError = null) where T : ISerializable
+        {
+            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
         }
 
         private static void EncodeTableElement(Stream stream, string name, BaseBinaryValue value)
