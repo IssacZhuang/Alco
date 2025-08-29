@@ -1,3 +1,0 @@
-- feature: Select asset reference in editor
-- opt: reduce allocation in GameSynchronizationContext
-- test: SetSynchronizationContext
