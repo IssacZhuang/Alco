@@ -391,7 +391,7 @@ public unsafe partial class Sdl3Window : View
 
     }
 
-    public Task<string[]> OpenFilePickerAsync(string? defaultPath, bool allowMultiple, params ReadOnlySpan<DialogFileFilter> filters)
+    public override Task<string[]> OpenFilePickerAsync(string? defaultPath, bool allowMultiple, params ReadOnlySpan<DialogFileFilter> filters)
     {
         defaultPath ??= Environment.CurrentDirectory;
         TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -407,7 +407,7 @@ public unsafe partial class Sdl3Window : View
         return tcs.Task;
     }
 
-    public Task<string[]> OpenFolderPickerAsync(string? defaultPath, bool allowMultiple)
+    public override Task<string[]> OpenFolderPickerAsync(string? defaultPath, bool allowMultiple)
     {
         defaultPath ??= Environment.CurrentDirectory;
         TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -423,7 +423,7 @@ public unsafe partial class Sdl3Window : View
         return tcs.Task;
     }
 
-    public Task<string[]> OpenSaveFilePickerAsync(string? defaultPath, params ReadOnlySpan<DialogFileFilter> filters)
+    public override Task<string[]> OpenSaveFilePickerAsync(string? defaultPath, params ReadOnlySpan<DialogFileFilter> filters)
     {
         defaultPath ??= Environment.CurrentDirectory;
         TaskCompletionSource<string[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
