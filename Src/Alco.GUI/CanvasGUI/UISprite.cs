@@ -102,14 +102,9 @@ public class UISprite : UINode
     }
 
 
-    protected override void OnTick(Canvas canvas, float delta)
+    protected override void OnRender(Canvas canvas, float delta)
     {
-
-    }
-
-    protected override void OnUpdate(Canvas canvas, float delta)
-    {
-        base.OnUpdate(canvas, delta);
+        base.OnRender(canvas, delta);
 
         if (ImageType == ImageType.Sliced && Texture != null)
         {

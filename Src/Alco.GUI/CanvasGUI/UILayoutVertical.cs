@@ -82,9 +82,9 @@ public class UILayoutVertical : UINode
 
     }
 
-    protected override void OnUpdate(Canvas canvas, float delta)
+    protected override void OnRender(Canvas canvas, float delta)
     {
-        base.OnUpdate(canvas, delta);
+        base.OnRender(canvas, delta);
         if (_alwaysUpdate)
         {
             UpdateLayout();

@@ -554,7 +554,7 @@ public class UINode : IEnumerable<UINode>
     {
 
     }
-    protected virtual void OnUpdate(Canvas canvas, float delta)
+    protected virtual void OnRender(Canvas canvas, float delta)
     {
         
     }
@@ -638,21 +638,17 @@ public class UINode : IEnumerable<UINode>
     public void Tick(Canvas canvas, float delta)
     {
         OnTick(canvas, delta);
-        // for (int i = 0; i < _children.Count; i++)
-        // {
-        //     _children[i].Tick(canvas, delta);
-        // }
     }
 
 
-    public void Update(Canvas canvas, float delta)
+    public void Render(Canvas canvas, float delta)
     {
         if (!IsEnable)
         {
             return;
         }
         
-        OnUpdate(canvas, delta);
+        OnRender(canvas, delta);
         TryRefreshTransform();
     }
 

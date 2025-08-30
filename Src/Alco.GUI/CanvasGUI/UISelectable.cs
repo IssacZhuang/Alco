@@ -12,9 +12,9 @@ public class UISelectable : UINode
     public bool Interactable { get; set; } = true;
 
 
-    protected override void OnUpdate(Canvas canvas, float delta)
+    protected override void OnTick(Canvas canvas, float delta)
     {
-        base.OnUpdate(canvas, delta);
+        base.OnTick(canvas, delta);
         if (Interactable)
         {
             AddSelfForCollision(canvas);

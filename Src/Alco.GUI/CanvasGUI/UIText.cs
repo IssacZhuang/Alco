@@ -152,9 +152,9 @@ public class UIText : UISelectable
         Interactable = false;
     }
 
-    protected unsafe override void OnUpdate(Canvas canvas, float delta)
+    protected unsafe override void OnRender(Canvas canvas, float delta)
     {
-        base.OnUpdate(canvas, delta);
+        base.OnRender(canvas, delta);
         if (Font == null)
         {
             return;

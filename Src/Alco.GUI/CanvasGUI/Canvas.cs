@@ -199,112 +199,21 @@ public partial class Canvas : AutoDisposable
 
     public void Tick(UINode root, float delta)
     {
+        _collisionWorld.ClearAll();
         TickNode(root, delta);
+        
+        // Handle input processing after ticking nodes
+        HandleInput();
     }
 
     public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
     {
-        _collisionWorld.ClearAll();
-
         _renderContext.Begin(renderTarget);
         _mask = 0;
         UpdateNode(root, delta);
         _renderContext.End();
 
         //DebugDraw(renderTarget, root);
-
-        if (_inputTracker == null)
-        {
-
-            return;
-        }
-
-        _hovered = null;
-        //the mosue position is in screen space, the origin is at the top left corner
-        
-        Vector2 mousePosition = _inputTracker.MousePosition;
-        Vector2 mouseWorldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
-        
-        _mousePointCaster.Clear();
-        _collisionWorld.BuildTree();
-        _collisionWorld.CastPoint(_mousePointCaster, mouseWorldPosition);
-
-        UINode? selectable = _mousePointCaster.hitSelectable;
-        _hovered = selectable;
-
-        
-
-        if (_inputTracker.IsMouseDown)
-        {
-            OnMouseDown(selectable, mouseWorldPosition);
-        }
-        else if (_inputTracker.IsMouseUp)
-        {
-            OnMouseUp(selectable, mouseWorldPosition);
-        }
-        else if (_inputTracker.IsMousePressing)
-        {
-            selectable?.OnPressing(this, mouseWorldPosition);
-        }
-        else
-        {
-            selectable?.OnHover(this, mouseWorldPosition);
-        }
-
-        _holded?.OnDrag(this, mouseWorldPosition);
-
-
-        //input box shortcut
-        if (_inputTracker.IsKeyBackspaceDown)
-        {
-            _textInput?.HandleKeyBackspace();
-        }
-        else if (_inputTracker.IsKeyDeleteDown)
-        {
-            _textInput?.HandleKeyDelete();
-        }
-        else if (_inputTracker.IsKeyEnterDown)
-        {
-            _textInput?.OnTextInput(this, "\n");
-        }
-        else if (_inputTracker.IsKeyTabDown)
-        {
-            _textInput?.HandleKeyTab();
-        }
-        else if (_inputTracker.IsKeyLeftDown)
-        {
-            _textInput?.HandleKeyArrowLeft();
-        }
-        else if (_inputTracker.IsKeyRightDown)
-        {
-            _textInput?.HandleKeyArrowRight();
-        }
-        else if (_inputTracker.IsKeyUp)
-        {
-            _textInput?.HandleKeyArrowUp();
-        }
-        else if (_inputTracker.IsKeyDown)
-        {
-            _textInput?.HandleKeyArrowDown();
-        }
-        else if (_inputTracker.IsKeySelectAllDown)
-        {
-            _textInput?.SelectAll();
-        }
-        else if (_inputTracker.IsKeyCopyDown)
-        {
-            if (_textInput != null)
-            {
-                _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
-            }
-        }else if (_inputTracker.IsKeyPasteDown)
-        {
-            ReadOnlySpan<char> text = _inputTracker.GetClipboardText();
-            if (text.Length > 0)
-            {
-                _textInput?.OnTextInput(this, text);
-            }
-        }
     }
 
     
@@ -382,6 +291,99 @@ public partial class Canvas : AutoDisposable
         _textInput?.OnTextInput(this, text);
     }
 
+    private void HandleInput()
+    {
+        if (_inputTracker == null)
+        {
+            return;
+        }
+
+        _hovered = null;
+        //the mouse position is in screen space, the origin is at the top left corner
+        
+        Vector2 mousePosition = _inputTracker.MousePosition;
+        Vector2 mouseWorldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        
+        _mousePointCaster.Clear();
+        _collisionWorld.BuildTree();
+        _collisionWorld.CastPoint(_mousePointCaster, mouseWorldPosition);
+
+        UINode? selectable = _mousePointCaster.hitSelectable;
+        _hovered = selectable;
+
+        if (_inputTracker.IsMouseDown)
+        {
+            OnMouseDown(selectable, mouseWorldPosition);
+        }
+        else if (_inputTracker.IsMouseUp)
+        {
+            OnMouseUp(selectable, mouseWorldPosition);
+        }
+        else if (_inputTracker.IsMousePressing)
+        {
+            selectable?.OnPressing(this, mouseWorldPosition);
+        }
+        else
+        {
+            selectable?.OnHover(this, mouseWorldPosition);
+        }
+
+        _holded?.OnDrag(this, mouseWorldPosition);
+
+        //input box shortcuts
+        if (_inputTracker.IsKeyBackspaceDown)
+        {
+            _textInput?.HandleKeyBackspace();
+        }
+        else if (_inputTracker.IsKeyDeleteDown)
+        {
+            _textInput?.HandleKeyDelete();
+        }
+        else if (_inputTracker.IsKeyEnterDown)
+        {
+            _textInput?.OnTextInput(this, "\n");
+        }
+        else if (_inputTracker.IsKeyTabDown)
+        {
+            _textInput?.HandleKeyTab();
+        }
+        else if (_inputTracker.IsKeyLeftDown)
+        {
+            _textInput?.HandleKeyArrowLeft();
+        }
+        else if (_inputTracker.IsKeyRightDown)
+        {
+            _textInput?.HandleKeyArrowRight();
+        }
+        else if (_inputTracker.IsKeyUp)
+        {
+            _textInput?.HandleKeyArrowUp();
+        }
+        else if (_inputTracker.IsKeyDown)
+        {
+            _textInput?.HandleKeyArrowDown();
+        }
+        else if (_inputTracker.IsKeySelectAllDown)
+        {
+            _textInput?.SelectAll();
+        }
+        else if (_inputTracker.IsKeyCopyDown)
+        {
+            if (_textInput != null)
+            {
+                _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
+            }
+        }
+        else if (_inputTracker.IsKeyPasteDown)
+        {
+            ReadOnlySpan<char> text = _inputTracker.GetClipboardText();
+            if (text.Length > 0)
+            {
+                _textInput?.OnTextInput(this, text);
+            }
+        }
+    }
+
     private void UpdateNode(UINode node, float delta)
     {
         uint mask = _mask;
@@ -412,7 +414,7 @@ public partial class Canvas : AutoDisposable
             try
             {
 
-                node.Update(this, delta);
+                node.Render(this, delta);
             }
             catch (Exception e)
             {

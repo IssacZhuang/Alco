@@ -145,9 +145,9 @@ public class UIInputBox : UIText, ITextInput
         Interactable = true;
     }
 
-    protected override void OnUpdate(Canvas canvas, float delta)
+    protected override void OnRender(Canvas canvas, float delta)
     {
-        base.OnUpdate(canvas, delta);//refresh text line break
+        base.OnRender(canvas, delta);//refresh text line break
 
         TryRefreshCursorRenderCache();
 
