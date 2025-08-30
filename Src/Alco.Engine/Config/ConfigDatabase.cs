@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
@@ -351,15 +352,22 @@ public class ConfigDatabase
         if (UtilsType.IsGenericList(type, out var genericType))
         {
             ResolveListReferences(@object, path, genericType, depth + 1);
+            return;
         }
         else if (UtilsType.IsGenericDictionary(type, out var keyType, out var valueType))
         {
             ResolveDictionaryReferences(@object, path, keyType, valueType, depth + 1);
+            return;
         }
 
         AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(@object.GetType());
         foreach (var accessMember in accessTypeInfo.Members)
         {
+            if (!accessMember.CanWrite)
+            {
+                continue;
+            }
+
             var value = accessMember.GetValue<object>(@object);
             if (value is Configable)
             {
@@ -455,7 +463,7 @@ public class ConfigDatabase
             else
             {
                 // If the list contains non-Configable objects, recursively resolve references in each element
-                if (list is System.Collections.IList nonGenericList)
+                if (list is IList nonGenericList)
                 {
                     for (int i = 0; i < nonGenericList.Count; i++)
                     {

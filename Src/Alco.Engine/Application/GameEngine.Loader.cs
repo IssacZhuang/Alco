@@ -66,6 +66,7 @@ public partial class GameEngine
         yield return new JsonConverterColorFloat();
         yield return new JsonConverterShader(AssetSystem);
         yield return new JsonConverterTexture2D(AssetSystem);
+        yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterDepthStencilState();
         yield return new JsonConverterBlendState();
         yield return new JsonConverterPivot();
