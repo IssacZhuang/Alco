@@ -209,6 +209,12 @@ public class Game : GameEngine
         _root.Add(_sprite);
     }
 
+    protected override void OnTick(float delta)
+    {
+        //just move this to OnUpdate if u want to update UI logic every frame
+        _canvas.Tick(_root, delta);
+    }
+
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -218,7 +224,7 @@ public class Game : GameEngine
 
         DebugStats.Text(FrameRate);
 
-        _canvas.Tick(_root, delta);
+        //_canvas.Tick(_root, delta);
         _canvas.Update(MainFrameBuffer, _root, delta);
 
         // ImGUI Controls

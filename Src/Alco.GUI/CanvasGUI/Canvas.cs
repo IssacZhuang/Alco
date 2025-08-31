@@ -31,6 +31,21 @@ public partial class Canvas : AutoDisposable
         public Rect uvRect;
     }
 
+    private struct InputState
+    {
+        public bool IsDown { get; private set; }
+        public bool IsUp { get; private set; }
+        public bool IsPressing { get; private set; }
+
+        public void SetState(bool pressing)
+        {
+            bool wasPressing = IsPressing;
+            IsPressing = pressing;
+            IsDown = pressing && !wasPressing;
+            IsUp = !pressing && wasPressing;
+        }
+    }
+
 
     // for rendering
 
@@ -63,6 +78,18 @@ public partial class Canvas : AutoDisposable
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
+    private InputState _mouseLeftState;
+    private InputState _keyBackspaceState;
+    private InputState _keyDeleteState;
+    private InputState _keyEnterState;
+    private InputState _keyTabState;
+    private InputState _keyLeftState;
+    private InputState _keyRightState;
+    private InputState _keyUpState;
+    private InputState _keyDownState;
+    private InputState _selectAllState;
+    private InputState _copyState;
+    private InputState _pasteState;
 
     public bool IsCapturingMouse => _hovered != null || _holded != null;
 
@@ -319,15 +346,17 @@ public partial class Canvas : AutoDisposable
         }
         _hovered = selectable;
 
-        if (_inputTracker.IsMouseDown)
+        _mouseLeftState.SetState(_inputTracker.IsMousePressing);
+
+        if (_mouseLeftState.IsDown)
         {
             OnMouseDown(selectable, mouseWorldPosition);
         }
-        else if (_inputTracker.IsMouseUp)
+        else if (_mouseLeftState.IsUp)
         {
             OnMouseUp(selectable, mouseWorldPosition);
         }
-        else if (_inputTracker.IsMousePressing)
+        else if (_mouseLeftState.IsPressing)
         {
             if (selectable != null)
             {
@@ -344,51 +373,64 @@ public partial class Canvas : AutoDisposable
 
         _holded?.OnDrag(this, mouseWorldPosition);
 
-        //input box shortcuts
-        if (_inputTracker.IsKeyBackspaceDown)
+        // update key states (pressing => edge detection here)
+        _keyBackspaceState.SetState(_inputTracker.IsKeyBackspacePressing);
+        _keyDeleteState.SetState(_inputTracker.IsKeyDeletePressing);
+        _keyEnterState.SetState(_inputTracker.IsKeyEnterPressing);
+        _keyTabState.SetState(_inputTracker.IsKeyTabPressing);
+        _keyLeftState.SetState(_inputTracker.IsKeyLeftPressing);
+        _keyRightState.SetState(_inputTracker.IsKeyRightPressing);
+        _keyUpState.SetState(_inputTracker.IsKeyUpPressing);
+        _keyDownState.SetState(_inputTracker.IsKeyDownPressing);
+        _selectAllState.SetState(_inputTracker.IsKeySelectAllPressing);
+        _copyState.SetState(_inputTracker.IsKeyCopyPressing);
+        _pasteState.SetState(_inputTracker.IsKeyPastePressing);
+
+        //input box shortcuts (trigger on down edge)
+        if (_keyBackspaceState.IsDown)
         {
             _textInput?.HandleKeyBackspace();
         }
-        else if (_inputTracker.IsKeyDeleteDown)
+        else if (_keyDeleteState.IsDown)
         {
             _textInput?.HandleKeyDelete();
         }
-        else if (_inputTracker.IsKeyEnterDown)
+        else if (_keyEnterState.IsDown)
         {
             _textInput?.OnTextInput(this, "\n");
         }
-        else if (_inputTracker.IsKeyTabDown)
+        else if (_keyTabState.IsDown)
         {
             _textInput?.HandleKeyTab();
         }
-        else if (_inputTracker.IsKeyLeftDown)
+        else if (_keyLeftState.IsDown)
         {
             _textInput?.HandleKeyArrowLeft();
         }
-        else if (_inputTracker.IsKeyRightDown)
+        else if (_keyRightState.IsDown)
         {
             _textInput?.HandleKeyArrowRight();
         }
-        else if (_inputTracker.IsKeyUp)
+        else if (_keyUpState.IsDown)
         {
             _textInput?.HandleKeyArrowUp();
         }
-        else if (_inputTracker.IsKeyDown)
+        else if (_keyDownState.IsDown)
         {
             _textInput?.HandleKeyArrowDown();
         }
-        else if (_inputTracker.IsKeySelectAllDown)
+        else if (_selectAllState.IsDown)
         {
             _textInput?.SelectAll();
         }
-        else if (_inputTracker.IsKeyCopyDown)
+        else if (_copyState.IsDown)
         {
             if (_textInput != null)
             {
                 _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
             }
         }
-        else if (_inputTracker.IsKeyPasteDown)
+        else if (_pasteState.IsDown)
         {
             ReadOnlySpan<char> text = _inputTracker.GetClipboardText();
             if (text.Length > 0)
