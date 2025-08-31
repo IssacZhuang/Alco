@@ -64,6 +64,10 @@ public partial class Canvas : AutoDisposable
     private UINode? _selected;
     private ITextInput? _textInput;
 
+    public bool IsCapturingMouse => _hovered != null || _holded != null;
+
+    public bool IsCapturingKeyboard => _textInput != null;
+
     public BoundingBox2D Bound
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -309,6 +313,10 @@ public partial class Canvas : AutoDisposable
         _collisionWorld.CastPoint(_mousePointCaster, mouseWorldPosition);
 
         UINode? selectable = _mousePointCaster.hitSelectable;
+        if (selectable != null && !CheckMask(selectable, mouseWorldPosition))
+        {
+            selectable = null;
+        }
         _hovered = selectable;
 
         if (_inputTracker.IsMouseDown)
@@ -321,11 +329,17 @@ public partial class Canvas : AutoDisposable
         }
         else if (_inputTracker.IsMousePressing)
         {
-            selectable?.OnPressing(this, mouseWorldPosition);
+            if (selectable != null)
+            {
+                selectable.OnPressing(this, mouseWorldPosition);
+            }
         }
         else
         {
-            selectable?.OnHover(this, mouseWorldPosition);
+            if (selectable != null)
+            {
+                selectable.OnHover(this, mouseWorldPosition);
+            }
         }
 
         _holded?.OnDrag(this, mouseWorldPosition);
