@@ -79,6 +79,12 @@ public unsafe class Sdl3Input : Input
         _lastMousePosition = _mousePosition;
         Reset();
 
+        // reset per-frame gamepad transient states
+        foreach (var gp in _gamepadMap.Values)
+        {
+            gp.ResetFrame();
+        }
+
         // Collect disconnected gamepads first to avoid modifying the dictionary during enumeration
         _toRemove.Clear();
         foreach (var g in _gamepadMap)
@@ -200,6 +206,22 @@ public unsafe class Sdl3Input : Input
     internal void OnSdlMouseWheel(float value)
     {
         _mouseWheelDelta = value;
+    }
+
+    internal void OnSdlGamepadButtonDown(SDL_JoystickID which, SDL_GamepadButton button)
+    {
+        if (_gamepadMap.TryGetValue(which, out var gp))
+        {
+            gp.RecordButtonDown(Sdl3Gamepad.ConvertButton(button));
+        }
+    }
+
+    internal void OnSdlGamepadButtonUp(SDL_JoystickID which, SDL_GamepadButton button)
+    {
+        if (_gamepadMap.TryGetValue(which, out var gp))
+        {
+            gp.RecordButtonUp(Sdl3Gamepad.ConvertButton(button));
+        }
     }
 
     private void Reset()

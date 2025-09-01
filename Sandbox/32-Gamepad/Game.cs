@@ -21,6 +21,14 @@ public class Game : GameEngine
     {
         Input.OnGamepadConnected += OnGamepadConnected;
         Input.OnGamepadDisconnected += OnGamepadDisconnected;
+
+        // Subscribe to already connected gamepads
+        var pads = Input.GetGamepads();
+        for (int i = 0; i < pads.Count; i++)
+        {
+            pads[i].OnButtonDown += OnButtonDown;
+            pads[i].OnButtonUp += OnButtonUp;
+        }
     }
 
     /// <summary>
@@ -30,6 +38,14 @@ public class Game : GameEngine
     {
         Input.OnGamepadConnected -= OnGamepadConnected;
         Input.OnGamepadDisconnected -= OnGamepadDisconnected;
+
+        // Unsubscribe from currently connected gamepads
+        var pads = Input.GetGamepads();
+        for (int i = 0; i < pads.Count; i++)
+        {
+            pads[i].OnButtonDown -= OnButtonDown;
+            pads[i].OnButtonUp -= OnButtonUp;
+        }
     }
 
     protected override void OnUpdate(float delta)
@@ -141,11 +157,25 @@ public class Game : GameEngine
     private static void OnGamepadConnected(Gamepad gamepad)
     {
         Log.Info($"Gamepad connected: {gamepad.Name}");
+        gamepad.OnButtonDown += OnButtonDown;
+        gamepad.OnButtonUp += OnButtonUp;
     }
 
     private static void OnGamepadDisconnected(Gamepad gamepad)
     {
         Log.Info($"Gamepad disconnected: {gamepad.Name}");
+        gamepad.OnButtonDown -= OnButtonDown;
+        gamepad.OnButtonUp -= OnButtonUp;
+    }
+
+    private static void OnButtonDown(GamepadButton button)
+    {
+        Log.Info($"Gamepad button down: {button}");
+    }
+
+    private static void OnButtonUp(GamepadButton button)
+    {
+        Log.Info($"Gamepad button up: {button}");
     }
 
     private static void DrawButton(string label, bool pressed)

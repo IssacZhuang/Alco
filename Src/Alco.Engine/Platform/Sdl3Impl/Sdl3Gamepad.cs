@@ -11,6 +11,16 @@ namespace Alco.Engine;
 public unsafe class Sdl3Gamepad : Gamepad
 {
     private readonly SDL_Gamepad _native;
+    private const int MaxButtonCount = 32;
+
+    private struct ButtonState
+    {
+        public fixed bool isDown[MaxButtonCount];
+        public fixed bool isUp[MaxButtonCount];
+        public fixed bool isPressing[MaxButtonCount];
+    }
+
+    private ButtonState _state;
 
     internal Sdl3Gamepad(SDL_Gamepad native)
     {
@@ -54,7 +64,34 @@ public unsafe class Sdl3Gamepad : Gamepad
             return false;
         }
 
-        return SDL_GetGamepadButton(_native, ConvertButton(button));
+        return _state.isPressing[(int)button];
+    }
+
+    /// <summary>
+    /// True if button transitioned to pressed state this frame.
+    /// </summary>
+    public override bool IsButtonDown(GamepadButton button)
+    {
+        if (!IsConnected) { return false; }
+        return _state.isDown[(int)button];
+    }
+
+    /// <summary>
+    /// True if button transitioned to released state this frame.
+    /// </summary>
+    public override bool IsButtonUp(GamepadButton button)
+    {
+        if (!IsConnected) { return false; }
+        return _state.isUp[(int)button];
+    }
+
+    /// <summary>
+    /// True if button is currently held down.
+    /// </summary>
+    public override bool IsButtonPressing(GamepadButton button)
+    {
+        if (!IsConnected) { return false; }
+        return _state.isPressing[(int)button];
     }
 
     /// <summary>
@@ -78,6 +115,40 @@ public unsafe class Sdl3Gamepad : Gamepad
     internal void CleanUp()
     {
         SDL_CloseGamepad(_native);
+    }
+
+    /// <summary>
+    /// Reset per-frame transient states for button down/up. Should be called once per frame.
+    /// </summary>
+    internal void ResetFrame()
+    {
+        for (int i = 0; i < MaxButtonCount; i++)
+        {
+            _state.isDown[i] = false;
+            _state.isUp[i] = false;
+        }
+    }
+
+    /// <summary>
+    /// Mark a button as pressed (edge and level states).
+    /// </summary>
+    internal void RecordButtonDown(GamepadButton button)
+    {
+        int i = (int)button;
+        _state.isDown[i] = true;
+        _state.isPressing[i] = true;
+        DoButtonDown(button);
+    }
+
+    /// <summary>
+    /// Mark a button as released (edge and level states).
+    /// </summary>
+    internal void RecordButtonUp(GamepadButton button)
+    {
+        int i = (int)button;
+        _state.isUp[i] = true;
+        _state.isPressing[i] = false;
+        DoButtonUp(button);
     }
 
     /// <summary>
@@ -120,6 +191,33 @@ public unsafe class Sdl3Gamepad : Gamepad
             GamepadButton.DPadRight => SDL_GamepadButton.DpadRight,
             GamepadButton.Touchpad => SDL_GamepadButton.Touchpad,
             _ => throw new ArgumentException($"Invalid gamepad button: {button}"),
+        };
+    }
+
+    /// <summary>
+    /// Converts SDL button enum to engine button enum.
+    /// </summary>
+    public static GamepadButton ConvertButton(SDL_GamepadButton button)
+    {
+        return button switch
+        {
+            SDL_GamepadButton.South => GamepadButton.South,
+            SDL_GamepadButton.East => GamepadButton.East,
+            SDL_GamepadButton.West => GamepadButton.West,
+            SDL_GamepadButton.North => GamepadButton.North,
+            SDL_GamepadButton.Back => GamepadButton.Back,
+            SDL_GamepadButton.Guide => GamepadButton.Guide,
+            SDL_GamepadButton.Start => GamepadButton.Start,
+            SDL_GamepadButton.LeftStick => GamepadButton.LeftStick,
+            SDL_GamepadButton.RightStick => GamepadButton.RightStick,
+            SDL_GamepadButton.LeftShoulder => GamepadButton.LeftShoulder,
+            SDL_GamepadButton.RightShoulder => GamepadButton.RightShoulder,
+            SDL_GamepadButton.DpadUp => GamepadButton.DPadUp,
+            SDL_GamepadButton.DpadDown => GamepadButton.DPadDown,
+            SDL_GamepadButton.DpadLeft => GamepadButton.DPadLeft,
+            SDL_GamepadButton.DpadRight => GamepadButton.DPadRight,
+            SDL_GamepadButton.Touchpad => GamepadButton.Touchpad,
+            _ => GamepadButton.Unknown,
         };
     }
 }

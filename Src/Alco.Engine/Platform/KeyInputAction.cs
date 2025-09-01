@@ -15,6 +15,9 @@ public sealed class KeyInputAction
         _gamepad = gamepad;
     }
 
+    /// <summary>
+    /// Returns true if any configured key or gamepad button was pressed this frame.
+    /// </summary>
     public bool IsDown
     {
         get
@@ -36,7 +39,73 @@ public sealed class KeyInputAction
 
             foreach (var button in _gamepadButtons)
             {
-                if (gamepad.IsButtonPressed(button))
+                if (gamepad.IsButtonDown(button))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Returns true if any configured key or gamepad button was released this frame.
+    /// </summary>
+    public bool IsUp
+    {
+        get
+        {
+            foreach (var key in _keys)
+            {
+                if (_input.IsKeyUp(key))
+                {
+                    return true;
+                }
+            }
+
+            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
+            if (gamepad == null)
+            {
+                return false;
+            }
+
+            foreach (var button in _gamepadButtons)
+            {
+                if (gamepad.IsButtonUp(button))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Returns true if any configured key or gamepad button is currently held down.
+    /// </summary>
+    public bool IsPressing
+    {
+        get
+        {
+            foreach (var key in _keys)
+            {
+                if (_input.IsKeyPressing(key))
+                {
+                    return true;
+                }
+            }
+
+            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
+            if (gamepad == null)
+            {
+                return false;
+            }
+
+            foreach (var button in _gamepadButtons)
+            {
+                if (gamepad.IsButtonPressing(button))
                 {
                     return true;
                 }
