@@ -8,12 +8,7 @@ public class UIInputTracker : IUIInputTracker
 {
     private readonly Input _input;
     private readonly View _window;
-
-    public event Action<ReadOnlySpan<char>>? OnTextInput
-    {
-        add => _window.OnTextInput += value;
-        remove => _window.OnTextInput -= value;
-    }
+    
     public UIInputTracker(Input system, View window)
     {
         _input = system;

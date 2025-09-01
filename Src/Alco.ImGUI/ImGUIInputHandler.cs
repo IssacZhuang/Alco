@@ -6,7 +6,7 @@ using Alco.ImGUI;
 
 namespace Alco.ImGUI;
 
-public class ImGUIInputHandler: AutoDisposable
+public sealed class ImGUIInputHandler: AutoDisposable
 {
     private readonly Input _inputSystem;
     private readonly View _view;
