@@ -29,7 +29,7 @@ public unsafe class Sdl3Input : Input
     private float _mouseWheelDelta;
 
     private readonly List<Sdl3Gamepad> _gamepads = new();
-    private Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
+    private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
     private readonly List<SDL_JoystickID> _toRemove = new();
     
 
