@@ -16,8 +16,8 @@ public class IntListItem : UIButton, IUIListItem<int>
 	/// </summary>
 	public IntListItem()
 	{
-		// fill width, fixed height provided by parent layout
-		Anchor = Anchor.Stretch;
+		// Use center anchor for consistent layout calculation
+		Anchor = Anchor.Center;
 		Size = new Vector2(0, 24);
 
 		_background = new UISprite
@@ -43,6 +43,7 @@ public class IntListItem : UIButton, IUIListItem<int>
 
 		Add(_background, false);
 		Add(_label, false);
+		_background.Size = Size;
 	}
 
 	/// <summary>

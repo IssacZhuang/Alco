@@ -200,6 +200,39 @@ public class UILayout : UINode
         _layoutType = layoutType;
     }
 
+    /// <summary>
+    /// Adds a child node and automatically sets appropriate anchor based on layout type
+    /// </summary>
+    public override void Add(UINode node, bool keepWorldTransform = true)
+    {
+        // Set appropriate anchor based on layout type
+        SetChildAnchor(node);
+        
+        // Call base implementation
+        base.Add(node, keepWorldTransform);
+    }
+
+    /// <summary>
+    /// Sets appropriate anchor for child node based on layout type
+    /// </summary>
+    private void SetChildAnchor(UINode child)
+    {
+        // All layout types use Anchor.Center for consistent calculation
+        // child.Anchor = Anchor.Center;
+        switch (_layoutType)
+        {
+            case LayoutType.Vertical:
+                child.Anchor = Anchor.DestretchVertical(child.Anchor);
+                break;
+            case LayoutType.Horizontal:
+                child.Anchor = Anchor.DestretchHorizontal(child.Anchor);
+                break;
+            case LayoutType.Grid:
+                child.Anchor = Anchor.Center;
+                break;
+        }
+    }
+
     protected override void OnRender(Canvas canvas, float delta)
     {
         base.OnRender(canvas, delta);
@@ -214,6 +247,8 @@ public class UILayout : UINode
     /// </summary>
     public void UpdateLayout()
     {
+        // Update anchors for all children in case layout type changed
+        
         switch (_layoutType)
         {
             case LayoutType.Vertical:
@@ -269,6 +304,8 @@ public class UILayout : UINode
             {
                 continue;
             }
+
+            SetChildAnchor(child);
 
             child.Pivot = new Pivot(child.Pivot.X, -0.5f);
             if (_isFixedSize)
@@ -329,7 +366,9 @@ public class UILayout : UINode
 
             // Set pivot to center for consistent positioning
             child.Pivot = new Pivot(0f, child.Pivot.Y);
-            
+
+            SetChildAnchor(child);
+
             if (_isFixedSize)
             {
                 // Position at the center of the item area
@@ -395,7 +434,9 @@ public class UILayout : UINode
         for (int i = 0; i < affectedChildren.Count; i++)
         {
             UINode child = affectedChildren[i];
-            
+
+            SetChildAnchor(child);
+
             int col = i % columnsPerRow;
             int row = i / columnsPerRow;
 
