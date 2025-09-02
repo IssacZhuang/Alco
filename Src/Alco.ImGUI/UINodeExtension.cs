@@ -90,6 +90,13 @@ public static class UINodeExtension
             node.Size = size;
         }
 
+        // SizeDelta (step 1)
+        Vector2 sizeDelta = node.SizeDelta;
+        if (ImGui.DragFloat2("SizeDelta", ref sizeDelta, 1f))
+        {
+            node.SizeDelta = sizeDelta;
+        }
+
         // Pivot (vector2 editable, step 0.1)
         Vector2 pivot = node.Pivot;
         if (ImGui.DragFloat2("Pivot", ref pivot, 0.1f))
@@ -105,6 +112,18 @@ public static class UINodeExtension
         {
             node.Anchor = new Anchor(aMin, aMax);
         }
+
+        ImGui.Separator();
+        ImGui.Text("RenderTransform:");
+        var rt = node.RenderTransform;
+        Vector2 rtPos = rt.Position;
+        Vector2 rtScale = rt.Scale;
+        float rtRotDeg = rt.Rotation.ToDegree();
+        ImGui.BeginDisabled();
+        ImGui.InputFloat2("RT Position", ref rtPos);
+        ImGui.InputFloat("RT Rotation (deg)", ref rtRotDeg);
+        ImGui.InputFloat2("RT Scale", ref rtScale);
+        ImGui.EndDisabled();
     }
 
     public static void DrawDebugTree(this UINode node, ref UINode? selectedNode)

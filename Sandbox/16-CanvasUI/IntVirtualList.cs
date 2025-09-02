@@ -23,7 +23,6 @@ public class IntVirtualList : UIVirtualList<int>
         ColumnsPerRow = 1; // Vertical list
         ItemSize = new Vector2(100, 28); // Same size as IntListItem + spacing
         Spacing = new Vector2(0f, 4f); // 4px vertical spacing like IntList
-        ScrollMode = SrollMode.Vertical;
     }
 
     protected override UINode CreateItem()
