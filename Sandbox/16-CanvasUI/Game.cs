@@ -14,7 +14,9 @@ public class Game : GameEngine
         Sprite,
         Text,
         InputBox,
-        Layout,
+        LayoutVertical,
+        LayoutHorizontal,
+        LayoutGrid,
         Slider,
         List
     }
@@ -27,8 +29,12 @@ public class Game : GameEngine
     private UINode _root;
     private UIInputBox _inputBox;
     private UISlider _slider;
-    private UILayoutVertical _layout;
-    private UIMask _layoutMask;
+    private UILayout _verticalLayout;
+    private UILayout _horizontalLayout;
+    private UILayout _gridLayout;
+    private UIMask _verticalLayoutMask;
+    private UIMask _horizontalLayoutMask;
+    private UIMask _gridLayoutMask;
 
     private UISprite _sprite;
     private IntList _intList;
@@ -47,6 +53,8 @@ public class Game : GameEngine
     private float _angle = 0f;
     private int _itemCount = 0;
     private int _listCount = 30;
+    private float _spacingX = 5f;
+    private float _spacingY = 5f;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -129,49 +137,49 @@ public class Game : GameEngine
 
         _root.Add(_label);
 
-        UILayoutVertical layout = new UILayoutVertical()
+        // Create Vertical Layout Demo
+        _verticalLayout = new UILayout(LayoutType.Vertical)
         {
             Position = Vector2.Zero,
             Size = new Vector2(200, 100),
             PaddingTop = 8,
             PaddingBottom = 8,
-            Spacing = 4,
-            FitContentHeight = true,
+            SpacingValue = 4,
+            FitContentSize = true,
         };
-        _layout = layout;
+        
+        _verticalLayoutMask = CreateLayoutDemo(_verticalLayout, "Vertical Layout", 0xaaaaaa);
 
-        UISprite bgLayout = new UISprite()
-        {
-            Position = new Vector2(200, 100),
-            Size = new Vector2(100, 200),
-            Color = 0xaaaaaa,
-            Anchor = Anchor.Stretch,
-        };
-
-        UIMask mask = new UIMask()
-        {
-            Position = Vector2.Zero,
-            Size = new Vector2(100, 200)
-        };
-        _layoutMask = mask;
-
-        UIScrollable scrollable = new UIScrollable()
+        // Create Horizontal Layout Demo
+        _horizontalLayout = new UILayout(LayoutType.Horizontal)
         {
             Position = Vector2.Zero,
             Size = new Vector2(100, 200),
-            ScrollMode = SrollMode.Vertical | SrollMode.Horizontal,
-            //IsMaskEnabled = true,
+            PaddingLeft = 8,
+            PaddingRight = 8,
+            SpacingValue = 4,
+            FitContentSize = true,
         };
+        
+        _horizontalLayoutMask = CreateLayoutDemo(_horizontalLayout, "Horizontal Layout", 0xbbaaaa);
 
+        // Create Grid Layout Demo  
+        _gridLayout = new UILayout(LayoutType.Grid)
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(300, 200),
+            SpacingValue = 5,
+            PaddingTop = 10,
+            PaddingBottom = 10,
+            PaddingLeft = 10,
+            PaddingRight = 10,
+        };
+        
+        _gridLayoutMask = CreateLayoutDemo(_gridLayout, "Grid Layout", 0xaabbaa);
 
-        scrollable.Add(bgLayout);
-        scrollable.Add(layout);
-
-        scrollable.Content = layout;
-
-        mask.Add(scrollable);
-
-        _root.Add(mask);
+        _root.Add(_verticalLayoutMask);
+        _root.Add(_horizontalLayoutMask);  
+        _root.Add(_gridLayoutMask);
         
 
         UISlider slider = _factory.CreateSlider();
@@ -220,6 +228,53 @@ public class Game : GameEngine
 
         // default display
         UpdateDisplayActive();
+    }
+
+    private UIMask CreateLayoutDemo(UILayout layout, string title, uint backgroundColor)
+    {
+        // Create background sprite
+        UISprite bgLayout = new UISprite()
+        {
+            Position = new Vector2(200, 100),
+            Size = new Vector2(layout.Size.X + 20, layout.Size.Y + 40),
+            Color = backgroundColor,
+            Anchor = Anchor.Stretch,
+        };
+
+        // Create title label
+        UIText titleLabel = new UIText()
+        {
+            Font = _font,
+            Position = new Vector2(0, layout.Size.Y * 0.5f + 15),
+            Size = new Vector2(layout.Size.X, 20),
+            Color = 0xffffff,
+            FontSize = 14,
+            AlignHorizontal = TextAlign.Center,
+            AlignVertical = TextAlign.Center,
+            Text = title,
+        };
+
+        UIMask mask = new UIMask()
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(layout.Size.X + 20, layout.Size.Y + 40)
+        };
+
+        UIScrollable scrollable = new UIScrollable()
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(layout.Size.X + 20, layout.Size.Y + 40),
+            ScrollMode = SrollMode.Vertical | SrollMode.Horizontal,
+        };
+
+        scrollable.Add(bgLayout);
+        scrollable.Add(titleLabel);
+        scrollable.Add(layout);
+        scrollable.Content = layout;
+
+        mask.Add(scrollable);
+        
+        return mask;
     }
 
     protected override void OnTick(float delta)
@@ -327,29 +382,59 @@ public class Game : GameEngine
                 break;
             }
 
-            case Display.Layout:
+            case Display.LayoutVertical:
             {
                 if (ImGui.SliderFloat("Pivot Y", ref _pivotY, -0.5f, 0.5f))
                 {
-                    _layout.Pivot = new Vector2(0f, _pivotY);
+                    _verticalLayout.Pivot = new Vector2(0f, _pivotY);
                 }
                 float itemCountFloat = _itemCount;
                 if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 10))
                 {
                     _itemCount = (int)itemCountFloat;
-                    _layout.RemoveAllChildren();
-                    for (int i = 0; i < _itemCount; i++)
-                    {
-                        int index = i;
-                        UIButton btn = _factory.CreateButton("Button " + i);
-                        btn.EventOnClick += (canvas, mousePosition) =>
-                        {
-                            Log.Info("Button " + index + " clicked");
-                        };
-                        _layout.Add(btn, false);
-                    }
-                    _layout.UpdateLayout();
+                    PopulateLayoutButtons(_verticalLayout);
                 }
+                break;
+            }
+
+            case Display.LayoutHorizontal:
+            {
+                if (ImGui.SliderFloat("Pivot X", ref _pivotY, -0.5f, 0.5f))
+                {
+                    _horizontalLayout.Pivot = new Vector2(_pivotY, 0f);
+                }
+                float itemCountFloat = _itemCount;
+                if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 10))
+                {
+                    _itemCount = (int)itemCountFloat;
+                    PopulateLayoutButtons(_horizontalLayout);
+                }
+                break;
+            }
+
+            case Display.LayoutGrid:
+            {
+                if (ImGui.SliderFloat("Spacing X", ref _spacingX, 0, 20))
+                {
+                    _gridLayout.Spacing = new Vector2(_spacingX, _spacingY);
+                    _gridLayout.UpdateLayout();
+                }
+                
+                if (ImGui.SliderFloat("Spacing Y", ref _spacingY, 0, 20))
+                {
+                    _gridLayout.Spacing = new Vector2(_spacingX, _spacingY);
+                    _gridLayout.UpdateLayout();
+                }
+                
+                float itemCountFloat = _itemCount;
+                if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 20))
+                {
+                    _itemCount = (int)itemCountFloat;
+                    PopulateLayoutButtons(_gridLayout);
+                }
+                
+                // Show calculated columns info
+                ImGui.Text($"Auto-calculated columns per row based on item size and spacing");
                 break;
             }
 
@@ -385,6 +470,33 @@ public class Game : GameEngine
         _intList.SetItems(data);
     }
 
+    private void PopulateLayoutButtons(UILayout layout)
+    {
+        layout.RemoveAllChildren();
+        for (int i = 0; i < _itemCount; i++)
+        {
+            int index = i;
+            UIButton btn = _factory.CreateButton("Btn " + i);
+            btn.EventOnClick += (canvas, mousePosition) =>
+            {
+                Log.Info("Button " + index + " clicked");
+            };
+            
+            // Adjust button size based on layout type
+            if (layout.LayoutType == LayoutType.Grid)
+            {
+                btn.Size = new Vector2(60, 30);
+            }
+            else if (layout.LayoutType == LayoutType.Horizontal)
+            {
+                btn.Size = new Vector2(50, 30);
+            }
+            
+            layout.Add(btn, false);
+        }
+        layout.UpdateLayout();
+    }
+
     private async void TestAsync()
     {
         await Task.Delay(1000);
@@ -406,10 +518,13 @@ public class Game : GameEngine
         _button1.IsEnable = false;
         _sprite.IsEnable = false;
         _inputBox.IsEnable = false;
-        _layoutMask.IsEnable = false;
+        _verticalLayoutMask.IsEnable = false;
+        _horizontalLayoutMask.IsEnable = false;
+        _gridLayoutMask.IsEnable = false;
         _slider.IsEnable = false;
         _intList.IsEnable = false;
         _label.IsEnable = false;
+        
         switch (_display)
         {
             case Display.Button:
@@ -424,8 +539,32 @@ public class Game : GameEngine
             case Display.InputBox:
                 _inputBox.IsEnable = true;
                 break;
-            case Display.Layout:
-                _layoutMask.IsEnable = true;
+            case Display.LayoutVertical:
+                _verticalLayoutMask.IsEnable = true;
+                // Initialize with some buttons if empty
+                if (_verticalLayout.Children.Count == 0)
+                {
+                    _itemCount = 3;
+                    PopulateLayoutButtons(_verticalLayout);
+                }
+                break;
+            case Display.LayoutHorizontal:
+                _horizontalLayoutMask.IsEnable = true;
+                // Initialize with some buttons if empty
+                if (_horizontalLayout.Children.Count == 0)
+                {
+                    _itemCount = 3;
+                    PopulateLayoutButtons(_horizontalLayout);
+                }
+                break;
+            case Display.LayoutGrid:
+                _gridLayoutMask.IsEnable = true;
+                // Initialize with some buttons if empty
+                if (_gridLayout.Children.Count == 0)
+                {
+                    _itemCount = 6;
+                    PopulateLayoutButtons(_gridLayout);
+                }
                 break;
             case Display.Slider:
                 _slider.IsEnable = true;

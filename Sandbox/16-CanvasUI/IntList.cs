@@ -20,7 +20,7 @@ public class IntList : UIList<int>
 	public IntList()
 	{
 		this.Anchor = Anchor.Stretch;
-		Spacing = 4f;
+		SpacingValue = 4f;
 		IsFixedItemHeight = true;
 		FixedItemHeight = 28f;
 	}

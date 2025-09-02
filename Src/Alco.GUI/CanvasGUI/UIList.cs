@@ -1,8 +1,10 @@
+using System.Numerics;
+
 namespace Alco.GUI;
 
 /// <summary>
 /// A vertical list container that arranges items and supports scrolling.
-/// It internally uses a <see cref="UIMask"/> + <see cref="UIScrollable"/> + <see cref="UILayoutVertical"/>
+/// It internally uses a <see cref="UIMask"/> + <see cref="UIScrollable"/> + <see cref="UILayout"/>
 /// to layout and clip the content. Call <see cref="SetItems(System.Collections.Generic.IReadOnlyList{TData})"/>
 /// to populate the list and reuse pooled item nodes.
 /// </summary>
@@ -14,12 +16,12 @@ public abstract class UIList<TData> : UINode
 
     private readonly UIMask _mask;
     private readonly UIScrollable _scrollable;
-    private readonly UILayoutVertical _layout;
+    private readonly UILayout _layout;
 
     /// <summary>
-    /// Gets the internal vertical layout container.
+    /// Gets the internal layout container.
     /// </summary>
-    public UILayoutVertical Layout => _layout;
+    public UILayout Layout => _layout;
 
     /// <summary>
     /// Gets or sets the scroll mode for the list viewport.
@@ -49,21 +51,30 @@ public abstract class UIList<TData> : UINode
     }
 
     /// <summary>
-    /// Spacing between items in the internal vertical layout.
+    /// Spacing between items in the internal layout.
     /// </summary>
-    public float Spacing
+    public Vector2 Spacing
     {
         get => _layout.Spacing;
         set => _layout.Spacing = value;
     }
 
     /// <summary>
-    /// Whether the internal vertical layout uses a fixed height per item.
+    /// Legacy spacing property - sets both X and Y spacing values
+    /// </summary>
+    public float SpacingValue
+    {
+        get => _layout.SpacingValue;
+        set => _layout.SpacingValue = value;
+    }
+
+    /// <summary>
+    /// Whether the internal layout uses a fixed height per item.
     /// </summary>
     public bool IsFixedItemHeight
     {
-        get => _layout.IsFixedHeight;
-        set => _layout.IsFixedHeight = value;
+        get => _layout.IsFixedSize;
+        set => _layout.IsFixedSize = value;
     }
 
     /// <summary>
@@ -93,12 +104,12 @@ public abstract class UIList<TData> : UINode
             ScrollMode = SrollMode.Vertical
         };
 
-        _layout = new UILayoutVertical
+        _layout = new UILayout(LayoutType.Vertical)
         {
             Anchor = Anchor.Stretch,
-            FitContentHeight = true,
-            IsFixedHeight = false,
-            Spacing = 4f
+            FitContentSize = true,
+            IsFixedSize = false,
+            SpacingValue = 4f
         };
 
         // Wire up hierarchy: this -> mask -> scrollable -> layout

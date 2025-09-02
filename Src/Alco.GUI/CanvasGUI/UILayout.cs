@@ -1,0 +1,415 @@
+using System.Drawing;
+using System.Numerics;
+
+namespace Alco.GUI;
+
+/// <summary>
+/// Layout arrangement types
+/// </summary>
+public enum LayoutType
+{
+    /// <summary>
+    /// Vertical layout - items arranged from top to bottom
+    /// </summary>
+    Vertical,
+    
+    /// <summary>
+    /// Horizontal layout - items arranged from left to right
+    /// </summary>
+    Horizontal,
+    
+    /// <summary>
+    /// Grid layout - items arranged in a grid pattern
+    /// </summary>
+    Grid
+}
+
+/// <summary>
+/// A flexible layout container that supports vertical, horizontal, and grid arrangements
+/// </summary>
+public class UILayout : UINode
+{
+    private LayoutType _layoutType = LayoutType.Vertical;
+    private bool _isFixedSize;
+    private bool _alwaysUpdate; // if true, the layout will update every frame
+    private bool _fitContentSize;
+    private float _paddingTop;
+    private float _paddingBottom;
+    private float _paddingLeft;
+    private float _paddingRight;
+    private Vector2 _spacing;
+    private float _fixedWidth; // only used if _isFixedSize is true
+    private float _fixedHeight; // only used if _isFixedSize is true
+
+    public float PaddingTop
+    {
+        get => _paddingTop;
+        set
+        {
+            _paddingTop = value;
+        }
+    }
+
+    public float PaddingBottom
+    {
+        get => _paddingBottom;
+        set
+        {
+            _paddingBottom = value;
+        }
+    }
+
+
+    /// <summary>
+    /// Layout arrangement type
+    /// </summary>
+    public LayoutType LayoutType
+    {
+        get => _layoutType;
+        set
+        {
+            _layoutType = value;
+        }
+    }
+
+    public float PaddingLeft
+    {
+        get => _paddingLeft;
+        set
+        {
+            _paddingLeft = value;
+        }
+    }
+
+    public float PaddingRight
+    {
+        get => _paddingRight;
+        set
+        {
+            _paddingRight = value;
+        }
+    }
+
+    public float FixedWidth
+    {
+        get => _fixedWidth;
+        set
+        {
+            _fixedWidth = value;
+        }
+    }
+
+    public float FixedHeight
+    {
+        get => _fixedHeight;
+        set
+        {
+            _fixedHeight = value;
+        }
+    }
+
+
+    public bool AlwaysUpdate
+    {
+        get => _alwaysUpdate;
+        set
+        {
+            _alwaysUpdate = value;
+        }
+    }
+
+    /// <summary>
+    /// Spacing between items (X: horizontal spacing, Y: vertical spacing)
+    /// </summary>
+    public Vector2 Spacing
+    {
+        get => _spacing;
+        set
+        {
+            _spacing = value;
+        }
+    }
+
+    /// <summary>
+    /// Legacy property for backward compatibility - sets both X and Y spacing
+    /// </summary>
+    public float SpacingValue
+    {
+        get => _spacing.X;
+        set
+        {
+            _spacing = new Vector2(value, value);
+        }
+    }
+
+    /// <summary>
+    /// Whether to use fixed size for all child elements
+    /// </summary>
+    public bool IsFixedSize
+    {
+        get => _isFixedSize;
+        set
+        {
+            _isFixedSize = value;
+        }
+    }
+
+    /// <summary>
+    /// Whether to fit content size automatically
+    /// </summary>
+    public bool FitContentSize
+    {
+        get => _fitContentSize;
+        set
+        {
+            _fitContentSize = value;
+        }
+    }
+
+    /// <summary>
+    /// Legacy property for backward compatibility
+    /// </summary>
+    public bool IsFixedHeight
+    {
+        get => _isFixedSize;
+        set => _isFixedSize = value;
+    }
+
+    /// <summary>
+    /// Legacy property for backward compatibility
+    /// </summary>
+    public bool FitContentHeight
+    {
+        get => _fitContentSize;
+        set => _fitContentSize = value;
+    }
+
+    /// <summary>
+    /// Creates a new UILayout with vertical arrangement by default
+    /// </summary>
+    public UILayout()
+    {
+
+    }
+
+    /// <summary>
+    /// Creates a new UILayout with the specified arrangement type
+    /// </summary>
+    public UILayout(LayoutType layoutType)
+    {
+        _layoutType = layoutType;
+    }
+
+    protected override void OnRender(Canvas canvas, float delta)
+    {
+        base.OnRender(canvas, delta);
+        if (_alwaysUpdate)
+        {
+            UpdateLayout();
+        }
+    }
+
+    /// <summary>
+    /// Updates the layout arrangement of all child elements
+    /// </summary>
+    public void UpdateLayout()
+    {
+        switch (_layoutType)
+        {
+            case LayoutType.Vertical:
+                UpdateVerticalLayout();
+                break;
+            case LayoutType.Horizontal:
+                UpdateHorizontalLayout();
+                break;
+            case LayoutType.Grid:
+                UpdateGridLayout();
+                break;
+        }
+    }
+
+    private void UpdateVerticalLayout()
+    {
+        if (_fitContentSize)
+        {
+            float height = _paddingTop + _paddingBottom;
+            bool hasElement = false;
+            for (int i = 0; i < Children.Count; i++)
+            {
+                UINode child = Children[i];
+                if (child.IsLayoutAffected)
+                {
+                    hasElement = true;
+                    if (_isFixedSize)
+                    {
+                        height += _fixedHeight + _spacing.Y;
+                    }
+                    else
+                    {
+                        height += child.Size.Y + _spacing.Y;
+                    }
+                }
+            }
+
+            if (hasElement)
+            {
+                height -= _spacing.Y;
+            }
+
+            Size = new Vector2(Size.X, height);
+        }
+
+        float currentY = Size.Y * 0.5f;
+        currentY -= _paddingTop;
+        for (int i = 0; i < Children.Count; i++)
+        {
+            UINode child = Children[i];
+
+            if (!child.IsLayoutAffected)
+            {
+                continue;
+            }
+
+            child.Pivot = new Pivot(child.Pivot.X, -0.5f);
+            if (_isFixedSize)
+            {
+                child.Position = new Vector2(child.Position.X, currentY);
+                currentY -= _fixedHeight + _spacing.Y;
+            }
+            else
+            {
+                child.Position = new Vector2(child.Position.X, currentY);
+                currentY -= child.Size.Y + _spacing.Y;
+            }
+        }
+    }
+
+    private void UpdateHorizontalLayout()
+    {
+        if (_fitContentSize)
+        {
+            float width = _paddingLeft + _paddingRight;
+            bool hasElement = false;
+            for (int i = 0; i < Children.Count; i++)
+            {
+                UINode child = Children[i];
+                if (child.IsLayoutAffected)
+                {
+                    hasElement = true;
+                    if (_isFixedSize)
+                    {
+                        width += _fixedWidth + _spacing.X;
+                    }
+                    else
+                    {
+                        width += child.Size.X + _spacing.X;
+                    }
+                }
+            }
+
+            if (hasElement)
+            {
+                width -= _spacing.X;
+            }
+
+            Size = new Vector2(width, Size.Y);
+        }
+
+        float startX = -Size.X * 0.5f + _paddingLeft;
+        float currentX = startX;
+        
+        for (int i = 0; i < Children.Count; i++)
+        {
+            UINode child = Children[i];
+
+            if (!child.IsLayoutAffected)
+            {
+                continue;
+            }
+
+            // Set pivot to center for consistent positioning
+            child.Pivot = new Pivot(0f, child.Pivot.Y);
+            
+            if (_isFixedSize)
+            {
+                // Position at the center of the item area
+                child.Position = new Vector2(currentX + _fixedWidth * 0.5f, child.Position.Y);
+                currentX += _fixedWidth + _spacing.X;
+            }
+            else
+            {
+                // Position at the center of the item area  
+                child.Position = new Vector2(currentX + child.Size.X * 0.5f, child.Position.Y);
+                currentX += child.Size.X + _spacing.X;
+            }
+        }
+    }
+
+    private void UpdateGridLayout()
+    {
+        var affectedChildren = new List<UINode>();
+        for (int i = 0; i < Children.Count; i++)
+        {
+            if (Children[i].IsLayoutAffected)
+            {
+                affectedChildren.Add(Children[i]);
+            }
+        }
+
+        if (affectedChildren.Count == 0)
+            return;
+
+        // Calculate item size
+        float itemWidth, itemHeight;
+        if (_isFixedSize)
+        {
+            itemWidth = _fixedWidth;
+            itemHeight = _fixedHeight;
+        }
+        else
+        {
+            // Use the first child's size as reference for all items
+            itemWidth = affectedChildren[0].Size.X;
+            itemHeight = affectedChildren[0].Size.Y;
+        }
+
+        // Calculate how many columns can fit based on available width
+        float availableWidth = Size.X - _paddingLeft - _paddingRight;
+        int columnsPerRow = Math.Max(1, (int)((availableWidth + _spacing.X) / (itemWidth + _spacing.X)));
+        
+        // Calculate number of rows needed
+        int totalRows = (int)Math.Ceiling((float)affectedChildren.Count / columnsPerRow);
+
+        // Auto-fit content size if enabled
+        if (_fitContentSize)
+        {
+            float totalWidth = _paddingLeft + _paddingRight + columnsPerRow * itemWidth + (columnsPerRow - 1) * _spacing.X;
+            float totalHeight = _paddingTop + _paddingBottom + totalRows * itemHeight + (totalRows - 1) * _spacing.Y;
+            Size = new Vector2(totalWidth, totalHeight);
+        }
+
+        // Position items
+        float startX = -Size.X * 0.5f + _paddingLeft;
+        float startY = Size.Y * 0.5f - _paddingTop;
+
+        for (int i = 0; i < affectedChildren.Count; i++)
+        {
+            UINode child = affectedChildren[i];
+            
+            int col = i % columnsPerRow;
+            int row = i / columnsPerRow;
+
+            float x = startX + col * (itemWidth + _spacing.X) + itemWidth * 0.5f;
+            float y = startY - row * (itemHeight + _spacing.Y) - itemHeight * 0.5f;
+
+            child.Pivot = new Pivot(0f, 0f); // Center pivot
+            child.Position = new Vector2(x, y);
+            
+            // Ensure consistent size for grid items
+            if (_isFixedSize)
+            {
+                child.Size = new Vector2(_fixedWidth, _fixedHeight);
+            }
+        }
+    }
+}
