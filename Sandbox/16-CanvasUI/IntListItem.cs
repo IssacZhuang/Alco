@@ -18,12 +18,13 @@ public class IntListItem : UIButton, IUIListItem<int>
 	{
 		// Use center anchor for consistent layout calculation
 		Anchor = Anchor.Center;
-		Size = new Vector2(0, 24);
+		Size = new Vector2(100, 24);
 
 		_background = new UISprite
 		{
 			Anchor = Anchor.Stretch,
-			Color = 0x2a2a2a
+			Color = 0x2a2a2a,
+			SizeDelta = Vector2.Zero
 		};
 
 		_label = new UIText
@@ -32,7 +33,8 @@ public class IntListItem : UIButton, IUIListItem<int>
 			AlignHorizontal = TextAlign.Center,
 			AlignVertical = TextAlign.Center,
 			Color = 0xffffff,
-			FontSize = 16
+			FontSize = 16,
+			SizeDelta = Vector2.Zero
 		};
 
 		TransitionMode = TransitionMode.ColorTint;
@@ -43,7 +45,6 @@ public class IntListItem : UIButton, IUIListItem<int>
 
 		Add(_background, false);
 		Add(_label, false);
-		_background.Size = Size;
 	}
 
 	/// <summary>

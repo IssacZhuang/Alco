@@ -131,6 +131,19 @@ public class UINode : IEnumerable<UINode>
         }
     }
 
+    public Vector2 SizeDelta
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _sizeDelta;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _sizeDelta = value;
+            SetTransformDirty();
+            SetRenderDataDirty();
+        }
+    }
+
     /// <summary>
     /// The pivot point of the node. Only affect the content related to self
     /// </summary>

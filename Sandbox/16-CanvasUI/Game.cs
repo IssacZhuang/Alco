@@ -18,7 +18,8 @@ public class Game : GameEngine
         LayoutHorizontal,
         LayoutGrid,
         Slider,
-        List
+        List,
+        VirtualList
     }
 
     private readonly Canvas _canvas;
@@ -38,6 +39,7 @@ public class Game : GameEngine
 
     private UISprite _sprite;
     private IntList _intList;
+    private IntVirtualList _intVirtualList;
     private UIButton _button1;
     private UIText _label;
 
@@ -53,6 +55,7 @@ public class Game : GameEngine
     private float _angle = 0f;
     private int _itemCount = 0;
     private int _listCount = 30;
+    private int _virtualListCount = 1000000;
     private float _spacingX = 5f;
     private float _spacingY = 5f;
     private UINode? _selectedNode;
@@ -226,6 +229,17 @@ public class Game : GameEngine
         _root.Add(_intList);
 
         PopulateIntList(_listCount);
+
+        // Virtual Int list demo (1 million items)
+        _intVirtualList = new IntVirtualList()
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(120, 200),
+        };
+        _intVirtualList.ItemFont = _font;
+        _root.Add(_intVirtualList);
+
+        PopulateIntVirtualList(_virtualListCount);
 
         // default display
         UpdateDisplayActive();
@@ -458,6 +472,23 @@ public class Game : GameEngine
                 }
                 break;
             }
+
+            case Display.VirtualList:
+            {
+                float count = _virtualListCount;
+                if (ImGui.SliderFloat("Virtual List Count", ref count, 1000, 10000000))
+                {
+                    _virtualListCount = (int)count;
+                    PopulateIntVirtualList(_virtualListCount);
+                }
+                
+                // Display performance info
+                ImGui.Text($"Rendering {_virtualListCount:N0} items efficiently!");
+                ImGui.Text("Only visible items are actually created and rendered.");
+                ImGui.Text("Try scrolling through the list smoothly.");
+                
+                break;
+            }
         }
 
         ImGui.End();
@@ -474,6 +505,14 @@ public class Game : GameEngine
         List<int> data = new List<int>(count);
         for (int i = 0; i < count; i++) data.Add(i);
         _intList.SetItems(data);
+    }
+
+    private void PopulateIntVirtualList(int count)
+    {
+        // Generate sequential integers 0..count-1 efficiently for virtual list
+        List<int> data = new List<int>(count);
+        for (int i = 0; i < count; i++) data.Add(i);
+        _intVirtualList.SetItems(data);
     }
 
     private void PopulateLayoutButtons(UILayout layout)
@@ -529,6 +568,7 @@ public class Game : GameEngine
         _gridLayoutMask.IsEnable = false;
         _slider.IsEnable = false;
         _intList.IsEnable = false;
+        _intVirtualList.IsEnable = false;
         _label.IsEnable = false;
         
         switch (_display)
@@ -577,6 +617,9 @@ public class Game : GameEngine
                 break;
             case Display.List:
                 _intList.IsEnable = true;
+                break;
+            case Display.VirtualList:
+                _intVirtualList.IsEnable = true;
                 break;
         }
     }
