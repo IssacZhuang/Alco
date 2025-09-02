@@ -507,12 +507,14 @@ public partial class Canvas : AutoDisposable
             {
                 HandleError(e, "ticking", node.Name);
             }
+
+            for (int i = 0; i < node.Children.Count; i++)
+            {
+                TickNode(node.Children[i], delta);
+            }
         }
 
-        for (int i = 0; i < node.Children.Count; i++)
-        {
-            TickNode(node.Children[i], delta);
-        }
+        
     }
 
     private static bool CheckMask(UINode node, Vector2 mousePosition)

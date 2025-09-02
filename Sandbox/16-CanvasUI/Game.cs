@@ -105,7 +105,7 @@ public class Game : GameEngine
             AlignVertical = TextAlign.Top,
             OverflowHorizontal = OverflowModeHorizontal.NextLine,
             OverflowVertical = OverflowModeVertical.Clamp,
-            Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbb",
+            Text = "This is an editable text",
         };
 
 
@@ -124,7 +124,7 @@ public class Game : GameEngine
             AlignVertical = TextAlign.Top,
             OverflowHorizontal = OverflowModeHorizontal.NextLine,
             OverflowVertical = OverflowModeVertical.Clamp,
-            Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
+            Text = "A UI label",
         };
 
         _root.Add(_label);
@@ -182,6 +182,7 @@ public class Game : GameEngine
         // simple demo button centered
         _buttonDemo = _factory.CreateButton("Demo Button");
         _buttonDemo.Position = Vector2.Zero;
+        _buttonDemo.Size = new Vector2(100, 100);
         _root.Add(_buttonDemo);
 
 
@@ -398,10 +399,7 @@ public class Game : GameEngine
         _layoutMask.IsEnable = false;
         _slider.IsEnable = false;
         _intList.IsEnable = false;
-        // label is the text demo node (find from root by order)
-        // we created a local variable 'label' in constructor; get it back via index
-        // safer: locate by name
-        // enable selected
+        _label.IsEnable = false;
         switch (_display)
         {
             case Display.Button:
