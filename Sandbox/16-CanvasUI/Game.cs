@@ -9,6 +9,15 @@ using Alco.ImGUI;
 
 public class Game : GameEngine
 {
+    private enum Display{
+        Button,
+        Sprite,
+        Text,
+        InputBox,
+        Layout,
+        Slider,
+        List
+    }
 
     private readonly Canvas _canvas;
     private readonly Font _font;
@@ -19,19 +28,25 @@ public class Game : GameEngine
     private UIInputBox _inputBox;
     private UISlider _slider;
     private UILayoutVertical _layout;
+    private UIMask _layoutMask;
 
     private UISprite _sprite;
+    private IntList _intList;
+    private UIButton _buttonDemo;
+    private UIText _label;
+
+    private Display _display = Display.Button;
 
 
     private float _alignHorizontal = TextAlign.Left;
     private float _alignVertical = TextAlign.Top;
     private float _lineSpacing = 1f;
     private float _fontSize = 16;
-    private float _labelScale = 1f;
     private float _progress = 0f;
     private float _pivotY = 0f;
     private float _angle = 0f;
     private int _itemCount = 0;
+    private int _listCount = 30;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -76,23 +91,14 @@ public class Game : GameEngine
 
         _root = new UINode()
         {
-            Name = "Root",
-            Children = 
-            {
-                new UISprite()
-                {
-                    Position = new Vector2(50, 0),
-                    Size = new Vector2(100, 100),
-                    Color = 0x2c2c2c
-                }
-            }
+            Name = "Root"
         };
 
 
         UIInputBox inputBox = new UIInputBox()
         {
             Font = _font,
-            Position = new Vector2(50, 0),
+            Position = Vector2.Zero,
             Size = new Vector2(100, 100),
             Color = 0xffffff,
             AlignHorizontal = TextAlign.Left,
@@ -108,10 +114,10 @@ public class Game : GameEngine
         // _root.Add(bg);
         _root.Add(inputBox);
 
-        UIText label = new UIText()
+        _label = new UIText()
         {
             Font = _font,
-            Position = new Vector2(0, -140),
+            Position = Vector2.Zero,
             Size = new Vector2(100, 100),
             Color = 0xffffff,
             AlignHorizontal = TextAlign.Left,
@@ -121,11 +127,11 @@ public class Game : GameEngine
             Text = "Hello World\naaaaaaaaaaa  aaaaaaaaaaaa\nbbbbbbbbbbbbbb\nccc",
         };
 
-        _root.Add(label);
+        _root.Add(_label);
 
         UILayoutVertical layout = new UILayoutVertical()
         {
-            Position = new Vector2(200, 100),
+            Position = Vector2.Zero,
             Size = new Vector2(200, 100),
             PaddingTop = 8,
             PaddingBottom = 8,
@@ -144,19 +150,14 @@ public class Game : GameEngine
 
         UIMask mask = new UIMask()
         {
-            Position = new Vector2(200, 100),
+            Position = Vector2.Zero,
             Size = new Vector2(100, 200)
         };
-
-        UIMask mask2 = new UIMask()
-        {
-            Position = new Vector2(200, 300),
-            Size = new Vector2(100, 200)
-        };
+        _layoutMask = mask;
 
         UIScrollable scrollable = new UIScrollable()
         {
-            Position = new Vector2(200, 100),
+            Position = Vector2.Zero,
             Size = new Vector2(100, 200),
             ScrollMode = SrollMode.Vertical | SrollMode.Horizontal,
             //IsMaskEnabled = true,
@@ -170,31 +171,18 @@ public class Game : GameEngine
 
         mask.Add(scrollable);
 
-        _root.Add(mask2);
         _root.Add(mask);
         
 
         UISlider slider = _factory.CreateSlider();
-        slider.Position = new Vector2(200, -100);
+        slider.Position = Vector2.Zero;
         _slider = slider;
         _root.Add(slider);
 
-        //duplicate button test
-        UIButton button = _factory.CreateButton("Button 1");
-        button.Size = new Vector2(60, 60);
-        button.Position = new Vector2(-200, -100);
-
-        UIButton button2 = _factory.CreateButton("Button 2");
-        button2.Size = new Vector2(80, 80);
-        button2.Position = new Vector2(-200, -100);
-
-        UIButton button3 = _factory.CreateButton("Button 3");
-        button3.Size = new Vector2(100, 100);
-        button3.Position = new Vector2(-200, -100);
-
-        _root.Add(button3);
-        button3.Add(button2);
-        button2.Add(button);
+        // simple demo button centered
+        _buttonDemo = _factory.CreateButton("Demo Button");
+        _buttonDemo.Position = Vector2.Zero;
+        _root.Add(_buttonDemo);
 
 
         Texture2D texSelection = AssetSystem.Load<Texture2D>("Selection.png");
@@ -202,11 +190,25 @@ public class Game : GameEngine
         {
             Texture = texSelection,
             Size = new Vector2(100, 100),
-            Position = new Vector2(0, 100),
+            Position = Vector2.Zero,
             ImageType = ImageType.Sliced,
         };
 
         _root.Add(_sprite);
+
+        // Int list demo
+        _intList = new IntList()
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(120, 200),
+        };
+        _intList.ItemFont = _font;
+        _root.Add(_intList);
+
+        PopulateIntList(_listCount);
+
+        // default display
+        UpdateDisplayActive();
     }
 
     protected override void OnTick(float delta)
@@ -236,83 +238,140 @@ public class Game : GameEngine
         framerateText.Append(FrameRate);
         ImGui.Text(framerateText);
 
-        if (ImGui.SliderFloat("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
+        // Display selector (enum-aware)
+        if (ImGui.Combo("Display", ref _display))
         {
-            _inputBox.AlignHorizontal = _alignHorizontal;
+            UpdateDisplayActive();
         }
 
-        if (ImGui.SliderFloat("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
+        // Parameters per display
+        switch (_display)
         {
-            _inputBox.AlignVertical = _alignVertical;
-        }
+            case Display.Button:
+                // No extra params for now
+                break;
 
-        if (ImGui.SliderFloat("Line Spacing", ref _lineSpacing, 0.5f, 2f))
-        {
-            _inputBox.LineSpacing = _lineSpacing;
-        }
-
-        if (ImGui.SliderFloat("Font Size", ref _fontSize, 8, 32))
-        {
-            _inputBox.FontSize = _fontSize;
-        }
-
-        if (ImGui.SliderFloat("Label Scale", ref _labelScale, 0.5f, 2f))
-        {
-            _inputBox.Scale = new Vector2(_labelScale);
-        }
-
-        if (ImGui.SliderFloat("Angle", ref _angle, 0, 360))
-        {
-            _inputBox.Rotation = new Rotation2D(_angle);
-        }
-
-        if (ImGui.SliderFloat("Progress", ref _progress, 0, 1))
-        {
-            _slider.Value = _progress;
-        }
-
-        if (ImGui.SliderFloat("Pivot Y", ref _pivotY, -0.5f, 0.5f))
-        {
-            _layout.Pivot = new Vector2(0f, _pivotY);
-        }
-
-        float width = _sprite.Size.X;
-        if (ImGui.SliderFloat("Sprite width", ref width, 0, 512))
-        {
-            _sprite.Size = new Vector2(width, _sprite.Size.Y);
-        }
-
-        float height = _sprite.Size.Y;
-        if (ImGui.SliderFloat("Sprite height", ref height, 0, 512))
-        {
-            _sprite.Size = new Vector2(_sprite.Size.X, height);
-        }
-
-        float itemCountFloat = _itemCount;
-        if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 10))
-        {
-            _itemCount = (int)itemCountFloat;
-            _layout.RemoveAllChildren();
-            for (int i = 0; i < _itemCount; i++)
+            case Display.Sprite:
             {
-                int index = i;
-                UIButton button = _factory.CreateButton("Button " + i);
-                button.EventOnClick += (canvas, mousePosition) =>
+                float width = _sprite.Size.X;
+                if (ImGui.SliderFloat("Sprite width", ref width, 0, 512))
                 {
-                    Log.Info("Button " + index   + " clicked");
-                };
-                _layout.Add(button, false);
+                    _sprite.Size = new Vector2(width, _sprite.Size.Y);
+                }
+                float height = _sprite.Size.Y;
+                if (ImGui.SliderFloat("Sprite height", ref height, 0, 512))
+                {
+                    _sprite.Size = new Vector2(_sprite.Size.X, height);
+                }
+                break;
             }
 
-            _layout.UpdateLayout();
-        }
+            case Display.Text:
+            {
+                if (ImGui.SliderFloat("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
+                {
+                    _label.AlignHorizontal = _alignHorizontal;
+                }
+                if (ImGui.SliderFloat("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
+                {
+                    _label.AlignVertical = _alignVertical;
+                }
+                if (ImGui.SliderFloat("Font Size", ref _fontSize, 8, 32))
+                {
+                    _label.FontSize = _fontSize;
+                }
+                if (ImGui.SliderFloat("Line Spacing", ref _lineSpacing, 0.5f, 2f))
+                {
+                    _label.LineSpacing = _lineSpacing;
+                }
+                if (ImGui.SliderFloat("Angle", ref _angle, 0, 360))
+                {
+                    _label.Rotation = new Rotation2D(_angle);
+                }
+                break;
+            }
 
-        if (ImGui.Button("Test Async"))
-        {
-            TestAsync();
+            case Display.InputBox:
+            {
+                if (ImGui.SliderFloat("Align Horizontal", ref _alignHorizontal, -0.5f, 0.5f))
+                {
+                    _inputBox.AlignHorizontal = _alignHorizontal;
+                }
+                if (ImGui.SliderFloat("Align Vertical", ref _alignVertical, -0.5f, 0.5f))
+                {
+                    _inputBox.AlignVertical = _alignVertical;
+                }
+                if (ImGui.SliderFloat("Font Size", ref _fontSize, 8, 32))
+                {
+                    _inputBox.FontSize = _fontSize;
+                }
+                if (ImGui.SliderFloat("Line Spacing", ref _lineSpacing, 0.5f, 2f))
+                {
+                    _inputBox.LineSpacing = _lineSpacing;
+                }
+                if (ImGui.SliderFloat("Angle", ref _angle, 0, 360))
+                {
+                    _inputBox.Rotation = new Rotation2D(_angle);
+                }
+                break;
+            }
+
+            case Display.Layout:
+            {
+                if (ImGui.SliderFloat("Pivot Y", ref _pivotY, -0.5f, 0.5f))
+                {
+                    _layout.Pivot = new Vector2(0f, _pivotY);
+                }
+                float itemCountFloat = _itemCount;
+                if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 10))
+                {
+                    _itemCount = (int)itemCountFloat;
+                    _layout.RemoveAllChildren();
+                    for (int i = 0; i < _itemCount; i++)
+                    {
+                        int index = i;
+                        UIButton btn = _factory.CreateButton("Button " + i);
+                        btn.EventOnClick += (canvas, mousePosition) =>
+                        {
+                            Log.Info("Button " + index + " clicked");
+                        };
+                        _layout.Add(btn, false);
+                    }
+                    _layout.UpdateLayout();
+                }
+                break;
+            }
+
+            case Display.Slider:
+            {
+                if (ImGui.SliderFloat("Progress", ref _progress, 0, 1))
+                {
+                    _slider.Value = _progress;
+                }
+                break;
+            }
+
+            case Display.List:
+            {
+                float count = _listCount;
+                if (ImGui.SliderFloat("List Count", ref count, 0, 100))
+                {
+                    _listCount = (int)count;
+                    PopulateIntList(_listCount);
+                }
+                break;
+            }
         }
 
         ImGui.End();
+    }
+
+    private void PopulateIntList(int count)
+    {
+        // generate sequential integers 0..count-1
+        List<int> data = new List<int>(count);
+        for (int i = 0; i < count; i++) data.Add(i);
+        _intList.SetItems(data);
     }
 
     private async void TestAsync()
@@ -328,5 +387,44 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _canvas.Dispose();
+    }
+
+    private void UpdateDisplayActive()
+    {
+        // disable all
+        _buttonDemo.IsEnable = false;
+        _sprite.IsEnable = false;
+        _inputBox.IsEnable = false;
+        _layoutMask.IsEnable = false;
+        _slider.IsEnable = false;
+        _intList.IsEnable = false;
+        // label is the text demo node (find from root by order)
+        // we created a local variable 'label' in constructor; get it back via index
+        // safer: locate by name
+        // enable selected
+        switch (_display)
+        {
+            case Display.Button:
+                _buttonDemo.IsEnable = true;
+                break;
+            case Display.Sprite:
+                _sprite.IsEnable = true;
+                break;
+            case Display.Text:
+                _label.IsEnable = true;
+                break;
+            case Display.InputBox:
+                _inputBox.IsEnable = true;
+                break;
+            case Display.Layout:
+                _layoutMask.IsEnable = true;
+                break;
+            case Display.Slider:
+                _slider.IsEnable = true;
+                break;
+            case Display.List:
+                _intList.IsEnable = true;
+                break;
+        }
     }
 }

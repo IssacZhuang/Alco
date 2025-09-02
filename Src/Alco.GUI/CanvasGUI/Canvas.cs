@@ -476,12 +476,14 @@ public partial class Canvas : AutoDisposable
             {
                 HandleError(e, "updating", node.Name);
             }
+
+            for (int i = 0; i < node.Children.Count; i++)
+            {
+                UpdateNode(node.Children[i], delta);
+            }
         }
 
-        for (int i = 0; i < node.Children.Count; i++)
-        {
-            UpdateNode(node.Children[i], delta);
-        }
+        
 
         //recover stencil buffer
         if (maskContext != null)
