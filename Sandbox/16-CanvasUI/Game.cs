@@ -55,6 +55,7 @@ public class Game : GameEngine
     private int _listCount = 30;
     private float _spacingX = 5f;
     private float _spacingY = 5f;
+    private UINode? _selectedNode;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -459,6 +460,11 @@ public class Game : GameEngine
             }
         }
 
+        ImGui.End();
+
+        // UI Tree Inspector Window
+        ImGui.Begin("UI Tree Inspector");
+        _root.DrawDebugTreeWithInspector(ref _selectedNode);
         ImGui.End();
     }
 

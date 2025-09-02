@@ -21,8 +21,6 @@ public class IntList : UIList<int>
 	{
 		this.Anchor = Anchor.Stretch;
 		SpacingValue = 4f;
-		IsFixedItemHeight = true;
-		FixedItemHeight = 28f;
 	}
 
 	protected override UINode CreateItem()
