@@ -36,6 +36,7 @@ public class UINode : IEnumerable<UINode>
     public UINode()
     {
         Children = new UINodeChildCollection(this);
+        Name = GetType().Name;
     }
 
     /// <summary>
@@ -48,7 +49,7 @@ public class UINode : IEnumerable<UINode>
     /// The name of the node.
     /// </summary>
     /// <value></value>
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; }
 
     /// <summary>
     /// Whether the node is enabled.

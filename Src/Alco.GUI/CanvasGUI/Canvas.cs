@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 using Alco.Graphics;
 using Alco.Rendering;
 
@@ -7,22 +8,6 @@ namespace Alco.GUI;
 
 public partial class Canvas : AutoDisposable
 {
-    private class MousePointCaster : ICollisionCaster
-    {
-        public UINode? hitSelectable;
-        public void OnHit(object hitObject, int userData)
-        {
-            if (hitSelectable == null && hitObject is UINode node)
-            {
-                hitSelectable = node;
-            }
-        }
-
-        public void Clear()
-        {
-            hitSelectable = null;
-        }
-    }
 
     private struct MaskContext
     {
@@ -70,7 +55,7 @@ public partial class Canvas : AutoDisposable
 
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
-    private readonly MousePointCaster _mousePointCaster;
+    private readonly List<UINode> _hitNodes = new List<UINode>(64);
     private readonly IUIInputTracker _inputTracker;
 
 
@@ -225,7 +210,6 @@ public partial class Canvas : AutoDisposable
         _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext, 320* 1024, 108 *1024);
 
         _collisionWorld = new CollisionWorld2D();
-        _mousePointCaster = new MousePointCaster();
     }
 
     public void Tick(UINode root, float delta)
@@ -335,14 +319,19 @@ public partial class Canvas : AutoDisposable
         Vector2 mousePosition = _inputTracker.MousePosition;
         Vector2 mouseWorldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
         
-        _mousePointCaster.Clear();
+        _hitNodes.Clear();
         _collisionWorld.BuildTree();
-        _collisionWorld.CastPoint(_mousePointCaster, mouseWorldPosition);
+        _collisionWorld.CastPoint(_hitNodes, mouseWorldPosition);
 
-        UINode? selectable = _mousePointCaster.hitSelectable;
-        if (selectable != null && !CheckMask(selectable, mouseWorldPosition))
+        UINode? selectable = null;
+        for (int i = 0; i < _hitNodes.Count; i++)
         {
-            selectable = null;
+            UINode node = _hitNodes[i];
+            if (CheckMask(node, mouseWorldPosition))
+            {
+                selectable = node;
+                break;
+            }
         }
         _hovered = selectable;
 

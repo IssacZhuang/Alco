@@ -32,7 +32,7 @@ public class Game : GameEngine
 
     private UISprite _sprite;
     private IntList _intList;
-    private UIButton _buttonDemo;
+    private UIButton _button1;
     private UIText _label;
 
     private Display _display = Display.Button;
@@ -180,10 +180,20 @@ public class Game : GameEngine
         _root.Add(slider);
 
         // simple demo button centered
-        _buttonDemo = _factory.CreateButton("Demo Button");
-        _buttonDemo.Position = Vector2.Zero;
-        _buttonDemo.Size = new Vector2(100, 100);
-        _root.Add(_buttonDemo);
+        _button1 = _factory.CreateButton("Button 1");
+        _button1.Position = Vector2.Zero;
+        _button1.Size = new Vector2(140, 140);
+        _root.Add(_button1);
+
+        UIButton button2 = _factory.CreateButton("Button 2");
+        button2.Position = Vector2.Zero;
+        button2.Size = new Vector2(120, 120);
+        _button1.Add(button2);
+
+        UIButton button3 = _factory.CreateButton("Button 3");
+        button3.Position = Vector2.Zero;
+        button3.Size = new Vector2(100, 100);
+        button2.Add(button3);
 
 
         Texture2D texSelection = AssetSystem.Load<Texture2D>("Selection.png");
@@ -393,7 +403,7 @@ public class Game : GameEngine
     private void UpdateDisplayActive()
     {
         // disable all
-        _buttonDemo.IsEnable = false;
+        _button1.IsEnable = false;
         _sprite.IsEnable = false;
         _inputBox.IsEnable = false;
         _layoutMask.IsEnable = false;
@@ -403,7 +413,7 @@ public class Game : GameEngine
         switch (_display)
         {
             case Display.Button:
-                _buttonDemo.IsEnable = true;
+                _button1.IsEnable = true;
                 break;
             case Display.Sprite:
                 _sprite.IsEnable = true;
