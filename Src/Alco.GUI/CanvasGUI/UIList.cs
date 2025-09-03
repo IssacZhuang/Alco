@@ -87,6 +87,16 @@ public abstract class UIList<TData> : UINode
     }
 
     /// <summary>
+    /// Inertia strength [0,1]. 0 stops immediately on release; 1 never decelerates.
+    /// Velocity retains Inertia per second, thus retains Inertia^delta per frame.
+    /// </summary>
+    public float Inertia
+    {
+        get => _scrollable.Inertia;
+        set => _scrollable.Inertia = value;
+    }
+
+    /// <summary>
     /// Current number of data items bound to the list.
     /// </summary>
     public int Count => _data.Count;

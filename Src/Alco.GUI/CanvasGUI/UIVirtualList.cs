@@ -32,6 +32,7 @@ public abstract class UIVirtualList<TData> : UINode
     private int _columnsPerRow = 1;
     private int _visibleStartIndex = -1;
     private int _visibleEndIndex = -1;
+    private Vector2 _lastContainerPosition = new(float.NaN, float.NaN);
     
     /// <summary>
     /// Gets or sets the fixed size of each item in the grid.
@@ -48,7 +49,7 @@ public abstract class UIVirtualList<TData> : UINode
             }
         }
     }
-    
+
     /// <summary>
     /// Gets or sets the spacing between items (X for horizontal, Y for vertical).
     /// </summary>
@@ -64,7 +65,17 @@ public abstract class UIVirtualList<TData> : UINode
             }
         }
     }
-    
+
+    /// <summary>
+    /// Inertia strength [0,1]. 0 stops immediately on release; 1 never decelerates.
+    /// Velocity retains Inertia per second, thus retains Inertia^delta per frame.
+    /// </summary>
+    public float Inertia
+    {
+        get => _scrollable.Inertia;
+        set => _scrollable.Inertia = value;
+    }
+
     /// <summary>
     /// Gets or sets the number of columns per row in the grid.
     /// </summary>
@@ -134,6 +145,10 @@ public abstract class UIVirtualList<TData> : UINode
         _scrollable.Add(_container, false);
         _scrollable.Content = _container;
         Add(_mask, false);
+
+        // Try to auto-detect item size by creating one prototype item and
+        // returning it to the pool, so it can be reused later.
+        TryAutoDetectItemSize();
     }
     
     /// <summary>
@@ -343,7 +358,31 @@ public abstract class UIVirtualList<TData> : UINode
         _visibleStartIndex = newStartIndex;
         _visibleEndIndex = newEndIndex;
     }
-    
+
+    /// <summary>
+    /// Attempts to initialize <see cref="ItemSize"/> from a prototype item.
+    /// This runs once during construction. If the prototype doesn't provide
+    /// a positive size, the default size is kept.
+    /// </summary>
+    private void TryAutoDetectItemSize()
+    {
+        if (_itemPool.TryGet(out UINode? sample) && sample != null)
+        {
+            // Use the explicit size on the prototype if available
+            Vector2 size = sample.Size;
+            if (size.X > 0f && size.Y > 0f)
+            {
+                _itemSize = size;
+            }
+
+            // Keep the prototype disabled and unaffected by layout, then
+            // return it to the pool so it can be reused as the first item.
+            sample.IsEnable = false;
+            sample.IsLayoutAffected = false;
+            // _itemPool.TryReturn(sample);
+        }
+    }
+
     /// <summary>
     /// Positions an item at its correct location based on its index in the grid.
     /// In Alco UI: Y+ is up, so first row (index 0) should be at the top (positive Y).
@@ -360,8 +399,8 @@ public abstract class UIVirtualList<TData> : UINode
         // Force anchor and pivot to avoid calculation issues
         activeItem.Node.Anchor = Anchor.Center; // Position relative to container's center
         activeItem.Node.Pivot = Pivot.Center;   // Item's pivot at center for consistent positioning
-        activeItem.Node.Size = _itemSize;       // Set absolute size
-        
+                                                // activeItem.Node.Size = _itemSize;       // Set absolute size
+
         // Calculate offset from container center to grid start position
         Vector2 containerSize = ContentSize;
         float totalGridWidth = _columnsPerRow * _itemSize.X + (_columnsPerRow - 1) * _spacing.X;
@@ -389,9 +428,13 @@ public abstract class UIVirtualList<TData> : UINode
     protected override void OnTick(Canvas canvas, float delta)
     {
         base.OnTick(canvas, delta);
-        
-        // Always refresh visible items to ensure proper updates during scrolling
-        // Note: This is less efficient but ensures correct behavior during scrolling
+
+        // Refresh only when container position changes
+        Vector2 currentPosition = _container.Position;
+        if (currentPosition == _lastContainerPosition)
+            return;
+
+        _lastContainerPosition = currentPosition;
         RefreshVisibleItems();
     }
     

@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -7,6 +8,10 @@ public class UIScrollable : UISelectable
 {
     private UINode? _content;
     private Vector2 _lastDragPosition;
+    private Vector2 _inertiaVelocity;
+    private bool _isDragging;
+    private float _lastDeltaTime;
+    private const float MaxInertiaSpeed = 6000f;
     public SrollMode ScrollMode { get; set; }
     public UINode? Content
     {
@@ -39,10 +44,56 @@ public class UIScrollable : UISelectable
 
     }
 
+    /// <summary>
+    /// Inertia strength [0,1]. 0 stops immediately on release; 1 never decelerates.
+    /// Velocity retains Inertia per second, thus retains Inertia^delta per frame.
+    /// </summary>
+    public float Inertia { get; set; } = 0.05f;
+
+    protected override void OnTick(Canvas canvas, float delta)
+    {
+        base.OnTick(canvas, delta);
+        _lastDeltaTime = delta;
+        if (_content == null)
+        {
+            return;
+        }
+
+        if (!_isDragging)
+        {
+            if ((ScrollMode & SrollMode.Vertical) == 0) _inertiaVelocity.Y = 0f;
+            if ((ScrollMode & SrollMode.Horizontal) == 0) _inertiaVelocity.X = 0f;
+
+            if (_inertiaVelocity.LengthSquared() > 0.0001f)
+            {
+                Vector2 before = _content.Position;
+                Vector2 displacement = _inertiaVelocity * delta;
+                SetContentPosition(before + displacement);
+                Vector2 after = _content.Position;
+                Vector2 applied = after - before;
+
+                // If clamped by bounds, stop motion along that axis
+                if (MathF.Abs(applied.X - displacement.X) > 0.001f) _inertiaVelocity.X = 0f;
+                if (MathF.Abs(applied.Y - displacement.Y) > 0.001f) _inertiaVelocity.Y = 0f;
+
+                float inertiaClamped = Math.Clamp(Inertia, 0f, 1f);
+                float perFrameRetention = MathF.Pow(inertiaClamped, delta);
+                _inertiaVelocity *= perFrameRetention;
+
+                if (inertiaClamped <= 0f || _inertiaVelocity.LengthSquared() < 1f)
+                {
+                    _inertiaVelocity = Vector2.Zero;
+                }
+            }
+        }
+    }
+
     public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
     {
         base.OnPressDown(canvas, mousePosition);
         _lastDragPosition = mousePosition;
+        _isDragging = true;
+        _inertiaVelocity = Vector2.Zero;
     }
 
     public override void OnDrag(Canvas canvas, Vector2 mousePoisition)
@@ -53,9 +104,28 @@ public class UIScrollable : UISelectable
             return;
         }
 
-        Vector2 displacement = mousePoisition -_lastDragPosition;
+        Vector2 displacement = mousePoisition - _lastDragPosition;
+        float dt = _lastDeltaTime > 0.00001f ? _lastDeltaTime : 0.016f;
+        Vector2 instantVelocity = displacement / dt;
+        // Smooth velocity for stability and better feel
+        _inertiaVelocity = Vector2.Lerp(_inertiaVelocity, instantVelocity, 0.5f);
+        float speed = _inertiaVelocity.Length();
+        if (speed > MaxInertiaSpeed)
+        {
+            _inertiaVelocity *= MaxInertiaSpeed / speed;
+        }
         _lastDragPosition = mousePoisition;
         OnScroll(displacement);
+    }
+
+    public override void OnPressUp(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnPressUp(canvas, mousePosition);
+        _isDragging = false;
+        if (Inertia <= 0f)
+        {
+            _inertiaVelocity = Vector2.Zero;
+        }
     }
 
     protected void OnScroll(Vector2 displacement)
@@ -103,7 +173,7 @@ public class UIScrollable : UISelectable
         {
             _content!.Position = new Vector2(_content.Position.X, position.Y);
 
-            //clmap
+            // clamp
             if (_content.Position.Y < boundPosition.Min.Y)
             {
                 _content.Position = new Vector2(_content.Position.X, boundPosition.Min.Y);
@@ -118,7 +188,7 @@ public class UIScrollable : UISelectable
         {
             _content!.Position = new Vector2(position.X, _content.Position.Y);
 
-            //clmap
+            // clamp
             if (_content.Position.X < boundPosition.Min.X)
             {
                 _content.Position = new Vector2(boundPosition.Min.X, _content.Position.Y);
