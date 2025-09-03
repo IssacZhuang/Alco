@@ -83,8 +83,9 @@ public abstract class UIVirtualList<TData> : UINode
     
     /// <summary>
     /// Gets the current scroll offset (X and Y) from container position.
+    /// In Alco UI: Y+ is up, so positive container Y means scrolled up (toward end of data).
     /// </summary>
-    public Vector2 ScrollOffset => new Vector2(-_container.Position.X, -_container.Position.Y);
+    public Vector2 ScrollOffset => new Vector2(-_container.Position.X, _container.Position.Y);
     
     /// <summary>
     /// Gets the current number of data items.
@@ -191,17 +192,31 @@ public abstract class UIVirtualList<TData> : UINode
     
     /// <summary>
     /// Gets the start index of visible items based on scroll position.
+    /// When scrollY=0, container is at center, showing middle portion of data.
     /// </summary>
     protected int GetStartIndex()
     {
         if (_data.Count == 0 || _itemSize.Y <= 0)
             return 0;
             
+        float viewportHeight = _mask.Size.Y;
+        if (viewportHeight <= 0)
+            return 0;
+            
         float itemWithSpacingY = _itemSize.Y + _spacing.Y;
         float scrollY = ScrollOffset.Y;
         
-        // Add buffer to start rendering items slightly before they become visible
-        float bufferedScrollY = Math.Max(0, scrollY - itemWithSpacingY);
+        // When scrollY=0, container is centered, so we need to offset by half content height
+        float contentHeight = ContentSize.Y;
+        float centerOffset = (contentHeight - viewportHeight) * 0.5f;
+        // scrollY is positive when container moves up (toward later items), so we add
+        float adjustedScrollY = centerOffset + scrollY;
+        
+        // Ensure we don't go negative
+        adjustedScrollY = Math.Max(0, adjustedScrollY);
+        
+        // Add small buffer to start rendering items slightly before they become visible
+        float bufferedScrollY = Math.Max(0, adjustedScrollY - itemWithSpacingY * 0.5f);
         int startRow = (int)Math.Floor(bufferedScrollY / itemWithSpacingY);
         int startIndex = startRow * _columnsPerRow;
         
@@ -331,6 +346,7 @@ public abstract class UIVirtualList<TData> : UINode
     
     /// <summary>
     /// Positions an item at its correct location based on its index in the grid.
+    /// In Alco UI: Y+ is up, so first row (index 0) should be at the top (positive Y).
     /// </summary>
     private void PositionItem(ActiveItem activeItem)
     {
@@ -350,8 +366,9 @@ public abstract class UIVirtualList<TData> : UINode
         Vector2 containerSize = ContentSize;
         float totalGridWidth = _columnsPerRow * _itemSize.X + (_columnsPerRow - 1) * _spacing.X;
         float startX = -totalGridWidth * 0.5f + _itemSize.X * 0.5f;  // Start from left, offset by half item
-        float startY = containerSize.Y * 0.5f - _itemSize.Y * 0.5f;  // Start from top, offset by half item
+        float startY = containerSize.Y * 0.5f - _itemSize.Y * 0.5f;  // Start from top (positive Y), offset by half item
         
+        // Y+ is up, so subtract y to move down for higher row indices
         activeItem.Node.Position = new Vector2(startX + x, startY - y);
     }
     

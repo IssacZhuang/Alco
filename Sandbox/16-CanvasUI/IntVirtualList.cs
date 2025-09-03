@@ -98,9 +98,6 @@ public class IntVirtualListItem : UIButton, IUIListItem<int>
     public void SetData(int index, int data)
     {
         FixedString32 text = new FixedString32();
-        text.Append("Item ");
-        text.Append(index);
-        text.Append(": ");
         text.Append(data);
         _label.SetText(text);
     }
