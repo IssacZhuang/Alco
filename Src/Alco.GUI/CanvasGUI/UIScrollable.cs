@@ -14,8 +14,50 @@ public class UIScrollable : UISelectable
     private const float MaxInertiaSpeed = 6000f;
     private bool _suppressSliderEvent;
     public SrollMode ScrollMode { get; set; }
-    public UISlider? SliderHorizontal { get; set; }
-    public UISlider? SliderVertical { get; set; }
+    private UISlider? _sliderHorizontal;
+    private UISlider? _sliderVertical;
+    public UISlider? SliderHorizontal
+    {
+        get => _sliderHorizontal;
+        set
+        {
+            if (_sliderHorizontal == value)
+            {
+                return;
+            }
+            if (_sliderHorizontal != null)
+            {
+                _sliderHorizontal.EventOnValueChanged -= OnHorizontalSliderChanged;
+            }
+            _sliderHorizontal = value;
+            if (_sliderHorizontal != null)
+            {
+                _sliderHorizontal.EventOnValueChanged += OnHorizontalSliderChanged;
+                SyncHorizontalSliderValue();
+            }
+        }
+    }
+    public UISlider? SliderVertical
+    {
+        get => _sliderVertical;
+        set
+        {
+            if (_sliderVertical == value)
+            {
+                return;
+            }
+            if (_sliderVertical != null)
+            {
+                _sliderVertical.EventOnValueChanged -= OnVerticalSliderChanged;
+            }
+            _sliderVertical = value;
+            if (_sliderVertical != null)
+            {
+                _sliderVertical.EventOnValueChanged += OnVerticalSliderChanged;
+                SyncVerticalSliderValue();
+            }
+        }
+    }
     public UINode? Content
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -52,9 +94,6 @@ public class UIScrollable : UISelectable
         {
             return;
         }
-
-        // Ensure slider listeners are registered
-        EnsureSliderBindings();
 
         if (!_isDragging)
         {
@@ -180,16 +219,7 @@ public class UIScrollable : UISelectable
                 _content.Position = new Vector2(_content.Position.X, boundPosition.Max.Y);
             }
 
-            // Sync vertical slider value [0..1] where 0 is top, 1 is bottom
-            if (SliderVertical != null)
-            {
-                float range = boundPosition.Max.Y - boundPosition.Min.Y;
-                float t = range > 0.000001f ? (_content.Position.Y - boundPosition.Min.Y) / range : 0f;
-                // lock to avoid feedback
-                _suppressSliderEvent = true;
-                SliderVertical.Value = t;
-                _suppressSliderEvent = false;
-            }
+            SyncVerticalSliderValue(boundPosition);
         }
 
         if ((ScrollMode & SrollMode.Horizontal) != 0)
@@ -206,15 +236,7 @@ public class UIScrollable : UISelectable
                 _content.Position = new Vector2(boundPosition.Max.X, _content.Position.Y);
             }
 
-            // Sync horizontal slider value [0..1] where 0 is left, 1 is right
-            if (SliderHorizontal != null)
-            {
-                float range = boundPosition.Max.X - boundPosition.Min.X;
-                float t = range > 0.000001f ? (_content.Position.X - boundPosition.Min.X) / range : 0f;
-                _suppressSliderEvent = true;
-                SliderHorizontal.Value = t;
-                _suppressSliderEvent = false;
-            }
+            SyncHorizontalSliderValue(boundPosition);
         }
     }
 
@@ -223,21 +245,6 @@ public class UIScrollable : UISelectable
         Transform2D transform = node.RenderTransform;
         Vector2 halfSize = transform.Scale * 0.5f;
         return new BoundingBox2D(halfSize, -halfSize);
-    }
-
-    private void EnsureSliderBindings()
-    {
-        if (SliderHorizontal != null)
-        {
-            // attach once
-            SliderHorizontal.EventOnValueChanged -= OnHorizontalSliderChanged;
-            SliderHorizontal.EventOnValueChanged += OnHorizontalSliderChanged;
-        }
-        if (SliderVertical != null)
-        {
-            SliderVertical.EventOnValueChanged -= OnVerticalSliderChanged;
-            SliderVertical.EventOnValueChanged += OnVerticalSliderChanged;
-        }
     }
 
     private void OnHorizontalSliderChanged(float value)
@@ -276,5 +283,63 @@ public class UIScrollable : UISelectable
         float range = boundPosition.Max.Y - boundPosition.Min.Y;
         float y = boundPosition.Min.Y + range * math.clamp(value, 0f, 1f);
         SetContentPosition(new Vector2(_content.Position.X, y));
+    }
+
+    private void SyncHorizontalSliderValue()
+    {
+        if (_sliderHorizontal == null || _content == null)
+        {
+            return;
+        }
+        BoundingBox2D boundSelf = GetLocalBound(this);
+        BoundingBox2D boundContent = GetLocalBound(_content);
+        BoundingBox2D boundPosition = new BoundingBox2D()
+        {
+            Min = boundSelf.Min - boundContent.Min,
+            Max = boundSelf.Max - boundContent.Max,
+        };
+        SyncHorizontalSliderValue(boundPosition);
+    }
+
+    private void SyncHorizontalSliderValue(BoundingBox2D boundPosition)
+    {
+        if (_sliderHorizontal == null || _content == null)
+        {
+            return;
+        }
+        float range = boundPosition.Max.X - boundPosition.Min.X;
+        float t = range > 0.000001f ? (_content.Position.X - boundPosition.Min.X) / range : 0f;
+        _suppressSliderEvent = true;
+        _sliderHorizontal.Value = t;
+        _suppressSliderEvent = false;
+    }
+
+    private void SyncVerticalSliderValue()
+    {
+        if (_sliderVertical == null || _content == null)
+        {
+            return;
+        }
+        BoundingBox2D boundSelf = GetLocalBound(this);
+        BoundingBox2D boundContent = GetLocalBound(_content);
+        BoundingBox2D boundPosition = new BoundingBox2D()
+        {
+            Min = boundSelf.Min - boundContent.Min,
+            Max = boundSelf.Max - boundContent.Max,
+        };
+        SyncVerticalSliderValue(boundPosition);
+    }
+
+    private void SyncVerticalSliderValue(BoundingBox2D boundPosition)
+    {
+        if (_sliderVertical == null || _content == null)
+        {
+            return;
+        }
+        float range = boundPosition.Max.Y - boundPosition.Min.Y;
+        float t = range > 0.000001f ? (_content.Position.Y - boundPosition.Min.Y) / range : 0f;
+        _suppressSliderEvent = true;
+        _sliderVertical.Value = t;
+        _suppressSliderEvent = false;
     }
 }
