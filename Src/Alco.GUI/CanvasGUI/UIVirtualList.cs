@@ -68,16 +68,6 @@ public abstract class UIVirtualList<TData> : UINode
     }
 
     /// <summary>
-    /// Inertia strength [0,1]. 0 stops immediately on release; 1 never decelerates.
-    /// Velocity retains Inertia per second, thus retains Inertia^delta per frame.
-    /// </summary>
-    public float Inertia
-    {
-        get => _scrollable.Inertia;
-        set => _scrollable.Inertia = value;
-    }
-
-    /// <summary>
     /// Gets or sets the number of columns per row in the grid.
     /// </summary>
     public int ColumnsPerRow
@@ -103,6 +93,11 @@ public abstract class UIVirtualList<TData> : UINode
     /// Gets the current number of data items.
     /// </summary>
     public int Count => _data.Count;
+    
+    /// <summary>
+    /// Gets the internal scrollable viewport.
+    /// </summary>
+    public UIScrollable Scrollable => _scrollable;
     
     /// <summary>
     /// Gets the total content size.

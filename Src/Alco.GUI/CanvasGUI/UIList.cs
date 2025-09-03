@@ -23,86 +23,9 @@ public abstract class UIList<TData> : UINode
     public UILayout Layout => _layout;
 
     /// <summary>
-    /// Gets or sets the scroll mode for the list viewport.
+    /// Gets the internal scrollable viewport.
     /// </summary>
-    public SrollMode ScrollMode
-    {
-        get => _scrollable.ScrollMode;
-        set => _scrollable.ScrollMode = value;
-    }
-
-    /// <summary>
-    /// Top padding applied by the internal vertical layout.
-    /// </summary>
-    public float PaddingTop
-    {
-        get => _layout.PaddingTop;
-        set => _layout.PaddingTop = value;
-    }
-
-    /// <summary>
-    /// Bottom padding applied by the internal vertical layout.
-    /// </summary>
-    public float PaddingBottom
-    {
-        get => _layout.PaddingBottom;
-        set => _layout.PaddingBottom = value;
-    }
-
-    /// <summary>
-    /// Spacing between items in the internal layout.
-    /// </summary>
-    public Vector2 Spacing
-    {
-        get => _layout.Spacing;
-        set => _layout.Spacing = value;
-    }
-
-    /// <summary>
-    /// Legacy spacing property - sets both X and Y spacing values
-    /// </summary>
-    public float SpacingValue
-    {
-        get => _layout.SpacingValue;
-        set => _layout.SpacingValue = value;
-    }
-
-    /// <summary>
-    /// Whether the internal layout uses a fixed height per item.
-    /// </summary>
-    public bool IsFixedItemSize
-    {
-        get => _layout.IsFixedItemSize;
-        set => _layout.IsFixedItemSize = value;
-    }
-
-    /// <summary>
-    /// Fixed item height used when <see cref="IsFixedItemSize"/> is true.
-    /// </summary>
-    public float FixedItemHeight
-    {
-        get => _layout.FixedItemHeight;
-        set => _layout.FixedItemHeight = value;
-    }
-
-    /// <summary>
-    /// Fixed item width used when <see cref="IsFixedItemSize"/> is true.
-    /// </summary>
-    public float FixedItemWidth
-    {
-        get => _layout.FixedItemWidth;
-        set => _layout.FixedItemWidth = value;
-    }
-
-    /// <summary>
-    /// Inertia strength [0,1]. 0 stops immediately on release; 1 never decelerates.
-    /// Velocity retains Inertia per second, thus retains Inertia^delta per frame.
-    /// </summary>
-    public float Inertia
-    {
-        get => _scrollable.Inertia;
-        set => _scrollable.Inertia = value;
-    }
+    public UIScrollable Scrollable => _scrollable;
 
     /// <summary>
     /// Current number of data items bound to the list.

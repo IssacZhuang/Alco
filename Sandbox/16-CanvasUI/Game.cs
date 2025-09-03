@@ -42,6 +42,9 @@ public class Game : GameEngine
     private IntList _intList;
     private IntVirtualList _intVirtualList;
     private IntVirtualList _intVirtualGridList;
+    private UISlider _listSlider;
+    private UISlider _virtualListSlider;
+    private UISlider _virtualGridListSlider;
     private UIButton _button1;
     private UIText _label;
 
@@ -255,6 +258,25 @@ public class Game : GameEngine
         _root.Add(_intVirtualGridList);
 
         PopulateIntVirtualGridList(_virtualListCount);
+
+        // Create and link vertical sliders for lists
+        _listSlider = _factory.CreateSlider();
+        _listSlider.Rotation = new Rotation2D(90);
+        _listSlider.Position = new Vector2(_intList.Size.X * 0.5f + 20f, 0f);
+        _root.Add(_listSlider);
+        _intList.Scrollable.SliderVertical = _listSlider;
+
+        _virtualListSlider = _factory.CreateSlider();
+        _virtualListSlider.Rotation = new Rotation2D(90);
+        _virtualListSlider.Position = new Vector2(_intVirtualList.Size.X * 0.5f + 20f, 0f);
+        _root.Add(_virtualListSlider);
+        _intVirtualList.Scrollable.SliderVertical = _virtualListSlider;
+
+        _virtualGridListSlider = _factory.CreateSlider();
+        _virtualGridListSlider.Rotation = new Rotation2D(90);
+        _virtualGridListSlider.Position = new Vector2(_intVirtualGridList.Size.X * 0.5f + 20f, 0f);
+        _root.Add(_virtualGridListSlider);
+        _intVirtualGridList.Scrollable.SliderVertical = _virtualGridListSlider;
 
         // default display
         UpdateDisplayActive();
@@ -474,6 +496,10 @@ public class Game : GameEngine
                 {
                     _slider.Value = _progress;
                 }
+                if (ImGui.SliderFloat("Angle", ref _angle, 0, 360))
+                {
+                    _slider.Rotation = new Rotation2D(_angle);
+                }
                 break;
             }
 
@@ -606,6 +632,9 @@ public class Game : GameEngine
         _intVirtualList.IsEnable = false;
         _intVirtualGridList.IsEnable = false;
         _label.IsEnable = false;
+        if (_listSlider != null) _listSlider.IsEnable = false;
+        if (_virtualListSlider != null) _virtualListSlider.IsEnable = false;
+        if (_virtualGridListSlider != null) _virtualGridListSlider.IsEnable = false;
         
         switch (_display)
         {
@@ -653,12 +682,15 @@ public class Game : GameEngine
                 break;
             case Display.List:
                 _intList.IsEnable = true;
+                if (_listSlider != null) _listSlider.IsEnable = true;
                 break;
             case Display.VirtualList:
                 _intVirtualList.IsEnable = true;
+                if (_virtualListSlider != null) _virtualListSlider.IsEnable = true;
                 break;
             case Display.VirtualGridList:
                 _intVirtualGridList.IsEnable = true;
+                if (_virtualGridListSlider != null) _virtualGridListSlider.IsEnable = true;
                 break;
         }
     }

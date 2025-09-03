@@ -7,6 +7,7 @@ public class UISlider : UINode
     private float _value;
     private UISelectable? _handle;
     private UIText? _valueText;
+    public event Action<float>? EventOnValueChanged;
 
 
     public UISelectable? Handle
@@ -66,6 +67,17 @@ public class UISlider : UINode
     private void UpdateValue(float value)
     {
         value = math.clamp(value, 0, 1);
+        if (MathF.Abs(_value - value) < 0.000001f)
+        {
+            // keep text/handle in sync even if tiny change filtered out
+            UpdateValueText();
+            if (_handle != null && _handle.Parent != null)
+            {
+                Vector2 parentSizeInner = _handle.Parent.Size;
+                _handle.Position = new Vector2(parentSizeInner.X * (value - 0.5f), 0);
+            }
+            return;
+        }
         _value = value;
 
         UpdateValueText();
@@ -85,6 +97,8 @@ public class UISlider : UINode
         
         Vector2 parentSize = handleParent.Size;
         _handle.Position = new Vector2(parentSize.X * (value - 0.5f), 0);
+
+        EventOnValueChanged?.Invoke(_value);
     }
 
     private void UpdateValueText()
@@ -111,9 +125,10 @@ public class UISlider : UINode
         {
             return;
         }
-        Vector2 handleParentSize = parent.Size;
-        float left = mousePosition.X - WorldTransform.Position.X + handleParentSize.X * 0.5f;
-        UpdateValue(left / handleParentSize.X);
+        // Convert world mouse position to the handle track's local space to respect rotation
+        Vector2 local = math.tolocal(parent.WorldTransform, mousePosition);
+        float t = local.X / parent.Size.X + 0.5f; // map [-w/2, +w/2] -> [0, 1]
+        UpdateValue(t);
     }
 
 }

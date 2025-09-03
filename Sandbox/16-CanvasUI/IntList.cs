@@ -20,7 +20,7 @@ public class IntList : UIList<int>
 	public IntList()
 	{
 		this.Anchor = Anchor.Stretch;
-		SpacingValue = 4f;
+		Layout.SpacingValue = 4f;
 	}
 
 	protected override UINode CreateItem()
