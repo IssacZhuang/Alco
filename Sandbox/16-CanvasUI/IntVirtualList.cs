@@ -20,7 +20,7 @@ public class IntVirtualList : UIVirtualList<int>
     public IntVirtualList()
     {
         Anchor = Anchor.Stretch;
-        ColumnsPerRow = 1; // Vertical list
+        ColumnsPerRow = 1; // Vertical list (single column)
         ItemSize = new Vector2(100, 28); // Same size as IntListItem + spacing
         Spacing = new Vector2(0f, 4f); // 4px vertical spacing like IntList
     }
@@ -49,8 +49,9 @@ public class IntVirtualListItem : UIButton, IUIListItem<int>
     /// </summary>
     public IntVirtualListItem()
     {
-        // Use center anchor for consistent layout calculation
+        // Use center anchor and pivot for consistent layout calculation
         Anchor = Anchor.Center;
+        Pivot = Pivot.Center;
         Size = new Vector2(100, 24);
 
         _background = new UISprite
