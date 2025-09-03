@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace Alco.GUI;
@@ -10,8 +11,6 @@ namespace Alco.GUI;
 /// </summary>
 public abstract class UIList<TData> : UINode
 {
-    // used for virtual list/pooling
-    private readonly List<UINode> _pool = new();
     private readonly List<TData> _data = new();
 
     private readonly UIMask _mask;
@@ -71,19 +70,28 @@ public abstract class UIList<TData> : UINode
     /// <summary>
     /// Whether the internal layout uses a fixed height per item.
     /// </summary>
-    public bool IsFixedItemHeight
+    public bool IsFixedItemSize
     {
-        get => _layout.IsFixedSize;
-        set => _layout.IsFixedSize = value;
+        get => _layout.IsFixedItemSize;
+        set => _layout.IsFixedItemSize = value;
     }
 
     /// <summary>
-    /// Fixed item height used when <see cref="IsFixedItemHeight"/> is true.
+    /// Fixed item height used when <see cref="IsFixedItemSize"/> is true.
     /// </summary>
     public float FixedItemHeight
     {
-        get => _layout.FixedHeight;
-        set => _layout.FixedHeight = value;
+        get => _layout.FixedItemHeight;
+        set => _layout.FixedItemHeight = value;
+    }
+
+    /// <summary>
+    /// Fixed item width used when <see cref="IsFixedItemSize"/> is true.
+    /// </summary>
+    public float FixedItemWidth
+    {
+        get => _layout.FixedItemWidth;
+        set => _layout.FixedItemWidth = value;
     }
 
     /// <summary>
@@ -118,7 +126,7 @@ public abstract class UIList<TData> : UINode
         {
             Anchor = Anchor.Stretch,
             FitContentSize = true,
-            IsFixedSize = false,
+            IsFixedItemSize = false,
             SpacingValue = 4f
         };
 
@@ -142,40 +150,30 @@ public abstract class UIList<TData> : UINode
     /// <param name="items">The items to display.</param>
     public void SetItems(IReadOnlyList<TData> items)
     {
-        // ensure pool capacity
-        for (int i = _pool.Count; i < items.Count; i++)
-        {
-            UINode item = CreateItem();
-            _pool.Add(item);
-            _layout.Add(item, false);
-        }
-
-        // bind and enable required items
-        for (int i = 0; i < items.Count; i++)
-        {
-            UINode item = _pool[i];
-            item.IsEnable = true;
-            item.IsLayoutAffected = true;
-            SetDataForItem(item, i, items[i]);
-        }
-
-        // disable extras
-        for (int i = items.Count; i < _pool.Count; i++)
-        {
-            UINode item = _pool[i];
-            item.IsEnable = false;
-            item.IsLayoutAffected = false;
-        }
-
-        // copy data snapshot
+        // snapshot data first
         _data.Clear();
         for (int i = 0; i < items.Count; i++)
         {
             _data.Add(items[i]);
         }
 
-        // update layout sizing and positions
-        _layout.UpdateLayout();
+        ApplyItemsFromData();
+    }
+
+    /// <summary>
+    /// Sets/refreshes the items using a ReadOnlySpan to avoid intermediate allocations.
+    /// </summary>
+    /// <param name="items">The span of items to display.</param>
+    public void SetItems(ReadOnlySpan<TData> items)
+    {
+        // snapshot data first
+        _data.Clear();
+        for (int i = 0; i < items.Length; i++)
+        {
+            _data.Add(items[i]);
+        }
+
+        ApplyItemsFromData();
     }
 
     /// <summary>
@@ -189,8 +187,57 @@ public abstract class UIList<TData> : UINode
         {
             return;
         }
+        if ((uint)index >= (uint)_layout.Children.Count)
+        {
+            return;
+        }
         _data[index] = data;
-        SetDataForItem(_pool[index], index, data);
+        SetDataForItem(_layout.Children[index], index, data);
+    }
+
+    /// <summary>
+    /// Rebinds all current items by calling SetData on the existing nodes with stored data.
+    /// Useful when visual appearance depends on external state (e.g., selection, theme).
+    /// </summary>
+    public void RefreshItems()
+    {
+        int count = Math.Min(_data.Count, _layout.Children.Count);
+        for (int i = 0; i < count; i++)
+        {
+            UINode item = _layout.Children[i];
+            SetDataForItem(item, i, _data[i]);
+        }
+    }
+
+    private void ApplyItemsFromData()
+    {
+        int desiredCount = _data.Count;
+        int currentCount = _layout.Children.Count;
+
+        // remove extras from end so GC can collect
+        for (int i = currentCount - 1; i >= desiredCount; i--)
+        {
+            UINode child = _layout.Children[i];
+            _layout.Remove(child);
+        }
+
+        // create missing items
+        for (int i = _layout.Children.Count; i < desiredCount; i++)
+        {
+            UINode item = CreateItem();
+            _layout.Add(item, false);
+        }
+
+        // bind
+        for (int i = 0; i < desiredCount; i++)
+        {
+            UINode item = _layout.Children[i];
+            item.IsEnable = true;
+            item.IsLayoutAffected = true;
+            SetDataForItem(item, i, _data[i]);
+        }
+
+        _layout.UpdateLayout();
     }
 
     /// <summary>

@@ -19,7 +19,8 @@ public class Game : GameEngine
         LayoutGrid,
         Slider,
         List,
-        VirtualList
+        VirtualList,
+        VirtualGridList
     }
 
     private readonly Canvas _canvas;
@@ -40,6 +41,7 @@ public class Game : GameEngine
     private UISprite _sprite;
     private IntList _intList;
     private IntVirtualList _intVirtualList;
+    private IntVirtualList _intVirtualGridList;
     private UIButton _button1;
     private UIText _label;
 
@@ -240,6 +242,19 @@ public class Game : GameEngine
         _root.Add(_intVirtualList);
 
         PopulateIntVirtualList(_virtualListCount);
+
+        // Virtual Int grid list demo (3 items per row)
+        _intVirtualGridList = new IntVirtualList()
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(360, 200),
+        };
+        _intVirtualGridList.ItemFont = _font;
+        _intVirtualGridList.ColumnsPerRow = 3;
+        _intVirtualGridList.Spacing = new Vector2(5f, 4f);
+        _root.Add(_intVirtualGridList);
+
+        PopulateIntVirtualGridList(_virtualListCount);
 
         // default display
         UpdateDisplayActive();
@@ -489,6 +504,18 @@ public class Game : GameEngine
                 
                 break;
             }
+            
+            case Display.VirtualGridList:
+            {
+                float count = _virtualListCount;
+                if (ImGui.SliderFloat("Virtual Grid Count", ref count, 1000, 10000000))
+                {
+                    _virtualListCount = (int)count;
+                    PopulateIntVirtualGridList(_virtualListCount);
+                }
+                ImGui.Text("Grid layout with 3 items per row.");
+                break;
+            }
         }
 
         ImGui.End();
@@ -513,6 +540,14 @@ public class Game : GameEngine
         List<int> data = new List<int>(count);
         for (int i = 0; i < count; i++) data.Add(i);
         _intVirtualList.SetItems(data);
+    }
+
+    private void PopulateIntVirtualGridList(int count)
+    {
+        // Generate sequential integers 0..count-1 efficiently for virtual grid list
+        List<int> data = new List<int>(count);
+        for (int i = 0; i < count; i++) data.Add(i);
+        _intVirtualGridList.SetItems(data);
     }
 
     private void PopulateLayoutButtons(UILayout layout)
@@ -569,6 +604,7 @@ public class Game : GameEngine
         _slider.IsEnable = false;
         _intList.IsEnable = false;
         _intVirtualList.IsEnable = false;
+        _intVirtualGridList.IsEnable = false;
         _label.IsEnable = false;
         
         switch (_display)
@@ -620,6 +656,9 @@ public class Game : GameEngine
                 break;
             case Display.VirtualList:
                 _intVirtualList.IsEnable = true;
+                break;
+            case Display.VirtualGridList:
+                _intVirtualGridList.IsEnable = true;
                 break;
         }
     }

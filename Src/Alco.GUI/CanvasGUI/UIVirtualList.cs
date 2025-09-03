@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace Alco.GUI;
@@ -173,6 +174,24 @@ public abstract class UIVirtualList<TData> : UINode
         
         RefreshVisibleItems();
     }
+
+    /// <summary>
+    /// Sets the data items for the virtual list from a ReadOnlySpan to minimize allocations.
+    /// </summary>
+    public void SetItems(ReadOnlySpan<TData> items)
+    {
+        _data.Clear();
+        for (int i = 0; i < items.Length; i++)
+        {
+            _data.Add(items[i]);
+        }
+
+        // Update container size to represent total content
+        Vector2 contentSize = ContentSize;
+        _container.Size = contentSize;
+
+        RefreshVisibleItems();
+    }
     
     /// <summary>
     /// Updates a single item at the specified index.
@@ -194,16 +213,24 @@ public abstract class UIVirtualList<TData> : UINode
             }
         }
     }
-    
+
     /// <summary>
-    /// Forces a refresh of visible items. Useful for debugging or when layout changes.
+    /// Rebinds all currently active (visible) items using the stored data.
+    /// Does not change pooling or layout; only calls SetData on active nodes.
     /// </summary>
-    public void ForceRefresh()
+    public void RefreshItems()
     {
-        _visibleStartIndex = -1;
-        _visibleEndIndex = -1;
-        RefreshVisibleItems();
+        foreach (var activeItem in _activeItems)
+        {
+            int index = activeItem.Index;
+            if ((uint)index >= (uint)_data.Count)
+            {
+                continue;
+            }
+            SetDataForItem(activeItem.Node, index, _data[index]);
+        }
     }
+
     
     /// <summary>
     /// Gets the start index of visible items based on scroll position.

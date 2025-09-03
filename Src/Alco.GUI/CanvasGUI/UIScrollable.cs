@@ -35,15 +35,6 @@ public class UIScrollable : UISelectable
         }
     }
 
-
-    protected override void OnRender(Canvas canvas, float delta)
-    {
-        base.OnRender(canvas, delta);
-
-        Vector2 contentSize = _content?.Size ?? Vector2.Zero;
-
-    }
-
     /// <summary>
     /// Inertia strength [0,1]. 0 stops immediately on release; 1 never decelerates.
     /// Velocity retains Inertia per second, thus retains Inertia^delta per frame.

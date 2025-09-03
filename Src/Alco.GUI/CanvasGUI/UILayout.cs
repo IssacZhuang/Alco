@@ -90,7 +90,7 @@ public class UILayout : UINode
         }
     }
 
-    public float FixedWidth
+    public float FixedItemWidth
     {
         get => _fixedWidth;
         set
@@ -99,7 +99,7 @@ public class UILayout : UINode
         }
     }
 
-    public float FixedHeight
+    public float FixedItemHeight
     {
         get => _fixedHeight;
         set
@@ -145,7 +145,7 @@ public class UILayout : UINode
     /// <summary>
     /// Whether to use fixed size for all child elements
     /// </summary>
-    public bool IsFixedSize
+    public bool IsFixedItemSize
     {
         get => _isFixedSize;
         set
