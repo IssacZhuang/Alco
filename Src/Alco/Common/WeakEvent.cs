@@ -77,7 +77,8 @@ public sealed class WeakEvent<TEventArgs> where TEventArgs : allows ref struct
     public void RemoveListener(Action<TEventArgs> handler)
     {
         _listeners.RemoveAll(wr => !wr.IsAlive || wr.Target == null || wr.Target.Equals(handler));
-        if(handler.Target != null && _keepDelegateAlive.TryGetValue(handler.Target, out var list))
+        object? target = handler.Target;
+        if(target != null && _keepDelegateAlive.TryGetValue(target, out var list))
         {
             list.Remove(handler);
         }

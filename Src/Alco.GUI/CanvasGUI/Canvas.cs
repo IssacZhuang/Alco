@@ -260,13 +260,16 @@ public partial class Canvas : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        _inputTracker?.UnregisterTextInput(OnTextInput);
-        _collisionWorld.Dispose();
-        _renderContext.Dispose();
-        _spriteRenderer.Dispose();
-        _textRenderer.Dispose();
-        _dynamicMeshRenderer.Dispose();
-        _camera.Dispose();
+        if(disposing)
+        {
+            _inputTracker?.UnregisterTextInput(OnTextInput);
+            _collisionWorld.Dispose();
+            _renderContext.Dispose();
+            _spriteRenderer.Dispose();
+            _textRenderer.Dispose();
+            _dynamicMeshRenderer.Dispose();
+            _camera.Dispose();
+        }
     }
 
     
