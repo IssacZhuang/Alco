@@ -1,10 +1,75 @@
 using Alco.GUI;
+using Alco;
 using System.Numerics;
 
 namespace Alco.ImGUI;
 
 public static class UINodeExtension
 {
+    /// <summary>
+    /// Draw a highlight outline around the given <see cref="UINode"/> using its <see cref="UINode.RenderTransform"/>.
+    /// Coordinate conversion is handled from Alco UI space (origin center, Y up) to ImGui screen space (origin top-left, Y down).
+    /// </summary>
+    /// <param name="node">The UI node to highlight.</param>
+    /// <param name="canvas">The UI canvas providing the view size for coordinate conversion.</param>
+    /// <param name="thickness">Outline thickness in pixels.</param>
+    /// <param name="color">RGBA color. If null, uses yellow (1,1,0,1).</param>
+    public static void DrawHighlight(this UINode node, Canvas canvas, float thickness = 2f, Vector4? color = null)
+    {
+        // Compute the four corners in Alco UI world space
+        Transform2D rt = node.RenderTransform;
+        Vector2 center = rt.Position;
+        Vector2 half = rt.Scale * 0.5f;
+
+        Vector2 o0 = new Vector2(-half.X, -half.Y);
+        Vector2 o1 = new Vector2(half.X, -half.Y);
+        Vector2 o2 = new Vector2(half.X, half.Y);
+        Vector2 o3 = new Vector2(-half.X, half.Y);
+
+        // Rotate offsets by node rotation
+        o0 = math.rotate(o0, rt.Rotation);
+        o1 = math.rotate(o1, rt.Rotation);
+        o2 = math.rotate(o2, rt.Rotation);
+        o3 = math.rotate(o3, rt.Rotation);
+
+        Vector2 p0 = center + o0;
+        Vector2 p1 = center + o1;
+        Vector2 p2 = center + o2;
+        Vector2 p3 = center + o3;
+
+        // Convert to ImGui screen space (absolute coordinates)
+        // Canvas.Size is virtual resolution; final screen pixels are the ImGui main viewport size.
+        Vector2 canvasSize = canvas.Size;           // virtual units (W,H)
+        Vector2 viewportPos = ImGui.GetMainViewport().Pos;   // top-left in screen pixels
+        Vector2 viewportSize = ImGui.GetMainViewport().Size; // size in screen pixels
+
+        float sx = viewportSize.X / canvasSize.X; // pixel per virtual unit (X)
+        float sy = viewportSize.Y / canvasSize.Y; // pixel per virtual unit (Y)
+
+        static Vector2 ToImGui(Vector2 world, Vector2 vpPos, Vector2 vpSize, float sx, float sy)
+        {
+            float x = vpPos.X + vpSize.X * 0.5f + world.X * sx;
+            float y = vpPos.Y + vpSize.Y * 0.5f - world.Y * sy;
+            return new Vector2(x, y);
+        }
+
+        Vector2 q0 = ToImGui(p0, viewportPos, viewportSize, sx, sy);
+        Vector2 q1 = ToImGui(p1, viewportPos, viewportSize, sx, sy);
+        Vector2 q2 = ToImGui(p2, viewportPos, viewportSize, sx, sy);
+        Vector2 q3 = ToImGui(p3, viewportPos, viewportSize, sx, sy);
+
+        // Draw on foreground so it's visible above all windows
+        ImDrawListPtr dl = ImGui.GetForegroundDrawList();
+        uint col = ImGui.GetColorU32(color ?? new Vector4(1f, 1f, 0f, 1f));
+
+        dl.PathClear();
+        dl.PathLineTo(q0);
+        dl.PathLineTo(q1);
+        dl.PathLineTo(q2);
+        dl.PathLineTo(q3);
+        dl.PathStroke(col, ImDrawFlags.Closed, thickness);
+    }
+
     public static void DrawDebugTreeWithInspector(this UINode rootNode, ref UINode? selectedNode)
     {
         if (ImGui.BeginTable("ui_debug", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.Borders))
@@ -159,4 +224,5 @@ public static class UINodeExtension
         }
         ImGui.PopID();
     }
+
 }
