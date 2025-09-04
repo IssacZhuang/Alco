@@ -4,6 +4,7 @@ using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Alco;
 using Alco.IO;
 
 namespace Alco.Engine;
@@ -72,12 +73,11 @@ public class ConfigDatabase
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigDatabase"/> class.
+    /// Initializes a new instance of the <see cref="ConfigDatabase"/> class using explicit polymorphic root types
+    /// combined with auto-discovered root types marked by <see cref="PolymorphicTypeAttribute"/>.
     /// </summary>
-    /// <param name="polymorphicTypes">Types to support for polymorphic JSON serialization</param>
+    /// <param name="polymorphicTypes">Additional root types to support for polymorphic JSON serialization</param>
     /// <param name="converters">Custom JSON converters to use for deserialization</param>
-    /// <param name="onInfo">Callback for informational messages</param>
-    /// <param name="onWarning">Callback for warning messages</param>
     /// <param name="onError">Callback for error messages</param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
     public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onError)
@@ -85,16 +85,27 @@ public class ConfigDatabase
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
 
-        List<Type> polymorphicTypeList = new();
+        HashSet<Type> rootTypes = new HashSet<Type>();
+
+        // Auto-discovered roots by attribute
+        var discovered = UtilsType.FindTypesWithAttribute<PolymorphicTypeAttribute>();
+        for (int i = 0; i < discovered.Length; i++)
+        {
+            rootTypes.Add(discovered[i]);
+        }
+
+        // Additional roots provided by caller
         for (int i = 0; i < polymorphicTypes.Length; i++)
         {
-            polymorphicTypeList.Add(polymorphicTypes[i]);
+            rootTypes.Add(polymorphicTypes[i]);
         }
-        polymorphicTypeList.Add(typeof(Configable));
+
+        // Always include Configable as polymorphic root
+        rootTypes.Add(typeof(Configable));
 
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new PolymorphicJsonTypeResolver(polymorphicTypeList.ToArray()),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver(rootTypes.ToArray()),
             WriteIndented = true,
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
@@ -108,6 +119,17 @@ public class ConfigDatabase
         _jsonSerializerOptions.MakeReadOnly();
 
         _jsonPreprocessor = new JsonPreprocessor(onError);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConfigDatabase"/> class using auto-discovered polymorphic root types.
+    /// All classes marked with <see cref="PolymorphicTypeAttribute"/> across loaded assemblies will be considered roots.
+    /// </summary>
+    /// <param name="converters">Custom JSON converters to use for deserialization</param>
+    /// <param name="onError">Callback for error messages</param>
+    public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onError)
+        : this(Array.Empty<Type>(), converters, onError)
+    {
     }
 
     /// <summary>

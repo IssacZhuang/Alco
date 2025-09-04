@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
 
 namespace Alco;
 
@@ -49,5 +50,49 @@ public static class UtilsType
         genericKeyType = null;
         genericValueType = null;
         return false;
+    }
+
+    /// <summary>
+    /// Finds all types across the provided assemblies (or all loaded assemblies if none specified)
+    /// that are marked with the specified attribute type.
+    /// </summary>
+    /// <typeparam name="TAttribute">The attribute type to search for.</typeparam>
+    /// <param name="assemblies">Optional assemblies to limit the search scope.</param>
+    /// <returns>An array of matching types.</returns>
+    public static Type[] FindTypesWithAttribute<TAttribute>(params Assembly[] assemblies) where TAttribute : Attribute
+    {
+        IEnumerable<Assembly> source = assemblies != null && assemblies.Length > 0
+            ? assemblies
+            : AppDomain.CurrentDomain.GetAssemblies();
+
+        List<Type> result = new List<Type>();
+        HashSet<Type> unique = new HashSet<Type>();
+
+        foreach (var asm in source)
+        {
+            Type[] types;
+            try
+            {
+                types = asm.GetTypes();
+            }
+            catch
+            {
+                continue;
+            }
+
+            for (int i = 0; i < types.Length; i++)
+            {
+                var t = types[i];
+                if (t.GetCustomAttribute<TAttribute>() != null)
+                {
+                    if (unique.Add(t))
+                    {
+                        result.Add(t);
+                    }
+                }
+            }
+        }
+
+        return result.ToArray();
     }
 }
