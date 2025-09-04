@@ -9,7 +9,6 @@ namespace Alco.GUI;
 /// </summary>
 public class UISprite : UINode
 {
-    public static readonly Vector2 DefaultSize = new Vector2(100, 100);
     private Texture2D? _texture;
     private ImageType _imageType = ImageType.Simple;
 
@@ -67,7 +66,7 @@ public class UISprite : UINode
 
     public UISprite()
     {
-        Size = DefaultSize;
+        
     }
 
     /// <summary>
@@ -78,10 +77,6 @@ public class UISprite : UINode
         if (Texture != null)
         {
             Size = new Vector2(Texture.Width, Texture.Height);
-        }
-        else
-        {
-            Size = DefaultSize;
         }
     }
 
