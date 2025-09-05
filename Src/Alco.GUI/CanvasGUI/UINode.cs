@@ -201,7 +201,6 @@ public class UINode : IEnumerable<UINode>
             if (Parent != null)
             {
                 _transform = math.tolocal(Parent.WorldTransform, value);
-                //_transform.position -= Size * _pivot.value;
                 _transform.Position -= math.rotate(Size * _pivot.value, _transform.Rotation);
                 _transform.Position -= Parent.Size * _anchor.CenterPoint;
             }
@@ -619,8 +618,7 @@ public class UINode : IEnumerable<UINode>
     protected void ForceRefreshTransform()
     {
         _worldTransform = _transform;
-        //_worldTransform.position += Size * _pivot.value;
-        _worldTransform.Position += math.rotate(Size * _pivot.value, _transform.Rotation);
+        _worldTransform.Position -= math.rotate(Size * _pivot.value, _transform.Rotation);
         if (Parent != null)
         {
             _worldTransform.Position += Parent.Size * _anchor.CenterPoint;
