@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -770,7 +771,7 @@ public class UINode : IEnumerable<UINode>
     /// Returns an enumerator that iterates through the children.
     /// </summary>
     /// <returns>An enumerator for the children collection.</returns>
-    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+    IEnumerator IEnumerable.GetEnumerator()
     {
         return _children.GetEnumerator();
     }

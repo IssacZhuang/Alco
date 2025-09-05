@@ -205,6 +205,11 @@ public class UIScrollable : UISelectable
             boundPosition.Max.Y = 0;
         }
 
+        Vector2 sizeDiff = boundPosition.Max - boundPosition.Min;
+        Vector2 offsetByPivot = _content!.Pivot * sizeDiff;
+        boundPosition.Min += offsetByPivot;
+        boundPosition.Max += offsetByPivot;
+
         if ((ScrollMode & SrollMode.Vertical) != 0)
         {
             _content!.Position = new Vector2(_content.Position.X, position.Y);
