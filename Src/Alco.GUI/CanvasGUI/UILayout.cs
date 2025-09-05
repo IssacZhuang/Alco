@@ -298,12 +298,12 @@ public class UILayout : UINode
             child.Pivot = new Pivot(child.Pivot.X, 0f);
             if (_isFixedSize)
             {
-                child.Position = new Vector2(child.Position.X, currentY + _fixedHeight * 0.5f);
+                child.Position = new Vector2(child.Position.X, currentY - _fixedHeight * 0.5f);
                 currentY -= _fixedHeight + _spacing.Y;
             }
             else
             {
-                child.Position = new Vector2(child.Position.X, currentY + child.Size.Y * 0.5f);
+                child.Position = new Vector2(child.Position.X, currentY - child.Size.Y * 0.5f);
                 currentY -= child.Size.Y + _spacing.Y;
             }
         }

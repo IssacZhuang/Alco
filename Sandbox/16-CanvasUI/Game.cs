@@ -437,6 +437,28 @@ public class Game : GameEngine
                 {
                     _verticalLayout.Pivot = new Vector2(0f, _pivotY);
                 }
+
+                    // Padding controls
+                    float vPadTop = _verticalLayout.PaddingTop;
+                    if (ImGui.SliderFloat("Padding Top", ref vPadTop, 0, 50))
+                    {
+                        _verticalLayout.PaddingTop = vPadTop;
+                        _verticalLayout.UpdateLayout();
+                    }
+                    float vPadBottom = _verticalLayout.PaddingBottom;
+                    if (ImGui.SliderFloat("Padding Bottom", ref vPadBottom, 0, 50))
+                    {
+                        _verticalLayout.PaddingBottom = vPadBottom;
+                        _verticalLayout.UpdateLayout();
+                    }
+
+                    // Spacing controls
+                    float vSpacingY = _verticalLayout.Spacing.Y;
+                    if (ImGui.SliderFloat("Spacing Y", ref vSpacingY, 0, 20))
+                    {
+                        _verticalLayout.Spacing = new Vector2(_verticalLayout.Spacing.X, vSpacingY);
+                        _verticalLayout.UpdateLayout();
+                    }
                 float itemCountFloat = _itemCount;
                 if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 10))
                 {
@@ -452,6 +474,28 @@ public class Game : GameEngine
                 {
                     _horizontalLayout.Pivot = new Vector2(_pivotY, 0f);
                 }
+
+                    // Padding controls
+                    float hPadLeft = _horizontalLayout.PaddingLeft;
+                    if (ImGui.SliderFloat("Padding Left", ref hPadLeft, 0, 50))
+                    {
+                        _horizontalLayout.PaddingLeft = hPadLeft;
+                        _horizontalLayout.UpdateLayout();
+                    }
+                    float hPadRight = _horizontalLayout.PaddingRight;
+                    if (ImGui.SliderFloat("Padding Right", ref hPadRight, 0, 50))
+                    {
+                        _horizontalLayout.PaddingRight = hPadRight;
+                        _horizontalLayout.UpdateLayout();
+                    }
+
+                    // Spacing controls
+                    float hSpacingX = _horizontalLayout.Spacing.X;
+                    if (ImGui.SliderFloat("Spacing X", ref hSpacingX, 0, 20))
+                    {
+                        _horizontalLayout.Spacing = new Vector2(hSpacingX, _horizontalLayout.Spacing.Y);
+                        _horizontalLayout.UpdateLayout();
+                    }
                 float itemCountFloat = _itemCount;
                 if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 10))
                 {
@@ -474,6 +518,32 @@ public class Game : GameEngine
                     _gridLayout.Spacing = new Vector2(_spacingX, _spacingY);
                     _gridLayout.UpdateLayout();
                 }
+
+                    // Padding controls
+                    float gPadTop = _gridLayout.PaddingTop;
+                    if (ImGui.SliderFloat("Padding Top", ref gPadTop, 0, 50))
+                    {
+                        _gridLayout.PaddingTop = gPadTop;
+                        _gridLayout.UpdateLayout();
+                    }
+                    float gPadBottom = _gridLayout.PaddingBottom;
+                    if (ImGui.SliderFloat("Padding Bottom", ref gPadBottom, 0, 50))
+                    {
+                        _gridLayout.PaddingBottom = gPadBottom;
+                        _gridLayout.UpdateLayout();
+                    }
+                    float gPadLeft = _gridLayout.PaddingLeft;
+                    if (ImGui.SliderFloat("Padding Left", ref gPadLeft, 0, 50))
+                    {
+                        _gridLayout.PaddingLeft = gPadLeft;
+                        _gridLayout.UpdateLayout();
+                    }
+                    float gPadRight = _gridLayout.PaddingRight;
+                    if (ImGui.SliderFloat("Padding Right", ref gPadRight, 0, 50))
+                    {
+                        _gridLayout.PaddingRight = gPadRight;
+                        _gridLayout.UpdateLayout();
+                    }
                 
                 float itemCountFloat = _itemCount;
                 if (ImGui.SliderFloat("Item Count", ref itemCountFloat, 0, 20))
