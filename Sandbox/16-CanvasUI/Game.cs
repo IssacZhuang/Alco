@@ -106,10 +106,7 @@ public class Game : GameEngine
         _canvas.Size = new Vector2(setting.View.Width, setting.View.Height);
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
 
-        _root = new UINode()
-        {
-            Name = "Root"
-        };
+        _root = _canvas.Root;
 
 
         UIInputBox inputBox = new UIInputBox()
@@ -332,7 +329,7 @@ public class Game : GameEngine
     protected override void OnTick(float delta)
     {
         //just move this to OnUpdate if u want to update UI logic every frame
-        _canvas.Tick(_root, delta);
+        _canvas.Tick(delta);
     }
 
     protected override void OnUpdate(float delta)
@@ -345,7 +342,7 @@ public class Game : GameEngine
         DebugStats.Text(FrameRate);
 
         //_canvas.Tick(_root, delta);
-        _canvas.Update(MainFrameBuffer, _root, delta);
+        _canvas.Update(MainFrameBuffer, delta);
 
         // ImGUI Controls
         ImGui.Begin("Canvas UI Controls");

@@ -11,10 +11,9 @@ public static class UINodeExtension
     /// Coordinate conversion is handled from Alco UI space (origin center, Y up) to ImGui screen space (origin top-left, Y down).
     /// </summary>
     /// <param name="node">The UI node to highlight.</param>
-    /// <param name="canvas">The UI canvas providing the view size for coordinate conversion.</param>
     /// <param name="thickness">Outline thickness in pixels.</param>
     /// <param name="color">RGBA color. If null, uses yellow (1,1,0,1).</param>
-    public static void DrawHighlight(this UINode node, Canvas canvas, float thickness = 2f, Vector4? color = null)
+    public static void DrawHighlight(this UINode node, float thickness = 2f, Vector4? color = null)
     {
         // Compute the four corners in Alco UI world space
         Transform2D rt = node.RenderTransform;
@@ -38,8 +37,8 @@ public static class UINodeExtension
         Vector2 p3 = center + o3;
 
         // Convert to ImGui screen space (absolute coordinates)
-        // Canvas.Size is virtual resolution; final screen pixels are the ImGui main viewport size.
-        Vector2 canvasSize = canvas.Size;           // virtual units (W,H)
+        // Use UI root size as virtual resolution; final screen pixels are the ImGui main viewport size.
+        Vector2 canvasSize = node.GetRoot().Size;   // virtual units (W,H)
         Vector2 viewportPos = ImGui.GetMainViewport().Pos;   // top-left in screen pixels
         Vector2 viewportSize = ImGui.GetMainViewport().Size; // size in screen pixels
 
@@ -106,6 +105,11 @@ public static class UINodeExtension
             ImGui.EndChild();
 
             ImGui.EndTable();
+        }
+
+        if(selectedNode != null)
+        {
+            selectedNode.DrawHighlight(1f);
         }
     }
 

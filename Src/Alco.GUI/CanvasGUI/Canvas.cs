@@ -93,10 +93,16 @@ public partial class Canvas : AutoDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
+            if (_camera.ViewSize == value)
+            {
+                return;
+            }
             _camera.ViewSize = value;
             _camera.UpdateMatrixToGPU();
             _invCameraSize = Vector2.One / new Vector2(value.X, value.Y);
             _bound = new BoundingBox2D(_camera.Position - value * 0.5f, _camera.Position + value * 0.5f);
+            // propagate size change to root node so layout matches canvas
+            Root.Size = value;
         }
     }
 
@@ -127,6 +133,11 @@ public partial class Canvas : AutoDisposable
     public Vector4 DebugDrawColor { get; set; }
 
     public Action<Exception>? ErrorHandler;
+
+    /// <summary>
+    /// The root node of this canvas. All UI nodes should be added under this node.
+    /// </summary>
+    public UINode Root { get; }
 
     public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Material defaultSpriteMaterial, Material defaultTextMaterial)
     {
@@ -210,28 +221,38 @@ public partial class Canvas : AutoDisposable
         _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext, 320* 1024, 108 *1024);
 
         _collisionWorld = new CollisionWorld2D();
+
+        // initialize root node owned by canvas
+        Root = new UINode { Name = "Root" };
     }
 
-    public void Tick(UINode root, float delta)
+    /// <summary>
+    /// Ticks the UI tree rooted at <see cref="Root"/>.
+    /// </summary>
+    /// <param name="delta">Delta time in seconds.</param>
+    public void Tick(float delta)
     {
         _collisionWorld.ClearAll();
-        TickNode(root, delta);
-        
-        // Handle input processing after ticking nodes
+        TickNode(Root, delta);
         HandleInput();
     }
 
-    public void Update(GPUFrameBuffer renderTarget, UINode root, float delta)
+    /// <summary>
+    /// Updates and renders the UI tree rooted at <see cref="Root"/> to the render target.
+    /// </summary>
+    /// <param name="renderTarget">The render target.</param>
+    /// <param name="delta">Delta time in seconds.</param>
+    public void Update(GPUFrameBuffer renderTarget, float delta)
     {
         _renderContext.Begin(renderTarget);
         _mask = 0;
-        UpdateNode(root, delta);
+        UpdateNode(Root, delta);
         _renderContext.End();
 
-        //DebugDraw(renderTarget, root);
+        //DebugDraw(renderTarget, Root);
     }
 
-    
+
 
     public void AddClickReciever(UINode node, ShapeBox2D shape)
     {

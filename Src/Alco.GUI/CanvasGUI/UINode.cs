@@ -266,6 +266,21 @@ public class UINode : IEnumerable<UINode>
     public UINodeChildCollection Children { get; }
 
     /// <summary>
+    /// Gets the root node of this node's hierarchy.
+    /// Returns this node if it has no parent.
+    /// </summary>
+    /// <returns>The top-most <see cref="UINode"/> in the parent chain.</returns>
+    public UINode GetRoot()
+    {
+        UINode node = this;
+        while (node.Parent != null)
+        {
+            node = node.Parent;
+        }
+        return node;
+    }
+
+    /// <summary>
     /// Collection wrapper that supports both read access (IReadOnlyList) and 
     /// collection initializer syntax while ensuring proper Add logic.
     /// </summary>
