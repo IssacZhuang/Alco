@@ -150,7 +150,7 @@ public class Game : GameEngine
             Size = new Vector2(200, 100),
             PaddingTop = 8,
             PaddingBottom = 8,
-            SpacingValue = 4,
+            Spacing = new Vector2(4f),
             FitContentSize = true,
         };
         
@@ -163,7 +163,7 @@ public class Game : GameEngine
             Size = new Vector2(100, 200),
             PaddingLeft = 8,
             PaddingRight = 8,
-            SpacingValue = 4,
+            Spacing = new Vector2(4f),
             FitContentSize = true,
         };
         
@@ -174,7 +174,7 @@ public class Game : GameEngine
         {
             Position = Vector2.Zero,
             Size = new Vector2(300, 200),
-            SpacingValue = 5,
+            Spacing = new Vector2(4f),
             PaddingTop = 10,
             PaddingBottom = 10,
             PaddingLeft = 10,

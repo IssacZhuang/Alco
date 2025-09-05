@@ -47,10 +47,10 @@ public abstract class UIList<TData> : UINode
 
         _layout = new UILayout(LayoutType.Vertical)
         {
-            Anchor = Anchor.Stretch,
+            Anchor = Anchor.TopHorizontalStretch,
+            Pivot = Pivot.CenterTop,
             FitContentSize = true,
             IsFixedItemSize = false,
-            SpacingValue = 4f
         };
 
         // Wire up hierarchy: this -> mask -> scrollable -> layout

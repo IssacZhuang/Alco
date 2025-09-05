@@ -131,18 +131,6 @@ public class UILayout : UINode
     }
 
     /// <summary>
-    /// Legacy property for backward compatibility - sets both X and Y spacing
-    /// </summary>
-    public float SpacingValue
-    {
-        get => _spacing.X;
-        set
-        {
-            _spacing = new Vector2(value, value);
-        }
-    }
-
-    /// <summary>
     /// Whether to use fixed size for all child elements
     /// </summary>
     public bool IsFixedItemSize
@@ -307,15 +295,15 @@ public class UILayout : UINode
 
             SetChildAnchor(child);
 
-            child.Pivot = new Pivot(child.Pivot.X, -0.5f);
+            child.Pivot = new Pivot(child.Pivot.X, 0f);
             if (_isFixedSize)
             {
-                child.Position = new Vector2(child.Position.X, currentY);
+                child.Position = new Vector2(child.Position.X, currentY + _fixedHeight * 0.5f);
                 currentY -= _fixedHeight + _spacing.Y;
             }
             else
             {
-                child.Position = new Vector2(child.Position.X, currentY);
+                child.Position = new Vector2(child.Position.X, currentY + child.Size.Y * 0.5f);
                 currentY -= child.Size.Y + _spacing.Y;
             }
         }
