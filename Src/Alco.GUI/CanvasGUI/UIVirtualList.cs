@@ -34,7 +34,9 @@ public abstract class UIVirtualList<TData> : UINode
     private int _visibleStartIndex = -1;
     private int _visibleEndIndex = -1;
     private Vector2 _lastContainerPosition = new(float.NaN, float.NaN);
-    
+
+    private bool _isLayoutDirty = false;
+
     /// <summary>
     /// Gets or sets the fixed size of each item in the grid.
     /// </summary>
@@ -132,8 +134,8 @@ public abstract class UIVirtualList<TData> : UINode
         
         _container = new VirtualContainer(this)
         {
-            Anchor = Anchor.Center,  // Container centered in scrollable area
-            Pivot = Pivot.Center     // Pivot at center for consistent positioning
+            Anchor = Anchor.TopHorizontalStretch,
+            Pivot = Pivot.CenterTop,   // Pivot at center for consistent positioning
         };
         
         // Setup hierarchy: this -> mask -> scrollable -> container
@@ -167,6 +169,7 @@ public abstract class UIVirtualList<TData> : UINode
         Vector2 contentSize = ContentSize;
         _container.Size = contentSize; // Use absolute size instead of SizeDelta
         
+        SetLayoutDirty();
         RefreshVisibleItems();
     }
 
@@ -185,6 +188,7 @@ public abstract class UIVirtualList<TData> : UINode
         Vector2 contentSize = ContentSize;
         _container.Size = contentSize;
 
+        SetLayoutDirty();
         RefreshVisibleItems();
     }
     
@@ -207,6 +211,8 @@ public abstract class UIVirtualList<TData> : UINode
                 break;
             }
         }
+
+        SetLayoutDirty();
     }
 
     /// <summary>
@@ -224,9 +230,16 @@ public abstract class UIVirtualList<TData> : UINode
             }
             SetDataForItem(activeItem.Node, index, _data[index]);
         }
+
+        SetLayoutDirty();
     }
 
-    
+    public void SetLayoutDirty()
+    {
+        _isLayoutDirty = true;
+    }
+
+
     /// <summary>
     /// Gets the start index of visible items based on scroll position.
     /// When scrollY=0, container is at center, showing middle portion of data.
@@ -245,7 +258,8 @@ public abstract class UIVirtualList<TData> : UINode
         
         // When scrollY=0, container is centered, so we need to offset by half content height
         float contentHeight = ContentSize.Y;
-        float centerOffset = (contentHeight - viewportHeight) * 0.5f;
+        float heightDiff = math.max(contentHeight - viewportHeight, 0);
+        float centerOffset = heightDiff * (0.5f - _container.Pivot.Y);
         // scrollY is positive when container moves up (toward later items), so we add
         float adjustedScrollY = centerOffset + scrollY;
         
@@ -304,9 +318,9 @@ public abstract class UIVirtualList<TData> : UINode
     {
         int newStartIndex = GetStartIndex();
         int newEndIndex = GetEndIndex();
-        
-        
-        if (newStartIndex == _visibleStartIndex && newEndIndex == _visibleEndIndex)
+
+
+        if (!_isLayoutDirty && newStartIndex == _visibleStartIndex && newEndIndex == _visibleEndIndex)
             return;
             
         // Remove items that are no longer visible from the front  
@@ -379,6 +393,8 @@ public abstract class UIVirtualList<TData> : UINode
         
         _visibleStartIndex = newStartIndex;
         _visibleEndIndex = newEndIndex;
+
+        _isLayoutDirty = false;
     }
 
     /// <summary>

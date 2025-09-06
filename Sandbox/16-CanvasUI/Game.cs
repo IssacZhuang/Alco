@@ -584,7 +584,7 @@ public class Game : GameEngine
             case Display.VirtualList:
             {
                 float count = _virtualListCount;
-                if (ImGui.SliderFloat("Virtual List Count", ref count, 1000, 10000000))
+                    if (ImGui.SliderFloat("Virtual List Count", ref count, 1, 10000000))
                 {
                     _virtualListCount = (int)count;
                     PopulateIntVirtualList(_virtualListCount);
@@ -601,7 +601,7 @@ public class Game : GameEngine
             case Display.VirtualGridList:
             {
                 float count = _virtualListCount;
-                if (ImGui.SliderFloat("Virtual Grid Count", ref count, 1000, 10000000))
+                    if (ImGui.SliderFloat("Virtual Grid Count", ref count, 1, 10000000))
                 {
                     _virtualListCount = (int)count;
                     PopulateIntVirtualGridList(_virtualListCount);
