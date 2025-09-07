@@ -243,6 +243,52 @@ public class UINode : IEnumerable<UINode>
 
     #endregion
 
+    /// <summary>
+    /// Stretches this node horizontally within its parent using the specified padding.
+    /// Updates <see cref="SizeDelta"/>.X to subtract left and right padding from the width,
+    /// and adjusts <see cref="Position"/>.X to keep the element centered according to asymmetric padding.
+    /// </summary>
+    /// <param name="padding">X: left padding, Y: right padding.</param>
+    public void SetHorizontalStretch(float leftPadding, float rightPadding)
+    {
+        // Ensure horizontal stretch while preserving vertical anchor
+        Anchor = new Anchor(new Vector2(-0.5f, _anchor.min.Y), new Vector2(0.5f, _anchor.max.Y));
+
+        // Width = ParentWidth - (left + right) => SizeDelta.X = - (left + right)
+        Vector2 sizeDelta = SizeDelta;
+        sizeDelta.X = -(leftPadding + rightPadding);
+        SizeDelta = sizeDelta;
+
+        // Shift center when padding is asymmetric: +right shrinks right side, +left shrinks left side
+        // Center offset = (left - right) * 0.5
+        Vector2 pos = Position;
+        pos.X = (leftPadding - rightPadding) * 0.5f;
+        Position = pos;
+    }
+
+    /// <summary>
+    /// Stretches this node vertically within its parent using the specified padding.
+    /// Updates <see cref="SizeDelta"/>.Y to subtract top and bottom padding from the height,
+    /// and adjusts <see cref="Position"/>.Y to keep the element centered according to asymmetric padding.
+    /// </summary>
+    /// <param name="padding">X: top padding, Y: bottom padding.</param>
+    public void SetVerticalStretch(float topPadding, float bottomPadding)
+    {
+        // Ensure vertical stretch while preserving horizontal anchor
+        Anchor = new Anchor(new Vector2(_anchor.min.X, -0.5f), new Vector2(_anchor.max.X, 0.5f));
+
+        // Height = ParentHeight - (top + bottom) => SizeDelta.Y = - (top + bottom)
+        Vector2 sizeDelta = SizeDelta;
+        sizeDelta.Y = -(topPadding + bottomPadding);
+        SizeDelta = sizeDelta;
+
+        // In this coordinate system, +Y is up. More top padding shifts the rect downward.
+        // Center offset = (bottom - top) * 0.5
+        Vector2 pos = Position;
+        pos.Y = (topPadding - bottomPadding) * 0.5f;
+        Position = pos;
+    }
+
     #region Mask Properties
 
 
