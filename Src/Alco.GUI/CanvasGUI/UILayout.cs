@@ -407,12 +407,11 @@ public class UILayout : UINode
         // Calculate number of rows needed
         int totalRows = (int)Math.Ceiling((float)affectedChildren.Count / columnsPerRow);
 
-        // Auto-fit content size if enabled
+        // Auto-fit content size if enabled (fit height only, keep width unchanged)
         if (_fitContentSize)
         {
-            float totalWidth = _paddingLeft + _paddingRight + columnsPerRow * itemWidth + (columnsPerRow - 1) * _spacing.X;
             float totalHeight = _paddingTop + _paddingBottom + totalRows * itemHeight + (totalRows - 1) * _spacing.Y;
-            Size = new Vector2(totalWidth, totalHeight);
+            Size = new Vector2(Size.X, totalHeight);
         }
 
         // Position items
