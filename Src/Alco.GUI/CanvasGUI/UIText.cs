@@ -224,6 +224,11 @@ public class UIText : UISelectable
         SetLineBreakDirty();
     }
 
+    protected override void OnAttachToTree(Canvas canvas)
+    {
+        Font ??= canvas.DefaultFont;
+    }
+
     protected virtual void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform)
     {
         canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f);

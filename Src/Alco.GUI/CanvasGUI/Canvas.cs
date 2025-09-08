@@ -58,7 +58,7 @@ public partial class Canvas : AutoDisposable
     private readonly List<UINode> _hitNodes = new List<UINode>(64);
     private readonly IUIInputTracker _inputTracker;
 
-    private readonly Font _defaultFont;
+    public Font DefaultFont { get; }
 
 
     private UINode? _holded;
@@ -158,7 +158,7 @@ public partial class Canvas : AutoDisposable
 
         _renderingSystem = system;
 
-        _defaultFont = defaultFont;
+        DefaultFont = defaultFont;
 
         _inputTracker = inputTracker;
         _inputTracker.RegisterTextInput(OnTextInput);
@@ -235,7 +235,7 @@ public partial class Canvas : AutoDisposable
 
         // sliced mesh: 16 vertices (size of vertex is 20 bytes, 320 in total), 54 indices (2 byte per index, 108 in total)
         // support 1024 sliced mesh per chunk in dynamic mesh renderer
-        _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext, 320* 1024, 108 *1024);
+        _dynamicMeshRenderer = system.CreateDynamicMeshRenderer(_renderContext, 320 * 1024, 108 * 1024);
 
         _collisionWorld = new CollisionWorld2D();
 
@@ -301,7 +301,7 @@ public partial class Canvas : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        if(disposing)
+        if (disposing)
         {
             _inputTracker?.UnregisterTextInput(OnTextInput);
             _collisionWorld.Dispose();
@@ -313,7 +313,7 @@ public partial class Canvas : AutoDisposable
         }
     }
 
-    
+
 
     private void OnMouseDown(UINode? node, Vector2 mousePosition)
     {
@@ -341,7 +341,7 @@ public partial class Canvas : AutoDisposable
         {
             _holded?.OnClick(this, mousePosition);
         }
-        
+
         _holded = null;
     }
 
@@ -359,10 +359,10 @@ public partial class Canvas : AutoDisposable
 
         _hovered = null;
         //the mouse position is in screen space, the origin is at the top left corner
-        
+
         Vector2 mousePosition = _inputTracker.MousePosition;
         Vector2 mouseWorldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
-        
+
         _hitNodes.Clear();
         _collisionWorld.BuildTree();
         _collisionWorld.CastPoint(_hitNodes, mouseWorldPosition);
@@ -516,7 +516,7 @@ public partial class Canvas : AutoDisposable
             }
         }
 
-        
+
 
         //recover stencil buffer
         if (maskContext != null)
@@ -547,7 +547,7 @@ public partial class Canvas : AutoDisposable
             }
         }
 
-        
+
     }
 
     private static bool CheckMask(UINode node, Vector2 mousePosition)

@@ -408,6 +408,10 @@ public class UINode : IEnumerable<UINode>
         }
 
         AddCore(node, keepWorldTransform);
+        if (HasRoot(out UIRoot? root))
+        {
+            AttachToTreeCore(root.Canvas, node);
+        }
     }
 
     /// <summary>
@@ -429,6 +433,10 @@ public class UINode : IEnumerable<UINode>
         }
 
         AddCore(node, keepWorldTransform);
+        if (HasRoot(out UIRoot? root))
+        {
+            AttachToTreeCore(root.Canvas, node);
+        }
         return true;
     }
 
@@ -484,20 +492,28 @@ public class UINode : IEnumerable<UINode>
             return;
         }
 
-        bool hasRootBefore = HasRoot(out UIRoot? root1);
+        bool hasRootBefore = HasRoot(out UIRoot? rootBefore);
+        Canvas? canvasBefore = hasRootBefore ? rootBefore!.Canvas : null;
 
         Parent?.RemoveCore(this);
-        newParent.Add(this, keepWorldTransform);
+        newParent.AddCore(this, keepWorldTransform);
 
-        bool hasRootAfter = HasRoot(out UIRoot? root2);
+        bool hasRootAfter = HasRoot(out UIRoot? rootAfter);
+        Canvas? canvasAfter = hasRootAfter ? rootAfter!.Canvas : null;
 
         if (hasRootBefore && !hasRootAfter)
         {
-            DetachFromTreeCore(root1!.Canvas, this);
+            DetachFromTreeCore(canvasBefore!, this);
         }
         else if (!hasRootBefore && hasRootAfter)
         {
-            AttachToTreeCore(root2!.Canvas, this);
+            AttachToTreeCore(canvasAfter!, this);
+        }
+        else if (hasRootBefore && hasRootAfter && canvasBefore != canvasAfter)
+        {
+            // Moved across different roots: detach from old, then attach to new
+            DetachFromTreeCore(canvasBefore!, this);
+            AttachToTreeCore(canvasAfter!, this);
         }
 
     }
@@ -510,9 +526,6 @@ public class UINode : IEnumerable<UINode>
 
     private void AddCore(UINode child, bool keepWorldTransform = true)
     {
-
-        bool hasRootBefore = HasRoot(out UIRoot? root1);
-
         if (keepWorldTransform)
         {
             Transform2D worldTransform = child.WorldTransform;
@@ -529,11 +542,6 @@ public class UINode : IEnumerable<UINode>
         }
 
         child.SetTransformDirty();
-
-        if (!hasRootBefore && HasRoot(out UIRoot? root2))
-        {
-            AttachToTreeCore(root2.Canvas, this);
-        }
     }
 
     private static void AttachToTreeCore(Canvas canvas, UINode node)
