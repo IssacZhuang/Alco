@@ -58,6 +58,8 @@ public partial class Canvas : AutoDisposable
     private readonly List<UINode> _hitNodes = new List<UINode>(64);
     private readonly IUIInputTracker _inputTracker;
 
+    private readonly Font _defaultFont;
+
 
     private UINode? _holded;
     private UINode? _hovered;
@@ -137,11 +139,26 @@ public partial class Canvas : AutoDisposable
     /// <summary>
     /// The root node of this canvas. All UI nodes should be added under this node.
     /// </summary>
-    public UINode Root { get; }
+    public UIRoot Root { get; }
 
-    public Canvas(RenderingSystem system, IUIInputTracker inputTracker, Material defaultSpriteMaterial, Material defaultTextMaterial)
+    public Canvas(
+        RenderingSystem system,
+        IUIInputTracker inputTracker,
+        Material defaultSpriteMaterial,
+        Material defaultTextMaterial,
+        Font defaultFont
+        )
     {
+
+        ArgumentNullException.ThrowIfNull(system);
+        ArgumentNullException.ThrowIfNull(inputTracker);
+        ArgumentNullException.ThrowIfNull(defaultSpriteMaterial);
+        ArgumentNullException.ThrowIfNull(defaultTextMaterial);
+        ArgumentNullException.ThrowIfNull(defaultFont);
+
         _renderingSystem = system;
+
+        _defaultFont = defaultFont;
 
         _inputTracker = inputTracker;
         _inputTracker.RegisterTextInput(OnTextInput);
@@ -223,7 +240,10 @@ public partial class Canvas : AutoDisposable
         _collisionWorld = new CollisionWorld2D();
 
         // initialize root node owned by canvas
-        Root = new UINode { Name = "Root" };
+        Root = new UIRoot(this)
+        {
+            Name = "Root"
+        };
     }
 
     /// <summary>
@@ -477,7 +497,7 @@ public partial class Canvas : AutoDisposable
             }
             catch (Exception e)
             {
-                HandleError(e, "refreshing render data", node.Name);
+                HandleError(e, "refreshing render data", node);
             }
 
             try
@@ -487,7 +507,7 @@ public partial class Canvas : AutoDisposable
             }
             catch (Exception e)
             {
-                HandleError(e, "updating", node.Name);
+                HandleError(e, "updating", node);
             }
 
             for (int i = 0; i < node.Children.Count; i++)
@@ -518,7 +538,7 @@ public partial class Canvas : AutoDisposable
             }
             catch (Exception e)
             {
-                HandleError(e, "ticking", node.Name);
+                HandleError(e, "ticking", node);
             }
 
             for (int i = 0; i < node.Children.Count; i++)
@@ -549,7 +569,7 @@ public partial class Canvas : AutoDisposable
         return true;
     }
 
-    private void HandleError(Exception exception, string operation, string nodeName)
+    public void HandleError(Exception exception, string operation, UINode node)
     {
         if (ErrorHandler != null)
         {
@@ -557,6 +577,7 @@ public partial class Canvas : AutoDisposable
         }
         else
         {
+            string nodeName = node.Name;
             Log.Error($"Error in {operation} of {nodeName}: {exception}");
         }
     }

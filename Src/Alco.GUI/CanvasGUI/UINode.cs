@@ -44,7 +44,8 @@ public class UINode : IEnumerable<UINode>
     /// The parent of the node. Must be null if the node is a root node.
     /// </summary>
     /// <value></value>
-    public UINode? Parent { get; set; } = null;
+    public UINode? Parent { get; private set; } = null;
+
 
     /// <summary>
     /// The name of the node.
@@ -173,7 +174,7 @@ public class UINode : IEnumerable<UINode>
             _anchor = value;
             SetTransformDirty();
         }
-    } 
+    }
 
     public Transform2D LocalTransform
     {
@@ -326,37 +327,49 @@ public class UINode : IEnumerable<UINode>
         return node;
     }
 
+
+    public bool HasRoot([NotNullWhen(true)] out UIRoot? root)
+    {
+        if (GetRoot() is UIRoot r)
+        {
+            root = r;
+            return true;
+        }
+        root = null;
+        return false;
+    }
+
     /// <summary>
     /// Collection wrapper that supports both read access (IReadOnlyList) and 
     /// collection initializer syntax while ensuring proper Add logic.
     /// </summary>
     public class UINodeChildCollection : IReadOnlyList<UINode>
     {
-        private readonly UINode _parent;
+        private readonly UINode Parent;
 
         public UINodeChildCollection(UINode parent)
         {
-            _parent = parent;
+            Parent = parent;
         }
 
         // Collection initializer support
         public void Add(UINode node)
         {
-            _parent.Add(node);
+            Parent.Add(node);
         }
 
         // IReadOnlyList implementation
-        public UINode this[int index] => _parent._children[index];
-        public int Count => _parent._children.Count;
+        public UINode this[int index] => Parent._children[index];
+        public int Count => Parent._children.Count;
 
         public IEnumerator<UINode> GetEnumerator()
         {
-            return _parent._children.GetEnumerator();
+            return Parent._children.GetEnumerator();
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            return _parent._children.GetEnumerator();
+            return Parent._children.GetEnumerator();
         }
     }
 
@@ -432,8 +445,11 @@ public class UINode : IEnumerable<UINode>
             throw new ArgumentException($"The node {node.Name} is not a child of this node.");
         }
 
-        node.Parent = null;
-        _children.Remove(node);
+        RemoveCore(node);
+        if (HasRoot(out UIRoot? root))
+        {
+            DetachFromTreeCore(root.Canvas, node);
+        }
     }
 
     /// <summary>
@@ -448,8 +464,11 @@ public class UINode : IEnumerable<UINode>
             return false;
         }
 
-        node.Parent = null;
-        _children.Remove(node);
+        RemoveCore(node);
+        if (HasRoot(out UIRoot? root))
+        {
+            DetachFromTreeCore(root.Canvas, node);
+        }
         return true;
     }
 
@@ -465,13 +484,35 @@ public class UINode : IEnumerable<UINode>
             return;
         }
 
-        Parent?.Remove(this);
+        bool hasRootBefore = HasRoot(out UIRoot? root1);
 
+        Parent?.RemoveCore(this);
         newParent.Add(this, keepWorldTransform);
+
+        bool hasRootAfter = HasRoot(out UIRoot? root2);
+
+        if (hasRootBefore && !hasRootAfter)
+        {
+            DetachFromTreeCore(root1!.Canvas, this);
+        }
+        else if (!hasRootBefore && hasRootAfter)
+        {
+            AttachToTreeCore(root2!.Canvas, this);
+        }
+
+    }
+
+    private void RemoveCore(UINode node)
+    {
+        node.Parent = null;
+        _children.Remove(node);
     }
 
     private void AddCore(UINode child, bool keepWorldTransform = true)
     {
+
+        bool hasRootBefore = HasRoot(out UIRoot? root1);
+
         if (keepWorldTransform)
         {
             Transform2D worldTransform = child.WorldTransform;
@@ -488,6 +529,46 @@ public class UINode : IEnumerable<UINode>
         }
 
         child.SetTransformDirty();
+
+        if (!hasRootBefore && HasRoot(out UIRoot? root2))
+        {
+            AttachToTreeCore(root2.Canvas, this);
+        }
+    }
+
+    private static void AttachToTreeCore(Canvas canvas, UINode node)
+    {
+        try
+        {
+            node.OnAttachToTree(canvas);
+        }
+        catch (Exception e)
+        {
+            canvas.HandleError(e, "attaching to tree", node);
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            AttachToTreeCore(canvas, node.Children[i]);
+        }
+    }
+
+
+    private static void DetachFromTreeCore(Canvas canvas, UINode node)
+    {
+        try
+        {
+            node.OnDetachFromTree(canvas);
+        }
+        catch (Exception e)
+        {
+            canvas.HandleError(e, "detaching from tree", node);
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            DetachFromTreeCore(canvas, node.Children[i]);
+        }
     }
 
     #endregion
@@ -631,10 +712,20 @@ public class UINode : IEnumerable<UINode>
     }
     protected virtual void OnRender(Canvas canvas, float delta)
     {
-        
+
     }
 
     protected virtual void OnUpdateRenderData(Canvas canvas, float delta)
+    {
+
+    }
+
+    protected virtual void OnAttachToTree(Canvas canvas)
+    {
+
+    }
+
+    protected virtual void OnDetachFromTree(Canvas canvas)
     {
 
     }
@@ -658,7 +749,7 @@ public class UINode : IEnumerable<UINode>
             return false;
         }
         ForceRefreshTransform();
-        
+
         return true;
     }
 
@@ -709,19 +800,19 @@ public class UINode : IEnumerable<UINode>
         return _anchor.max - _anchor.min;
     }
 
-    public void Tick(Canvas canvas, float delta)
+    internal void Tick(Canvas canvas, float delta)
     {
         OnTick(canvas, delta);
     }
 
 
-    public void Render(Canvas canvas, float delta)
+    internal void Render(Canvas canvas, float delta)
     {
         if (!IsEnable)
         {
             return;
         }
-        
+
         OnRender(canvas, delta);
         TryRefreshTransform();
     }

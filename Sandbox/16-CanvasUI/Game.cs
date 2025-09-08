@@ -102,7 +102,7 @@ public class Game : GameEngine
         defaultTextMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
 
-        _canvas = RenderingSystem.CreateCanvas(inputTracker, defaultSpriteMaterial, defaultTextMaterial);
+        _canvas = RenderingSystem.CreateCanvas(inputTracker, defaultSpriteMaterial, defaultTextMaterial, _font);
         _canvas.Size = new Vector2(setting.View.Width, setting.View.Height);
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
 
