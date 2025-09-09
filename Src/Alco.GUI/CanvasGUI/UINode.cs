@@ -255,6 +255,9 @@ public class UINode : IEnumerable<UINode>
         // Ensure horizontal stretch while preserving vertical anchor
         Anchor = new Anchor(new Vector2(-0.5f, _anchor.min.Y), new Vector2(0.5f, _anchor.max.Y));
 
+        // Neutralize horizontal pivot so padding aligns to parent edges
+        Pivot = new Pivot(0f, _pivot.Y);
+
         // Width = ParentWidth - (left + right) => SizeDelta.X = - (left + right)
         Vector2 sizeDelta = SizeDelta;
         sizeDelta.X = -(leftPadding + rightPadding);
@@ -278,6 +281,9 @@ public class UINode : IEnumerable<UINode>
         // Ensure vertical stretch while preserving horizontal anchor
         Anchor = new Anchor(new Vector2(_anchor.min.X, -0.5f), new Vector2(_anchor.max.X, 0.5f));
 
+        // Neutralize vertical pivot so padding aligns to parent edges
+        Pivot = new Pivot(_pivot.X, 0f);
+
         // Height = ParentHeight - (top + bottom) => SizeDelta.Y = - (top + bottom)
         Vector2 sizeDelta = SizeDelta;
         sizeDelta.Y = -(topPadding + bottomPadding);
@@ -286,7 +292,7 @@ public class UINode : IEnumerable<UINode>
         // In this coordinate system, +Y is up. More top padding shifts the rect downward.
         // Center offset = (bottom - top) * 0.5
         Vector2 pos = Position;
-        pos.Y = (topPadding - bottomPadding) * 0.5f;
+        pos.Y = (bottomPadding - topPadding) * 0.5f;
         Position = pos;
     }
 
