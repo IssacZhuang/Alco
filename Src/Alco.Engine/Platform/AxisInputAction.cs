@@ -25,7 +25,6 @@ public sealed class AxisInputAction
             Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
             if (gamepad != null)
             {
-
                 foreach (var item in _gamepadAxes)
                 {
                     value += item.Value * gamepad.GetAxis(item.Key);
@@ -36,11 +35,17 @@ public sealed class AxisInputAction
 
             foreach (var item in _keys)
             {
-                if (_input.IsKeyDown(item.Key))
+                if (_input.IsKeyPressing(item.Key))
                 {
                     value += item.Value;
                 }
             }
+
+            if(value == Vector2.Zero)
+            {
+                return value;
+            }
+
             return Vector2.Normalize(value);
         }
     }
@@ -63,6 +68,12 @@ public sealed class AxisInputAction
     public void RemoveGamepadAxis(GamepadAxis axis)
     {
         _gamepadAxes.Remove(axis);
+    }
+
+    public void Clear()
+    {
+        _keys.Clear();
+        _gamepadAxes.Clear();
     }
 
     public AxisInputActionOption ToOption()

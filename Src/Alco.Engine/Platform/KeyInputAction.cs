@@ -135,6 +135,12 @@ public sealed class KeyInputAction
         _gamepadButtons.Remove(button);
     }
 
+    public void Clear()
+    {
+        _keys.Clear();
+        _gamepadButtons.Clear();
+    }
+
     public KeyInputActionOption ToOption()
     {
         return new KeyInputActionOption
