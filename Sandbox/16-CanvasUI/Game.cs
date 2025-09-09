@@ -148,8 +148,7 @@ public class Game : GameEngine
         {
             Position = Vector2.Zero,
             Size = new Vector2(200, 100),
-            PaddingTop = 8,
-            PaddingBottom = 8,
+            Padding = new Padding(0, 8, 0, 8),
             Spacing = new Vector2(4f),
             FitContentSize = true,
         };
@@ -161,8 +160,7 @@ public class Game : GameEngine
         {
             Position = Vector2.Zero,
             Size = new Vector2(100, 200),
-            PaddingLeft = 8,
-            PaddingRight = 8,
+            Padding = new Padding(8, 0, 8, 0),
             Spacing = new Vector2(4f),
             FitContentSize = true,
         };
@@ -175,10 +173,7 @@ public class Game : GameEngine
             Position = Vector2.Zero,
             Size = new Vector2(300, 200),
             Spacing = new Vector2(4f),
-            PaddingTop = 10,
-            PaddingBottom = 10,
-            PaddingLeft = 10,
-            PaddingRight = 10,
+            Padding = new Padding(10, 10, 10, 10),
         };
         
         _gridLayoutMask = CreateLayoutDemo(_gridLayout, "Grid Layout", 0xaabbaa);
@@ -439,16 +434,20 @@ public class Game : GameEngine
                 }
 
                     // Padding controls
-                    float vPadTop = _verticalLayout.PaddingTop;
+                    float vPadTop = _verticalLayout.Padding.Top;
                     if (ImGui.SliderFloat("Padding Top", ref vPadTop, 0, 50))
                     {
-                        _verticalLayout.PaddingTop = vPadTop;
+                        var p = _verticalLayout.Padding;
+                        p.Top = vPadTop;
+                        _verticalLayout.Padding = p;
                         _verticalLayout.UpdateLayout();
                     }
-                    float vPadBottom = _verticalLayout.PaddingBottom;
+                    float vPadBottom = _verticalLayout.Padding.Bottom;
                     if (ImGui.SliderFloat("Padding Bottom", ref vPadBottom, 0, 50))
                     {
-                        _verticalLayout.PaddingBottom = vPadBottom;
+                        var p = _verticalLayout.Padding;
+                        p.Bottom = vPadBottom;
+                        _verticalLayout.Padding = p;
                         _verticalLayout.UpdateLayout();
                     }
 
@@ -476,16 +475,20 @@ public class Game : GameEngine
                 }
 
                     // Padding controls
-                    float hPadLeft = _horizontalLayout.PaddingLeft;
+                    float hPadLeft = _horizontalLayout.Padding.Left;
                     if (ImGui.SliderFloat("Padding Left", ref hPadLeft, 0, 50))
                     {
-                        _horizontalLayout.PaddingLeft = hPadLeft;
+                        var p = _horizontalLayout.Padding;
+                        p.Left = hPadLeft;
+                        _horizontalLayout.Padding = p;
                         _horizontalLayout.UpdateLayout();
                     }
-                    float hPadRight = _horizontalLayout.PaddingRight;
+                    float hPadRight = _horizontalLayout.Padding.Right;
                     if (ImGui.SliderFloat("Padding Right", ref hPadRight, 0, 50))
                     {
-                        _horizontalLayout.PaddingRight = hPadRight;
+                        var p = _horizontalLayout.Padding;
+                        p.Right = hPadRight;
+                        _horizontalLayout.Padding = p;
                         _horizontalLayout.UpdateLayout();
                     }
 
@@ -520,28 +523,36 @@ public class Game : GameEngine
                 }
 
                     // Padding controls
-                    float gPadTop = _gridLayout.PaddingTop;
+                    float gPadTop = _gridLayout.Padding.Top;
                     if (ImGui.SliderFloat("Padding Top", ref gPadTop, 0, 50))
                     {
-                        _gridLayout.PaddingTop = gPadTop;
+                        var p = _gridLayout.Padding;
+                        p.Top = gPadTop;
+                        _gridLayout.Padding = p;
                         _gridLayout.UpdateLayout();
                     }
-                    float gPadBottom = _gridLayout.PaddingBottom;
+                    float gPadBottom = _gridLayout.Padding.Bottom;
                     if (ImGui.SliderFloat("Padding Bottom", ref gPadBottom, 0, 50))
                     {
-                        _gridLayout.PaddingBottom = gPadBottom;
+                        var p = _gridLayout.Padding;
+                        p.Bottom = gPadBottom;
+                        _gridLayout.Padding = p;
                         _gridLayout.UpdateLayout();
                     }
-                    float gPadLeft = _gridLayout.PaddingLeft;
+                    float gPadLeft = _gridLayout.Padding.Left;
                     if (ImGui.SliderFloat("Padding Left", ref gPadLeft, 0, 50))
                     {
-                        _gridLayout.PaddingLeft = gPadLeft;
+                        var p = _gridLayout.Padding;
+                        p.Left = gPadLeft;
+                        _gridLayout.Padding = p;
                         _gridLayout.UpdateLayout();
                     }
-                    float gPadRight = _gridLayout.PaddingRight;
+                    float gPadRight = _gridLayout.Padding.Right;
                     if (ImGui.SliderFloat("Padding Right", ref gPadRight, 0, 50))
                     {
-                        _gridLayout.PaddingRight = gPadRight;
+                        var p = _gridLayout.Padding;
+                        p.Right = gPadRight;
+                        _gridLayout.Padding = p;
                         _gridLayout.UpdateLayout();
                     }
                 

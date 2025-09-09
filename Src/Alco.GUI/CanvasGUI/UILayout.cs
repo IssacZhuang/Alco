@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Numerics;
+using Alco;
 
 namespace Alco.GUI;
 
@@ -33,31 +34,12 @@ public class UILayout : UINode
     private bool _isFixedSize;
     private bool _alwaysUpdate; // if true, the layout will update every frame
     private bool _fitContentSize;
-    private float _paddingTop;
-    private float _paddingBottom;
-    private float _paddingLeft;
-    private float _paddingRight;
+    private Padding _padding;
     private Vector2 _spacing;
     private float _fixedWidth; // only used if _isFixedSize is true
     private float _fixedHeight; // only used if _isFixedSize is true
 
-    public float PaddingTop
-    {
-        get => _paddingTop;
-        set
-        {
-            _paddingTop = value;
-        }
-    }
 
-    public float PaddingBottom
-    {
-        get => _paddingBottom;
-        set
-        {
-            _paddingBottom = value;
-        }
-    }
 
 
     /// <summary>
@@ -72,22 +54,15 @@ public class UILayout : UINode
         }
     }
 
-    public float PaddingLeft
-    {
-        get => _paddingLeft;
-        set
-        {
-            _paddingLeft = value;
-        }
-    }
 
-    public float PaddingRight
+
+    /// <summary>
+    /// Gets or sets padding for all four sides.
+    /// </summary>
+    public Padding Padding
     {
-        get => _paddingRight;
-        set
-        {
-            _paddingRight = value;
-        }
+        get => _padding;
+        set => _padding = value;
     }
 
     public float FixedItemWidth
@@ -255,7 +230,7 @@ public class UILayout : UINode
     {
         if (_fitContentSize)
         {
-            float height = _paddingTop + _paddingBottom;
+            float height = _padding.Vertical;
             bool hasElement = false;
             for (int i = 0; i < Children.Count; i++)
             {
@@ -283,7 +258,7 @@ public class UILayout : UINode
         }
 
         float currentY = Size.Y * 0.5f;
-        currentY -= _paddingTop;
+        currentY -= _padding.Top;
         for (int i = 0; i < Children.Count; i++)
         {
             UINode child = Children[i];
@@ -313,7 +288,7 @@ public class UILayout : UINode
     {
         if (_fitContentSize)
         {
-            float width = _paddingLeft + _paddingRight;
+            float width = _padding.Horizontal;
             bool hasElement = false;
             for (int i = 0; i < Children.Count; i++)
             {
@@ -340,7 +315,7 @@ public class UILayout : UINode
             Size = new Vector2(width, Size.Y);
         }
 
-        float startX = -Size.X * 0.5f + _paddingLeft;
+        float startX = -Size.X * 0.5f + _padding.Left;
         float currentX = startX;
         
         for (int i = 0; i < Children.Count; i++)
@@ -401,7 +376,7 @@ public class UILayout : UINode
         }
 
         // Calculate how many columns can fit based on available width
-        float availableWidth = Size.X - _paddingLeft - _paddingRight;
+        float availableWidth = Size.X - _padding.Horizontal;
         int columnsPerRow = Math.Max(1, (int)((availableWidth + _spacing.X) / (itemWidth + _spacing.X)));
         
         // Calculate number of rows needed
@@ -410,13 +385,13 @@ public class UILayout : UINode
         // Auto-fit content size if enabled (fit height only, keep width unchanged)
         if (_fitContentSize)
         {
-            float totalHeight = _paddingTop + _paddingBottom + totalRows * itemHeight + (totalRows - 1) * _spacing.Y;
+            float totalHeight = _padding.Vertical + totalRows * itemHeight + (totalRows - 1) * _spacing.Y;
             Size = new Vector2(Size.X, totalHeight);
         }
 
         // Position items
-        float startX = -Size.X * 0.5f + _paddingLeft;
-        float startY = Size.Y * 0.5f - _paddingTop;
+        float startX = -Size.X * 0.5f + _padding.Left;
+        float startY = Size.Y * 0.5f - _padding.Top;
 
         for (int i = 0; i < affectedChildren.Count; i++)
         {
