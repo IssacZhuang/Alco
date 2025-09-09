@@ -10,6 +10,7 @@ using Alco.Audio;
 using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
+using System.Runtime;
 
 
 namespace Alco.Engine;
@@ -730,6 +731,20 @@ IDisposable
         }
 
         yield break;
+    }
+
+    public static void DoGarbageCollection(bool compactLOH = false)
+    {
+        if (compactLOH)
+        {
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.Default;
+        }
+        else
+        {
+            GC.Collect();
+        }
     }
 
     #endregion
