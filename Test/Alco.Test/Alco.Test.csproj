@@ -2,7 +2,6 @@
   <PropertyGroup>
     <RootNamespace>Alco.Test</RootNamespace>
     <AssemblyName>Alco.Test</AssemblyName>
-    <TargetFramework>net9.0</TargetFramework>
     <DebugType>pdbonly</DebugType>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
