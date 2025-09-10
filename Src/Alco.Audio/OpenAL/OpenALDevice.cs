@@ -8,6 +8,8 @@ namespace Alco.Audio.OpenAL;
 
 internal unsafe class OpenALDevice : AudioDevice
 {
+    private const string AL_SOFT_source_spatialize = "AL_SOFT_source_spatialize";
+
     private static readonly ALContext ALC = ALContext.GetApi();
     private static readonly AL AL = AL.GetApi();
 
@@ -72,6 +74,11 @@ internal unsafe class OpenALDevice : AudioDevice
 
         ListenerPosition = Vector3.Zero;
 
+        if (!AL.IsExtensionPresent(AL_SOFT_source_spatialize))
+        {
+            _host.LogError("AL_SOFT_source_spatialize is not supported, the spatialization is not available");
+        }
+
         _host.LogSuccess("OpenAL device created");
     }
 
@@ -95,19 +102,19 @@ internal unsafe class OpenALDevice : AudioDevice
         float* ptrMono = null;
         try
         {
-            if (channel == 2)
-            {
-                ptrMono = (float*)UtilsMemory.Alloc(data.Length * sizeof(float) / 2);
-                Span<float> spanMono = new(ptrMono, data.Length / 2);
-                UtilsAudioDecode.StereoToMono(data, spanMono);
-                channel = 1;
-                data = spanMono;
-            }
+            // if (channel == 2)
+            // {
+            //     ptrMono = (float*)UtilsMemory.Alloc(data.Length * sizeof(float) / 2);
+            //     Span<float> spanMono = new(ptrMono, data.Length / 2);
+            //     UtilsAudioDecode.StereoToMono(data, spanMono);
+            //     channel = 1;
+            //     data = spanMono;
+            // }
 
             AudioClip clip;
             lock (_lock)
             {
-                clip = new OpenALAudioClip(data, channel, sampleRate);
+                clip = new OpenALAudioClip(this, data, channel, sampleRate);
             }
             return clip;
         }
@@ -121,5 +128,10 @@ internal unsafe class OpenALDevice : AudioDevice
 
 
 
+    }
+
+    internal void LogWarning(ReadOnlySpan<char> message)
+    {
+        _host.LogWarning(message);
     }
 }

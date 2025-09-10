@@ -4,15 +4,27 @@ using Silk.NET.OpenAL;
 
 namespace Alco.Audio.OpenAL;
 
-internal class OpenALSource : AudioSource
+internal class OpenALSource : AudioSource 
 {
+    private const string AL_SOFT_direct_channels = "AL_SOFT_direct_channels";
+    private const string AL_SOFT_source_spatialize = "AL_SOFT_source_spatialize";
+
+
+
     private static readonly ALContext ALC = ALContext.GetApi();
     private static readonly AL AL = AL.GetApi();
+
+    private static readonly int AL_DIRECT_CHANNELS_SOFT = AL.GetEnumValue("AL_DIRECT_CHANNELS_SOFT");
+    private static readonly int AL_SOURCE_SPATIALIZE_SOFT = AL.GetEnumValue("AL_SOURCE_SPATIALIZE_SOFT");
+    private static readonly int AL_TRUE = AL.GetEnumValue("AL_TRUE");
+    private static readonly int AL_FALSE = AL.GetEnumValue("AL_FALSE");
 
     private readonly uint _source;
 
     private AudioClip? _clip;
     private bool _isClipSet;
+
+    private bool _isSpatial = true;
 
     public override float Gain
     {
@@ -97,6 +109,17 @@ internal class OpenALSource : AudioSource
         }
     }
 
+    public override bool IsSpatial
+    {
+        get => _isSpatial;
+        set
+        {
+            if(_isSpatial == value) return;
+            _isSpatial = value;
+            SetSpatialSetting(_isSpatial);
+        }
+    }
+
 
     public OpenALSource() : base()
     {
@@ -106,7 +129,9 @@ internal class OpenALSource : AudioSource
         Pitch = 1f;
         Position = Vector3.Zero;
         Velocity = Vector3.Zero;
-        IsLooping = false;        
+        IsLooping = false;
+
+        SetSpatialSetting(_isSpatial);
     }
 
     protected override void Dispose(bool disposing)
@@ -125,7 +150,6 @@ internal class OpenALSource : AudioSource
             _isClipSet = false;
         }
     }
-
 
     protected override void PlayCore()
     {
@@ -157,5 +181,21 @@ internal class OpenALSource : AudioSource
         }
 
         AL.SourceStop(_source);
+    }
+
+    private void SetSpatialSetting(bool isSpatial){
+        if (AL.IsExtensionPresent(AL_SOFT_source_spatialize))//always be true is the assembly is OpenAL soft
+        {
+            int value = isSpatial ? AL_TRUE : AL_FALSE;
+            AL.SetSourceProperty(_source, (SourceInteger)AL_SOURCE_SPATIALIZE_SOFT, value);
+        }
+
+
+        AL.SetSourceProperty(_source, SourceBoolean.SourceRelative, !isSpatial);
+        if (AL.IsExtensionPresent(AL_SOFT_direct_channels))//always be true is the assembly is OpenAL soft
+        {
+            AL.SetSourceProperty(_source, (SourceBoolean)AL_DIRECT_CHANNELS_SOFT, !isSpatial);
+        }
+        
     }
 }

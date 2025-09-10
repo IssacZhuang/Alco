@@ -75,6 +75,12 @@ public class Game : GameEngine
         {
             _source.IsLooping = isLooping;
         }
+
+        bool isSpatial = _source.IsSpatial;
+        if (ImGui.Checkbox("Is Spatial", ref isSpatial))
+        {
+            _source.IsSpatial = isSpatial;
+        }
         
         float posX = _source.Position.X;
         if (ImGui.SliderFloat("Position X", ref posX, -100, 100))
