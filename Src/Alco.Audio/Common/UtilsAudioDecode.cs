@@ -79,14 +79,15 @@ public unsafe static class UtilsAudioDecode
     /// </summary>
     /// <param name="device">The audio device</param>
     /// <param name="data">The source data of ogg</param>
+    /// <param name="name">Optional clip name</param>
     /// <returns></returns>
-    public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data)
+    public static AudioClip CreateAudioClipFromOgg(this AudioDevice device, ReadOnlySpan<byte> data, string name = "unnamed_audio_clip")
     {
         float* buffer = null;
         try
         {
             buffer = VorbisDecoder.DecodeToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
-            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate, name);
             return clip;
         }
         finally
@@ -110,14 +111,15 @@ public unsafe static class UtilsAudioDecode
     /// </summary>
     /// <param name="device">The audio device</param>
     /// <param name="data">The source data of wave</param>
+    /// <param name="name">Optional clip name</param>
     /// <returns></returns>
-    public unsafe static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data)
+    public unsafe static AudioClip CreateAudioClipFromWave(this AudioDevice device, ReadOnlySpan<byte> data, string name = "unnamed_audio_clip")
     {
         float* buffer = null;
         try
         {
             buffer = WaveDecoder.DecodeFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
-            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate, name);
             return clip;
         }
         finally
@@ -135,14 +137,15 @@ public unsafe static class UtilsAudioDecode
     /// </summary>
     /// <param name="device">The audio device</param>
     /// <param name="data">The source data of flac</param>
+    /// <param name="name">Optional clip name</param>
     /// <returns></returns>
-    public static AudioClip CreateAudioClipFromFlac(this AudioDevice device, ReadOnlySpan<byte> data)
+    public static AudioClip CreateAudioClipFromFlac(this AudioDevice device, ReadOnlySpan<byte> data, string name = "unnamed_audio_clip")
     {
         float* buffer = null;
         try
         {
             buffer = FlacDecoder.DecodeToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
-            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+            AudioClip clip = device.CreateAudioClip(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate, name);
             return clip;
         }
         finally

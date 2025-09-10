@@ -22,6 +22,6 @@ public class AssetLoaderAudioVorbis : BaseAssetLoader<AudioClip>
 
     public override object CreateAsset(in AssetLoadContext context)
     {
-        return _device.CreateAudioClipFromOgg(context.Data);
+        return _device.CreateAudioClipFromOgg(context.Data, context.Filename);
     }
 }

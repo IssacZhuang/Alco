@@ -11,6 +11,7 @@ internal unsafe class OpenALAudioClip : AudioClip
     private static readonly AL AL = AL.GetApi();
 
     private readonly uint _buffer;
+    private readonly string _name;
 
     public override int Channel { get; }
 
@@ -20,10 +21,13 @@ internal unsafe class OpenALAudioClip : AudioClip
 
     public uint Buffer => _buffer;
 
+    public override string Name => _name;
+
     private readonly OpenALDevice _device;
 
-    public OpenALAudioClip(OpenALDevice device, ReadOnlySpan<float> data, int channel, int sampleRate)
+    public OpenALAudioClip(OpenALDevice device, ReadOnlySpan<float> data, int channel, int sampleRate, string? name = null)
     {
+        _name = name ?? string.Empty;
         _device = device;
         float* ptrMono = null;
         try

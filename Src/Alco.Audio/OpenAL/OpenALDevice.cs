@@ -97,7 +97,7 @@ internal unsafe class OpenALDevice : AudioDevice
         }
     }
 
-    protected override AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate)
+    protected override AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate, string? name)
     {
         float* ptrMono = null;
         try
@@ -114,7 +114,7 @@ internal unsafe class OpenALDevice : AudioDevice
             AudioClip clip;
             lock (_lock)
             {
-                clip = new OpenALAudioClip(this, data, channel, sampleRate);
+                clip = new OpenALAudioClip(this, data, channel, sampleRate, name);
             }
             return clip;
         }

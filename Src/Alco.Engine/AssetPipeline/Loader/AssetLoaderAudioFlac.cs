@@ -22,6 +22,6 @@ public class AssetLoaderAudioFlac : BaseAssetLoader<AudioClip>
 
     public override object CreateAsset(in AssetLoadContext context)
     {
-        return _device.CreateAudioClipFromFlac(context.Data);
+        return _device.CreateAudioClipFromFlac(context.Data, context.Filename);
     }
 }

@@ -11,6 +11,10 @@ namespace Alco.Audio;
 public unsafe abstract class AudioClip : BaseAudioObject
 {
     /// <summary>
+    /// The human-readable clip name for logging and debugging.
+    /// </summary>
+    public abstract string Name { get; }
+    /// <summary>
     /// Number of channels (1 = mono, 2 = stereo).
     /// </summary>
     public abstract int Channel { get; }

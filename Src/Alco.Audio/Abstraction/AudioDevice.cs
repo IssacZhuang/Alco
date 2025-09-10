@@ -41,10 +41,11 @@ public abstract class AudioDevice
     /// <param name="data">Interleaved samples in the range [-1, 1].</param>
     /// <param name="channel">Number of channels (1 for mono, 2 for stereo).</param>
     /// <param name="sampleRate">Sample rate in Hz.</param>
+    /// <param name="name">Optional human-readable clip name for logging/debugging.</param>
     /// <returns>A new <see cref="AudioClip"/> owned by the device.</returns>
-    public unsafe AudioClip CreateAudioClip(ReadOnlySpan<float> data, int channel, int sampleRate)
+    public unsafe AudioClip CreateAudioClip(ReadOnlySpan<float> data, int channel, int sampleRate, string name = "unnamed_audio_clip")
     {
-        return CreateAudioClipCore(data, channel, sampleRate);
+        return CreateAudioClipCore(data, channel, sampleRate, name);
     }
 
     /// <summary>
@@ -58,7 +59,15 @@ public abstract class AudioDevice
 
     protected abstract AudioSource CreateAudioSourceCore();
 
-    protected abstract AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate);
+    /// <summary>
+    /// Core factory for creating an <see cref="AudioClip"/>.
+    /// </summary>
+    /// <param name="data">Interleaved samples.</param>
+    /// <param name="channel">Channel count.</param>
+    /// <param name="sampleRate">Sample rate in Hz.</param>
+    /// <param name="name">Optional clip name.</param>
+    /// <returns>The created clip.</returns>
+    protected abstract AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate, string? name);
 
     protected abstract void Dispose(bool disposing);
 
