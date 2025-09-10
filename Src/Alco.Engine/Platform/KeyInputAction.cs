@@ -8,6 +8,7 @@ public sealed class KeyInputAction
 
     private readonly HashSet<KeyCode> _keys = new();
     private readonly HashSet<GamepadButton> _gamepadButtons = new();
+    private readonly HashSet<Mouse> _mouseButtons = new();
 
     public KeyInputAction(Input input, Gamepad? gamepad = null)
     {
@@ -16,7 +17,7 @@ public sealed class KeyInputAction
     }
 
     /// <summary>
-    /// Returns true if any configured key or gamepad button was pressed this frame.
+    /// Returns true if any configured key, mouse, or gamepad button was pressed this frame.
     /// </summary>
     public bool IsDown
     {
@@ -30,18 +31,23 @@ public sealed class KeyInputAction
                 }
             }
 
-            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
-
-            if(gamepad == null)
+            foreach (var mouse in _mouseButtons)
             {
-                return false;
-            }
-
-            foreach (var button in _gamepadButtons)
-            {
-                if (gamepad.IsButtonDown(button))
+                if (_input.IsMouseDown(mouse))
                 {
                     return true;
+                }
+            }
+
+            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
+            if (gamepad != null)
+            {
+                foreach (var button in _gamepadButtons)
+                {
+                    if (gamepad.IsButtonDown(button))
+                    {
+                        return true;
+                    }
                 }
             }
 
@@ -50,7 +56,7 @@ public sealed class KeyInputAction
     }
 
     /// <summary>
-    /// Returns true if any configured key or gamepad button was released this frame.
+    /// Returns true if any configured key, mouse, or gamepad button was released this frame.
     /// </summary>
     public bool IsUp
     {
@@ -64,17 +70,23 @@ public sealed class KeyInputAction
                 }
             }
 
-            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
-            if (gamepad == null)
+            foreach (var mouse in _mouseButtons)
             {
-                return false;
-            }
-
-            foreach (var button in _gamepadButtons)
-            {
-                if (gamepad.IsButtonUp(button))
+                if (_input.IsMouseUp(mouse))
                 {
                     return true;
+                }
+            }
+
+            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
+            if (gamepad != null)
+            {
+                foreach (var button in _gamepadButtons)
+                {
+                    if (gamepad.IsButtonUp(button))
+                    {
+                        return true;
+                    }
                 }
             }
 
@@ -83,7 +95,7 @@ public sealed class KeyInputAction
     }
 
     /// <summary>
-    /// Returns true if any configured key or gamepad button is currently held down.
+    /// Returns true if any configured key, mouse, or gamepad button is currently held down.
     /// </summary>
     public bool IsPressing
     {
@@ -97,17 +109,23 @@ public sealed class KeyInputAction
                 }
             }
 
-            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
-            if (gamepad == null)
+            foreach (var mouse in _mouseButtons)
             {
-                return false;
-            }
-
-            foreach (var button in _gamepadButtons)
-            {
-                if (gamepad.IsButtonPressing(button))
+                if (_input.IsMousePressing(mouse))
                 {
                     return true;
+                }
+            }
+
+            Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
+            if (gamepad != null)
+            {
+                foreach (var button in _gamepadButtons)
+                {
+                    if (gamepad.IsButtonPressing(button))
+                    {
+                        return true;
+                    }
                 }
             }
 
@@ -139,6 +157,7 @@ public sealed class KeyInputAction
     {
         _keys.Clear();
         _gamepadButtons.Clear();
+        _mouseButtons.Clear();
     }
 
     public KeyInputActionOption ToOption()
@@ -147,6 +166,7 @@ public sealed class KeyInputAction
         {
             Keys = _keys.ToList(),
             GamepadButtons = _gamepadButtons.ToList(),
+            MouseButtons = _mouseButtons.ToList(),
         };
     }
 
@@ -154,6 +174,7 @@ public sealed class KeyInputAction
     {
         _keys.Clear();
         _gamepadButtons.Clear();
+        _mouseButtons.Clear();
         for (int i = 0; i < option.Keys.Count; i++)
         {
             _keys.Add(option.Keys[i]);
@@ -162,5 +183,27 @@ public sealed class KeyInputAction
         {
             _gamepadButtons.Add(option.GamepadButtons[i]);
         }
+        for (int i = 0; i < option.MouseButtons.Count; i++)
+        {
+            _mouseButtons.Add(option.MouseButtons[i]);
+        }
+    }
+
+    /// <summary>
+    /// Adds a mouse button to this action.
+    /// </summary>
+    /// <param name="button">Mouse button to listen for.</param>
+    public void AddMouseButton(Mouse button)
+    {
+        _mouseButtons.Add(button);
+    }
+
+    /// <summary>
+    /// Removes a mouse button from this action.
+    /// </summary>
+    /// <param name="button">Mouse button to remove.</param>
+    public void RemoveMouseButton(Mouse button)
+    {
+        _mouseButtons.Remove(button);
     }
 }
