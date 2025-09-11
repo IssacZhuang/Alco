@@ -82,6 +82,8 @@ public partial class Canvas : AutoDisposable
 
     public bool IsCapturingKeyboard => _textInput != null;
 
+    public Vector2 MousePosition {get;private set;}
+
     public BoundingBox2D Bound
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -362,6 +364,8 @@ public partial class Canvas : AutoDisposable
 
         Vector2 mousePosition = _inputTracker.MousePosition;
         Vector2 mouseWorldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+
+        MousePosition = mouseWorldPosition;
 
         _hitNodes.Clear();
         _collisionWorld.BuildTree();

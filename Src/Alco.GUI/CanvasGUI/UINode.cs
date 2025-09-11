@@ -318,28 +318,17 @@ public class UINode : IEnumerable<UINode>
     /// <value></value>
     public UINodeChildCollection Children { get; }
 
-    /// <summary>
-    /// Gets the root node of this node's hierarchy.
-    /// Returns this node if it has no parent.
-    /// </summary>
-    /// <returns>The top-most <see cref="UINode"/> in the parent chain.</returns>
-    public UINode GetRoot()
-    {
-        UINode node = this;
-        while (node.Parent != null)
-        {
-            node = node.Parent;
-        }
-        return node;
-    }
-
-
     public bool HasRoot([NotNullWhen(true)] out UIRoot? root)
     {
-        if (GetRoot() is UIRoot r)
+        UINode? node = this;
+        while (node != null)
         {
-            root = r;
-            return true;
+            if (node is UIRoot r)
+            {
+                root = r;
+                return true;
+            }
+            node = node.Parent;
         }
         root = null;
         return false;

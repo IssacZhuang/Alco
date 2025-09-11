@@ -38,7 +38,12 @@ public static class UINodeExtension
 
         // Convert to ImGui screen space (absolute coordinates)
         // Use UI root size as virtual resolution; final screen pixels are the ImGui main viewport size.
-        Vector2 canvasSize = node.GetRoot().Size;   // virtual units (W,H)
+        Vector2 canvasSize = node.Size;   // virtual units (W,H)
+        if (node.HasRoot(out UIRoot? root))
+        {
+            canvasSize = root.Size;
+        }
+
         Vector2 viewportPos = ImGui.GetMainViewport().Pos;   // top-left in screen pixels
         Vector2 viewportSize = ImGui.GetMainViewport().Size; // size in screen pixels
 
@@ -80,7 +85,7 @@ public static class UINodeExtension
             ImGui.TableNextRow();
             ImGui.TableSetColumnIndex(0);
             ImGui.Text("UI Root Tree:");
-            
+
             // Use remaining space for tree with scrollbar
             Vector2 treeAvailableSpace = ImGui.GetContentRegionAvail();
             ImGui.BeginChild("UITreeView", new Vector2(0, treeAvailableSpace.Y - 10));
@@ -90,7 +95,7 @@ public static class UINodeExtension
             // right inspector
             ImGui.TableSetColumnIndex(1);
             ImGui.Text("Inspector:");
-            
+
             // Use remaining space for inspector with scrollbar
             Vector2 inspectorAvailableSpace = ImGui.GetContentRegionAvail();
             ImGui.BeginChild("UIInspector", new Vector2(0, inspectorAvailableSpace.Y - 10));
@@ -107,7 +112,7 @@ public static class UINodeExtension
             ImGui.EndTable();
         }
 
-        if(selectedNode != null)
+        if (selectedNode != null)
         {
             selectedNode.DrawHighlight(1f);
         }
