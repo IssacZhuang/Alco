@@ -149,12 +149,12 @@ public class UIText : UISelectable
     public UIText()
     {
         //default false, override by InputBox
-        Interactable = false;
+        IsInteractable = false;
     }
 
-    protected unsafe override void OnRender(Canvas canvas, float delta)
+    protected unsafe override void OnUpdate(Canvas canvas, float delta)
     {
-        base.OnRender(canvas, delta);
+        base.OnUpdate(canvas, delta);
         if (Font == null)
         {
             return;

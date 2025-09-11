@@ -172,9 +172,9 @@ public class UIButton : UISelectable
     }
 
 
-    protected override void OnRender(Canvas canvas, float delta)
+    protected override void OnUpdate(Canvas canvas, float delta)
     {
-        base.OnRender(canvas, delta);
+        base.OnUpdate(canvas, delta);
 
         if (_selectableState == SelectableState.Hover && canvas.Hovered != this)
         {

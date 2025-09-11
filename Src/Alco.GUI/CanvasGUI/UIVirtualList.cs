@@ -459,11 +459,11 @@ public abstract class UIVirtualList<TData> : UINode
             uiListItem.SetData(index, data);
         }
     }
-    
+
     /// <summary>
     /// Updates the scroll position and refreshes visible items.
     /// </summary>
-    protected override void OnRender(Canvas canvas, float delta)
+    protected override void OnUpdate(Canvas canvas, float delta)
     {
 
         // Refresh only when container position changes
@@ -471,9 +471,9 @@ public abstract class UIVirtualList<TData> : UINode
         if (currentPosition != _lastContainerPosition){
             _lastContainerPosition = currentPosition;
             RefreshVisibleItems();
-        }   
+        }
 
-        base.OnRender(canvas, delta);    
+        base.OnUpdate(canvas, delta);
     }
     
     private class VirtualContainer : UINode
@@ -484,10 +484,10 @@ public abstract class UIVirtualList<TData> : UINode
         {
             _parent = parent;
         }
-        
-        protected override void OnRender(Canvas canvas, float delta)
+
+        protected override void OnUpdate(Canvas canvas, float delta)
         {
-            base.OnRender(canvas, delta);
+            base.OnUpdate(canvas, delta);
             
             // Ensure all pooled items are added as children
             foreach (var activeItem in _parent._activeItems)

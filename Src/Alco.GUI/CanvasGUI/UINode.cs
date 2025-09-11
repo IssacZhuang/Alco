@@ -713,7 +713,7 @@ public class UINode : IEnumerable<UINode>
     {
 
     }
-    protected virtual void OnRender(Canvas canvas, float delta)
+    protected virtual void OnUpdate(Canvas canvas, float delta)
     {
 
     }
@@ -816,7 +816,7 @@ public class UINode : IEnumerable<UINode>
             return;
         }
 
-        OnRender(canvas, delta);
+        OnUpdate(canvas, delta);
         TryRefreshTransform();
     }
 
