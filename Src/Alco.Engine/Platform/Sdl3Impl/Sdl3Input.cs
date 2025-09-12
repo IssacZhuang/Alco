@@ -46,6 +46,23 @@ public unsafe class Sdl3Input : Input
         }
     }
 
+    /// <inheritdoc />
+    public override bool IsCursorVisible
+    {
+        get => SDL_CursorVisible();
+        set
+        {
+            if (value)
+            {
+                SDL_ShowCursor();
+            }
+            else
+            {
+                SDL_HideCursor();
+            }
+        }
+    }
+
     public override Vector2 MouseDelta
     {
         get

@@ -77,6 +77,15 @@ public abstract class Input
     public abstract Vector2 MousePosition { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the system cursor is visible.
+    /// <br/>
+    /// For SDL3 backends, this corresponds to <c>SDL_CursorVisible</c> for querying
+    /// and <c>SDL_ShowCursor</c>/<c>SDL_HideCursor</c> for changing visibility. This
+    /// should be accessed on the main thread.
+    /// </summary>
+    public abstract bool IsCursorVisible { get; set; }
+
+    /// <summary>
     /// Gets the delta movement of the mouse.
     /// </summary>
     public abstract Vector2 MouseDelta { get; }
