@@ -87,6 +87,31 @@ public sealed class AxisInputAction
         get
         {
             Vector2 value = Vector2.Zero;
+
+
+            bool hasKey = false;
+            foreach (var item in _keys)
+            {
+                if (_input.IsKeyPressing(item.Key))
+                {
+                    value += item.Value;
+                    hasKey = true;
+                }
+            }
+
+            if (hasKey)
+            {
+                if (value == Vector2.Zero)
+                {
+                    return value;
+                }
+                else
+                {
+                    value = Vector2.Normalize(value);
+                    return _curve != null ? _curve(value) : value;
+                }
+            }
+
             Gamepad? gamepad = _gamepad ?? _input.PrimaryGamepad;
 
             if (gamepad != null)
@@ -95,37 +120,17 @@ public sealed class AxisInputAction
                 {
                     value += item.Value * gamepad.GetAxis(item.Key);
                 }
-
             }
 
+
+            float length = value.Length();
             // if the gamepad is inputing
-            if (value != Vector2.Zero)
+            if (value != Vector2.Zero && length <= Deadzone)
             {
                 // Apply radial deadzone for analog input
-                float length = value.Length();
-                if (length <= Deadzone)
-                {
-                    return Vector2.Zero;
-                }
-
-                // Preserve linear scale beyond deadzone without normalization
-                return _curve != null ? _curve(value) : value;
+                return Vector2.Zero;
             }
 
-            foreach (var item in _keys)
-            {
-                if (_input.IsKeyPressing(item.Key))
-                {
-                    value += item.Value;
-                }
-            }
-
-            if (value == Vector2.Zero)
-            {
-                return value;
-            }
-
-            value = Vector2.Normalize(value);
             return _curve != null ? _curve(value) : value;
         }
     }
