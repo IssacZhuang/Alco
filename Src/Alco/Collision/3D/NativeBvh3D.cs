@@ -216,6 +216,11 @@ namespace Alco
             _batchColliderCastResultCollector.SetSize(colliders.Length);
             int allocCount = _batchColliderCastResultCollector.Length - lengthBefore;
 
+            for (int i = 0; i < allocCount; i++)
+            {
+                _batchColliderCastResultCollector[lengthBefore + i] = new NativeArrayList<ColliderCastResult3D>(4);
+            }
+
             if (_nodeSize == 0)
             {
                 for (int i = 0; i < colliders.Length; i++)
@@ -223,11 +228,6 @@ namespace Alco
                     _batchColliderCastResultCollector.UnsafePointer[i].Clear();
                 }
                 return _batchColliderCastResultCollector.AsSpan();
-            }
-
-            for (int i = 0; i < allocCount; i++)
-            {
-                _batchColliderCastResultCollector[lengthBefore + i] = new NativeArrayList<ColliderCastResult3D>(4);
             }
 
             for (int i = 0; i < colliders.Length; i++)
