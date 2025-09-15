@@ -26,13 +26,18 @@ public unsafe class Sdl3Gamepad : Gamepad
     {
         _native = native;
         Name = SDL_GetGamepadName(_native) ?? "Unknown gamepad";
+        GamepadType = ConvertGamepadType(SDL_GetGamepadType(_native));
     }
-
 
     /// <summary>
     /// Gets the device name reported by SDL.
     /// </summary>
     public override string Name {get;}
+
+    /// <summary>
+    /// Gets the gamepad type (Xbox, PlayStation, etc.) detected by SDL.
+    /// </summary>
+    public override GamepadType GamepadType { get; }
 
     /// <summary>
     /// Indicates whether the device is currently connected.
@@ -218,6 +223,28 @@ public unsafe class Sdl3Gamepad : Gamepad
             SDL_GamepadButton.DpadRight => GamepadButton.DPadRight,
             SDL_GamepadButton.Touchpad => GamepadButton.Touchpad,
             _ => GamepadButton.Unknown,
+        };
+    }
+
+    /// <summary>
+    /// Converts SDL gamepad type to engine gamepad type.
+    /// </summary>
+    private static GamepadType ConvertGamepadType(SDL_GamepadType sdlType)
+    {
+        return sdlType switch
+        {
+            SDL_GamepadType.Unknown => GamepadType.Unknown,
+            SDL_GamepadType.Standard => GamepadType.Standard,
+            SDL_GamepadType.Xbox360 => GamepadType.Xbox360,
+            SDL_GamepadType.Xboxone => GamepadType.XboxOne,
+            SDL_GamepadType.Ps3 => GamepadType.PlayStation3,
+            SDL_GamepadType.Ps4 => GamepadType.PlayStation4,
+            SDL_GamepadType.Ps5 => GamepadType.PlayStation5,
+            SDL_GamepadType.NintendoSwitchPro => GamepadType.NintendoSwitchPro,
+            SDL_GamepadType.NintendoSwitchJoyconLeft => GamepadType.NintendoSwitchJoyconLeft,
+            SDL_GamepadType.NintendoSwitchJoyconRight => GamepadType.NintendoSwitchJoyconRight,
+            SDL_GamepadType.NintendoSwitchJoyconPair => GamepadType.NintendoSwitchJoyconPair,
+            _ => GamepadType.Unknown,
         };
     }
 }

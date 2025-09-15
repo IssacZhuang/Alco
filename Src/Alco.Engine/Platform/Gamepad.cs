@@ -7,6 +7,10 @@ public abstract class Gamepad
 {
     public abstract string Name { get; }
 
+    /// <summary>
+    /// Gets the type of gamepad (Xbox, PlayStation, etc.).
+    /// </summary>
+    public abstract GamepadType GamepadType { get; }
 
     public abstract bool IsConnected { get; }
 
