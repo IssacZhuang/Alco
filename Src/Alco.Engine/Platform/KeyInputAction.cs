@@ -10,6 +10,10 @@ public sealed class KeyInputAction
     private readonly HashSet<GamepadButton> _gamepadButtons = new();
     private readonly HashSet<Mouse> _mouseButtons = new();
 
+    public IReadOnlyCollection<KeyCode> Keys => _keys;
+    public IReadOnlyCollection<GamepadButton> GamepadButtons => _gamepadButtons;
+    public IReadOnlyCollection<Mouse> MouseButtons => _mouseButtons;
+
     public KeyInputAction(Input input, Gamepad? gamepad = null)
     {
         _input = input;
