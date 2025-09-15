@@ -4,6 +4,7 @@ using StbImageSharp;
 using Alco.Graphics;
 using Alco.Rendering;
 using Alco.IO;
+using Alco;
 
 
 namespace Alco.Engine;
@@ -41,12 +42,12 @@ public class AssetLoaderTexture2D : IAssetLoader
     /// <inheritdoc/>
     public object CreateAsset(in AssetLoadContext context)
     {
-
         ImageLoadOption option = ImageLoadOption.Default with
         {
             Name = context.Filename
         };
 
+        Texture2DMeta? metaData = null;
         if (context.AssetSystem.TryLoad<Texture2DMeta>(context.Filename + ".meta", out var meta, out string? failedReason))
         {
             option = option with
@@ -55,8 +56,25 @@ public class AssetLoaderTexture2D : IAssetLoader
                 AddressMode = meta.AddressMode,
                 SlicePadding = meta.SlicePadding
             };
+
+            metaData = meta;
         }
 
-        return _renderingSystem.CreateTexture2DFromFile(context.Data, option);
+        Texture2D texture = _renderingSystem.CreateTexture2DFromFile(context.Data, option);
+
+        // Populate sprites from meta if available
+        if (metaData != null && metaData.Sprites != null && metaData.Sprites.Count > 0)
+        {
+            texture.ClearSprites();
+            foreach (var kvp in metaData.Sprites)
+            {
+                // Texture2DMeta.Rect -> RectInt (implicit), then normalize to Rect UVs
+                RectInt pixelRect = kvp.Value;
+                Rect uvRect = pixelRect.Normalize(texture.Width, texture.Height);
+                texture.SetSprite(kvp.Key, uvRect);
+            }
+        }
+
+        return texture;
     }
 }
