@@ -7,8 +7,8 @@ namespace Alco.Audio.OpenAL;
 
 internal unsafe class OpenALAudioClip : AudioClip
 {
-    private static readonly ALContext ALC = ALContext.GetApi();
-    private static readonly AL AL = AL.GetApi();
+    private static readonly ALContext ALC = ALContext.GetApi(true);
+    private static readonly AL AL = AL.GetApi(true);
 
     private readonly uint _buffer;
     private readonly string _name;

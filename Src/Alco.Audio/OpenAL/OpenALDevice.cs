@@ -9,9 +9,10 @@ namespace Alco.Audio.OpenAL;
 internal unsafe class OpenALDevice : AudioDevice
 {
     private const string AL_SOFT_source_spatialize = "AL_SOFT_source_spatialize";
+    private const string AL_SOFT_direct_channels = "AL_SOFT_direct_channels";
 
-    private static readonly ALContext ALC = ALContext.GetApi();
-    private static readonly AL AL = AL.GetApi();
+    private static readonly ALContext ALC = ALContext.GetApi(true);
+    private static readonly AL AL = AL.GetApi(true);
 
     private readonly Device* _device;
     private readonly Lock _lock = new Lock();
@@ -76,7 +77,12 @@ internal unsafe class OpenALDevice : AudioDevice
 
         if (!AL.IsExtensionPresent(AL_SOFT_source_spatialize))
         {
-            _host.LogError("AL_SOFT_source_spatialize is not supported, the spatialization is not available");
+            _host.LogWarning("AL_SOFT_source_spatialize is not supported, the spatialization is not available");
+        }
+
+        if (!AL.IsExtensionPresent(AL_SOFT_direct_channels))
+        {
+            _host.LogWarning("AL_SOFT_direct_channels is not supported, the direct channels is not available");
         }
 
         _host.LogSuccess("OpenAL device created");

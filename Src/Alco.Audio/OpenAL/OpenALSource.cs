@@ -11,8 +11,8 @@ internal class OpenALSource : AudioSource
 
 
 
-    private static readonly ALContext ALC = ALContext.GetApi();
-    private static readonly AL AL = AL.GetApi();
+    private static readonly ALContext ALC = ALContext.GetApi(true);
+    private static readonly AL AL = AL.GetApi(true);
 
     private static readonly int AL_DIRECT_CHANNELS_SOFT = AL.GetEnumValue("AL_DIRECT_CHANNELS_SOFT");
     private static readonly int AL_SOURCE_SPATIALIZE_SOFT = AL.GetEnumValue("AL_SOURCE_SPATIALIZE_SOFT");
