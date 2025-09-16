@@ -1,23 +1,50 @@
 
+using Alco.Rendering;
+
+using System.Diagnostics.CodeAnalysis;
+
 namespace Alco.Engine;
 
+/// <summary>
+/// Represents a composite input action that can be triggered by keys, mouse buttons, or gamepad buttons.
+/// Provides convenience queries for the action state and optional prompt icon lookup.
+/// </summary>
 public sealed class KeyInputAction
 {
     private readonly Input _input;
     private readonly Gamepad? _gamepad;
+    private readonly IInputPromptIconProvider? _iconProvider;
 
     private readonly HashSet<KeyCode> _keys = new();
     private readonly HashSet<GamepadButton> _gamepadButtons = new();
     private readonly HashSet<Mouse> _mouseButtons = new();
 
+    /// <summary>
+    /// Collection of key bindings for this action.
+    /// </summary>
     public IReadOnlyCollection<KeyCode> Keys => _keys;
+
+    /// <summary>
+    /// Collection of gamepad button bindings for this action.
+    /// </summary>
     public IReadOnlyCollection<GamepadButton> GamepadButtons => _gamepadButtons;
+
+    /// <summary>
+    /// Collection of mouse button bindings for this action.
+    /// </summary>
     public IReadOnlyCollection<Mouse> MouseButtons => _mouseButtons;
 
-    public KeyInputAction(Input input, Gamepad? gamepad = null)
+    /// <summary>
+    /// Initializes a new instance of <see cref="KeyInputAction"/>.
+    /// </summary>
+    /// <param name="input">Input backend used to query device state.</param>
+    /// <param name="gamepad">Optional explicit gamepad target. If null, <see cref="Input.PrimaryGamepad"/> is used.</param>
+    /// <param name="iconProvider">Optional input prompt icon provider used by <see cref="TryGetPromptIcon"/>.</param>
+    public KeyInputAction(Input input, Gamepad? gamepad = null, IInputPromptIconProvider? iconProvider = null)
     {
         _input = input;
         _gamepad = gamepad;
+        _iconProvider = iconProvider;
     }
 
     /// <summary>
@@ -209,5 +236,69 @@ public sealed class KeyInputAction
     public void RemoveMouseButton(Mouse button)
     {
         _mouseButtons.Remove(button);
+    }
+
+    /// <summary>
+    /// Attempts to find a suitable prompt icon for this action using the configured <see cref="IInputPromptIconProvider"/>.
+    /// Preference order:
+    /// 1) If an explicit gamepad was provided in the constructor, check its buttons first.
+    /// 2) Otherwise, prefer keyboard keys, then mouse buttons.
+    /// 3) If a gamepad is available, finally check its buttons.
+    /// </summary>
+    /// <param name="icon">Resolved icon texture when available.</param>
+    /// <returns>True if an icon was found; otherwise false.</returns>
+    public bool TryGetPromptIcon([NotNullWhen(true)] out Texture2D? icon)
+    {
+        icon = null;
+        if (_iconProvider == null)
+        {
+            return false;
+        }
+
+        Gamepad? activeGamepad = _gamepad ?? _input.PrimaryGamepad;
+
+        // If an explicit gamepad is bound to this action instance, prefer gamepad icons first.
+        if (_gamepad != null && activeGamepad != null)
+        {
+            foreach (var button in _gamepadButtons)
+            {
+                if (_iconProvider.TryGetIcon(activeGamepad.GamepadType, button, out icon))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Prefer keyboard icons
+        foreach (var key in _keys)
+        {
+            if (_iconProvider.TryGetIcon(key, out icon))
+            {
+                return true;
+            }
+        }
+
+        // Then mouse icons
+        foreach (var mouse in _mouseButtons)
+        {
+            if (_iconProvider.TryGetIcon(mouse, out icon))
+            {
+                return true;
+            }
+        }
+
+        // Fallback to gamepad icons if available
+        if (activeGamepad != null)
+        {
+            foreach (var button in _gamepadButtons)
+            {
+                if (_iconProvider.TryGetIcon(activeGamepad.GamepadType, button, out icon))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
