@@ -32,7 +32,7 @@ public unsafe class Sdl3Input : Input
     private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
     private readonly List<SDL_JoystickID> _toRemove = new();
     private bool _isGamepadInputting;
-    
+
 
     public override Vector2 MousePosition
     {
@@ -78,17 +78,18 @@ public unsafe class Sdl3Input : Input
 
     public Sdl3Input()
     {
-        
+
     }
 
-    internal void Init(){
+    internal void Init()
+    {
         Vector2 tmp = default;
         SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
         _mousePosition = tmp;
         _lastMousePosition = _mousePosition;
         _mouseDelta = new Vector2(0, 0);
     }
-    
+
 
     internal void Update()
     {
@@ -209,7 +210,7 @@ public unsafe class Sdl3Input : Input
         _state.isMouseDown[(int)b] = true;
         _state.isMousePressing[(int)b] = true;
         _isGamepadInputting = false;
-        DoMouseDown(b); 
+        DoMouseDown(b);
     }
 
     internal void OnSdlMouseButtonUp(uint button)
@@ -256,7 +257,9 @@ public unsafe class Sdl3Input : Input
         _ = which;
         _ = axis;
 
-        if (value != 0)
+        const short threshold = (short)(short.MaxValue * 0.1f);
+
+        if (value > threshold)
         {
             _isGamepadInputting = true;
         }
@@ -276,7 +279,7 @@ public unsafe class Sdl3Input : Input
         }
         _mouseWheelDelta = 0;
     }
-    
+
     private static Mouse ConvertMosueButton(uint button)
     {
         return button switch
