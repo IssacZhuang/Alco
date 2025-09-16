@@ -13,7 +13,7 @@ public sealed class KeyInputAction
 {
     private readonly Input _input;
     private readonly Gamepad? _gamepad;
-    private readonly IInputPromptIconProvider? _iconProvider;
+    
 
     private readonly HashSet<KeyCode> _keys = new();
     private readonly HashSet<GamepadButton> _gamepadButtons = new();
@@ -34,6 +34,8 @@ public sealed class KeyInputAction
     /// </summary>
     public IReadOnlyCollection<Mouse> MouseButtons => _mouseButtons;
 
+    public IInputPromptIconProvider? IconProvider {get;set;}
+
     /// <summary>
     /// Initializes a new instance of <see cref="KeyInputAction"/>.
     /// </summary>
@@ -44,7 +46,7 @@ public sealed class KeyInputAction
     {
         _input = input;
         _gamepad = gamepad;
-        _iconProvider = iconProvider;
+        IconProvider = iconProvider;
     }
 
     /// <summary>
@@ -250,7 +252,7 @@ public sealed class KeyInputAction
     public bool TryGetPromptIcon([NotNullWhen(true)] out Texture2D? icon)
     {
         icon = null;
-        if (_iconProvider == null)
+        if (IconProvider == null)
         {
             return false;
         }
@@ -262,7 +264,7 @@ public sealed class KeyInputAction
         {
             foreach (var button in _gamepadButtons)
             {
-                if (_iconProvider.TryGetIcon(activeGamepad.GamepadType, button, out icon))
+                if (IconProvider.TryGetIcon(activeGamepad.GamepadType, button, out icon))
                 {
                     return true;
                 }
@@ -272,7 +274,7 @@ public sealed class KeyInputAction
         // Prefer keyboard icons
         foreach (var key in _keys)
         {
-            if (_iconProvider.TryGetIcon(key, out icon))
+            if (IconProvider.TryGetIcon(key, out icon))
             {
                 return true;
             }
@@ -281,7 +283,7 @@ public sealed class KeyInputAction
         // Then mouse icons
         foreach (var mouse in _mouseButtons)
         {
-            if (_iconProvider.TryGetIcon(mouse, out icon))
+            if (IconProvider.TryGetIcon(mouse, out icon))
             {
                 return true;
             }
@@ -292,7 +294,7 @@ public sealed class KeyInputAction
         {
             foreach (var button in _gamepadButtons)
             {
-                if (_iconProvider.TryGetIcon(activeGamepad.GamepadType, button, out icon))
+                if (IconProvider.TryGetIcon(activeGamepad.GamepadType, button, out icon))
                 {
                     return true;
                 }
