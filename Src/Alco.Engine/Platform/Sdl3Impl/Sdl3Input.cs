@@ -31,6 +31,7 @@ public unsafe class Sdl3Input : Input
     private readonly List<Sdl3Gamepad> _gamepads = new();
     private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
     private readonly List<SDL_JoystickID> _toRemove = new();
+    private bool _isGamepadInputting;
     
 
     public override Vector2 MousePosition
@@ -72,6 +73,8 @@ public unsafe class Sdl3Input : Input
     }
 
     public override float MouseWheelDelta => _mouseWheelDelta;
+
+    public override bool IsGamepadInputting => _isGamepadInputting;
 
     public Sdl3Input()
     {
@@ -187,6 +190,7 @@ public unsafe class Sdl3Input : Input
         int k = SdlKeyMap[key];
         _state.iskeyDown[k] = true;
         _state.iskeyPressing[k] = true;
+        _isGamepadInputting = false;
         DoKeyDown((KeyCode)k);
     }
 
@@ -195,6 +199,7 @@ public unsafe class Sdl3Input : Input
         int k = SdlKeyMap[key];
         _state.iskeyUp[k] = true;
         _state.iskeyPressing[k] = false;
+        _isGamepadInputting = false;
         DoKeyUp((KeyCode)k);
     }
 
@@ -203,6 +208,7 @@ public unsafe class Sdl3Input : Input
         Mouse b = ConvertMosueButton(button);
         _state.isMouseDown[(int)b] = true;
         _state.isMousePressing[(int)b] = true;
+        _isGamepadInputting = false;
         DoMouseDown(b); 
     }
 
@@ -211,6 +217,7 @@ public unsafe class Sdl3Input : Input
         Mouse b = ConvertMosueButton(button);
         _state.isMouseUp[(int)b] = true;
         _state.isMousePressing[(int)b] = false;
+        _isGamepadInputting = false;
         DoMouseUp(b);
     }
 
@@ -222,11 +229,13 @@ public unsafe class Sdl3Input : Input
 
     internal void OnSdlMouseWheel(float value)
     {
+        _isGamepadInputting = false;
         _mouseWheelDelta = value;
     }
 
     internal void OnSdlGamepadButtonDown(SDL_JoystickID which, SDL_GamepadButton button)
     {
+        _isGamepadInputting = true;
         if (_gamepadMap.TryGetValue(which, out var gp))
         {
             gp.RecordButtonDown(Sdl3Gamepad.ConvertButton(button));
@@ -235,9 +244,21 @@ public unsafe class Sdl3Input : Input
 
     internal void OnSdlGamepadButtonUp(SDL_JoystickID which, SDL_GamepadButton button)
     {
+        _isGamepadInputting = true;
         if (_gamepadMap.TryGetValue(which, out var gp))
         {
             gp.RecordButtonUp(Sdl3Gamepad.ConvertButton(button));
+        }
+    }
+
+    internal void OnSdlGamepadAxisMotion(SDL_JoystickID which, SDL_GamepadAxis axis, short value)
+    {
+        _ = which;
+        _ = axis;
+
+        if (value != 0)
+        {
+            _isGamepadInputting = true;
         }
     }
 

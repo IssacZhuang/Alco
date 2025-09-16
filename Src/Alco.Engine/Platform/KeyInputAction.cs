@@ -242,10 +242,7 @@ public sealed class KeyInputAction
 
     /// <summary>
     /// Attempts to find a suitable prompt icon for this action using the configured <see cref="IInputPromptIconProvider"/>.
-    /// Preference order:
-    /// 1) If an explicit gamepad was provided in the constructor, check its buttons first.
-    /// 2) Otherwise, prefer keyboard keys, then mouse buttons.
-    /// 3) If a gamepad is available, finally check its buttons.
+    /// Chooses between keyboard/mouse bindings and gamepad bindings based on the active input source.
     /// </summary>
     /// <param name="icon">Resolved icon texture when available.</param>
     /// <returns>True if an icon was found; otherwise false.</returns>
@@ -259,8 +256,7 @@ public sealed class KeyInputAction
 
         Gamepad? activeGamepad = _gamepad ?? _input.PrimaryGamepad;
 
-        // If an explicit gamepad is bound to this action instance, prefer gamepad icons first.
-        if (_gamepad != null && activeGamepad != null)
+        if (_input.IsGamepadInputting && activeGamepad != null)
         {
             foreach (var button in _gamepadButtons)
             {
@@ -271,7 +267,6 @@ public sealed class KeyInputAction
             }
         }
 
-        // Prefer keyboard icons
         foreach (var key in _keys)
         {
             if (IconProvider.TryGetIcon(key, out icon))
@@ -280,7 +275,6 @@ public sealed class KeyInputAction
             }
         }
 
-        // Then mouse icons
         foreach (var mouse in _mouseButtons)
         {
             if (IconProvider.TryGetIcon(mouse, out icon))
@@ -289,8 +283,7 @@ public sealed class KeyInputAction
             }
         }
 
-        // Fallback to gamepad icons if available
-        if (activeGamepad != null)
+        if (!_input.IsGamepadInputting && activeGamepad != null)
         {
             foreach (var button in _gamepadButtons)
             {

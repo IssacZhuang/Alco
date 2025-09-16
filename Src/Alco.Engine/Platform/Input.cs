@@ -16,6 +16,11 @@ public abstract class Input
     private readonly WeakEvent<Gamepad> _onGamepadDisconnected = new();
 
     /// <summary>
+    /// True if the most recent received input originated from a gamepad.
+    /// </summary>
+    public abstract bool IsGamepadInputting { get; }
+
+    /// <summary>
     /// Occurs when a key is pressed down.
     /// </summary>
     public event Action<KeyCode> OnKeyDown

@@ -193,6 +193,9 @@ public unsafe class Sdl3Platform : Platform
             case SDL_EventType.GamepadButtonUp:
                 _input.OnSdlGamepadButtonUp(e.gbutton.which, (SDL_GamepadButton)e.gbutton.button);
                 break;
+            case SDL_EventType.GamepadAxisMotion:
+                _input.OnSdlGamepadAxisMotion(e.gaxis.which, (SDL_GamepadAxis)e.gaxis.axis, e.gaxis.value);
+                break;
         }
     }
 }

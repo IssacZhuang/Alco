@@ -7,6 +7,8 @@ namespace Alco.Engine;
 /// </summary>
 public class NoInput : Input
 {
+    public override bool IsGamepadInputting => false;
+
     /// <inheritdoc />
     public override Vector2 MousePosition { get; set; }
 
