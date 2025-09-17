@@ -63,7 +63,8 @@ namespace Alco
         /// <returns>A BinaryTable representing the object's serialized state</returns>
         public static BinaryTable ObjectToTable<T>(T obj, Action<string>? onError = null) where T : ISerializable
         {
-            BinarySerializeWriteNode node = new BinarySerializeWriteNode(onError);
+            ReferenceContext referenceContext = new ReferenceContext();
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode(referenceContext, onError);
             obj.OnSerialize(node, SerializeMode.Save);
             return node.Content;
         }
@@ -76,10 +77,11 @@ namespace Alco
         /// <returns>A new instance of T populated from the BinaryTable</returns>
         public static T TableToObject<T>(BinaryTable content, Action<string>? onError = null) where T : ISerializable, new()
         {
+            ReferenceContext referenceContext = new ReferenceContext();
             T obj = new T();
-            obj.OnSerialize(new BinarySerializeReadNode(content, onError), SerializeMode.Load);
+            obj.OnSerialize(new BinarySerializeReadNode(referenceContext, content, onError), SerializeMode.Load);
             // Post-load pass to resolve references and finalize state
-            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
+            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
             return obj;
         }
 
@@ -92,11 +94,12 @@ namespace Alco
         /// <returns>An instance of T populated from the BinaryTable</returns>
         public static T TableToObject<T>(BinaryTable content, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null) where T : ISerializable
         {
-            BinarySerializeReadNode node = new BinarySerializeReadNode(content, onError);
+            ReferenceContext referenceContext = new ReferenceContext();
+            BinarySerializeReadNode node = new BinarySerializeReadNode(referenceContext, content, onError);
             T obj = onCreate(node);
             obj.OnSerialize(node, SerializeMode.Load);
             // Post-load pass to resolve references and finalize state
-            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
+            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
             return obj;
         }
 
@@ -166,22 +169,13 @@ namespace Alco
         /// <param name="obj">The existing object instance to populate with deserialized data</param>
         public static void Populate<T>(ReadOnlySpan<byte> bytes, T obj, Action<string>? onError = null) where T : ISerializable
         {
-            obj.OnSerialize(new BinarySerializeReadNode(DecodeTable(bytes), onError), SerializeMode.Load);
+            ReferenceContext referenceContext = new ReferenceContext();
+            BinaryTable content = DecodeTable(bytes);
+            obj.OnSerialize(new BinarySerializeReadNode(referenceContext, content, onError), SerializeMode.Load);
             // Post-load pass to resolve references and finalize state
-            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
+            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
         }
 
-        /// <summary>
-        /// Executes a post-load traversal on an object to resolve references and finalize state.
-        /// This does not read or write any data; it only calls OnSerialize with PostLoad mode.
-        /// </summary>
-        /// <typeparam name="T">The type implementing ISerializable.</typeparam>
-        /// <param name="obj">The object to process.</param>
-        /// <param name="onError">Optional error callback.</param>
-        public static void PostLoad<T>(T obj, Action<string>? onError = null) where T : ISerializable
-        {
-            obj.OnSerialize(new PostLoadSerializeNode(onError), SerializeMode.PostLoad);
-        }
 
         private static void EncodeTableElement(Stream stream, string name, BaseBinaryValue value)
         {

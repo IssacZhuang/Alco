@@ -134,6 +134,9 @@ public abstract class SerializeNode
     /// <param name="value">The dictionary of binary data to be serialized or deserialized.</param>
     public abstract void BindDictionary(string key, IDictionary<string, byte[]> value);
 
+
+    public abstract void BindReference<T>(string key, ref T? referenceable) where T : IReferenceable;
+
     protected void AddError(string error)
     {
         if(OnError != null)

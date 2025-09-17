@@ -8,15 +8,22 @@ namespace Alco;
 /// This node does not read or write any data. It only traverses objects
 /// and invokes <see cref="ISerializable.OnSerialize"/> with <see cref="SerializeMode.PostLoad"/>.
 /// </summary>
-public sealed class PostLoadSerializeNode : SerializeNode
+public class BinaryPostLoadSerializeNode : SerializeNode
 {
+    private readonly ReferenceContext _referenceContext;
+    protected BinaryTable _content;
+    public BinaryTable Content => _content;
+
     /// <summary>
-    /// Initializes a new instance of the <see cref="PostLoadSerializeNode"/> class.
+    /// Initializes a new instance of the <see cref="BinaryPostLoadSerializeNode"/> class.
     /// </summary>
     /// <param name="onError">Optional error callback.</param>
-    public PostLoadSerializeNode(Action<string>? onError = null)
+    public BinaryPostLoadSerializeNode(ReferenceContext referenceContext, BinaryTable content, Action<string>? onError = null)
     {
+        _referenceContext = referenceContext;
+        _content = content;
         OnError = onError;
+
     }
 
     /// <summary>
@@ -50,7 +57,11 @@ public sealed class PostLoadSerializeNode : SerializeNode
     {
         try
         {
-            value.OnSerialize(this, SerializeMode.PostLoad);
+            if (_content.TryGetTable(key, out BinaryTable? table))
+            {
+                BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                value.OnSerialize(node, SerializeMode.PostLoad);
+            }
         }
         catch (Exception ex)
         {
@@ -65,9 +76,10 @@ public sealed class PostLoadSerializeNode : SerializeNode
     {
         try
         {
-            if (value is not null)
+            if (_content.TryGetTable(key, out BinaryTable? table) && value is not null)
             {
-                value.OnSerialize(this, SerializeMode.PostLoad);
+                BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                value.OnSerialize(node, SerializeMode.PostLoad);
             }
         }
         catch (Exception ex)
@@ -110,7 +122,11 @@ public sealed class PostLoadSerializeNode : SerializeNode
         {
             try
             {
-                item.OnSerialize(this, SerializeMode.PostLoad);
+                if (_content.TryGetTable(key, out BinaryTable? table))
+                {
+                    BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                    item.OnSerialize(node, SerializeMode.PostLoad);
+                }
             }
             catch (Exception ex)
             {
@@ -130,7 +146,11 @@ public sealed class PostLoadSerializeNode : SerializeNode
         {
             try
             {
-                item.OnSerialize(this, SerializeMode.PostLoad);
+                if (_content.TryGetTable(key, out BinaryTable? table))
+                {
+                    BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                    item.OnSerialize(node, SerializeMode.PostLoad);
+                }
             }
             catch (Exception ex)
             {
@@ -162,6 +182,32 @@ public sealed class PostLoadSerializeNode : SerializeNode
     public override void BindDictionary(string key, IDictionary<string, byte[]> value)
     {
         // Intentionally empty
+    }
+
+    public override void BindReference<T>(string key, ref T? referenceable) where T : default
+    {
+        if (TryGetId(key, out uint id) && _referenceContext.TryGetReference(id, out object? obj) && obj is T reference)
+        {
+            referenceable = reference;
+        }
+        else
+        {
+            AddError($"Failed to resolve reference '{key}': {id}");
+        }
+    }
+
+    private bool TryGetId(string key, out uint id)
+    {
+        if (_content.TryGetValue(key, out uint v))
+        {
+            id = v;
+            return true;
+        }
+        else
+        {
+            id = default;
+            return false;
+        }
     }
 }
 

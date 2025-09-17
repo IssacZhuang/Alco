@@ -6,12 +6,14 @@ namespace Alco;
 
 public class BinarySerializeReadNode : SerializeReadNode
 {
+    private readonly ReferenceContext _referenceContext;
     protected BinaryTable _content;
     public BinaryTable Content => _content;
-    public BinarySerializeReadNode(BinaryTable content, Action<string>? onError = null)
+    public BinarySerializeReadNode(ReferenceContext referenceContext, BinaryTable content, Action<string>? onError = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         _content = content;
+        _referenceContext = referenceContext;
         OnError = onError;
     }
 
@@ -28,7 +30,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             if (_content.TryGetTable(key, out BinaryTable? table))
             {
-                value.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                value.OnSerialize(node, SerializeMode.Load);
+                TryWriteReferenceId(node, value);
             }
         }
         catch (Exception ex)
@@ -51,9 +55,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             if (_content.TryGetTable(key, out BinaryTable? table))
             {
-                BinarySerializeReadNode subNode = new BinarySerializeReadNode(table, OnError);
-                value ??= onCreate(subNode);
-                value.OnSerialize(subNode, SerializeMode.Load);
+                BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                value ??= onCreate(node);
+                value.OnSerialize(node, SerializeMode.Load);
             }
         }
         catch (Exception ex)
@@ -123,8 +127,10 @@ public class BinarySerializeReadNode : SerializeReadNode
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
                         T item = new T();
-                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        item.OnSerialize(node, SerializeMode.Load);
+                        TryWriteReferenceId(node, item);
                         value.Add(item);
                     }
                 }
@@ -155,8 +161,10 @@ public class BinarySerializeReadNode : SerializeReadNode
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
-                        T item = onCreate(new BinarySerializeReadNode(table, OnError));
-                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                        T item = onCreate(node);
+                        item.OnSerialize(node, SerializeMode.Load);
+                        TryWriteReferenceId(node, item);
                         value.Add(item);
                     }
                 }
@@ -249,6 +257,19 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    
+    public override void BindReference<T>(string key, ref T? referenceable) where T : default
+    {
+        //do nothing
+    }
 
+    private void TryWriteReferenceId(BinarySerializeReadNode node, ISerializable value)
+    {
+        if(value is IReferenceable referenceable)
+        {
+            uint id = node.GetValue<uint>(ReferenceContext.SerializeKey);
+            _referenceContext.SetReference(id, referenceable);
+        }
+    }
+
+    
 }
