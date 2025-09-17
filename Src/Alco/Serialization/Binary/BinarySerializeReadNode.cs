@@ -58,6 +58,7 @@ public class BinarySerializeReadNode : SerializeReadNode
                 BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
                 value ??= onCreate(node);
                 value.OnSerialize(node, SerializeMode.Load);
+                TryWriteReferenceId(node, value);
             }
         }
         catch (Exception ex)
