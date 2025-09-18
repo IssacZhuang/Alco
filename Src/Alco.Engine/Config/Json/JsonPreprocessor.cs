@@ -60,9 +60,17 @@ public class JsonPreprocessor
             }
             if (_preprocessor._jsonItems.TryGetValue(id, out var jsonItem))
             {
-                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
-                _pendingNodeEdits[id] = node;
-                return true;
+                try{
+                    node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
+                    _pendingNodeEdits[id] = node;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _preprocessor.AddError($"Failed to parse JSON file {jsonItem.Path}: {ex}");
+                    node = null;
+                    return false;
+                }
             }
             node = null;
             return false;
@@ -84,9 +92,17 @@ public class JsonPreprocessor
             }
             if (_preprocessor._abstractJsonItems.TryGetValue(id, out var jsonItem))
             {
+                try{
                 node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
-                _pendingAbstractNodeEdits[id] = node;
-                return true;
+                    _pendingAbstractNodeEdits[id] = node;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _preprocessor.AddError($"Failed to parse JSON file {jsonItem.Path}: {ex}");
+                    node = null;
+                    return false;
+                }
             }
             node = null;
             return false;
