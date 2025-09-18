@@ -702,4 +702,123 @@ public class TestBindReference
             node.BindReference("collection2Ref", ref Collection2Ref);
         }
     }
+
+    [Test]
+    public void TestCollectionObjectsWithReferences()
+    {
+        // Arrange - Test collection objects that hold references to other objects
+        // This tests a scenario where objects within a collection themselves have references
+        // to other objects that are also being serialized
+        var targetObject1 = new ReferenceableObject
+        {
+            Name = "Target Object 1",
+            Value = 100
+        };
+
+        var targetObject2 = new ReferenceableObject
+        {
+            Name = "Target Object 2", 
+            Value = 200
+        };
+
+        var collectionObject1 = new ReferenceableObject
+        {
+            Name = "Collection Object 1",
+            Value = 10,
+            ChildReference = targetObject1  // Object in collection references external object
+        };
+
+        var collectionObject2 = new ReferenceableObject
+        {
+            Name = "Collection Object 2",
+            Value = 20,
+            ChildReference = targetObject2  // Object in collection references external object
+        };
+
+        var collectionObject3 = new ReferenceableObject
+        {
+            Name = "Collection Object 3",
+            Value = 30,
+            ChildReference = collectionObject1  // Object in collection references another object in collection
+        };
+
+        var container = new CollectionObjectsWithReferencesContainer
+        {
+            ContainerName = "Collection Objects With References Test",
+            TargetObjects = new List<ReferenceableObject> { targetObject1, targetObject2 },
+            CollectionObjects = new List<ReferenceableObject> { collectionObject1, collectionObject2, collectionObject3 },
+            DirectTargetRef = targetObject1,  // Direct reference to one of the target objects
+            DirectCollectionRef = collectionObject2  // Direct reference to one of the collection objects
+        };
+
+        // Act - Serialize using BinaryParser
+        byte[] serializedData = BinaryParser.Encode(container);
+
+        // Deserialize using BinaryParser  
+        var deserializedContainer = BinaryParser.Decode<CollectionObjectsWithReferencesContainer>(serializedData);
+
+        // Assert - All references should be correctly preserved
+        Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Collection Objects With References Test"));
+        
+        // Verify target objects collection
+        Assert.That(deserializedContainer.TargetObjects, Is.Not.Null);
+        Assert.That(deserializedContainer.TargetObjects.Count, Is.EqualTo(2));
+        var targetArray = deserializedContainer.TargetObjects.ToArray();
+        Assert.That(targetArray[0].Name, Is.EqualTo("Target Object 1"));
+        Assert.That(targetArray[1].Name, Is.EqualTo("Target Object 2"));
+
+        // Verify collection objects collection
+        Assert.That(deserializedContainer.CollectionObjects, Is.Not.Null);
+        Assert.That(deserializedContainer.CollectionObjects.Count, Is.EqualTo(3));
+        var collectionArray = deserializedContainer.CollectionObjects.ToArray();
+        Assert.That(collectionArray[0].Name, Is.EqualTo("Collection Object 1"));
+        Assert.That(collectionArray[1].Name, Is.EqualTo("Collection Object 2")); 
+        Assert.That(collectionArray[2].Name, Is.EqualTo("Collection Object 3"));
+
+        // Verify direct references
+        Assert.That(deserializedContainer.DirectTargetRef, Is.Not.Null);
+        Assert.That(deserializedContainer.DirectCollectionRef, Is.Not.Null);
+        Assert.That(ReferenceEquals(targetArray[0], deserializedContainer.DirectTargetRef), Is.True);
+        Assert.That(ReferenceEquals(collectionArray[1], deserializedContainer.DirectCollectionRef), Is.True);
+
+        // Most importantly: Verify that collection objects' child references are correctly resolved
+        // Collection Object 1 should reference Target Object 1
+        Assert.That(collectionArray[0].ChildReference, Is.Not.Null);
+        Assert.That(ReferenceEquals(targetArray[0], collectionArray[0].ChildReference), Is.True);
+
+        // Collection Object 2 should reference Target Object 2  
+        Assert.That(collectionArray[1].ChildReference, Is.Not.Null);
+        Assert.That(ReferenceEquals(targetArray[1], collectionArray[1].ChildReference), Is.True);
+
+        // Collection Object 3 should reference Collection Object 1 (intra-collection reference)
+        Assert.That(collectionArray[2].ChildReference, Is.Not.Null);
+        Assert.That(ReferenceEquals(collectionArray[0], collectionArray[2].ChildReference), Is.True);
+    }
+
+    /// <summary>
+    /// Container for testing collection objects that hold references to other objects.
+    /// </summary>
+    private class CollectionObjectsWithReferencesContainer : ISerializable
+    {
+        public string ContainerName = "";
+        public List<ReferenceableObject> TargetObjects = new();
+        public List<ReferenceableObject> CollectionObjects = new();
+        public ReferenceableObject? DirectTargetRef;
+        public ReferenceableObject? DirectCollectionRef;
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindString("containerName", ref ContainerName);
+            
+            // First serialize the target objects collection
+            node.BindCollectionSerializable("targetObjects", TargetObjects);
+            
+            // Then serialize the collection objects (which may reference target objects)
+            node.BindCollectionSerializable("collectionObjects", CollectionObjects);
+            
+            // Finally bind direct references
+            node.BindReference("directTargetRef", ref DirectTargetRef);
+            node.BindReference("directCollectionRef", ref DirectCollectionRef);
+        }
+    }
 }

@@ -122,23 +122,25 @@ public class BinarySerializeReadNode : SerializeReadNode
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
         {
-            for (int i = 0; i < array.Count; i++)
+
+            int i = 0;
+            try
             {
-                try
+                for (i = 0; i < array.Count; i++)
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
                         BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
-                        T item = new T();
+                        T item = new();
                         item.OnSerialize(node, SerializeMode.Load);
                         TryWriteReferenceId(node, item);
                         value.Add(item);
                     }
                 }
-                catch (Exception ex)
-                {
-                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
-                }
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
             }
         }
     }
@@ -156,10 +158,11 @@ public class BinarySerializeReadNode : SerializeReadNode
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
         {
-            for (int i = 0; i < array.Count; i++)
+            int i = 0;
+            try
             {
-                try
-                {
+                for (i = 0; i < array.Count; i++)
+                {       
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
                         BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
@@ -169,10 +172,10 @@ public class BinarySerializeReadNode : SerializeReadNode
                         value.Add(item);
                     }
                 }
-                catch (Exception ex)
-                {
-                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
-                }
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
             }
         }
     }

@@ -117,22 +117,25 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     /// </summary>
     public override void BindCollectionSerializable<T>(string key, ICollection<T> value)
     {
-        int index = 0;
-        foreach (T item in value)
+        if (_content.TryGetArray(key, out BinaryArray? array))
         {
-            try
+            int index = 0;
+            foreach (T item in value)
             {
-                if (_content.TryGetTable(key, out BinaryTable? table))
+                try
                 {
-                    BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
-                    item.OnSerialize(node, SerializeMode.PostLoad);
+                    if (index < array.Count && array.TryGetTable(index, out BinaryTable? table))
+                    {
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                        item.OnSerialize(node, SerializeMode.PostLoad);
+                    }
                 }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to post-load list item at index {index} for key '{key}': {ex}");
+                }
+                index++;
             }
-            catch (Exception ex)
-            {
-                AddError($"Failed to post-load list item at index {index} for key '{key}': {ex}");
-            }
-            index++;
         }
     }
 
@@ -141,22 +144,25 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     /// </summary>
     public override void BindCollectionSerializable<T>(string key, ICollection<T> value, Func<SerializeReadNode, T> onCreate)
     {
-        int index = 0;
-        foreach (T item in value)
+        if (_content.TryGetArray(key, out BinaryArray? array))
         {
-            try
+            int index = 0;
+            foreach (T item in value)
             {
-                if (_content.TryGetTable(key, out BinaryTable? table))
+                try
                 {
-                    BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
-                    item.OnSerialize(node, SerializeMode.PostLoad);
+                    if (index < array.Count && array.TryGetTable(index, out BinaryTable? table))
+                    {
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                        item.OnSerialize(node, SerializeMode.PostLoad);
+                    }
                 }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to post-load list item at index {index} for key '{key}': {ex}");
+                }
+                index++;
             }
-            catch (Exception ex)
-            {
-                AddError($"Failed to post-load list item at index {index} for key '{key}': {ex}");
-            }
-            index++;
         }
     }
 

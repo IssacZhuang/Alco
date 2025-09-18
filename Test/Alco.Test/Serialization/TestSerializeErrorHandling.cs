@@ -227,27 +227,24 @@ public class TestSerializeErrorHandling
         readNode.BindCollectionSerializable("objectList", deserializedContainer.ObjectList, (SerializeReadNode subNode) =>
         {
             string name = subNode.GetString("name");
-            if (name == "Item1" || name == "Item3")
+            if (name == "Item1")
             {
+                //it will break the deserialization
                 throw new InvalidOperationException($"Factory error for {name}");
             }
             return new FaultySerializableObject { Name = name };
         });
 
         // Assert - Two errors should be collected during deserialization
-        Assert.That(errorCollector.Errors.Count, Is.EqualTo(2));
+        Assert.That(errorCollector.Errors.Count, Is.EqualTo(1));
         Assert.That(errorCollector.Errors[0], Does.Contain("Failed to bind serializable list item at index 1 for key 'objectList'"));
         Assert.That(errorCollector.Errors[0], Does.Contain("Factory error for Item1"));
-        Assert.That(errorCollector.Errors[1], Does.Contain("Failed to bind serializable list item at index 3 for key 'objectList'"));
-        Assert.That(errorCollector.Errors[1], Does.Contain("Factory error for Item3"));
 
         // Container name should be deserialized successfully
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("TestContainer"));
         // Only successfully deserialized items should be in the list (Item0, Item2, Item4)
-        Assert.That(deserializedContainer.ObjectList.Count, Is.EqualTo(3));
+        Assert.That(deserializedContainer.ObjectList.Count, Is.EqualTo(1));
         Assert.That(deserializedContainer.ObjectList[0].Name, Is.EqualTo("Item0"));
-        Assert.That(deserializedContainer.ObjectList[1].Name, Is.EqualTo("Item2"));
-        Assert.That(deserializedContainer.ObjectList[2].Name, Is.EqualTo("Item4"));
     }
 
     [Test]
