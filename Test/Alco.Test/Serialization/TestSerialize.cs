@@ -16,6 +16,120 @@ public enum TestEnum
 
 public class TestSerialize
 {
+    // Tests for BindArraySerializable
+    private class ArrayItem : IReferenceable
+    {
+        public int Value;
+        public bool PostLoaded;
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindValue("value", ref Value);
+            if (mode == SerializeMode.PostLoad)
+            {
+                PostLoaded = true;
+            }
+        }
+    }
+
+    private class ArrayContainer : ISerializable
+    {
+        public List<ArrayItem> Items;
+        public ArrayItem? Ref1;
+        public ArrayItem? Ref2;
+
+        public ArrayContainer()
+        {
+            Items = new List<ArrayItem> { new ArrayItem(), new ArrayItem(), new ArrayItem() };
+        }
+
+        public ArrayContainer(int length)
+        {
+            Items = new List<ArrayItem>(length);
+            for (int i = 0; i < length; i++)
+            {
+                Items.Add(new ArrayItem());
+            }
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindArraySerializable("items", Items);
+            node.BindReference("ref1", ref Ref1);
+            node.BindReference("ref2", ref Ref2);
+        }
+    }
+
+    [Test]
+    public void TestBindArraySerializable_BasicRoundTripAndPostLoad()
+    {
+        ArrayContainer src = new ArrayContainer();
+        src.Items[0].Value = 10;
+        src.Items[1].Value = 20;
+        src.Items[2].Value = 30;
+        src.Ref1 = src.Items[0];
+        src.Ref2 = src.Items[2];
+
+        byte[] bytes = BinaryParser.Encode(src);
+        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes);
+
+        Assert.That(dst.Items.Count, Is.EqualTo(3));
+        Assert.That(dst.Items[0].Value, Is.EqualTo(10));
+        Assert.That(dst.Items[1].Value, Is.EqualTo(20));
+        Assert.That(dst.Items[2].Value, Is.EqualTo(30));
+        Assert.That(dst.Items[0].PostLoaded, Is.True);
+        Assert.That(dst.Items[1].PostLoaded, Is.True);
+        Assert.That(dst.Items[2].PostLoaded, Is.True);
+        Assert.That(ReferenceEquals(dst.Items[0], dst.Ref1), Is.True);
+        Assert.That(ReferenceEquals(dst.Items[2], dst.Ref2), Is.True);
+    }
+
+    [Test]
+    public void TestBindArraySerializable_SizeMismatch_Saved3_Dest2()
+    {
+        ArrayContainer src = new ArrayContainer(3);
+        src.Items[0].Value = 1;
+        src.Items[1].Value = 2;
+        src.Items[2].Value = 3;
+        src.Ref1 = src.Items[0];
+        src.Ref2 = src.Items[2];
+
+        byte[] bytes = BinaryParser.Encode(src);
+        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes, static (SerializeReadNode _) => new ArrayContainer(2));
+
+        Assert.That(dst.Items.Count, Is.EqualTo(2));
+        Assert.That(dst.Items[0].Value, Is.EqualTo(1));
+        Assert.That(dst.Items[1].Value, Is.EqualTo(2));
+        Assert.That(dst.Items[0].PostLoaded, Is.True);
+        Assert.That(dst.Items[1].PostLoaded, Is.True);
+        Assert.That(ReferenceEquals(dst.Items[0], dst.Ref1), Is.True);
+        // ref2 points to a non-deserialized item (index 2), should be unresolved
+        Assert.That(dst.Ref2, Is.Null);
+    }
+
+    [Test]
+    public void TestBindArraySerializable_SizeMismatch_Saved2_Dest3()
+    {
+        ArrayContainer src = new ArrayContainer(2);
+        src.Items[0].Value = 100;
+        src.Items[1].Value = 200;
+        src.Ref1 = src.Items[1];
+        src.Ref2 = null;
+
+        byte[] bytes = BinaryParser.Encode(src);
+        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes, static (SerializeReadNode _) => new ArrayContainer(3));
+
+        Assert.That(dst.Items.Count, Is.EqualTo(3));
+        Assert.That(dst.Items[0].Value, Is.EqualTo(100));
+        Assert.That(dst.Items[1].Value, Is.EqualTo(200));
+        Assert.That(dst.Items[2].Value, Is.EqualTo(0));
+        Assert.That(dst.Items[0].PostLoaded, Is.True);
+        Assert.That(dst.Items[1].PostLoaded, Is.True);
+        // Third element wasn't present in data, so it shouldn't be post-loaded
+        Assert.That(dst.Items[2].PostLoaded, Is.False);
+        Assert.That(ReferenceEquals(dst.Items[1], dst.Ref1), Is.True);
+        Assert.That(dst.Ref2, Is.Null);
+    }
     private class TestBitmap : ISerializable
     {
         private int _width;

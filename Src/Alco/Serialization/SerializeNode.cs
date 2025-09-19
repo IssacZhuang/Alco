@@ -83,6 +83,8 @@ public abstract class SerializeNode
     /// <param name="value">The collection of strings to be serialized or deserialized.</param>
     public abstract void BindCollection(string key, ICollection<string> value);
 
+    public abstract void BindArraySerializable<T>(string key, IReadOnlyList<T> value) where T : ISerializable;
+
     /// <summary>
     /// Binds a collection of complex objects that implement ISerializable for deep serialization.
     /// </summary>

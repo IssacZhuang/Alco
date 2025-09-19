@@ -110,6 +110,30 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    public override void BindArraySerializable<T>(string key, IReadOnlyList<T> value)
+    {
+        if (_content.TryGetArray(key, out BinaryArray? array))
+        {
+            int length = Math.Min(array.Count, value.Count);
+            for (int i = 0; i < length; i++)
+            {
+                try
+                {
+                    if (array.TryGetTable(i, out BinaryTable? table))
+                    {
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                        value[i].OnSerialize(node, SerializeMode.Load);
+                        TryWriteReferenceId(node, value[i]);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind array serializable item at index {i} for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// Binds a collection of complex objects that implement ISerializable for deserialization.
     /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
@@ -162,7 +186,7 @@ public class BinarySerializeReadNode : SerializeReadNode
             try
             {
                 for (i = 0; i < array.Count; i++)
-                {       
+                {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
                         BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
@@ -268,12 +292,10 @@ public class BinarySerializeReadNode : SerializeReadNode
 
     private void TryWriteReferenceId(BinarySerializeReadNode node, ISerializable value)
     {
-        if(value is IReferenceable referenceable)
+        if (value is IReferenceable referenceable)
         {
             uint id = node.GetValue<uint>(ReferenceContext.SerializeKey);
             _referenceContext.SetReference(id, referenceable);
         }
     }
-
-    
 }

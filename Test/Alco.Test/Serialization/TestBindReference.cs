@@ -47,6 +47,155 @@ public class TestBindReference
         }
     }
 
+    // Array item that holds an external reference
+    private class ArrayItemWithExternalRef : ISerializable
+    {
+        public string Name = "";
+        public ReferenceableObject? External;
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindString("name", ref Name);
+            node.BindReference("external", ref External);
+        }
+    }
+
+    // Array items that are referenceable and can be referenced externally
+    private class ReferenceableArrayItem : IReferenceable
+    {
+        public string Name = "";
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindString("name", ref Name);
+        }
+    }
+
+    private class ExternalRefsToArrayItemsContainer : ISerializable
+    {
+        public List<ReferenceableArrayItem> Items = new() { new(), new(), new() };
+        public ReferenceableArrayItem? RefItem1;
+        public ReferenceableArrayItem? RefItem2;
+
+        public ExternalRefsToArrayItemsContainer() { }
+        public ExternalRefsToArrayItemsContainer(int length)
+        {
+            Items = new List<ReferenceableArrayItem>(length);
+            for (int i = 0; i < length; i++) Items.Add(new ReferenceableArrayItem());
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindArraySerializable("items", Items);
+            node.BindReference("refItem1", ref RefItem1);
+            node.BindReference("refItem2", ref RefItem2);
+        }
+    }
+
+    [Test]
+    public void TestExternalReferencesPointToArrayItems()
+    {
+        var container = new ExternalRefsToArrayItemsContainer();
+        container.Items[0].Name = "I0";
+        container.Items[1].Name = "I1";
+        container.Items[2].Name = "I2";
+        container.RefItem1 = container.Items[0];
+        container.RefItem2 = container.Items[2];
+
+        byte[] bytes = BinaryParser.Encode(container);
+        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes);
+
+        Assert.That(result.Items.Count, Is.EqualTo(3));
+        Assert.That(result.Items[0].Name, Is.EqualTo("I0"));
+        Assert.That(result.Items[1].Name, Is.EqualTo("I1"));
+        Assert.That(result.Items[2].Name, Is.EqualTo("I2"));
+
+        Assert.That(result.RefItem1, Is.Not.Null);
+        Assert.That(result.RefItem2, Is.Not.Null);
+        Assert.That(ReferenceEquals(result.Items[0], result.RefItem1), Is.True);
+        Assert.That(ReferenceEquals(result.Items[2], result.RefItem2), Is.True);
+    }
+
+    [Test]
+    public void TestExternalReferencesWithSizeMismatch()
+    {
+        var container = new ExternalRefsToArrayItemsContainer(3);
+        container.Items[0].Name = "A";
+        container.Items[1].Name = "B";
+        container.Items[2].Name = "C";
+        container.RefItem1 = container.Items[0];
+        container.RefItem2 = container.Items[2];
+
+        byte[] bytes = BinaryParser.Encode(container);
+        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, static (SerializeReadNode _) => new ExternalRefsToArrayItemsContainer(2));
+
+        Assert.That(result.Items.Count, Is.EqualTo(2));
+        Assert.That(result.Items[0].Name, Is.EqualTo("A"));
+        Assert.That(result.Items[1].Name, Is.EqualTo("B"));
+        Assert.That(ReferenceEquals(result.Items[0], result.RefItem1), Is.True);
+        // Index 2 was not deserialized; reference should remain unresolved
+        Assert.That(result.RefItem2, Is.Null);
+    }
+    // Container using BindArraySerializable for fixed-size items while those items reference external objects
+    private class ArrayWithExternalRefsContainer : ISerializable
+    {
+        public List<ReferenceableObject> TargetObjects = new();
+        public List<ArrayItemWithExternalRef> Items = new() { new(), new(), new() };
+        public ReferenceableObject? DirectRef;
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            // Serialize targets first so they are registered in the reference context
+            node.BindCollectionSerializable("targets", TargetObjects);
+            // Then serialize fixed array items that hold references to those targets
+            node.BindArraySerializable("items", Items);
+            // A direct reference for additional verification
+            node.BindReference("directRef", ref DirectRef);
+        }
+    }
+
+    [Test]
+    public void TestArrayItemsHoldingExternalReferences()
+    {
+        // Arrange
+        var t1 = new ReferenceableObject { Name = "T1", Value = 1 };
+        var t2 = new ReferenceableObject { Name = "T2", Value = 2 };
+
+        var container = new ArrayWithExternalRefsContainer();
+        container.TargetObjects.Add(t1);
+        container.TargetObjects.Add(t2);
+
+        container.Items[0].Name = "A0";
+        container.Items[1].Name = "A1";
+        container.Items[2].Name = "A2";
+        container.Items[0].External = t1;
+        container.Items[1].External = t2;
+        container.Items[2].External = t1;
+        container.DirectRef = t2;
+
+        // Act
+        byte[] bytes = BinaryParser.Encode(container);
+        var result = BinaryParser.Decode<ArrayWithExternalRefsContainer>(bytes);
+
+        // Assert
+        Assert.That(result.TargetObjects.Count, Is.EqualTo(2));
+        Assert.That(result.Items.Count, Is.EqualTo(3));
+        var targets = result.TargetObjects.ToArray();
+
+        Assert.That(result.Items[0].Name, Is.EqualTo("A0"));
+        Assert.That(result.Items[1].Name, Is.EqualTo("A1"));
+        Assert.That(result.Items[2].Name, Is.EqualTo("A2"));
+
+        Assert.That(result.Items[0].External, Is.Not.Null);
+        Assert.That(result.Items[1].External, Is.Not.Null);
+        Assert.That(result.Items[2].External, Is.Not.Null);
+
+        Assert.That(ReferenceEquals(targets[0], result.Items[0].External), Is.True);
+        Assert.That(ReferenceEquals(targets[1], result.Items[1].External), Is.True);
+        Assert.That(ReferenceEquals(targets[0], result.Items[2].External), Is.True);
+        Assert.That(ReferenceEquals(targets[1], result.DirectRef), Is.True);
+    }
+
     /// <summary>
     /// Container object that holds multiple references to test various scenarios.
     /// The key insight is that objects must first be serialized normally (to register them in the reference context)

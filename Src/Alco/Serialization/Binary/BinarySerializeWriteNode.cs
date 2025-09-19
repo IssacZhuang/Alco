@@ -95,6 +95,26 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, array);
     }
 
+    public override void BindArraySerializable<T>(string key, IReadOnlyList<T> value)
+    {
+        BinaryArray array = new BinaryArray();
+        for (int i = 0; i < value.Count; i++)
+        {
+            try
+            {
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                TryWriteReferenceId(node, value[i]);
+                value[i].OnSerialize(node, SerializeMode.Save);
+                array.Add(node._content);
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind array serializable '{key}': {ex}");
+            }
+        }
+        _content.Add(key, array);
+    }
+
     /// <summary>
     /// Binds a collection of complex objects that implement ISerializable for serialization.
     /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
@@ -203,7 +223,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
 
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
-        if(referenceable == null)
+        if (referenceable == null)
         {
             return;
         }
@@ -220,4 +240,6 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             node.SetValue(ReferenceContext.SerializeKey, id);
         }
     }
+
+
 }

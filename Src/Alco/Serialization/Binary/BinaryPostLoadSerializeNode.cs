@@ -112,6 +112,29 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         // Intentionally empty
     }
 
+    public override void BindArraySerializable<T>(string key, IReadOnlyList<T> value)
+    {
+        if (_content.TryGetArray(key, out BinaryArray? array))
+        {
+            int length = Math.Min(array.Count, value.Count);
+            for (int i = 0; i < length; i++)
+            {
+                try
+                {
+                    if (array.TryGetTable(i, out BinaryTable? table))
+                    {
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                        value[i].OnSerialize(node, SerializeMode.PostLoad);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to post-load array serializable item at index {i} for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// Traverses and invokes post-load on each serializable item in the collection.
     /// </summary>
@@ -215,6 +238,8 @@ public class BinaryPostLoadSerializeNode : SerializeNode
             return false;
         }
     }
+
+
 }
 
 
