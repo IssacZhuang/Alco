@@ -56,7 +56,13 @@ public unsafe class Sdl3Gamepad : Gamepad
         }
 
         short value = SDL_GetGamepadAxis(_native, ConvertAxis(axis));
-        return (float)value / short.MaxValue;
+        float result = (float)value / short.MaxValue;
+        // Normalize Y+ up for the right stick only, to match expected cursor semantics
+        if (axis == GamepadAxis.RightY || axis == GamepadAxis.LeftY)
+        {
+            result = -result;
+        }
+        return result;
     }
 
     /// <summary>
