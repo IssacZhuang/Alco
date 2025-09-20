@@ -82,7 +82,7 @@ public sealed class AxisInputAction
     /// Gets the current axis value. If any gamepad axis contributes, returns linear sum with deadzone applied.
     /// Otherwise, returns normalized sum of pressed keys.
     /// </summary>
-    public Vector2 Value
+    public Vector2 RawValue
     {
         get
         {
@@ -122,17 +122,22 @@ public sealed class AxisInputAction
                 }
             }
 
-
-            float length = value.Length();
-            // if the gamepad is inputing
-            if (value != Vector2.Zero && length <= Deadzone)
-            {
-                // Apply radial deadzone for analog input
-                return Vector2.Zero;
-            }
-
             return _curve != null ? _curve(value) : value;
         }
+    }
+
+    public bool IsInputing(out Vector2 value)
+    {
+        value = RawValue;
+        float length = value.Length();
+        // if the gamepad is inputing
+        if (value != Vector2.Zero && length <= Deadzone)
+        {
+            // Apply radial deadzone for analog input
+            value = Vector2.Zero;
+            return false;
+        }
+        return true;
     }
 
     /// <summary>
