@@ -10,7 +10,7 @@ namespace Alco;
 /// </summary>
 public class BinaryPostLoadSerializeNode : SerializeNode
 {
-    private readonly ReferenceContext _referenceContext;
+    private readonly ReferenceContext? _referenceContext;
     protected BinaryTable _content;
     public BinaryTable Content => _content;
 
@@ -18,7 +18,7 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     /// Initializes a new instance of the <see cref="BinaryPostLoadSerializeNode"/> class.
     /// </summary>
     /// <param name="onError">Optional error callback.</param>
-    public BinaryPostLoadSerializeNode(ReferenceContext referenceContext, BinaryTable content, Action<string>? onError = null)
+    public BinaryPostLoadSerializeNode(ReferenceContext? referenceContext, BinaryTable content, Action<string>? onError = null)
     {
         _referenceContext = referenceContext;
         _content = content;
@@ -215,6 +215,11 @@ public class BinaryPostLoadSerializeNode : SerializeNode
 
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
+        if(_referenceContext == null)
+        {
+            return;
+        }
+
         if (TryGetId(key, out uint id) && _referenceContext.TryGetReference(id, out object? obj) && obj is T reference)
         {
             referenceable = reference;

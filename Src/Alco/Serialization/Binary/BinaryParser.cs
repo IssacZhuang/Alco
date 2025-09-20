@@ -61,9 +61,9 @@ namespace Alco
         /// <typeparam name="T">The type of the object, which must implement ISerializable</typeparam>
         /// <param name="obj">The object to convert</param>
         /// <returns>A BinaryTable representing the object's serialized state</returns>
-        public static BinaryTable ObjectToTable<T>(T obj, Action<string>? onError = null) where T : ISerializable
+        public static BinaryTable ObjectToTable<T>(T obj, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable
         {
-            ReferenceContext referenceContext = new ReferenceContext();
+            ReferenceContext? referenceContext = handleReferences ? new ReferenceContext() : null;
             BinarySerializeWriteNode node = new BinarySerializeWriteNode(referenceContext, onError);
             obj.OnSerialize(node, SerializeMode.Save);
             return node.Content;
@@ -74,14 +74,19 @@ namespace Alco
         /// </summary>
         /// <typeparam name="T">The type to create, which must implement ISerializable and have a parameterless constructor</typeparam>
         /// <param name="content">The BinaryTable containing the serialized data</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during deserialization</param>
         /// <returns>A new instance of T populated from the BinaryTable</returns>
-        public static T TableToObject<T>(BinaryTable content, Action<string>? onError = null) where T : ISerializable, new()
+        public static T TableToObject<T>(BinaryTable content, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable, new()
         {
-            ReferenceContext referenceContext = new ReferenceContext();
+            ReferenceContext? referenceContext = handleReferences ? new ReferenceContext() : null;
             T obj = new T();
             obj.OnSerialize(new BinarySerializeReadNode(referenceContext, content, onError), SerializeMode.Load);
             // Post-load pass to resolve references and finalize state
-            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
+            if (handleReferences)
+            {
+                obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext!, content, onError), SerializeMode.PostLoad);
+            }
             return obj;
         }
 
@@ -91,15 +96,20 @@ namespace Alco
         /// <typeparam name="T">The type to create, which must implement ISerializable</typeparam>
         /// <param name="content">The BinaryTable containing the serialized data</param>
         /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during deserialization</param>
         /// <returns>An instance of T populated from the BinaryTable</returns>
-        public static T TableToObject<T>(BinaryTable content, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null) where T : ISerializable
+        public static T TableToObject<T>(BinaryTable content, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable
         {
-            ReferenceContext referenceContext = new ReferenceContext();
+            ReferenceContext? referenceContext = handleReferences ? new ReferenceContext() : null;
             BinarySerializeReadNode node = new BinarySerializeReadNode(referenceContext, content, onError);
             T obj = onCreate(node);
             obj.OnSerialize(node, SerializeMode.Load);
             // Post-load pass to resolve references and finalize state
-            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
+            if (handleReferences)
+            {
+                obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext!, content, onError), SerializeMode.PostLoad);
+            }
             return obj;
         }
 
@@ -108,10 +118,12 @@ namespace Alco
         /// </summary>
         /// <typeparam name="T">The type of the object, which must implement ISerializable</typeparam>
         /// <param name="obj">The object to serialize</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during serialization</param>
         /// <returns>A byte array containing the serialized object</returns>
-        public static byte[] Encode<T>(T obj, Action<string>? onError = null) where T : ISerializable
+        public static byte[] Encode<T>(T obj, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable
         {
-            return EncodeTable(ObjectToTable(obj, onError));
+            return EncodeTable(ObjectToTable(obj, onError, handleReferences));
         }
 
         /// <summary>
@@ -119,10 +131,12 @@ namespace Alco
         /// </summary>
         /// <typeparam name="T">The type to deserialize to, which must implement ISerializable and have a parameterless constructor</typeparam>
         /// <param name="bytes">The byte array to deserialize</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during deserialization</param>
         /// <returns>A new instance of T deserialized from the byte array</returns>
-        public static T Decode<T>(byte[] bytes, Action<string>? onError = null) where T : ISerializable, new()
+        public static T Decode<T>(byte[] bytes, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable, new()
         {
-            return TableToObject<T>(DecodeTable(bytes), onError);
+            return TableToObject<T>(DecodeTable(bytes), onError, handleReferences);
         }
 
         /// <summary>
@@ -130,10 +144,12 @@ namespace Alco
         /// </summary>
         /// <typeparam name="T">The type to deserialize to, which must implement ISerializable and have a parameterless constructor</typeparam>
         /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during deserialization</param>
         /// <returns>A new instance of T deserialized from the bytes</returns>
-        public static T Decode<T>(ReadOnlySpan<byte> bytes, Action<string>? onError = null) where T : ISerializable, new()
+        public static T Decode<T>(ReadOnlySpan<byte> bytes, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable, new()
         {
-            return TableToObject<T>(DecodeTable(bytes), onError);
+            return TableToObject<T>(DecodeTable(bytes), onError, handleReferences);
         }
 
         /// <summary>
@@ -142,10 +158,12 @@ namespace Alco
         /// <typeparam name="T">The type to deserialize to, which must implement ISerializable</typeparam>
         /// <param name="bytes">The byte array to deserialize</param>
         /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during deserialization</param>
         /// <returns>An instance of T deserialized from the byte array</returns>
-        public static T Decode<T>(byte[] bytes, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null) where T : ISerializable
+        public static T Decode<T>(byte[] bytes, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable
         {
-            return TableToObject<T>(DecodeTable(bytes), onCreate, onError);
+            return TableToObject<T>(DecodeTable(bytes), onCreate, onError, handleReferences);
         }
 
         /// <summary>
@@ -154,10 +172,12 @@ namespace Alco
         /// <typeparam name="T">The type to deserialize to, which must implement ISerializable</typeparam>
         /// <param name="bytes">The bytes to deserialize</param>
         /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during deserialization</param>
         /// <returns>An instance of T deserialized from the bytes</returns>
-        public static T Decode<T>(ReadOnlySpan<byte> bytes, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null) where T : ISerializable
+        public static T Decode<T>(ReadOnlySpan<byte> bytes, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable
         {
-            return TableToObject<T>(DecodeTable(bytes), onCreate, onError);
+            return TableToObject<T>(DecodeTable(bytes), onCreate, onError, handleReferences);
         }
 
         /// <summary>
@@ -167,13 +187,18 @@ namespace Alco
         /// <typeparam name="T">The type of the object to populate, which must implement ISerializable</typeparam>
         /// <param name="bytes">The bytes to deserialize</param>
         /// <param name="obj">The existing object instance to populate with deserialized data</param>
-        public static void Populate<T>(ReadOnlySpan<byte> bytes, T obj, Action<string>? onError = null) where T : ISerializable
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="handleReferences">Whether to handle object references during deserialization</param>
+        public static void Populate<T>(ReadOnlySpan<byte> bytes, T obj, Action<string>? onError = null, bool handleReferences = true) where T : ISerializable
         {
-            ReferenceContext referenceContext = new ReferenceContext();
+            ReferenceContext? referenceContext = handleReferences ? new ReferenceContext() : null;
             BinaryTable content = DecodeTable(bytes);
             obj.OnSerialize(new BinarySerializeReadNode(referenceContext, content, onError), SerializeMode.Load);
             // Post-load pass to resolve references and finalize state
-            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
+            if (handleReferences)
+            {
+                obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext!, content, onError), SerializeMode.PostLoad);
+            }
         }
 
 

@@ -6,11 +6,11 @@ namespace Alco;
 
 public class BinarySerializeWriteNode : SerializeWriteNode
 {
-    private readonly ReferenceContext _referenceContext;
+    private readonly ReferenceContext? _referenceContext;
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
 
-    public BinarySerializeWriteNode(ReferenceContext referenceContext, Action<string>? onError = null)
+    public BinarySerializeWriteNode(ReferenceContext? referenceContext, Action<string>? onError = null)
     {
         _referenceContext = referenceContext;
         OnError = onError;
@@ -223,6 +223,11 @@ public class BinarySerializeWriteNode : SerializeWriteNode
 
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
+        if(_referenceContext == null)
+        {
+            return;
+        }
+
         if (referenceable == null)
         {
             return;
@@ -234,6 +239,11 @@ public class BinarySerializeWriteNode : SerializeWriteNode
 
     private void TryWriteReferenceId(BinarySerializeWriteNode node, ISerializable value)
     {
+        if(_referenceContext == null)
+        {
+            return;
+        }
+
         if (value is IReferenceable referenceable)
         {
             uint id = _referenceContext.GetId(referenceable);
