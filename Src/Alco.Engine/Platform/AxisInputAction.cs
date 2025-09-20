@@ -130,7 +130,7 @@ public sealed class AxisInputAction
     {
         value = RawValue;
         // if the gamepad is inputing
-        if (value != Vector2.Zero || value.LengthSquared() <= Deadzone * Deadzone)
+        if (value.LengthSquared() <= Deadzone * Deadzone)
         {
             // Apply radial deadzone for analog input
             value = Vector2.Zero;
