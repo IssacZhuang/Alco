@@ -1,5 +1,6 @@
 namespace Alco.Rendering;
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -118,7 +119,41 @@ public partial class RenderingSystem
 
     public IShaderCache? ShaderCache { get; }
 
-    public ICamera? MainCamera { get; set; }
+    private WeakReference<ICamera>? _mainCameraWeakRef;
+
+    /// <summary>
+    /// Gets or sets the main camera for rendering.
+    /// Internally stored as a weak reference, so this may return null if the camera has been collected.
+    /// </summary>
+    public ICamera? MainCamera
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_mainCameraWeakRef != null && _mainCameraWeakRef.TryGetTarget(out ICamera? camera))
+            {
+                return camera;
+            }
+            return null;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            if (value == null)
+            {
+                _mainCameraWeakRef = null;
+                return;
+            }
+            if (_mainCameraWeakRef == null)
+            {
+                _mainCameraWeakRef = new WeakReference<ICamera>(value);
+            }
+            else
+            {
+                _mainCameraWeakRef.SetTarget(value);
+            }
+        }
+    }
 
     public RenderingSystem(
         IRenderingSystemHost host,
@@ -225,9 +260,10 @@ public partial class RenderingSystem
         _globalRenderData.Value = globleRenderData;
         _globalRenderData.UpdateBuffer();
 
-        if (MainCamera != null)
+        ICamera? mainCamera = MainCamera;
+        if (mainCamera != null)
         {
-            _viewProjectionMatrix.Value = MainCamera.ViewProjectionMatrix;
+            _viewProjectionMatrix.Value = mainCamera.ViewProjectionMatrix;
             _viewProjectionMatrix.UpdateBuffer();
         }
     }
