@@ -22,6 +22,7 @@ public sealed class TileItem
         Name = name;
         Material = material;
         UserData = userData;
+        RenderOrder = renderOrder;
     }
 }
 
