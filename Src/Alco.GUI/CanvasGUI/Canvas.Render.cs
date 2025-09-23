@@ -56,7 +56,7 @@ public partial class Canvas : AutoDisposable
     {
         font ??= DefaultFont;
         _textRenderer.StencilReference = _mask;
-        return _textRenderer.DrawChars(font, str, matrix, pivot, color, lineSpacing);
+        return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing);
     }
 
     protected void IncreaceStencil(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)

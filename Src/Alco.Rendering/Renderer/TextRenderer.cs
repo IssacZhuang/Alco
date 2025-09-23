@@ -119,109 +119,61 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
     #region  Draw 2d
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(Font font, string str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
-        }
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
-        }
+        return DrawTextCore(font, str, fontSize, position, rotation, pivot, color, lineSpacing);
     }
 
     #endregion 
 
     #region Draw 3d
-    public unsafe float DrawString(Font font, string str, float fontSize, Vector3 position, Quaternion rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
-        }
-    }
 
-    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
-    }
-
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
-        }
+        return DrawTextCore(font, str, fontSize, position, rotation, pivot, color, lineSpacing);
     }
 
     #endregion
 
     #region Draw by matrix
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(Font font, string str, float fontSize, Matrix4x4 matrix, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, matrix, align, color, lineSpacing);
-        }
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, count, matrix, pivot, color, lineSpacing);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, matrix, pivot, color, lineSpacing);
-        }
+        return DrawTextCore(font, str, matrix, pivot, color, lineSpacing);
     }
 
     #endregion
 
     //draw 2d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
-        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, transform.Matrix, pivot, color, lineSpacing);
     }
 
     //draw 3d
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
-        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, str, transform.Matrix, pivot, color, lineSpacing);
     }
 
     //draw by matrix
-    private unsafe float DrawTextCore(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
-        if (count == 0)
+        int length = str.Length;
+        if (length == 0)
         {
             return 0;
         }
 
-        _textBufferFull.SetSize(count);
+        _textBufferFull.SetSize(length);
 
         float x = 0;
         float y = 0;
@@ -235,7 +187,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         Vector2 realPivot = pivot.value = TrueTypePositionOffset - pivot.value;
 
         TextData* textDataFullPtr = _textBufferFull.UnsafePointer;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < length; i++)
         {
             c = str[i];
             textDataFullPtr[i] = GetTextData(c, font.GetGlyph(c), color, lineSpacing, ref x, ref y);
@@ -256,7 +208,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         while (true)
         {
             remainInstanceCount = MaxTextInstancingCount - _instanceIndex;
-            remainChars = count - localIndex;
+            remainChars = length - localIndex;
             drawCount = Math.Min(remainInstanceCount, remainChars);
 
             if (remainChars <= 0)

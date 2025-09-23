@@ -87,7 +87,7 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
     public unsafe float DrawText(ReadOnlySpan<char> str, Vector2 position, Font font, float fontSize, ColorFloat color, Pivot pivot)
     {
         Matrix4x4 matrix = GetTransformMatrix(position, Vector2.One* fontSize);
-        return _textRenderer.DrawChars(font, str, matrix, pivot, color, 1.0f);
+        return _textRenderer.DrawText(font, str, matrix, pivot, color, 1.0f);
     }
 
     public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
