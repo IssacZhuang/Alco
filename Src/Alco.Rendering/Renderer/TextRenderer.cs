@@ -54,7 +54,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     {
         _renderingSystem = renderingSystem;
         _renderContext = renderContext;
-        
+
         _tmpGPUBuffers = new List<GraphicsBuffer>();
 
         _mesh = mesh;
@@ -123,7 +123,18 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, fontSize, position, rotation, pivot, color, lineSpacing);
+        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+        ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
+            new TextSlice { Color = color, Start = 0, End = str.Length }
+        };
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, color, lineSpacing);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
+    {
+        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, ColorFloat.White, lineSpacing);
     }
 
     #endregion 
@@ -132,7 +143,18 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, fontSize, position, rotation, pivot, color, lineSpacing);
+        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
+        ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
+            new TextSlice { Color = color, Start = 0, End = str.Length }
+        };
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, color, lineSpacing);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
+    {
+        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, ColorFloat.White, lineSpacing);
     }
 
     #endregion
@@ -143,29 +165,21 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, matrix, pivot, color, lineSpacing);
+        ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
+            new TextSlice { Color = color, Start = 0, End = str.Length }
+        };
+        return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
+    {
+        return DrawTextCore(font, slices, str, matrix, pivot, ColorFloat.White, lineSpacing);
     }
 
     #endregion
 
-    //draw 2d
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
-    {
-        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
-        return DrawTextCore(font, str, transform.Matrix, pivot, color, lineSpacing);
-    }
-
-    //draw 3d
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
-    {
-        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
-        return DrawTextCore(font, str, transform.Matrix, pivot, color, lineSpacing);
-    }
-
-    //draw by matrix
-    private unsafe float DrawTextCore(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, ReadOnlySpan<TextSlice> slices, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         int length = str.Length;
         if (length == 0)
@@ -193,9 +207,33 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
             textDataFullPtr[i] = GetTextData(c, font.GetGlyph(c), color, lineSpacing, ref x, ref y);
         }
 
-        Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
+        // Apply slice colors using integer indices [start, end)
+        if (slices.Length > 0)
+        {
+            for (int s = 0; s < slices.Length; s++)
+            {
+                TextSlice slice = slices[s];
+                int startIdx = slice.Start;
+                int endIdx = slice.End;
 
-        //Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+                if (endIdx < startIdx)
+                {
+                    int tmp = startIdx; startIdx = endIdx; endIdx = tmp;
+                }
+
+                if (startIdx < 0) startIdx = 0;
+                if (endIdx > length) endIdx = length;
+                if (startIdx >= endIdx) continue;
+
+                Vector4 sliceColor = slice.Color;
+                for (int i = startIdx; i < endIdx; i++)
+                {
+                    textDataFullPtr[i].Color = sliceColor;
+                }
+            }
+        }
+
+        Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
 
         Constant constant = new Constant
         {
@@ -223,10 +261,9 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
                 continue;
             }
 
-
             uint instanceStart = (uint)_instanceIndex;
 
-            for (uint i = 0; i < drawCount; i++)
+            for (uint i = 0; i < (uint)drawCount; i++)
             {
                 textDataPartialPtr[_instanceIndex] = textDataFullPtr[localIndex + i];
                 _instanceIndex++;
