@@ -11,6 +11,12 @@ public abstract class AudioDevice
     protected readonly IAudioDeviceHost _host;
 
     /// <summary>
+    /// Gets or sets the master output volume for this device.
+    /// This is a normalized value in the range [0, 1].
+    /// </summary>
+    public abstract float Volume { get; set; }
+
+    /// <summary>
     /// Gets or sets the listener world-space position.
     /// </summary>
     public abstract Vector3 ListenerPosition { get; set; }

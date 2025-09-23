@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 
 using Silk.NET.OpenAL;
 using Alco;
+using System;
 
 namespace Alco.Audio.OpenAL;
 
@@ -10,6 +11,7 @@ internal unsafe class OpenALDevice : AudioDevice
 {
     private const string AL_SOFT_source_spatialize = "AL_SOFT_source_spatialize";
     private const string AL_SOFT_direct_channels = "AL_SOFT_direct_channels";
+    private const float BaseVolumeMultiplier = 0.8f; // 1.0 volume maps to 0.8 OpenAL gain
 
     private static readonly ALContext ALC = ALContext.GetApi(true);
     private static readonly AL AL = AL.GetApi(true);
@@ -27,6 +29,22 @@ internal unsafe class OpenALDevice : AudioDevice
         set
         {
             AL.SetListenerProperty(ListenerVector3.Position, value.X, value.Y, value.Z);
+        }
+    }
+
+    public override float Volume
+    {
+        get
+        {
+            AL.GetListenerProperty(ListenerFloat.Gain, out float gain);
+            float volume = gain / BaseVolumeMultiplier;
+            return volume;
+        }
+        set
+        {
+            float clamped = Math.Clamp(value, 0f, 1f);
+            float targetGain = clamped * BaseVolumeMultiplier;
+            AL.SetListenerProperty(ListenerFloat.Gain, targetGain);
         }
     }
 
@@ -74,6 +92,7 @@ internal unsafe class OpenALDevice : AudioDevice
         // AL.SpeedOfSound(343.3f);
 
         ListenerPosition = Vector3.Zero;
+        Volume = 1f;
 
         if (!AL.IsExtensionPresent(AL_SOFT_source_spatialize))
         {
