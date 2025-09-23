@@ -29,7 +29,6 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private readonly Mesh _mesh;
     private readonly Material _material;
 
-    private NativeBuffer<TextData> _textBufferFull;
     private NativeBuffer<TextData> _textBufferPartial;
     private readonly List<GraphicsBuffer> _tmpGPUBuffers;
     private GraphicsBuffer? _textBufferGPU;
@@ -60,7 +59,6 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         _mesh = mesh;
         _material = material.CreateInstance();
 
-        _textBufferFull = new NativeBuffer<TextData>(MaxTextInstancingCount);
         _textBufferPartial = new NativeBuffer<TextData>(MaxTextInstancingCount);
 
 
@@ -187,59 +185,34 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
             return 0;
         }
 
-        _textBufferFull.SetSize(length);
-
-        float x = 0;
-        float y = 0;
-
-        char c;
-        int localIndex = 0;
-        int remainInstanceCount = 0;
-        int remainChars = 0;
-        int drawCount = 0;
-
-        Vector2 realPivot = pivot.value = TrueTypePositionOffset - pivot.value;
-
-        TextData* textDataFullPtr = _textBufferFull.UnsafePointer;
+        // First pass: measure text extents (x,y) without writing to buffer
+        float measureX = 0;
+        float measureY = 0;
         for (int i = 0; i < length; i++)
         {
-            c = str[i];
-            textDataFullPtr[i] = GetTextData(c, font.GetGlyph(c), color, lineSpacing, ref x, ref y);
+            char mc = str[i];
+            var mg = font.GetGlyph(mc);
+            measureX += mg.Advance;
         }
 
-        // Apply slice colors using integer indices [start, end)
-        if (slices.Length > 0)
-        {
-            for (int s = 0; s < slices.Length; s++)
-            {
-                TextSlice slice = slices[s];
-                int startIdx = slice.Start;
-                int endIdx = slice.End;
-
-                if (endIdx < startIdx)
-                {
-                    int tmp = startIdx; startIdx = endIdx; endIdx = tmp;
-                }
-
-                if (startIdx < 0) startIdx = 0;
-                if (endIdx > length) endIdx = length;
-                if (startIdx >= endIdx) continue;
-
-                Vector4 sliceColor = slice.Color;
-                for (int i = startIdx; i < endIdx; i++)
-                {
-                    textDataFullPtr[i].Color = sliceColor;
-                }
-            }
-        }
-
-        Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
+        // Pivot offset uses measured size
+        Vector2 realPivot = pivot.value = TrueTypePositionOffset - pivot.value;
+        Vector2 textAreaSize = new Vector2(measureX, measureY + lineSpacing);
 
         Constant constant = new Constant
         {
             Model = matrix,
             VertexOffset = textAreaSize * realPivot
         };
+
+        // Second pass: emit glyphs directly into the staging buffer in chunks
+        float x = 0;
+        float y = 0;
+        char c;
+        int localIndex = 0;
+        int remainInstanceCount = 0;
+        int remainChars = 0;
+        int drawCount = 0;
 
         TextData* textDataPartialPtr = _textBufferPartial.UnsafePointer;
 
@@ -265,7 +238,34 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
             for (uint i = 0; i < (uint)drawCount; i++)
             {
-                textDataPartialPtr[_instanceIndex] = textDataFullPtr[localIndex + i];
+                int charIndex = localIndex + (int)i;
+
+                // Determine final color for this character: later slices override earlier ones
+                Vector4 finalColor = color;
+                if (slices.Length > 0)
+                {
+                    for (int s = 0; s < slices.Length; s++)
+                    {
+                        TextSlice slice = slices[s];
+                        int startIdx = slice.Start;
+                        int endIdx = slice.End;
+                        if (endIdx < startIdx)
+                        {
+                            int tmp = startIdx; startIdx = endIdx; endIdx = tmp;
+                        }
+                        if (startIdx < 0) startIdx = 0;
+                        if (endIdx > length) endIdx = length;
+                        if (startIdx >= endIdx) continue;
+
+                        if (charIndex >= startIdx && charIndex < endIdx)
+                        {
+                            finalColor = slice.Color;
+                        }
+                    }
+                }
+
+                c = str[charIndex];
+                textDataPartialPtr[_instanceIndex] = GetTextData(c, font.GetGlyph(c), finalColor, lineSpacing, ref x, ref y);
                 _instanceIndex++;
             }
 
@@ -313,7 +313,6 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     {
         _renderContext.RemoveListener(this);
         //dispose native resources
-        _textBufferFull.Dispose();
         _textBufferPartial.Dispose();
     }
 
