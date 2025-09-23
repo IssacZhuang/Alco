@@ -733,6 +733,11 @@ public class UINode : IEnumerable<UINode>
 
     }
 
+    protected virtual void OnTransformRefreshed()
+    {
+
+    }
+
     public bool TryRefreshRenderData(Canvas canvas, float delta)
     {
         if (!_isRenderDataDirty)
@@ -768,6 +773,15 @@ public class UINode : IEnumerable<UINode>
 
         SpreadTransformDirty();
         _isTransformDirty = false;
+
+        try
+        {
+            OnTransformRefreshed();
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Error on refreshing transform of {Name}", e);
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
