@@ -62,7 +62,7 @@ public class UIText : UISelectable
     /// The text color.
     /// </summary>
     /// <value></value>
-    public ColorFloat Color { get; set; } = 0xffffff;
+    public Color32 Color { get; set; } = 0xffffff;
 
     /// <summary>
     /// The text data.
