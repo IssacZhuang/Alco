@@ -13,6 +13,7 @@ public sealed class PluginGamepadCursor : BaseEnginePlugin
     private sealed class GamepadCursorSystem : BaseEngineSystem
     {
         public const float VelocityMultiplier = 750f;
+        public const float ScreenHeightMultiplier = 1 / 1080f;
 
         private readonly Input _input;
         private readonly View _view;
@@ -61,7 +62,7 @@ public sealed class PluginGamepadCursor : BaseEnginePlugin
             Vector2 axis = new Vector2(rx, -ry);
             // Apply response curve (quadratic by default)
             axis = _curve(axis);
-            Vector2 velocity = axis * speed * VelocityMultiplier;
+            Vector2 velocity = axis * speed * VelocityMultiplier * ScreenHeightMultiplier * _view.Size.Y;
             Vector2 deltaPixels = velocity * delta;
 
             // Accumulate sub-pixel movement and apply whole-pixel steps only
