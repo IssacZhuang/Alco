@@ -30,6 +30,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private readonly Material _material;
 
     private NativeBuffer<TextData> _textBufferPartial;
+    private NativeBuffer<Vector4> _charColorBuffer;
     private readonly List<GraphicsBuffer> _tmpGPUBuffers;
     private GraphicsBuffer? _textBufferGPU;
 
@@ -60,6 +61,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         _material = material.CreateInstance();
 
         _textBufferPartial = new NativeBuffer<TextData>(MaxTextInstancingCount);
+        _charColorBuffer = new NativeBuffer<Vector4>(256); // Initial capacity, will grow as needed
 
 
         //get resource ids
@@ -123,7 +125,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     {
         Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
         ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
-            new TextSlice { Color = color, Start = 0, End = str.Length }
+            new TextSlice { Color = color, Start = 0, Length = str.Length }
         };
         return DrawTextCore(font, slices, str, transform.Matrix, pivot, color, lineSpacing);
     }
@@ -143,7 +145,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     {
         Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
         ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
-            new TextSlice { Color = color, Start = 0, End = str.Length }
+            new TextSlice { Color = color, Start = 0, Length = str.Length }
         };
         return DrawTextCore(font, slices, str, transform.Matrix, pivot, color, lineSpacing);
     }
@@ -164,7 +166,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
-            new TextSlice { Color = color, Start = 0, End = str.Length }
+            new TextSlice { Color = color, Start = 0, Length = str.Length }
         };
         return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing);
     }
@@ -205,6 +207,46 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
             VertexOffset = textAreaSize * realPivot
         };
 
+        // Build color array for each character
+        // This avoids iterating through slices for every character
+        // Ensure buffer has enough capacity
+        if (_charColorBuffer.Length < length)
+        {
+            _charColorBuffer.SetSizeWithoutCopy(length);
+        }
+
+
+        Vector4* charColors = _charColorBuffer.UnsafePointer;
+
+        // Initialize all characters with default color
+        for (int i = 0; i < length; i++)
+        {
+            charColors[i] = color;
+        }
+
+        // Apply slices (later slices override earlier ones)
+        if (slices.Length > 0)
+        {
+            for (int s = 0; s < slices.Length; s++)
+            {
+                TextSlice slice = slices[s];
+                int startIdx = slice.Start;
+                int sliceLen = slice.Length;
+                if (sliceLen <= 0) continue;
+                if (startIdx < 0) startIdx = 0;
+                if (startIdx > length) startIdx = length;
+                int endIdx = startIdx + sliceLen;
+                if (endIdx > length) endIdx = length;
+                if (startIdx >= endIdx) continue;
+
+                // Apply this slice's color to all characters in its range
+                for (int i = startIdx; i < endIdx; i++)
+                {
+                    charColors[i] = slice.Color;
+                }
+            }
+        }
+
         // Second pass: emit glyphs directly into the staging buffer in chunks
         float x = 0;
         float y = 0;
@@ -239,33 +281,11 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
             for (uint i = 0; i < (uint)drawCount; i++)
             {
                 int charIndex = localIndex + (int)i;
-
-                // Determine final color for this character: later slices override earlier ones
-                Vector4 finalColor = color;
-                if (slices.Length > 0)
-                {
-                    for (int s = 0; s < slices.Length; s++)
-                    {
-                        TextSlice slice = slices[s];
-                        int startIdx = slice.Start;
-                        int endIdx = slice.End;
-                        if (endIdx < startIdx)
-                        {
-                            int tmp = startIdx; startIdx = endIdx; endIdx = tmp;
-                        }
-                        if (startIdx < 0) startIdx = 0;
-                        if (endIdx > length) endIdx = length;
-                        if (startIdx >= endIdx) continue;
-
-                        if (charIndex >= startIdx && charIndex < endIdx)
-                        {
-                            finalColor = slice.Color;
-                        }
-                    }
-                }
-
                 c = str[charIndex];
-                textDataPartialPtr[_instanceIndex] = GetTextData(c, font.GetGlyph(c), finalColor, lineSpacing, ref x, ref y);
+
+                // Use pre-computed color for this character
+
+                textDataPartialPtr[_instanceIndex] = GetTextData(c, font.GetGlyph(c), charColors[charIndex], lineSpacing, ref x, ref y);
                 _instanceIndex++;
             }
 
@@ -314,6 +334,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         _renderContext.RemoveListener(this);
         //dispose native resources
         _textBufferPartial.Dispose();
+        _charColorBuffer.Dispose();
     }
 
 
