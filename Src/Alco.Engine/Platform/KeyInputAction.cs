@@ -244,9 +244,9 @@ public sealed class KeyInputAction
     /// Attempts to find a suitable prompt icon for this action using the configured <see cref="IInputPromptIconProvider"/>.
     /// Chooses between keyboard/mouse bindings and gamepad bindings based on the active input source.
     /// </summary>
-    /// <param name="icon">Resolved icon texture when available.</param>
+    /// <param name="icon">Resolved icon sprite when available.</param>
     /// <returns>True if an icon was found; otherwise false.</returns>
-    public bool TryGetPromptIcon([NotNullWhen(true)] out Texture2D? icon)
+    public bool TryGetPromptIcon([NotNullWhen(true)] out Sprite? icon)
     {
         icon = null;
         if (IconProvider == null)

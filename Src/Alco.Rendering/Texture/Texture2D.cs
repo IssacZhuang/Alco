@@ -112,6 +112,16 @@ public sealed class Texture2D : Texture
         return _defaultSprite;
     }
 
+    /// <summary>
+    /// Implicitly converts a Texture2D to its default Sprite.
+    /// </summary>
+    /// <param name="texture">The texture to convert.</param>
+    /// <returns>The default sprite of the texture.</returns>
+    public static implicit operator Sprite(Texture2D texture)
+    {
+        return texture._defaultSprite;
+    }
+
     public unsafe void SetPixels<T>(Bitmap<T> bitmap) where T : unmanaged
     {
         if (!IsWriteable)
