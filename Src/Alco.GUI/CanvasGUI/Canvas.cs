@@ -134,6 +134,8 @@ public partial class Canvas : AutoDisposable
         get => _selected;
     }
 
+    public CameraData2D CameraData => _camera.Data;
+
     public Vector4 DebugDrawColor { get; set; }
 
     public Action<Exception>? ErrorHandler;
