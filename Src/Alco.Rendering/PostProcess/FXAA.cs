@@ -162,14 +162,7 @@ public class FXAA : PostProcess
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }
 
-        // Step 1: Apply FXAA to intermediate texture
         _commandFXAA.Begin();
-        // _commandFXAA.SetFrameBuffer(_intermediateTexture);
-        // _commandFXAA.SetGraphicsPipeline(_fxaaPipelineInfo);
-        // uint indexCount = _commandFXAA.SetMesh(fullScreenMesh);
-        // _commandFXAA.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
-        // _commandFXAA.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
-        // _commandFXAA.DrawIndexed(indexCount, 1, 0, 0, 0);
 
         using (var renderPass = _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
         {
