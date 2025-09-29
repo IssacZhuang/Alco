@@ -315,6 +315,11 @@ public partial class Canvas : AutoDisposable
             _dynamicMeshRenderer.Dispose();
             _camera.Dispose();
         }
+
+        _hitNodes.Clear();
+        _hovered = null;
+        _holded = null;
+        _selected = null;
     }
 
 

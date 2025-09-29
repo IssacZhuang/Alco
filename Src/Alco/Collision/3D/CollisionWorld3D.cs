@@ -398,5 +398,9 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
         _rayOfCaster.Dispose();
         _rayUserDataOfCaster.Dispose();
+
+        _colliderCasters.Clear();
+        _rayCasters.Clear();
+        _targets.Clear();
     }
 }
