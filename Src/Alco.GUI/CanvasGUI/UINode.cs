@@ -229,6 +229,18 @@ public class UINode : IEnumerable<UINode>
     }
 
     /// <summary>
+    /// The actual render size of the node in world space, including parent scale transformations.
+    /// This is the final size after all transformations are applied.
+    /// </summary>
+    public Vector2 RenderSize
+    {
+        get
+        {
+            return RenderTransform.Scale;
+        }
+    }
+
+    /// <summary>
     /// The bounding box of the node in the world space.
     /// </summary>
     /// <value></value>

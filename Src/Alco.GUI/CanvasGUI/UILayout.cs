@@ -271,7 +271,7 @@ public class UILayout : UINode
                     }
                     else
                     {
-                        height += child.Size.Y + _spacing.Y;
+                        height += child.RenderSize.Y + _spacing.Y;
                     }
                 }
             }
@@ -305,8 +305,8 @@ public class UILayout : UINode
             }
             else
             {
-                child.Position = new Vector2(child.Position.X, currentY - child.Size.Y * 0.5f);
-                currentY -= child.Size.Y + _spacing.Y;
+                child.Position = new Vector2(child.Position.X, currentY - child.RenderSize.Y * 0.5f);
+                currentY -= child.RenderSize.Y + _spacing.Y;
             }
         }
     }
@@ -329,7 +329,7 @@ public class UILayout : UINode
                     }
                     else
                     {
-                        width += child.Size.X + _spacing.X;
+                        width += child.RenderSize.X + _spacing.X;
                     }
                 }
             }
@@ -368,8 +368,8 @@ public class UILayout : UINode
             else
             {
                 // Position at the center of the item area  
-                child.Position = new Vector2(currentX + child.Size.X * 0.5f, child.Position.Y);
-                currentX += child.Size.X + _spacing.X;
+                child.Position = new Vector2(currentX + child.RenderSize.X * 0.5f, child.Position.Y);
+                currentX += child.RenderSize.X + _spacing.X;
             }
         }
     }
@@ -398,8 +398,8 @@ public class UILayout : UINode
         else
         {
             // Use the first child's size as reference for all items
-            itemWidth = affectedChildren[0].Size.X;
-            itemHeight = affectedChildren[0].Size.Y;
+            itemWidth = affectedChildren[0].RenderSize.X;
+            itemHeight = affectedChildren[0].RenderSize.Y;
         }
 
         // Calculate how many columns can fit based on available width
