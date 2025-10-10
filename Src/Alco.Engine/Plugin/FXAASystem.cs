@@ -30,17 +30,6 @@ public class FXAASystem : BaseEngineSystem
     public bool IsEnabled { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the quality setting for FXAA.
-    /// Higher values provide better quality at the cost of performance.
-    /// Valid range: 0.5 - 2.0, Default: 1.0
-    /// </summary>
-    public float Quality
-    {
-        get => _fxaa.Quality;
-        set => _fxaa.Quality = value;
-    }
-
-    /// <summary>
     /// Gets or sets the edge detection threshold.
     /// Lower values detect more edges but may introduce artifacts.
     /// Valid range: 0.063 - 0.333, Default: 0.125

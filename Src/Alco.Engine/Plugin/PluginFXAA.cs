@@ -14,13 +14,6 @@ public class PluginFXAA : BaseEnginePlugin
     public override int Order => 950;
 
     /// <summary>
-    /// Gets or sets the quality setting for FXAA.
-    /// Higher values provide better quality at the cost of performance.
-    /// Valid range: 0.5 - 2.0, Default: 1.0
-    /// </summary>
-    public float Quality { get; set; } = 1.0f;
-
-    /// <summary>
     /// Gets or sets the edge detection threshold.
     /// Lower values detect more edges but may introduce artifacts.
     /// Valid range: 0.063 - 0.333, Default: 0.125
@@ -41,7 +34,6 @@ public class PluginFXAA : BaseEnginePlugin
     /// <param name="threshold">Edge detection threshold (0.063-0.333)</param>
     public PluginFXAA(float quality, float threshold)
     {
-        Quality = Math.Clamp(quality, 0.5f, 2.0f);
         Threshold = Math.Clamp(threshold, 0.063f, 0.333f);
     }
 
@@ -53,8 +45,6 @@ public class PluginFXAA : BaseEnginePlugin
     {
         _fxaaSystem = new FXAASystem(engine, engine.MainRenderTarget);
 
-        // Apply settings
-        _fxaaSystem.Quality = Quality;
         _fxaaSystem.Threshold = Threshold;
 
         engine.AddSystem(_fxaaSystem);
