@@ -34,6 +34,7 @@ public class UILayout : UINode
     private bool _isFixedSize;
     private bool _alwaysUpdate; // if true, the layout will update every frame
     private bool _fitContentSize;
+    private bool _skipDisabledItem = true;
     private Padding _padding;
     private Vector2 _spacing;
     private float _fixedWidth; // only used if _isFixedSize is true
@@ -126,6 +127,18 @@ public class UILayout : UINode
         set
         {
             _fitContentSize = value;
+        }
+    }
+
+    /// <summary>
+    /// Whether to skip disabled items when calculating layout
+    /// </summary>
+    public bool SkipDisabledItem
+    {
+        get => _skipDisabledItem;
+        set
+        {
+            _skipDisabledItem = value;
         }
     }
 
@@ -226,6 +239,20 @@ public class UILayout : UINode
         }
     }
 
+    /// <summary>
+    /// Checks if a child should be included in the layout calculation
+    /// </summary>
+    private bool ShouldIncludeInLayout(UINode child)
+    {
+        if (!child.IsLayoutAffected)
+            return false;
+
+        if (_skipDisabledItem && !child.IsEnable)
+            return false;
+
+        return true;
+    }
+
     private void UpdateVerticalLayout()
     {
         if (_fitContentSize)
@@ -235,7 +262,7 @@ public class UILayout : UINode
             for (int i = 0; i < Children.Count; i++)
             {
                 UINode child = Children[i];
-                if (child.IsLayoutAffected)
+                if (ShouldIncludeInLayout(child))
                 {
                     hasElement = true;
                     if (_isFixedSize)
@@ -263,7 +290,7 @@ public class UILayout : UINode
         {
             UINode child = Children[i];
 
-            if (!child.IsLayoutAffected)
+            if (!ShouldIncludeInLayout(child))
             {
                 continue;
             }
@@ -293,7 +320,7 @@ public class UILayout : UINode
             for (int i = 0; i < Children.Count; i++)
             {
                 UINode child = Children[i];
-                if (child.IsLayoutAffected)
+                if (ShouldIncludeInLayout(child))
                 {
                     hasElement = true;
                     if (_isFixedSize)
@@ -322,7 +349,7 @@ public class UILayout : UINode
         {
             UINode child = Children[i];
 
-            if (!child.IsLayoutAffected)
+            if (!ShouldIncludeInLayout(child))
             {
                 continue;
             }
@@ -352,7 +379,7 @@ public class UILayout : UINode
         var affectedChildren = new List<UINode>();
         for (int i = 0; i < Children.Count; i++)
         {
-            if (Children[i].IsLayoutAffected)
+            if (ShouldIncludeInLayout(Children[i]))
             {
                 affectedChildren.Add(Children[i]);
             }
