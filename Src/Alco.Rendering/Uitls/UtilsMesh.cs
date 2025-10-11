@@ -177,4 +177,51 @@ public static class UtilsMesh
             }
         }
     }
+
+    /// <summary>
+    /// Populate existing vertex and index spans with tiled mesh data.
+    /// The mesh will have UV coordinates that repeat based on the tile count.
+    /// This method generates a simple quad with UV coordinates scaled for tiling.
+    /// </summary>
+    /// <param name="vertices">The vertex span to populate. Must have at least 4 elements.</param>
+    /// <param name="indices">The index span to populate. Must have at least 6 elements.</param>
+    /// <param name="imageSize">The original size of the image texture.</param>
+    /// <param name="targetSize">The target size to render at.</param>
+    /// <param name="tilingScale">The tiling scale multiplier. (1, 1) means natural tiling based on size/texture ratio.</param>
+    /// <exception cref="ArgumentException">Thrown when the provided spans are too small.</exception>
+    public static void PopulateTiledMeshData(
+        Span<Vertex> vertices,
+        Span<ushort> indices,
+        Vector2 imageSize,
+        Vector2 targetSize,
+        Vector2 tilingScale)
+    {
+        if (vertices.Length < 4)
+            throw new ArgumentException("Vertex span must have at least 4 elements.", nameof(vertices));
+
+        if (indices.Length < 6)
+            throw new ArgumentException("Index span must have at least 6 elements.", nameof(indices));
+
+        // Calculate how many times the texture should repeat
+        float tilesX = (targetSize.X / imageSize.X) * tilingScale.X;
+        float tilesY = (targetSize.Y / imageSize.Y) * tilingScale.Y;
+
+        // Calculate half dimensions for centering
+        float halfWidth = targetSize.X * 0.5f;
+        float halfHeight = targetSize.Y * 0.5f;
+
+        // Create 4 vertices with UV coordinates scaled for tiling
+        vertices[0] = new Vertex(new Vector3(-halfWidth, halfHeight, 0), new Vector2(0, 0));
+        vertices[1] = new Vertex(new Vector3(halfWidth, halfHeight, 0), new Vector2(tilesX, 0));
+        vertices[2] = new Vertex(new Vector3(halfWidth, -halfHeight, 0), new Vector2(tilesX, tilesY));
+        vertices[3] = new Vertex(new Vector3(-halfWidth, -halfHeight, 0), new Vector2(0, tilesY));
+
+        // Create 6 indices for 2 triangles
+        indices[0] = 0;
+        indices[1] = 1;
+        indices[2] = 2;
+        indices[3] = 0;
+        indices[4] = 2;
+        indices[5] = 3;
+    }
 }

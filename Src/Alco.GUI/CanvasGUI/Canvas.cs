@@ -173,6 +173,7 @@ public partial class Canvas : AutoDisposable
 
         _spriteMaterial = defaultSpriteMaterial.CreateInstance();
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _spriteMaterial.SetDefines("REPEATED"); // Enable texture repeating for tiled mode
         _spriteMaterial.DepthStencilState = DepthStencilState.Default with
         {
             FrontFace = StencilFaceState.CompareEqual,
