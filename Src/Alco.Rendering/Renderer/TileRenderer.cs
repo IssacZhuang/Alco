@@ -37,7 +37,7 @@ public sealed class TileSet
     public TileSet(params ReadOnlySpan<TileItem> items)
     {
         _items = items.ToArray();
-        Array.Sort(_items, static (a, b) => a.RenderOrder.CompareTo(b.RenderOrder));
+        //Array.Sort(_items, static (a, b) => a.RenderOrder.CompareTo(b.RenderOrder));
 
         Dictionary<TileItem, int> itemIndexMap = new();
         for (int i = 0; i < _items.Length; i++)
