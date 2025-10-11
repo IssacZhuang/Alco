@@ -232,6 +232,11 @@ public class UIButton : UISelectable
         TryChangeTransitionState(SelectableState.Normal);
     }
 
+    protected override void OnAttachToTree(Canvas canvas)
+    {
+        OnTransitionStateChanged();
+    }
+
     private void TryChangeTransitionState(SelectableState state)
     {
         if (_selectableState != state)
