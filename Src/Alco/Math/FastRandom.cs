@@ -5,60 +5,81 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// A fast pseudo-random number generator based on the SplitMix32 algorithm.
+    /// This implementation supports all possible seed values (including 0) and provides
+    /// good statistical quality with excellent performance for game development use cases.
+    /// </summary>
     public struct FastRandom
     {
         public uint state;
 
+        /// <summary>
+        /// Initializes a new instance of FastRandom with the specified seed.
+        /// </summary>
+        /// <param name="seed">The seed value. All uint values are valid, including 0.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FastRandom(uint seed)
         {
             state = seed;
-            CheckState();
-            NextState();
         }
 
+        /// <summary>
+        /// Creates a FastRandom instance from an index value.
+        /// Uses WangHash to ensure that consecutive indices produce uncorrelated random sequences.
+        /// This is particularly useful for parallel random number generation or spatial hashing.
+        /// </summary>
+        /// <param name="index">The index value to use for initialization.</param>
+        /// <returns>A new FastRandom instance with a hashed seed.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static FastRandom CreateFromIndex(uint index)
         {
-
-            // Wang hash will hash 61 to zero but we want uint.MaxValue to hash to zero.  To make this happen
-            // we must offset by 62.
-            return new FastRandom(WangHash(index + 62u));
+            // Wang hash provides a bijective mapping that ensures consecutive indices
+            // produce well-distributed, uncorrelated seeds. While SplitMix32 has good
+            // mixing properties, this extra step provides better guarantees for
+            // spatially-distributed random number generation (e.g., per-particle RNG).
+            return new FastRandom(WangHash(index));
         }
 
+        /// <summary>
+        /// Wang hash function - a bijective integer hash with good avalanche properties.
+        /// Maps every uint value to a unique output, ensuring no collisions.
+        /// </summary>
+        /// <param name="n">Input value to hash.</param>
+        /// <returns>Hashed value with good bit distribution.</returns>
+        /// <remarks>
+        /// Reference: https://gist.github.com/badboy/6267743#hash-function-construction-principles
+        /// This bijective property was verified empirically across all 2^32 possible inputs.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint WangHash(uint n)
         {
-            // https://gist.github.com/badboy/6267743#hash-function-construction-principles
-            // Wang hash: this has the property that none of the outputs will
-            // collide with each other, which is important for the purposes of
-            // seeding a random number generator.  This was verified empirically
-            // by checking all 2^32 uints.
             n = (n ^ 61u) ^ (n >> 16);
             n *= 9u;
             n = n ^ (n >> 4);
             n *= 0x27d4eb2du;
             n = n ^ (n >> 15);
-
             return n;
         }
 
+        /// <summary>
+        /// Generates the next random uint using the SplitMix32 algorithm.
+        /// SplitMix32 is a fast, high-quality PRNG with a full 2^32 period.
+        /// </summary>
+        /// <returns>A random uint value.</returns>
+        /// <remarks>
+        /// SplitMix32 algorithm based on the SplitMix family by Sebastiano Vigna.
+        /// It uses a simple counter-based approach with excellent avalanche properties.
+        /// This implementation accepts all possible state values, including 0.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint NextState()
         {
-            CheckState();
-            uint t = state;
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            return t;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CheckState()
-        {
-            if (state == 0)
-                throw new System.ArgumentException("Invalid state 0. Random object has not been properly initialized");
+            // SplitMix32: increment by golden ratio, then apply mixing operations
+            uint z = (state += 0x9e3779b9u); // Golden ratio: 2^32 / φ
+            z = (z ^ (z >> 16)) * 0x85ebca6bu;
+            z = (z ^ (z >> 13)) * 0xc2b2ae35u;
+            return z ^ (z >> 16);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
