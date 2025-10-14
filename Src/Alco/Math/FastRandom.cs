@@ -25,8 +25,44 @@ namespace Alco
         }
 
         /// <summary>
+        /// Initializes a new instance of FastRandom from a Vector2.
+        /// Uses the bit pattern of the float components to generate a deterministic seed.
+        /// This correctly handles negative values, zero, and NaN.
+        /// </summary>
+        /// <param name="vector">The Vector2 to hash into a seed value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FastRandom(Vector2 vector)
+        {
+            state = asuint(vector.X) * 0x9e3779b9u + asuint(vector.Y) * 0x85ebca6bu;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of FastRandom from a Vector3.
+        /// Uses the bit pattern of the float components to generate a deterministic seed.
+        /// This correctly handles negative values, zero, and NaN.
+        /// </summary>
+        /// <param name="vector">The Vector3 to hash into a seed value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FastRandom(Vector3 vector)
+        {
+            state = asuint(vector.X) * 0x9e3779b9u + asuint(vector.Y) * 0x85ebca6bu + asuint(vector.Z) * 0xc2b2ae35u;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of FastRandom from a Vector4.
+        /// Uses the bit pattern of the float components to generate a deterministic seed.
+        /// This correctly handles negative values, zero, and NaN.
+        /// </summary>
+        /// <param name="vector">The Vector4 to hash into a seed value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FastRandom(Vector4 vector)
+        {
+            state = asuint(vector.X) * 0x9e3779b9u + asuint(vector.Y) * 0x85ebca6bu + asuint(vector.Z) * 0xc2b2ae35u + asuint(vector.W) * 0x27d4eb2du;
+        }
+
+        /// <summary>
         /// Creates a FastRandom instance from an index value.
-        /// Uses WangHash to ensure that consecutive indices produce uncorrelated random sequences.
+        /// Uses Wang hash to ensure that consecutive indices produce uncorrelated random sequences.
         /// This is particularly useful for parallel random number generation or spatial hashing.
         /// </summary>
         /// <param name="index">The index value to use for initialization.</param>
@@ -34,32 +70,14 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static FastRandom CreateFromIndex(uint index)
         {
-            // Wang hash provides a bijective mapping that ensures consecutive indices
-            // produce well-distributed, uncorrelated seeds. While SplitMix32 has good
-            // mixing properties, this extra step provides better guarantees for
-            // spatially-distributed random number generation (e.g., per-particle RNG).
-            return new FastRandom(WangHash(index));
-        }
-
-        /// <summary>
-        /// Wang hash function - a bijective integer hash with good avalanche properties.
-        /// Maps every uint value to a unique output, ensuring no collisions.
-        /// </summary>
-        /// <param name="n">Input value to hash.</param>
-        /// <returns>Hashed value with good bit distribution.</returns>
-        /// <remarks>
-        /// Reference: https://gist.github.com/badboy/6267743#hash-function-construction-principles
-        /// This bijective property was verified empirically across all 2^32 possible inputs.
-        /// </remarks>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static uint WangHash(uint n)
-        {
-            n = (n ^ 61u) ^ (n >> 16);
-            n *= 9u;
-            n = n ^ (n >> 4);
-            n *= 0x27d4eb2du;
-            n = n ^ (n >> 15);
-            return n;
+            // Wang hash: bijective mapping with good avalanche properties
+            // https://gist.github.com/badboy/6267743#hash-function-construction-principles
+            index = (index ^ 61u) ^ (index >> 16);
+            index *= 9u;
+            index = index ^ (index >> 4);
+            index *= 0x27d4eb2du;
+            index = index ^ (index >> 15);
+            return new FastRandom(index);
         }
 
         /// <summary>
