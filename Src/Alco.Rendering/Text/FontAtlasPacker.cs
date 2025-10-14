@@ -10,7 +10,7 @@ namespace Alco.Rendering;
 /// </summary> 
 public sealed unsafe class FontAtlasPacker : AutoDisposable
 {
-    private static readonly int MaxArrayLength = 0xD7AF + 1;
+    private static readonly int MaxArrayLength = ushort.MaxValue;
     private readonly stbtt_pack_context _context;
     private readonly GlyphInfo[] _glyphs;
     private readonly NativeBuffer<byte> _bitmap;

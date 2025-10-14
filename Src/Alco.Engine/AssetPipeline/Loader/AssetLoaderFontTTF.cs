@@ -48,7 +48,11 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
                 UtilsUnicode.RangeKatakana,
                 //chinese
                 UtilsUnicode.RangeCjkUnifiedIdeographs,
+                UtilsUnicode.RangeCjkUnifiedIdeographsExtensionA,
                 UtilsUnicode.RangeCjkSymbolsAndPunctuation,
+                UtilsUnicode.RangeHalfwidthAndFullwidthForms, // Essential for Chinese punctuation (：；，。？！etc.)
+                UtilsUnicode.RangeCjkCompatibilityForms,
+                UtilsUnicode.RangeVerticalForms,
                 //korean
                 UtilsUnicode.RangeHangulSyllables,
                 UtilsUnicode.RangeHangulCompatibilityJamo,
