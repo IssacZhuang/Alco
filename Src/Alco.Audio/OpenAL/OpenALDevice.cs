@@ -24,11 +24,13 @@ internal unsafe class OpenALDevice : AudioDevice
         get
         {
             AL.GetListenerProperty(ListenerVector3.Position, out float x, out float y, out float z);
-            return new Vector3(x, y, z);
+            // Convert from OpenAL RH (Z forward negative) to engine LH (Z forward positive)
+            return new Vector3(x, y, -z);
         }
         set
         {
-            AL.SetListenerProperty(ListenerVector3.Position, value.X, value.Y, value.Z);
+            // Convert from engine LH to OpenAL RH by flipping Z
+            AL.SetListenerProperty(ListenerVector3.Position, value.X, value.Y, -value.Z);
         }
     }
 
@@ -53,33 +55,36 @@ internal unsafe class OpenALDevice : AudioDevice
         get
         {
             AL.GetListenerProperty(ListenerVector3.Velocity, out float x, out float y, out float z);
-            return new Vector3(x, y, z);
+            // Convert from OpenAL RH to engine LH
+            return new Vector3(x, y, -z);
         }
         set
         {
-            AL.SetListenerProperty(ListenerVector3.Velocity, value.X, value.Y, value.Z);
+            // Convert from engine LH to OpenAL RH by flipping Z
+            AL.SetListenerProperty(ListenerVector3.Velocity, value.X, value.Y, -value.Z);
         }
     }
 
-    public override Vector3 ListenerDirection
+    public override void GetListenerOrientation(out Vector3 forward, out Vector3 up)
     {
-        get
-        {
-            float* forwardAndUp = stackalloc float[6];
-            AL.GetListenerProperty(ListenerFloatArray.Orientation, forwardAndUp);
-            return new Vector3(forwardAndUp[0], forwardAndUp[1], forwardAndUp[2]);
-        }
-        set
-        {
-            float* forwardAndUp = stackalloc float[6];
-            forwardAndUp[0] = value.X;
-            forwardAndUp[1] = value.Y;
-            forwardAndUp[2] = value.Z;
-            forwardAndUp[3] = Vector3.UnitY.X;
-            forwardAndUp[4] = Vector3.UnitY.Y;
-            forwardAndUp[5] = Vector3.UnitY.Z;
-            AL.SetListenerProperty(ListenerFloatArray.Orientation, forwardAndUp);
-        }
+        float* forwardAndUp = stackalloc float[6];
+        AL.GetListenerProperty(ListenerFloatArray.Orientation, forwardAndUp);
+        // Convert from OpenAL RH to engine LH by flipping Z components
+        forward = new Vector3(forwardAndUp[0], forwardAndUp[1], -forwardAndUp[2]);
+        up = new Vector3(forwardAndUp[3], forwardAndUp[4], -forwardAndUp[5]);
+    }
+
+    public override void SetListenerOrientation(in Vector3 forward, in Vector3 up)
+    {
+        float* forwardAndUp = stackalloc float[6];
+        // Convert from engine LH to OpenAL RH by flipping Z components
+        forwardAndUp[0] = forward.X;
+        forwardAndUp[1] = forward.Y;
+        forwardAndUp[2] = -forward.Z;
+        forwardAndUp[3] = up.X;
+        forwardAndUp[4] = up.Y;
+        forwardAndUp[5] = -up.Z;
+        AL.SetListenerProperty(ListenerFloatArray.Orientation, forwardAndUp);
     }
 
     public OpenALDevice(IAudioDeviceHost host) : base(host)

@@ -25,9 +25,18 @@ public abstract class AudioDevice
     /// </summary>
     public abstract Vector3 ListenerVelocity { get; set; }
     /// <summary>
-    /// Gets or sets the listener forward direction (the up vector is implementation-defined).
+    /// Gets the listener orientation consisting of forward and up vectors.
     /// </summary>
-    public abstract Vector3 ListenerDirection { get; set; }
+    /// <param name="forward">The normalized forward vector of the listener.</param>
+    /// <param name="up">The normalized up vector of the listener.</param>
+    public abstract void GetListenerOrientation(out Vector3 forward, out Vector3 up);
+
+    /// <summary>
+    /// Sets the listener orientation consisting of forward and up vectors.
+    /// </summary>
+    /// <param name="forward">The normalized forward vector to set.</param>
+    /// <param name="up">The normalized up vector to set.</param>
+    public abstract void SetListenerOrientation(in Vector3 forward, in Vector3 up);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AudioDevice"/> class.

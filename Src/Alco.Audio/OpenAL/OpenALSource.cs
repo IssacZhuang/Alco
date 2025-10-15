@@ -61,12 +61,14 @@ internal class OpenALSource : AudioSource
         get
         {
             AL.GetSourceProperty(_source, SourceVector3.Position, out Vector3 value);
-            return value;
+            // Convert from OpenAL RH to engine LH by flipping Z
+            return new Vector3(value.X, value.Y, -value.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            AL.SetSourceProperty(_source, SourceVector3.Position, value);
+            // Convert from engine LH to OpenAL RH by flipping Z
+            AL.SetSourceProperty(_source, SourceVector3.Position, new Vector3(value.X, value.Y, -value.Z));
         }
     }
     public override Vector3 Velocity
@@ -75,12 +77,14 @@ internal class OpenALSource : AudioSource
         get
         {
             AL.GetSourceProperty(_source, SourceVector3.Velocity, out Vector3 value);
-            return value;
+            // Convert from OpenAL RH to engine LH by flipping Z
+            return new Vector3(value.X, value.Y, -value.Z);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            AL.SetSourceProperty(_source, SourceVector3.Velocity, value);
+            // Convert from engine LH to OpenAL RH by flipping Z
+            AL.SetSourceProperty(_source, SourceVector3.Velocity, new Vector3(value.X, value.Y, -value.Z));
         }
     }
 
