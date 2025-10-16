@@ -17,6 +17,12 @@ public abstract class AudioDevice
     public abstract float Volume { get; set; }
 
     /// <summary>
+    /// Gets or sets the attenuation mode for audio sources.
+    /// This determines how audio volume decreases with distance from the listener.
+    /// </summary>
+    public abstract AudioAttenuationMode AttenuationMode { get; set; }
+
+    /// <summary>
     /// Gets or sets the listener world-space position.
     /// </summary>
     public abstract Vector3 ListenerPosition { get; set; }

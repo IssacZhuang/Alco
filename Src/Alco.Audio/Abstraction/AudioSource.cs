@@ -27,6 +27,12 @@ public abstract class AudioSource : BaseAudioObject
     /// <value></value>
     public abstract float Pitch { get; set; }
     /// <summary>
+    /// The rolloff factor that affects how quickly the volume decreases with distance.
+    /// <br/> Higher values make the sound fade more quickly as distance increases.
+    /// <br/> Typical range is 0.0 to 10.0, where 0.0 means no distance attenuation.
+    /// </summary>
+    public abstract float Rolloff { get; set; }
+    /// <summary>
     /// World-space position of the source when spatialized.
     /// </summary>
     public abstract Vector3 Position { get; set; }

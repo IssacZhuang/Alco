@@ -55,6 +55,21 @@ internal class OpenALSource : AudioSource
         }
     }
 
+    public override float Rolloff
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            AL.GetSourceProperty(_source, SourceFloat.RolloffFactor, out float value);
+            return value;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            AL.SetSourceProperty(_source, SourceFloat.RolloffFactor, value);
+        }
+    }
+
     public override Vector3 Position
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -131,6 +146,7 @@ internal class OpenALSource : AudioSource
 
         Gain = 1f;
         Pitch = 1f;
+        Rolloff = 1f;
         Position = Vector3.Zero;
         Velocity = Vector3.Zero;
         IsLooping = false;

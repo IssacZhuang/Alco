@@ -18,6 +18,7 @@ internal unsafe class OpenALDevice : AudioDevice
 
     private readonly Device* _device;
     private readonly Lock _lock = new Lock();
+    private AudioAttenuationMode _attenuationMode = AudioAttenuationMode.Inverse;
 
     public override Vector3 ListenerPosition
     {
@@ -47,6 +48,18 @@ internal unsafe class OpenALDevice : AudioDevice
             float clamped = Math.Clamp(value, 0f, 1f);
             float targetGain = clamped * BaseVolumeMultiplier;
             AL.SetListenerProperty(ListenerFloat.Gain, targetGain);
+        }
+    }
+
+    public override AudioAttenuationMode AttenuationMode
+    {
+        get => _attenuationMode;
+        set
+        {
+            if (_attenuationMode == value) return;
+
+            _attenuationMode = value;
+            UpdateDistanceModel();
         }
     }
 
@@ -91,13 +104,13 @@ internal unsafe class OpenALDevice : AudioDevice
     {
         _device = ALC.OpenDevice(string.Empty);
         ALC.MakeContextCurrent(ALC.CreateContext(_device, null));
-        
-        AL.DistanceModel(DistanceModel.InverseDistance);
+
         // AL.DopplerFactor(1);
         // AL.SpeedOfSound(343.3f);
 
         ListenerPosition = Vector3.Zero;
         Volume = 1f;
+        AttenuationMode = AudioAttenuationMode.Inverse; // This will call UpdateDistanceModel()
 
         if (!AL.IsExtensionPresent(AL_SOFT_source_spatialize))
         {
@@ -110,6 +123,19 @@ internal unsafe class OpenALDevice : AudioDevice
         }
 
         _host.LogSuccess("OpenAL device created");
+    }
+
+    private void UpdateDistanceModel()
+    {
+        DistanceModel model = _attenuationMode switch
+        {
+            AudioAttenuationMode.Inverse => DistanceModel.InverseDistanceClamped,
+            AudioAttenuationMode.Linear => DistanceModel.LinearDistanceClamped,
+            AudioAttenuationMode.Exponent => DistanceModel.ExponentDistanceClamped,
+            _ => DistanceModel.InverseDistanceClamped
+        };
+
+        AL.DistanceModel(model);
     }
 
     protected override void Dispose(bool disposing)
