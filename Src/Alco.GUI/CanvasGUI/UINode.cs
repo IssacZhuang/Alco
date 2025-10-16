@@ -924,6 +924,70 @@ public class UINode : IEnumerable<UINode>
         }
     }
 
+    /// <summary>
+    /// Clears all event handlers attached to EventOnClick.
+    /// </summary>
+    public void ClearEventOnClick()
+    {
+        EventOnClick = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnHover.
+    /// </summary>
+    public void ClearEventOnHover()
+    {
+        EventOnHover = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnPressDown.
+    /// </summary>
+    public void ClearEventOnPressDown()
+    {
+        EventOnPressDown = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnPressUp.
+    /// </summary>
+    public void ClearEventOnPressUp()
+    {
+        EventOnPressUp = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnPressing.
+    /// </summary>
+    public void ClearEventOnPressing()
+    {
+        EventOnPressing = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnDrag.
+    /// </summary>
+    public void ClearEventOnDrag()
+    {
+        EventOnDrag = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnSelect.
+    /// </summary>
+    public void ClearEventOnSelect()
+    {
+        EventOnSelect = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnDeselect.
+    /// </summary>
+    public void ClearEventOnDeselect()
+    {
+        EventOnDeselect = null;
+    }
+
     #endregion
 
     #region IEnumerable Implementation
