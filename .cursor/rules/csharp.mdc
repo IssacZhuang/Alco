@@ -5,4 +5,6 @@ alwaysApply: false
 ---
 # Add docs comment after editing the public class, method and property
 
+# Allow `async void` for event handlers and UI callbacks, as `GameSynchronizationContext` ensures await operations return to the main thread and properly captures exceptions
+
 # Build project that the CSharp file located in to check error
