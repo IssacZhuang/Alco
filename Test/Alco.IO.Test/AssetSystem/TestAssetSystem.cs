@@ -176,57 +176,22 @@ public class TestAssetSystem
             }
         }
 
-        public bool TryGetDataLength(string path, out long length, [NotNullWhen(false)] out string? failureReason)
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
         {
             switch (path)
             {
                 case "test.fast":
                 case "test.slow":
                 case "test.exception":
-                    length = 4;
+                    stream = new MemoryStream(new byte[] { 0, 1, 2, 3 });
                     failureReason = null;
                     return true;
                 case "test.empty":
-                    length = 0;
+                    stream = new MemoryStream(Array.Empty<byte>());
                     failureReason = null;
                     return true;
                 default:
-                    length = 0;
-                    failureReason = "File not found";
-                    return false;
-            }
-        }
-
-        public bool TryRead(string path, Span<byte> buffer, int offset, int length, out int bytesRead, [NotNullWhen(false)] out string? failureReason)
-        {
-            switch (path)
-            {
-                case "test.fast":
-                case "test.slow":
-                case "test.exception":
-                    if (offset < 0 || offset >= 4)
-                    {
-                        bytesRead = 0;
-                        failureReason = $"Offset {offset} is out of range for file of length 4";
-                        return false;
-                    }
-                    int bytesToRead = Math.Min(length, 4 - offset);
-                    if (bytesToRead > buffer.Length)
-                        bytesToRead = buffer.Length;
-                    // Fill with test data
-                    for (int i = 0; i < bytesToRead; i++)
-                    {
-                        buffer[i] = (byte)(offset + i);
-                    }
-                    bytesRead = bytesToRead;
-                    failureReason = null;
-                    return true;
-                case "test.empty":
-                    bytesRead = 0;
-                    failureReason = null;
-                    return true;
-                default:
-                    bytesRead = 0;
+                    stream = null;
                     failureReason = "File not found";
                     return false;
             }
@@ -450,43 +415,16 @@ public class TestAssetSystem
             return false;
         }
 
-        public bool TryGetDataLength(string path, out long length, [NotNullWhen(false)] out string? failureReason)
-        {
-            if (_files.TryGetValue(path, out var content))
-            {
-                length = Encoding.UTF8.GetByteCount(content);
-                failureReason = null;
-                return true;
-            }
-            length = 0;
-            failureReason = "File not found";
-            return false;
-        }
-
-        public bool TryRead(string path, Span<byte> buffer, int offset, int length, out int bytesRead, [NotNullWhen(false)] out string? failureReason)
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
         {
             if (_files.TryGetValue(path, out var content))
             {
                 byte[] contentBytes = Encoding.UTF8.GetBytes(content);
-                int contentLength = contentBytes.Length;
-
-                if (offset < 0 || offset >= contentLength)
-                {
-                    bytesRead = 0;
-                    failureReason = $"Offset {offset} is out of range for file of length {contentLength}";
-                    return false;
-                }
-
-                int bytesToRead = Math.Min(length, contentLength - offset);
-                if (bytesToRead > buffer.Length)
-                    bytesToRead = buffer.Length;
-
-                contentBytes.AsSpan(offset, bytesToRead).CopyTo(buffer);
-                bytesRead = bytesToRead;
+                stream = new MemoryStream(contentBytes);
                 failureReason = null;
                 return true;
             }
-            bytesRead = 0;
+            stream = null;
             failureReason = "File not found";
             return false;
         }

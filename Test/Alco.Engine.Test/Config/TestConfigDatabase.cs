@@ -68,44 +68,16 @@ namespace Alco.Engine.Test
                 return false;
             }
 
-            public bool TryGetDataLength(string path, out long length, [NotNullWhen(false)] out string? failureReason)
+            public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
             {
                 if (_files.TryGetValue(path, out var bytes))
                 {
-                    length = bytes.Length;
+                    stream = new MemoryStream(bytes);
                     failureReason = null;
                     return true;
                 }
 
-                length = 0;
-                failureReason = $"File not found: {path}";
-                return false;
-            }
-
-            public bool TryRead(string path, Span<byte> buffer, int offset, int length, out int bytesRead, [NotNullWhen(false)] out string? failureReason)
-            {
-                if (_files.TryGetValue(path, out var bytes))
-                {
-                    int contentLength = bytes.Length;
-
-                    if (offset < 0 || offset >= contentLength)
-                    {
-                        bytesRead = 0;
-                        failureReason = $"Offset {offset} is out of range for file of length {contentLength}";
-                        return false;
-                    }
-
-                    int bytesToRead = Math.Min(length, contentLength - offset);
-                    if (bytesToRead > buffer.Length)
-                        bytesToRead = buffer.Length;
-
-                    bytes.AsSpan(offset, bytesToRead).CopyTo(buffer);
-                    bytesRead = bytesToRead;
-                    failureReason = null;
-                    return true;
-                }
-
-                bytesRead = 0;
+                stream = null;
                 failureReason = $"File not found: {path}";
                 return false;
             }

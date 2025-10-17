@@ -188,5 +188,104 @@ public sealed class TestPackage
         // smaller buffer than entry size
         Assert.Throws<ArgumentException>(() => reader.ReadByEntry(e!, new byte[3]));
     }
+
+    /// <summary>
+    /// PackageFileSource.TryGetStream should return a working stream that supports seeking and reading.
+    /// </summary>
+    [Test]
+    public void PackageFileSource_TryGetStream()
+    {
+        var builder = new PackageBuilder();
+        byte[] originalData = Encoding.UTF8.GetBytes("Hello, World! This is a test file.");
+        builder.AddOrUpdateFile("test.txt", originalData);
+
+        byte[] package = builder.Build();
+
+        using var source = new PackageFileSource(new MemoryStream(package), "test_package");
+
+        // Test successful stream creation
+        Assert.That(source.TryGetStream("test.txt", out var stream, out var failureReason), Is.True);
+        Assert.That(stream, Is.Not.Null);
+        Assert.That(failureReason, Is.Null);
+
+        // Test stream properties
+        Assert.That(stream!.CanRead, Is.True);
+        Assert.That(stream.CanSeek, Is.True);
+        Assert.That(stream.CanWrite, Is.False);
+        Assert.That(stream.Length, Is.EqualTo(originalData.Length));
+
+        // Test reading from beginning
+        stream.Position = 0;
+        byte[] buffer = new byte[originalData.Length];
+        int bytesRead = stream.Read(buffer, 0, buffer.Length);
+        Assert.That(bytesRead, Is.EqualTo(originalData.Length));
+        Assert.That(buffer, Is.EqualTo(originalData));
+
+        // Test seeking and partial reading
+        stream.Seek(7, SeekOrigin.Begin); // Skip "Hello, "
+        byte[] partialBuffer = new byte[5];
+        bytesRead = stream.Read(partialBuffer, 0, 5);
+        Assert.That(bytesRead, Is.EqualTo(5));
+        Assert.That(Encoding.UTF8.GetString(partialBuffer), Is.EqualTo("World"));
+
+        // Test seeking from end
+        stream.Seek(-6, SeekOrigin.End); // Last 6 characters: " file."
+        byte[] endBuffer = new byte[6];
+        bytesRead = stream.Read(endBuffer, 0, 6);
+        Assert.That(bytesRead, Is.EqualTo(6));
+        Assert.That(Encoding.UTF8.GetString(endBuffer), Is.EqualTo(" file."));
+
+        // Test reading beyond end
+        stream.Seek(0, SeekOrigin.End);
+        bytesRead = stream.Read(buffer, 0, 10);
+        Assert.That(bytesRead, Is.EqualTo(0));
+
+        stream.Dispose();
+
+        // Test failed stream creation
+        Assert.That(source.TryGetStream("nonexistent.txt", out stream, out failureReason), Is.False);
+        Assert.That(stream, Is.Null);
+        Assert.That(failureReason, Is.Not.Null.And.Not.Empty);
+    }
+
+    /// <summary>
+    /// PackageFileSource streams should be thread-safe and independent.
+    /// </summary>
+    [Test]
+    public void PackageFileSource_StreamConcurrency()
+    {
+        var builder = new PackageBuilder();
+        byte[] data = new byte[1024];
+        for (int i = 0; i < data.Length; i++) data[i] = (byte)i;
+        builder.AddOrUpdateFile("data.bin", data);
+
+        byte[] package = builder.Build();
+
+        using var source = new PackageFileSource(new MemoryStream(package), "test_package");
+
+        // Test multiple concurrent streams
+        Parallel.For(0, 8, i =>
+        {
+            Assert.That(source.TryGetStream("data.bin", out var stream, out var failureReason), Is.True);
+            Assert.That(stream, Is.Not.Null);
+
+            using (stream!)
+            {
+                // Each stream should read independently
+                byte[] buffer = new byte[data.Length];
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                Assert.That(bytesRead, Is.EqualTo(data.Length));
+                Assert.That(buffer, Is.EqualTo(data));
+
+                // Test seeking to different positions
+                stream.Seek(i * 100, SeekOrigin.Begin);
+                if (stream.Position < data.Length)
+                {
+                    int singleByte = stream.ReadByte();
+                    Assert.That(singleByte, Is.EqualTo((byte)(i * 100)));
+                }
+            }
+        });
+    }
 }
 

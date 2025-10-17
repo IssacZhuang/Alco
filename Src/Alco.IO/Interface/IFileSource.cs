@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 
 namespace Alco.IO;
 
@@ -37,10 +38,15 @@ public interface IFileSource
     /// <returns>True if the data is successfully retrieved, false otherwise</returns>
     bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason);
 
-
-    bool TryGetDataLength(string path, out long length, [NotNullWhen(false)] out string? failureReason);
-
-    bool TryRead(string path, Span<byte> buffer, int offset, int length, out int bytesRead, [NotNullWhen(false)] out string? failureReason);
+    /// <summary>
+    /// Try get a stream for reading the file from this file source.
+    /// The returned stream supports seeking and should be disposed by the caller.
+    /// </summary>
+    /// <param name="path">The path of the file</param>
+    /// <param name="stream">The stream for reading the file content</param>
+    /// <param name="failureReason">The failure reason</param>
+    /// <returns>True if the stream is successfully created, false otherwise</returns>
+    bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason);
 }
 
 
