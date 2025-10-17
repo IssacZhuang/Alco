@@ -69,7 +69,7 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
             string normalizedPath = path.Replace('\\', '/');
             if (_reader.TryGetEntry(normalizedPath, out var entry))
             {
-                int size = checked((int)entry!.Size);
+                int size = checked((int)entry.Size);
                 data = new SafeMemoryHandle(size);
                 _reader.ReadByEntry(entry, data.AsSpan());
                 failureReason = null;
@@ -83,6 +83,68 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
         catch (Exception ex)
         {
             data = SafeMemoryHandle.Empty;
+            failureReason = ex.ToString();
+            return false;
+        }
+    }
+
+    public bool TryGetDataLength(string path, out long length, [NotNullWhen(false)] out string? failureReason)
+    {
+        if (IsDisposed)
+        {
+            length = 0;
+            failureReason = "PackageFileSource has been disposed";
+            return false;
+        }
+
+        try
+        {
+            string normalizedPath = path.Replace('\\', '/');
+            if (_reader.TryGetEntry(normalizedPath, out var entry))
+            {
+                length = entry.Size;
+                failureReason = null;
+                return true;
+            }
+
+            length = 0;
+            failureReason = $"File not found in package: {normalizedPath}";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            length = 0;
+            failureReason = ex.ToString();
+            return false;
+        }
+    }
+
+    public bool TryRead(string path, Span<byte> buffer, int offset, int length, out int bytesRead, [NotNullWhen(false)] out string? failureReason)
+    {
+        if (IsDisposed)
+        {
+            bytesRead = 0;
+            failureReason = "PackageFileSource has been disposed";
+            return false;
+        }
+
+        try
+        {
+            string normalizedPath = path.Replace('\\', '/');
+            if (_reader.TryGetEntry(normalizedPath, out var entry))
+            {
+                bytesRead = _reader.ReadByEntry(entry, buffer, offset);
+                failureReason = null;
+                return true;
+            }
+
+            bytesRead = 0;
+            failureReason = $"File not found in package: {normalizedPath}";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            bytesRead = 0;
             failureReason = ex.ToString();
             return false;
         }

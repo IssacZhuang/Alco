@@ -97,6 +97,36 @@ public unsafe sealed class PackageReader : AutoDisposable
         Read(buffer, absoluteOffset);
     }
 
+    /// <summary>
+    /// Reads a portion of the specified entry into the provided buffer.
+    /// </summary>
+    /// <param name="entry">Entry descriptor</param>
+    /// <param name="buffer">Destination buffer</param>
+    /// <param name="entryOffset">Offset within the entry to start reading from</param>
+    /// <returns>The number of bytes read</returns>
+    public int ReadByEntry(PackageEntry entry, Span<byte> buffer, long entryOffset)
+    {
+        if (entry.Size < 0 || entry.Size > int.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(entry.Size), "Entry size must be within Int32 range.");
+        }
+        if (entryOffset < 0 || entryOffset >= entry.Size)
+        {
+            throw new ArgumentOutOfRangeException(nameof(entryOffset), "Entry offset must be within entry bounds.");
+        }
+
+        int bytesToRead = Math.Min(buffer.Length, (int)(entry.Size - entryOffset));
+        if (bytesToRead == 0)
+        {
+            return 0;
+        }
+
+        long absoluteOffset = checked(_contentBase + entry.Start + entryOffset);
+        CheckLength(absoluteOffset, bytesToRead);
+        Read(buffer[..bytesToRead], absoluteOffset);
+        return bytesToRead;
+    }
+
     private int Read(Span<byte> buffer, long offset)
     {
         CheckLength(offset, buffer.Length);

@@ -37,6 +37,10 @@ public interface IFileSource
     /// <returns>True if the data is successfully retrieved, false otherwise</returns>
     bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason);
 
+
+    bool TryGetDataLength(string path, out long length, [NotNullWhen(false)] out string? failureReason);
+
+    bool TryRead(string path, Span<byte> buffer, int offset, int length, out int bytesRead, [NotNullWhen(false)] out string? failureReason);
 }
 
 
