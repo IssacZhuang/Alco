@@ -287,5 +287,25 @@ public sealed class TestPackage
             }
         });
     }
+
+    /// <summary>
+    /// Reader should reject packages with invalid magic number.
+    /// </summary>
+    [Test]
+    public void InvalidMagic_Rejected()
+    {
+        var builder = new PackageBuilder();
+        builder.AddOrUpdateFile("test.txt", Encoding.UTF8.GetBytes("test"));
+
+        byte[] package = builder.Build();
+
+        // Corrupt the magic number
+        package[0] = (byte)'x';
+        package[1] = (byte)'x';
+        package[2] = (byte)'x';
+        package[3] = (byte)'x';
+
+        Assert.Throws<InvalidDataException>(() => PackageReader.OpenMemory(package));
+    }
 }
 

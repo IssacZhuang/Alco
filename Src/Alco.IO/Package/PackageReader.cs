@@ -3,19 +3,24 @@ using Microsoft.Win32.SafeHandles;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Immutable;
+using System.Text;
 
 
 namespace Alco.IO;
 
 public unsafe sealed class PackageReader : AutoDisposable
 {
+    /// <summary>
+    /// The magic number that identifies Alco package files.
+    /// </summary>
+    private static readonly byte[] Magic = "alco"u8.ToArray();
 
     //only one of the two will be used
     private readonly SafeFileHandle? _file;
     private readonly SafeMemoryHandle? _memory;
     private readonly long _length;
 
-    // Base offset of the content section: 8 + MetaLength
+    // Base offset of the content section: 12 + MetaLength
     private readonly long _contentBase;
 
     private readonly FrozenDictionary<string, PackageEntry> _entries;
@@ -186,12 +191,20 @@ public unsafe sealed class PackageReader : AutoDisposable
 
     private FrozenDictionary<string, PackageEntry> ReadEntries(out long contentBase)
     {
-        long metaLength = ReadValue<long>(0);
+        // Verify magic number
+        Span<byte> magicBuffer = stackalloc byte[4];
+        Read(magicBuffer, 0);
+        if (!magicBuffer.SequenceEqual(Magic))
+        {
+            throw new InvalidDataException($"Invalid package magic. Expected '{Encoding.ASCII.GetString(Magic)}'.");
+        }
+
+        long metaLength = ReadValue<long>(4);
         if (metaLength < 0)
         {
             throw new InvalidDataException($"Negative meta length: {metaLength}");
         }
-        if (8L + metaLength > _length)
+        if (12L + metaLength > _length)
         {
             throw new InvalidDataException($"Meta section exceeds package length. MetaLength={metaLength}, Length={_length}");
         }
@@ -202,9 +215,9 @@ public unsafe sealed class PackageReader : AutoDisposable
 
         int metaLengthInt = (int)metaLength;
         byte[] meta = new byte[metaLengthInt];
-        Read(meta, 8L);
+        Read(meta, 12L);
         PackageMeta packageMeta = Alco.BinaryParser.Decode<PackageMeta>(meta);
-        contentBase = 8L + metaLength;
+        contentBase = 12L + metaLength;
         return packageMeta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
     }
 
