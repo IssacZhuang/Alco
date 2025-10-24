@@ -30,6 +30,9 @@ public class ConfigDatabase
     private volatile bool _isDirty = false;
     private readonly Lock _updateLock = new();
 
+    private uint _version = 0;
+
+
     /// <summary>
     /// [Thread-safe] All configs in the database.
     /// </summary>
@@ -42,6 +45,13 @@ public class ConfigDatabase
             return _configsList;
         }
     }
+
+    /// <summary>
+    /// [Thread-safe] Gets the version number of the configuration database.
+    /// The version is incremented whenever the configuration database is updated.
+    /// </summary>
+    /// <value>The current version number of the configuration database.</value>
+    public uint Version => _version;
 
     /// <summary>
     /// [Thread-safe] Get all configs of a specific type.
@@ -257,10 +267,11 @@ public class ConfigDatabase
     /// <summary>
     /// Try to update configs from all file sources if it is dirty.
     /// </summary>
-    public void TryUpdateConfigs()
+    /// <param name="isForced">If true, forces an update even if the database is not dirty.</param>
+    public void TryUpdateConfigs(bool isForced = false)
     {
         // First check without lock (performance optimization)
-        if (!_isDirty)
+        if (!_isDirty && !isForced)
         {
             return;
         }
@@ -269,7 +280,7 @@ public class ConfigDatabase
         lock (_updateLock)
         {
             // Second check inside lock to ensure only one thread updates
-            if (!_isDirty)
+            if (!_isDirty && !isForced)
             {
                 return;
             }
@@ -315,6 +326,7 @@ public class ConfigDatabase
                 ResolveReferences(config);
             });
 
+            IncreaseVersion();
             _isDirty = false;
         }
     }
@@ -595,6 +607,18 @@ public class ConfigDatabase
     internal string[] DebugListAllConfigs()
     {
         return _configs.SelectMany(type => type.Value.Select(config => $"{type.Key}: {config.Value.Id} ({config.Value.GetType().Name})")).ToArray();
+    }
+
+    /// <summary>
+    /// [Thread-safe] Increments the version number of the configuration database.
+    /// This method is called whenever the configuration database is modified.
+    /// </summary>
+    public void IncreaseVersion()
+    {
+        unchecked
+        {
+            _version++;
+        }
     }
 }
 
