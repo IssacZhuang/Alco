@@ -46,6 +46,7 @@ IDisposable
     #region  Internal Controllers
     private EngineProfiler _profiler;
     private readonly GameSynchronizationContext _synchronizationContext;
+    private readonly JsonSerializerOptions _preferenceSerializerOption;
 
     #endregion
 
@@ -240,6 +241,15 @@ IDisposable
 
 
         InitializePlugins(_setting.Plugins);
+
+        _preferenceSerializerOption = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
+        foreach (var converter in CreateDefaultJsonConverters())
+        {
+            _preferenceSerializerOption.Converters.Add(converter);
+        }
     }
 
 
@@ -744,6 +754,60 @@ IDisposable
         else
         {
             GC.Collect();
+        }
+    }
+
+    /// <summary>
+    /// Save a preference to the application data folder as JSON
+    /// </summary>
+    /// <typeparam name="T">The type of the preference value</typeparam>
+    /// <param name="applicationName">The name of the application</param>
+    /// <param name="key">The preference key</param>
+    /// <param name="preference">The preference value to save</param>
+    public void SavePreference<T>(string applicationName, string key, T preference) where T : new()
+    {
+        try
+        {
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), applicationName);
+            Directory.CreateDirectory(path);
+            string filePath = Path.Combine(path, $"{key}.json");
+
+            string json = JsonSerializer.Serialize(preference, _preferenceSerializerOption);
+            File.WriteAllText(filePath, json);
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Failed to save preference '{key}' for application '{applicationName}': ", e);
+        }
+    }
+
+    /// <summary>
+    /// Get a preference from the application data folder as JSON
+    /// </summary>
+    /// <typeparam name="T">The type of the preference value</typeparam>
+    /// <param name="applicationName">The name of the application</param>
+    /// <param name="key">The preference key</param>
+    /// <returns>The preference value, or a new instance if not found</returns>
+    public T LoadPreference<T>(string applicationName, string key) where T : new()
+    {
+        string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), applicationName);
+        string filePath = Path.Combine(path, $"{key}.json");
+
+        if (!File.Exists(filePath))
+        {
+            return new T();
+        }
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            return JsonSerializer.Deserialize<T>(json, _preferenceSerializerOption) ?? new T();
+        }
+        catch (Exception e)
+        {
+            // If deserialization fails, log error and return a new instance
+            Log.Error($"Failed to load preference '{key}' for application '{applicationName}': ", e);
+            return new T();
         }
     }
 
