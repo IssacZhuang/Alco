@@ -7,6 +7,7 @@ public static class ShaderResourceId
 {
     public const string Camera = "_camera";
     public const string Texture = "_texture";
+    public const string Mask = "_mask";
     public const string LightMap = "_lightMap";
     public const string OpacityMap = "_opacityMap";
     public const string Data = "_data";
