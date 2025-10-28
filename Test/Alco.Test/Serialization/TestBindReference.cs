@@ -102,8 +102,8 @@ public class TestBindReference
         container.RefItem1 = container.Items[0];
         container.RefItem2 = container.Items[2];
 
-        byte[] bytes = BinaryParser.Encode(container);
-        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes);
+        byte[] bytes = BinaryParser.Encode(container, null, new ReferenceContext());
+        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, null, new ReferenceContext());
 
         Assert.That(result.Items.Count, Is.EqualTo(3));
         Assert.That(result.Items[0].Name, Is.EqualTo("I0"));
@@ -126,8 +126,8 @@ public class TestBindReference
         container.RefItem1 = container.Items[0];
         container.RefItem2 = container.Items[2];
 
-        byte[] bytes = BinaryParser.Encode(container);
-        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, static (SerializeReadNode _) => new ExternalRefsToArrayItemsContainer(2));
+        byte[] bytes = BinaryParser.Encode(container, null, new ReferenceContext());
+        var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, static (SerializeReadNode _) => new ExternalRefsToArrayItemsContainer(2), null, new ReferenceContext());
 
         Assert.That(result.Items.Count, Is.EqualTo(2));
         Assert.That(result.Items[0].Name, Is.EqualTo("A"));
@@ -174,8 +174,8 @@ public class TestBindReference
         container.DirectRef = t2;
 
         // Act
-        byte[] bytes = BinaryParser.Encode(container);
-        var result = BinaryParser.Decode<ArrayWithExternalRefsContainer>(bytes);
+        byte[] bytes = BinaryParser.Encode(container, null, new ReferenceContext());
+        var result = BinaryParser.Decode<ArrayWithExternalRefsContainer>(bytes, null, new ReferenceContext());
 
         // Assert
         Assert.That(result.TargetObjects.Count, Is.EqualTo(2));
@@ -301,10 +301,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
 
         // Assert
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Test Container"));
@@ -335,10 +335,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - All references should remain null
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Test Container"));
@@ -368,10 +368,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - All references should point to the same deserialized object
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Shared Reference Test"));
@@ -407,10 +407,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<CircularReferenceContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<CircularReferenceContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - Circular references should be preserved
         Assert.That(deserializedContainer.ObjectA, Is.Not.Null);
@@ -451,10 +451,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - Nested references should be preserved
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Nested Reference Test"));
@@ -546,10 +546,10 @@ public class TestBindReference
         complexContainer.Derived2Reference = derivedObject2;
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(complexContainer);
+        byte[] serializedData = BinaryParser.Encode(complexContainer, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<ComplexReferenceContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<ComplexReferenceContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - All references should be correctly preserved and shared
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Complex Reference Test"));
@@ -635,10 +635,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<BindSerializableContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<BindSerializableContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - Reference should point to the same object instance
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("BindSerializable Test"));
@@ -669,10 +669,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<CollectionSerializableContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<CollectionSerializableContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - References should point to the same object instances in the collection
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Collection Serializable Test"));
@@ -716,10 +716,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
-        var deserializedContainer = BinaryParser.Decode<MixedSerializationContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<MixedSerializationContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - All references should point to their respective objects
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Mixed Serialization Test"));
@@ -901,10 +901,10 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container);
+        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser  
-        var deserializedContainer = BinaryParser.Decode<CollectionObjectsWithReferencesContainer>(serializedData);
+        var deserializedContainer = BinaryParser.Decode<CollectionObjectsWithReferencesContainer>(serializedData, null, new ReferenceContext());
 
         // Assert - All references should be correctly preserved
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("Collection Objects With References Test"));

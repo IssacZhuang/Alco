@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Alco;
 
@@ -9,6 +10,9 @@ public class BinarySerializeReadNode : SerializeReadNode
     private readonly ReferenceContext? _referenceContext;
     protected BinaryTable _content;
     public BinaryTable Content => _content;
+
+    public override ReferenceContext? ReferenceContext => _referenceContext;
+
     public BinarySerializeReadNode(ReferenceContext? referenceContext, BinaryTable content, Action<string>? onError = null)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -292,7 +296,7 @@ public class BinarySerializeReadNode : SerializeReadNode
 
     private void TryWriteReferenceId(BinarySerializeReadNode node, ISerializable value)
     {
-        if(_referenceContext == null)
+        if (_referenceContext == null)
         {
             return;
         }

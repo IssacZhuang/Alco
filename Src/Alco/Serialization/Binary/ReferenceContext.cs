@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 
 namespace Alco;
 
@@ -8,17 +10,12 @@ public sealed class ReferenceContext
     public const string SerializeKey = "$id";
 
     private uint _nextId = 0;
-    private readonly Dictionary<object, uint> _objectToId = new();
-    private readonly Dictionary<uint, object> _idToObject = new();
+    private readonly ConcurrentDictionary<object, uint> _objectToId = new();
+    private readonly ConcurrentDictionary<uint, object> _idToObject = new();
 
     public uint GetId(object obj)
     {
-        if (!_objectToId.TryGetValue(obj, out uint id))
-        {
-            id = _nextId++;
-            _objectToId[obj] = id;
-        }
-        return id;
+        return _objectToId.GetOrAdd(obj, AddReference);
     }
 
     public void SetReference(uint id, object obj)
@@ -29,5 +26,10 @@ public sealed class ReferenceContext
     public bool TryGetReference(uint id, [NotNullWhen(true)] out object? obj)
     {
         return _idToObject.TryGetValue(id, out obj);
+    }
+
+    private uint AddReference(object obj)
+    {
+        return Interlocked.Increment(ref _nextId);
     }
 }

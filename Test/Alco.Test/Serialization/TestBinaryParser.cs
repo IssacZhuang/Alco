@@ -288,7 +288,7 @@ namespace Alco.Test
             BinaryTable table = new BinaryTable();
             table["child"] = new BinaryTable();
 
-            var obj = BinaryParser.TableToObject<SerializableForPostLoad>(table, (string error) => Assert.Fail(error));
+            var obj = BinaryParser.TableToObject<SerializableForPostLoad>(table, (string error) => Assert.Fail(error), new ReferenceContext());
             Assert.IsTrue(obj.Loaded);
             Assert.IsTrue(obj.PostLoaded);
         }
@@ -302,7 +302,8 @@ namespace Alco.Test
             var obj = BinaryParser.TableToObject<SerializableForPostLoad>(
                 table,
                 (SerializeReadNode rn) => new SerializableForPostLoad(),
-                (string error) => Assert.Fail(error));
+                (string error) => Assert.Fail(error),
+                new ReferenceContext());
 
             Assert.IsTrue(obj.Loaded);
             Assert.IsTrue(obj.PostLoaded);
@@ -316,7 +317,7 @@ namespace Alco.Test
             byte[] bytes = BinaryParser.EncodeTable(table);
 
             var obj = new SerializableForPostLoad();
-            BinaryParser.Populate(bytes.AsSpan(), obj, (string error) => Assert.Fail(error));
+            BinaryParser.Populate(bytes.AsSpan(), obj, (string error) => Assert.Fail(error), new ReferenceContext());
 
             Assert.IsTrue(obj.Loaded);
             Assert.IsTrue(obj.PostLoaded);

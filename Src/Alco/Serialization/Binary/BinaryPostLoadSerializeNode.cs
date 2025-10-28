@@ -14,6 +14,8 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     protected BinaryTable _content;
     public BinaryTable Content => _content;
 
+    public override ReferenceContext? ReferenceContext => _referenceContext;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="BinaryPostLoadSerializeNode"/> class.
     /// </summary>

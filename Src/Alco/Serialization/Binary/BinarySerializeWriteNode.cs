@@ -10,6 +10,8 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
 
+    public override ReferenceContext? ReferenceContext => _referenceContext;
+
     public BinarySerializeWriteNode(ReferenceContext? referenceContext, Action<string>? onError = null)
     {
         _referenceContext = referenceContext;

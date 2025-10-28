@@ -12,6 +12,8 @@ public abstract class SerializeNode
 {
     protected Action<string>? OnError {get; set;}
 
+    public abstract ReferenceContext? ReferenceContext { get;}
+
     /// <summary>
     /// Binds a value type (unmanaged) with an optional default value.
     /// </summary>
