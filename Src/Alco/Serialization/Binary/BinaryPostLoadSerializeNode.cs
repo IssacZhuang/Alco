@@ -215,6 +215,14 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         // Intentionally empty
     }
 
+    /// <summary>
+    /// No-op for post-load: binary data is not processed.
+    /// </summary>
+    public override void BindBinary(string key, ref byte[] data)
+    {
+        // Intentionally empty
+    }
+
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
         if(_referenceContext == null)

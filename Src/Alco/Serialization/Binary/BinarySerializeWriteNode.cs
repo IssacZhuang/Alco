@@ -223,6 +223,11 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, table);
     }
 
+    public override void BindBinary(string key, ref byte[] data)
+    {
+        _content.Add(key, BinaryValue.CreateByMemory(data.AsSpan()));
+    }
+
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
         if(_referenceContext == null)

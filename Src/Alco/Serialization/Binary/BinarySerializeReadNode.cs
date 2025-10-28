@@ -289,6 +289,18 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    public override void BindBinary(string key, ref byte[] data)
+    {
+        if (_content.TryGetBinary(key, out byte[]? binaryValue))
+        {
+            data = binaryValue;
+        }
+        else
+        {
+            data = Array.Empty<byte>();
+        }
+    }
+
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
         //do nothing

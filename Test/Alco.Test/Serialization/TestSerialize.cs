@@ -282,6 +282,24 @@ public class TestSerialize
         }
     }
 
+    private class TestObjectBinary : ISerializable
+    {
+        public byte[] binaryData;
+        public byte[] emptyBinaryData;
+
+        public TestObjectBinary()
+        {
+            binaryData = Array.Empty<byte>();
+            emptyBinaryData = Array.Empty<byte>();
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindBinary("binaryData", ref binaryData);
+            node.BindBinary("emptyBinaryData", ref emptyBinaryData);
+        }
+    }
+
     [Test]
     public void TestSerializeNormal()
     {
@@ -472,5 +490,84 @@ public class TestSerialize
         Assert.That(obj2.dictString["key\twith\ttabs"], Is.EqualTo("value\twith\ttabs"));
         Assert.That(obj2.dictString[""], Is.EqualTo("empty key"));
         Assert.That(obj2.dictString["null_test"], Is.EqualTo(""));
+    }
+
+    [Test]
+    public void TestBindBinary()
+    {
+        TestObjectBinary obj = new TestObjectBinary();
+
+        // Setup test data
+        byte[] testData = new byte[] { 1, 2, 3, 4, 5, 255, 0, 128 };
+        obj.binaryData = testData;
+        obj.emptyBinaryData = Array.Empty<byte>();
+
+        // Serialize
+        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+
+        // Deserialize
+        TestObjectBinary obj2 = BinaryParser.Decode<TestObjectBinary>(data, null, new ReferenceContext());
+
+        // Verify binary data
+        Assert.That(obj2.binaryData, Is.EqualTo(testData));
+        Assert.That(obj2.binaryData.Length, Is.EqualTo(8));
+        Assert.That(obj2.binaryData[0], Is.EqualTo(1));
+        Assert.That(obj2.binaryData[7], Is.EqualTo(128));
+
+        // Verify empty binary data
+        Assert.That(obj2.emptyBinaryData, Is.EqualTo(Array.Empty<byte>()));
+        Assert.That(obj2.emptyBinaryData.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TestBindBinary_EmptyArray()
+    {
+        TestObjectBinary obj = new TestObjectBinary();
+        obj.binaryData = Array.Empty<byte>();
+        obj.emptyBinaryData = Array.Empty<byte>();
+
+        // Serialize
+        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+
+        // Deserialize
+        TestObjectBinary obj2 = BinaryParser.Decode<TestObjectBinary>(data, null, new ReferenceContext());
+
+        // Verify both arrays are empty
+        Assert.That(obj2.binaryData, Is.EqualTo(Array.Empty<byte>()));
+        Assert.That(obj2.binaryData.Length, Is.EqualTo(0));
+        Assert.That(obj2.emptyBinaryData, Is.EqualTo(Array.Empty<byte>()));
+        Assert.That(obj2.emptyBinaryData.Length, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TestBindBinary_LargeData()
+    {
+        TestObjectBinary obj = new TestObjectBinary();
+
+        // Create a larger binary data array (10KB)
+        byte[] largeData = new byte[10240];
+        for (int i = 0; i < largeData.Length; i++)
+        {
+            largeData[i] = (byte)(i % 256);
+        }
+        obj.binaryData = largeData;
+        obj.emptyBinaryData = Array.Empty<byte>();
+
+        // Serialize
+        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+
+        // Deserialize
+        TestObjectBinary obj2 = BinaryParser.Decode<TestObjectBinary>(data, null, new ReferenceContext());
+
+        // Verify large binary data
+        Assert.That(obj2.binaryData, Is.EqualTo(largeData));
+        Assert.That(obj2.binaryData.Length, Is.EqualTo(10240));
+        for (int i = 0; i < largeData.Length; i++)
+        {
+            Assert.That(obj2.binaryData[i], Is.EqualTo((byte)(i % 256)));
+        }
+
+        // Verify empty array is still empty
+        Assert.That(obj2.emptyBinaryData, Is.EqualTo(Array.Empty<byte>()));
     }
 }
