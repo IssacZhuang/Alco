@@ -70,6 +70,7 @@ namespace Alco
         public static BinaryTable ObjectToTable<T>(T obj, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
         {
             BinarySerializeWriteNode node = new BinarySerializeWriteNode(referenceContext, onError);
+            referenceContext?.TryWriteReferenceId(node, obj);
             obj.OnSerialize(node, SerializeMode.Save);
             return node.Content;
         }
@@ -85,12 +86,10 @@ namespace Alco
         public static T TableToObject<T>(BinaryTable content, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable, new()
         {
             T obj = new T();
-            obj.OnSerialize(new BinarySerializeReadNode(referenceContext, content, onError), SerializeMode.Load);
-            // Post-load pass to resolve references and finalize state
-            if (referenceContext != null)
-            {
-                obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
-            }
+            BinarySerializeReadNode node = new BinarySerializeReadNode(referenceContext, content, onError);
+            referenceContext?.TryReadReferenceId(node, obj);
+            obj.OnSerialize(node, SerializeMode.Load);
+            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
             return obj;
         }
 
@@ -108,12 +107,9 @@ namespace Alco
         {
             BinarySerializeReadNode node = new BinarySerializeReadNode(referenceContext, content, onError);
             T obj = onCreate(node);
+            referenceContext?.TryReadReferenceId(node, obj);
             obj.OnSerialize(node, SerializeMode.Load);
-            // Post-load pass to resolve references and finalize state
-            if (referenceContext != null)
-            {
-                obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
-            }
+            obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
             return obj;
         }
 

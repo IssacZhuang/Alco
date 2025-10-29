@@ -30,7 +30,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         try
         {
             BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
-            TryWriteReferenceId(node, value);
+            _referenceContext?.TryWriteReferenceId(node, value);
             value.OnSerialize(node, SerializeMode.Save);
             _content.Add(key, node._content);
         }
@@ -59,7 +59,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             else
             {
                 BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
-                TryWriteReferenceId(node, value);
+                _referenceContext?.TryWriteReferenceId(node, value);
                 value.OnSerialize(node, SerializeMode.Save);
                 _content.Add(key, node._content);
             }
@@ -105,7 +105,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             try
             {
                 BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
-                TryWriteReferenceId(node, value[i]);
+                _referenceContext?.TryWriteReferenceId(node, value[i]);
                 value[i].OnSerialize(node, SerializeMode.Save);
                 array.Add(node._content);
             }
@@ -133,7 +133,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             try
             {
                 BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
-                TryWriteReferenceId(node, element);
+                _referenceContext?.TryWriteReferenceId(node, element);
                 element.OnSerialize(node, SerializeMode.Save);
                 array.Add(node._content);
             }
@@ -164,7 +164,7 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             try
             {
                 BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
-                TryWriteReferenceId(node, element);
+                _referenceContext?.TryWriteReferenceId(node, element);
                 element.OnSerialize(node, SerializeMode.Save);
                 array.Add(node._content);
             }
@@ -244,19 +244,6 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, id);
     }
 
-    private void TryWriteReferenceId(BinarySerializeWriteNode node, ISerializable value)
-    {
-        if(_referenceContext == null)
-        {
-            return;
-        }
-
-        if (value is IReferenceable referenceable)
-        {
-            uint id = _referenceContext.GetId(referenceable);
-            node.SetValue(ReferenceContext.SerializeKey, id);
-        }
-    }
 
 
 }

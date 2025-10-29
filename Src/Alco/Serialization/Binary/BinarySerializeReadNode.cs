@@ -36,7 +36,7 @@ public class BinarySerializeReadNode : SerializeReadNode
             {
                 BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
                 value.OnSerialize(node, SerializeMode.Load);
-                TryWriteReferenceId(node, value);
+                _referenceContext?.TryReadReferenceId(node, value);
             }
         }
         catch (Exception ex)
@@ -62,7 +62,7 @@ public class BinarySerializeReadNode : SerializeReadNode
                 BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
                 value ??= onCreate(node);
                 value.OnSerialize(node, SerializeMode.Load);
-                TryWriteReferenceId(node, value);
+                _referenceContext?.TryReadReferenceId(node, value);
             }
         }
         catch (Exception ex)
@@ -127,7 +127,7 @@ public class BinarySerializeReadNode : SerializeReadNode
                     {
                         BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
                         value[i].OnSerialize(node, SerializeMode.Load);
-                        TryWriteReferenceId(node, value[i]);
+                        _referenceContext?.TryReadReferenceId(node, value[i]);
                     }
                 }
                 catch (Exception ex)
@@ -161,7 +161,7 @@ public class BinarySerializeReadNode : SerializeReadNode
                         BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
                         T item = new();
                         item.OnSerialize(node, SerializeMode.Load);
-                        TryWriteReferenceId(node, item);
+                        _referenceContext?.TryReadReferenceId(node, item);
                         value.Add(item);
                     }
                 }
@@ -196,7 +196,7 @@ public class BinarySerializeReadNode : SerializeReadNode
                         BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
                         T item = onCreate(node);
                         item.OnSerialize(node, SerializeMode.Load);
-                        TryWriteReferenceId(node, item);
+                        _referenceContext?.TryReadReferenceId(node, item);
                         value.Add(item);
                     }
                 }
@@ -306,17 +306,5 @@ public class BinarySerializeReadNode : SerializeReadNode
         //do nothing
     }
 
-    private void TryWriteReferenceId(BinarySerializeReadNode node, ISerializable value)
-    {
-        if (_referenceContext == null)
-        {
-            return;
-        }
-
-        if (value is IReferenceable referenceable)
-        {
-            uint id = node.GetValue<uint>(ReferenceContext.SerializeKey);
-            _referenceContext.SetReference(id, referenceable);
-        }
-    }
+    
 }
