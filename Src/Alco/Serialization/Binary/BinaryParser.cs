@@ -22,7 +22,7 @@ namespace Alco
             using (MemoryStream stream = new MemoryStream())
             {
                 EncodeTable(stream, data);
-                return stream.GetBuffer();
+                return stream.ToArray();
             }
         }
 
