@@ -88,14 +88,14 @@ public sealed class PackageBuilder
 
         if (totalContentLength > int.MaxValue)
         {
-            throw new InvalidOperationException("Content payload too large to fit into a single byte array.");
+            throw new InvalidOperationException("Content payload too large.");
         }
 
-        byte[] metaBytes = BinaryParser.Encode(meta);
-        long metaLength = metaBytes.LongLength;
+        ReadOnlyMemory<byte> metaBytes = BinaryParser.Encode(meta);
+        int metaLength = metaBytes.Length;
         if (metaLength > int.MaxValue)
         {
-            throw new InvalidOperationException("Meta payload too large to fit into a single byte array.");
+            throw new InvalidOperationException("Meta payload too large.");
         }
 
         int finalLength = checked((int)(12L + metaLength + totalContentLength));
@@ -108,7 +108,7 @@ public sealed class PackageBuilder
         BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4, 8), metaLength);
 
         // Write meta payload
-        metaBytes.CopyTo(package, 12);
+        metaBytes.Span.CopyTo(package.AsSpan(12));
 
         // Write content payload
         int contentBase = 12 + (int)metaLength;

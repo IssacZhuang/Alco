@@ -95,7 +95,7 @@ public class TestSerializeErrorHandling
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, errorCollector.OnError);
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, errorCollector.OnError);
 
         // Assert - One error should be collected
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(1));
@@ -135,7 +135,7 @@ public class TestSerializeErrorHandling
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, errorCollector.OnError);
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, errorCollector.OnError);
 
         // Assert - Two errors should be collected
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(2));
@@ -171,7 +171,7 @@ public class TestSerializeErrorHandling
             Object3 = new FaultySerializableObject { Name = "Object3" }
         };
 
-        byte[] serializedData = BinaryParser.Encode(container);
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container);
         var table = BinaryParser.DecodeTable(serializedData);
 
         // Act - Deserialize with one object that will throw during deserialization
@@ -212,7 +212,7 @@ public class TestSerializeErrorHandling
             }
         };
 
-        byte[] serializedData = BinaryParser.Encode(container);
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container);
         var table = BinaryParser.DecodeTable(serializedData);
 
         // Act - Deserialize with a custom factory that throws for certain items
@@ -266,7 +266,7 @@ public class TestSerializeErrorHandling
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, errorCollector.OnError);
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, errorCollector.OnError);
 
         // Assert - Three errors should be collected (2 from objects, 1 from list)
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(3));
@@ -307,12 +307,12 @@ public class TestSerializeErrorHandling
         };
 
         // Act - This should not throw, even without custom error handler
-        byte[]? serializedData = null;
+        ReadOnlyMemory<byte> serializedData = ReadOnlyMemory<byte>.Empty;
         Assert.DoesNotThrow(() => serializedData = BinaryParser.Encode(container)); // No error handler
 
         // Deserialize should also not throw
         ContainerObject? deserializedContainer = null;
-        Assert.DoesNotThrow(() => deserializedContainer = BinaryParser.Decode<ContainerObject>(serializedData!)); // No error handler
+        Assert.DoesNotThrow(() => deserializedContainer = BinaryParser.Decode<ContainerObject>(serializedData)); // No error handler
 
         // Basic functionality should still work
         Assert.That(deserializedContainer!.ContainerName, Is.EqualTo("TestContainer"));

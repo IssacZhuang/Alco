@@ -33,7 +33,7 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static T DecodeToValue<T>(byte[] bytes) where T : unmanaged
+        public unsafe static T DecodeToValue<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
         {
             fixed (byte* ptr = bytes)
             {
@@ -42,7 +42,7 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static Nullable<T> DecodeToNullableValue<T>(byte[] bytes) where T : unmanaged
+        public unsafe static Nullable<T> DecodeToNullableValue<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
         {
             fixed (byte* ptr = bytes)
             {
@@ -67,57 +67,15 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string DecodeToString(byte[] bytes)
+        public static string DecodeToString(ReadOnlySpan<byte> bytes)
         {
             return Encoding.UTF8.GetString(bytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string DecodeToStringNullable(byte[] bytes)
+        public static string DecodeToStringNullable(ReadOnlySpan<byte> bytes)
         {
-            if (bytes == null)
-            {
-                return string.Empty;
-            }
             return Encoding.UTF8.GetString(bytes);
-        }
-
-        public static unsafe byte[] FastStringToBytes(string str)
-        {
-            fixed (char* ptr = str)
-            {
-                int length = str.Length;
-                byte[] bytes = new byte[length * 2];
-                fixed (byte* ptr2 = bytes)
-                {
-                    ushort* ptr3 = (ushort*)ptr;
-                    ushort* ptr4 = (ushort*)ptr2;
-                    for (int i = 0; i < length; i++)
-                    {
-                        ptr4[i] = ptr3[i];
-                    }
-                }
-                return bytes;
-            }
-        }
-
-        public static unsafe string FastBytesToString(byte[] bytes)
-        {
-            int hafLength = bytes.Length / 2;
-            string text = new string('\0', hafLength);
-            fixed (char* ptr = text)
-            {
-                fixed (byte* ptr2 = bytes)
-                {
-                    ushort* ptr3 = (ushort*)ptr;
-                    ushort* ptr4 = (ushort*)ptr2;
-                    for (int i = 0; i < hafLength; i++)
-                    {
-                        ptr3[i] = ptr4[i];
-                    }
-                }
-            }
-            return text;
         }
 
         /// <summary>

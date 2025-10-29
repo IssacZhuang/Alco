@@ -118,7 +118,7 @@ internal static partial class UtilsWebGPU
         
         if (source.Language == ShaderLanguage.SPIRV)
         {
-            fixed (byte* ptr = source.Source)
+            fixed (byte* ptr = source.Source.Span)
             {
                 WGPUShaderSourceSPIRV descriptor = new WGPUShaderSourceSPIRV()
                 {
@@ -138,7 +138,7 @@ internal static partial class UtilsWebGPU
         }
         else if (source.Language == ShaderLanguage.WGSL)
         {
-            ReadOnlySpan<byte> code = source.Source;
+            ReadOnlySpan<byte> code = source.Source.Span;
             fixed (byte* ptr = code)
             {
                 WGPUShaderSourceWGSL descriptor = new WGPUShaderSourceWGSL()

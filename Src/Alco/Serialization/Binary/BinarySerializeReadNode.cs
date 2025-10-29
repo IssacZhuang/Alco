@@ -73,13 +73,13 @@ public class BinarySerializeReadNode : SerializeReadNode
 
     public unsafe override void BindMemory<T>(string key, Span<T> memory)
     {
-        if (_content.TryGetBinary(key, out byte[]? binaryValue))
+        if (_content.TryGetBinary(key, out ReadOnlyMemory<byte> binaryValue))
         {
-            int length = Math.Min(memory.Length * sizeof(T), binaryValue.Length);
+            int length = Math.Min(memory.Length * sizeof(T), binaryValue.Span.Length);
             fixed (T* ptrMemory = memory)
             {
                 Span<byte> span = new Span<byte>(ptrMemory, length);
-                binaryValue.AsSpan().CopyTo(span);
+                binaryValue.Span.CopyTo(span);
             }
         }
     }
@@ -91,9 +91,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             for (int i = 0; i < array.Count; i++)
             {
-                if (array.TryGetBinary(i, out byte[]? binaryValue))
+                if (array.TryGetBinary(i, out ReadOnlyMemory<byte> binaryValue))
                 {
-                    value.Add(UtilsBinary.DecodeToValue<T>(binaryValue));
+                    value.Add(UtilsBinary.DecodeToValue<T>(binaryValue.Span));
                 }
             }
         }
@@ -251,9 +251,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             foreach (var itemKey in table.Keys)
             {
-                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                if (table.TryGetBinary(itemKey, out ReadOnlyMemory<byte> binaryValue))
                 {
-                    value.Add(itemKey, UtilsBinary.DecodeToValue<TValue>(binaryValue));
+                    value.Add(itemKey, UtilsBinary.DecodeToValue<TValue>(binaryValue.Span));
                 }
             }
         }
@@ -274,14 +274,14 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    public override void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value)
     {
         value.Clear();
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
             foreach (var itemKey in table.Keys)
             {
-                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                if (table.TryGetBinary(itemKey, out ReadOnlyMemory<byte> binaryValue))
                 {
                     value.Add(itemKey, binaryValue);
                 }
@@ -289,9 +289,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindBinary(string key, ref byte[] data)
+    public override void BindBinary(string key, ref ReadOnlyMemory<byte> data)
     {
-        if (_content.TryGetBinary(key, out byte[]? binaryValue))
+        if (_content.TryGetBinary(key, out ReadOnlyMemory<byte> binaryValue))
         {
             data = binaryValue;
         }

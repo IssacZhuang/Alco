@@ -14,6 +14,12 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator BaseBinaryValue(ReadOnlyMemory<byte> value)
+        {
+            return new BinaryValue(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator BaseBinaryValue(string value)
         {
             if (value == null)

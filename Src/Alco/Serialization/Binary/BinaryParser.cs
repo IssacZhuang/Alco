@@ -8,36 +8,24 @@ namespace Alco
 {
     /// <summary>
     /// Provides functionality for serializing and deserializing objects to and from binary format.
-    /// Handles conversion between C# objects, binary tables, and raw byte arrays.
+    /// Handles conversion between C# objects, binary tables, and raw bytes (as ReadOnlyMemory/ReadOnlySpan).
     /// </summary>
     public class BinaryParser
     {
         /// <summary>
-        /// Encodes a BinaryTable into a byte array.
+        /// Encodes a BinaryTable into a ReadOnlyMemory of bytes.
         /// </summary>
         /// <param name="data">The BinaryTable to encode</param>
-        /// <returns>A byte array containing the serialized data</returns>
-        public static byte[] EncodeTable(BinaryTable data)
+        /// <returns>A ReadOnlyMemory containing the serialized data</returns>
+        public static ReadOnlyMemory<byte> EncodeTable(BinaryTable data)
         {
             using (MemoryStream stream = new MemoryStream())
             {
                 EncodeTable(stream, data);
-                return stream.ToArray();
+                return stream.GetBuffer().AsMemory(0, (int)stream.Length);
             }
         }
 
-        /// <summary>
-        /// Decodes a byte array into a BinaryTable.
-        /// </summary>
-        /// <param name="bytes">The byte array to decode</param>
-        /// <returns>A BinaryTable containing the deserialized data</returns>
-        public static BinaryTable DecodeTable(byte[] bytes)
-        {
-            using (Stream stream = new MemoryStream(bytes))
-            {
-                return DecodeTable(stream);
-            }
-        }
 
         /// <summary>
         /// Decodes a ReadOnlySpan of bytes into a BinaryTable.
@@ -46,13 +34,28 @@ namespace Alco
         /// <returns>A BinaryTable containing the deserialized data</returns>
         public unsafe static BinaryTable DecodeTable(ReadOnlySpan<byte> bytes)
         {
-            fixed(byte* ptr = bytes)
+            fixed (byte* ptr = bytes)
             {
                 using (Stream stream = new UnmanagedMemoryStream(ptr, bytes.Length))
                 {
                     return DecodeTable(stream);
                 }
             }
+        }
+
+        public unsafe static BinaryTable DecodeTable(ReadOnlyMemory<byte> bytes)
+        {
+            return DecodeTable(bytes.Span);
+        }
+
+        /// <summary>
+        /// Decodes a byte array into a BinaryTable.
+        /// </summary>
+        /// <param name="bytes">The bytes to decode</param>
+        /// <returns>A BinaryTable containing the deserialized data</returns>
+        public unsafe static BinaryTable DecodeTable(byte[] bytes)
+        {
+            return DecodeTable((ReadOnlySpan<byte>)bytes);
         }
 
 
@@ -79,7 +82,7 @@ namespace Alco
         /// <param name="onError">Optional error handler for serialization errors</param>
         /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
         /// <returns>A new instance of T populated from the BinaryTable</returns>
-        public static T TableToObject<T>(BinaryTable content, Action<string>? onError = null, ReferenceContext? referenceContext=null) where T : ISerializable, new()
+        public static T TableToObject<T>(BinaryTable content, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable, new()
         {
             T obj = new T();
             obj.OnSerialize(new BinarySerializeReadNode(referenceContext, content, onError), SerializeMode.Load);
@@ -115,29 +118,16 @@ namespace Alco
         }
 
         /// <summary>
-        /// Serializes an object to a byte array.
+        /// Serializes an object to a ReadOnlyMemory of bytes.
         /// </summary>
         /// <typeparam name="T">The type of the object, which must implement ISerializable</typeparam>
         /// <param name="obj">The object to serialize</param>
         /// <param name="onError">Optional error handler for serialization errors</param>
         /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
-        /// <returns>A byte array containing the serialized object</returns>
-        public static byte[] Encode<T>(T obj, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
+        /// <returns>A ReadOnlyMemory containing the serialized object</returns>
+        public static ReadOnlyMemory<byte> Encode<T>(T obj, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
         {
             return EncodeTable(ObjectToTable(obj, onError, referenceContext));
-        }
-
-        /// <summary>
-        /// Deserializes a byte array into a new instance of type T.
-        /// </summary>
-        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable and have a parameterless constructor</typeparam>
-        /// <param name="bytes">The byte array to deserialize</param>
-        /// <param name="onError">Optional error handler for serialization errors</param>
-        /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
-        /// <returns>A new instance of T deserialized from the byte array</returns>
-        public static T Decode<T>(byte[] bytes, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable, new()
-        {
-            return TableToObject<T>(DecodeTable(bytes), onError, referenceContext);
         }
 
         /// <summary>
@@ -154,17 +144,29 @@ namespace Alco
         }
 
         /// <summary>
-        /// Deserializes a byte array into an instance of type T created using a factory method.
+        /// Deserializes a ReadOnlyMemory of bytes into a new instance of type T.
         /// </summary>
-        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable</typeparam>
-        /// <param name="bytes">The byte array to deserialize</param>
-        /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable and have a parameterless constructor</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
         /// <param name="onError">Optional error handler for serialization errors</param>
         /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
-        /// <returns>An instance of T deserialized from the byte array</returns>
-        public static T Decode<T>(byte[] bytes, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
+        /// <returns>A new instance of T deserialized from the bytes</returns>
+        public static T Decode<T>(ReadOnlyMemory<byte> bytes, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable, new()
         {
-            return TableToObject<T>(DecodeTable(bytes), onCreate, onError, referenceContext);
+            return Decode<T>(bytes.Span, onError, referenceContext);
+        }
+
+        /// <summary>
+        /// Deserializes a byte array into a new instance of type T.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable and have a parameterless constructor</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
+        /// <returns>A new instance of T deserialized from the bytes</returns>
+        public static T Decode<T>(byte[] bytes, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable, new()
+        {
+            return Decode<T>((ReadOnlySpan<byte>)bytes, onError, referenceContext);
         }
 
         /// <summary>
@@ -182,8 +184,36 @@ namespace Alco
         }
 
         /// <summary>
+        /// Deserializes a ReadOnlyMemory of bytes into an instance of type T created using a factory method.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
+        /// <returns>An instance of T deserialized from the bytes</returns>
+        public static T Decode<T>(ReadOnlyMemory<byte> bytes, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
+        {
+            return Decode<T>(bytes.Span, onCreate, onError, referenceContext);
+        }
+
+        /// <summary>
+        /// Deserializes a byte array into an instance of type T created using a factory method.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to, which must implement ISerializable</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="onCreate">A factory method that creates an instance of T</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
+        /// <returns>An instance of T deserialized from the bytes</returns>
+        public static T Decode<T>(byte[] bytes, Func<SerializeReadNode, T> onCreate, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
+        {
+            return Decode<T>((ReadOnlySpan<byte>)bytes, onCreate, onError, referenceContext);
+        }
+
+        /// <summary>
         /// Deserializes a ReadOnlySpan of bytes into an existing instance of type T.
-        /// This method populates the provided object with data from the byte array without creating a new instance.
+        /// This method populates the provided object with data from the bytes without creating a new instance.
         /// </summary>
         /// <typeparam name="T">The type of the object to populate, which must implement ISerializable</typeparam>
         /// <param name="bytes">The bytes to deserialize</param>
@@ -199,6 +229,34 @@ namespace Alco
             {
                 obj.OnSerialize(new BinaryPostLoadSerializeNode(referenceContext, content, onError), SerializeMode.PostLoad);
             }
+        }
+
+        /// <summary>
+        /// Deserializes a ReadOnlyMemory of bytes into an existing instance of type T.
+        /// This method populates the provided object with data from the bytes without creating a new instance.
+        /// </summary>
+        /// <typeparam name="T">The type of the object to populate, which must implement ISerializable</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="obj">The existing object instance to populate with deserialized data</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
+        public static void Populate<T>(ReadOnlyMemory<byte> bytes, T obj, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
+        {
+            Populate(bytes.Span, obj, onError, referenceContext);
+        }
+
+        /// <summary>
+        /// Deserializes a byte array into an existing instance of type T.
+        /// This method populates the provided object with data from the bytes without creating a new instance.
+        /// </summary>
+        /// <typeparam name="T">The type of the object to populate, which must implement ISerializable</typeparam>
+        /// <param name="bytes">The bytes to deserialize</param>
+        /// <param name="obj">The existing object instance to populate with deserialized data</param>
+        /// <param name="onError">Optional error handler for serialization errors</param>
+        /// <param name="referenceContext">The ReferenceContext to use for handling references, or null to disable reference handling</param>
+        public static void Populate<T>(byte[] bytes, T obj, Action<string>? onError = null, ReferenceContext? referenceContext = null) where T : ISerializable
+        {
+            Populate((ReadOnlySpan<byte>)bytes, obj, onError, referenceContext);
         }
 
 
@@ -223,14 +281,16 @@ namespace Alco
                     return;
                 default:
                     throw new Exception(string.Format("Don't know elementType={0}", value.GetType().Name));
-            };
+            }
+            ;
         }
 
         private static BaseBinaryValue DecodeTableElement(Stream stream, out string name)
         {
             BinaryValueType type = ReadType(stream);
             name = DecodeFieldName(stream);
-            switch(type){
+            switch (type)
+            {
                 case BinaryValueType.Value:
                     return DecodeBinary(stream);
                 case BinaryValueType.Array:
@@ -294,13 +354,15 @@ namespace Alco
                     return;
                 default:
                     throw new Exception(string.Format("Don't know elementType={0}", value.GetType().Name));
-            };
+            }
+            ;
         }
 
         private static BaseBinaryValue DecodeArrayElement(Stream stream)
         {
             BinaryValueType type = ReadType(stream);
-            switch(type){
+            switch (type)
+            {
                 case BinaryValueType.Value:
                     return DecodeBinary(stream);
                 case BinaryValueType.Array:
@@ -344,9 +406,9 @@ namespace Alco
             return array;
         }
 
-        private static void EncodeBinary(Stream stream, byte[] bytes)
+        private static void EncodeBinary(Stream stream, ReadOnlyMemory<byte> bytes)
         {
-            WriteBinary(stream, bytes);
+            WriteBinary(stream, bytes.Span);
         }
 
         private static BinaryValue DecodeBinary(Stream stream)
@@ -388,10 +450,10 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void WriteBinary(Stream stream, byte[] bytes)
+        private static void WriteBinary(Stream stream, ReadOnlySpan<byte> bytes)
         {
             WriteLength(stream, bytes.Length);
-            stream.Write(bytes, 0, bytes.Length);
+            stream.Write(bytes);
         }
 
 
@@ -405,7 +467,9 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void WriteString(Stream stream, string str)
         {
-            byte[] bytes = UtilsBinary.FastStringToBytes(str);
+            int length = Encoding.UTF8.GetByteCount(str);
+            Span<byte> bytes = stackalloc byte[length];
+            Encoding.UTF8.GetBytes(str, bytes);
             WriteBinary(stream, bytes);
         }
 
@@ -413,7 +477,7 @@ namespace Alco
         private static string ReadString(Stream stream)
         {
             byte[] bytes = ReadBinary(stream);
-            return UtilsBinary.FastBytesToString(bytes);
+            return Encoding.UTF8.GetString(bytes);
         }
     }
 }

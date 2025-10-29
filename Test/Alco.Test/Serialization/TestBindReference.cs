@@ -102,7 +102,7 @@ public class TestBindReference
         container.RefItem1 = container.Items[0];
         container.RefItem2 = container.Items[2];
 
-        byte[] bytes = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(container, null, new ReferenceContext());
         var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, null, new ReferenceContext());
 
         Assert.That(result.Items.Count, Is.EqualTo(3));
@@ -126,7 +126,7 @@ public class TestBindReference
         container.RefItem1 = container.Items[0];
         container.RefItem2 = container.Items[2];
 
-        byte[] bytes = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(container, null, new ReferenceContext());
         var result = BinaryParser.Decode<ExternalRefsToArrayItemsContainer>(bytes, static (SerializeReadNode _) => new ExternalRefsToArrayItemsContainer(2), null, new ReferenceContext());
 
         Assert.That(result.Items.Count, Is.EqualTo(2));
@@ -174,7 +174,7 @@ public class TestBindReference
         container.DirectRef = t2;
 
         // Act
-        byte[] bytes = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(container, null, new ReferenceContext());
         var result = BinaryParser.Decode<ArrayWithExternalRefsContainer>(bytes, null, new ReferenceContext());
 
         // Assert
@@ -301,7 +301,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
@@ -335,7 +335,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
@@ -368,7 +368,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
@@ -407,7 +407,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<CircularReferenceContainer>(serializedData, null, new ReferenceContext());
@@ -451,7 +451,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<ReferenceContainer>(serializedData, null, new ReferenceContext());
@@ -546,7 +546,7 @@ public class TestBindReference
         complexContainer.Derived2Reference = derivedObject2;
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(complexContainer, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(complexContainer, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<ComplexReferenceContainer>(serializedData, null, new ReferenceContext());
@@ -635,7 +635,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<BindSerializableContainer>(serializedData, null, new ReferenceContext());
@@ -669,7 +669,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<CollectionSerializableContainer>(serializedData, null, new ReferenceContext());
@@ -716,7 +716,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser
         var deserializedContainer = BinaryParser.Decode<MixedSerializationContainer>(serializedData, null, new ReferenceContext());
@@ -901,7 +901,7 @@ public class TestBindReference
         };
 
         // Act - Serialize using BinaryParser
-        byte[] serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
+        ReadOnlyMemory<byte> serializedData = BinaryParser.Encode(container, null, new ReferenceContext());
 
         // Deserialize using BinaryParser  
         var deserializedContainer = BinaryParser.Decode<CollectionObjectsWithReferencesContainer>(serializedData, null, new ReferenceContext());

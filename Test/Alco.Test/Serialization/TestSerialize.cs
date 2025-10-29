@@ -70,8 +70,8 @@ public class TestSerialize
         src.Ref1 = src.Items[0];
         src.Ref2 = src.Items[2];
 
-        byte[] bytes = BinaryParser.Encode(src, null, new ReferenceContext());
-        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes, null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(src, null, new ReferenceContext());
+        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes.Span, null, new ReferenceContext());
 
         Assert.That(dst.Items.Count, Is.EqualTo(3));
         Assert.That(dst.Items[0].Value, Is.EqualTo(10));
@@ -94,8 +94,8 @@ public class TestSerialize
         src.Ref1 = src.Items[0];
         src.Ref2 = src.Items[2];
 
-        byte[] bytes = BinaryParser.Encode(src, null, new ReferenceContext());
-        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes, static (SerializeReadNode _) => new ArrayContainer(2), null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(src, null, new ReferenceContext());
+        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes.Span, static (SerializeReadNode _) => new ArrayContainer(2), null, new ReferenceContext());
 
         Assert.That(dst.Items.Count, Is.EqualTo(2));
         Assert.That(dst.Items[0].Value, Is.EqualTo(1));
@@ -116,8 +116,8 @@ public class TestSerialize
         src.Ref1 = src.Items[1];
         src.Ref2 = null;
 
-        byte[] bytes = BinaryParser.Encode(src, null, new ReferenceContext());
-        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes, static (SerializeReadNode _) => new ArrayContainer(3), null, new ReferenceContext());
+        ReadOnlyMemory<byte> bytes = BinaryParser.Encode(src, null, new ReferenceContext());
+        ArrayContainer dst = BinaryParser.Decode<ArrayContainer>(bytes.Span, static (SerializeReadNode _) => new ArrayContainer(3), null, new ReferenceContext());
 
         Assert.That(dst.Items.Count, Is.EqualTo(3));
         Assert.That(dst.Items[0].Value, Is.EqualTo(100));
@@ -152,7 +152,7 @@ public class TestSerialize
         {
             node.BindValue("width", ref _width);
             node.BindValue("height", ref _height);
-            node.BindMemory("data", _data);
+            node.BindMemory("data", _data.AsSpan());
         }
     }
 
@@ -182,7 +182,7 @@ public class TestSerialize
             node.BindString("str", ref str);
             node.BindCollection("listInt", listInt);
             node.BindCollection("listStr", listStr);
-            node.BindMemory("intArray", intArray);
+            node.BindMemory("intArray", intArray.AsSpan());
             node.BindSerializableOptional("bitmap", ref bitmap, static (SerializeReadNode subNode) =>
             {
                 int width = subNode.GetValue<int>("width");
@@ -265,13 +265,13 @@ public class TestSerialize
     {
         public Dictionary<string, int> dictInt;
         public Dictionary<string, string> dictString;
-        public Dictionary<string, byte[]> dictByteArray;
+        public Dictionary<string, ReadOnlyMemory<byte>> dictByteArray;
 
         public TestObjectDictionary()
         {
             dictInt = new Dictionary<string, int>();
             dictString = new Dictionary<string, string>();
-            dictByteArray = new Dictionary<string, byte[]>();
+            dictByteArray = new Dictionary<string, ReadOnlyMemory<byte>>();
         }
 
         public void OnSerialize(SerializeNode node, SerializeMode mode)
@@ -284,13 +284,13 @@ public class TestSerialize
 
     private class TestObjectBinary : ISerializable
     {
-        public byte[] binaryData;
-        public byte[] emptyBinaryData;
+        public ReadOnlyMemory<byte> binaryData;
+        public ReadOnlyMemory<byte> emptyBinaryData;
 
         public TestObjectBinary()
         {
-            binaryData = Array.Empty<byte>();
-            emptyBinaryData = Array.Empty<byte>();
+            binaryData = ReadOnlyMemory<byte>.Empty;
+            emptyBinaryData = ReadOnlyMemory<byte>.Empty;
         }
 
         public void OnSerialize(SerializeNode node, SerializeMode mode)
@@ -312,7 +312,7 @@ public class TestSerialize
 
         obj.bitmap = null;
 
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObject1 obj2 = BinaryParser.Decode<TestObject1>(data, null, new ReferenceContext());
         Assert.That(obj2.intValue, Is.EqualTo(10));
         Assert.That(obj2.str, Is.EqualTo("Hello"));
@@ -339,7 +339,7 @@ public class TestSerialize
         TestObject1 obj = new TestObject1();
         obj.listInt.AddRange(ints);
         obj.listStr.AddRange(strings);
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObject1 obj2 = BinaryParser.Decode<TestObject1>(data, null, new ReferenceContext());
         for (int i = 0; i < ints.Length; i++)
         {
@@ -356,7 +356,7 @@ public class TestSerialize
     {
         TestObjectDeep obj = new TestObjectDeep();
         obj.child.intValue = 10;
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObjectDeep obj2 = BinaryParser.Decode<TestObjectDeep>(data, null, new ReferenceContext());
         Assert.IsTrue(obj2.child.intValue == 10);
         Assert.That(obj2.child.str, Is.EqualTo(""));
@@ -382,7 +382,7 @@ public class TestSerialize
             obj.listStruct.Add(s);
         }
 
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObjectCollectionDeep obj2 = BinaryParser.Decode<TestObjectCollectionDeep>(data, null, new ReferenceContext());
         for (int i = 0; i < ints.Length; i++)
         {
@@ -402,7 +402,7 @@ public class TestSerialize
         obj.enumList.Add(TestEnum.Two);
         obj.enumList.Add(TestEnum.Three);
 
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObjectEnum obj2 = BinaryParser.Decode<TestObjectEnum>(data, null, new ReferenceContext());
 
         Assert.That(obj2.enumValue, Is.EqualTo(TestEnum.Two));
@@ -428,11 +428,11 @@ public class TestSerialize
         obj.dictString["country"] = "USA";
 
         // Setup test data for byte array dictionary
-        obj.dictByteArray["data1"] = new byte[] { 1, 2, 3, 4, 5 };
-        obj.dictByteArray["data2"] = new byte[] { 10, 20, 30 };
-        obj.dictByteArray["data3"] = new byte[] { 255, 0, 128 };
+        obj.dictByteArray["data1"] = new byte[] { 1, 2, 3, 4, 5 }.AsMemory();
+        obj.dictByteArray["data2"] = new byte[] { 10, 20, 30 }.AsMemory();
+        obj.dictByteArray["data3"] = new byte[] { 255, 0, 128 }.AsMemory();
 
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObjectDictionary obj2 = BinaryParser.Decode<TestObjectDictionary>(data, null, new ReferenceContext());
 
         // Verify integer dictionary
@@ -449,9 +449,9 @@ public class TestSerialize
 
         // Verify byte array dictionary
         Assert.That(obj2.dictByteArray.Count, Is.EqualTo(3));
-        Assert.That(obj2.dictByteArray["data1"], Is.EqualTo(new byte[] { 1, 2, 3, 4, 5 }));
-        Assert.That(obj2.dictByteArray["data2"], Is.EqualTo(new byte[] { 10, 20, 30 }));
-        Assert.That(obj2.dictByteArray["data3"], Is.EqualTo(new byte[] { 255, 0, 128 }));
+        Assert.That(obj2.dictByteArray["data1"].Span.SequenceEqual(new byte[] { 1, 2, 3, 4, 5 }), Is.True);
+        Assert.That(obj2.dictByteArray["data2"].Span.SequenceEqual(new byte[] { 10, 20, 30 }), Is.True);
+        Assert.That(obj2.dictByteArray["data3"].Span.SequenceEqual(new byte[] { 255, 0, 128 }), Is.True);
     }
 
     [Test]
@@ -460,7 +460,7 @@ public class TestSerialize
         TestObjectDictionary obj = new TestObjectDictionary();
         // Leave dictionaries empty
 
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObjectDictionary obj2 = BinaryParser.Decode<TestObjectDictionary>(data, null, new ReferenceContext());
 
         // Verify all dictionaries are empty
@@ -481,7 +481,7 @@ public class TestSerialize
         obj.dictString[""] = "empty key";
         obj.dictString["null_test"] = "";
 
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
         TestObjectDictionary obj2 = BinaryParser.Decode<TestObjectDictionary>(data, null, new ReferenceContext());
 
         Assert.That(obj2.dictString.Count, Is.EqualTo(5));
@@ -499,23 +499,23 @@ public class TestSerialize
 
         // Setup test data
         byte[] testData = new byte[] { 1, 2, 3, 4, 5, 255, 0, 128 };
-        obj.binaryData = testData;
-        obj.emptyBinaryData = Array.Empty<byte>();
+        obj.binaryData = testData.AsMemory();
+        obj.emptyBinaryData = ReadOnlyMemory<byte>.Empty;
 
         // Serialize
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
 
         // Deserialize
         TestObjectBinary obj2 = BinaryParser.Decode<TestObjectBinary>(data, null, new ReferenceContext());
 
         // Verify binary data
-        Assert.That(obj2.binaryData, Is.EqualTo(testData));
+        Assert.That(obj2.binaryData.Span.SequenceEqual(testData), Is.True);
         Assert.That(obj2.binaryData.Length, Is.EqualTo(8));
-        Assert.That(obj2.binaryData[0], Is.EqualTo(1));
-        Assert.That(obj2.binaryData[7], Is.EqualTo(128));
+        Assert.That(obj2.binaryData.Span[0], Is.EqualTo(1));
+        Assert.That(obj2.binaryData.Span[7], Is.EqualTo(128));
 
         // Verify empty binary data
-        Assert.That(obj2.emptyBinaryData, Is.EqualTo(Array.Empty<byte>()));
+        Assert.That(obj2.emptyBinaryData.IsEmpty, Is.True);
         Assert.That(obj2.emptyBinaryData.Length, Is.EqualTo(0));
     }
 
@@ -523,19 +523,19 @@ public class TestSerialize
     public void TestBindBinary_EmptyArray()
     {
         TestObjectBinary obj = new TestObjectBinary();
-        obj.binaryData = Array.Empty<byte>();
-        obj.emptyBinaryData = Array.Empty<byte>();
+        obj.binaryData = ReadOnlyMemory<byte>.Empty;
+        obj.emptyBinaryData = ReadOnlyMemory<byte>.Empty;
 
         // Serialize
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
 
         // Deserialize
         TestObjectBinary obj2 = BinaryParser.Decode<TestObjectBinary>(data, null, new ReferenceContext());
 
         // Verify both arrays are empty
-        Assert.That(obj2.binaryData, Is.EqualTo(Array.Empty<byte>()));
+        Assert.That(obj2.binaryData.IsEmpty, Is.True);
         Assert.That(obj2.binaryData.Length, Is.EqualTo(0));
-        Assert.That(obj2.emptyBinaryData, Is.EqualTo(Array.Empty<byte>()));
+        Assert.That(obj2.emptyBinaryData.IsEmpty, Is.True);
         Assert.That(obj2.emptyBinaryData.Length, Is.EqualTo(0));
     }
 
@@ -550,24 +550,24 @@ public class TestSerialize
         {
             largeData[i] = (byte)(i % 256);
         }
-        obj.binaryData = largeData;
-        obj.emptyBinaryData = Array.Empty<byte>();
+        obj.binaryData = largeData.AsMemory();
+        obj.emptyBinaryData = ReadOnlyMemory<byte>.Empty;
 
         // Serialize
-        byte[] data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
 
         // Deserialize
         TestObjectBinary obj2 = BinaryParser.Decode<TestObjectBinary>(data, null, new ReferenceContext());
 
         // Verify large binary data
-        Assert.That(obj2.binaryData, Is.EqualTo(largeData));
+        Assert.That(obj2.binaryData.Span.SequenceEqual(largeData), Is.True);
         Assert.That(obj2.binaryData.Length, Is.EqualTo(10240));
         for (int i = 0; i < largeData.Length; i++)
         {
-            Assert.That(obj2.binaryData[i], Is.EqualTo((byte)(i % 256)));
+            Assert.That(obj2.binaryData.Span[i], Is.EqualTo((byte)(i % 256)));
         }
 
         // Verify empty array is still empty
-        Assert.That(obj2.emptyBinaryData, Is.EqualTo(Array.Empty<byte>()));
+        Assert.That(obj2.emptyBinaryData.IsEmpty, Is.True);
     }
 }

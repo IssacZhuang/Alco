@@ -7,7 +7,7 @@ public static class UtilsShaderRelfection
 {
     private static readonly Reflect API = Reflect.GetApi();
 
-    public static ShaderReflectionInfo GetSpirvReflection(byte[] vertexSpirv, byte[] fragmentSpirv, bool useStandardStage = false)
+    public static ShaderReflectionInfo GetSpirvReflection(ReadOnlyMemory<byte> vertexSpirv, ReadOnlyMemory<byte> fragmentSpirv, bool useStandardStage = false)
     {
         ShaderReflectionInfo vertex = GetSpirvReflection(vertexSpirv, useStandardStage);
         ShaderReflectionInfo fragment = GetSpirvReflection(fragmentSpirv, useStandardStage);
@@ -16,10 +16,10 @@ public static class UtilsShaderRelfection
         return MergeReflectionInfo(vertex, fragment);
     }
 
-    public unsafe static ShaderReflectionInfo GetSpirvReflection(byte[] spirv, bool useStandardStage = false)
+    public unsafe static ShaderReflectionInfo GetSpirvReflection(ReadOnlyMemory<byte> spirv, bool useStandardStage = false)
     {
         ReflectShaderModule module = new ReflectShaderModule();
-        fixed (byte* ptr = spirv)
+        fixed (byte* ptr = spirv.Span)
         {
             Result result = API.CreateShaderModule((nuint)spirv.Length, ptr, &module);
             if (result != Result.Success)

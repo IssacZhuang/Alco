@@ -170,7 +170,7 @@ public static partial class UtilsShader
         return functions;
     }
 
-    public static byte[] EncodeShaderModule(ShaderModule shaderModule)
+    public static ReadOnlyMemory<byte> EncodeShaderModule(ShaderModule shaderModule)
     {
         BinaryTable table = new BinaryTable();
         table.Add(nameof(shaderModule.Stage), shaderModule.Stage);
@@ -190,7 +190,7 @@ public static partial class UtilsShader
             table.GetString(nameof(ShaderModule.EntryPoint)));
     }
 
-    public static byte[] EncodeShaderModulesInfo(ShaderModulesInfo modulesInfo)
+    public static ReadOnlyMemory<byte> EncodeShaderModulesInfo(ShaderModulesInfo modulesInfo)
     {
         BinaryTable table = new BinaryTable();
         table.Add(nameof(modulesInfo.Name), modulesInfo.Name);
@@ -244,21 +244,21 @@ public static partial class UtilsShader
         }
 
         ShaderModule? vertexShader = null;
-        if (table.TryGetBinary(nameof(ShaderModulesInfo.VertexShader), out byte[]? vertexData))
+        if (table.TryGetBinary(nameof(ShaderModulesInfo.VertexShader), out ReadOnlyMemory<byte> vertexData))
         {
-            vertexShader = DecodeShaderModule(vertexData);
+            vertexShader = DecodeShaderModule(vertexData.Span);
         }
 
         ShaderModule? fragmentShader = null;
-        if (table.TryGetBinary(nameof(ShaderModulesInfo.FragmentShader), out byte[]? fragmentData))
+        if (table.TryGetBinary(nameof(ShaderModulesInfo.FragmentShader), out ReadOnlyMemory<byte> fragmentData))
         {
-            fragmentShader = DecodeShaderModule(fragmentData);
+            fragmentShader = DecodeShaderModule(fragmentData.Span);
         }
 
         ShaderModule? computeShader = null;
-        if (table.TryGetBinary(nameof(ShaderModulesInfo.ComputeShader), out byte[]? computeData))
+        if (table.TryGetBinary(nameof(ShaderModulesInfo.ComputeShader), out ReadOnlyMemory<byte> computeData))
         {
-            computeShader = DecodeShaderModule(computeData);
+            computeShader = DecodeShaderModule(computeData.Span);
         }
 
         // Reconstruct reflection info based on the available shader modules

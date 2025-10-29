@@ -35,8 +35,8 @@ public unsafe class ShaderCache : IShaderCache
                 ulong hash = GetHash(shaderText);
                 writer.Write(hash);
 
-                byte[] bytes = UtilsShader.EncodeShaderModulesInfo(modulesInfo);
-                writer.Write(bytes);
+                ReadOnlyMemory<byte> bytes = UtilsShader.EncodeShaderModulesInfo(modulesInfo);
+                writer.Write(bytes.Span);
 
                 Log.Info("Shader save to cache: ", cachePath);
             }

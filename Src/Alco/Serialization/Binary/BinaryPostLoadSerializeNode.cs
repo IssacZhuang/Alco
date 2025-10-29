@@ -210,7 +210,7 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     /// <summary>
     /// No-op for post-load: dictionaries of primitive or binary data are not processed.
     /// </summary>
-    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    public override void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value)
     {
         // Intentionally empty
     }
@@ -218,7 +218,7 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     /// <summary>
     /// No-op for post-load: binary data is not processed.
     /// </summary>
-    public override void BindBinary(string key, ref byte[] data)
+    public override void BindBinary(string key, ref ReadOnlyMemory<byte> data)
     {
         // Intentionally empty
     }

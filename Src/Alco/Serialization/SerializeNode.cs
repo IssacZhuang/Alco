@@ -124,14 +124,14 @@ public abstract class SerializeNode
     /// </summary>
     /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
     /// <param name="value">The dictionary of binary data to be serialized or deserialized.</param>
-    public abstract void BindDictionary(string key, IDictionary<string, byte[]> value);
+    public abstract void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value);
 
     /// <summary>
     /// Binds a byte array for binary data serialization.
     /// </summary>
     /// <param name="key">The key identifier for the binary data in the serialization format.</param>
     /// <param name="data">Reference to the byte array to be serialized or deserialized.</param>
-    public abstract void BindBinary(string key, ref byte[] data);
+    public abstract void BindBinary(string key, ref ReadOnlyMemory<byte> data);
 
     public abstract void BindReference<T>(string key, ref T? referenceable) where T : IReferenceable;
 

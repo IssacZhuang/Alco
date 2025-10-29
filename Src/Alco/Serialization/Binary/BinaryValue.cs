@@ -13,13 +13,13 @@ namespace Alco
 
     public class BinaryValue : BaseBinaryValue
     {
-        private readonly byte[] _binary;
+        private readonly ReadOnlyMemory<byte> _binary;
 
         /// Properties
         public override BinaryValueType Type => BinaryValueType.Value;
 
 
-        public byte[] Bytes
+        public ReadOnlyMemory<byte> Bytes
         {
             get
             {
@@ -41,24 +41,24 @@ namespace Alco
         }
 
 
-        public BinaryValue(byte[] v)
+        public BinaryValue(ReadOnlyMemory<byte> v)
         {
             _binary = v;
         }
 
         public bool TryGetValue<T>(out T v) where T : unmanaged
         {
-            v = UtilsBinary.DecodeToValue<T>(_binary);
+            v = UtilsBinary.DecodeToValue<T>(_binary.Span);
             return true;
         }
 
         public bool TryGetNullableValue<T>(out T? v) where T : unmanaged
         {
-            v = UtilsBinary.DecodeToNullableValue<T>(_binary);
+            v = UtilsBinary.DecodeToNullableValue<T>(_binary.Span);
             return true;
         }
 
-        public bool TryGetEnum<T>(out T v) where T : struct, Enum
+        public unsafe bool TryGetEnum<T>(out T v) where T : struct, Enum
         {
             if (_binary.Length != Unsafe.SizeOf<T>())
             {
@@ -66,13 +66,16 @@ namespace Alco
                 return false;
             }
 
-            v = Unsafe.ReadUnaligned<T>(ref _binary[0]);
+            fixed (byte* ptr = _binary.Span)
+            {
+                v = Unsafe.ReadUnaligned<T>(ptr);
+            }
             return true;
         }
 
         public bool TryGetString([NotNullWhen(true)] out string? v)
         {
-            v = UtilsBinary.DecodeToString(_binary);
+            v = UtilsBinary.DecodeToString(_binary.Span);
             return true;
         }
 

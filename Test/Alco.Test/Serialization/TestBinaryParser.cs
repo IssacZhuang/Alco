@@ -92,7 +92,7 @@ namespace Alco.Test
             }
             table[keySubData] = subTable;
 
-            byte[] raw = BinaryParser.EncodeTable(table);
+            ReadOnlyMemory<byte> raw = BinaryParser.EncodeTable(table);
 
             BinaryTable table2 = BinaryParser.DecodeTable(raw);
 
@@ -155,9 +155,9 @@ namespace Alco.Test
             binObject["noise1"] = null;
             binObject["list"] = binArray;
             binObject["noise2"] = "noise";
-            byte[] raw = BinaryParser.EncodeTable(binObject);
+            ReadOnlyMemory<byte> raw = BinaryParser.EncodeTable(binObject);
 
-            BinaryTable binObject2 = BinaryParser.DecodeTable(raw);
+            BinaryTable binObject2 = BinaryParser.DecodeTable(raw.Span);
             BinaryArray binArray2 = binObject2["list"] as BinaryArray;
 
             for (int i = 0; i < data.Length; i++)
@@ -190,7 +190,7 @@ namespace Alco.Test
                 ["key4"] = "value4"
             };
 
-            byte[] raw = BinaryParser.EncodeTable(table);
+            ReadOnlyMemory<byte> raw = BinaryParser.EncodeTable(table);
 
             BinaryTable table2 = BinaryParser.DecodeTable(raw);
 
@@ -233,10 +233,10 @@ namespace Alco.Test
             originalTable["table"] = nestedTable;
 
             // Encode the table to a byte array
-            byte[] encodedBytes = BinaryParser.EncodeTable(originalTable);
+            ReadOnlyMemory<byte> encodedBytes = BinaryParser.EncodeTable(originalTable);
 
             // Create a ReadOnlySpan from the byte array
-            ReadOnlySpan<byte> bytesSpan = encodedBytes.AsSpan();
+            ReadOnlySpan<byte> bytesSpan = encodedBytes.Span;
 
             // Decode using the Span-based method
             BinaryTable decodedTable = BinaryParser.DecodeTable(bytesSpan);
@@ -314,10 +314,10 @@ namespace Alco.Test
         {
             BinaryTable table = new BinaryTable();
             table["child"] = new BinaryTable();
-            byte[] bytes = BinaryParser.EncodeTable(table);
+            ReadOnlyMemory<byte> bytes = BinaryParser.EncodeTable(table);
 
             var obj = new SerializableForPostLoad();
-            BinaryParser.Populate(bytes.AsSpan(), obj, (string error) => Assert.Fail(error), new ReferenceContext());
+            BinaryParser.Populate(bytes, obj, (string error) => Assert.Fail(error), new ReferenceContext());
 
             Assert.IsTrue(obj.Loaded);
             Assert.IsTrue(obj.PostLoaded);
@@ -366,7 +366,7 @@ namespace Alco.Test
             table["strVal"] = value.strVal;
             table["floatVal"] = value.floatVal;
             table["boolVal"] = value.boolVal;
-            byte[] bytes = BinaryParser.EncodeTable(table);
+            ReadOnlyMemory<byte> bytes = BinaryParser.EncodeTable(table);
 
             TestContext.WriteLine("xml: " + UtilsTest.FormatSize(sizeXml));
             TestContext.WriteLine("binary: " + UtilsTest.FormatSize(bytes.Length));

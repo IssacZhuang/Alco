@@ -213,19 +213,19 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, table);
     }
 
-    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    public override void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value)
     {
         BinaryTable table = new BinaryTable();
         foreach (var item in value)
         {
-            table.Add(item.Key, BinaryValue.CreateByMemory(item.Value.AsSpan()));
+            table.Add(item.Key, new BinaryValue(item.Value));
         }
         _content.Add(key, table);
     }
 
-    public override void BindBinary(string key, ref byte[] data)
+    public override void BindBinary(string key, ref ReadOnlyMemory<byte> data)
     {
-        _content.Add(key, BinaryValue.CreateByMemory(data.AsSpan()));
+        _content.Add(key, new BinaryValue(data));
     }
 
     public override void BindReference<T>(string key, ref T? referenceable) where T : default

@@ -55,7 +55,7 @@ public class BenchmarkSerializationEncoding
         table["strVal"] = "2";
         table["floatVal"] = 3.14;
         table["boolVal"] = true;
-        byte[] bytes = BinaryParser.EncodeTable(table);
+        ReadOnlyMemory<byte> bytes = BinaryParser.EncodeTable(table);
     }
 }
 
@@ -63,7 +63,7 @@ public class BenchmarkSerializationDecoding
 {
     private string _xmlInput;
     private string _jsonInput;
-    private byte[] _binaryInput;
+    private ReadOnlyMemory<byte> _binaryInput;
 
     [GlobalSetup]
     public void Setup()
