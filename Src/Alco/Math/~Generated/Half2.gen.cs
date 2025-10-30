@@ -131,7 +131,7 @@ namespace Alco
             return new Half2((Half)a.X, (Half)a.Y);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Half2 other && this == other;
         }

@@ -159,7 +159,7 @@ namespace Alco
             return new int4((int)a.X, (int)a.Y, (int)a.Z, (int)a.W);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is int4 other && this == other;
         }

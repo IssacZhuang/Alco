@@ -152,7 +152,7 @@ namespace Alco
             return new Half3((Half)a.X, (Half)a.Y, (Half)a.Z);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Half3 other && this == other;
         }

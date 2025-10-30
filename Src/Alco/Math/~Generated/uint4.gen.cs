@@ -149,7 +149,7 @@ namespace Alco
             return new uint4((uint)a.X, (uint)a.Y, (uint)a.Z, (uint)a.W);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is uint4 other && this == other;
         }

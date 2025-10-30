@@ -109,7 +109,7 @@ namespace Alco
             return new uint2((uint)a.X, (uint)a.Y);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is uint2 other && this == other;
         }

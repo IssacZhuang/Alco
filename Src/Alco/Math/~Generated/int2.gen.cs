@@ -119,7 +119,7 @@ namespace Alco
             return new int2((int)a.X, (int)a.Y);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is int2 other && this == other;
         }

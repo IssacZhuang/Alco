@@ -289,7 +289,7 @@ public class FileVector
 
         //equals
         builder.AppendLine();
-        builder.AppendLine("        public override bool Equals(object obj)");
+        builder.AppendLine("        public override bool Equals(object? obj)");
         builder.AppendLine("        {");
         builder.AppendLine($"            return obj is {_vectorType}{_vectorSize} other && this == other;");
         builder.AppendLine("        }");

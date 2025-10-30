@@ -175,7 +175,7 @@ namespace Alco
             return new Half4((Half)a.X, (Half)a.Y, (Half)a.Z, (Half)a.W);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Half4 other && this == other;
         }

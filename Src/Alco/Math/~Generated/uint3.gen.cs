@@ -128,7 +128,7 @@ namespace Alco
             return new uint3((uint)a.X, (uint)a.Y, (uint)a.Z);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is uint3 other && this == other;
         }

@@ -138,7 +138,7 @@ namespace Alco
             return new int3((int)a.X, (int)a.Y, (int)a.Z);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is int3 other && this == other;
         }
