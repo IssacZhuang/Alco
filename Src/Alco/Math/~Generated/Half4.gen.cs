@@ -152,6 +152,16 @@ namespace Alco
         {
             return new Half4(a.X / b.X, a.Y / b.Y, a.Z / b.Z, a.W / b.W);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(Half4 a, Half4 b)
+        {
+            return a.X == b.X && a.Y == b.Y && a.Z == b.Z && a.W == b.W;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(Half4 a, Half4 b)
+        {
+            return !(a == b);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector4(Half4 a)
@@ -163,6 +173,21 @@ namespace Alco
         public static implicit operator Half4(Vector4 a)
         {
             return new Half4((Half)a.X, (Half)a.Y, (Half)a.Z, (Half)a.W);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Half4 other && this == other;
+        }
+
+        public bool Equals(Half4 other)
+        {
+            return this == other;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(X, Y, Z, W);
         }
 
         public override string ToString()

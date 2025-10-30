@@ -56,6 +56,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_Particle2D => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl");
 
+    public Shader Shader_Particle2DAnimated => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl");
+
     public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
 
     public Shader Shader_SpriteInstanced => GetShader("Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl");

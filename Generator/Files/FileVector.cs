@@ -221,6 +221,32 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
+        //operator ==
+        builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine($"        public static bool operator ==({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
+        builder.AppendLine("        {");
+        builder.Append("            return ");
+        for (int i = 0; i < _vectorSize; i++)
+        {
+            builder.Append($"a.{FieldsUpperCase[i]} == b.{FieldsUpperCase[i]}");
+            if (i < _vectorSize - 1)
+            {
+                builder.Append(" && ");
+            }
+            else
+            {
+                builder.AppendLine(";");
+            }
+        }
+        builder.AppendLine("        }");
+
+        //operator !=
+        builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
+        builder.AppendLine($"        public static bool operator !=({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return !(a == b);");
+        builder.AppendLine("        }");
+
         //to vector
         builder.AppendLine();
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
@@ -261,6 +287,35 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
+        //equals
+        builder.AppendLine();
+        builder.AppendLine("        public override bool Equals(object obj)");
+        builder.AppendLine("        {");
+        builder.AppendLine($"            return obj is {_vectorType}{_vectorSize} other && this == other;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine($"        public bool Equals({_vectorType}{_vectorSize} other)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return this == other;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        public override int GetHashCode()");
+        builder.AppendLine("        {");
+        builder.Append("            return HashCode.Combine(");
+        for (int i = 0; i < _vectorSize; i++)
+        {
+            builder.Append($"{FieldsUpperCase[i]}");
+            if (i < _vectorSize - 1)
+            {
+                builder.Append(", ");
+            }
+            else
+            {
+                builder.AppendLine(");");
+            }
+        }
+        builder.AppendLine("        }");
+
         //to string
         builder.AppendLine();
         builder.AppendLine("        public override string ToString()");
@@ -277,7 +332,7 @@ public class FileVector
             {
                 builder.AppendLine(")\";");
             }
-        }   
+        }
         builder.AppendLine("        }");
 
         //end class
@@ -469,6 +524,33 @@ public class FileVector
 //         public static int2 operator /(int2 a, int2 b)
 //         {
 //             return new int2(a.x / b.x, a.y / b.y);
+//         }
+
+//         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//         public static bool operator ==(int2 a, int2 b)
+//         {
+//             return a.x == b.x && a.y == b.y;
+//         }
+
+//         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//         public static bool operator !=(int2 a, int2 b)
+//         {
+//             return !(a == b);
+//         }
+
+//         public override bool Equals(object obj)
+//         {
+//             return obj is int2 other && this == other;
+//         }
+
+//         public bool Equals(int2 other)
+//         {
+//             return this == other;
+//         }
+
+//         public override int GetHashCode()
+//         {
+//             return HashCode.Combine(x, y);
 //         }
 
 //         //to vector2
