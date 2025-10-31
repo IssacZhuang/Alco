@@ -188,7 +188,10 @@ public unsafe class Sdl3Input : Input
 
     internal void OnSdlKeyDown(SDL_Keycode key)
     {
-        int k = SdlKeyMap[key];
+        if(!SdlKeyMap.TryGetValue(key, out int k))
+        {
+            return;
+        }
         _state.iskeyDown[k] = true;
         _state.iskeyPressing[k] = true;
         _isGamepadInputting = false;
@@ -197,7 +200,10 @@ public unsafe class Sdl3Input : Input
 
     internal void OnSdlKeyUp(SDL_Keycode key)
     {
-        int k = SdlKeyMap[key];
+        if(!SdlKeyMap.TryGetValue(key, out int k))
+        {
+            return;
+        }
         _state.iskeyUp[k] = true;
         _state.iskeyPressing[k] = false;
         _isGamepadInputting = false;
