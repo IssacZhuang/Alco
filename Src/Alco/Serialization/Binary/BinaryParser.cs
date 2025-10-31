@@ -34,6 +34,11 @@ namespace Alco
         /// <returns>A BinaryTable containing the deserialized data</returns>
         public unsafe static BinaryTable DecodeTable(ReadOnlySpan<byte> bytes)
         {
+            if(bytes.Length == 0)
+            {
+                return new BinaryTable();
+            }
+
             fixed (byte* ptr = bytes)
             {
                 using (Stream stream = new UnmanagedMemoryStream(ptr, bytes.Length))
