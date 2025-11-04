@@ -13,6 +13,13 @@ public unsafe class Sdl3Gamepad : Gamepad
     private readonly SDL_Gamepad _native;
     private const int MaxButtonCount = 32;
 
+
+    /// <summary>
+    /// Threshold for converting trigger axis values to button presses.
+    /// Axis values in range [0, 1] above this threshold will register as button pressed.
+    /// </summary>
+    private const float TriggerButtonThreshold = 0.33f;
+
     private struct ButtonState
     {
         public fixed bool isDown[MaxButtonCount];
@@ -137,6 +144,64 @@ public unsafe class Sdl3Gamepad : Gamepad
         {
             _state.isDown[i] = false;
             _state.isUp[i] = false;
+        }
+    }
+
+    /// <summary>
+    /// Updates trigger button states based on their axis values.
+    /// This allows triggers to function as both analog axes and digital buttons.
+    /// Should be called after ResetFrame() each frame.
+    /// </summary>
+    internal void UpdateTriggerButtons()
+    {
+        if (!IsConnected)
+        {
+            return;
+        }
+
+        // Update left trigger button state
+        float leftTriggerValue = GetAxis(GamepadAxis.LeftTrigger);
+        bool leftTriggerPressed = leftTriggerValue >= TriggerButtonThreshold;
+        UpdateTriggerButtonState(GamepadButton.LeftTrigger, leftTriggerPressed);
+
+        // Update right trigger button state
+        float rightTriggerValue = GetAxis(GamepadAxis.RightTrigger);
+        bool rightTriggerPressed = rightTriggerValue >= TriggerButtonThreshold;
+        UpdateTriggerButtonState(GamepadButton.RightTrigger, rightTriggerPressed);
+    }
+
+    /// <summary>
+    /// Updates a trigger button state based on the current pressed state,
+    /// handling transitions (down/up events) and continuous press.
+    /// </summary>
+    private void UpdateTriggerButtonState(GamepadButton button, bool isPressed)
+    {
+        int i = (int)button;
+        bool wasPressing = _state.isPressing[i];
+
+        if (isPressed && !wasPressing)
+        {
+            // Trigger just crossed threshold - button down event
+            _state.isDown[i] = true;
+            _state.isPressing[i] = true;
+            DoButtonDown(button);
+        }
+        else if (!isPressed && wasPressing)
+        {
+            // Trigger just went below threshold - button up event
+            _state.isUp[i] = true;
+            _state.isPressing[i] = false;
+            DoButtonUp(button);
+        }
+        else if (isPressed)
+        {
+            // Trigger still above threshold - continuous press
+            _state.isPressing[i] = true;
+        }
+        else
+        {
+            // Trigger still below threshold - not pressed
+            _state.isPressing[i] = false;
         }
     }
 

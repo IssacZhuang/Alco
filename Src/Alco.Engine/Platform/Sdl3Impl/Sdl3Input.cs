@@ -104,6 +104,7 @@ public unsafe class Sdl3Input : Input
         foreach (var gp in _gamepadMap.Values)
         {
             gp.ResetFrame();
+            gp.UpdateTriggerButtons();
         }
 
         // Collect disconnected gamepads first to avoid modifying the dictionary during enumeration
