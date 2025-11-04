@@ -9,10 +9,11 @@ namespace Alco.Engine;
 /// </summary>
 public sealed class PluginGamepadCursor : BaseEnginePlugin
 {
+    
 
     private sealed class GamepadCursorSystem : BaseEngineSystem
     {
-        public const float VelocityMultiplier = 750f;
+        public const float VelocityMultiplier = 800f;
         public const float ScreenHeightMultiplier = 1 / 1080f;
 
         private readonly Input _input;
@@ -25,10 +26,12 @@ public sealed class PluginGamepadCursor : BaseEnginePlugin
         private Vector2 _pixelAccumulator;
         private Func<Vector2, Vector2> _curve = AxisInputAction.CurveQuadratic;
 
-        public GamepadCursorSystem(Input input, View view)
+        public GamepadCursorSystem(Input input, View view, float deadZone, float sensitivity)
         {
             _input = input;
             _view = view;
+            DeadZone = deadZone;
+            Sensitivity = sensitivity;
         }
 
         /// <summary>
@@ -101,12 +104,24 @@ public sealed class PluginGamepadCursor : BaseEnginePlugin
     public override int Order => 2150;
 
     /// <summary>
+    /// Gets or sets the dead zone threshold for gamepad axis input to avoid drift.
+    /// Values below this threshold are treated as zero. Default is 0.1.
+    /// </summary>
+    public float DeadZone { get; set; } = 0.1f;
+
+    /// <summary>
+    /// Gets or sets the sensitivity multiplier for cursor movement speed.
+    /// Higher values result in faster cursor movement. Default is 1.0.
+    /// </summary>
+    public float Sensitivity { get; set; } = 1.0f;
+
+    /// <summary>
     /// Install the gamepad cursor system into the engine.
     /// </summary>
     /// <param name="engine">Engine instance.</param>
     public override void OnPostInitialize(GameEngine engine)
     {
-        var system = new GamepadCursorSystem(engine.Input, engine.MainView);
+        var system = new GamepadCursorSystem(engine.Input, engine.MainView, DeadZone, Sensitivity);
         engine.AddSystem(system);
     }
 }
