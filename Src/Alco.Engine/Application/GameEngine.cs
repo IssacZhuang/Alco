@@ -757,6 +757,20 @@ IDisposable
         }
     }
 
+    public static MemoryPressure GetMemoryPressure()
+    {
+        GCMemoryInfo gCMemoryInfo = GC.GetGCMemoryInfo();
+        if ((double)gCMemoryInfo.MemoryLoadBytes >= (double)gCMemoryInfo.HighMemoryLoadThresholdBytes * 0.9)
+        {
+            return MemoryPressure.High;
+        }
+        if ((double)gCMemoryInfo.MemoryLoadBytes >= (double)gCMemoryInfo.HighMemoryLoadThresholdBytes * 0.7)
+        {
+            return MemoryPressure.Medium;
+        }
+        return MemoryPressure.Low;
+    }
+
     /// <summary>
     /// Save a preference to the application data folder as JSON
     /// </summary>
