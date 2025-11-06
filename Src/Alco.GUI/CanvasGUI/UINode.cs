@@ -26,8 +26,6 @@ public class UINode : IEnumerable<UINode>
     private ColorFloat _renderColor = ColorFloat.White;
     private bool _isColorDirty = true;
 
-    private MaskState _maskState = MaskState.None;
-
     public virtual bool BubbleEvent { get; set; } = true;
 
     public event Action<Canvas, Vector2>? EventOnClick;
@@ -346,21 +344,6 @@ public class UINode : IEnumerable<UINode>
         pos.Y = (bottomPadding - topPadding) * 0.5f;
         Position = pos;
     }
-
-    #region Mask Properties
-
-
-    /// <summary>
-    /// Is the node has mask.
-    /// </summary>
-    /// <value></value>
-    public bool HasMask
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _maskState != MaskState.None;
-    }
-
-    #endregion
 
     /// <summary>
     /// The children of the node. Supports both read access and collection initializer syntax.
