@@ -58,11 +58,6 @@ public class UIText : UISelectable
     /// <value></value>
     public float LineSpacing { get; set; } = 1f;
 
-    /// <summary>
-    /// The text color.
-    /// </summary>
-    /// <value></value>
-    public Color32 Color { get; set; } = 0xffffff;
 
     /// <summary>
     /// The text data.
@@ -231,7 +226,7 @@ public class UIText : UISelectable
 
     protected virtual void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform)
     {
-        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f);
+        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, (Color32)RenderColor, 1f);
     }
 
     protected void SetLineBreakDirty()

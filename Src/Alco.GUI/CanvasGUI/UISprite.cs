@@ -49,12 +49,6 @@ public class UISprite : UINode
     }
 
     /// <summary>
-    /// The color of the sprite.
-    /// </summary>
-    /// <returns></returns>
-    public ColorFloat Color { get; set; } = new ColorFloat(1, 1, 1, 1);
-
-    /// <summary>
     /// The UV rectangle that defines the portion of the texture to use.
     /// </summary>
     public Rect UvRect { get; set; } = Rect.One;
@@ -133,17 +127,17 @@ public class UISprite : UINode
         {
             Transform2D transform = RenderTransform;
             transform.Scale = Vector2.One; // already scaled in mesh
-            canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), Texture, transform.Matrix, UvRect, Color);
+            canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), Texture, transform.Matrix, UvRect, RenderColor);
             return;
         }
         else if (ImageType == ImageType.Tiled && Texture != null)
         {
             Transform2D transform = RenderTransform;
             transform.Scale = Vector2.One; // already scaled in mesh
-            canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), Texture, transform.Matrix, UvRect, Color);
+            canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), Texture, transform.Matrix, UvRect, RenderColor);
             return;
         }
-        canvas.DrawSprite(Texture, RenderTransform.Matrix, UvRect, Color);
+        canvas.DrawSprite(Texture, RenderTransform.Matrix, UvRect, RenderColor);
 
     }
 }

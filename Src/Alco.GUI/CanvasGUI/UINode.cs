@@ -2,6 +2,7 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Alco;
 
 namespace Alco.GUI;
 
@@ -20,6 +21,10 @@ public class UINode : IEnumerable<UINode>
     private bool _isTransformDirty = true;
 
     private bool _isRenderDataDirty = true;
+
+    private ColorFloat _localColor = ColorFloat.White;
+    private ColorFloat _renderColor = ColorFloat.White;
+    private bool _isColorDirty = true;
 
     private MaskState _maskState = MaskState.None;
 
@@ -253,6 +258,38 @@ public class UINode : IEnumerable<UINode>
             Transform2D transform = RenderTransform;
             Vector2 halfSize = transform.Scale * 0.5f;
             return new BoundingBox2D(transform.Position - halfSize, transform.Position + halfSize);
+        }
+    }
+
+    #endregion
+
+    #region Color Properties
+
+    /// <summary>
+    /// The local color of the node. Will be multiplied with parent's current color to get the final current color.
+    /// </summary>
+    public ColorFloat Color
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _localColor;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _localColor = value;
+            SetColorDirty();
+        }
+    }
+
+    /// <summary>
+    /// The current color of the node, which is the local color multiplied by the parent's current color.
+    /// This is a read-only property that represents the final computed color.
+    /// </summary>
+    public ColorFloat RenderColor
+    {
+        get
+        {
+            TryRefreshColor();
+            return _renderColor;
         }
     }
 
@@ -551,6 +588,7 @@ public class UINode : IEnumerable<UINode>
         }
 
         child.SetTransformDirty();
+        child.SetColorDirty();
     }
 
     private static void AttachToTreeCore(Canvas canvas, UINode node)
@@ -822,6 +860,45 @@ public class UINode : IEnumerable<UINode>
 
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected void SetColorDirty()
+    {
+        _isColorDirty = true;
+    }
+
+    protected void SpreadColorDirty()
+    {
+        for (int i = 0; i < _children.Count; i++)
+        {
+            _children[i].SetColorDirty();
+        }
+    }
+
+    protected bool TryRefreshColor()
+    {
+        if (!_isColorDirty)
+        {
+            return false;
+        }
+        ForceRefreshColor();
+        return true;
+    }
+
+    protected void ForceRefreshColor()
+    {
+        if (Parent != null)
+        {
+            _renderColor = _localColor * Parent.RenderColor;
+        }
+        else
+        {
+            _renderColor = _localColor;
+        }
+
+        SpreadColorDirty();
+        _isColorDirty = false;
+    }
+
 
     private Vector2 GetParentSize()
     {
@@ -848,6 +925,7 @@ public class UINode : IEnumerable<UINode>
 
         OnUpdate(canvas, delta);
         TryRefreshTransform();
+        TryRefreshColor();
     }
 
     #region Event

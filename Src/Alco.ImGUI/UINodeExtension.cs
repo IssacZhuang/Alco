@@ -187,6 +187,13 @@ public static class UINodeExtension
             node.Anchor = new Anchor(aMin, aMax);
         }
 
+
+        Vector4 color = node.Color;
+        if (ImGui.ColorEdit4("Color", ref color, ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float))
+        {
+            node.Color = color;
+        }
+
         ImGui.Separator();
         ImGui.Text("RenderTransform:");
         var rt = node.RenderTransform;
@@ -197,6 +204,14 @@ public static class UINodeExtension
         ImGui.InputFloat2("RT Position", ref rtPos);
         ImGui.InputFloat("RT Rotation (deg)", ref rtRotDeg);
         ImGui.InputFloat2("RT Scale", ref rtScale);
+        ImGui.EndDisabled();
+
+        // Display RenderColor (read-only)
+        ImGui.Separator();
+        ImGui.Text("RenderColor (inherited):");
+        Vector4 renderColorVec = node.RenderColor;
+        ImGui.BeginDisabled();
+        ImGui.ColorEdit4("RenderColor", ref renderColorVec, ImGuiColorEditFlags.Float);
         ImGui.EndDisabled();
     }
 
