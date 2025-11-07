@@ -205,10 +205,6 @@ public class PluginHDR : BaseEnginePlugin
         }
 
         RenderingSystem rendering = _engine.RenderingSystem;
-
-        _shader?.Dispose();
-        _material?.Dispose();
-        _dataBuffer?.Dispose();
         _shader = null;
         _material = null;
         _dataBuffer = null;
