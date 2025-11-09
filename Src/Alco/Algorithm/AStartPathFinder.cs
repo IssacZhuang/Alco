@@ -28,8 +28,9 @@ public abstract class AStarPathFinder : IPathFinder
     /// <param name="path">Output path queue (cleared before writing) containing grid cells to traverse.</param>
     /// <param name="start">World-space start position; will be cast to integral grid cell.</param>
     /// <param name="end">World-space goal position; will be cast to integral grid cell.</param>
+    /// <param name="ignoreEndPoint">If true, returns a path to any traversable cell adjacent to the end point. If false, path must reach the exact end point.</param>
     /// <returns>True if a path was found; otherwise false.</returns>
-    public bool TryGetPath(ICollection<Vector2> path, Vector2 start, Vector2 end)
+    public bool TryGetPath(ICollection<Vector2> path, Vector2 start, Vector2 end, bool ignoreEndPoint)
     {
         ArgumentNullException.ThrowIfNull(path);
         Reset();
@@ -44,9 +45,39 @@ public abstract class AStarPathFinder : IPathFinder
             return true;
         }
 
-        if (!IsInsideBounds(endCell) || !IsTraversable(endCell))
+        // When ignoreEndPoint is false, end must be traversable. 
+        // When ignoreEndPoint is true, we only need at least one traversable neighbor.
+        if (!ignoreEndPoint)
         {
-            return false;
+            if (!IsInsideBounds(endCell) || !IsTraversable(endCell))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            // Verify at least one neighbor of endCell is traversable
+            bool hasTraversableNeighbor = false;
+            ReadOnlySpan<int2> orthogonalNeighbors = stackalloc int2[4]
+            {
+                new int2(1, 0),
+                new int2(-1, 0),
+                new int2(0, 1),
+                new int2(0, -1)
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                int2 neighbor = new int2(endCell.X + orthogonalNeighbors[i].X, endCell.Y + orthogonalNeighbors[i].Y);
+                if (IsInsideBounds(neighbor) && IsTraversable(neighbor))
+                {
+                    hasTraversableNeighbor = true;
+                    break;
+                }
+            }
+            if (!hasTraversableNeighbor)
+            {
+                return false;
+            }
         }
 
         _gScore[startCell] = 0f;
@@ -70,7 +101,17 @@ public abstract class AStarPathFinder : IPathFinder
             _openSet.TryDequeue(out int2 current, out _);
             _inOpen.Remove(current);
 
-            if (current.X == endCell.X && current.Y == endCell.Y)
+            // Check if we've reached the goal
+            bool reachedGoal = (current.X == endCell.X && current.Y == endCell.Y);
+            if (!reachedGoal && ignoreEndPoint)
+            {
+                // When ignoring endpoint, check if current is adjacent to endCell
+                int dx = Math.Abs(current.X - endCell.X);
+                int dy = Math.Abs(current.Y - endCell.Y);
+                reachedGoal = (dx + dy == 1); // Only orthogonal neighbors count as "reached"
+            }
+
+            if (reachedGoal)
             {
                 // Reconstruct using reusable buffer
                 ReconstructPath(current);
