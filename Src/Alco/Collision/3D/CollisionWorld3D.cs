@@ -332,6 +332,35 @@ public unsafe class CollisionWorld3D : AutoDisposable
         }
     }
 
+    /// <summary>
+    /// Casts a ray against targets and returns the first hit.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="ray">The ray to cast in world space.</param>
+    /// <param name="hitTarget">The target object that was hit, if any.</param>
+    /// <param name="hit">The raycast hit information, if any.</param>
+    /// <returns>True if a target was hit, false otherwise.</returns>
+    public bool TryCastRayFirstHit<TTarget>(in Ray3D ray, out TTarget? hitTarget, out RaycastHit3D hit) where TTarget : class
+    {
+        hitTarget = null;
+        hit = default;
+
+        RayCastResult3D result = _bvh.CastRayFirstHit(ray);
+        if (!result.Hit)
+        {
+            return false;
+        }
+
+        object obj = _targets[result.Collider.UserData];
+        if (obj is TTarget t)
+        {
+            hitTarget = t;
+            hit = result.HitInfo;
+            return true;
+        }
+
+        return false;
+    }
 
     public void ClearTargets()
     {
