@@ -12,10 +12,7 @@ public partial class RenderingSystem
     {
         get
         {
-            if (_textureWhite == null)
-            {
-                _textureWhite = CreateTexture2D(4, 4, 0xffffff);
-            }
+            _textureWhite ??= CreateTexture2D(4, 4, 0xffffff);
             return _textureWhite;
         }
     }
@@ -26,11 +23,19 @@ public partial class RenderingSystem
     {
         get
         {
-            if (_textureBlack == null)
-            {
-                _textureBlack = CreateTexture2D(4, 4, 0);
-            }
+            _textureBlack ??= CreateTexture2D(4, 4, 0);
             return _textureBlack;
+        }
+    }
+
+    private Texture2D? _textureTransparent;
+
+    public Texture2D TextureTransparent
+    {
+        get
+        {
+            _textureTransparent ??= CreateTexture2D(4, 4, new Color32(0,0,0,0));
+            return _textureTransparent;
         }
     }
 
