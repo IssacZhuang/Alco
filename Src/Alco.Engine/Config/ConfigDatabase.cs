@@ -306,7 +306,13 @@ public class ConfigDatabase
                 }
                 catch (Exception ex)
                 {
-                    _onError($"Error deserializing config: {ex}");
+                    string id = "unknown";
+                    JsonDocument document = documents[i];
+                    if (document != null && document.RootElement.TryGetProperty("Id", out var idProperty))
+                    {
+                        id = idProperty.GetString() ?? "unknown";
+                    }
+                    _onError($"Error deserializing config '{id}': {ex}");
                 }
             });
 
