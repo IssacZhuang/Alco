@@ -526,7 +526,7 @@ namespace Alco
         {
             Vector3 rnd = NextVector3(new Vector3(2.0f * PI, 2.0f * PI, 1.0f));
             float u1 = rnd.Z;
-            Vector2 theta_rho = rnd.XY();
+            Vector2 theta_rho = rnd.XY;
 
             float i = sqrt(1.0f - u1);
             float j = sqrt(u1);

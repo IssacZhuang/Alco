@@ -6,10 +6,16 @@ namespace Alco
 {
     public static class Vector2Extension
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector2 YX(this Vector2 v)
+        extension(Vector2 value)
         {
-            return new Vector2(v.Y, v.X);
+            public Vector2 YX
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get
+                {
+                    return new Vector2(value.Y, value.X);
+                }
+            }
         }
     }
 }

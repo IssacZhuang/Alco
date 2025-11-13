@@ -32,6 +32,7 @@
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
     <AvaloniaVersion>11.3.3</AvaloniaVersion>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
   <!-- Add conditional Release configuration -->
