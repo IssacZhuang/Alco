@@ -16,7 +16,7 @@ namespace Alco.Engine
         public static long MaxTimerTick = long.MaxValue / 2;
 
         private readonly Stopwatch _stopwatch;
-        
+
         private long _pyhsicsTickInterval;
         private long _detlaTimerTick;
         private long _updateTickTimer;
@@ -24,6 +24,7 @@ namespace Alco.Engine
         private float _pyhsicsDeltaTime;
         private float _gameSpeed;
         private int _physicsTickRate;
+        private int _maxPhysicsTickAccumulation;
 
         public float GameSpeed
         {
@@ -46,6 +47,18 @@ namespace Alco.Engine
             }
         }
 
+        /// <summary>
+        /// Maximum physics tick accumulation multiplier to prevent excessive time accumulation.
+        /// Default is 5x the physics interval. For example, at 60Hz, this allows ~83ms maximum accumulation.
+        /// </summary>
+        public int MaxPhysicsTickAccumulation
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _maxPhysicsTickAccumulation;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => _maxPhysicsTickAccumulation = value;
+        }
+
         public EngineTimer()
         {
             _stopwatch = new Stopwatch();
@@ -56,6 +69,7 @@ namespace Alco.Engine
             _updateTickTimer = 0;
             _physicsTickTimer = 0;
             _gameSpeed = 1f;
+            _maxPhysicsTickAccumulation = 3;
         }
 
         /// <summary>
@@ -70,6 +84,11 @@ namespace Alco.Engine
             physicsDeltaTime = _pyhsicsDeltaTime * _gameSpeed;
 
             _physicsTickTimer += _detlaTimerTick;
+
+            // Limit maximum accumulated time to prevent excessive accumulation
+            long maxAccumulatedTime = _pyhsicsTickInterval * _maxPhysicsTickAccumulation;
+            _physicsTickTimer = Math.Min(_physicsTickTimer, maxAccumulatedTime);
+
             if (_physicsTickTimer >= _pyhsicsTickInterval)
             {
                 _physicsTickTimer -= _pyhsicsTickInterval;
