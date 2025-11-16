@@ -772,6 +772,19 @@ IDisposable
     }
 
     /// <summary>
+    /// Throws an exception if the current thread is not the main thread
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when called from a non-main thread</exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ThrowIfNotMainThread()
+    {
+        if (Environment.CurrentManagedThreadId != _mainThreadId)
+        {
+            throw new InvalidOperationException($"This operation must be called from the main thread (ID: {_mainThreadId}), but was called from thread ID: {Environment.CurrentManagedThreadId}");
+        }
+    }
+
+    /// <summary>
     /// Save a preference to the application data folder as JSON
     /// </summary>
     /// <typeparam name="T">The type of the preference value</typeparam>
