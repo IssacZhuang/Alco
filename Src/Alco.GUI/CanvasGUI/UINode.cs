@@ -60,7 +60,29 @@ public class UINode : IEnumerable<UINode>
     /// Whether the node is enabled.
     /// </summary>
     /// <value></value>
-    public bool IsEnable { get; set; } = true;
+    public bool IsEnable
+    {
+        get => _isEnable;
+        set
+        {
+            if (_isEnable == value)
+            {
+                return;
+            }
+
+            _isEnable = value;
+
+            if (_isEnable)
+            {
+                OnEnable();
+            }
+            else
+            {
+                OnDisable();
+            }
+        }
+    }
+    private bool _isEnable = true;
 
     /// <summary>
     /// Whether the node is affected by the layout.
@@ -764,6 +786,22 @@ public class UINode : IEnumerable<UINode>
     }
 
     protected virtual void OnDetachFromTree(Canvas canvas)
+    {
+
+    }
+
+    /// <summary>
+    /// Called when the node is enabled.
+    /// </summary>
+    protected virtual void OnEnable()
+    {
+
+    }
+
+    /// <summary>
+    /// Called when the node is disabled.
+    /// </summary>
+    protected virtual void OnDisable()
     {
 
     }
