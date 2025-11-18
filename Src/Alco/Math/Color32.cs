@@ -14,6 +14,7 @@ public struct Color32
 {
     public static readonly Color32 White = new(255, 255, 255, 255);
     public static readonly Color32 Black = new(0, 0, 0, 255);
+    public static readonly Color32 Transparent = new(0, 0, 0, 0);
 
     public const float Inv255 = 1f / 255f;
     public byte R;

@@ -30,6 +30,8 @@ public class FloodFillLightMap : AutoDisposable
 
     public RenderTexture Texture => _lightMaps.Front;
 
+    public RenderTexture OpacityMap => _opacityMap;
+
     public int Width => _lightMapCPU.Width;
     public int Height => _lightMapCPU.Height;
     public string Name { get; }
