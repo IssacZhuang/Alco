@@ -31,6 +31,25 @@ public static class UtilsType
     }
 
     /// <summary>
+    /// Determines whether the specified type is a <see cref="ISet{T}"/>.
+    /// </summary>
+    /// <param name="type">The type to check.</param>
+    /// <param name="genericType">When this method returns, contains the generic type argument of the ISet if the type is a generic ISet; otherwise, null.</param>
+    /// <returns>true if the specified type is a generic ISet; otherwise, false.</returns>
+    public static bool IsGenericSet(Type type, [MaybeNullWhen(false)] out Type genericType)
+    {
+        if (type.IsGenericType &&
+            (typeof(ISet<>).IsAssignableFrom(type.GetGenericTypeDefinition()) ||
+             type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ISet<>))))
+        {
+            genericType = type.GetGenericArguments()[0];
+            return true;
+        }
+        genericType = null;
+        return false;
+    }
+
+    /// <summary>
     /// Determines whether the specified type is a <see cref="IDictionary{TKey, TValue}"/>.
     /// </summary>
     /// <param name="type">The type to check.</param>

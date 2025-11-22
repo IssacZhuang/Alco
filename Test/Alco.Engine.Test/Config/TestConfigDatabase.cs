@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -231,6 +232,16 @@ namespace Alco.Engine.Test
             public Dictionary<string, WeaponConfig> WeaponsByType { get; set; } = new();
             public Dictionary<string, List<ArmorConfig>> ArmorByCategory { get; set; } = new();
             public Dictionary<int, TestConfig> ConfigsByLevel { get; set; } = new();
+        }
+
+        /// <summary>
+        /// Config class that contains HashSet with config references.
+        /// </summary>
+        private class ConfigWithSetReferences : Configable
+        {
+            public string Name { get; set; } = string.Empty;
+            public HashSet<TestConfig> ReferencedTestConfigs { get; set; } = new();
+            public HashSet<Configable> MixedConfigs { get; set; } = new();
         }
 
         /// <summary>
@@ -1703,6 +1714,103 @@ namespace Alco.Engine.Test
 
         #endregion
 
+        #region Set Reference Resolution Tests
+
+        [Test]
+        public void ResolveReferences_SetReference_ShouldResolveAllItems()
+        {
+            // Arrange
+            var testConfig1Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "set-test-1",
+                "Name": "Set Test Config 1",
+                "Value": 10
+            }
+            """;
+
+            var testConfig2Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "set-test-2",
+                "Name": "Set Test Config 2",
+                "Value": 20
+            }
+            """;
+
+            var testConfig3Json = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
+                "Id": "set-test-3",
+                "Name": "Set Test Config 3",
+                "Value": 30
+            }
+            """;
+
+            var configWithSetRefsJson = """
+            {
+                "$type": "Alco.Engine.Test.TestConfigDatabase+ConfigWithSetReferences",
+                "Id": "config-with-set",
+                "Name": "Config With Set References",
+                "ReferencedTestConfigs": [
+                    { "Id": "set-test-1" },
+                    { "Id": "set-test-2" }
+                ],
+                "MixedConfigs": [
+                    { "Id": "set-test-3" },
+                    { "Id": "set-test-1" }
+                ]
+            }
+            """;
+
+            _fileSource.AddFile("set-test-1.json", testConfig1Json);
+            _fileSource.AddFile("set-test-2.json", testConfig2Json);
+            _fileSource.AddFile("set-test-3.json", testConfig3Json);
+            _fileSource.AddFile("config-with-set.json", configWithSetRefsJson);
+            _configDatabase.AddFileSource(_fileSource);
+
+            // Act
+            var configWithSetRefs = _configDatabase.GetConfig<ConfigWithSetReferences>("config-with-set");
+
+            // Assert
+            Assert.That(configWithSetRefs, Is.Not.Null);
+            Assert.That(configWithSetRefs.ReferencedTestConfigs, Is.Not.Null);
+            Assert.That(configWithSetRefs.ReferencedTestConfigs.Count, Is.EqualTo(2));
+
+            Assert.That(configWithSetRefs.MixedConfigs, Is.Not.Null);
+            Assert.That(configWithSetRefs.MixedConfigs.Count, Is.EqualTo(2));
+
+            // Verify all set items are resolved correctly
+            // Since it's a set, order is not guaranteed, so we check for existence
+            var item1 = configWithSetRefs.ReferencedTestConfigs.Single(c => c.Id == "set-test-1");
+            var item2 = configWithSetRefs.ReferencedTestConfigs.Single(c => c.Id == "set-test-2");
+
+            Assert.That(item1.Name, Is.EqualTo("Set Test Config 1"));
+            Assert.That(item1.Value, Is.EqualTo(10));
+
+            Assert.That(item2.Name, Is.EqualTo("Set Test Config 2"));
+            Assert.That(item2.Value, Is.EqualTo(20));
+
+            var mixedItem3 = configWithSetRefs.MixedConfigs.Single(c => c.Id == "set-test-3");
+            var mixedItem1 = configWithSetRefs.MixedConfigs.Single(c => c.Id == "set-test-1");
+
+            Assert.That(mixedItem3.Id, Is.EqualTo("set-test-3"));
+            Assert.That(mixedItem3, Is.InstanceOf<TestConfig>());
+            Assert.That(((TestConfig)mixedItem3).Name, Is.EqualTo("Set Test Config 3"));
+
+            Assert.That(mixedItem1.Id, Is.EqualTo("set-test-1"));
+
+            // Verify that the referenced configs are the same instances as when accessed directly
+            var directConfig1 = _configDatabase.GetConfig<TestConfig>("set-test-1");
+            var directConfig2 = _configDatabase.GetConfig<TestConfig>("set-test-2");
+            var directConfig3 = _configDatabase.GetConfig<TestConfig>("set-test-3");
+
+            Assert.That(item1, Is.SameAs(directConfig1));
+            Assert.That(item2, Is.SameAs(directConfig2));
+            Assert.That(mixedItem3, Is.SameAs(directConfig3));
+            Assert.That(mixedItem1, Is.SameAs(directConfig1));
+        }
+
         #region Nested Object Reference Resolution Tests
 
         [Test]
@@ -2349,5 +2457,6 @@ namespace Alco.Engine.Test
             Assert.That(complexConfig.ReferencedTestConfigs[0].Id, Is.EqualTo("test-1"));
             Assert.That(complexConfig.ReferencedTestConfigs[1].Id, Is.EqualTo("test-2"));
         }
+        #endregion
     }
 }

@@ -394,6 +394,11 @@ public class ConfigDatabase
             ResolveListReferences(@object, path, genericType, depth + 1);
             return;
         }
+        else if (UtilsType.IsGenericSet(type, out genericType))
+        {
+            ResolveSetReferences(@object, path, genericType, depth + 1);
+            return;
+        }
         else if (UtilsType.IsGenericDictionary(type, out var keyType, out var valueType))
         {
             ResolveDictionaryReferences(@object, path, keyType, valueType, depth + 1);
@@ -515,6 +520,103 @@ public class ConfigDatabase
         catch (Exception ex)
         {
             _onError($"Error resolving list references for property {propertyName} : {ex}");
+        }
+    }
+
+    private void ResolveSetReferences(object set, string propertyName, Type genericType, int depth)
+    {
+        try
+        {
+            if (genericType.IsAssignableTo(typeof(Configable)))
+            {
+                // If the set contains Configable objects, resolve each element
+                if (set is ISet<Configable> configSet)
+                {
+                    List<Configable> toRemove = new();
+                    List<Configable> toAdd = new();
+
+                    foreach (var config in configSet)
+                    {
+                        if (config != null)
+                        {
+                            if (InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
+                            {
+                                if (!object.ReferenceEquals(config, resolvedConfig))
+                                {
+                                    toRemove.Add(config);
+                                    toAdd.Add(resolvedConfig);
+                                }
+                            }
+                            else
+                            {
+                                _onError($"Config reference(id: {config.Id}) in set property {propertyName} is not found");
+                            }
+                        }
+                    }
+
+                    for (int i = 0; i < toRemove.Count; i++)
+                    {
+                        configSet.Remove(toRemove[i]);
+                        configSet.Add(toAdd[i]);
+                    }
+                }
+                else
+                {
+                    // Handle non-generic/generic Set case using reflection for removal/addition
+                    // because we can't cast to ISet<Configable> if T is a subclass of Configable
+                    var setType = set.GetType();
+                    var removeMethod = setType.GetMethod("Remove");
+                    var addMethod = setType.GetMethod("Add");
+
+                    if (removeMethod == null || addMethod == null)
+                    {
+                        _onError($"Cannot find Add/Remove methods on set type {setType.Name} for property {propertyName}");
+                        return;
+                    }
+
+                    List<object> toRemove = new();
+                    List<object> toAdd = new();
+
+                    foreach (var item in (IEnumerable)set)
+                    {
+                        if (item is Configable config)
+                        {
+                            if (InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
+                            {
+                                if (!object.ReferenceEquals(config, resolvedConfig))
+                                {
+                                    toRemove.Add(config);
+                                    toAdd.Add(resolvedConfig);
+                                }
+                            }
+                            else
+                            {
+                                _onError($"Config reference(id: {config.Id}) in set property {propertyName} is not found");
+                            }
+                        }
+                    }
+
+                    for (int i = 0; i < toRemove.Count; i++)
+                    {
+                        removeMethod.Invoke(set, new object[] { toRemove[i] });
+                        addMethod.Invoke(set, new object[] { toAdd[i] });
+                    }
+                }
+            }
+            else
+            {
+                // If the set contains non-Configable objects, recursively resolve references in each element
+                int i = 0;
+                foreach (var item in (IEnumerable)set)
+                {
+                    ResolveReferences(item, $"{propertyName}[{i}]", depth);
+                    i++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _onError($"Error resolving set references for property {propertyName} : {ex}");
         }
     }
 
