@@ -1,15 +1,122 @@
-using System.Numerics;
-using System.Runtime.InteropServices;
-
-using Silk.NET.OpenAL;
-using Alco;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using Alco;
+using Silk.NET.OpenAL;
 
 namespace Alco.Audio.OpenAL;
 
 internal unsafe class OpenALDevice : AudioDevice
 {
+    private class SourcePool
+    {
+        private readonly IAudioDeviceHost _host;
+        private readonly Lock _lock = new Lock();
+        private readonly Stack<uint> _freeSources = new Stack<uint>();
+        private readonly UnorderedList<uint> _activeSources = new UnorderedList<uint>();
+        private readonly Dictionary<uint, WeakReference> _lookup = new Dictionary<uint, WeakReference>();
+
+        public int Count => _freeSources.Count;
+
+        public SourcePool(IAudioDeviceHost host, int maxSources)
+        {
+            _host = host;
+            for (int i = 0; i < maxSources; i++)
+            {
+                uint id = AL.GenSource();
+                if (AL.GetError() == AudioError.NoError && id != 0)
+                {
+                    _freeSources.Push(id);
+                    _lookup.Add(id, new WeakReference(null));
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        private void SetActive(uint id, OpenALSource source)
+        {
+            _activeSources.Add(id);
+            _lookup[id] = new WeakReference(source);
+        }
+
+        private void SetFree(uint id)
+        {
+            if (_activeSources.Remove(id))
+            {
+                _freeSources.Push(id);
+                _lookup[id].Target = null;
+            }
+        }
+
+        private bool TryGetSource(uint id, out WeakReference weakReference, [NotNullWhen(true)] out OpenALSource? source)
+        {
+            WeakReference weakRef = _lookup[id];
+            if (weakRef.IsAlive && weakRef.Target != null)
+            {
+                source = (OpenALSource)weakRef.Target;
+                weakReference = weakRef;
+                return true;
+            }
+            source = null;
+            weakReference = weakRef;
+            return false;
+        }
+
+        public uint AllocateSource(OpenALSource owner)
+        {
+            lock (_lock)
+            {
+                if (_freeSources.Count > 0)
+                {
+                    uint id = _freeSources.Pop();
+                    SetActive(id, owner);
+                    return id;
+                }
+
+                for (int i = 0; i < _activeSources.Count; i++)
+                {
+                    uint id = _activeSources[i];
+                    if (!TryGetSource(id, out WeakReference weakReference, out OpenALSource? activeOwner))
+                    {
+                        //already recycle byGC
+                        weakReference.Target = owner;
+                        return id;
+                    }
+
+                    AL.GetSourceProperty(id, GetSourceInteger.SourceState, out int state);
+                    if (state != (int)SourceState.Playing && state != (int)SourceState.Paused)
+                    {
+                        // Source is stopped, we can reclaim it
+                        activeOwner.DetachSource();
+                        weakReference.Target = owner;
+                        return id;
+                    }
+                }
+
+
+                _host.LogWarning("OpenAL source limit reached and all sources are active.");
+                return 0;
+            }
+        }
+
+        public void FreeSource(OpenALSource expectedOwner, uint sourceId)
+        {
+            lock (_lock)
+            {
+                // Only free if the source is still owned by the requester
+                if (_lookup[sourceId].Target == expectedOwner)
+                {
+                    SetFree(sourceId);
+                }
+            }
+        }
+    }
+
     private const string AL_SOFT_source_spatialize = "AL_SOFT_source_spatialize";
     private const string AL_SOFT_direct_channels = "AL_SOFT_direct_channels";
     private const float BaseVolumeMultiplier = 0.8f; // 1.0 volume maps to 0.8 OpenAL gain
@@ -22,9 +129,7 @@ internal unsafe class OpenALDevice : AudioDevice
     private AudioAttenuationMode _attenuationMode = AudioAttenuationMode.Inverse;
 
     private const int MaxSources = 256;
-    private readonly Stack<uint> _freeSources = new Stack<uint>();
-    private readonly Dictionary<uint, WeakReference<OpenALSource>> _usedSources = new Dictionary<uint, WeakReference<OpenALSource>>();
-    private int _createdSourceCount = 0;
+    private readonly SourcePool _sourcePool;
 
     public override Vector3 ListenerPosition
     {
@@ -129,22 +234,9 @@ internal unsafe class OpenALDevice : AudioDevice
         }
 
         // Pre-allocate sources
-        for (int i = 0; i < MaxSources; i++)
-        {
-            uint id = AL.GenSource();
-            if (AL.GetError() == AudioError.NoError && id != 0)
-            {
-                _freeSources.Push(id);
-                _createdSourceCount++;
-            }
-            else
-            {
-                // Stop if we can't allocate more
-                break;
-            }
-        }
+        _sourcePool = new SourcePool(_host, MaxSources);
 
-        _host.LogSuccess($"OpenAL device created with {_createdSourceCount} sources allocated");
+        _host.LogSuccess($"OpenAL device created with {_sourcePool.Count} sources allocated");
     }
 
     private void UpdateDistanceModel()
@@ -210,65 +302,12 @@ internal unsafe class OpenALDevice : AudioDevice
 
     internal uint AllocateSource(OpenALSource owner)
     {
-        lock (_lock)
-        {
-            if (_freeSources.Count > 0)
-            {
-                uint id = _freeSources.Pop();
-                _usedSources.Add(id, new WeakReference<OpenALSource>(owner));
-                return id;
-            }
-
-            // Try to reclaim from dead references or non-playing sources
-            foreach (var kvp in _usedSources)
-            {
-                uint id = kvp.Key;
-                WeakReference<OpenALSource> weakRef = kvp.Value;
-
-                if (!weakRef.TryGetTarget(out OpenALSource? activeOwner))
-                {
-                    // Owner is dead (GC collected), we can reclaim this source immediately
-                    _usedSources[id] = new WeakReference<OpenALSource>(owner);
-                    return id;
-                }
-
-                AL.GetSourceProperty(id, GetSourceInteger.SourceState, out int state);
-                if (state != (int)SourceState.Playing && state != (int)SourceState.Paused)
-                {
-                    // Source is stopped, we can reclaim it
-                    activeOwner.DetachSource();
-                    _usedSources[id] = new WeakReference<OpenALSource>(owner);
-                    return id;
-                }
-            }
-
-            _host.LogWarning("OpenAL source limit reached and all sources are active.");
-            return 0;
-        }
+        return _sourcePool.AllocateSource(owner);
     }
 
     internal void FreeSource(OpenALSource owner, uint sourceId)
     {
-        lock (_lock)
-        {
-            if (_usedSources.TryGetValue(sourceId, out var weakRef))
-            {
-                if (weakRef.TryGetTarget(out var registeredOwner))
-                {
-                    if (registeredOwner == owner)
-                    {
-                        _usedSources.Remove(sourceId);
-                        _freeSources.Push(sourceId);
-                    }
-                }
-                else
-                {
-                    // The owner is already dead, so we can just free it
-                    _usedSources.Remove(sourceId);
-                    _freeSources.Push(sourceId);
-                }
-            }
-        }
+        _sourcePool.FreeSource(owner, sourceId);
     }
 
     internal void LogWarning(ReadOnlySpan<char> message)
