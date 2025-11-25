@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Silk.NET.OpenAL;
 using Alco;
 using System;
+using System.Collections.Generic;
 
 namespace Alco.Audio.OpenAL;
 
@@ -19,6 +20,11 @@ internal unsafe class OpenALDevice : AudioDevice
     private readonly Device* _device;
     private readonly Lock _lock = new Lock();
     private AudioAttenuationMode _attenuationMode = AudioAttenuationMode.Inverse;
+
+    private const int MaxSources = 256;
+    private readonly Stack<uint> _freeSources = new Stack<uint>();
+    private readonly Dictionary<uint, WeakReference<OpenALSource>> _usedSources = new Dictionary<uint, WeakReference<OpenALSource>>();
+    private int _createdSourceCount = 0;
 
     public override Vector3 ListenerPosition
     {
@@ -122,7 +128,23 @@ internal unsafe class OpenALDevice : AudioDevice
             _host.LogWarning("AL_SOFT_direct_channels is not supported, the direct channels is not available");
         }
 
-        _host.LogSuccess("OpenAL device created");
+        // Pre-allocate sources
+        for (int i = 0; i < MaxSources; i++)
+        {
+            uint id = AL.GenSource();
+            if (AL.GetError() == AudioError.NoError && id != 0)
+            {
+                _freeSources.Push(id);
+                _createdSourceCount++;
+            }
+            else
+            {
+                // Stop if we can't allocate more
+                break;
+            }
+        }
+
+        _host.LogSuccess($"OpenAL device created with {_createdSourceCount} sources allocated");
     }
 
     private void UpdateDistanceModel()
@@ -149,7 +171,7 @@ internal unsafe class OpenALDevice : AudioDevice
         //lock
         lock (_lock)
         {
-            return new OpenALSource();
+            return new OpenALSource(this);
         }
     }
 
@@ -184,6 +206,69 @@ internal unsafe class OpenALDevice : AudioDevice
 
 
 
+    }
+
+    internal uint AllocateSource(OpenALSource owner)
+    {
+        lock (_lock)
+        {
+            if (_freeSources.Count > 0)
+            {
+                uint id = _freeSources.Pop();
+                _usedSources.Add(id, new WeakReference<OpenALSource>(owner));
+                return id;
+            }
+
+            // Try to reclaim from dead references or non-playing sources
+            foreach (var kvp in _usedSources)
+            {
+                uint id = kvp.Key;
+                WeakReference<OpenALSource> weakRef = kvp.Value;
+
+                if (!weakRef.TryGetTarget(out OpenALSource? activeOwner))
+                {
+                    // Owner is dead (GC collected), we can reclaim this source immediately
+                    _usedSources[id] = new WeakReference<OpenALSource>(owner);
+                    return id;
+                }
+
+                AL.GetSourceProperty(id, GetSourceInteger.SourceState, out int state);
+                if (state != (int)SourceState.Playing && state != (int)SourceState.Paused)
+                {
+                    // Source is stopped, we can reclaim it
+                    activeOwner.DetachSource();
+                    _usedSources[id] = new WeakReference<OpenALSource>(owner);
+                    return id;
+                }
+            }
+
+            _host.LogWarning("OpenAL source limit reached and all sources are active.");
+            return 0;
+        }
+    }
+
+    internal void FreeSource(OpenALSource owner, uint sourceId)
+    {
+        lock (_lock)
+        {
+            if (_usedSources.TryGetValue(sourceId, out var weakRef))
+            {
+                if (weakRef.TryGetTarget(out var registeredOwner))
+                {
+                    if (registeredOwner == owner)
+                    {
+                        _usedSources.Remove(sourceId);
+                        _freeSources.Push(sourceId);
+                    }
+                }
+                else
+                {
+                    // The owner is already dead, so we can just free it
+                    _usedSources.Remove(sourceId);
+                    _freeSources.Push(sourceId);
+                }
+            }
+        }
     }
 
     internal void LogWarning(ReadOnlySpan<char> message)
