@@ -131,6 +131,9 @@ internal unsafe class OpenALDevice : AudioDevice
     private const int MaxSources = 256;
     private readonly SourcePool _sourcePool;
 
+    public bool SupportsSpatialize { get; }
+    public bool SupportsDirectChannels { get; }
+
     public override Vector3 ListenerPosition
     {
         get
@@ -223,12 +226,14 @@ internal unsafe class OpenALDevice : AudioDevice
         Volume = 1f;
         AttenuationMode = AudioAttenuationMode.Inverse; // This will call UpdateDistanceModel()
 
-        if (!AL.IsExtensionPresent(AL_SOFT_source_spatialize))
+        SupportsSpatialize = AL.IsExtensionPresent(AL_SOFT_source_spatialize);
+        if (!SupportsSpatialize)
         {
             _host.LogWarning("AL_SOFT_source_spatialize is not supported, the spatialization is not available");
         }
 
-        if (!AL.IsExtensionPresent(AL_SOFT_direct_channels))
+        SupportsDirectChannels = AL.IsExtensionPresent(AL_SOFT_direct_channels);
+        if (!SupportsDirectChannels)
         {
             _host.LogWarning("AL_SOFT_direct_channels is not supported, the direct channels is not available");
         }

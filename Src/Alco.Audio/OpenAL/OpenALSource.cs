@@ -215,7 +215,7 @@ internal class OpenALSource : AudioSource
     {
         if (_sourceId == 0) return;
 
-        if (AL.IsExtensionPresent(AL_SOFT_source_spatialize))//always be true is the assembly is OpenAL soft
+        if (_device.SupportsSpatialize)//always be true is the assembly is OpenAL soft
         {
             int value = isSpatial ? AL_TRUE : AL_FALSE;
             AL.SetSourceProperty(_sourceId, (SourceInteger)AL_SOURCE_SPATIALIZE_SOFT, value);
@@ -223,7 +223,7 @@ internal class OpenALSource : AudioSource
 
 
         AL.SetSourceProperty(_sourceId, SourceBoolean.SourceRelative, !isSpatial);
-        if (AL.IsExtensionPresent(AL_SOFT_direct_channels))//always be true is the assembly is OpenAL soft
+        if (_device.SupportsDirectChannels)//always be true is the assembly is OpenAL soft
         {
             AL.SetSourceProperty(_sourceId, (SourceBoolean)AL_DIRECT_CHANNELS_SOFT, !isSpatial);
         }
