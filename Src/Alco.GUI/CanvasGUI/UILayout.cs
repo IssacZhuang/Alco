@@ -182,7 +182,10 @@ public class UILayout : UINode
     public override void Add(UINode node, bool keepWorldTransform = true)
     {
         // Set appropriate anchor based on layout type
-        SetChildAnchor(node);
+        if(ShouldIncludeInLayout(node))
+        {
+            SetChildAnchor(node);
+        }
         
         // Call base implementation
         base.Add(node, keepWorldTransform);
@@ -423,6 +426,11 @@ public class UILayout : UINode
         for (int i = 0; i < affectedChildren.Count; i++)
         {
             UINode child = affectedChildren[i];
+
+            if (!ShouldIncludeInLayout(child))
+            {
+                continue;
+            }
 
             SetChildAnchor(child);
 

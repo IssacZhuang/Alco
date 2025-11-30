@@ -110,22 +110,22 @@ public class UIButton : UISelectable
     /// The sprite of the button in normal state
     /// </summary>
     /// <value></value>
-    public Texture2D? SpriteNormal { get; set; } = null;
+    public Texture2D? ImageNormal { get; set; } = null;
     /// <summary>
     /// The sprite of the button in hover state
     /// </summary>
     /// <value></value>
-    public Texture2D? SpriteHover { get; set; } = null;
+    public Texture2D? ImageHover { get; set; } = null;
     /// <summary>
     /// The sprite of the button in pressing state
     /// </summary>
     /// <value></value>
-    public Texture2D? SpritePressing { get; set; } = null;
+    public Texture2D? ImagePressing { get; set; } = null;
     /// <summary>
     /// The sprite of the button in disabled state
     /// </summary>
     /// <value></value>
-    public Texture2D? SpriteDisabled { get; set; } = null;
+    public Texture2D? ImageDisabled { get; set; } = null;
 
     //for TransitionMode.NodeSwap, TransitionTarget not used
 
@@ -319,16 +319,16 @@ public class UIButton : UISelectable
         switch (_selectableState)
         {
             case SelectableState.Normal:
-                _transitionImageTarget.Texture = SpriteNormal;
+                _transitionImageTarget.Texture = ImageNormal;
                 break;
             case SelectableState.Hover:
-                _transitionImageTarget.Texture = SpriteHover;
+                _transitionImageTarget.Texture = ImageHover;
                 break;
             case SelectableState.Pressing:
-                _transitionImageTarget.Texture = SpritePressing;
+                _transitionImageTarget.Texture = ImagePressing;
                 break;
             case SelectableState.Disabled:
-                _transitionImageTarget.Texture = SpriteDisabled;
+                _transitionImageTarget.Texture = ImageDisabled;
                 break;
             default:
                 break;
