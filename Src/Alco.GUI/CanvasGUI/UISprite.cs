@@ -7,7 +7,7 @@ namespace Alco.GUI;
 /// <summary>
 /// The UI node to draw a sprite.
 /// </summary>
-public class UISprite : UINode
+public class UIImage : UINode
 {
     private Texture2D? _texture;
     private ImageType _imageType = ImageType.Simple;
@@ -80,7 +80,7 @@ public class UISprite : UINode
         get => _indices ??= new ArrayBuffer<ushort>();
     }
 
-    public UISprite()
+    public UIImage()
     {
         
     }

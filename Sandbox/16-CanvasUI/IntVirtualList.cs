@@ -41,7 +41,7 @@ public class IntVirtualList : UIVirtualList<int>
 /// </summary>
 public class IntVirtualListItem : UIButton, IUIListItem<int>
 {
-    private readonly UISprite _background;
+    private readonly UIImage _background;
     private readonly UIText _label;
 
     /// <summary>
@@ -54,7 +54,7 @@ public class IntVirtualListItem : UIButton, IUIListItem<int>
         Pivot = Pivot.Center;
         Size = new Vector2(100, 24);
 
-        _background = new UISprite
+        _background = new UIImage
         {
             Anchor = Anchor.Stretch,
             Color = 0x2a2a2a,

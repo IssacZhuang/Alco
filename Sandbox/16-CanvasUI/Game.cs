@@ -38,7 +38,7 @@ public class Game : GameEngine
     private UIMask _horizontalLayoutMask;
     private UIMask _gridLayoutMask;
 
-    private UISprite _sprite;
+    private UIImage _sprite;
     private IntList _intList;
     private IntVirtualList _intVirtualList;
     private IntVirtualList _intVirtualGridList;
@@ -206,7 +206,7 @@ public class Game : GameEngine
 
 
         Texture2D texSelection = AssetSystem.Load<Texture2D>("Selection.png");
-        _sprite = new UISprite()
+        _sprite = new UIImage()
         {
             Texture = texSelection,
             Size = new Vector2(100, 100),
@@ -277,7 +277,7 @@ public class Game : GameEngine
     private UIMask CreateLayoutDemo(UILayout layout, string title, uint backgroundColor)
     {
         // Create background sprite
-        UISprite bgLayout = new UISprite()
+        UIImage bgLayout = new UIImage()
         {
             Position = new Vector2(200, 100),
             Size = new Vector2(layout.Size.X + 20, layout.Size.Y + 40),

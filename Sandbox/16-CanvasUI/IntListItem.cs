@@ -8,7 +8,7 @@ using Alco.Rendering;
 /// </summary>
 public class IntListItem : UIButton, IUIListItem<int>
 {
-	private readonly UISprite _background;
+	private readonly UIImage _background;
 	private readonly UIText _label;
 
 	/// <summary>
@@ -20,7 +20,7 @@ public class IntListItem : UIButton, IUIListItem<int>
 		Anchor = Anchor.Center;
 		Size = new Vector2(100, 24);
 
-		_background = new UISprite
+		_background = new UIImage
 		{
 			Anchor = Anchor.Stretch,
 			Color = 0x2a2a2a,

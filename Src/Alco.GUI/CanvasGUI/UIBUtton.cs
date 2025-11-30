@@ -14,11 +14,11 @@ public class UIButton : UISelectable
     private SelectableState _selectableState = SelectableState.Normal;
 
     private UINode? _transitionTarget = null;
-    private UISprite? _transitionSpriteTarget = null;
+    private UIImage? _transitionImageTarget = null;
 
     /// <summary>
     /// The target of the transition, depends on the TransitionMode.
-    /// The target must be a UISprite if TransitionMode is ColorTint or SpriteSwap
+    /// The target must be a UIImage if TransitionMode is ColorTint or SpriteSwap
     /// </summary>
     /// <value></value>
     public UINode? TransitionTarget
@@ -30,7 +30,7 @@ public class UIButton : UISelectable
         set
         {
             _transitionTarget = value;
-            _transitionSpriteTarget = value as UISprite;
+            _transitionImageTarget = value as UIImage;
         }
     }
     private float _tTransition = 0;
@@ -285,12 +285,12 @@ public class UIButton : UISelectable
 
     private void UpdateColorTween(float t)
     {
-        if (_transitionSpriteTarget == null)
+        if (_transitionImageTarget == null)
         {
             return;
         }
 
-        _transitionSpriteTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, t);
+        _transitionImageTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, t);
     }
 
     private void StartTransformTween(Transform2D start, Transform2D end)
@@ -311,7 +311,7 @@ public class UIButton : UISelectable
 
     private void RefreshSpriteSwap()
     {
-        if (_transitionSpriteTarget == null)
+        if (_transitionImageTarget == null)
         {
             return;
         }
@@ -319,16 +319,16 @@ public class UIButton : UISelectable
         switch (_selectableState)
         {
             case SelectableState.Normal:
-                _transitionSpriteTarget.Texture = SpriteNormal;
+                _transitionImageTarget.Texture = SpriteNormal;
                 break;
             case SelectableState.Hover:
-                _transitionSpriteTarget.Texture = SpriteHover;
+                _transitionImageTarget.Texture = SpriteHover;
                 break;
             case SelectableState.Pressing:
-                _transitionSpriteTarget.Texture = SpritePressing;
+                _transitionImageTarget.Texture = SpritePressing;
                 break;
             case SelectableState.Disabled:
-                _transitionSpriteTarget.Texture = SpriteDisabled;
+                _transitionImageTarget.Texture = SpriteDisabled;
                 break;
             default:
                 break;
