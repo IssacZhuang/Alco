@@ -126,6 +126,9 @@ public class ConfigDatabase
             _jsonSerializerOptions.Converters.Add(converter);
         }
 
+        _jsonSerializerOptions.Converters.Add(new JsonConverterConfigReferenceFactory(this));
+        _jsonSerializerOptions.Converters.Add(new JsonConverterConfigReferenceOptionalFactory(this));
+
         _jsonSerializerOptions.MakeReadOnly();
 
         _jsonPreprocessor = new JsonPreprocessor(onError);

@@ -41,7 +41,7 @@ public class TestJsonPreprocessor
             return false;
         }
 
-        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream stream, [NotNullWhen(false)] out string failureReason)
         {
             if (_files.TryGetValue(path, out var bytes))
             {
