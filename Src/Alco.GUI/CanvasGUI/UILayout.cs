@@ -39,7 +39,7 @@ public class UILayout : UINode
     private Vector2 _spacing;
     private float _fixedWidth; // only used if _isFixedSize is true
     private float _fixedHeight; // only used if _isFixedSize is true
-
+    private bool _isDirty;
 
 
 
@@ -152,15 +152,6 @@ public class UILayout : UINode
     }
 
     /// <summary>
-    /// Legacy property for backward compatibility
-    /// </summary>
-    public bool FitContentHeight
-    {
-        get => _fitContentSize;
-        set => _fitContentSize = value;
-    }
-
-    /// <summary>
     /// Creates a new UILayout with vertical arrangement by default
     /// </summary>
     public UILayout()
@@ -189,6 +180,7 @@ public class UILayout : UINode
         
         // Call base implementation
         base.Add(node, keepWorldTransform);
+        _isDirty = true;
     }
 
     /// <summary>
@@ -214,11 +206,12 @@ public class UILayout : UINode
 
     protected override void OnUpdate(Canvas canvas, float delta)
     {
-        base.OnUpdate(canvas, delta);
-        if (_alwaysUpdate)
+        if (_alwaysUpdate || _isDirty)
         {
             UpdateLayout();
+            _isDirty = false;
         }
+        base.OnUpdate(canvas, delta);
     }
 
     /// <summary>
