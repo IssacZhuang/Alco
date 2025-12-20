@@ -225,7 +225,7 @@ public class BinaryPostLoadSerializeNode : SerializeNode
 
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
-        if(_referenceContext == null)
+        if (_referenceContext == null)
         {
             return;
         }
@@ -234,7 +234,7 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         {
             referenceable = reference;
         }
-        else
+        else if (id > 0)
         {
             AddError($"Failed to resolve reference '{key}': {id}");
         }
