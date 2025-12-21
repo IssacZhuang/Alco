@@ -6,7 +6,7 @@ using static WebGPU.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
-internal static partial class UtilsWebGPU
+internal static partial class WebGPUUtility
 {
     public unsafe static WGPUSurface CreateSurface(this WGPUInstance instance, SurfaceSource surface)
     {

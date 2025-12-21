@@ -135,7 +135,7 @@ public class Game : GameEngine
         // string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
         // string filePathFragment = Path.Combine(appPath, "spirv", "Shader.slang.frag.spv");
 
-        Log.Info(ShaderUtilityRelfection.GetSpirvReflection(vertexShader.Source));
+        Log.Info(ShaderRelfectionUtility.GetSpirvReflection(vertexShader.Source));
 
         if (!Directory.Exists(Path.Combine(appPath, "spirv")))
         {

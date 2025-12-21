@@ -4,7 +4,7 @@ using static WebGPU.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
-internal static partial class UtilsWebGPU
+internal static partial class WebGPUUtility
 {
     // Graphics backend mapping
     private static readonly Tuple<GraphicsBackend, WGPUInstanceBackend>[] BackendCast = new Tuple<GraphicsBackend, WGPUInstanceBackend>[]
@@ -387,7 +387,7 @@ internal static partial class UtilsWebGPU
     public static readonly Func<TextureSampleType, WGPUTextureSampleType> TextureSampleTypeToWebGPU;
     public static readonly Func<WGPUTextureSampleType, TextureSampleType> TextureSampleTypeToAbstract;
 
-    static UtilsWebGPU()
+    static WebGPUUtility()
     {
         BackendToWebGPU = CastUtility.GenerateCastFunc(BackendCast);
         BackendTypeToWebGPU = CastUtility.GenerateCastFunc(BackendType);

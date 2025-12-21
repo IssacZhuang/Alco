@@ -80,7 +80,7 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
             vertexBufferLayouts[i] = new WGPUVertexBufferLayout()
             {
                 arrayStride = vertexInputLayouts[i].Stride,
-                stepMode = UtilsWebGPU.VertexStepModeToWebGPU(vertexInputLayouts[i].StepMode),
+                stepMode = WebGPUUtility.VertexStepModeToWebGPU(vertexInputLayouts[i].StepMode),
                 attributeCount = (uint)vertexInputLayouts[i].Elements.Length,
                 attributes = null,
             };
@@ -94,7 +94,7 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
 
             for (int j = 0; j < vertexInputLayouts[i].Elements.Length; j++)
             {
-                vertexAttributes[j] = UtilsWebGPU.ConvertToWebGPU(vertexInputLayouts[i].Elements[j]);
+                vertexAttributes[j] = WebGPUUtility.ConvertToWebGPU(vertexInputLayouts[i].Elements[j]);
             }
 
             vertexAttributes += vertexInputLayouts[i].Elements.Length;
@@ -113,8 +113,8 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
 
             WGPUBlendState blendState = new()
             {
-                color = UtilsWebGPU.ConvertToWebGPU(descriptor.BlendState.Color),
-                alpha = UtilsWebGPU.ConvertToWebGPU(descriptor.BlendState.Alpha),
+                color = WebGPUUtility.ConvertToWebGPU(descriptor.BlendState.Color),
+                alpha = WebGPUUtility.ConvertToWebGPU(descriptor.BlendState.Alpha),
             };
 
             // !! memory alloc attention
@@ -124,7 +124,7 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
             {
                 targets[i] = new WGPUColorTargetState()
                 {
-                    format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.ColorFormats[i]),
+                    format = WebGPUUtility.PixelFormatToWebGPU(descriptor.ColorFormats[i]),
                     blend = &blendState,
                     writeMask = WGPUColorWriteMask.All,
                 };
@@ -182,7 +182,7 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
                     pushConstants[i] = new WGPUPushConstantRange
                     {
 
-                        stages = UtilsWebGPU.ConvertShaderStage(range.Stage),
+                        stages = WebGPUUtility.ConvertShaderStage(range.Stage),
                         start = range.Start,
                         end = range.End
                     };
@@ -209,11 +209,11 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
 
             WGPUPrimitiveState primitiveState = new WGPUPrimitiveState
             {
-                topology = UtilsWebGPU.PrimitiveTopologyToWebGPU(descriptor.PrimitiveTopology),
+                topology = WebGPUUtility.PrimitiveTopologyToWebGPU(descriptor.PrimitiveTopology),
                 // TODO : strip index format
                 stripIndexFormat = WGPUIndexFormat.Undefined,
-                frontFace = UtilsWebGPU.FrontFaceToWebGPU(descriptor.RasterizerState.FrontFace),
-                cullMode = UtilsWebGPU.CullModeToWebGPU(descriptor.RasterizerState.CullMode),
+                frontFace = WebGPUUtility.FrontFaceToWebGPU(descriptor.RasterizerState.FrontFace),
+                cullMode = WebGPUUtility.CullModeToWebGPU(descriptor.RasterizerState.CullMode),
             };
 
             if (descriptor.PrimitiveTopology == PrimitiveTopology.TriangleStrip || descriptor.PrimitiveTopology == PrimitiveTopology.LineStrip)
@@ -255,11 +255,11 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
                 WGPUDepthStencilState depthStencilState = new WGPUDepthStencilState()
                 {
                     nextInChain = null,
-                    format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.DepthStencilFormat.Value),
+                    format = WebGPUUtility.PixelFormatToWebGPU(descriptor.DepthStencilFormat.Value),
                     depthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled ? WGPUOptionalBool.True : WGPUOptionalBool.False,
-                    depthCompare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
-                    stencilFront = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.FrontFace),
-                    stencilBack = UtilsWebGPU.ConvertToWebGPU(descriptor.DepthStencilState.BackFace),
+                    depthCompare = WebGPUUtility.CompareFunctionToWebGPU(descriptor.DepthStencilState.DepthCompare),
+                    stencilFront = WebGPUUtility.ConvertToWebGPU(descriptor.DepthStencilState.FrontFace),
+                    stencilBack = WebGPUUtility.ConvertToWebGPU(descriptor.DepthStencilState.BackFace),
                     stencilReadMask = descriptor.DepthStencilState.StencilReadMask,
                     stencilWriteMask = descriptor.DepthStencilState.StencilReadMask,
                 };

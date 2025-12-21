@@ -45,12 +45,12 @@
 
 //         if (stages.IsGraphicsShader())
 //         {
-//             ShaderReflectionInfo reflection = ShaderUtilityRelfection.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source, true);
+//             ShaderReflectionInfo reflection = ShaderRelfectionUtility.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source, true);
 //             return new ShaderCompileResultDeprecated(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
 //         }
 //         else if (stages.IsComputeShader())
 //         {
-//             ShaderReflectionInfo reflection = ShaderUtilityRelfection.GetSpirvReflection(computeShader!.Value.Source);
+//             ShaderReflectionInfo reflection = ShaderRelfectionUtility.GetSpirvReflection(computeShader!.Value.Source);
 //             return new ShaderCompileResultDeprecated(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
 //         }
 

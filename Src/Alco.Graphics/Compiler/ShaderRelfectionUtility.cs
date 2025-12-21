@@ -3,7 +3,7 @@ using Silk.NET.SPIRV.Reflect;
 
 namespace Alco.Graphics;
 
-public static class ShaderUtilityRelfection
+public static class ShaderRelfectionUtility
 {
     private static readonly Reflect API = Reflect.GetApi();
 
@@ -70,7 +70,7 @@ public static class ShaderUtilityRelfection
             return Array.Empty<PushConstantsRange>();
         }
 
-        ShaderStage stage = UtilsRelfectType.ConvertShaderStage(shaderModule.ShaderStage);
+        ShaderStage stage = RelfectTypeUtility.ConvertShaderStage(shaderModule.ShaderStage);
         PushConstantsRange[] ranges = new PushConstantsRange[shaderModule.PushConstantBlockCount];
         for (int i = 0; i < shaderModule.PushConstantBlockCount; i++)
         {
@@ -194,7 +194,7 @@ public static class ShaderUtilityRelfection
 
     private unsafe static BindGroupEntryInfo ConvertResourceBinding(DescriptorBinding input, ShaderStage stage)
     {
-        BindingType type = UtilsRelfectType.ConvertBindingType(input.DescriptorType);
+        BindingType type = RelfectTypeUtility.ConvertBindingType(input.DescriptorType);
 
         TextureBindingInfo? textureBindingInfo = null;
         StorageTextureBindingInfo? storageTextureBindingInfo = null;
@@ -202,13 +202,13 @@ public static class ShaderUtilityRelfection
         switch (type)
         {
             case BindingType.Texture:
-                textureBindingInfo = new TextureBindingInfo(UtilsRelfectType.ConvertTextureViewDimension(input.Image));
+                textureBindingInfo = new TextureBindingInfo(RelfectTypeUtility.ConvertTextureViewDimension(input.Image));
                 break;
             case BindingType.StorageTexture:
                 storageTextureBindingInfo = new StorageTextureBindingInfo(
                     AccessMode.ReadWrite,
-                    UtilsRelfectType.ConvertTextureViewDimension(input.Image),
-                    UtilsRelfectType.ConvertImageFormat(input.Image.ImageFormat)
+                    RelfectTypeUtility.ConvertTextureViewDimension(input.Image),
+                    RelfectTypeUtility.ConvertImageFormat(input.Image.ImageFormat)
                     );
                 break;
         }
@@ -260,7 +260,7 @@ public static class ShaderUtilityRelfection
         for (int i = 0; i < shaderModule.DescriptorSetCount; i++)
         {
             ReflectDescriptorSet set = shaderModule.DescriptorSets[i];
-            ShaderStage stage = UtilsRelfectType.ConvertShaderStage(shaderModule.ShaderStage);
+            ShaderStage stage = RelfectTypeUtility.ConvertShaderStage(shaderModule.ShaderStage);
             if (useStandardStage||
                 (stage & ShaderStage.Vertex) != 0 ||
                 (stage & ShaderStage.Fragment) != 0 ||
@@ -304,7 +304,7 @@ public static class ShaderUtilityRelfection
         {
             Location = input.Location,
             Name = InteropUtility.ReadString(input.Name),
-            Format = UtilsRelfectType.ConvertFormat(input.Format),
+            Format = RelfectTypeUtility.ConvertFormat(input.Format),
             Offset = offset
         };
     }

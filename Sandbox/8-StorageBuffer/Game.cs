@@ -139,7 +139,7 @@ public class Game : GameEngine
         ShaderModule vertSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
         ShaderModule fragSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
 
-        ShaderReflectionInfo info = ShaderUtilityRelfection.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
+        ShaderReflectionInfo info = ShaderRelfectionUtility.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
 
         Log.Info(info);
 
@@ -179,7 +179,7 @@ public class Game : GameEngine
         string shaderCode = Encoding.UTF8.GetString(LoadFile("ComputePosition.hlsl"));
         ShaderModule computeSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Compute, "MainCS", "ComputePosition.hlsl");
 
-        ShaderReflectionInfo info = ShaderUtilityRelfection.GetSpirvReflection(computeSource.Source, true);
+        ShaderReflectionInfo info = ShaderRelfectionUtility.GetSpirvReflection(computeSource.Source, true);
 
         Log.Info(info);
 

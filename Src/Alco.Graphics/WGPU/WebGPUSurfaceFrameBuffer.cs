@@ -355,7 +355,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         ) : base(
             new TextureDescriptor(//just a dummy descriptor
                 TextureDimension.Texture2D,
-                UtilsWebGPU.PixelFormatToAbstract(wgpuTextureGetFormat(surfaceTexture.texture)),
+                WebGPUUtility.PixelFormatToAbstract(wgpuTextureGetFormat(surfaceTexture.texture)),
                 wgpuTextureGetWidth(surfaceTexture.texture),
                 wgpuTextureGetHeight(surfaceTexture.texture),
                 1,
@@ -375,7 +375,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
             _defaultView = wgpuTextureCreateView(_texture, null);
 
-            PixelFormat = UtilsWebGPU.PixelFormatToAbstract(wgpuTextureGetFormat(_texture));
+            PixelFormat = WebGPUUtility.PixelFormatToAbstract(wgpuTextureGetFormat(_texture));
         }
 
         public unsafe void PresentAndDrop()

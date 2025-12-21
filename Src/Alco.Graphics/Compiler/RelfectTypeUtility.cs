@@ -3,7 +3,7 @@ using Silk.NET.SPIRV.Reflect;
 
 namespace Alco.Graphics;
 
-internal static class UtilsRelfectType
+internal static class RelfectTypeUtility
 {
     private static readonly Tuple<Format, VertexFormat>[] RelfectFormatToVertexCast = new Tuple<Format, VertexFormat>[]{
         new (Format.R16G16Uint, VertexFormat.Uint16x2),
@@ -165,7 +165,7 @@ internal static class UtilsRelfectType
         }
     }
 
-    static UtilsRelfectType()
+    static RelfectTypeUtility()
     {
         ConvertFormat = CastUtility.GenerateCastFunc(RelfectFormatToVertexCast);
         ConvertImageFormat = CastUtility.GenerateCastFunc(ReflectFormatToPixelCast);

@@ -54,12 +54,12 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
             {
                 nextInChain = null,
                 label = new WGPUStringView(ptrName, name.Length),
-                dimension = UtilsWebGPU.TextureViewDimensionToWebGPU(descriptor.Dimension),
+                dimension = WebGPUUtility.TextureViewDimensionToWebGPU(descriptor.Dimension),
                 baseMipLevel = descriptor.BaseMipLevel,
                 mipLevelCount = descriptor.MipLevelCount,
                 baseArrayLayer = descriptor.BaseArrayLayer,
                 arrayLayerCount = descriptor.ArrayLayerCount,
-                aspect = UtilsWebGPU.TextureAspectToWebGPU(descriptor.Aspect),
+                aspect = WebGPUUtility.TextureAspectToWebGPU(descriptor.Aspect),
             };
             _native = wgpuTextureCreateView(_texture.Native, &viewDescriptor);
         }

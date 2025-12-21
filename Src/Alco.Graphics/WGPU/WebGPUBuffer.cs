@@ -50,7 +50,7 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
                 nextInChain = null,
                 label = new WGPUStringView(ptrName, name.Length),
                 size = Size,
-                usage = UtilsWebGPU.ConvertBufferUsage(descriptor.Usage),
+                usage = WebGPUUtility.ConvertBufferUsage(descriptor.Usage),
                 mappedAtCreation = false,
             };
 

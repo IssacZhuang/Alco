@@ -119,7 +119,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ValidateGraphicsPipeline();
 
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
-        wgpuRenderBundleEncoderSetIndexBuffer(_renderBundleEncoder, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
+        wgpuRenderBundleEncoderSetIndexBuffer(_renderBundleEncoder, nativeBuffer.Native, WebGPUUtility.IndexFormatToWebGPU(format), offset, size);
     }
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
@@ -156,7 +156,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     {
         ValidateGraphicsPipeline();
 
-        WGPUShaderStage shaderStage = UtilsWebGPU.ConvertShaderStage(stage);
+        WGPUShaderStage shaderStage = WebGPUUtility.ConvertShaderStage(stage);
         wgpuRenderBundleEncoderSetPushConstants(_renderBundleEncoder, shaderStage, bufferOffset, size, data);
     }
 

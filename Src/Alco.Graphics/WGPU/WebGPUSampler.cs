@@ -47,15 +47,15 @@ internal sealed class WebGPUSampler : GPUSampler
             {
                 nextInChain = null,
                 label = new WGPUStringView(ptrName, name.Length),
-                addressModeU = UtilsWebGPU.AddressModeToWebGPU(descriptor.AddressModeU),
-                addressModeV = UtilsWebGPU.AddressModeToWebGPU(descriptor.AddressModeV),
-                addressModeW = UtilsWebGPU.AddressModeToWebGPU(descriptor.AddressModeW),
-                magFilter = UtilsWebGPU.FilterModeToWebGPU(descriptor.MagFilter),
-                minFilter = UtilsWebGPU.FilterModeToWebGPU(descriptor.MinFilter),
-                mipmapFilter = UtilsWebGPU.MipmapFilterModeToWebGPU(descriptor.MipFilter),
+                addressModeU = WebGPUUtility.AddressModeToWebGPU(descriptor.AddressModeU),
+                addressModeV = WebGPUUtility.AddressModeToWebGPU(descriptor.AddressModeV),
+                addressModeW = WebGPUUtility.AddressModeToWebGPU(descriptor.AddressModeW),
+                magFilter = WebGPUUtility.FilterModeToWebGPU(descriptor.MagFilter),
+                minFilter = WebGPUUtility.FilterModeToWebGPU(descriptor.MinFilter),
+                mipmapFilter = WebGPUUtility.MipmapFilterModeToWebGPU(descriptor.MipFilter),
                 lodMinClamp = descriptor.LodMinClamp,
                 lodMaxClamp = descriptor.LodMaxClamp,
-                compare = UtilsWebGPU.CompareFunctionToWebGPU(descriptor.Compare),
+                compare = WebGPUUtility.CompareFunctionToWebGPU(descriptor.Compare),
                 maxAnisotropy = descriptor.MaxAnisotropy,
             };
 

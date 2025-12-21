@@ -99,7 +99,7 @@ public static partial class ShaderUtility
                 includeResolver
                 );
 
-            ShaderReflectionInfo reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(vertex.Source, pixel.Source, true);
+            ShaderReflectionInfo reflectionInfo = ShaderRelfectionUtility.GetSpirvReflection(vertex.Source, pixel.Source, true);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateGraphics(
                 filename,
                 defineArray,
@@ -123,7 +123,7 @@ public static partial class ShaderUtility
                 macros.ToArray()
                 );
 
-            ShaderReflectionInfo reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(compute.Source, true);
+            ShaderReflectionInfo reflectionInfo = ShaderRelfectionUtility.GetSpirvReflection(compute.Source, true);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateCompute(
                 filename,
                 defineArray,
@@ -265,11 +265,11 @@ public static partial class ShaderUtility
         ShaderReflectionInfo reflectionInfo;
         if (vertexShader.HasValue && fragmentShader.HasValue)
         {
-            reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(vertexShader.Value.Source, fragmentShader.Value.Source, true);
+            reflectionInfo = ShaderRelfectionUtility.GetSpirvReflection(vertexShader.Value.Source, fragmentShader.Value.Source, true);
         }
         else if (computeShader.HasValue)
         {
-            reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(computeShader.Value.Source, true);
+            reflectionInfo = ShaderRelfectionUtility.GetSpirvReflection(computeShader.Value.Source, true);
         }
         else
         {

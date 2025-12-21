@@ -3,7 +3,7 @@ using static WebGPU.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
-internal static partial class UtilsWebGPU
+internal static partial class WebGPUUtility
 {
     public static WGPUStorageTextureAccess ConvertAccessMode(AccessMode access)
     {

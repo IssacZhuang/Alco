@@ -79,7 +79,7 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
                     pushConstants[i] = new WGPUPushConstantRange
                     {
 
-                        stages = UtilsWebGPU.ConvertShaderStage(range.Stage),
+                        stages = WebGPUUtility.ConvertShaderStage(range.Stage),
                         start = range.Start,
                         end = range.End
                     };

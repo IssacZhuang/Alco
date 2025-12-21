@@ -61,8 +61,8 @@ internal sealed class WebGPUAttachmentLayout : GPUAttachmentLayout
             ColorAttachment color = descriptor.Colors[i];
             _colorInfos[i] = new WGPUColorAttachmentInfo
             {
-                format = UtilsWebGPU.PixelFormatToWebGPU(color.Format),
-                clearColor = UtilsWebGPU.ConvertColor(color.ClearColor),
+                format = WebGPUUtility.PixelFormatToWebGPU(color.Format),
+                clearColor = WebGPUUtility.ConvertColor(color.ClearColor),
             };
         }
 
@@ -72,7 +72,7 @@ internal sealed class WebGPUAttachmentLayout : GPUAttachmentLayout
             DepthAttachment depth = descriptor.Depth.Value;
             _depthInfo = new WGPUDepthAttachmentInfo
             {
-                format = UtilsWebGPU.PixelFormatToWebGPU(depth.Format),
+                format = WebGPUUtility.PixelFormatToWebGPU(depth.Format),
                 clearDepth = depth.ClearDepth,
                 isDepthReadOnly = false,
                 clearStencil = depth.ClearStencil,
