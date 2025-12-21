@@ -5,7 +5,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// Utility class for material.
 /// </summary>
-public static class UtilsMaterial
+public static class MaterialUtility
 {
     /// <summary>
     /// Check if the bind group layout is a buffer group.

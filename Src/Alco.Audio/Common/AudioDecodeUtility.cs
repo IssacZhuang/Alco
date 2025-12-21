@@ -11,7 +11,7 @@ namespace Alco.Audio;
 /// <summary>
 /// The utils to decode audio, all the audio will be decoded into float32 format by default
 /// </summary>
-public unsafe static class UtilsAudioDecode
+public unsafe static class AudioDecodeUtility
 {
     public static void StereoToMono(ReadOnlySpan<float> stereoData, Span<float> monoData)
     {

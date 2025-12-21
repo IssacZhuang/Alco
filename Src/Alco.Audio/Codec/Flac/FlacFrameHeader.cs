@@ -197,7 +197,7 @@ internal unsafe struct FlacFrameHeader
             }
         }
 
-        byte crcValue = UtilsCheck.CalcCheckSum(p, 0, reader.Position);
+        byte crcValue = CheckSumUtility.CalcCheckSum(p, 0, reader.Position);
         CRC8 = (byte)reader.ReadBitsToUint(8);
 
         if (crcValue != CRC8)

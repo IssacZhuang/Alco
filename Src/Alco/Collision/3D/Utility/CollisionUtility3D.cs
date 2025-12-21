@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
-    public static class UtilsCollision3D
+    public static class CollisionUtility3D
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SphereSphere(ShapeSphere3D sphere1, ShapeSphere3D sphere2)

@@ -224,7 +224,7 @@ internal static unsafe class WaveDecoder
                     Int24* src = (Int24*)p;
                     for (int i = 0; i < result.Length; i++)
                     {
-                        result[i] = UtilsBitConvert.Int24ToInt32(src[i]) * Inv8388608;
+                        result[i] = BitConvertUtility.Int24ToInt32(src[i]) * Inv8388608;
                     }
                 }
                 break;

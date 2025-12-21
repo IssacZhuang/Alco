@@ -766,27 +766,27 @@ public sealed class ShaderParameterSet
         {
             ref Slot slot = ref _slots[i];
             BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[i];
-            if (UtilsMaterial.IsUniformBufferGroup(bindGroupLayout.Bindings))
+            if (MaterialUtility.IsUniformBufferGroup(bindGroupLayout.Bindings))
             {
                 slot.type = ResourceType.UniformBuffer;
             }
-            else if (UtilsMaterial.IsStorageBufferGroup(bindGroupLayout.Bindings))
+            else if (MaterialUtility.IsStorageBufferGroup(bindGroupLayout.Bindings))
             {
                 slot.type = ResourceType.StorageBuffer;
             }
-            else if (UtilsMaterial.IsStorageBufferWithCounterGroup(bindGroupLayout.Bindings))
+            else if (MaterialUtility.IsStorageBufferWithCounterGroup(bindGroupLayout.Bindings))
             {
                 slot.type = ResourceType.StorageBufferWithCounter;
             }
-            else if (UtilsMaterial.IsStorageTextureGroup(bindGroupLayout.Bindings))
+            else if (MaterialUtility.IsStorageTextureGroup(bindGroupLayout.Bindings))
             {
                 slot.type = ResourceType.TextureStorage;
             }
-            else if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
+            else if (MaterialUtility.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
                 slot.type = ResourceType.TextureWithSampler;
             }
-            else if (UtilsMaterial.IsTextureReadGroup(bindGroupLayout.Bindings))
+            else if (MaterialUtility.IsTextureReadGroup(bindGroupLayout.Bindings))
             {
                 slot.type = ResourceType.TextureRead;
             }

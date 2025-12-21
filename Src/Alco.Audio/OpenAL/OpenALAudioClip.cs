@@ -40,7 +40,7 @@ internal unsafe class OpenALAudioClip : AudioClip
             {
                 ptrMono = (float*)MemoryUtility.Alloc(data.Length * sizeof(float) / 2);
                 Span<float> monoSpan = new(ptrMono, data.Length / 2);
-                UtilsAudioDecode.StereoToMono(data, monoSpan);
+                AudioDecodeUtility.StereoToMono(data, monoSpan);
                 workingData = monoSpan;
                 workingChannel = 1;
 
@@ -55,7 +55,7 @@ internal unsafe class OpenALAudioClip : AudioClip
 
             fixed (float* ptr = workingData)
             {
-                AL.BufferData(_buffer, UtilsOpenAL.GetBufferFormat(Channel), ptr, workingData.Length * sizeof(float), sampleRate);
+                AL.BufferData(_buffer, OpenALUtility.GetBufferFormat(Channel), ptr, workingData.Length * sizeof(float), sampleRate);
             }
         }
         finally

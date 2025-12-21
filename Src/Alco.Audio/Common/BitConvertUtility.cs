@@ -18,13 +18,13 @@ internal struct Int24
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator int(Int24 value)
     {
-        return UtilsBitConvert.Int24ToInt32(value);
+        return BitConvertUtility.Int24ToInt32(value);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator uint(Int24 value)
     {
-        return (uint)UtilsBitConvert.Int24ToInt32(value);
+        return (uint)BitConvertUtility.Int24ToInt32(value);
     }
 
     public override string ToString()
@@ -49,13 +49,13 @@ internal struct UInt24
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator uint(UInt24 value)
     {
-        return UtilsBitConvert.UInt24ToUInt32(value);
+        return BitConvertUtility.UInt24ToUInt32(value);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator int(UInt24 value)
     {
-        return (int)UtilsBitConvert.UInt24ToUInt32(value);
+        return (int)BitConvertUtility.UInt24ToUInt32(value);
     }
 
     public override string ToString()
@@ -64,7 +64,7 @@ internal struct UInt24
     }
 }
 
-internal class UtilsBitConvert
+internal class BitConvertUtility
 {
     public static int Int24ToInt32(Int24 value)
     {

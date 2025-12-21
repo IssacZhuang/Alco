@@ -3,7 +3,7 @@ using Silk.NET.OpenAL.Extensions.EXT;
 
 namespace Alco.Audio.OpenAL;
 
-internal class UtilsOpenAL
+internal class OpenALUtility
 {
     public static BufferFormat GetBufferFormat(int channel)
     {

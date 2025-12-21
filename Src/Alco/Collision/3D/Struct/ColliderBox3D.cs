@@ -31,9 +31,9 @@ namespace Alco
             switch (other->Type)
             {
                 case ColliderType3D.Box:
-                    return UtilsCollision3D.BoxBox(Shape, (*(ColliderBox3D*)other).Shape);
+                    return CollisionUtility3D.BoxBox(Shape, (*(ColliderBox3D*)other).Shape);
                 case ColliderType3D.Sphere:
-                    return UtilsCollision3D.BoxSphere(Shape, (*(ColliderSphere3D*)other).shape);
+                    return CollisionUtility3D.BoxSphere(Shape, (*(ColliderSphere3D*)other).shape);
             }
             return false;
         }
@@ -45,12 +45,12 @@ namespace Alco
 
         public bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo)
         {
-            return UtilsCollision3D.RayBox(ray, Shape, out hitInfo);
+            return CollisionUtility3D.RayBox(ray, Shape, out hitInfo);
         }
 
         public bool IntersectPoint(Vector3 point)
         {
-            return UtilsCollision3D.PointBox(point, Shape);
+            return CollisionUtility3D.PointBox(point, Shape);
         }
 
         public override string ToString()

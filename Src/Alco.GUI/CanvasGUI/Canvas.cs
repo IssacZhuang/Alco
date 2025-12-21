@@ -571,7 +571,7 @@ public partial class Canvas : AutoDisposable
             {
                 Transform2D maskTransform = maskNode.MaskTransform;
                 ShapeBox2D shape = new ShapeBox2D(maskTransform.Position, maskTransform.Rotation, maskTransform.Scale);
-                if (!UtilsCollision2D.PointBox(mousePosition, shape))
+                if (!CollisionUtility2D.PointBox(mousePosition, shape))
                 {
                     return false;
                 }

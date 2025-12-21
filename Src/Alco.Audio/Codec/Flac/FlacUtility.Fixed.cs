@@ -1,6 +1,6 @@
 namespace Alco.Audio;
 
-internal static partial class UtilsFlac
+internal static partial class FlacUtility
 {
     public static unsafe void DecodeSubFrameFixed(
         ref BitReader reader,

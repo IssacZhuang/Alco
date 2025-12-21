@@ -1,11 +1,11 @@
 namespace Alco.Audio;
 
-internal static class UtilsCheck
+internal static class CheckSumUtility
 {
     private static readonly ushort[] Crc8Table = new ushort[256];
 
 
-    static UtilsCheck()
+    static CheckSumUtility()
     {
         int polySumm = 0x07;
         int bitmask = 0x00FF;

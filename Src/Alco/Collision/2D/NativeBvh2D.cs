@@ -280,7 +280,7 @@ namespace Alco
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                //if (!UtilsCollision2D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!CollisionUtility2D.RayAABB(ray, top.boundingBox)) continue;
                 if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
@@ -327,7 +327,7 @@ namespace Alco
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                //if (!UtilsCollision2D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!CollisionUtility2D.RayAABB(ray, top.boundingBox)) continue;
                 if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
