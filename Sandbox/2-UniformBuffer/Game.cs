@@ -142,8 +142,8 @@ public class Game : GameEngine
             Directory.CreateDirectory(Path.Combine(appPath, "spirv"));
         }
 
-        File.WriteAllBytes(filePathVetex, vertexShader.Source);
-        File.WriteAllBytes(filePathFragment, fragmentShader.Source);
+        File.WriteAllBytes(filePathVetex, vertexShader.Source.ToArray());
+        File.WriteAllBytes(filePathFragment, fragmentShader.Source.ToArray());
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {

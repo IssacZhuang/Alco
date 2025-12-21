@@ -207,12 +207,12 @@ public class Game : GameEngine
         return File.ReadAllBytes(Path.Combine("Assets", path));
     }
 
-    private static void DebugSaveFile(string path, byte[] data)
+    private static void DebugSaveFile(string path, ReadOnlyMemory<byte> data)
     {
         if (!Directory.Exists(".Debug"))
         {
             Directory.CreateDirectory(".Debug");
         }
-        File.WriteAllBytes(Path.Combine(".Debug", path), data);
+        File.WriteAllBytes(Path.Combine(".Debug", path), data.ToArray());
     }
 }
