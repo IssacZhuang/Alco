@@ -368,8 +368,8 @@ namespace Alco.Test
             table["boolVal"] = value.boolVal;
             ReadOnlyMemory<byte> bytes = BinaryParser.EncodeTable(table);
 
-            TestContext.WriteLine("xml: " + UtilsTest.FormatSize(sizeXml));
-            TestContext.WriteLine("binary: " + UtilsTest.FormatSize(bytes.Length));
+            TestContext.WriteLine("xml: " + TestUtility.FormatSize(sizeXml));
+            TestContext.WriteLine("binary: " + TestUtility.FormatSize(bytes.Length));
         }
     }
 }

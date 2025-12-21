@@ -1,6 +1,6 @@
 namespace Alco.Rendering;
 
-public static class UtilsUV
+public static class UVUtility
 {
     /// <summary>
     /// Calculates UV coordinates for a specific frame in a grid-based sprite sheet

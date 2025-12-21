@@ -2,7 +2,7 @@ using System;
 
 namespace Alco;
 
-public static class UtilsFixedString
+public static class FixedStringUtility
 {
     public static void GetTrimIndex(this ReadOnlySpan<char> str, TrimType trimType, out int start, out int end)
     {

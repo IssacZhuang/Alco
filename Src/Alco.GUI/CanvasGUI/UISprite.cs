@@ -108,13 +108,13 @@ public class UIImage : UINode
         {
             Vertices.SetSizeWithoutCopy(16);
             Indices.SetSizeWithoutCopy(54);
-            UtilsMesh.Populate9SliceMeshData(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), new Vector2(Texture.Width, Texture.Height), Size, Texture.SlicePadding);
+            MeshUtility.Populate9SliceMeshData(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), new Vector2(Texture.Width, Texture.Height), Size, Texture.SlicePadding);
         }
         else if (ImageType == ImageType.Tiled && Texture != null)
         {
             Vertices.SetSizeWithoutCopy(4);
             Indices.SetSizeWithoutCopy(6);
-            UtilsMesh.PopulateTiledMeshData(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), new Vector2(Texture.Width, Texture.Height), Size, TilingScale);
+            MeshUtility.PopulateTiledMeshData(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), new Vector2(Texture.Width, Texture.Height), Size, TilingScale);
         }
     }
 

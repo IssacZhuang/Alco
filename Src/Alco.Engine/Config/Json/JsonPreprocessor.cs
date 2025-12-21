@@ -402,7 +402,7 @@ public class JsonPreprocessor
         try
         {
             // Merge parent with current document (current document overrides parent)
-            var mergedJson = UtilsJson.Merge(processedParent, document, _specialKeywords);
+            var mergedJson = JsonUtility.Merge(processedParent, document, _specialKeywords);
 
             // Use JsonDocumentOptions to support JSONC (comments and trailing commas)
             var options = new JsonDocumentOptions

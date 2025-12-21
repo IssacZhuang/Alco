@@ -10,7 +10,7 @@ namespace Alco.Engine;
 /// Provides utilities for merging JSON documents with support for inheritance control.
 /// Supports both object and array merging with special directives for controlling merge behavior.
 /// </summary>
-public static class UtilsJson
+public static class JsonUtility
 {
     /// <summary>
     /// The special property name used to control inheritance behavior in JSON objects and arrays.
@@ -67,19 +67,19 @@ public static class UtilsJson
     /// // Object merging with inheritance control
     /// var parent = JsonDocument.Parse(@"{""name"": ""parent"", ""age"": 30}");
     /// var target = JsonDocument.Parse(@"{""$inherit"": false, ""name"": ""child""}");
-    /// var result = UtilsJson.Merge(parent, target);
+    /// var result = JsonUtility.Merge(parent, target);
     /// // Result: {"name": "child"}
     /// 
     /// // Array merging with explicit inheritance control
     /// var parent = JsonDocument.Parse(@"[""a"", ""b""]");
     /// var target = JsonDocument.Parse(@"[{""$inherit"": ""append""}, ""x"", ""y""]");
-    /// var result = UtilsJson.Merge(parent, target);
+    /// var result = JsonUtility.Merge(parent, target);
     /// // Result: ["a", "b", "x", "y"]
     /// 
     /// // Array replacement (default behavior)
     /// var parent = JsonDocument.Parse(@"[""a"", ""b""]");
     /// var target = JsonDocument.Parse(@"[""x"", ""y""]");
-    /// var result = UtilsJson.Merge(parent, target);
+    /// var result = JsonUtility.Merge(parent, target);
     /// // Result: ["x", "y"]
     /// </code>
     /// </example>

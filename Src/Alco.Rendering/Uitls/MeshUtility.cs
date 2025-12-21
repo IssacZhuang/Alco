@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
-public static class UtilsMesh
+public static class MeshUtility
 {
 
     /// <summary>

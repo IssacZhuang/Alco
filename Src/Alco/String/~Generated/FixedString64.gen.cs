@@ -652,7 +652,7 @@ public unsafe partial struct FixedString64 : IEquatable<FixedString64>
     /// <returns>A new string with white-space characters removed according to the trim type.</returns>
     private FixedString64 TrimWhiteSpaceHelper(TrimType trimType)
     {
-        UtilsFixedString.GetTrimIndex(this, trimType, out int start, out int end);
+        FixedStringUtility.GetTrimIndex(this, trimType, out int start, out int end);
         return CreateTrimmedString(start, end);
     }
 
@@ -664,7 +664,7 @@ public unsafe partial struct FixedString64 : IEquatable<FixedString64>
     /// <returns>A new string with specified characters removed according to the trim type.</returns>
     private FixedString64 TrimHelper(ReadOnlySpan<char> trimChars, TrimType trimType)
     {
-        UtilsFixedString.GetTrimIndex(this, trimChars, trimType, out int start, out int end);
+        FixedStringUtility.GetTrimIndex(this, trimChars, trimType, out int start, out int end);
         return CreateTrimmedString(start, end);
     }
 

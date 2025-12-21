@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Alco.Engine.Test;
 
 [TestFixture]
-public class TestUtilsJson
+public class TestJsonUtility
 {
     [Test]
     public void Merge_SimpleObjects_ShouldMergeCorrectly()
@@ -18,7 +18,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -38,7 +38,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -61,7 +61,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -83,7 +83,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -106,7 +106,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -124,7 +124,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -144,7 +144,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -163,7 +163,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -206,7 +206,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -237,7 +237,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        using var result = UtilsJson.MergeToDocument(parentDoc, targetDoc);
+        using var result = JsonUtility.MergeToDocument(parentDoc, targetDoc);
 
         // Assert
         Assert.That(result, Is.Not.Null);
@@ -256,7 +256,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => UtilsJson.Merge(parentDoc, targetDoc));
+        var ex = Assert.Throws<InvalidOperationException>(() => JsonUtility.Merge(parentDoc, targetDoc));
         Assert.That(ex.Message, Does.Contain("must be a container type"));
         Assert.That(ex.Message, Does.Contain("Number"));
     }
@@ -272,7 +272,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => UtilsJson.Merge(parentDoc, targetDoc));
+        var ex = Assert.Throws<InvalidOperationException>(() => JsonUtility.Merge(parentDoc, targetDoc));
         Assert.That(ex.Message, Does.Contain("must be a container type"));
         Assert.That(ex.Message, Does.Contain("Number"));
     }
@@ -288,7 +288,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => UtilsJson.Merge(parentDoc, targetDoc));
+        var ex = Assert.Throws<InvalidOperationException>(() => JsonUtility.Merge(parentDoc, targetDoc));
         Assert.That(ex.Message, Does.Contain("must be a container type"));
         Assert.That(ex.Message, Does.Contain("Array"));
     }
@@ -304,7 +304,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -326,7 +326,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -346,7 +346,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -391,7 +391,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -420,7 +420,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -441,7 +441,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -462,7 +462,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -503,7 +503,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -530,7 +530,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -551,7 +551,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -575,7 +575,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -599,7 +599,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -620,7 +620,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -650,7 +650,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -676,7 +676,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert
@@ -700,7 +700,7 @@ public class TestUtilsJson
         using var targetDoc = JsonDocument.Parse(targetJson);
 
         // Act
-        var result = UtilsJson.Merge(parentDoc, targetDoc);
+        var result = JsonUtility.Merge(parentDoc, targetDoc);
         using var resultDoc = JsonDocument.Parse(result);
 
         // Assert - should fall back to default behavior (replace with all target elements including control object)

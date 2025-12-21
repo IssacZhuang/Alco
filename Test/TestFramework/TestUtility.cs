@@ -3,7 +3,7 @@ using NUnit.Framework;
 
 namespace TestFramework;
 
-public static class UtilsTest
+public static class TestUtility
 {
     private readonly static long SizeK = 1024;
     private readonly static long SizeM = 1024 * 1024;

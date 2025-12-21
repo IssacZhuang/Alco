@@ -93,7 +93,7 @@ public class BinarySerializeReadNode : SerializeReadNode
             {
                 if (array.TryGetBinary(i, out ReadOnlyMemory<byte> binaryValue))
                 {
-                    value.Add(UtilsBinary.DecodeToValue<T>(binaryValue.Span));
+                    value.Add(BinaryUtility.DecodeToValue<T>(binaryValue.Span));
                 }
             }
         }
@@ -253,7 +253,7 @@ public class BinarySerializeReadNode : SerializeReadNode
             {
                 if (table.TryGetBinary(itemKey, out ReadOnlyMemory<byte> binaryValue))
                 {
-                    value.Add(itemKey, UtilsBinary.DecodeToValue<TValue>(binaryValue.Span));
+                    value.Add(itemKey, BinaryUtility.DecodeToValue<TValue>(binaryValue.Span));
                 }
             }
         }

@@ -7,7 +7,7 @@ using System;
 
 namespace Alco
 {
-    public static class UtilsBinary
+    public static class BinaryUtility
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static byte[] EncodeValue<T>(T value) where T : unmanaged
