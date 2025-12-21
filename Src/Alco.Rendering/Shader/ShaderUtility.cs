@@ -7,7 +7,7 @@ using Alco.ShaderCompiler;
 
 namespace Alco.Rendering;
 
-public static partial class UtilsShader
+public static partial class ShaderUtility
 {
 
     /// <summary>
@@ -99,7 +99,7 @@ public static partial class UtilsShader
                 includeResolver
                 );
 
-            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertex.Source, pixel.Source, true);
+            ShaderReflectionInfo reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(vertex.Source, pixel.Source, true);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateGraphics(
                 filename,
                 defineArray,
@@ -123,7 +123,7 @@ public static partial class UtilsShader
                 macros.ToArray()
                 );
 
-            ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(compute.Source, true);
+            ShaderReflectionInfo reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(compute.Source, true);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateCompute(
                 filename,
                 defineArray,
@@ -265,11 +265,11 @@ public static partial class UtilsShader
         ShaderReflectionInfo reflectionInfo;
         if (vertexShader.HasValue && fragmentShader.HasValue)
         {
-            reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(vertexShader.Value.Source, fragmentShader.Value.Source, true);
+            reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(vertexShader.Value.Source, fragmentShader.Value.Source, true);
         }
         else if (computeShader.HasValue)
         {
-            reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Value.Source, true);
+            reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(computeShader.Value.Source, true);
         }
         else
         {

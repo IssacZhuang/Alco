@@ -3,7 +3,7 @@ using Silk.NET.SPIRV.Reflect;
 
 namespace Alco.Graphics;
 
-public static class UtilsShaderRelfection
+public static class ShaderUtilityRelfection
 {
     private static readonly Reflect API = Reflect.GetApi();
 
@@ -221,7 +221,7 @@ public static class UtilsShaderRelfection
             type,
             textureBindingInfo,
             storageTextureBindingInfo,
-            UtilsInterop.ReadString(input.Name)
+            InteropUtility.ReadString(input.Name)
         ),
             Size = input.Block.PaddedSize
         };
@@ -303,7 +303,7 @@ public static class UtilsShaderRelfection
         return new VertexElement
         {
             Location = input.Location,
-            Name = UtilsInterop.ReadString(input.Name),
+            Name = InteropUtility.ReadString(input.Name),
             Format = UtilsRelfectType.ConvertFormat(input.Format),
             Offset = offset
         };

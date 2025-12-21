@@ -94,7 +94,7 @@ public unsafe static class UtilsAudioDecode
         {
             if (buffer != null)
             {
-                UtilsMemory.Free(buffer);
+                MemoryUtility.Free(buffer);
             }
         }
     }
@@ -126,7 +126,7 @@ public unsafe static class UtilsAudioDecode
         {
             if (buffer != null)
             {
-                UtilsMemory.Free(buffer);
+                MemoryUtility.Free(buffer);
             }
         }
 
@@ -152,7 +152,7 @@ public unsafe static class UtilsAudioDecode
         {
             if (buffer != null)
             {
-                UtilsMemory.Free(buffer);
+                MemoryUtility.Free(buffer);
             }
         }
 

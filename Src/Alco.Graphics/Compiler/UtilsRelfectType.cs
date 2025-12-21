@@ -167,7 +167,7 @@ internal static class UtilsRelfectType
 
     static UtilsRelfectType()
     {
-        ConvertFormat = UtilsCast.GenerateCastFunc(RelfectFormatToVertexCast);
-        ConvertImageFormat = UtilsCast.GenerateCastFunc(ReflectFormatToPixelCast);
+        ConvertFormat = CastUtility.GenerateCastFunc(RelfectFormatToVertexCast);
+        ConvertImageFormat = CastUtility.GenerateCastFunc(ReflectFormatToPixelCast);
     }
 }

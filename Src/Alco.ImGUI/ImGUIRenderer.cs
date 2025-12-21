@@ -146,7 +146,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
             //_mesh.UpdateIndicesUnsafe(indexDataPtr, indexDataSize, indexBufferOffset);
             //the offset of index buffer might not be memory aligned, so we need to copy the index data to a temporary buffer
             //_mesh.UpdateIndicesUnsafe(_tmpIndexBuffer.UnsafePointer, indexDataSize, indexBufferOffset);
-            UtilsMemory.MemCopy(indexDataPtr, tmpIndexBufferPtr + indexBufferOffset, indexDataSize);
+            MemoryUtility.MemCopy(indexDataPtr, tmpIndexBufferPtr + indexBufferOffset, indexDataSize);
 
             vertexBufferOffset += vertexDataSize;
             indexBufferOffset += indexDataSize;

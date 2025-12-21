@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 
 namespace Alco.Graphics;
 
-internal static class UtilsCast
+internal static class CastUtility
 {
     public static Func<TA, TB> GenerateCastFunc<TA, TB>(FrozenDictionary<TA, TB> castTable) where TA : notnull where TB : notnull
     {

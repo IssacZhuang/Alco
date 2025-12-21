@@ -209,7 +209,7 @@ public class Game : GameEngine
         // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "MainCS");
 
         DebugSaveFile("BoxBlur.spv", computeShader.Source);
-        ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Source);
+        ShaderReflectionInfo reflectionInfo = ShaderUtilityRelfection.GetSpirvReflection(computeShader.Source);
         Log.Info(reflectionInfo);
         
 

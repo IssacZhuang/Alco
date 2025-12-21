@@ -6,7 +6,7 @@
 
 // namespace Alco.Rendering;
 
-// public static class UtilsShaderSlang
+// public static class ShaderSlangUtility
 // {
 //     public static ShaderCompileResultDeprecated Compile(string code, string filename, BaseSlangFileSystem? fileSystem = null)
 //     {
@@ -45,12 +45,12 @@
 
 //         if (stages.IsGraphicsShader())
 //         {
-//             ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source, true);
+//             ShaderReflectionInfo reflection = ShaderUtilityRelfection.GetSpirvReflection(vertexShader!.Value.Source, fragmentShader!.Value.Source, true);
 //             return new ShaderCompileResultDeprecated(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
 //         }
 //         else if (stages.IsComputeShader())
 //         {
-//             ShaderReflectionInfo reflection = UtilsShaderRelfection.GetSpirvReflection(computeShader!.Value.Source);
+//             ShaderReflectionInfo reflection = ShaderUtilityRelfection.GetSpirvReflection(computeShader!.Value.Source);
 //             return new ShaderCompileResultDeprecated(preproccessed.Filename, vertexShader, fragmentShader, computeShader, stages, preproccessed.RasterizerState, preproccessed.BlendState, preproccessed.DepthStencilState, preproccessed.PrimitiveTopology, reflection);
 //         }
 
@@ -65,29 +65,29 @@
 //             Filename = filename,
 //         };
 
-//         ShaderPragma[] pragmas = UtilsShaderText.GetPragmas(code);
+//         ShaderPragma[] pragmas = ShaderUtilityText.GetPragmas(code);
 //         result.Pragmas = pragmas;
 
 //         for(int i = 0; i < pragmas.Length; i++)
 //         {
 //             ShaderPragma pragma = pragmas[i];
             
-//             if (UtilsShaderText.TryGetBlendState(pragma, out BlendState blendState))
+//             if (ShaderUtilityText.TryGetBlendState(pragma, out BlendState blendState))
 //             {
 //                 result.BlendState = blendState;
 //             }
 
-//             if (UtilsShaderText.TryGetRasterizerState(pragma, out RasterizerState rasterizerState))
+//             if (ShaderUtilityText.TryGetRasterizerState(pragma, out RasterizerState rasterizerState))
 //             {
 //                 result.RasterizerState = rasterizerState;
 //             }
 
-//             if (UtilsShaderText.TryGetDepthStencilState(pragma, out DepthStencilState depthStencilState))
+//             if (ShaderUtilityText.TryGetDepthStencilState(pragma, out DepthStencilState depthStencilState))
 //             {
 //                 result.DepthStencilState = depthStencilState;
 //             }
 
-//             if (UtilsShaderText.TryGetPrimitiveTopology(pragma, out PrimitiveTopology? primitiveTopology))
+//             if (ShaderUtilityText.TryGetPrimitiveTopology(pragma, out PrimitiveTopology? primitiveTopology))
 //             {
 //                 result.PrimitiveTopology = primitiveTopology;
 //             }

@@ -44,11 +44,11 @@ public struct TextureDescriptor
     /// </summary>
     public readonly void Validate()
     {
-        UtilsAssert.IsTrue(Format != PixelFormat.Undefined, "Texture format must be defined");
-        UtilsAssert.IsTrue(Width > 0, "Texture width must be greater than 0");
-        UtilsAssert.IsTrue(Height > 0, "Texture height must be greater than 0");
-        UtilsAssert.IsTrue(DepthOrArrayLayer > 0, "Texture depth or array layer must be greater than 0");
-        UtilsAssert.IsTrue(MipLevels > 0, "Texture mip levels must be greater than 0");
+        AssetUtility.IsTrue(Format != PixelFormat.Undefined, "Texture format must be defined");
+        AssetUtility.IsTrue(Width > 0, "Texture width must be greater than 0");
+        AssetUtility.IsTrue(Height > 0, "Texture height must be greater than 0");
+        AssetUtility.IsTrue(DepthOrArrayLayer > 0, "Texture depth or array layer must be greater than 0");
+        AssetUtility.IsTrue(MipLevels > 0, "Texture mip levels must be greater than 0");
     }
 
     /// <summary>

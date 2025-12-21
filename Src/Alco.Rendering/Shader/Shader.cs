@@ -238,7 +238,7 @@ public sealed class Shader : AutoDisposable
                 }
             }
 
-            modulesInfo = UtilsShader.CompileHLSL(_shaderText, Name, defines);
+            modulesInfo = ShaderUtility.CompileHLSL(_shaderText, Name, defines);
             _modulesCache[hash] = modulesInfo;
 
             //save shader cache into disk
@@ -447,7 +447,7 @@ public sealed class Shader : AutoDisposable
     public void UnsafeHotReload(string shaderText)
     {
         //it might throw exception if the shader code is not valid
-        ShaderModulesInfo shaderModule = UtilsShader.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty);
+        ShaderModulesInfo shaderModule = ShaderUtility.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty);
         
         _shaderText = shaderText;
 

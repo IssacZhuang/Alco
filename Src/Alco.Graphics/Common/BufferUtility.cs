@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Graphics;
 
-internal static class UtilsBuffer
+internal static class BufferUtility
 {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

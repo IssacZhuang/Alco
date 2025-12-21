@@ -167,7 +167,7 @@ public class Game : GameEngine
         ShaderModule vertSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
         ShaderModule fragSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
 
-        ShaderReflectionInfo info = UtilsShaderRelfection.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
+        ShaderReflectionInfo info = ShaderUtilityRelfection.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
 
         Log.Info(info);
 

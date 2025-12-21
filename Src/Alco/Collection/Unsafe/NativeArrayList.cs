@@ -133,7 +133,7 @@ namespace Alco
         public NativeArrayList(int size)
         {
             if (size <= 0) throw new EmptySizeException(nameof(size));
-            _ptrBuffer = UtilsMemory.Alloc(sizeof(T) * size);
+            _ptrBuffer = MemoryUtility.Alloc(sizeof(T) * size);
             _length = 0;
             _capacity = size;
             _isDisposed = false;
@@ -160,7 +160,7 @@ namespace Alco
         {
             if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
             EnsureSize(_length + 1);
-            UtilsMemory.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, sizeof(T) * (_length - index));
+            MemoryUtility.MemCopy((T*)_ptrBuffer + index, (T*)_ptrBuffer + index + 1, sizeof(T) * (_length - index));
             _length++;
             this[index] = value;
         }
@@ -191,7 +191,7 @@ namespace Alco
         public void RemoveAt(int index)
         {
             if (NotInRange(index)) throw new IndexOutOfRangeException(nameof(index));
-            UtilsMemory.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, sizeof(T) * (_length - index - 1));
+            MemoryUtility.MemCopy((T*)_ptrBuffer + index + 1, (T*)_ptrBuffer + index, sizeof(T) * (_length - index - 1));
             _length--;
         }
 
@@ -244,7 +244,7 @@ namespace Alco
         {
             if (_isDisposed) return;
             _isDisposed = true;
-            UtilsMemory.Free(_ptrBuffer);
+            MemoryUtility.Free(_ptrBuffer);
             GC.SuppressFinalize(this);
         }
 
@@ -252,12 +252,12 @@ namespace Alco
         {
             if (size < DefaultSize) size = DefaultSize;
 
-            void* tmpPtr = UtilsMemory.Alloc(sizeof(T) * size);
+            void* tmpPtr = MemoryUtility.Alloc(sizeof(T) * size);
 
             if (_ptrBuffer != null)
             {
-                UtilsMemory.MemCopy(_ptrBuffer, tmpPtr, sizeof(T) * _length);
-                UtilsMemory.Free(_ptrBuffer);
+                MemoryUtility.MemCopy(_ptrBuffer, tmpPtr, sizeof(T) * _length);
+                MemoryUtility.Free(_ptrBuffer);
             }
 
             _ptrBuffer = tmpPtr;

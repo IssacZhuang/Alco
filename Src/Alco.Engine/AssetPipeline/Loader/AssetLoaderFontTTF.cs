@@ -38,24 +38,24 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
         );
 
         packer.Add(context.Data, 32, new int2[]{
-                UtilsUnicode.RangeBasicLatin,
-                UtilsUnicode.RangeLatin1Supplement,
-                UtilsUnicode.RangeLatinExtendedA,
-                UtilsUnicode.RangeCyrillic,
-                UtilsUnicode.RangeGreek,
+                UnicodeUtility.RangeBasicLatin,
+                UnicodeUtility.RangeLatin1Supplement,
+                UnicodeUtility.RangeLatinExtendedA,
+                UnicodeUtility.RangeCyrillic,
+                UnicodeUtility.RangeGreek,
                 //japanese
-                UtilsUnicode.RangeHiragana,
-                UtilsUnicode.RangeKatakana,
+                UnicodeUtility.RangeHiragana,
+                UnicodeUtility.RangeKatakana,
                 //chinese
-                UtilsUnicode.RangeCjkUnifiedIdeographs,
-                UtilsUnicode.RangeCjkUnifiedIdeographsExtensionA,
-                UtilsUnicode.RangeCjkSymbolsAndPunctuation,
-                UtilsUnicode.RangeHalfwidthAndFullwidthForms, // Essential for Chinese punctuation (：；，。？！etc.)
-                UtilsUnicode.RangeCjkCompatibilityForms,
-                UtilsUnicode.RangeVerticalForms,
+                UnicodeUtility.RangeCjkUnifiedIdeographs,
+                UnicodeUtility.RangeCjkUnifiedIdeographsExtensionA,
+                UnicodeUtility.RangeCjkSymbolsAndPunctuation,
+                UnicodeUtility.RangeHalfwidthAndFullwidthForms, // Essential for Chinese punctuation (：；，。？！etc.)
+                UnicodeUtility.RangeCjkCompatibilityForms,
+                UnicodeUtility.RangeVerticalForms,
                 //korean
-                UtilsUnicode.RangeHangulSyllables,
-                UtilsUnicode.RangeHangulCompatibilityJamo,
+                UnicodeUtility.RangeHangulSyllables,
+                UnicodeUtility.RangeHangulCompatibilityJamo,
             });
 
         // Step 2: Get atlas data

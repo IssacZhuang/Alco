@@ -94,13 +94,13 @@
 
 //         byte[] vertexSpirv = request.GetBytesByEntryPointIndex(vertexIndex);
 
-//         var vertexReflection = UtilsShaderRelfection.GetSpirvReflection(vertexSpirv);
+//         var vertexReflection = ShaderUtilityRelfection.GetSpirvReflection(vertexSpirv);
 
 //         TestContext.WriteLine($"Vertex reflection:\n{vertexReflection}");
 
 //         byte[] fragmentSpirv = request.GetBytesByEntryPointIndex(fragmentIndex);
 
-//         var fragmentReflection = UtilsShaderRelfection.GetSpirvReflection(fragmentSpirv);
+//         var fragmentReflection = ShaderUtilityRelfection.GetSpirvReflection(fragmentSpirv);
 
 //         TestContext.WriteLine($"Fragment reflection: {fragmentReflection}");
 

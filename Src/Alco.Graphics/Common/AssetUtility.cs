@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Graphics;
 
-internal static class UtilsAssert
+internal static class AssetUtility
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void IsTrue(bool condition, string message = "")

@@ -155,8 +155,8 @@ public sealed unsafe class DynamicMesh : Mesh
         byte* pVertexBuffer = _vertexBufferCpu.UnsafePointer + _vertexBufferCpuSize;
         byte* pIndexBuffer = _indexBufferCpu.UnsafePointer + _indexBufferCpuSize;
 
-        UtilsMemory.MemCopy(vertexPtr, pVertexBuffer, verticesSize);
-        UtilsMemory.MemCopy(indexPtr, pIndexBuffer, indicesSize);
+        MemoryUtility.MemCopy(vertexPtr, pVertexBuffer, verticesSize);
+        MemoryUtility.MemCopy(indexPtr, pIndexBuffer, indicesSize);
 
         SubMeshData subMeshData = new SubMeshData
         {
@@ -191,8 +191,8 @@ public sealed unsafe class DynamicMesh : Mesh
         byte* pVertexBuffer = _vertexBufferCpu.UnsafePointer + _vertexBufferCpuSize;
         byte* pIndexBuffer = _indexBufferCpu.UnsafePointer + _indexBufferCpuSize;
 
-        UtilsMemory.MemCopy(vertexPtr, pVertexBuffer, verticesSize);
-        UtilsMemory.MemCopy(indexPtr, pIndexBuffer, indicesSize);
+        MemoryUtility.MemCopy(vertexPtr, pVertexBuffer, verticesSize);
+        MemoryUtility.MemCopy(indexPtr, pIndexBuffer, indicesSize);
 
         subMeshData = new SubMeshData
         {

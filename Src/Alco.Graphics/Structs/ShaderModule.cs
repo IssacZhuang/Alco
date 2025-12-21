@@ -24,8 +24,8 @@ namespace Alco.Graphics
 
         public readonly void Validate()
         {
-            UtilsAssert.IsTrue(Source.Length > 0, "Shader source must not be null or empty");
-            UtilsAssert.IsTrue(!string.IsNullOrEmpty(EntryPoint), "Shader entry point must not be null or empty");
+            AssetUtility.IsTrue(Source.Length > 0, "Shader source must not be null or empty");
+            AssetUtility.IsTrue(!string.IsNullOrEmpty(EntryPoint), "Shader entry point must not be null or empty");
         }
 
         /// <summary>

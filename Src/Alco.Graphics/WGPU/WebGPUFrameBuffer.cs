@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
-using static Alco.Graphics.UtilsInterop;
+using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.WebGPU;
 
@@ -189,7 +189,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
             _depthStencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.None));
             _depthView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            if(UtilsPixelFormat.HasStencil(_depthStencilTexture.PixelFormat))
+            if(PixelFormatUtility.HasStencil(_depthStencilTexture.PixelFormat))
             {
                 _stencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
             }

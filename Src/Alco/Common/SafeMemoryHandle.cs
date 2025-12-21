@@ -28,7 +28,7 @@ public unsafe class SafeMemoryHandle : AutoDisposable
     public SafeMemoryHandle(int byteCount)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(byteCount);
-        _unsafePointer = (byte*)UtilsMemory.Alloc(byteCount);
+        _unsafePointer = (byte*)MemoryUtility.Alloc(byteCount);
         _length = byteCount;
     }
 
@@ -40,7 +40,7 @@ public unsafe class SafeMemoryHandle : AutoDisposable
     public SafeMemoryHandle(long byteCount)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(byteCount);
-        _unsafePointer = (byte*)UtilsMemory.Alloc(byteCount);
+        _unsafePointer = (byte*)MemoryUtility.Alloc(byteCount);
         _length = (int)byteCount;
     }
 
@@ -83,7 +83,7 @@ public unsafe class SafeMemoryHandle : AutoDisposable
     {
         if (_unsafePointer != null)
         {
-            UtilsMemory.Free(_unsafePointer);
+            MemoryUtility.Free(_unsafePointer);
         }
     }
 

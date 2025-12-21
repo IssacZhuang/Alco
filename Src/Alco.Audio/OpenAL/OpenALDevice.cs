@@ -279,7 +279,7 @@ internal unsafe class OpenALDevice : AudioDevice
         {
             // if (channel == 2)
             // {
-            //     ptrMono = (float*)UtilsMemory.Alloc(data.Length * sizeof(float) / 2);
+            //     ptrMono = (float*)MemoryUtility.Alloc(data.Length * sizeof(float) / 2);
             //     Span<float> spanMono = new(ptrMono, data.Length / 2);
             //     UtilsAudioDecode.StereoToMono(data, spanMono);
             //     channel = 1;
@@ -297,7 +297,7 @@ internal unsafe class OpenALDevice : AudioDevice
         {
             if (ptrMono != null)
             {
-                UtilsMemory.Free(ptrMono);
+                MemoryUtility.Free(ptrMono);
             }
         }
 

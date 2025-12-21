@@ -9,7 +9,7 @@ internal static partial class UtilsWebGPU
     public static WGPUTexelCopyBufferLayout GetTextureDataLayout(PixelFormat pixelFormat, uint width, uint height)
     {
         //uncompresed formats
-        if (UtilsPixelFormat.TryGetPixelSize(pixelFormat, out var pixelSize))
+        if (PixelFormatUtility.TryGetPixelSize(pixelFormat, out var pixelSize))
         { 
             return new WGPUTexelCopyBufferLayout
             {
@@ -21,7 +21,7 @@ internal static partial class UtilsWebGPU
         }
 
         //compressed formats
-        if (UtilsPixelFormat.TryGetCompressedBlockSize(pixelFormat, out var blockSize))
+        if (PixelFormatUtility.TryGetCompressedBlockSize(pixelFormat, out var blockSize))
         {
             // BC formats use 4x4 pixel blocks
             uint blocksPerRow = (width + 3) / 4;

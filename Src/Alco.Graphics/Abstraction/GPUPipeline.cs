@@ -30,7 +30,7 @@ namespace Alco.Graphics
             Stages = stages;
 
 
-            if (!UtilsDescriptor.IsGraphicsShader(descriptor.ShaderModules))
+            if (!DescriptorUtility.IsGraphicsShader(descriptor.ShaderModules))
                 throw new GraphicsException("The shader stages must contain a vertex and a pixel shader when creating a graphics pipeline");
         }
 

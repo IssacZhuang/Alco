@@ -3,7 +3,7 @@ using Silk.NET.Core.Native;
 
 namespace Alco.ShaderCompiler;
 
-internal unsafe static class UtilsInterop
+internal unsafe static class InteropUtility
 {
 
     public static T* Alloc<T>(int count) where T : unmanaged

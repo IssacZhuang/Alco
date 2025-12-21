@@ -98,7 +98,7 @@ namespace Alco
         public NativeBuffer(int size)
         {
             if (size <= 0) throw new EmptySizeException(nameof(size));
-            _ptrBuffer = UtilsMemory.Alloc(size * sizeof(T));
+            _ptrBuffer = MemoryUtility.Alloc(size * sizeof(T));
             _length = size;
             _capacity = size;
             _isDisposed = false;
@@ -139,7 +139,7 @@ namespace Alco
 
             int newCapacity = CalculateNewCapacity(size);
             FreeMemory();
-            _ptrBuffer = UtilsMemory.Alloc(newCapacity * sizeof(T));
+            _ptrBuffer = MemoryUtility.Alloc(newCapacity * sizeof(T));
             _capacity = newCapacity;
             _length = size;
         }
@@ -191,11 +191,11 @@ namespace Alco
             if (newCapacity <= 0) throw new EmptySizeException(nameof(newCapacity));
             if (newCapacity == _capacity) return;
 
-            void* ptr = UtilsMemory.Alloc(newCapacity * sizeof(T));
+            void* ptr = MemoryUtility.Alloc(newCapacity * sizeof(T));
             int copySize = Math.Min(newCapacity, _length);
             if (_ptrBuffer != null && copySize > 0)
             {
-                UtilsMemory.MemCopy(_ptrBuffer, ptr, copySize * sizeof(T));
+                MemoryUtility.MemCopy(_ptrBuffer, ptr, copySize * sizeof(T));
             }
             FreeMemory();
             _ptrBuffer = ptr;
@@ -231,7 +231,7 @@ namespace Alco
         {
             if (_ptrBuffer != null)
             {
-                UtilsMemory.Free(_ptrBuffer);
+                MemoryUtility.Free(_ptrBuffer);
                 _ptrBuffer = null;
                 _capacity = 0;
             }

@@ -389,24 +389,24 @@ internal static partial class UtilsWebGPU
 
     static UtilsWebGPU()
     {
-        BackendToWebGPU = UtilsCast.GenerateCastFunc(BackendCast);
-        BackendTypeToWebGPU = UtilsCast.GenerateCastFunc(BackendType);
-        UtilsCast.GenerateCastFunc(PrimitiveTopologyCast, out PrimitiveTopologyToWebGPU, out PrimitiveTopologyToAbstract);
-        UtilsCast.GenerateCastFunc(CullModeCast, out CullModeToWebGPU, out CullModeToAbstract);
-        UtilsCast.GenerateCastFunc(FrontFaceCast, out FrontFaceToWebGPU, out FrontFaceToAbstract);
-        UtilsCast.GenerateCastFunc(PixelFormatCast, out PixelFormatToWebGPU, out PixelFormatToAbstract);
-        UtilsCast.GenerateCastFunc(BlendFactorCast, out BlendFactorToWebGPU, out BlendFactorToAbstract);
-        UtilsCast.GenerateCastFunc(BlendOperationCast, out BlendOperationToWebGPU, out BlendOperationToAbstract);
-        UtilsCast.GenerateCastFunc(VertexStepModeCast, out VertexStepModeToWebGPU, out VertexStepModeToAbstract);
-        UtilsCast.GenerateCastFunc(VertexFormatCast, out VertexFormatToWebGPU, out VertexFormatToAbstract);
-        UtilsCast.GenerateCastFunc(CompareFunctionCast, out CompareFunctionToWebGPU, out CompareFunctionToAbstract);
-        UtilsCast.GenerateCastFunc(TextureDimensionCast, out TextureDimensionToWebGPU, out TextureDimensionToAbstract);
-        UtilsCast.GenerateCastFunc(TextureViewDimensionCast, out TextureViewDimensionToWebGPU, out TextureViewDimensionToAbstract);
-        UtilsCast.GenerateCastFunc(StencilOperationCast, out StencilOperationToWebGPU, out StencilOperationToAbstract);
-        UtilsCast.GenerateCastFunc(AddressModeCast, out AddressModeToWebGPU, out AddressModeToAbstract);
-        UtilsCast.GenerateCastFunc(FilterModeCast, out FilterModeToWebGPU, out FilterModeToAbstract);
-        UtilsCast.GenerateCastFunc(MipmapFilterModeCast, out MipmapFilterModeToWebGPU, out MipmapFilterModeToAbstract);
-        UtilsCast.GenerateCastFunc(TextureAspectCast, out TextureAspectToWebGPU, out TextureAspectToAbstract);
-        UtilsCast.GenerateCastFunc(TextureSampleTypeCast, out TextureSampleTypeToWebGPU, out TextureSampleTypeToAbstract);
+        BackendToWebGPU = CastUtility.GenerateCastFunc(BackendCast);
+        BackendTypeToWebGPU = CastUtility.GenerateCastFunc(BackendType);
+        CastUtility.GenerateCastFunc(PrimitiveTopologyCast, out PrimitiveTopologyToWebGPU, out PrimitiveTopologyToAbstract);
+        CastUtility.GenerateCastFunc(CullModeCast, out CullModeToWebGPU, out CullModeToAbstract);
+        CastUtility.GenerateCastFunc(FrontFaceCast, out FrontFaceToWebGPU, out FrontFaceToAbstract);
+        CastUtility.GenerateCastFunc(PixelFormatCast, out PixelFormatToWebGPU, out PixelFormatToAbstract);
+        CastUtility.GenerateCastFunc(BlendFactorCast, out BlendFactorToWebGPU, out BlendFactorToAbstract);
+        CastUtility.GenerateCastFunc(BlendOperationCast, out BlendOperationToWebGPU, out BlendOperationToAbstract);
+        CastUtility.GenerateCastFunc(VertexStepModeCast, out VertexStepModeToWebGPU, out VertexStepModeToAbstract);
+        CastUtility.GenerateCastFunc(VertexFormatCast, out VertexFormatToWebGPU, out VertexFormatToAbstract);
+        CastUtility.GenerateCastFunc(CompareFunctionCast, out CompareFunctionToWebGPU, out CompareFunctionToAbstract);
+        CastUtility.GenerateCastFunc(TextureDimensionCast, out TextureDimensionToWebGPU, out TextureDimensionToAbstract);
+        CastUtility.GenerateCastFunc(TextureViewDimensionCast, out TextureViewDimensionToWebGPU, out TextureViewDimensionToAbstract);
+        CastUtility.GenerateCastFunc(StencilOperationCast, out StencilOperationToWebGPU, out StencilOperationToAbstract);
+        CastUtility.GenerateCastFunc(AddressModeCast, out AddressModeToWebGPU, out AddressModeToAbstract);
+        CastUtility.GenerateCastFunc(FilterModeCast, out FilterModeToWebGPU, out FilterModeToAbstract);
+        CastUtility.GenerateCastFunc(MipmapFilterModeCast, out MipmapFilterModeToWebGPU, out MipmapFilterModeToAbstract);
+        CastUtility.GenerateCastFunc(TextureAspectCast, out TextureAspectToWebGPU, out TextureAspectToAbstract);
+        CastUtility.GenerateCastFunc(TextureSampleTypeCast, out TextureSampleTypeToWebGPU, out TextureSampleTypeToAbstract);
     }
 }

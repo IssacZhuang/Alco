@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Alco
 {
-    public static unsafe class UtilsMemory
+    public static unsafe class MemoryUtility
     {
         /// <summary>
         /// Allocates memory with the specified size.

@@ -35,7 +35,7 @@ public unsafe class ShaderCache : IShaderCache
                 ulong hash = GetHash(shaderText);
                 writer.Write(hash);
 
-                ReadOnlyMemory<byte> bytes = UtilsShader.EncodeShaderModulesInfo(modulesInfo);
+                ReadOnlyMemory<byte> bytes = ShaderUtility.EncodeShaderModulesInfo(modulesInfo);
                 writer.Write(bytes.Span);
 
                 Log.Info("Shader save to cache: ", cachePath);
@@ -74,11 +74,11 @@ public unsafe class ShaderCache : IShaderCache
 
             //read rest of the into a byte[]
             int length = (int)stream.Length - 8;
-            ptrData = (byte*)UtilsMemory.Alloc(length);
+            ptrData = (byte*)MemoryUtility.Alloc(length);
             Span<byte> bytes = new(ptrData, length);
 
             reader.Read(bytes);
-            modulesInfo = UtilsShader.DecodeShaderModulesInfo(bytes);
+            modulesInfo = ShaderUtility.DecodeShaderModulesInfo(bytes);
         }
         catch (Exception e)
         {
@@ -90,7 +90,7 @@ public unsafe class ShaderCache : IShaderCache
         {
             if (ptrData != null)
             {
-                UtilsMemory.Free(ptrData);
+                MemoryUtility.Free(ptrData);
             }
         }
         Log.Info("Shader load from cache: ", cachePath);

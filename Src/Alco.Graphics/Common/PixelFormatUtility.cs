@@ -1,6 +1,6 @@
 namespace Alco.Graphics;
 
-public static class UtilsPixelFormat
+public static class PixelFormatUtility
 {
     public static bool IsSrgbFormat(PixelFormat format)
     {

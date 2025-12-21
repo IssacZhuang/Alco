@@ -22,7 +22,7 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
 
     protected override void Dispose(bool disposing)
     {
-        UtilsInterop.Free(_nativeName);
+        InteropUtility.Free(_nativeName);
         wgpuRenderPipelineRelease(_graphicsipeline);
     }
 
@@ -47,14 +47,14 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
         ReadOnlySpan<byte> nameSpan = Name.GetUtf8Span();
         fixed (byte* ptr = nameSpan)
         {
-            _nativeName = UtilsInterop.Alloc<byte>(nameSpan.Length + 1);
-            UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            _nativeName = InteropUtility.Alloc<byte>(nameSpan.Length + 1);
+            InteropUtility.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
             _nativeNameView = new WGPUStringView(_nativeName, nameSpan.Length);
         }
 
         // === Create shader modules ===============================
 
-        UtilsDescriptor.GetVertexAndPixelModules(descriptor.ShaderModules, out ShaderModule vertex, out ShaderModule pixel);
+        DescriptorUtility.GetVertexAndPixelModules(descriptor.ShaderModules, out ShaderModule vertex, out ShaderModule pixel);
 
         _stages = ShaderStage.None;
         for (int i = 0; i < descriptor.ShaderModules.Length; i++)

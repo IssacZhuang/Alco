@@ -16,7 +16,7 @@ internal unsafe static class FlacDecoder
             sampleCount = (int)file.TotalSamples * channel;
             sampleRate = (int)file.SampleRate;
 
-            float* buffer = UtilsMemory.Alloc<float>(sampleCount);
+            float* buffer = MemoryUtility.Alloc<float>(sampleCount);
             Span<float> tmp = stackalloc float[4096];
             int offset = 0;
             int read = 0;

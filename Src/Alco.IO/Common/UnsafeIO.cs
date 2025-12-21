@@ -1,5 +1,5 @@
 using Microsoft.Win32.SafeHandles;
-using static Alco.UtilsMemory;
+using static Alco.MemoryUtility;
 
 namespace Alco.IO;
 

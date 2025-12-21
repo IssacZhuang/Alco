@@ -31,7 +31,7 @@
 //     /// <inheritdoc/>
 //     public bool TryCreateAsset(string filename, ReadOnlySpan<byte> file, [NotNullWhen(true)] out ShaderDeprecated? asset)
 //     {
-//         ShaderCompileResultDeprecated preprocessed = UtilsShaderSlang.Compile(Encoding.UTF8.GetString(file), filename, _fileSystem);
+//         ShaderCompileResultDeprecated preprocessed = ShaderSlangUtility.Compile(Encoding.UTF8.GetString(file), filename, _fileSystem);
 //         asset = _renderingSystem.CreateShader(preprocessed); 
 //         return true;
 //     }

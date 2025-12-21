@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-using static Alco.UtilsMemory;
+using static Alco.MemoryUtility;
 
 namespace Alco;
 

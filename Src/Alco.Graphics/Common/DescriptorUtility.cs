@@ -1,6 +1,6 @@
 namespace Alco.Graphics;
 
-public static class UtilsDescriptor
+internal static class DescriptorUtility
 {
     public static bool IsGraphicsShader(this ShaderModule[] modules)
     {

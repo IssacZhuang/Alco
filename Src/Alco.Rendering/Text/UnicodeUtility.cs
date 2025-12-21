@@ -1,6 +1,6 @@
 namespace Alco.Rendering;
 
-public static class UtilsUnicode
+public static class UnicodeUtility
 {
     /// <summary>
     /// Basic Latin characters including ASCII printable characters, digits, and common punctuation.

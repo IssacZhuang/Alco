@@ -38,7 +38,7 @@ internal unsafe class OpenALAudioClip : AudioClip
             // If stereo but AL_SOFT_source_spatialize is not available, downmix to mono
             if (channel == 2 && !AL.IsExtensionPresent("AL_SOFT_source_spatialize"))
             {
-                ptrMono = (float*)UtilsMemory.Alloc(data.Length * sizeof(float) / 2);
+                ptrMono = (float*)MemoryUtility.Alloc(data.Length * sizeof(float) / 2);
                 Span<float> monoSpan = new(ptrMono, data.Length / 2);
                 UtilsAudioDecode.StereoToMono(data, monoSpan);
                 workingData = monoSpan;
@@ -62,7 +62,7 @@ internal unsafe class OpenALAudioClip : AudioClip
         {
             if (ptrMono != null)
             {
-                UtilsMemory.Free(ptrMono);
+                MemoryUtility.Free(ptrMono);
             }
         }
     }
