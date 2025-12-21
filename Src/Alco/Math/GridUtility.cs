@@ -9,7 +9,7 @@ namespace Alco;
 /// <summary>
 /// Provides utility methods for grid operations, especially for radial patterns.
 /// </summary>
-public static class UtilsGrid
+public static class GridUtility
 {
     /// <summary>
     /// The total number of points in the precomputed radial pattern.
@@ -29,7 +29,7 @@ public static class UtilsGrid
     /// </summary>
     public static IReadOnlyList<int2> RadialPattern => _radialPattern;
 
-    static UtilsGrid()
+    static GridUtility()
     {
         int2[] radialPattern = new int2[RadialPatternCount];
         float[] radialPatternRadii = new float[RadialPatternCount];

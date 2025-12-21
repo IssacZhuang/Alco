@@ -6,28 +6,28 @@ using Alco;
 namespace Alco.Test
 {
     [TestFixture]
-    public class TestUtilsGrid
+    public class TestGridUtility
     {
         [Test]
         public void Bresenham_IncludesEndpoints_And_CountIsMaxDxDyPlusOne()
         {
             // Horizontal
             var list = new List<int2>();
-            UtilsGrid.GetBresenhamLine(list, new int2(2, 5), new int2(7, 5));
+            GridUtility.GetBresenhamLine(list, new int2(2, 5), new int2(7, 5));
             Assert.That(list[0], Is.EqualTo(new int2(2, 5)));
             Assert.That(list[^1], Is.EqualTo(new int2(7, 5)));
             Assert.That(list.Count, Is.EqualTo(Math.Max(Math.Abs(7 - 2), Math.Abs(5 - 5)) + 1));
 
             // Vertical
             list.Clear();
-            UtilsGrid.GetBresenhamLine(list, new int2(-3, -1), new int2(-3, 4));
+            GridUtility.GetBresenhamLine(list, new int2(-3, -1), new int2(-3, 4));
             Assert.That(list[0], Is.EqualTo(new int2(-3, -1)));
             Assert.That(list[^1], Is.EqualTo(new int2(-3, 4)));
             Assert.That(list.Count, Is.EqualTo(Math.Max(Math.Abs(0), Math.Abs(4 - (-1))) + 1));
 
             // Diagonal 45°
             list.Clear();
-            UtilsGrid.GetBresenhamLine(list, new int2(0, 0), new int2(5, 5));
+            GridUtility.GetBresenhamLine(list, new int2(0, 0), new int2(5, 5));
             Assert.That(list[0], Is.EqualTo(new int2(0, 0)));
             Assert.That(list[^1], Is.EqualTo(new int2(5, 5)));
             Assert.That(list.Count, Is.EqualTo(6));
@@ -39,10 +39,10 @@ namespace Alco.Test
             var list = new List<int2>();
             var start = new int2(0, 0);
             var end = new int2(7, 3);
-            UtilsGrid.GetBresenhamLine(list, start, end);
+            GridUtility.GetBresenhamLine(list, start, end);
 
             Span<int2> buf = stackalloc int2[64];
-            int written = UtilsGrid.GetBresenhamLine(buf, start, end);
+            int written = GridUtility.GetBresenhamLine(buf, start, end);
             Assert.That(written, Is.EqualTo(list.Count));
             for (int i = 0; i < written; i++)
             {
@@ -51,7 +51,7 @@ namespace Alco.Test
 
             // Capacity limit: ensure no overflow and truncation occurs
             Span<int2> small = stackalloc int2[3];
-            int truncated = UtilsGrid.GetBresenhamLine(small, start, end);
+            int truncated = GridUtility.GetBresenhamLine(small, start, end);
             Assert.That(truncated, Is.EqualTo(small.Length));
         }
 
@@ -63,7 +63,7 @@ namespace Alco.Test
             // Horizontal fractional
             Vector2 s = new Vector2(0.2f, 1.7f);
             Vector2 e = new Vector2(4.9f, 1.7f);
-            UtilsGrid.GetSupercoverLineCornerBased(list, s, e);
+            GridUtility.GetSupercoverLineCornerBased(list, s, e);
             Assert.That(list[0], Is.EqualTo(new int2(0, 1)));
             Assert.That(list[^1], Is.EqualTo(new int2(4, 1)));
             Assert.That(list.Count, Is.EqualTo(Math.Abs(4 - 0) + 1));
@@ -72,7 +72,7 @@ namespace Alco.Test
             s = new Vector2(-2.4f, -1.1f);
             e = new Vector2(-2.4f, 3.9f);
             list.Clear();
-            UtilsGrid.GetSupercoverLineCornerBased(list, s, e);
+            GridUtility.GetSupercoverLineCornerBased(list, s, e);
             Assert.That(list[0], Is.EqualTo(new int2(-3, -2)));
             Assert.That(list[^1], Is.EqualTo(new int2(-3, 3)));
             Assert.That(list.Count, Is.EqualTo(Math.Abs(3 - (-2)) + 1));
@@ -81,7 +81,7 @@ namespace Alco.Test
             s = new Vector2(0.2f, 0.2f);
             e = new Vector2(3.8f, 3.8f);
             list.Clear();
-            UtilsGrid.GetSupercoverLineCornerBased(list, s, e);
+            GridUtility.GetSupercoverLineCornerBased(list, s, e);
             Assert.That(list[0], Is.EqualTo(new int2(0, 0)));
             Assert.That(list[^1], Is.EqualTo(new int2(3, 3)));
             Assert.That(list.Count, Is.EqualTo(Math.Abs(3 - 0) + 1));
@@ -93,10 +93,10 @@ namespace Alco.Test
             Vector2 start = new Vector2(0.3f, 0.7f);
             Vector2 end = new Vector2(6.9f, 2.1f);
             var list = new List<int2>();
-            UtilsGrid.GetSupercoverLineCornerBased(list, start, end);
+            GridUtility.GetSupercoverLineCornerBased(list, start, end);
 
             Span<int2> buf = stackalloc int2[64];
-            int written = UtilsGrid.GetSupercoverLineCornerBased(buf, start, end);
+            int written = GridUtility.GetSupercoverLineCornerBased(buf, start, end);
             Assert.That(written, Is.EqualTo(list.Count));
             for (int i = 0; i < written; i++)
             {
@@ -104,7 +104,7 @@ namespace Alco.Test
             }
 
             Span<int2> small = stackalloc int2[2];
-            int truncated = UtilsGrid.GetSupercoverLineCornerBased(small, start, end);
+            int truncated = GridUtility.GetSupercoverLineCornerBased(small, start, end);
             Assert.That(truncated, Is.EqualTo(small.Length));
         }
     }

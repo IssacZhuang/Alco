@@ -371,7 +371,7 @@ public partial class Canvas : AutoDisposable
         //the mouse position is in screen space, the origin is at the top left corner
 
         Vector2 mousePosition = _inputTracker.MousePosition;
-        Vector2 mouseWorldPosition = UtilsCameraMath.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
 
         MousePosition = mouseWorldPosition;
 

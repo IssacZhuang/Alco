@@ -520,7 +520,7 @@ public sealed class Shader : AutoDisposable
             Array.Copy(definesArray, subset, length);
 
             // Get all permutations of the current subset
-            string[][] combinations = UtilsCollection.GetCombinations(subset);
+            string[][] combinations = CollectionUtility.GetCombinations(subset);
 
             // Test each permutation
             foreach (string[] combination in combinations)

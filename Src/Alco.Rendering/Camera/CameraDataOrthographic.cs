@@ -111,7 +111,7 @@ namespace Alco.Rendering
         /// <returns>A ray from the screen point in world space</returns>
         public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
         {
-            return UtilsCameraMath.ScreenPointToRayOrthographic(screenPosition, screenSize, ViewProjectionMatrix, Transform.Direction, Near);
+            return CameraMathUtility.ScreenPointToRayOrthographic(screenPosition, screenSize, ViewProjectionMatrix, Transform.Direction, Near);
         }
     }
 }

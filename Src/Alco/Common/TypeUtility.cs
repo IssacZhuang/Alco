@@ -9,7 +9,7 @@ namespace Alco;
 /// <summary>
 /// Provides utility methods for working with types and type checking.
 /// </summary>
-public static class UtilsType
+public static class TypeUtility
 {
     /// <summary>
     /// Determines whether the specified type is a <see cref="IList{T}"/>.

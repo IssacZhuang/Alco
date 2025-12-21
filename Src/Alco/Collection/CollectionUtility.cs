@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Alco
 {
-    public static class UtilsCollection
+    public static class CollectionUtility
     {
         /// <summary>
         /// Generates all permutations of the given array.

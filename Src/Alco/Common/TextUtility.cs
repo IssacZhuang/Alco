@@ -7,7 +7,7 @@ namespace Alco;
 /// <summary>
 /// Tools for working with text
 /// </summary>
-public static class UtilsText
+public static class TextUtility
 {
     /// <summary>
     /// Performs a blur search (subsequence matching) on the given text.

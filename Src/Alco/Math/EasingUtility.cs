@@ -4,7 +4,7 @@ using static Alco.math;
 
 namespace Alco;
 
-public static class UtilsEasing
+public static class EasingUtility
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Linear(float t)

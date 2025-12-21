@@ -98,7 +98,7 @@ public class ConfigDatabase
         HashSet<Type> rootTypes = new HashSet<Type>();
 
         // Auto-discovered roots by attribute
-        var discovered = UtilsType.FindTypesWithAttribute<PolymorphicTypeAttribute>();
+        var discovered = TypeUtility.FindTypesWithAttribute<PolymorphicTypeAttribute>();
         for (int i = 0; i < discovered.Length; i++)
         {
             rootTypes.Add(discovered[i]);

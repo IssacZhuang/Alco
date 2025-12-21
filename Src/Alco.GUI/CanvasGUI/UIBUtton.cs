@@ -196,7 +196,7 @@ public class UIButton : UISelectable
         }
 
         float t = math.clamp(_tTransition, 0, 1);
-        t = UtilsEasing.QuadInOut(t);
+        t = EasingUtility.QuadInOut(t);
         if ((_transitionMode & TransitionMode.ColorTint) != 0)
         {
             UpdateColorTween(t);

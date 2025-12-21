@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Alco;
 
-public static class UtilsCameraMath
+public static class CameraMathUtility
 {
     /// <summary>
     /// Converts a screen point to a 3D ray for perspective projection.
