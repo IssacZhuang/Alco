@@ -179,10 +179,20 @@ public struct ColorFloat
     }
 
     // + - * /
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator +(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value + b.value };
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator -(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value - b.value };
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator *(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value * b.value };
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator /(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value / b.value };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ColorFloat operator *(ColorFloat a, float b) => new ColorFloat { value = a.value * b };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ColorFloat operator *(float a, ColorFloat b) => new ColorFloat { value = a * b.value };
 
     
 }
