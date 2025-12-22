@@ -285,12 +285,12 @@ public class UIButton : UISelectable
 
     private void UpdateColorTween(float t)
     {
-        if (_transitionImageTarget == null)
+        if (_transitionTarget == null)
         {
             return;
         }
 
-        _transitionImageTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, t);
+        _transitionTarget.Color = ColorFloat.Lerp(_colorTweenStart, _colorTweenEnd, t);
     }
 
     private void StartTransformTween(Transform2D start, Transform2D end)
