@@ -226,7 +226,7 @@ public class UIText : UISelectable
 
     protected virtual void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform)
     {
-        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, (Color32)RenderColor, 1f);
+        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, 1f);
     }
 
     protected void SetLineBreakDirty()
