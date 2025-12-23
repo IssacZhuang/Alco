@@ -208,6 +208,58 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                try
+                {
+                    if (table.TryGetTable(itemKey, out BinaryTable? itemTable))
+                    {
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, itemTable, OnError);
+                        T item = new();
+                        item.OnSerialize(node, SerializeMode.Load);
+                        _referenceContext?.TryReadReferenceId(node, item);
+                        value.Add(itemKey, item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable dictionary item key '{itemKey}' for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                try
+                {
+                    if (table.TryGetTable(itemKey, out BinaryTable? itemTable))
+                    {
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, itemTable, OnError);
+                        T item = onCreate(node);
+                        item.OnSerialize(node, SerializeMode.Load);
+                        _referenceContext?.TryReadReferenceId(node, item);
+                        value.Add(itemKey, item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable dictionary item key '{itemKey}' for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
     public override T GetValue<T>(string key, T @default = default)
     {
         if (_content.TryGetValue(key, out T v))

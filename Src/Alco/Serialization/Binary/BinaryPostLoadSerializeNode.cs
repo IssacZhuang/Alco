@@ -191,6 +191,50 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         }
     }
 
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value)
+    {
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var item in value)
+            {
+                try
+                {
+                    if (table.TryGetTable(item.Key, out BinaryTable? itemTable))
+                    {
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, itemTable, OnError);
+                        item.Value.OnSerialize(node, SerializeMode.PostLoad);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to post-load dictionary item key '{item.Key}' for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var item in value)
+            {
+                try
+                {
+                    if (table.TryGetTable(item.Key, out BinaryTable? itemTable))
+                    {
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, itemTable, OnError);
+                        item.Value.OnSerialize(node, SerializeMode.PostLoad);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to post-load dictionary item key '{item.Key}' for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// No-op for post-load: dictionaries of primitive or binary data are not processed.
     /// </summary>

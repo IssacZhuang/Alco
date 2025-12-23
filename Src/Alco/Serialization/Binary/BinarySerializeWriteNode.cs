@@ -178,6 +178,46 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, array);
     }
 
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value)
+    {
+        BinaryTable table = new BinaryTable();
+        foreach (var item in value)
+        {
+            try
+            {
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, item.Value);
+                item.Value.OnSerialize(node, SerializeMode.Save);
+                table.Add(item.Key, node._content);
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable dictionary item key '{item.Key}' for key '{key}': {ex}");
+            }
+        }
+        _content.Add(key, table);
+    }
+
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        BinaryTable table = new BinaryTable();
+        foreach (var item in value)
+        {
+            try
+            {
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, item.Value);
+                item.Value.OnSerialize(node, SerializeMode.Save);
+                table.Add(item.Key, node._content);
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable dictionary item key '{item.Key}' for key '{key}': {ex}");
+            }
+        }
+        _content.Add(key, table);
+    }
+
     public override void SetValue<T>(string key, T value)
     {
         _content.Add(key, BinaryValue.CreateByValue(value));

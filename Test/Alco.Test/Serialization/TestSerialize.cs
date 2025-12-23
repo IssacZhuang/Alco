@@ -282,6 +282,44 @@ public class TestSerialize
         }
     }
 
+    private class TestObjectDictionarySerializable : ISerializable
+    {
+        public Dictionary<string, TestObject1> dictObj;
+        public Dictionary<string, TestStruct> dictStruct;
+
+        public TestObjectDictionarySerializable()
+        {
+            dictObj = new Dictionary<string, TestObject1>();
+            dictStruct = new Dictionary<string, TestStruct>();
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindDictionarySerializable("dictObj", dictObj);
+            node.BindDictionarySerializable("dictStruct", dictStruct);
+        }
+    }
+
+    private class TestObjectDictionaryFactory : ISerializable
+    {
+        public Dictionary<string, TestBitmap> dictBitmap;
+
+        public TestObjectDictionaryFactory()
+        {
+            dictBitmap = new Dictionary<string, TestBitmap>();
+        }
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindDictionarySerializable("dictBitmap", dictBitmap, static (SerializeReadNode n) =>
+            {
+                int width = n.GetValue<int>("width");
+                int height = n.GetValue<int>("height");
+                return new TestBitmap(width, height);
+            });
+        }
+    }
+
     private class TestObjectBinary : ISerializable
     {
         public ReadOnlyMemory<byte> binaryData;
@@ -490,6 +528,61 @@ public class TestSerialize
         Assert.That(obj2.dictString["key\twith\ttabs"], Is.EqualTo("value\twith\ttabs"));
         Assert.That(obj2.dictString[""], Is.EqualTo("empty key"));
         Assert.That(obj2.dictString["null_test"], Is.EqualTo(""));
+    }
+
+    [Test]
+    public void TestSerializeDictionarySerializable()
+    {
+        TestObjectDictionarySerializable obj = new TestObjectDictionarySerializable();
+
+        TestObject1 item1 = new TestObject1();
+        item1.intValue = 111;
+        item1.str = "item1";
+        obj.dictObj["key1"] = item1;
+
+        TestObject1 item2 = new TestObject1();
+        item2.intValue = 222;
+        item2.str = "item2";
+        obj.dictObj["key2"] = item2;
+
+        TestStruct struct1 = new TestStruct { intValue = 333, str = "struct1" };
+        obj.dictStruct["s1"] = struct1;
+
+        TestStruct struct2 = new TestStruct { intValue = 444, str = "struct2" };
+        obj.dictStruct["s2"] = struct2;
+
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        TestObjectDictionarySerializable obj2 = BinaryParser.Decode<TestObjectDictionarySerializable>(data, null, new ReferenceContext());
+
+        Assert.That(obj2.dictObj.Count, Is.EqualTo(2));
+        Assert.That(obj2.dictObj["key1"].intValue, Is.EqualTo(111));
+        Assert.That(obj2.dictObj["key1"].str, Is.EqualTo("item1"));
+        Assert.That(obj2.dictObj["key2"].intValue, Is.EqualTo(222));
+        Assert.That(obj2.dictObj["key2"].str, Is.EqualTo("item2"));
+
+        Assert.That(obj2.dictStruct.Count, Is.EqualTo(2));
+        Assert.That(obj2.dictStruct["s1"].intValue, Is.EqualTo(333));
+        Assert.That(obj2.dictStruct["s1"].str, Is.EqualTo("struct1"));
+        Assert.That(obj2.dictStruct["s2"].intValue, Is.EqualTo(444));
+        Assert.That(obj2.dictStruct["s2"].str, Is.EqualTo("struct2"));
+    }
+
+    [Test]
+    public void TestSerializeDictionaryFactory()
+    {
+        TestObjectDictionaryFactory obj = new TestObjectDictionaryFactory();
+        
+        obj.dictBitmap["icon1"] = new TestBitmap(16, 16);
+        obj.dictBitmap["icon2"] = new TestBitmap(32, 32);
+
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        TestObjectDictionaryFactory obj2 = BinaryParser.Decode<TestObjectDictionaryFactory>(data, null, new ReferenceContext());
+
+        Assert.That(obj2.dictBitmap.Count, Is.EqualTo(2));
+        Assert.That(obj2.dictBitmap["icon1"].Width, Is.EqualTo(16));
+        Assert.That(obj2.dictBitmap["icon1"].Height, Is.EqualTo(16));
+        Assert.That(obj2.dictBitmap["icon2"].Width, Is.EqualTo(32));
+        Assert.That(obj2.dictBitmap["icon2"].Height, Is.EqualTo(32));
     }
 
     [Test]
