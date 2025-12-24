@@ -1,7 +1,7 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -53,6 +53,13 @@ public class JsonPreprocessor
         /// <returns>True if found; otherwise false.</returns>
         public bool TryGetDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
         {
+            var options = new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+
+
             if (_pendingNodeEdits.TryGetValue(id, out var cached))
             {
                 node = cached;
@@ -60,8 +67,9 @@ public class JsonPreprocessor
             }
             if (_preprocessor._jsonItems.TryGetValue(id, out var jsonItem))
             {
-                try{
-                    node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
+                try
+                {
+                    node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText(), null, options)!;
                     _pendingNodeEdits[id] = node;
                     return true;
                 }
@@ -85,6 +93,12 @@ public class JsonPreprocessor
         /// <returns>True if found; otherwise false.</returns>
         public bool TryGetAbstractDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
         {
+            var options = new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+
             if (_pendingAbstractNodeEdits.TryGetValue(id, out var cached))
             {
                 node = cached;
@@ -92,8 +106,9 @@ public class JsonPreprocessor
             }
             if (_preprocessor._abstractJsonItems.TryGetValue(id, out var jsonItem))
             {
-                try{
-                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
+                try
+                {
+                    node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText(), null, options)!;
                     _pendingAbstractNodeEdits[id] = node;
                     return true;
                 }
