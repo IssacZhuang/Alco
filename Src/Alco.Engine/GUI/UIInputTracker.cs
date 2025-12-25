@@ -8,6 +8,8 @@ public class UIInputTracker : IUIInputTracker
 {
     private readonly Input _input;
     private readonly View _window;
+
+    public GamepadButton? GamepadClickButton { get; set; } = null;
     
     public UIInputTracker(Input system, View window)
     {
@@ -30,7 +32,7 @@ public class UIInputTracker : IUIInputTracker
     public bool IsMousePressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsMousePressing(Mouse.Left);
+        get => _input.IsMousePressing(Mouse.Left) || GamepadClickButton.HasValue && (_input.PrimaryGamepad?.IsButtonPressed(GamepadClickButton.Value) ?? false);
     }
 
     public bool IsKeyDeletePressing
