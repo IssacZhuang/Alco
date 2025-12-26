@@ -123,4 +123,19 @@ public struct Color32
     {
         return new Vector4(color.R * Inv255, color.G * Inv255, color.B * Inv255, color.A * Inv255);
     }
+
+    public static Color32 Lerp(Color32 a, Color32 b, float t)
+    {
+        float r = a.R + (b.R - a.R) * t;
+        float g = a.G + (b.G - a.G) * t;
+        float bl = a.B + (b.B - a.B) * t;
+        float al = a.A + (b.A - a.A) * t;
+
+        return new Color32(
+            (byte)Math.Clamp(r, 0, 255),
+            (byte)Math.Clamp(g, 0, 255),
+            (byte)Math.Clamp(bl, 0, 255),
+            (byte)Math.Clamp(al, 0, 255)
+        );
+    }
 }
