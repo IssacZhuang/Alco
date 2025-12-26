@@ -355,7 +355,10 @@ public partial class Canvas : AutoDisposable
         if (node == _holded && _holded != null)
         {
             _holded.OnClick(this, mousePosition);
-            SoundPlayer?.PlayOnClickSound();
+            if ((_holded.SoundType & UISoundType.Click) != 0)
+            {
+                SoundPlayer?.PlayOnClickSound();
+            }
         }
 
         _holded = null;
@@ -396,9 +399,13 @@ public partial class Canvas : AutoDisposable
             }
         }
 
+
         if (selectable != _hovered && selectable != null)
         {
-            SoundPlayer?.PlayOnHoverSound();
+            if ((selectable.SoundType & UISoundType.Hover) != 0)
+            {
+                SoundPlayer?.PlayOnHoverSound();
+            }
         }
 
         _hovered = selectable;

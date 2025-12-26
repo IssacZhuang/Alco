@@ -28,6 +28,11 @@ public class UINode : IEnumerable<UINode>
 
     public virtual bool BubbleEvent { get; set; } = true;
 
+    /// <summary>
+    /// The type of sound to play when this node is interacted with.
+    /// </summary>
+    public UISoundType SoundType { get; set; } = UISoundType.None;
+
     public event Action<Canvas, Vector2>? EventOnClick;
     public event Action<Canvas, Vector2>? EventOnHover;
     public event Action<Canvas, Vector2>? EventOnPressDown;
