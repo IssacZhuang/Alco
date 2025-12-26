@@ -35,12 +35,7 @@ public class TestJsonConverters
                 new JsonConverterQuaternion(),
                 new JsonConverterColorFloat(),
                 new JsonConverterColor32(), // Add Color32 converter to options
-                new JsonConverterCurvePointFloat(),
-                new JsonConverterCurvePointVector2(),
-                new JsonConverterCurvePointVector3(),
-                new JsonConverterCurvePointVector4(),
-                new JsonConverterCurvePointColorFloat(),
-                new JsonConverterCurvePointColor32()
+                new JsonConverterCurvePointFactory()
             }
         };
     }
@@ -697,13 +692,22 @@ public class TestJsonConverters
         var original = new CurvePoint<float>(1.5f, 2.5f);
         string json = JsonSerializer.Serialize(original, _options);
         TestContext.WriteLine($"CurvePoint<float> JSON: {json}");
-        Assert.That(json, Is.EqualTo("{\"time\":1.5,\"value\":2.5}"));
+        Assert.That(json, Is.EqualTo("{\"Time\":1.5,\"Value\":2.5}"));
 
         var deserialized = JsonSerializer.Deserialize<CurvePoint<float>>(json, _options);
         Assert.Multiple(() =>
         {
             Assert.That(deserialized.Time, Is.EqualTo(original.Time));
             Assert.That(deserialized.Value, Is.EqualTo(original.Value));
+        });
+
+        // Test lowercase compatibility
+        var lowerJson = "{\"time\":1.5,\"value\":2.5}";
+        var lowerDeserialized = JsonSerializer.Deserialize<CurvePoint<float>>(lowerJson, _options);
+        Assert.Multiple(() =>
+        {
+            Assert.That(lowerDeserialized.Time, Is.EqualTo(original.Time));
+            Assert.That(lowerDeserialized.Value, Is.EqualTo(original.Value));
         });
     }
 
@@ -713,7 +717,7 @@ public class TestJsonConverters
         var original = new CurvePoint<Vector2>(1.5f, new Vector2(2.5f, 3.5f));
         string json = JsonSerializer.Serialize(original, _options);
         TestContext.WriteLine($"CurvePoint<Vector2> JSON: {json}");
-        Assert.That(json, Is.EqualTo("{\"time\":1.5,\"value\":{\"x\":2.5,\"y\":3.5}}"));
+        Assert.That(json, Is.EqualTo("{\"Time\":1.5,\"Value\":{\"x\":2.5,\"y\":3.5}}"));
 
         var deserialized = JsonSerializer.Deserialize<CurvePoint<Vector2>>(json, _options);
         Assert.Multiple(() =>
@@ -730,7 +734,7 @@ public class TestJsonConverters
         var original = new CurvePoint<Vector3>(1.5f, new Vector3(2.5f, 3.5f, 4.5f));
         string json = JsonSerializer.Serialize(original, _options);
         TestContext.WriteLine($"CurvePoint<Vector3> JSON: {json}");
-        Assert.That(json, Is.EqualTo("{\"time\":1.5,\"value\":{\"x\":2.5,\"y\":3.5,\"z\":4.5}}"));
+        Assert.That(json, Is.EqualTo("{\"Time\":1.5,\"Value\":{\"x\":2.5,\"y\":3.5,\"z\":4.5}}"));
 
         var deserialized = JsonSerializer.Deserialize<CurvePoint<Vector3>>(json, _options);
         Assert.Multiple(() =>
@@ -748,7 +752,7 @@ public class TestJsonConverters
         var original = new CurvePoint<Vector4>(1.5f, new Vector4(2.5f, 3.5f, 4.5f, 5.5f));
         string json = JsonSerializer.Serialize(original, _options);
         TestContext.WriteLine($"CurvePoint<Vector4> JSON: {json}");
-        Assert.That(json, Is.EqualTo("{\"time\":1.5,\"value\":{\"x\":2.5,\"y\":3.5,\"z\":4.5,\"w\":5.5}}"));
+        Assert.That(json, Is.EqualTo("{\"Time\":1.5,\"Value\":{\"x\":2.5,\"y\":3.5,\"z\":4.5,\"w\":5.5}}"));
 
         var deserialized = JsonSerializer.Deserialize<CurvePoint<Vector4>>(json, _options);
         Assert.Multiple(() =>
@@ -767,7 +771,7 @@ public class TestJsonConverters
         var original = new CurvePoint<ColorFloat>(1.5f, new ColorFloat(0.1f, 0.2f, 0.3f, 0.4f));
         string json = JsonSerializer.Serialize(original, _options);
         TestContext.WriteLine($"CurvePoint<ColorFloat> JSON: {json}");
-        Assert.That(json, Is.EqualTo("{\"time\":1.5,\"value\":{\"r\":0.1,\"g\":0.2,\"b\":0.3,\"a\":0.4}}"));
+        Assert.That(json, Is.EqualTo("{\"Time\":1.5,\"Value\":{\"r\":0.1,\"g\":0.2,\"b\":0.3,\"a\":0.4}}"));
 
         var deserialized = JsonSerializer.Deserialize<CurvePoint<ColorFloat>>(json, _options);
         Assert.Multiple(() =>
@@ -786,7 +790,7 @@ public class TestJsonConverters
         var original = new CurvePoint<Color32>(1.5f, new Color32(100, 150, 200, 250));
         string json = JsonSerializer.Serialize(original, _options);
         TestContext.WriteLine($"CurvePoint<Color32> JSON: {json}");
-        Assert.That(json, Is.EqualTo("{\"time\":1.5,\"value\":{\"r\":100,\"g\":150,\"b\":200,\"a\":250}}"));
+        Assert.That(json, Is.EqualTo("{\"Time\":1.5,\"Value\":{\"r\":100,\"g\":150,\"b\":200,\"a\":250}}"));
 
         var deserialized = JsonSerializer.Deserialize<CurvePoint<Color32>>(json, _options);
         Assert.Multiple(() =>

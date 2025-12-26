@@ -38,6 +38,12 @@ public abstract class BaseCurveLinear<T> :ICurve<T>, ICollection<CurvePoint<T>> 
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _points[i];
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _points[i] = value;
+            _isSortDirty = true;
+        }
     }
 
     public void SetPoints(ReadOnlySpan<CurvePoint<T>> points)

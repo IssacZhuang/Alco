@@ -72,5 +72,6 @@ public partial class GameEngine
         yield return new JsonConverterPivot();
         yield return new JsonStringEnumConverter();
         yield return new JsonConverterPadding();
+        yield return new JsonConverterCurvePointFactory();
     }
 }

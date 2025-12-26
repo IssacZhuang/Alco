@@ -106,5 +106,36 @@ namespace Alco.Test
             // Test empty evaluation
             Assert.AreEqual(0f, curve.Evaluate(1.0f));
         }
+
+        [Test(Description = "Curve Indexer Setter and Re-sorting")]
+        public void TestCurveIndexerSetter()
+        {
+            var curve = new CurveLinear();
+            curve.Add(new CurvePoint<float>(0, 0));
+            curve.Add(new CurvePoint<float>(1, 10));
+            curve.Add(new CurvePoint<float>(2, 20));
+
+            // Initial evaluation to clear dirty flag
+            Assert.AreEqual(10f, curve.Evaluate(1.0f));
+
+            // 1. Test modifying Value
+            curve[1] = new CurvePoint<float>(1, 50);
+            Assert.AreEqual(50f, curve.Evaluate(1.0f), 1e-5f);
+            Assert.AreEqual(25f, curve.Evaluate(0.5f), 1e-5f); // Between (0,0) and (1,50)
+
+            // 2. Test modifying Time (out of order)
+            // Change point at index 1 (time 1) to time 3.
+            // Points should become: (0,0), (2,20), (3,50)
+            curve[1] = new CurvePoint<float>(3, 50);
+            
+            // Before evaluation, the internal list is [(0,0), (3,50), (2,20)]
+            // Evaluate(2.5f) should trigger Sort() and then interpolate between (2,20) and (3,50)
+            Assert.AreEqual(35f, curve.Evaluate(2.5f), 1e-5f);
+            
+            // Check order via indexer after Sort() has been triggered by Evaluate
+            Assert.AreEqual(0f, curve[0].Time);
+            Assert.AreEqual(2f, curve[1].Time);
+            Assert.AreEqual(3f, curve[2].Time);
+        }
     }
 }
