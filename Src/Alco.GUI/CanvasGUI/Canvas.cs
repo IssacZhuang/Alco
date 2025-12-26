@@ -134,6 +134,11 @@ public partial class Canvas : AutoDisposable
         get => _selected;
     }
 
+    /// <summary>
+    /// The sound player used to play UI sounds.
+    /// </summary>
+    public IUISoundPlayer? SoundPlayer { get; set; }
+
     public CameraData2D CameraData => _camera.Data;
 
     public Vector4 DebugDrawColor { get; set; }
@@ -347,9 +352,10 @@ public partial class Canvas : AutoDisposable
     private void OnMouseUp(UINode? node, Vector2 mousePosition)
     {
         _holded?.OnPressUp(this, mousePosition);
-        if (node == _holded)
+        if (node == _holded && _holded != null)
         {
-            _holded?.OnClick(this, mousePosition);
+            _holded.OnClick(this, mousePosition);
+            SoundPlayer?.PlayOnClickSound();
         }
 
         _holded = null;
@@ -367,7 +373,7 @@ public partial class Canvas : AutoDisposable
             return;
         }
 
-        _hovered = null;
+        // _hovered = null;
         //the mouse position is in screen space, the origin is at the top left corner
 
         Vector2 mousePosition = _inputTracker.MousePosition;
@@ -389,6 +395,12 @@ public partial class Canvas : AutoDisposable
                 break;
             }
         }
+
+        if (selectable != _hovered && selectable != null)
+        {
+            SoundPlayer?.PlayOnHoverSound();
+        }
+
         _hovered = selectable;
 
         _mouseLeftState.SetState(_inputTracker.IsMousePressing);
