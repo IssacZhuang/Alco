@@ -11,7 +11,14 @@ public class TestAnimation
     {
         float[] t = new float[] { 0, 1, 3, 7 };
         float[] value = new float[] { 0, 5, 4, 8 };
-        CurveHermite curve = new CurveHermite(t, value);
+        
+        var points = new CurvePoint<float>[t.Length];
+        for (int i = 0; i < t.Length; i++)
+        {
+            points[i] = new CurvePoint<float>(t[i], value[i]);
+        }
+
+        CurveHermite curve = new CurveHermite(points);
         List<CurveEvent> events = new List<CurveEvent>();
         events.Add(new CurveEvent(9, "event5"));
         events.Add(new CurveEvent(0, "event1"));
@@ -22,7 +29,7 @@ public class TestAnimation
         events.Add(new CurveEvent(11, "event6"));
 
 
-        CurveAnimation animation = new CurveAnimation(curve, events);
+        CurveAnimation<float> animation = new CurveAnimation<float>(curve, events);
 
         int flagEvent0 = 0;
         int flagEvent1 = 0;
@@ -62,5 +69,3 @@ public class TestAnimation
 
     }
 }
-
-
