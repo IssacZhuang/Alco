@@ -47,7 +47,7 @@ public class LLMSystem : BaseEngineSystem
             return true;
         }
     }
-    private LLMContext? _context;
+    private Kernel? _kernel;
     private readonly ConcurrentQueue<Action> _callbackQueue = new ConcurrentQueue<Action>();
     private readonly LLMSynchronizationContext _llmSynchronizationContext;
     private readonly List<object> _plugins = new List<object>();
@@ -55,12 +55,12 @@ public class LLMSystem : BaseEngineSystem
     /// <summary>
     /// Gets a value indicating whether the LLM system is connected.
     /// </summary>
-    public bool IsConnected => _context != null;
+    public bool IsConnected => _kernel != null;
 
     /// <summary>
-    /// Gets the current LLM context if connected.
+    /// Gets the current Semantic Kernel if connected.
     /// </summary>
-    public LLMContext? Context => _context;
+    public Kernel? Kernel => _kernel;
 
     public LLMSystem()
     {
@@ -131,20 +131,20 @@ public class LLMSystem : BaseEngineSystem
                 }
             }
 
-            _context = new LLMContext(kernel);
+            _kernel = kernel;
 
             Log.Info(successMessage);
         }
         catch (Exception ex)
         {
             Log.Error($"{errorMessage}: {ex.Message}");
-            _context = null;
+            _kernel = null;
             throw;
         }
     }
 
     /// <summary>
-    /// Disconnects the current session and clears the context.
+    /// Disconnects the current session and clears the kernel.
     /// </summary>
     public void Disconnect()
     {
@@ -153,7 +153,7 @@ public class LLMSystem : BaseEngineSystem
             return;
         }
 
-        _context = null;
+        _kernel = null;
         Log.Info("LLMSystem disconnected.");
     }
 
@@ -172,26 +172,19 @@ public class LLMSystem : BaseEngineSystem
         _plugins.Clear();
     }
 
-    public async Task<string> ChatAsync(string message)
+    /// <summary>
+    /// Creates a new LLM context using the current kernel.
+    /// </summary>
+    /// <returns>A new LLMContext instance.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the LLM system is not connected.</exception>
+    public LLMContext CreateContext()
     {
         if (!IsConnected)
         {
-            throw new InvalidOperationException("Agent is not connected.");
+            throw new InvalidOperationException("LLMSystem is not connected.");
         }
-        return await _context!.ChatAsync(message);
-    }
 
-    public async IAsyncEnumerable<string> ChatStreamingAsync(string message)
-    {
-        if (!IsConnected)
-        {
-            throw new InvalidOperationException("Agent is not connected.");
-        }
-        
-        await foreach (var content in _context!.ChatStreamingAsync(message))
-        {
-            yield return content;
-        }
+        return new LLMContext(_kernel!);
     }
 
     public override void OnTick(float delta)

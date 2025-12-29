@@ -8,7 +8,7 @@ namespace Alco.LLM;
 /// <summary>
 /// Represents the context for LLM operations, wrapping the Semantic Kernel.
 /// </summary>
-public class LLMContext
+public sealed class LLMContext
 {
     private readonly IChatCompletionService _chatCompletionService;
     private readonly ChatHistory _chatHistory;

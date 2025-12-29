@@ -18,6 +18,7 @@ namespace _33_LLM;
 public class Game : GameEngine
 {
     private LLMSystem _llmSystem;
+    private LLMContext? _llmContext;
     private Preference _preference = null!;
     private string _modelId = "gpt-4o";
     private string _apiKey = "";
@@ -140,6 +141,7 @@ public class Game : GameEngine
             if (ImGui.Button("Disconnect"))
             {
                 _llmSystem.Disconnect();
+                _llmContext = null;
                 _chatHistory.Clear();
             }
         }
@@ -158,6 +160,7 @@ public class Game : GameEngine
                     {
                         _llmSystem.Connect(_modelId, _apiKey, string.IsNullOrWhiteSpace(_orgId) ? null : _orgId);
                     }
+                    _llmContext = _llmSystem.CreateContext();
                 }
                 catch (Exception)
                 {
@@ -255,7 +258,7 @@ public class Game : GameEngine
 
         try
         {
-            await foreach (var chunk in _llmSystem.ChatStreamingAsync(userMessage))
+            await foreach (var chunk in _llmContext!.ChatStreamingAsync(userMessage))
             {
                 var currentContent = _chatHistory[llmMessageIndex].Content + chunk;
                 _chatHistory[llmMessageIndex] = ("LLM", currentContent);
