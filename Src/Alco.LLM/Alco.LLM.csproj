@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.68.0" />
   </ItemGroup>
 </Project>
 
