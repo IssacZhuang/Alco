@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11222.16 d18.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Src", "Src", "{BA6BD8CD-4F1E-4A49-A7A4-C18048547F27}"
 EndProject
@@ -122,6 +122,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MsdfFontGenerator", "Tool\MsdfFontGenerator\MsdfFontGenerator.csproj", "{FF5CC3BA-B317-3D7E-CAEB-4D65DDA0CD47}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MsdfFontGenerator.Desktop", "Tool\MsdfFontGenerator.Desktop\MsdfFontGenerator.Desktop.csproj", "{6718BC22-57F1-DC07-8171-8AA591B9582B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alco.LLM", "Src\Alco.LLM\Alco.LLM.csproj", "{18D0C9B2-2114-FC33-566C-3A3E7F08D862}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -345,6 +347,10 @@ Global
 		{6718BC22-57F1-DC07-8171-8AA591B9582B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6718BC22-57F1-DC07-8171-8AA591B9582B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6718BC22-57F1-DC07-8171-8AA591B9582B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{18D0C9B2-2114-FC33-566C-3A3E7F08D862}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18D0C9B2-2114-FC33-566C-3A3E7F08D862}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18D0C9B2-2114-FC33-566C-3A3E7F08D862}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18D0C9B2-2114-FC33-566C-3A3E7F08D862}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -404,6 +410,7 @@ Global
 		{00B842DA-92EC-4C5A-A563-ED04961E3333} = {F8AF2153-B938-4DA9-9256-3579C0D3ED7D}
 		{FF5CC3BA-B317-3D7E-CAEB-4D65DDA0CD47} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{6718BC22-57F1-DC07-8171-8AA591B9582B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{18D0C9B2-2114-FC33-566C-3A3E7F08D862} = {BA6BD8CD-4F1E-4A49-A7A4-C18048547F27}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C254014A-A356-4668-9A3E-8183E647E5DE}
