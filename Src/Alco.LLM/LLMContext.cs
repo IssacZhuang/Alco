@@ -47,12 +47,30 @@ public class LLMContext
         var stream = _chatCompletionService.GetStreamingChatMessageContentsAsync(_chatHistory, _promptExecutionSettings, Kernel);
         
         var fullContent = new StringBuilder();
+        var toolCallIds = new HashSet<string>();
+
         await foreach (var content in stream)
         {
+            // Handle regular text content
             if (!string.IsNullOrEmpty(content.Content))
             {
                 fullContent.Append(content.Content);
                 yield return content.Content;
+            }
+
+            // Handle tool calls in streaming
+            foreach (var item in content.Items)
+            {
+                if (item is StreamingFunctionCallUpdateContent functionCall)
+                {
+                    if (!string.IsNullOrEmpty(functionCall.Name) && !string.IsNullOrEmpty(functionCall.CallId) && !toolCallIds.Contains(functionCall.CallId))
+                    {
+                        toolCallIds.Add(functionCall.CallId);
+                        string toolNotification = $"\n[Tool Call: {functionCall.Name}]";
+                        fullContent.Append(toolNotification);
+                        yield return toolNotification;
+                    }
+                }
             }
         }
         _chatHistory.AddAssistantMessage(fullContent.ToString());

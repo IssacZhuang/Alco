@@ -17,9 +17,6 @@ namespace _33_LLM;
 /// </summary>
 public class Game : GameEngine
 {
-    private static ColorFloat Color = new ColorFloat(1f, 0.5f, 0.5f, 1f);
-    private static ColorFloat ColorHit = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
-
     private LLMSystem _llmSystem;
     private Preference _preference = null!;
     private string _modelId = "gpt-4o";
@@ -68,7 +65,7 @@ public class Game : GameEngine
         _material.SetBuffer("_camera", _cameraBuffer);
 
         // Add initial cube
-        var initialCube = CreateCube(Color);
+        var initialCube = CreateCube(ColorFloat.White);
         initialCube.transform.Position = new Vector3(2, 0, 0);
         initialCube.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
         _entities.Add("cube 1", initialCube);
@@ -107,16 +104,6 @@ public class Game : GameEngine
             cube.OnDraw(_renderer);
         }
         _renderer.End();
-
-        // Simple interaction logic (hover effect for all cubes)
-        Vector2 localMousePosition = MainView.MousePosition;
-        Ray3D cameraRay = _camera.Data.ScreenPointToRay(localMousePosition, MainView.Size);
-
-        foreach (var cube in _entities.Values)
-        {
-            bool hit = CollisionUtility3D.RayBox(cameraRay, cube.Shape, out RaycastHit3D _);
-            cube.Color = hit ? ColorHit : Color;
-        }
 
         RenderConfigWindow();
         RenderChatWindow();
@@ -295,7 +282,7 @@ public class Game : GameEngine
     [Description("Set the color of a cube")]
     public string SetCubeColor(
         [Description("The name of the cube to set the color of")] string cubeName,
-        [Description("The color to set the cube to")] string color
+        [Description("The color to set the cube to, the format should be like #RRGGBBAA")] string color
         )
     {
         if (!_entities.TryGetValue(cubeName, out var cube))
