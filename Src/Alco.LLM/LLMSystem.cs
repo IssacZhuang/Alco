@@ -109,6 +109,15 @@ public class LLMSystem : BaseEngineSystem
                 }
             }
             var kernel = builder.Build();
+
+            foreach (var plugin in kernel.Plugins)
+            {
+                foreach (var function in plugin)
+                {
+                    Log.Info($"Plugin function registered: {plugin.Name}.{function.Name}");
+                }
+            }
+
             _context = new LLMContext(kernel);
 
             Log.Info(successMessage);

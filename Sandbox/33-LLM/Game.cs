@@ -1,11 +1,14 @@
 using System;
+using System.ComponentModel;
 using System.Numerics;
+using Alco;
 using Alco.Engine;
-using Alco.LLM;
+using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
+using Alco.LLM;
 using Alco.Rendering;
-using Alco;
+using Microsoft.SemanticKernel;
 
 namespace _33_LLM;
 
@@ -14,6 +17,9 @@ namespace _33_LLM;
 /// </summary>
 public class Game : GameEngine
 {
+    private static ColorFloat Color = new ColorFloat(1f, 0.5f, 0.5f, 1f);
+    private static ColorFloat ColorHit = new ColorFloat(2.5f, 1.25f, 1.25f, 1f);
+
     private LLMSystem _llmSystem;
     private Preference _preference = null!;
     private string _modelId = "gpt-4o";
@@ -25,9 +31,18 @@ public class Game : GameEngine
     private List<(string Role, string Content)> _chatHistory = new List<(string Role, string Content)>();
     private bool _isWaitingForResponse = false;
 
+    // Rendering fields
+    private readonly CameraPerspectiveBuffer _camera;
+    private readonly Shader _shader;
+    private readonly RenderContext _renderer;
+    private readonly GraphicsMaterial _material;
+    private readonly GraphicsValueBuffer<Matrix4x4> _cameraBuffer;
+    private readonly Dictionary<string, Cube> _entities = new();
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         _llmSystem = new LLMSystem();
+        _llmSystem.AddPlugin(this);
         AddSystem(_llmSystem);
         _preference = new Preference(new DirectoryFileSystem(Environment.CurrentDirectory), "llm_config.json");
 
@@ -39,6 +54,26 @@ public class Game : GameEngine
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Korean);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Cyrillic);
         }
+
+        // Initialize rendering components
+        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
+        _camera.Transform.Position.X = -10;
+        _camera.UpdateMatrixToGPU();
+
+        _renderer = RenderingSystem.CreateRenderContext();
+        _material = RenderingSystem.CreateMaterial(_shader, "Unlit");
+
+        _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
+        _material.SetBuffer("_camera", _cameraBuffer);
+
+        // Add initial cube
+        var initialCube = CreateCube(Color);
+        initialCube.transform.Position = new Vector3(2, 0, 0);
+        initialCube.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
+        _entities.Add("cube 1", initialCube);
+
+        MainView.OnResize += OnMainWindowResize;
     }
 
     protected override void OnStart()
@@ -65,8 +100,40 @@ public class Game : GameEngine
             Stop();
         }
 
+        // Rendering logic
+        _renderer.Begin(MainFrameBuffer);
+        foreach (var cube in _entities.Values)
+        {
+            cube.OnDraw(_renderer);
+        }
+        _renderer.End();
+
+        // Simple interaction logic (hover effect for all cubes)
+        Vector2 localMousePosition = MainView.MousePosition;
+        Ray3D cameraRay = _camera.Data.ScreenPointToRay(localMousePosition, MainView.Size);
+
+        foreach (var cube in _entities.Values)
+        {
+            bool hit = CollisionUtility3D.RayBox(cameraRay, cube.Shape, out RaycastHit3D _);
+            cube.Color = hit ? ColorHit : Color;
+        }
+
         RenderConfigWindow();
         RenderChatWindow();
+    }
+
+    private void OnMainWindowResize(uint2 size)
+    {
+        _camera.AspectRatio = (float)size.X / size.Y;
+        _camera.UpdateMatrixToGPU();
+        _cameraBuffer.UpdateBuffer(_camera.Data.ViewProjectionMatrix);
+    }
+
+    private Cube CreateCube(ColorFloat color)
+    {
+        Cube ent = new Cube(RenderingSystem.MeshCube, _material);
+        ent.Color = color;
+        return ent;
     }
 
     private void RenderConfigWindow()
@@ -209,4 +276,32 @@ public class Game : GameEngine
             _isWaitingForResponse = false;
         }
     }
+
+    [KernelFunction]
+    [Description("Get the list of cubes")]
+    public string ListCube()
+    {
+        return string.Join(", ", _entities.Keys);
+    }
+
+    [KernelFunction]
+    [Description("Set the color of a cube")]
+    public string SetCubeColor(
+        [Description("The name of the cube to set the color of")] string cubeName,
+        [Description("The color to set the cube to")] string color
+        )
+    {
+        if (!_entities.TryGetValue(cubeName, out var cube))
+        {
+            return $"Cube {cubeName} not found";
+        }
+        if (!ColorFloat.TryParse(color, out var colorFloat))
+        {
+            return $"Invalid color: {color}";
+        }
+        cube.Color = colorFloat;
+        return $"Cube {cubeName} color set to {color}";
+    }
 }
+
+
