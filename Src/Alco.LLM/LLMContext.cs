@@ -10,6 +10,7 @@ namespace Alco.LLM;
 public class LLMContext
 {
     private readonly IChatCompletionService _chatCompletionService;
+    private readonly ChatHistory _chatHistory;
     private readonly OpenAIPromptExecutionSettings _promptExecutionSettings;
 
     /// <summary>
@@ -29,6 +30,14 @@ public class LLMContext
         {
             ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
         };
+        _chatHistory = new ChatHistory();
+    }
+
+    public async Task<string> ChatAsync(string message)
+    {
+        _chatHistory.AddUserMessage(message);
+        var result = await _chatCompletionService.GetChatMessageContentAsync(_chatHistory, _promptExecutionSettings);
+        return result.ToString();
     }
 }
 
