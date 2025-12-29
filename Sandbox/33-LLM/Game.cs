@@ -3,6 +3,9 @@ using System.Numerics;
 using Alco.Engine;
 using Alco.LLM;
 using Alco.ImGUI;
+using Alco.IO;
+using Alco.Rendering;
+using Alco;
 
 namespace _33_LLM;
 
@@ -11,7 +14,8 @@ namespace _33_LLM;
 /// </summary>
 public class Game : GameEngine
 {
-    private LLMSystem _llmSystem = null!;
+    private LLMSystem _llmSystem;
+    private Preference _preference = null!;
     private string _modelId = "gpt-4o";
     private string _apiKey = "";
     private string _orgId = "";
@@ -23,12 +27,35 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _llmSystem = new LLMSystem();
+        AddSystem(_llmSystem);
+        _preference = new Preference(new DirectoryFileSystem(Environment.CurrentDirectory), "llm_config.json");
+
+        if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
+        {
+            var span = data.AsSpan();
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Chinese);
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Japanese);
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Korean);
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Cyrillic);
+        }
     }
 
     protected override void OnStart()
     {
-        _llmSystem = new LLMSystem();
-        AddSystem(_llmSystem);
+        _modelId = _preference.GetString("ModelId", _modelId);
+        _apiKey = _preference.GetString("ApiKey", _apiKey);
+        _orgId = _preference.GetString("OrgId", _orgId);
+        _customUri = _preference.GetString("CustomUri", _customUri);
+    }
+
+    protected override void OnStop()
+    {
+        _preference.SetString("ModelId", _modelId);
+        _preference.SetString("ApiKey", _apiKey);
+        _preference.SetString("OrgId", _orgId);
+        _preference.SetString("CustomUri", _customUri);
+        _preference.Save();
     }
 
     protected override void OnUpdate(float delta)
