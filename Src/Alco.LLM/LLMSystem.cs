@@ -6,17 +6,17 @@ namespace Alco.LLM;
 
 public class LLMSystem : BaseEngineSystem
 {
-    private Kernel? _kernel;
+    private LLMContext? _context;
 
     /// <summary>
-    /// Gets a value indicating whether the LLM system is connected to a kernel.
+    /// Gets a value indicating whether the LLM system is connected.
     /// </summary>
-    public bool IsConnected => _kernel != null;
+    public bool IsConnected => _context != null;
 
     /// <summary>
-    /// Gets the current kernel instance if connected.
+    /// Gets the current LLM context if connected.
     /// </summary>
-    public Kernel? Kernel => _kernel;
+    public LLMContext? Context => _context;
 
     /// <summary>
     /// Connects to the LLM service with the specified configuration.
@@ -36,20 +36,52 @@ public class LLMSystem : BaseEngineSystem
         {
             var builder = Kernel.CreateBuilder();
             builder.AddOpenAIChatCompletion(modelId, apiKey, orgId);
-            _kernel = builder.Build();
+            var kernel = builder.Build();
+            _context = new LLMContext(kernel);
 
             Log.Info($"LLMSystem connected successfully. Model: {modelId}");
         }
         catch (Exception ex)
         {
             Log.Error($"Failed to connect LLMSystem: {ex.Message}");
-            _kernel = null;
+            _context = null;
             throw;
         }
     }
 
     /// <summary>
-    /// Disconnects the current session and clears the kernel.
+    /// Connects to an OpenAI-compatible LLM service with a custom endpoint.
+    /// </summary>
+    /// <param name="modelId">The model ID to use.</param>
+    /// <param name="apiKey">The API key for authentication.</param>
+    /// <param name="uri">The custom endpoint URI.</param>
+    public void Connect(string modelId, string apiKey, Uri uri)
+    {
+        if (IsConnected)
+        {
+            Log.Warning("LLMSystem is already connected. Disconnect first to reconnect.");
+            return;
+        }
+
+        try
+        {
+            var builder = Kernel.CreateBuilder();
+            builder.AddOpenAIChatCompletion(modelId, uri, apiKey);
+            var kernel = builder.Build();
+            _context = new LLMContext(kernel);
+
+            Log.Info($"LLMSystem connected successfully to custom endpoint. Model: {modelId}, URI: {uri}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Failed to connect LLMSystem to custom endpoint: {ex.Message}");
+            _context = null;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Disconnects the current session and clears the context.
     /// </summary>
     public void Disconnect()
     {
@@ -58,7 +90,7 @@ public class LLMSystem : BaseEngineSystem
             return;
         }
 
-        _kernel = null;
+        _context = null;
         Log.Info("LLMSystem disconnected.");
     }
 

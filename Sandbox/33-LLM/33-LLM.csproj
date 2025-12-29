@@ -1,20 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>_32_Gamepad</RootNamespace>
+<RootNamespace>_33_LLM</RootNamespace>
+<AssemblyName>33-LLM</AssemblyName>
+<Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+<GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
+<ProjectReference Include="..\..\Src\Alco.LLM\Alco.LLM.csproj" />
+
     <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
-    <ProjectReference Include="..\..\Sandbox\~SandboxUtils\~SandboxUtils.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
-      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+<ProjectReference Include="..\~SandboxUtils\~SandboxUtils.csproj" />
+
   </ItemGroup>
 </Project>
