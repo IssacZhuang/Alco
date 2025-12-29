@@ -1,7 +1,7 @@
+using System.Text;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using System.Text;
 
 namespace Alco.LLM;
 
@@ -45,9 +45,9 @@ public class LLMContext
     {
         _chatHistory.AddUserMessage(message);
         var stream = _chatCompletionService.GetStreamingChatMessageContentsAsync(_chatHistory, _promptExecutionSettings, Kernel);
-        
+
+
         var fullContent = new StringBuilder();
-        var toolCallIds = new HashSet<string>();
 
         await foreach (var content in stream)
         {
@@ -63,10 +63,16 @@ public class LLMContext
             {
                 if (item is StreamingFunctionCallUpdateContent functionCall)
                 {
-                    if (!string.IsNullOrEmpty(functionCall.Name) && !string.IsNullOrEmpty(functionCall.CallId) && !toolCallIds.Contains(functionCall.CallId))
+                    if (!string.IsNullOrEmpty(functionCall.Name))
                     {
-                        toolCallIds.Add(functionCall.CallId);
-                        string toolNotification = $"\n[Tool Call: {functionCall.Name}]";
+                        string toolNotification = $"{functionCall.Name}]";
+                        fullContent.Append(toolNotification);
+                        yield return toolNotification;
+                    }
+
+                    if (!string.IsNullOrEmpty(functionCall.Arguments))
+                    {
+                        string toolNotification = $"{functionCall.Arguments}";
                         fullContent.Append(toolNotification);
                         yield return toolNotification;
                     }
