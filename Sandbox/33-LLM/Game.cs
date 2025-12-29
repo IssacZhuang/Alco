@@ -211,7 +211,7 @@ public class Game : GameEngine
 
         if (_isWaitingForResponse)
         {
-            ImGui.TextDisabled("LLM is thinking...");
+            ImGui.TextDisabled("LLM is generating...");
         }
 
         if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY())
@@ -262,10 +262,17 @@ public class Game : GameEngine
         _chatHistory.Add(("User", userMessage));
         _isWaitingForResponse = true;
 
+        // Prepare a placeholder for the LLM response
+        int llmMessageIndex = _chatHistory.Count;
+        _chatHistory.Add(("LLM", ""));
+
         try
         {
-            string response = await _llmSystem.ChatAsync(userMessage);
-            _chatHistory.Add(("LLM", response));
+            await foreach (var chunk in _llmSystem.ChatStreamingAsync(userMessage))
+            {
+                var currentContent = _chatHistory[llmMessageIndex].Content + chunk;
+                _chatHistory[llmMessageIndex] = ("LLM", currentContent);
+            }
         }
         catch (Exception ex)
         {

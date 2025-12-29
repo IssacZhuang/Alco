@@ -181,6 +181,19 @@ public class LLMSystem : BaseEngineSystem
         return await _context!.ChatAsync(message);
     }
 
+    public async IAsyncEnumerable<string> ChatStreamingAsync(string message)
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("Agent is not connected.");
+        }
+        
+        await foreach (var content in _context!.ChatStreamingAsync(message))
+        {
+            yield return content;
+        }
+    }
+
     public override void OnTick(float delta)
     {
         while (_callbackQueue.TryDequeue(out var callback))

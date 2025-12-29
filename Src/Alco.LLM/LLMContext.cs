@@ -1,6 +1,7 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System.Text;
 
 namespace Alco.LLM;
 
@@ -38,6 +39,23 @@ public class LLMContext
         _chatHistory.AddUserMessage(message);
         var result = await _chatCompletionService.GetChatMessageContentAsync(_chatHistory, _promptExecutionSettings, Kernel);
         return result.ToString();
+    }
+
+    public async IAsyncEnumerable<string> ChatStreamingAsync(string message)
+    {
+        _chatHistory.AddUserMessage(message);
+        var stream = _chatCompletionService.GetStreamingChatMessageContentsAsync(_chatHistory, _promptExecutionSettings, Kernel);
+        
+        var fullContent = new StringBuilder();
+        await foreach (var content in stream)
+        {
+            if (!string.IsNullOrEmpty(content.Content))
+            {
+                fullContent.Append(content.Content);
+                yield return content.Content;
+            }
+        }
+        _chatHistory.AddAssistantMessage(fullContent.ToString());
     }
 }
 
