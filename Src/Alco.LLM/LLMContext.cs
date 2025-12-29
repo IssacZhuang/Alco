@@ -36,7 +36,7 @@ public class LLMContext
     public async Task<string> ChatAsync(string message)
     {
         _chatHistory.AddUserMessage(message);
-        var result = await _chatCompletionService.GetChatMessageContentAsync(_chatHistory, _promptExecutionSettings);
+        var result = await _chatCompletionService.GetChatMessageContentAsync(_chatHistory, _promptExecutionSettings, Kernel);
         return result.ToString();
     }
 }

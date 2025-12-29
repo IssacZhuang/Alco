@@ -19,9 +19,22 @@ public class LLMSystem : BaseEngineSystem
 
         public async Task OnFunctionInvocationAsync(FunctionInvocationContext context, Func<FunctionInvocationContext, Task> next)
         {
-            if (ShoudlInvokeOnMainThread(context))
+            if (ShouldInvokeOnMainThread(context))
             {
-                _llmSystem._callbackQueue.Enqueue(() => next(context));
+                var tcs = new TaskCompletionSource<bool>();
+                _llmSystem._callbackQueue.Enqueue(async () =>
+                {
+                    try
+                    {
+                        await next(context);
+                        tcs.SetResult(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                });
+                await tcs.Task;
             }
             else
             {
@@ -29,7 +42,7 @@ public class LLMSystem : BaseEngineSystem
             }
         }
 
-        protected virtual bool ShoudlInvokeOnMainThread(FunctionInvocationContext context)
+        protected virtual bool ShouldInvokeOnMainThread(FunctionInvocationContext context)
         {
             return true;
         }
