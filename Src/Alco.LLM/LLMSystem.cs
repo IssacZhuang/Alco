@@ -177,14 +177,14 @@ public class LLMSystem : BaseEngineSystem
     /// </summary>
     /// <returns>A new LLMContext instance.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the LLM system is not connected.</exception>
-    public LLMContext CreateContext()
+    public LLMChat CreateContext()
     {
         if (!IsConnected)
         {
             throw new InvalidOperationException("LLMSystem is not connected.");
         }
 
-        return new LLMContext(_kernel!);
+        return new LLMChat(_kernel!);
     }
 
     public override void OnTick(float delta)

@@ -12,6 +12,6 @@ public abstract class LLMTask
     /// </summary>
     /// <param name="context">The LLM context to use for execution.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    public abstract Task Execute(LLMContext context);
+    public abstract Task Execute(LLMChat context);
 }
 

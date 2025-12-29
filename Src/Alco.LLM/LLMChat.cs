@@ -8,7 +8,7 @@ namespace Alco.LLM;
 /// <summary>
 /// Represents the context for LLM operations, wrapping the Semantic Kernel.
 /// </summary>
-public sealed class LLMContext
+public sealed class LLMChat
 {
     private readonly IChatCompletionService _chatCompletionService;
     private readonly ChatHistory _chatHistory;
@@ -20,10 +20,10 @@ public sealed class LLMContext
     public Kernel Kernel { get; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="LLMContext"/> class.
+    /// Initializes a new instance of the <see cref="LLMChat"/> class.
     /// </summary>
     /// <param name="kernel">The Semantic Kernel instance to use.</param>
-    public LLMContext(Kernel kernel)
+    public LLMChat(Kernel kernel)
     {
         Kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
