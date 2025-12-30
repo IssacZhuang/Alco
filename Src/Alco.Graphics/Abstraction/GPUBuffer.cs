@@ -24,7 +24,7 @@ public unsafe abstract class GPUBuffer : BaseGPUObject, IGPUBindableResource
 
     protected GPUBuffer(in BufferDescriptor descriptor): base(descriptor.Name)
     {
-        Size = UtilsBuffer.GetAlignedBufferSize(descriptor.Size);
+        Size = BufferUtility.GetAlignedBufferSize(descriptor.Size);
         Usage = descriptor.Usage;
         ResourceType = BindableResourceType.Buffer;
     }

@@ -8,7 +8,6 @@ namespace Alco;
 /// </summary>
 public struct Pivot
 {
-    //origin point is left-bottom
     public static readonly Pivot Center = new(0, 0);
     public static readonly Pivot LeftCenter = new(-0.5f, 0);
     public static readonly Pivot RightCenter = new(0.5f, 0);
@@ -41,10 +40,7 @@ public struct Pivot
     {
         value = new Vector2(x, y);
     }
-
-    /// <summary>
-    /// text_position = input_position + size * offsetMultiplier
-    /// </summary>
+    
     public Vector2 value;
 
     public static implicit operator Pivot(Vector2 v) => new(v.X, v.Y);

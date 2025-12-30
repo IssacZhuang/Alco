@@ -13,13 +13,13 @@ namespace Alco
 
     public class BinaryValue : BaseBinaryValue
     {
-        private readonly byte[] _binary;
+        private readonly ReadOnlyMemory<byte> _binary;
 
         /// Properties
         public override BinaryValueType Type => BinaryValueType.Value;
 
 
-        public byte[] Bytes
+        public ReadOnlyMemory<byte> Bytes
         {
             get
             {
@@ -41,24 +41,24 @@ namespace Alco
         }
 
 
-        public BinaryValue(byte[] v)
+        public BinaryValue(ReadOnlyMemory<byte> v)
         {
             _binary = v;
         }
 
         public bool TryGetValue<T>(out T v) where T : unmanaged
         {
-            v = UtilsBinary.DecodeToValue<T>(_binary);
+            v = BinaryUtility.DecodeToValue<T>(_binary.Span);
             return true;
         }
 
         public bool TryGetNullableValue<T>(out T? v) where T : unmanaged
         {
-            v = UtilsBinary.DecodeToNullableValue<T>(_binary);
+            v = BinaryUtility.DecodeToNullableValue<T>(_binary.Span);
             return true;
         }
 
-        public bool TryGetEnum<T>(out T v) where T : struct, Enum
+        public unsafe bool TryGetEnum<T>(out T v) where T : struct, Enum
         {
             if (_binary.Length != Unsafe.SizeOf<T>())
             {
@@ -66,29 +66,32 @@ namespace Alco
                 return false;
             }
 
-            v = Unsafe.ReadUnaligned<T>(ref _binary[0]);
+            fixed (byte* ptr = _binary.Span)
+            {
+                v = Unsafe.ReadUnaligned<T>(ptr);
+            }
             return true;
         }
 
         public bool TryGetString([NotNullWhen(true)] out string? v)
         {
-            v = UtilsBinary.DecodeToString(_binary);
+            v = BinaryUtility.DecodeToString(_binary.Span);
             return true;
         }
 
         public static BinaryValue CreateByValue<T>(T value) where T : unmanaged
         {
-            return new BinaryValue(UtilsBinary.EncodeValue(value));
+            return new BinaryValue(BinaryUtility.EncodeValue(value));
         }
 
         public static BinaryValue CreateByNullableValue<T>(T? value) where T : unmanaged
         {
-            return new BinaryValue(UtilsBinary.EncodeNullableValue(value));
+            return new BinaryValue(BinaryUtility.EncodeNullableValue(value));
         }
 
         public static BinaryValue CreateByEnum<T>(T value) where T : struct, Enum
         {
-            return new BinaryValue(UtilsBinary.EncodeEnum(value));
+            return new BinaryValue(BinaryUtility.EncodeEnum(value));
         }
 
         public unsafe static BinaryValue CreateByMemory<T>(Span<T> memory) where T : unmanaged

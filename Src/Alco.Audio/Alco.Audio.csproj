@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- <Optimize>false</Optimize> -->
@@ -11,5 +10,6 @@
     <PackageReference Include="Silk.NET.OpenAL" Version="2.22.0" />
     <PackageReference Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
     <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.22.0" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.Soft" Version="2.22.0" />
   </ItemGroup>
 </Project>

@@ -87,7 +87,7 @@ public struct CameraData2D : ICamera
 
     public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
     {
-        return UtilsCameraMath.ScreenPointToRay2D(screenPosition, screenSize, ViewProjectionMatrix, Near, Near + 1);
+        return CameraMathUtility.ScreenPointToRay2D(screenPosition, screenSize, ViewProjectionMatrix, Near, Near + 1);
     }
 
     /// <summary>

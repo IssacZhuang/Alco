@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Rendering;
 
-public abstract class Material: AutoDisposable
+public abstract class Material : AutoDisposable
 {
     protected readonly RenderingSystem _system;
     protected readonly ShaderParameterSet _parameters;
@@ -13,6 +13,8 @@ public abstract class Material: AutoDisposable
     protected ShaderPipelineInfo _pipelineInfo;
 
     protected readonly Shader _shader;
+
+    private uint _version;
 
     public int ResourceGroupCount
     {
@@ -125,7 +127,7 @@ public abstract class Material: AutoDisposable
     /// </summary>
     public string Name { get; }
 
-    
+
 
     protected Material(RenderingSystem system, Shader shader, string name)
     {
@@ -133,7 +135,7 @@ public abstract class Material: AutoDisposable
         _system = system;
         _shader = shader;
 
-        if(shader.IsComputeShader)
+        if (shader.IsComputeShader)
         {
             throw new InvalidOperationException("The shader required for material must be a graphics shader");
         }
@@ -182,6 +184,7 @@ public abstract class Material: AutoDisposable
             };
             _parameters.SetReflectionInfo(_pipelineContext.ReflectionInfo!);
             _isPipelineDirty = false;
+            IncreaseVersion();
         }
 
         return _pipelineInfo;
@@ -191,22 +194,34 @@ public abstract class Material: AutoDisposable
 
     public bool TrySetBuffer(string name, GraphicsBuffer buffer)
     {
-        return _parameters.TrySetBuffer(name, buffer);
+        if (_parameters.TrySetBuffer(name, buffer))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     public void SetBuffer(string name, GraphicsBuffer buffer)
     {
         _parameters.SetBuffer(name, buffer);
+        IncreaseVersion();
     }
 
     public bool TrySetBuffer(uint id, GraphicsBuffer buffer)
     {
-        return _parameters.TrySetBuffer(id, buffer);
+        if (_parameters.TrySetBuffer(id, buffer))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     public void SetBuffer(uint id, GraphicsBuffer buffer)
     {
         _parameters.SetBuffer(id, buffer);
+        IncreaseVersion();
     }
 
     #endregion
@@ -221,7 +236,12 @@ public abstract class Material: AutoDisposable
     /// <returns>True if the texture is set successfully, otherwise false.</returns>
     public bool TrySetTexture(string name, Texture2D texture)
     {
-        return _parameters.TrySetTexture(name, texture);
+        if (_parameters.TrySetTexture(name, texture))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -232,7 +252,12 @@ public abstract class Material: AutoDisposable
     /// <returns>True if the texture is set successfully, otherwise false.</returns>
     public bool TrySetTexture(uint id, Texture2D texture)
     {
-        return _parameters.TrySetTexture(id, texture);
+        if (_parameters.TrySetTexture(id, texture))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -243,6 +268,7 @@ public abstract class Material: AutoDisposable
     public void SetTexture(string name, Texture2D texture)
     {
         _parameters.SetTexture(name, texture);
+        IncreaseVersion();
     }
 
     /// <summary>
@@ -253,6 +279,7 @@ public abstract class Material: AutoDisposable
     public void SetTexture(uint id, Texture2D texture)
     {
         _parameters.SetTexture(id, texture);
+        IncreaseVersion();
     }
 
 
@@ -269,7 +296,12 @@ public abstract class Material: AutoDisposable
     /// <returns>True if the render texture is set successfully, otherwise false.</returns>
     public bool TrySetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        return _parameters.TrySetRenderTexture(name, renderTexture, renderTextureIndex);
+        if (_parameters.TrySetRenderTexture(name, renderTexture, renderTextureIndex))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -281,7 +313,12 @@ public abstract class Material: AutoDisposable
     /// <returns>True if the render texture is set successfully, otherwise false.</returns>
     public bool TrySetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
-        return _parameters.TrySetRenderTexture(id, renderTexture, renderTextureIndex);
+        if (_parameters.TrySetRenderTexture(id, renderTexture, renderTextureIndex))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -293,6 +330,7 @@ public abstract class Material: AutoDisposable
     public void SetRenderTexture(string name, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
         _parameters.SetRenderTexture(name, renderTexture, renderTextureIndex);
+        IncreaseVersion();
     }
 
     /// <summary>
@@ -304,6 +342,7 @@ public abstract class Material: AutoDisposable
     public void SetRenderTexture(uint id, RenderTexture renderTexture, int renderTextureIndex = 0)
     {
         _parameters.SetRenderTexture(id, renderTexture, renderTextureIndex);
+        IncreaseVersion();
     }
 
     /// <summary>
@@ -313,9 +352,13 @@ public abstract class Material: AutoDisposable
     /// <param name="renderTexture">The render texture to set.</param>
     /// <returns>True if the render texture depth was set successfully, otherwise false.</returns>
     public bool TrySetRenderTextureDepth(string name, RenderTexture renderTexture)
-
     {
-        return _parameters.TrySetRenderTextureDepth(name, renderTexture);
+        if (_parameters.TrySetRenderTextureDepth(name, renderTexture))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -327,7 +370,12 @@ public abstract class Material: AutoDisposable
     public bool TrySetRenderTextureDepth(uint id, RenderTexture renderTexture)
 
     {
-        return _parameters.TrySetRenderTextureDepth(id, renderTexture);
+        if (_parameters.TrySetRenderTextureDepth(id, renderTexture))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -336,9 +384,9 @@ public abstract class Material: AutoDisposable
     /// <param name="name">The shader resource name of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
     public void SetRenderTextureDepth(string name, RenderTexture renderTexture)
-
     {
         _parameters.SetRenderTextureDepth(name, renderTexture);
+        IncreaseVersion();
     }
 
     /// <summary>
@@ -347,9 +395,9 @@ public abstract class Material: AutoDisposable
     /// <param name="id">The shader resource id of the render texture.</param>
     /// <param name="renderTexture">The render texture to set.</param>
     public void SetRenderTextureDepth(uint id, RenderTexture renderTexture)
-
     {
         _parameters.SetRenderTextureDepth(id, renderTexture);
+        IncreaseVersion();
     }
 
     #endregion
@@ -397,10 +445,16 @@ public abstract class Material: AutoDisposable
     /// <param name="id">The resource id of the shader.</param>
     /// <returns>True if the resource id is found, otherwise false.</returns>
     public bool TryGetResourceId(string name, out uint id)
-
     {
         return _pipelineContext.TryGetResourceId(name, out id);
     }
 
-
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected void IncreaseVersion()
+    {
+        unchecked
+        {
+            _version++;
+        }
+    }
 }

@@ -12,6 +12,8 @@ public abstract class SerializeNode
 {
     protected Action<string>? OnError {get; set;}
 
+    public abstract ReferenceContext? ReferenceContext { get;}
+
     /// <summary>
     /// Binds a value type (unmanaged) with an optional default value.
     /// </summary>
@@ -61,9 +63,9 @@ public abstract class SerializeNode
     public abstract void BindEnum<T>(string key, ref T value, T @default = default) where T : struct, Enum;
 
     /// <summary>
-    /// Binds a span of unmanaged memory for efficient serialization of contiguous data.
+    /// Binds a span of memory for efficient serialization of contiguous data.
     /// </summary>
-    /// <typeparam name="T">The unmanaged type contained in the memory span.</typeparam>
+    /// <typeparam name="T">The type contained in the memory span.</typeparam>
     /// <param name="key">The key identifier for the memory data in the serialization format.</param>
     /// <param name="memory">The span of memory to be serialized or deserialized.</param>
     public abstract void BindMemory<T>(string key, Span<T> memory) where T : unmanaged;
@@ -83,6 +85,8 @@ public abstract class SerializeNode
     /// <param name="value">The collection of strings to be serialized or deserialized.</param>
     public abstract void BindCollection(string key, ICollection<string> value);
 
+    public abstract void BindArraySerializable<T>(string key, IReadOnlyList<T> value) where T : ISerializable;
+
     /// <summary>
     /// Binds a collection of complex objects that implement ISerializable for deep serialization.
     /// </summary>
@@ -101,16 +105,21 @@ public abstract class SerializeNode
     public abstract void BindCollectionSerializable<T>(string key, ICollection<T> value, Func<SerializeReadNode, T> onCreate) where T : ISerializable;
 
     /// <summary>
-    /// Binds an array of unmanaged types by converting it to a span for memory binding.
-    /// This is a convenience method that calls BindMemory with the array converted to a span.
+    /// Binds a dictionary of complex objects that implement ISerializable for deep serialization.
     /// </summary>
-    /// <typeparam name="T">The unmanaged type contained in the array.</typeparam>
-    /// <param name="key">The key identifier for the array data in the serialization format.</param>
-    /// <param name="array">The array to be serialized or deserialized.</param>
-    public void BindMemory<T>(string key, T[] array) where T : unmanaged
-    {
-        BindMemory(key, array.AsSpan());
-    }
+    /// <typeparam name="T">The type that implements ISerializable and has a parameterless constructor.</typeparam>
+    /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of serializable objects to be serialized or deserialized.</param>
+    public abstract void BindDictionarySerializable<T>(string key, IDictionary<string, T> value) where T : ISerializable, new();
+
+    /// <summary>
+    /// Binds a dictionary of complex objects that implement ISerializable for deep serialization.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
+    /// <param name="value">The dictionary of serializable objects to be serialized or deserialized.</param>
+    /// <param name="onCreate">Factory function to create a new instance during deserialization when the value is not null.</param>
+    public abstract void BindDictionarySerializable<T>(string key, IDictionary<string, T> value, Func<SerializeReadNode, T> onCreate) where T : ISerializable;
 
     /// <summary>
     /// Binds a dictionary of unmanaged value types.
@@ -132,7 +141,16 @@ public abstract class SerializeNode
     /// </summary>
     /// <param name="key">The key identifier for the dictionary in the serialization format.</param>
     /// <param name="value">The dictionary of binary data to be serialized or deserialized.</param>
-    public abstract void BindDictionary(string key, IDictionary<string, byte[]> value);
+    public abstract void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value);
+
+    /// <summary>
+    /// Binds a byte array for binary data serialization.
+    /// </summary>
+    /// <param name="key">The key identifier for the binary data in the serialization format.</param>
+    /// <param name="data">Reference to the byte array to be serialized or deserialized.</param>
+    public abstract void BindBinary(string key, ref ReadOnlyMemory<byte> data);
+
+    public abstract void BindReference<T>(string key, ref T? referenceable) where T : IReferenceable;
 
     protected void AddError(string error)
     {

@@ -6,8 +6,17 @@ using Alco.ImGUI;
 
 namespace Alco.ImGUI;
 
-public class ImGUIInputHandler: AutoDisposable
+public sealed class ImGUIInputHandler : AutoDisposable
 {
+    public static bool IsCapturingMouse
+    {
+        get
+        {
+            ImGuiIOPtr io = ImGui.GetIO();
+            return io.WantCaptureMouse;
+        }
+    }
+
     private readonly Input _inputSystem;
     private readonly View _view;
 
@@ -42,7 +51,7 @@ public class ImGUIInputHandler: AutoDisposable
         io.AddMousePosEvent(mousePosition.X, mousePosition.Y);
 
         io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta);
-    
+
     }
 
     protected override void Dispose(bool disposing)

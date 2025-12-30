@@ -8,12 +8,6 @@ internal class AssetHandle
     private object? _strongReference;
     private bool _isLoading = false;
 
-    
-
-    public event AssetAsyncLoadDelegate? OnLoadComplete;//on main thread
-    //just keep reference when asyc load to avoid GC
-    public object? tmpAsset;
-
     public bool IsLoading
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,15 +48,8 @@ internal class AssetHandle
         
     }
 
-    public void DoLoadComplete(object asset, Exception? exception)
-    {
-        OnLoadComplete?.Invoke(asset, exception);
-    }
-
     public void ResetLoadingState()
     {
-        tmpAsset = null;
         _isLoading = false;
-        OnLoadComplete = null;
     }
 }

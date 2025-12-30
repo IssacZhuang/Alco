@@ -83,7 +83,7 @@ public class TestCollisionWorld2D
                 shape = new ShapeBox2D(new Vector2(i, 0), new Vector2(1, 1), Rotation2D.Identity)
             };
             world.PushCollisionTarget(target, target.shape);
-            //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision2D.BoxSphere(target.shape, caster1.shape)}");
+            //TestContext.WriteLine($"{i}, {target.shape}, {CollisionUtility2D.BoxSphere(target.shape, caster1.shape)}");
         };
 
         world.BuildTree();
@@ -121,7 +121,7 @@ public class TestCollisionWorld2D
                 shape = new ShapeBox2D(new Vector2(i, 0), new Vector2(1, 1), Rotation2D.Identity)
             };
             world.PushCollisionTarget(target, target.shape);
-            //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision2D.BoxSphere(target.shape, caster1.shape)}");
+            //TestContext.WriteLine($"{i}, {target.shape}, {CollisionUtility2D.BoxSphere(target.shape, caster1.shape)}");
         };
 
         world.PushCollisionCaster(caster1, caster1.shape, caster1.cutomData);

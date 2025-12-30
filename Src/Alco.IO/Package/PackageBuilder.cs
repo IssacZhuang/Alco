@@ -7,10 +7,15 @@ namespace Alco.IO;
 
 /// <summary>
 /// Builds an Alco package in-memory following the documented format:
-/// [Int64 LE meta length][meta payload via BinaryParser][content payload].
+/// [magic "alco"][Int64 LE meta length][meta payload via BinaryParser][content payload].
 /// </summary>
 public sealed class PackageBuilder
 {
+    /// <summary>
+    /// The magic number that identifies Alco package files.
+    /// </summary>
+    private static readonly byte[] Magic = "alco"u8.ToArray();
+
     private readonly Dictionary<string, byte[]> _nameToBytes = new(StringComparer.Ordinal);
     private readonly List<string> _order = new();
 
@@ -59,7 +64,7 @@ public sealed class PackageBuilder
     }
 
     /// <summary>
-    /// Builds the package bytes: [meta length (Int64 LE)][meta payload][content payload].
+    /// Builds the package bytes: [magic "alco"][meta length (Int64 LE)][meta payload][content payload].
     /// </summary>
     /// <returns>Package bytes</returns>
     public byte[] Build()
@@ -83,27 +88,30 @@ public sealed class PackageBuilder
 
         if (totalContentLength > int.MaxValue)
         {
-            throw new InvalidOperationException("Content payload too large to fit into a single byte array.");
+            throw new InvalidOperationException("Content payload too large.");
         }
 
-        byte[] metaBytes = BinaryParser.Encode(meta);
-        long metaLength = metaBytes.LongLength;
+        ReadOnlyMemory<byte> metaBytes = BinaryParser.Encode(meta);
+        int metaLength = metaBytes.Length;
         if (metaLength > int.MaxValue)
         {
-            throw new InvalidOperationException("Meta payload too large to fit into a single byte array.");
+            throw new InvalidOperationException("Meta payload too large.");
         }
 
-        int finalLength = checked((int)(8L + metaLength + totalContentLength));
+        int finalLength = checked((int)(12L + metaLength + totalContentLength));
         byte[] package = new byte[finalLength];
 
+        // Write magic number
+        Magic.CopyTo(package.AsSpan(0, 4));
+
         // Write meta length (Int64 LE)
-        BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(0, 8), metaLength);
+        BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4, 8), metaLength);
 
         // Write meta payload
-        metaBytes.CopyTo(package, 8);
+        metaBytes.Span.CopyTo(package.AsSpan(12));
 
         // Write content payload
-        int contentBase = 8 + (int)metaLength;
+        int contentBase = 12 + (int)metaLength;
         int cursor = contentBase;
         foreach (string name in _order)
         {

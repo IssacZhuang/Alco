@@ -36,9 +36,6 @@ public struct ParticleData2D
     /// </summary>
     public float Depth;
 
-    /// <summary>
-    /// The velocity of the particle in the z axis.
-    /// </summary>
-    public float DepthVelocity;
+    public float _padding;
 }
 

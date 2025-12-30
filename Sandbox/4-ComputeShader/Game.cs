@@ -209,7 +209,7 @@ public class Game : GameEngine
         // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "MainCS");
 
         DebugSaveFile("BoxBlur.spv", computeShader.Source);
-        ShaderReflectionInfo reflectionInfo = UtilsShaderRelfection.GetSpirvReflection(computeShader.Source);
+        ShaderReflectionInfo reflectionInfo = ShaderRelfectionUtility.GetSpirvReflection(computeShader.Source);
         Log.Info(reflectionInfo);
         
 
@@ -263,12 +263,12 @@ public class Game : GameEngine
         return File.ReadAllBytes(Path.Combine("Assets", path));
     }
 
-    private static void DebugSaveFile(string path, byte[] data)
+    private static void DebugSaveFile(string path, ReadOnlyMemory<byte> data)
     {
         if (!Directory.Exists(".Debug"))
         {
             Directory.CreateDirectory(".Debug");
         }
-        File.WriteAllBytes(Path.Combine(".Debug", path), data);
+        File.WriteAllBytes(Path.Combine(".Debug", path), data.ToArray());
     }
 }

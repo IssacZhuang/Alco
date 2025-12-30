@@ -91,7 +91,7 @@ namespace Alco
             return false;
         }
 
-        public bool TryGetBinary(int index, [NotNullWhen(true)] out byte[]? value)
+        public bool TryGetBinary(int index, [NotNullWhen(true)] out ReadOnlyMemory<byte> value)
         {
             if (index < _content.Count)
             {
@@ -101,7 +101,7 @@ namespace Alco
                     return true;
                 }
             }
-            value = null;
+            value = ReadOnlyMemory<byte>.Empty;
             return false;
         }
 

@@ -9,20 +9,24 @@ public partial class RenderingSystem
     {
         using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
         packer.Add(fileBytes, 32, new int2[]{
-            UtilsUnicode.RangeBasicLatin,
-            UtilsUnicode.RangeLatin1Supplement,
-            UtilsUnicode.RangeLatinExtendedA,
-            UtilsUnicode.RangeCyrillic,
-            UtilsUnicode.RangeGreek,
+            UnicodeUtility.RangeBasicLatin,
+            UnicodeUtility.RangeLatin1Supplement,
+            UnicodeUtility.RangeLatinExtendedA,
+            UnicodeUtility.RangeCyrillic,
+            UnicodeUtility.RangeGreek,
             //japanese
-            UtilsUnicode.RangeHiragana,
-            UtilsUnicode.RangeKatakana,
+            UnicodeUtility.RangeHiragana,
+            UnicodeUtility.RangeKatakana,
             //chinese
-            UtilsUnicode.RangeCjkUnifiedIdeographs,
-            UtilsUnicode.RangeCjkSymbolsAndPunctuation,
+            UnicodeUtility.RangeCjkUnifiedIdeographs,
+            UnicodeUtility.RangeCjkUnifiedIdeographsExtensionA,
+            UnicodeUtility.RangeCjkSymbolsAndPunctuation,
+            UnicodeUtility.RangeHalfwidthAndFullwidthForms, // Essential for Chinese punctuation (：；，。？！etc.)
+            UnicodeUtility.RangeCjkCompatibilityForms,
+            UnicodeUtility.RangeVerticalForms,
             //korean
-            UtilsUnicode.RangeHangulSyllables,
-            UtilsUnicode.RangeHangulCompatibilityJamo,
+            UnicodeUtility.RangeHangulSyllables,
+            UnicodeUtility.RangeHangulCompatibilityJamo,
         });
 
         return CreateFont(packer.Bitmap, packer.Width, packer.Height, packer.Glyphs, name);
@@ -43,5 +47,17 @@ public partial class RenderingSystem
                 glyphs
             );
         }
+    }
+
+    /// <summary>
+    /// Creates a font from an existing texture and glyph information.
+    /// Used for SDF fonts where the texture is generated via compute shader.
+    /// </summary>
+    /// <param name="texture">The font atlas texture (typically SDF)</param>
+    /// <param name="glyphs">Array of glyph information</param>
+    /// <returns>A new Font instance</returns>
+    public Font CreateFont(Texture2D texture, GlyphInfo[] glyphs)
+    {
+        return new Font(texture, glyphs);
     }
 }

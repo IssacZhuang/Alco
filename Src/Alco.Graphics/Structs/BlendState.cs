@@ -44,8 +44,18 @@ namespace Alco.Graphics
 
         public static readonly BlendState Multiply = new BlendState
         {
-            Color = new BlendComponent(BlendFactor.Dst,BlendFactor.Zero,BlendOperation.Add),
-            Alpha = new BlendComponent(BlendFactor.One,BlendFactor.Zero, BlendOperation.Add)
+            Color = new BlendComponent(BlendFactor.Dst, BlendFactor.Zero, BlendOperation.Add),
+            Alpha = new BlendComponent(BlendFactor.One, BlendFactor.Zero, BlendOperation.Add)
+        };
+
+        /// <summary>
+        /// Alpha blending that prevents alpha accumulation on overlapping geometry.
+        /// Uses Max operation for alpha channel to avoid transparency stacking.
+        /// </summary>
+        public static readonly BlendState AlphaBlendNoAccumulation = new BlendState
+        {
+            Color = new BlendComponent(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha, BlendOperation.Add),
+            Alpha = new BlendComponent(BlendFactor.One, BlendFactor.One, BlendOperation.Max)
         };
 
         //operator ==

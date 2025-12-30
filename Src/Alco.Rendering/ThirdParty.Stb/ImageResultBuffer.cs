@@ -29,7 +29,7 @@ namespace StbImageSharp
             Comp = comp;
             SourceComp = sourceComp;
             _buffer = new NativeBuffer<byte>(size);
-            UtilsMemory.MemCopy(data, _buffer.UnsafePointer, (uint)size);
+            MemoryUtility.MemCopy(data, _buffer.UnsafePointer, (uint)size);
         }
 
         public void Dispose()

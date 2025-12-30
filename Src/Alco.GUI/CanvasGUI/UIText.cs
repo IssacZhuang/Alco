@@ -58,11 +58,6 @@ public class UIText : UISelectable
     /// <value></value>
     public float LineSpacing { get; set; } = 1f;
 
-    /// <summary>
-    /// The text color.
-    /// </summary>
-    /// <value></value>
-    public ColorFloat Color { get; set; } = 0xffffff;
 
     /// <summary>
     /// The text data.
@@ -149,7 +144,7 @@ public class UIText : UISelectable
     public UIText()
     {
         //default false, override by InputBox
-        Interactable = false;
+        IsInteractable = false;
     }
 
     protected unsafe override void OnUpdate(Canvas canvas, float delta)
@@ -224,9 +219,14 @@ public class UIText : UISelectable
         SetLineBreakDirty();
     }
 
+    protected override void OnAttachToTree(Canvas canvas)
+    {
+        Font ??= canvas.DefaultFont;
+    }
+
     protected virtual void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform)
     {
-        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, Color, 1f);
+        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, 1f);
     }
 
     protected void SetLineBreakDirty()

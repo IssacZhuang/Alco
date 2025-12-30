@@ -6,11 +6,15 @@ namespace Alco;
 
 public class BinarySerializeWriteNode : SerializeWriteNode
 {
+    private readonly ReferenceContext? _referenceContext;
     protected BinaryTable _content = new BinaryTable();
     public BinaryTable Content => _content;
 
-    public BinarySerializeWriteNode(Action<string>? onError = null)
+    public override ReferenceContext? ReferenceContext => _referenceContext;
+
+    public BinarySerializeWriteNode(ReferenceContext? referenceContext, Action<string>? onError = null)
     {
+        _referenceContext = referenceContext;
         OnError = onError;
     }
 
@@ -25,7 +29,8 @@ public class BinarySerializeWriteNode : SerializeWriteNode
     {
         try
         {
-            BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
+            BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+            _referenceContext?.TryWriteReferenceId(node, value);
             value.OnSerialize(node, SerializeMode.Save);
             _content.Add(key, node._content);
         }
@@ -53,7 +58,8 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             }
             else
             {
-                BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, value);
                 value.OnSerialize(node, SerializeMode.Save);
                 _content.Add(key, node._content);
             }
@@ -91,6 +97,26 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, array);
     }
 
+    public override void BindArraySerializable<T>(string key, IReadOnlyList<T> value)
+    {
+        BinaryArray array = new BinaryArray();
+        for (int i = 0; i < value.Count; i++)
+        {
+            try
+            {
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, value[i]);
+                value[i].OnSerialize(node, SerializeMode.Save);
+                array.Add(node._content);
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind array serializable '{key}': {ex}");
+            }
+        }
+        _content.Add(key, array);
+    }
+
     /// <summary>
     /// Binds a collection of complex objects that implement ISerializable for serialization.
     /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
@@ -106,7 +132,8 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         {
             try
             {
-                BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, element);
                 element.OnSerialize(node, SerializeMode.Save);
                 array.Add(node._content);
             }
@@ -136,7 +163,8 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         {
             try
             {
-                BinarySerializeWriteNode node = new BinarySerializeWriteNode(OnError);
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, element);
                 element.OnSerialize(node, SerializeMode.Save);
                 array.Add(node._content);
             }
@@ -148,6 +176,46 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         }
 
         _content.Add(key, array);
+    }
+
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value)
+    {
+        BinaryTable table = new BinaryTable();
+        foreach (var item in value)
+        {
+            try
+            {
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, item.Value);
+                item.Value.OnSerialize(node, SerializeMode.Save);
+                table.Add(item.Key, node._content);
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable dictionary item key '{item.Key}' for key '{key}': {ex}");
+            }
+        }
+        _content.Add(key, table);
+    }
+
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        BinaryTable table = new BinaryTable();
+        foreach (var item in value)
+        {
+            try
+            {
+                BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
+                _referenceContext?.TryWriteReferenceId(node, item.Value);
+                item.Value.OnSerialize(node, SerializeMode.Save);
+                table.Add(item.Key, node._content);
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable dictionary item key '{item.Key}' for key '{key}': {ex}");
+            }
+        }
+        _content.Add(key, table);
     }
 
     public override void SetValue<T>(string key, T value)
@@ -185,13 +253,37 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, table);
     }
 
-    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    public override void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value)
     {
         BinaryTable table = new BinaryTable();
         foreach (var item in value)
         {
-            table.Add(item.Key, BinaryValue.CreateByMemory(item.Value.AsSpan()));
+            table.Add(item.Key, new BinaryValue(item.Value));
         }
         _content.Add(key, table);
     }
+
+    public override void BindBinary(string key, ref ReadOnlyMemory<byte> data)
+    {
+        _content.Add(key, new BinaryValue(data));
+    }
+
+    public override void BindReference<T>(string key, ref T? referenceable) where T : default
+    {
+        if(_referenceContext == null)
+        {
+            return;
+        }
+
+        if (referenceable == null)
+        {
+            return;
+        }
+
+        uint id = _referenceContext.GetId(referenceable);
+        _content.Add(key, id);
+    }
+
+
+
 }

@@ -1,14 +1,16 @@
 using Alco.Graphics;
-using StbImageSharp;
-using static Alco.UtilsMemory;
 using System.Runtime.CompilerServices;
 using System.Numerics;
 using Alco;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Alco.Rendering;
 
 public sealed class Texture2D : Texture
 {
+    private readonly Sprite _defaultSprite;
+    private readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
+
     // bind group include texture and sampeler
     private GPUResourceGroup? _resourcesSample;
 
@@ -82,6 +84,42 @@ public sealed class Texture2D : Texture
         {
             SlicePadding = Padding.Zero;
         }
+
+        _defaultSprite = new Sprite("default", this, Rect.One);
+    }
+
+    public void ClearSprites()
+    {
+        _sprites.Clear();
+    }
+
+    public void SetSprite(string name, Rect uvRect)
+    {
+        _sprites[name] = new Sprite(name, this, uvRect);
+    }
+
+    public bool TryGetSprite(string name, [NotNullWhen(true)] out Sprite? sprite)
+    {
+        return _sprites.TryGetValue(name, out sprite);
+    }
+
+    public Sprite GetSprite(string name)
+    {
+        if (_sprites.TryGetValue(name, out Sprite? sprite))
+        {
+            return sprite;
+        }
+        return _defaultSprite;
+    }
+
+    /// <summary>
+    /// Implicitly converts a Texture2D to its default Sprite.
+    /// </summary>
+    /// <param name="texture">The texture to convert.</param>
+    /// <returns>The default sprite of the texture.</returns>
+    public static implicit operator Sprite(Texture2D texture)
+    {
+        return texture._defaultSprite;
     }
 
     public unsafe void SetPixels<T>(Bitmap<T> bitmap) where T : unmanaged
@@ -97,7 +135,7 @@ public sealed class Texture2D : Texture
             throw new ArgumentException("The size of the bitmap does not match the size of the texture");
         }
 
-        _device.WriteTexture(_texture, bitmap);;
+        _device.WriteTexture(_texture, bitmap); ;
     }
 
     public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)

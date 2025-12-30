@@ -3,7 +3,6 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Alco</RootNamespace>
     <AssemblyName>Alco</AssemblyName>
-    <TargetFramework>net9.0</TargetFramework>
   
     <Nullable>enable</Nullable>
   </PropertyGroup>

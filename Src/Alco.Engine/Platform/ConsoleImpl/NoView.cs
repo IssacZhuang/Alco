@@ -1,5 +1,6 @@
 using System.Numerics;
 using Alco.Graphics;
+using System.Threading.Tasks;
 
 namespace Alco.Engine;
 
@@ -50,6 +51,21 @@ public sealed class NoView : View
     public override void Close()
     {
         
+    }
+
+    public override Task<string[]> OpenFilePickerAsync(string? defaultPath, bool allowMultiple, params ReadOnlySpan<DialogFileFilter> filters)
+    {
+        return Task.FromResult(Array.Empty<string>());
+    }
+
+    public override Task<string[]> OpenFolderPickerAsync(string? defaultPath, bool allowMultiple)
+    {
+        return Task.FromResult(Array.Empty<string>());
+    }
+
+    public override Task<string[]> OpenSaveFilePickerAsync(string? defaultPath, params ReadOnlySpan<DialogFileFilter> filters)
+    {
+        return Task.FromResult(Array.Empty<string>());
     }
 
     

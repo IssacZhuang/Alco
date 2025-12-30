@@ -15,6 +15,17 @@ public partial class RenderingSystem
     }
 
     /// <summary>
+    /// Creates a new TextSDF processor for generating signed distance fields from font atlases.
+    /// </summary>
+    /// <param name="material">The GenerateSDF compute material</param>
+    /// <param name="maxDistance">Maximum SDF distance in pixels (typically 6-12)</param>
+    /// <returns>A new TextSDF processor instance</returns>
+    public TextSDF CreateTextSDF(ComputeMaterial material, float maxDistance = 6.0f)
+    {
+        return new TextSDF(material, maxDistance);
+    }
+
+    /// <summary>
     /// Creates a new FXAA (Fast Approximate Anti-Aliasing) post-processing effect.
     /// </summary>
     /// <param name="fxaaShader">The FXAA shader to use for the effect</param>

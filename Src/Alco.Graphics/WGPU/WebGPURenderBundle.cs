@@ -49,7 +49,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ReleaseRenderBundle();
         ReleaseRenderBundleEncoder();
 
-        UtilsInterop.Free(_nativeName);
+        InteropUtility.Free(_nativeName);
     }
 
     // begin the encoder
@@ -119,7 +119,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ValidateGraphicsPipeline();
 
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
-        wgpuRenderBundleEncoderSetIndexBuffer(_renderBundleEncoder, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
+        wgpuRenderBundleEncoderSetIndexBuffer(_renderBundleEncoder, nativeBuffer.Native, WebGPUUtility.IndexFormatToWebGPU(format), offset, size);
     }
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
@@ -156,7 +156,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     {
         ValidateGraphicsPipeline();
 
-        WGPUShaderStage shaderStage = UtilsWebGPU.ConvertShaderStage(stage);
+        WGPUShaderStage shaderStage = WebGPUUtility.ConvertShaderStage(stage);
         wgpuRenderBundleEncoderSetPushConstants(_renderBundleEncoder, shaderStage, bufferOffset, size, data);
     }
 
@@ -175,8 +175,8 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         ReadOnlySpan<byte> nameSpan = Name.GetUtf8Span();
         fixed (byte* ptr = nameSpan)
         {
-            _nativeName = UtilsInterop.Alloc<byte>(nameSpan.Length + 1);
-            UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            _nativeName = InteropUtility.Alloc<byte>(nameSpan.Length + 1);
+            InteropUtility.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
             _nativeNameView = new WGPUStringView(_nativeName, nameSpan.Length);
         }
     }

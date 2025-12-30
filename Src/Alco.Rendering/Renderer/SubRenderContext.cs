@@ -9,8 +9,6 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
 {
     private readonly GPURenderBundle _renderBundle;
     private readonly List<ICommandListener> _listeners;
-    private readonly List<Exception> _exceptionsBegin;
-    private readonly List<Exception> _exceptionsEnd;
 
     private GPUAttachmentLayout? _attachmentLayout;
 
@@ -33,8 +31,6 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
         GPUDevice device = renderingSystem.GraphicsDevice;
         _renderBundle = device.CreateRenderBundle(new RenderBundleDescriptor(name));
         _listeners = new List<ICommandListener>();
-        _exceptionsBegin = new List<Exception>();
-        _exceptionsEnd = new List<Exception>();
     }
 
     /// <summary>
@@ -59,27 +55,23 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// Begin the sub render context.
     /// </summary>
     /// <param name="attachmentLayout">The attachment layout to render to.</param>
-    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
-    public IReadOnlyList<Exception> Begin(GPUAttachmentLayout attachmentLayout)
+    public void Begin(GPUAttachmentLayout attachmentLayout)
     {
         _attachmentLayout = attachmentLayout;
         _renderBundle.Begin(attachmentLayout);
 
-        return InvokeBegin();
+        InvokeBegin();
     }
 
     /// <summary>
     /// End the sub render context.
     /// </summary>
-    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandEnd"/> event; otherwise, an empty array.</returns>
-    public IReadOnlyList<Exception> End()
+    public void End()
     {
-        var exceptions = InvokeEnd();
+         InvokeEnd();
 
         _renderBundle.End();
         ClearCache();
-
-        return exceptions;
     }
 
     /// <summary>
@@ -226,9 +218,8 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// Invokes the OnCommandBegin event on all listeners.
     /// </summary>
     /// <returns>A list of exceptions that occurred during the invocation.</returns>
-    private IReadOnlyList<Exception> InvokeBegin()
+    private void InvokeBegin()
     {
-        _exceptionsBegin.Clear();
         foreach (var observer in _listeners)
         {
             try
@@ -237,19 +228,17 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
             }
             catch (Exception e)
             {
-                _exceptionsBegin.Add(e);
+                Log.Error(e);
             }
         }
-        return _exceptionsBegin;
     }
 
     /// <summary>
     /// Invokes the OnCommandEnd event on all listeners.
     /// </summary>
     /// <returns>A list of exceptions that occurred during the invocation.</returns>
-    private IReadOnlyList<Exception> InvokeEnd()
+    private void InvokeEnd()
     {
-        _exceptionsEnd.Clear();
         foreach (var observer in _listeners)
         {
             try
@@ -258,10 +247,9 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
             }
             catch (Exception e)
             {
-                _exceptionsEnd.Add(e);
+                Log.Error(e);
             }
         }
-        return _exceptionsEnd;
     }
 }
 

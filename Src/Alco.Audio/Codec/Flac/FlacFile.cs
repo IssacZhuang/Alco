@@ -43,7 +43,7 @@ internal unsafe struct FlacFile : IDisposable
         _streamInfo = new FlacMetadataStreamInfo(reader.CurrentPointer);
 
         _dataLength = (int)(_streamInfo.TotalSamples * _streamInfo.Channels);
-        _data = UtilsMemory.Alloc<float>(_dataLength);
+        _data = MemoryUtility.Alloc<float>(_dataLength);
 
         reader.SkipBytes(FlacMetadataStreamInfo.ChunckSize);
 
@@ -167,12 +167,12 @@ internal unsafe struct FlacFile : IDisposable
         {
             int order = (int)(subframeType & 0x07);
             if (order > 4) throw new Exception("Invalid prediction order.");
-            UtilsFlac.DecodeSubFrameFixed(ref reader, frameHeader, buffer, residual, bitsPerSample, order);
+            FlacUtility.DecodeSubFrameFixed(ref reader, frameHeader, buffer, residual, bitsPerSample, order);
         }
         else if ((subframeType & 0x20) != 0)//100000 = 0x20
         {
             int order = (int)(subframeType & 0x1F) + 1;
-            UtilsFlac.DecodeSubFrameLPC(ref reader, frameHeader, buffer, residual, bitsPerSample, order);
+            FlacUtility.DecodeSubFrameLPC(ref reader, frameHeader, buffer, residual, bitsPerSample, order);
         }
         else
         {
@@ -261,7 +261,7 @@ internal unsafe struct FlacFile : IDisposable
     {
         if (_data != null)
         {
-            UtilsMemory.Free(_data);
+            MemoryUtility.Free(_data);
         }
 
         _dataBuffer.Dispose();

@@ -187,6 +187,15 @@ public unsafe class Sdl3Platform : Platform
                 Sdl3Window window5 = _windows[e.window.windowID];
                 window5.IsTextInputEnabled = false;
                 break;
+            case SDL_EventType.GamepadButtonDown:
+                _input.OnSdlGamepadButtonDown(e.gbutton.which, (SDL_GamepadButton)e.gbutton.button);
+                break;
+            case SDL_EventType.GamepadButtonUp:
+                _input.OnSdlGamepadButtonUp(e.gbutton.which, (SDL_GamepadButton)e.gbutton.button);
+                break;
+            case SDL_EventType.GamepadAxisMotion:
+                _input.OnSdlGamepadAxisMotion(e.gaxis.which, (SDL_GamepadAxis)e.gaxis.axis, e.gaxis.value);
+                break;
         }
     }
 }

@@ -86,6 +86,16 @@ namespace Alco
         {
             return new uint2(a.X / b.X, a.Y / b.Y);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(uint2 a, uint2 b)
+        {
+            return a.X == b.X && a.Y == b.Y;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(uint2 a, uint2 b)
+        {
+            return !(a == b);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector2(uint2 a)
@@ -97,6 +107,21 @@ namespace Alco
         public static implicit operator uint2(Vector2 a)
         {
             return new uint2((uint)a.X, (uint)a.Y);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is uint2 other && this == other;
+        }
+
+        public bool Equals(uint2 other)
+        {
+            return this == other;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(X, Y);
         }
 
         public override string ToString()

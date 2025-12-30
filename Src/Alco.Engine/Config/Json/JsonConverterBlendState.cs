@@ -8,28 +8,30 @@ namespace Alco.Engine;
 
 /// <summary>
 /// JSON converter for BlendState type.
-/// Supports string format that maps to static readonly presets: "Opaque", "AlphaBlend", "Additive", "PremultipliedAlpha", "NonPremultipliedAlpha", "Multiply"
+/// Supports string format that maps to static readonly presets: "Opaque", "AlphaBlend", "Additive", "PremultipliedAlpha", "NonPremultipliedAlpha", "Multiply", "AlphaBlendNoAccumulation"
 /// </summary>
 public class JsonConverterBlendState : JsonConverter<BlendState>
 {
     private static readonly Dictionary<string, BlendState> PresetMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "Opaque", BlendState.Opaque },
-        { "AlphaBlend", BlendState.AlphaBlend },
-        { "Additive", BlendState.Additive },
-        { "PremultipliedAlpha", BlendState.PremultipliedAlpha },
-        { "NonPremultipliedAlpha", BlendState.NonPremultipliedAlpha },
-        { "Multiply", BlendState.Multiply }
+        { nameof(BlendState.Opaque), BlendState.Opaque },
+        { nameof(BlendState.AlphaBlend), BlendState.AlphaBlend },
+        { nameof(BlendState.Additive), BlendState.Additive },
+        { nameof(BlendState.PremultipliedAlpha), BlendState.PremultipliedAlpha },
+        { nameof(BlendState.NonPremultipliedAlpha), BlendState.NonPremultipliedAlpha },
+        { nameof(BlendState.Multiply), BlendState.Multiply },
+        { nameof(BlendState.AlphaBlendNoAccumulation), BlendState.AlphaBlendNoAccumulation }
     };
 
     private static readonly Dictionary<BlendState, string> ReverseMap = new()
     {
-        { BlendState.Opaque, "Opaque" },
-        { BlendState.AlphaBlend, "AlphaBlend" },
-        { BlendState.Additive, "Additive" },
-        { BlendState.PremultipliedAlpha, "PremultipliedAlpha" },
-        { BlendState.NonPremultipliedAlpha, "NonPremultipliedAlpha" },
-        { BlendState.Multiply, "Multiply" }
+        { BlendState.Opaque, nameof(BlendState.Opaque) },
+        { BlendState.AlphaBlend, nameof(BlendState.AlphaBlend) },
+        { BlendState.Additive, nameof(BlendState.Additive) },
+        { BlendState.PremultipliedAlpha, nameof(BlendState.PremultipliedAlpha) },
+        { BlendState.NonPremultipliedAlpha, nameof(BlendState.NonPremultipliedAlpha) },
+        { BlendState.Multiply, nameof(BlendState.Multiply) },
+        { BlendState.AlphaBlendNoAccumulation, nameof(BlendState.AlphaBlendNoAccumulation) }
     };
 
     /// <summary>

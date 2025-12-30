@@ -188,6 +188,94 @@ public unsafe class CollisionWorld3D : AutoDisposable
     }
 
     /// <summary>
+    /// Casts a 3D oriented box shape and collects hit targets directly into a provided set.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination set for collected targets.</param>
+    /// <param name="shape">The box shape to cast.</param>
+    public void CastBox<TTarget>(ISet<TTarget> collector, in ShapeBox3D shape) where TTarget : class
+    {
+        ColliderBox3D collider = new ColliderBox3D { Shape = shape };
+        ColliderRef3D colliderRef = ColliderRef3D.Create(&collider);
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastColliderRefCollector(colliderRef);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult3D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Casts a 3D oriented box shape and collects hit targets into a provided collection.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination collection for collected targets.</param>
+    /// <param name="shape">The box shape to cast.</param>
+    public void CastBox<TTarget>(ICollection<TTarget> collector, in ShapeBox3D shape) where TTarget : class
+    {
+        ColliderBox3D collider = new ColliderBox3D { Shape = shape };
+        ColliderRef3D colliderRef = ColliderRef3D.Create(&collider);
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastColliderRefCollector(colliderRef);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult3D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Casts a 3D sphere shape and collects hit targets directly into a provided set.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination set for collected targets.</param>
+    /// <param name="shape">The sphere shape to cast.</param>
+    public void CastSphere<TTarget>(ISet<TTarget> collector, in ShapeSphere3D shape) where TTarget : class
+    {
+        ColliderSphere3D collider = new ColliderSphere3D { shape = shape };
+        ColliderRef3D colliderRef = ColliderRef3D.Create(&collider);
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastColliderRefCollector(colliderRef);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult3D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Casts a 3D sphere shape and collects hit targets into a provided collection.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination collection for collected targets.</param>
+    /// <param name="shape">The sphere shape to cast.</param>
+    public void CastSphere<TTarget>(ICollection<TTarget> collector, in ShapeSphere3D shape) where TTarget : class
+    {
+        ColliderSphere3D collider = new ColliderSphere3D { shape = shape };
+        ColliderRef3D colliderRef = ColliderRef3D.Create(&collider);
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastColliderRefCollector(colliderRef);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult3D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
     /// Cast a point to hit the targets.
     /// <br/> Not thread safe.
     /// </summary>
@@ -204,6 +292,75 @@ public unsafe class CollisionWorld3D : AutoDisposable
         }
     }
 
+    /// <summary>
+    /// Casts a point and collects hit targets directly into a provided set.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination set for collected targets.</param>
+    /// <param name="point">The point to cast in world space.</param>
+    public void CastPoint<TTarget>(ISet<TTarget> collector, in Vector3 point) where TTarget : class
+    {
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastPointRefCollector(point);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult3D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Casts a point and collects hit targets into a provided collection.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="collector">The destination collection for collected targets.</param>
+    /// <param name="point">The point to cast in world space.</param>
+    public void CastPoint<TTarget>(ICollection<TTarget> collector, in Vector3 point) where TTarget : class
+    {
+        ReadOnlySpan<ColliderCastResult3D> result = _bvh.CastPointRefCollector(point);
+        for (int i = 0; i < result.Length; i++)
+        {
+            ColliderCastResult3D target = result[i];
+            object obj = _targets[target.Collider.UserData];
+            if (obj is TTarget t)
+            {
+                collector.Add(t);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Casts a ray against targets and returns the first hit.
+    /// </summary>
+    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
+    /// <param name="ray">The ray to cast in world space.</param>
+    /// <param name="hitTarget">The target object that was hit, if any.</param>
+    /// <param name="hit">The raycast hit information, if any.</param>
+    /// <returns>True if a target was hit, false otherwise.</returns>
+    public bool TryCastRayFirstHit<TTarget>(in Ray3D ray, out TTarget? hitTarget, out RaycastHit3D hit) where TTarget : class
+    {
+        hitTarget = null;
+        hit = default;
+
+        RayCastResult3D result = _bvh.CastRayFirstHit(ray);
+        if (!result.Hit)
+        {
+            return false;
+        }
+
+        object obj = _targets[result.Collider.UserData];
+        if (obj is TTarget t)
+        {
+            hitTarget = t;
+            hit = result.HitInfo;
+            return true;
+        }
+
+        return false;
+    }
 
     public void ClearTargets()
     {
@@ -270,5 +427,9 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
         _rayOfCaster.Dispose();
         _rayUserDataOfCaster.Dispose();
+
+        _colliderCasters.Clear();
+        _rayCasters.Clear();
+        _targets.Clear();
     }
 }

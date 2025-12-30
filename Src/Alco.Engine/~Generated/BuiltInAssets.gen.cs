@@ -24,6 +24,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_GaussianBlurRGBA8 => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl");
 
+    public Shader Shader_TextSDF => GetShader("Shaders/Pipelines/Compute/TextSDF.hlsl");
+
     public Shader Shader_FXAA => GetShader("Shaders/Pipelines/PostProcess/FXAA.hlsl");
 
     public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
@@ -53,6 +55,8 @@ public partial class BuiltInAssets
     public Shader Shader_Unlit => GetShader("Shaders/Pipelines/Rendering/Basic/Unlit.hlsl");
 
     public Shader Shader_Particle2D => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl");
+
+    public Shader Shader_Particle2DAnimated => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl");
 
     public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
 

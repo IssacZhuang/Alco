@@ -61,7 +61,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         ReleaseCommandBuffer();
         ReleaseCommandEncoder();
 
-        UtilsInterop.Free(_nativeName);
+        InteropUtility.Free(_nativeName);
         _colorAttachmentsCache.Dispose();
     }
 
@@ -253,7 +253,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         ValidateGraphicsPipeline();
 
         WebGPUBuffer nativeBuffer = (WebGPUBuffer)buffer;
-        wgpuRenderPassEncoderSetIndexBuffer(_renderPass, nativeBuffer.Native, UtilsWebGPU.IndexFormatToWebGPU(format), offset, size);
+        wgpuRenderPassEncoderSetIndexBuffer(_renderPass, nativeBuffer.Native, WebGPUUtility.IndexFormatToWebGPU(format), offset, size);
     }
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
@@ -290,7 +290,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
     {
-        WGPUShaderStage shaderStage = UtilsWebGPU.ConvertShaderStage(stage);
+        WGPUShaderStage shaderStage = WebGPUUtility.ConvertShaderStage(stage);
         wgpuRenderPassEncoderSetPushConstants(_renderPass, shaderStage, bufferOffset, size, data);
     }
 
@@ -352,7 +352,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         WGPUTexelCopyBufferInfo imageCopyBuffer = new WGPUTexelCopyBufferInfo
         {
             buffer = nativeBuffer,
-            layout = UtilsWebGPU.GetTextureDataLayout(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height),
+            layout = WebGPUUtility.GetTextureDataLayout(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height),
         };
 
         WGPUTexelCopyTextureInfo imageCopyTexture = new WGPUTexelCopyTextureInfo
@@ -366,7 +366,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
                 z = 0
             },
 
-            aspect = UtilsWebGPU.TextureAspectToWebGPU(aspect)
+            aspect = WebGPUUtility.TextureAspectToWebGPU(aspect)
         };
 
 
@@ -424,8 +424,8 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         ReadOnlySpan<byte> nameSpan = Name.GetUtf8Span();
         fixed (byte* ptr = nameSpan)
         {
-            _nativeName = UtilsInterop.Alloc<byte>(nameSpan.Length + 1);
-            UtilsInterop.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            _nativeName = InteropUtility.Alloc<byte>(nameSpan.Length + 1);
+            InteropUtility.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
             _nativeNameView = new WGPUStringView(_nativeName, nameSpan.Length);
         }
 

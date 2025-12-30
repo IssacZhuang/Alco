@@ -129,6 +129,16 @@ namespace Alco
         {
             return new Half3(a.X / b.X, a.Y / b.Y, a.Z / b.Z);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(Half3 a, Half3 b)
+        {
+            return a.X == b.X && a.Y == b.Y && a.Z == b.Z;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(Half3 a, Half3 b)
+        {
+            return !(a == b);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector3(Half3 a)
@@ -140,6 +150,21 @@ namespace Alco
         public static implicit operator Half3(Vector3 a)
         {
             return new Half3((Half)a.X, (Half)a.Y, (Half)a.Z);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is Half3 other && this == other;
+        }
+
+        public bool Equals(Half3 other)
+        {
+            return this == other;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(X, Y, Z);
         }
 
         public override string ToString()

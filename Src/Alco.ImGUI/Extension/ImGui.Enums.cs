@@ -105,4 +105,108 @@ public static unsafe partial class ImGui
         return default;
     }
 
+    /// <summary>
+    /// Displays checkboxes for each flag value in a flags enumeration.
+    /// </summary>
+    /// <typeparam name="TEnum">The enum type marked with [Flags] attribute.</typeparam>
+    /// <param name="label">The label for this group of checkboxes.</param>
+    /// <param name="flags">Reference to the current flags value.</param>
+    /// <returns>True if any flag was toggled; otherwise false.</returns>
+    public static bool CheckBox<TEnum>(string label, ref TEnum flags) where TEnum : struct, Enum
+    {
+        var infos = GetEnumInfos<TEnum>();
+        int currentValue = ConvertEnumValue(flags);
+        bool changed = false;
+
+        if (!string.IsNullOrEmpty(label))
+        {
+            Text(label);
+        }
+
+        for (int i = 0; i < infos.Names.Length; i++)
+        {
+            int flagValue = infos.Values[i];
+            // Skip zero value (typically "None")
+            if (flagValue == 0)
+            {
+                continue;
+            }
+
+            bool isSet = (currentValue & flagValue) != 0;
+            bool newValue = isSet;
+
+            if (Checkbox(infos.Names[i], ref newValue))
+            {
+                if (newValue)
+                {
+                    currentValue |= flagValue;
+                }
+                else
+                {
+                    currentValue &= ~flagValue;
+                }
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            flags = ConvertEnumValue<TEnum>(currentValue);
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Displays checkboxes for each flag value in a flags enumeration.
+    /// </summary>
+    /// <typeparam name="TEnum">The enum type marked with [Flags] attribute.</typeparam>
+    /// <param name="label">The label for this group of checkboxes.</param>
+    /// <param name="flags">Reference to the current flags value.</param>
+    /// <returns>True if any flag was toggled; otherwise false.</returns>
+    public static bool CheckBoxFlags<TEnum>(ReadOnlySpan<char> label, ref TEnum flags) where TEnum : struct, Enum
+    {
+        var infos = GetEnumInfos<TEnum>();
+        int currentValue = ConvertEnumValue(flags);
+        bool changed = false;
+
+        if (label.Length > 0)
+        {
+            Text(label);
+        }
+
+        for (int i = 0; i < infos.Names.Length; i++)
+        {
+            int flagValue = infos.Values[i];
+            // Skip zero value (typically "None")
+            if (flagValue == 0)
+            {
+                continue;
+            }
+
+            bool isSet = (currentValue & flagValue) != 0;
+            bool newValue = isSet;
+
+            if (Checkbox(infos.Names[i], ref newValue))
+            {
+                if (newValue)
+                {
+                    currentValue |= flagValue;
+                }
+                else
+                {
+                    currentValue &= ~flagValue;
+                }
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            flags = ConvertEnumValue<TEnum>(currentValue);
+        }
+
+        return changed;
+    }
+
 }

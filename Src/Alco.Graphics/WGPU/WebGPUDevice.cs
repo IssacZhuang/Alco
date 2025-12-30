@@ -214,7 +214,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             aspect = WGPUTextureAspect.All,
         };
 
-        WGPUTexelCopyBufferLayout textureDataLayout = UtilsWebGPU.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height);
+        WGPUTexelCopyBufferLayout textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height);
 
         WGPUExtent3D writeSize = new WGPUExtent3D
         {
@@ -255,7 +255,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         WGPUTexelCopyBufferInfo destBuffer = new WGPUTexelCopyBufferInfo
         {
             buffer = tmpBuffer,
-            layout = UtilsWebGPU.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height),
+            layout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height),
         };
 
         WGPUExtent3D copySize = new WGPUExtent3D
@@ -325,7 +325,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 next = null,
             },
             flags = descriptor.Debug ? WGPUInstanceFlag.Validation : WGPUInstanceFlag.Default,
-            backends = UtilsWebGPU.BackendToWebGPU(descriptor.Backend),
+            backends = WebGPUUtility.BackendToWebGPU(descriptor.Backend),
         };
 
         WGPUInstanceDescriptor instanceDescriptor = new WGPUInstanceDescriptor()
@@ -341,7 +341,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             nextInChain = null,
             //compatibleSurface = Surface,
             powerPreference = WGPUPowerPreference.HighPerformance,
-            backendType = UtilsWebGPU.BackendTypeToWebGPU(descriptor.Backend),
+            backendType = WebGPUUtility.BackendTypeToWebGPU(descriptor.Backend),
         };
 
         WGPUAdapter adapter = WGPUAdapter.Null;

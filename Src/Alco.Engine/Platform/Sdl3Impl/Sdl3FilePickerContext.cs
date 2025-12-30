@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using SDL3;
-using static Alco.UtilsMemory;
+using static Alco.MemoryUtility;
 
 namespace Alco.Engine;
 

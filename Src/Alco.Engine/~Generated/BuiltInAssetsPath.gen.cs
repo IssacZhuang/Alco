@@ -19,6 +19,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_GaussianBlurRGBA8 = "Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl";
 
+   public const string Shader_TextSDF = "Shaders/Pipelines/Compute/TextSDF.hlsl";
+
    public const string Shader_FXAA = "Shaders/Pipelines/PostProcess/FXAA.hlsl";
 
    public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
@@ -48,6 +50,8 @@ public static partial class BuiltInAssetsPath
    public const string Shader_Unlit = "Shaders/Pipelines/Rendering/Basic/Unlit.hlsl";
 
    public const string Shader_Particle2D = "Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl";
+
+   public const string Shader_Particle2DAnimated = "Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl";
 
    public const string Shader_Sprite = "Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl";
 

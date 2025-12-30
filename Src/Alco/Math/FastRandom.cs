@@ -5,60 +5,99 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// A fast pseudo-random number generator based on the SplitMix32 algorithm.
+    /// This implementation supports all possible seed values (including 0) and provides
+    /// good statistical quality with excellent performance for game development use cases.
+    /// </summary>
     public struct FastRandom
     {
         public uint state;
 
+        /// <summary>
+        /// Initializes a new instance of FastRandom with the specified seed.
+        /// </summary>
+        /// <param name="seed">The seed value. All uint values are valid, including 0.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public FastRandom(uint seed)
         {
             state = seed;
-            CheckState();
-            NextState();
         }
 
+        /// <summary>
+        /// Initializes a new instance of FastRandom from a Vector2.
+        /// Uses the bit pattern of the float components to generate a deterministic seed.
+        /// This correctly handles negative values, zero, and NaN.
+        /// </summary>
+        /// <param name="vector">The Vector2 to hash into a seed value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FastRandom(Vector2 vector)
+        {
+            state = asuint(vector.X) * 0x9e3779b9u + asuint(vector.Y) * 0x85ebca6bu;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of FastRandom from a Vector3.
+        /// Uses the bit pattern of the float components to generate a deterministic seed.
+        /// This correctly handles negative values, zero, and NaN.
+        /// </summary>
+        /// <param name="vector">The Vector3 to hash into a seed value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FastRandom(Vector3 vector)
+        {
+            state = asuint(vector.X) * 0x9e3779b9u + asuint(vector.Y) * 0x85ebca6bu + asuint(vector.Z) * 0xc2b2ae35u;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of FastRandom from a Vector4.
+        /// Uses the bit pattern of the float components to generate a deterministic seed.
+        /// This correctly handles negative values, zero, and NaN.
+        /// </summary>
+        /// <param name="vector">The Vector4 to hash into a seed value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FastRandom(Vector4 vector)
+        {
+            state = asuint(vector.X) * 0x9e3779b9u + asuint(vector.Y) * 0x85ebca6bu + asuint(vector.Z) * 0xc2b2ae35u + asuint(vector.W) * 0x27d4eb2du;
+        }
+
+        /// <summary>
+        /// Creates a FastRandom instance from an index value.
+        /// Uses Wang hash to ensure that consecutive indices produce uncorrelated random sequences.
+        /// This is particularly useful for parallel random number generation or spatial hashing.
+        /// </summary>
+        /// <param name="index">The index value to use for initialization.</param>
+        /// <returns>A new FastRandom instance with a hashed seed.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static FastRandom CreateFromIndex(uint index)
         {
-
-            // Wang hash will hash 61 to zero but we want uint.MaxValue to hash to zero.  To make this happen
-            // we must offset by 62.
-            return new FastRandom(WangHash(index + 62u));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static uint WangHash(uint n)
-        {
+            // Wang hash: bijective mapping with good avalanche properties
             // https://gist.github.com/badboy/6267743#hash-function-construction-principles
-            // Wang hash: this has the property that none of the outputs will
-            // collide with each other, which is important for the purposes of
-            // seeding a random number generator.  This was verified empirically
-            // by checking all 2^32 uints.
-            n = (n ^ 61u) ^ (n >> 16);
-            n *= 9u;
-            n = n ^ (n >> 4);
-            n *= 0x27d4eb2du;
-            n = n ^ (n >> 15);
-
-            return n;
+            index = (index ^ 61u) ^ (index >> 16);
+            index *= 9u;
+            index = index ^ (index >> 4);
+            index *= 0x27d4eb2du;
+            index = index ^ (index >> 15);
+            return new FastRandom(index);
         }
 
+        /// <summary>
+        /// Generates the next random uint using the SplitMix32 algorithm.
+        /// SplitMix32 is a fast, high-quality PRNG with a full 2^32 period.
+        /// </summary>
+        /// <returns>A random uint value.</returns>
+        /// <remarks>
+        /// SplitMix32 algorithm based on the SplitMix family by Sebastiano Vigna.
+        /// It uses a simple counter-based approach with excellent avalanche properties.
+        /// This implementation accepts all possible state values, including 0.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint NextState()
         {
-            CheckState();
-            uint t = state;
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            return t;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CheckState()
-        {
-            if (state == 0)
-                throw new System.ArgumentException("Invalid state 0. Random object has not been properly initialized");
+            // SplitMix32: increment by golden ratio, then apply mixing operations
+            uint z = (state += 0x9e3779b9u); // Golden ratio: 2^32 / φ
+            z = (z ^ (z >> 16)) * 0x85ebca6bu;
+            z = (z ^ (z >> 13)) * 0xc2b2ae35u;
+            return z ^ (z >> 16);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -487,7 +526,7 @@ namespace Alco
         {
             Vector3 rnd = NextVector3(new Vector3(2.0f * PI, 2.0f * PI, 1.0f));
             float u1 = rnd.Z;
-            Vector2 theta_rho = rnd.XY();
+            Vector2 theta_rho = rnd.XY;
 
             float i = sqrt(1.0f - u1);
             float j = sqrt(u1);

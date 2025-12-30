@@ -14,7 +14,7 @@ namespace Alco.Graphics
         /// <param name="language">The shader language.</param>
         /// <param name="source">The shader source code.</param>
         /// <param name="entryPoint">The entry point function name.</param>
-        public ShaderModule(ShaderStage stage, ShaderLanguage language, byte[] source, string entryPoint)
+        public ShaderModule(ShaderStage stage, ShaderLanguage language, ReadOnlyMemory<byte> source, string entryPoint)
         {
             Stage = stage;
             Language = language;
@@ -24,8 +24,8 @@ namespace Alco.Graphics
 
         public readonly void Validate()
         {
-            UtilsAssert.IsTrue(Source != null && Source.Length > 0, "Shader source must not be null or empty");
-            UtilsAssert.IsTrue(!string.IsNullOrEmpty(EntryPoint), "Shader entry point must not be null or empty");
+            AssetUtility.IsTrue(Source.Length > 0, "Shader source must not be null or empty");
+            AssetUtility.IsTrue(!string.IsNullOrEmpty(EntryPoint), "Shader entry point must not be null or empty");
         }
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace Alco.Graphics
         /// <summary>
         /// The shader source, could be code(hlsl, wgsl) or IR(spirv)
         /// </summary>
-        public byte[] Source { get; init; }
+        public ReadOnlyMemory<byte> Source { get; init; }
 
         /// <summary>
         /// The entry point function name.

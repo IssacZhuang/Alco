@@ -1,100 +1,16 @@
 using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Threading.Tasks;
 
+namespace Alco;
 
-namespace Alco
+public class CurveCache2D : BaseCurveCache<Vector2>
 {
-    public class CurveCache2D : ICurve2D
+    public CurveCache2D(ICurve<Vector2> curve, float step = DefaultStep) : base(curve, step)
     {
-        private CurvePoint2Value[] _points;
-        private readonly float _step = ConstCurve.DefaultStep;
+    }
 
-        public int PointsCount
-        {
-            get
-            {
-                return _points.Length;
-            }
-        }
-
-        public IReadOnlyList<CurvePoint2Value> Points
-        {
-            get
-            {
-                return _points;
-            }
-        }
-
-        public CurveCache2D(ICurve2D curve, float step = ConstCurve.DefaultStep)
-        {
-            if (curve == null) throw new ArgumentNullException(nameof(curve));
-            if (step <= 0) throw new ArgumentOutOfRangeException(nameof(step));
-
-            _step = step;
-            _points = CacheCurve(curve, step);
-        }
-
-        public void SetPoints(ReadOnlySpan<CurvePoint2Value> points)
-        {
-            //default use linear
-            ICurve2D curve = new CurveLinear2D(points);
-            _points = CacheCurve(curve, _step);
-        }
-
-        public void SetPoints(IReadOnlyList<CurvePoint2Value> points)
-        {
-            if (points == null)
-            {
-                throw new ArgumentNullException(nameof(points));
-            }
-
-            //default use linear
-            ICurve2D curve = new CurveLinear2D(points);
-            _points = CacheCurve(curve, _step);
-        }
-
-
-        public Vector2 Evaluate(float t)
-        {
-
-            t = math.clamp(t, _points[0].Time, _points[_points.Length - 1].Time);
-            //find the nearest two point by t and step
-            int index = (int)math.floor((t - _points[0].Time) / _step);
-            int index2 = index + 1;
-            //interpolate between two points
-            float t1 = _points[index].Time;
-            float t2 = _points[index2].Time;
-            Vector2 v1 = _points[index].Value;
-            Vector2 v2 = _points[index2].Value;
-
-            if (index2 == _points.Length - 1)
-            {
-                return math.lerp(v1, v2, (t - t1) / (t2 - t1));
-            }
-
-            return math.lerp(v1, v2, (t - t1) / _step);
-        }
-
-        public static CurvePoint2Value[] CacheCurve(ICurve2D curve, float step)
-        {
-            if (curve == null) throw new ArgumentNullException(nameof(curve));
-
-            int count = (int)math.floor((curve.Points[curve.PointsCount - 1].Time - curve.Points[0].Time) / step) + 2;
-
-            CurvePoint2Value[] points = new CurvePoint2Value[count];
-            Parallel.For(0, count - 1, (i) =>
-            {
-                float t = curve.Points[0].Time + i * step;
-                Vector2 value = curve.Evaluate(t);
-
-                points[i] = new CurvePoint2Value(t, value);
-            });
-            points[count - 1] = new CurvePoint2Value(curve.Points[curve.PointsCount - 1].Time, curve.Points[curve.PointsCount - 1].Value);
-
-            return points;
-        }
+    protected override Vector2 Lerp(Vector2 a, Vector2 b, float t)
+    {
+        return Vector2.Lerp(a, b, t);
     }
 }
-

@@ -1,7 +1,7 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -53,6 +53,13 @@ public class JsonPreprocessor
         /// <returns>True if found; otherwise false.</returns>
         public bool TryGetDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
         {
+            var options = new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+
+
             if (_pendingNodeEdits.TryGetValue(id, out var cached))
             {
                 node = cached;
@@ -60,9 +67,18 @@ public class JsonPreprocessor
             }
             if (_preprocessor._jsonItems.TryGetValue(id, out var jsonItem))
             {
-                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
-                _pendingNodeEdits[id] = node;
-                return true;
+                try
+                {
+                    node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText(), null, options)!;
+                    _pendingNodeEdits[id] = node;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _preprocessor.AddError($"Failed to parse JSON file {jsonItem.Path}: {ex}");
+                    node = null;
+                    return false;
+                }
             }
             node = null;
             return false;
@@ -77,6 +93,12 @@ public class JsonPreprocessor
         /// <returns>True if found; otherwise false.</returns>
         public bool TryGetAbstractDocumentNode(string id, [NotNullWhen(true)] out JsonNode? node)
         {
+            var options = new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+
             if (_pendingAbstractNodeEdits.TryGetValue(id, out var cached))
             {
                 node = cached;
@@ -84,9 +106,18 @@ public class JsonPreprocessor
             }
             if (_preprocessor._abstractJsonItems.TryGetValue(id, out var jsonItem))
             {
-                node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText())!;
-                _pendingAbstractNodeEdits[id] = node;
-                return true;
+                try
+                {
+                    node = JsonNode.Parse(jsonItem.Document.RootElement.GetRawText(), null, options)!;
+                    _pendingAbstractNodeEdits[id] = node;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _preprocessor.AddError($"Failed to parse JSON file {jsonItem.Path}: {ex}");
+                    node = null;
+                    return false;
+                }
             }
             node = null;
             return false;
@@ -386,7 +417,7 @@ public class JsonPreprocessor
         try
         {
             // Merge parent with current document (current document overrides parent)
-            var mergedJson = UtilsJson.Merge(processedParent, document, _specialKeywords);
+            var mergedJson = JsonUtility.Merge(processedParent, document, _specialKeywords);
 
             // Use JsonDocumentOptions to support JSONC (comments and trailing commas)
             var options = new JsonDocumentOptions

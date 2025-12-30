@@ -14,6 +14,7 @@ public struct ColorFloat
 {
     public static readonly ColorFloat Black = new(0, 0, 0, 1);
     public static readonly ColorFloat White = new(1, 1, 1, 1);
+    public static readonly ColorFloat Transparent = new(0, 0, 0, 0);
 
     private const float invMaxByte = 1.0f / 255.0f;
     private static readonly Vector4 invMaxByteVec4 = new(invMaxByte);
@@ -178,10 +179,20 @@ public struct ColorFloat
     }
 
     // + - * /
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator +(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value + b.value };
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator -(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value - b.value };
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator *(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value * b.value };
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator /(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value / b.value };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ColorFloat operator *(ColorFloat a, float b) => new ColorFloat { value = a.value * b };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ColorFloat operator *(float a, ColorFloat b) => new ColorFloat { value = a * b.value };
 
     
 }

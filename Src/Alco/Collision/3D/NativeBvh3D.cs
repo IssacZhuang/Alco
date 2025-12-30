@@ -216,6 +216,11 @@ namespace Alco
             _batchColliderCastResultCollector.SetSize(colliders.Length);
             int allocCount = _batchColliderCastResultCollector.Length - lengthBefore;
 
+            for (int i = 0; i < allocCount; i++)
+            {
+                _batchColliderCastResultCollector[lengthBefore + i] = new NativeArrayList<ColliderCastResult3D>(4);
+            }
+
             if (_nodeSize == 0)
             {
                 for (int i = 0; i < colliders.Length; i++)
@@ -223,11 +228,6 @@ namespace Alco
                     _batchColliderCastResultCollector.UnsafePointer[i].Clear();
                 }
                 return _batchColliderCastResultCollector.AsSpan();
-            }
-
-            for (int i = 0; i < allocCount; i++)
-            {
-                _batchColliderCastResultCollector[lengthBefore + i] = new NativeArrayList<ColliderCastResult3D>(4);
             }
 
             for (int i = 0; i < colliders.Length; i++)
@@ -282,7 +282,7 @@ namespace Alco
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                //if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!CollisionUtility3D.RayAABB(ray, top.boundingBox)) continue;
                 if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
@@ -330,7 +330,7 @@ namespace Alco
                 //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                //if (!UtilsCollision3D.RayAABB(ray, top.boundingBox)) continue;
+                //if (!CollisionUtility3D.RayAABB(ray, top.boundingBox)) continue;
                 if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)

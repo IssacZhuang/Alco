@@ -65,7 +65,7 @@ internal static unsafe class WaveDecoder
             ReadHeader(ref p, out WaveChunckRiff chunckRiff, out WaveChunckFmt chunckFmt, out WaveChunckData chunckData, out WaveFormat format);
 
             sampleCount = (int)chunckData.DataSize / (chunckFmt.BitsPerSample / 8);
-            float* result = (float*)UtilsMemory.Alloc(sampleCount * sizeof(float));
+            float* result = (float*)MemoryUtility.Alloc(sampleCount * sizeof(float));
             Span<float> resultSpan = new(result, sampleCount);
 
             DecodeData(new ReadOnlySpan<byte>(p, (int)chunckData.DataSize), resultSpan, format, chunckFmt.BitsPerSample);
@@ -224,7 +224,7 @@ internal static unsafe class WaveDecoder
                     Int24* src = (Int24*)p;
                     for (int i = 0; i < result.Length; i++)
                     {
-                        result[i] = UtilsBitConvert.Int24ToInt32(src[i]) * Inv8388608;
+                        result[i] = BitConvertUtility.Int24ToInt32(src[i]) * Inv8388608;
                     }
                 }
                 break;

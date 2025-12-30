@@ -17,7 +17,7 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
     {
         return new TextureDescriptor(
             TextureDimension.Texture2D,
-            UtilsWebGPU.PixelFormatToAbstract(format),
+            WebGPUUtility.PixelFormatToAbstract(format),
             width,
             height,
             1,
@@ -32,7 +32,7 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
     {
         return new TextureDescriptor(
             TextureDimension.Texture2D,
-            UtilsWebGPU.PixelFormatToAbstract(format),
+            WebGPUUtility.PixelFormatToAbstract(format),
             width,
             height,
             1,

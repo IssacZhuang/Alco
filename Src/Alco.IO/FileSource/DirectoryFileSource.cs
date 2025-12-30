@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Win32.SafeHandles;
 
 namespace Alco.IO;
 
@@ -44,6 +45,23 @@ public class DirectoryFileSource : IFileSource
         catch (Exception e)
         {
             data = SafeMemoryHandle.Empty;
+            failureReason = e.ToString();
+            return false;
+        }
+    }
+
+    public virtual bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
+    {
+        try
+        {
+            string fullPath = Path.Combine(_directoryPath, path);
+            stream = File.OpenRead(fullPath);
+            failureReason = null;
+            return true;
+        }
+        catch (Exception e)
+        {
+            stream = null;
             failureReason = e.ToString();
             return false;
         }

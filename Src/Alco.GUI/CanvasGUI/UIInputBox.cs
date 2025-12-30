@@ -142,7 +142,7 @@ public class UIInputBox : UIText, ITextInput
 
     public UIInputBox() : base()
     {
-        Interactable = true;
+        IsInteractable = true;
     }
 
     protected override void OnUpdate(Canvas canvas, float delta)

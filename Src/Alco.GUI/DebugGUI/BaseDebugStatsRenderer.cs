@@ -78,21 +78,21 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
     }
 
 
-    public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
+    public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
     {
-        Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
+        Matrix4x4 matrix = GetTransformMatrix(position, size);
         _spriteRenderer.Draw(_textureWhite, matrix, color);
     }
 
-    public unsafe float DrawText(Vector2 position, float depth, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
+    public unsafe float DrawText(ReadOnlySpan<char> str, Vector2 position, Font font, float fontSize, ColorFloat color, Pivot pivot)
     {
-        Matrix4x4 matrix = GetTransformMatrix(position, depth, Vector2.One* fontSize);
-        return _textRenderer.DrawChars(font, str, strLength, matrix, pivot, color, 1.0f);
+        Matrix4x4 matrix = GetTransformMatrix(position, Vector2.One* fontSize);
+        return _textRenderer.DrawText(font, str, matrix, pivot, color, 1.0f);
     }
 
-    public void DrawTexture(Vector2 position, float depth, Vector2 size, Texture2D texture, ColorFloat color)
+    public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
     {
-        Matrix4x4 matrix = GetTransformMatrix(position, depth, size);
+        Matrix4x4 matrix = GetTransformMatrix(position, size);
         _spriteRenderer.Draw(texture, matrix, color);
     }
 
@@ -104,9 +104,9 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
         _camera.Dispose();
     }
 
-    private static Matrix4x4 GetTransformMatrix(Vector2 position, float depth, Vector2 size)
+    private static Matrix4x4 GetTransformMatrix(Vector2 position, Vector2 size)
     {
-        Matrix4x4 translation = math.matrix4translation(new Vector3(position, depth));
+        Matrix4x4 translation = math.matrix4translation(new Vector3(position, 0));
         Matrix4x4 scale = math.matrix4scale(new Vector3(size, 1));
         return scale * translation;
     }

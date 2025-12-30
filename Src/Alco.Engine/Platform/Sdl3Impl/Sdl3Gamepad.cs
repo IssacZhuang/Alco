@@ -11,18 +11,40 @@ namespace Alco.Engine;
 public unsafe class Sdl3Gamepad : Gamepad
 {
     private readonly SDL_Gamepad _native;
+    private const int MaxButtonCount = 32;
+
+
+    /// <summary>
+    /// Threshold for converting trigger axis values to button presses.
+    /// Axis values in range [0, 1] above this threshold will register as button pressed.
+    /// </summary>
+    private const float TriggerButtonThreshold = 0.33f;
+
+    private struct ButtonState
+    {
+        public fixed bool isDown[MaxButtonCount];
+        public fixed bool isUp[MaxButtonCount];
+        public fixed bool isPressing[MaxButtonCount];
+    }
+
+    private ButtonState _state;
 
     internal Sdl3Gamepad(SDL_Gamepad native)
     {
         _native = native;
         Name = SDL_GetGamepadName(_native) ?? "Unknown gamepad";
+        GamepadType = ConvertGamepadType(SDL_GetGamepadType(_native));
     }
-
 
     /// <summary>
     /// Gets the device name reported by SDL.
     /// </summary>
     public override string Name {get;}
+
+    /// <summary>
+    /// Gets the gamepad type (Xbox, PlayStation, etc.) detected by SDL.
+    /// </summary>
+    public override GamepadType GamepadType { get; }
 
     /// <summary>
     /// Indicates whether the device is currently connected.
@@ -41,7 +63,13 @@ public unsafe class Sdl3Gamepad : Gamepad
         }
 
         short value = SDL_GetGamepadAxis(_native, ConvertAxis(axis));
-        return (float)value / short.MaxValue;
+        float result = (float)value / short.MaxValue;
+        // Normalize Y+ up for the right stick only, to match expected cursor semantics
+        if (axis == GamepadAxis.RightY || axis == GamepadAxis.LeftY)
+        {
+            result = -result;
+        }
+        return result;
     }
 
     /// <summary>
@@ -54,7 +82,34 @@ public unsafe class Sdl3Gamepad : Gamepad
             return false;
         }
 
-        return SDL_GetGamepadButton(_native, ConvertButton(button));
+        return _state.isPressing[(int)button];
+    }
+
+    /// <summary>
+    /// True if button transitioned to pressed state this frame.
+    /// </summary>
+    public override bool IsButtonDown(GamepadButton button)
+    {
+        if (!IsConnected) { return false; }
+        return _state.isDown[(int)button];
+    }
+
+    /// <summary>
+    /// True if button transitioned to released state this frame.
+    /// </summary>
+    public override bool IsButtonUp(GamepadButton button)
+    {
+        if (!IsConnected) { return false; }
+        return _state.isUp[(int)button];
+    }
+
+    /// <summary>
+    /// True if button is currently held down.
+    /// </summary>
+    public override bool IsButtonPressing(GamepadButton button)
+    {
+        if (!IsConnected) { return false; }
+        return _state.isPressing[(int)button];
     }
 
     /// <summary>
@@ -78,6 +133,98 @@ public unsafe class Sdl3Gamepad : Gamepad
     internal void CleanUp()
     {
         SDL_CloseGamepad(_native);
+    }
+
+    /// <summary>
+    /// Reset per-frame transient states for button down/up. Should be called once per frame.
+    /// </summary>
+    internal void ResetFrame()
+    {
+        for (int i = 0; i < MaxButtonCount; i++)
+        {
+            _state.isDown[i] = false;
+            _state.isUp[i] = false;
+        }
+    }
+
+    /// <summary>
+    /// Updates trigger button states based on their axis values.
+    /// This allows triggers to function as both analog axes and digital buttons.
+    /// Should be called after ResetFrame() each frame.
+    /// </summary>
+    internal void UpdateTriggerButtons()
+    {
+        if (!IsConnected)
+        {
+            return;
+        }
+
+        // Update left trigger button state
+        float leftTriggerValue = GetAxis(GamepadAxis.LeftTrigger);
+        bool leftTriggerPressed = leftTriggerValue >= TriggerButtonThreshold;
+        UpdateTriggerButtonState(GamepadButton.LeftTrigger, leftTriggerPressed);
+
+        // Update right trigger button state
+        float rightTriggerValue = GetAxis(GamepadAxis.RightTrigger);
+        bool rightTriggerPressed = rightTriggerValue >= TriggerButtonThreshold;
+        UpdateTriggerButtonState(GamepadButton.RightTrigger, rightTriggerPressed);
+    }
+
+    /// <summary>
+    /// Updates a trigger button state based on the current pressed state,
+    /// handling transitions (down/up events) and continuous press.
+    /// </summary>
+    private void UpdateTriggerButtonState(GamepadButton button, bool isPressed)
+    {
+        int i = (int)button;
+        bool wasPressing = _state.isPressing[i];
+
+        if (isPressed && !wasPressing)
+        {
+            // Trigger just crossed threshold - button down event
+            _state.isDown[i] = true;
+            _state.isPressing[i] = true;
+            DoButtonDown(button);
+        }
+        else if (!isPressed && wasPressing)
+        {
+            // Trigger just went below threshold - button up event
+            _state.isUp[i] = true;
+            _state.isPressing[i] = false;
+            DoButtonUp(button);
+        }
+        else if (isPressed)
+        {
+            // Trigger still above threshold - continuous press
+            _state.isPressing[i] = true;
+        }
+        else
+        {
+            // Trigger still below threshold - not pressed
+            _state.isPressing[i] = false;
+        }
+    }
+
+    /// <summary>
+    /// Mark a button as pressed (edge and level states).
+    /// </summary>
+    internal void RecordButtonDown(GamepadButton button)
+    {
+        int i = (int)button;
+        _state.isDown[i] = true;
+        _state.isPressing[i] = true;
+        DoButtonDown(button);
+    }
+
+    /// <summary>
+    /// Mark a button as released (edge and level states).
+    /// </summary>
+    internal void RecordButtonUp(GamepadButton button)
+    {
+        int i = (int)button;
+        _state.isUp[i] = true;
+        _state.isPressing[i] = false;
+        DoButtonUp(button);
     }
 
     /// <summary>
@@ -120,6 +267,55 @@ public unsafe class Sdl3Gamepad : Gamepad
             GamepadButton.DPadRight => SDL_GamepadButton.DpadRight,
             GamepadButton.Touchpad => SDL_GamepadButton.Touchpad,
             _ => throw new ArgumentException($"Invalid gamepad button: {button}"),
+        };
+    }
+
+    /// <summary>
+    /// Converts SDL button enum to engine button enum.
+    /// </summary>
+    public static GamepadButton ConvertButton(SDL_GamepadButton button)
+    {
+        return button switch
+        {
+            SDL_GamepadButton.South => GamepadButton.South,
+            SDL_GamepadButton.East => GamepadButton.East,
+            SDL_GamepadButton.West => GamepadButton.West,
+            SDL_GamepadButton.North => GamepadButton.North,
+            SDL_GamepadButton.Back => GamepadButton.Back,
+            SDL_GamepadButton.Guide => GamepadButton.Guide,
+            SDL_GamepadButton.Start => GamepadButton.Start,
+            SDL_GamepadButton.LeftStick => GamepadButton.LeftStick,
+            SDL_GamepadButton.RightStick => GamepadButton.RightStick,
+            SDL_GamepadButton.LeftShoulder => GamepadButton.LeftShoulder,
+            SDL_GamepadButton.RightShoulder => GamepadButton.RightShoulder,
+            SDL_GamepadButton.DpadUp => GamepadButton.DPadUp,
+            SDL_GamepadButton.DpadDown => GamepadButton.DPadDown,
+            SDL_GamepadButton.DpadLeft => GamepadButton.DPadLeft,
+            SDL_GamepadButton.DpadRight => GamepadButton.DPadRight,
+            SDL_GamepadButton.Touchpad => GamepadButton.Touchpad,
+            _ => GamepadButton.Unknown,
+        };
+    }
+
+    /// <summary>
+    /// Converts SDL gamepad type to engine gamepad type.
+    /// </summary>
+    private static GamepadType ConvertGamepadType(SDL_GamepadType sdlType)
+    {
+        return sdlType switch
+        {
+            SDL_GamepadType.Unknown => GamepadType.Unknown,
+            SDL_GamepadType.Standard => GamepadType.Standard,
+            SDL_GamepadType.Xbox360 => GamepadType.Xbox360,
+            SDL_GamepadType.Xboxone => GamepadType.XboxOne,
+            SDL_GamepadType.Ps3 => GamepadType.PlayStation3,
+            SDL_GamepadType.Ps4 => GamepadType.PlayStation4,
+            SDL_GamepadType.Ps5 => GamepadType.PlayStation5,
+            SDL_GamepadType.NintendoSwitchPro => GamepadType.NintendoSwitchPro,
+            SDL_GamepadType.NintendoSwitchJoyconLeft => GamepadType.NintendoSwitchJoyconLeft,
+            SDL_GamepadType.NintendoSwitchJoyconRight => GamepadType.NintendoSwitchJoyconRight,
+            SDL_GamepadType.NintendoSwitchJoyconPair => GamepadType.NintendoSwitchJoyconPair,
+            _ => GamepadType.Unknown,
         };
     }
 }

@@ -335,6 +335,287 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(3));
         }
 
+        [Test(Description = "Test concurrent GetOrAdd with same key")]
+        public void TestConcurrentGetOrAdd()
+        {
+            var cache = new ConcurrentLruCache<int, string>(1000);
+            int numThreads = 10;
+            int numKeys = 20;
+            int operationsPerThread = 100;
+
+            // Track how many times the factory is called for each key
+            var factoryCallCount = new System.Collections.Concurrent.ConcurrentDictionary<int, int>();
+
+            // Use Parallel.For to call GetOrAdd concurrently
+            Parallel.For(0, numThreads * operationsPerThread, i =>
+            {
+                int key = i % numKeys;
+                string value = cache.GetOrAdd(key, k =>
+                {
+                    factoryCallCount.AddOrUpdate(k, 1, (_, count) => count + 1);
+                    Thread.Sleep(1); // Simulate some work
+                    return $"value{k}";
+                });
+
+                Assert.That(value, Is.EqualTo($"value{key}"), $"Value should match for key {key}");
+            });
+
+            // Verify that each key was created only once (or at least a reasonable number of times)
+            // Due to the lock in GetOrAdd, each key should ideally be created only once
+            foreach (var kvp in factoryCallCount)
+            {
+                Assert.That(kvp.Value, Is.LessThanOrEqualTo(2), 
+                    $"Factory for key {kvp.Key} was called {kvp.Value} times, expected at most 2 (ideally 1)");
+            }
+
+            Assert.That(cache.Count, Is.EqualTo(numKeys), "Cache should contain all unique keys");
+        }
+
+        [Test(Description = "Test concurrent Get and Remove race condition")]
+        public void TestConcurrentGetAndRemove()
+        {
+            var cache = new ConcurrentLruCache<int, string>(1000);
+            int numKeys = 100;
+
+            // Populate cache
+            for (int i = 0; i < numKeys; i++)
+            {
+                cache.Set(i, $"value{i}");
+            }
+
+            Exception caughtException = null;
+            object lockObj = new object();
+
+            // Run concurrent operations: half threads do Get, half do Remove
+            Parallel.For(0, 1000, i =>
+            {
+                try
+                {
+                    int key = i % numKeys;
+
+                    if (i % 2 == 0)
+                    {
+                        // Try to get
+                        cache.TryGetValue(key, out _);
+                    }
+                    else
+                    {
+                        // Try to remove
+                        cache.Remove(key);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (lockObj)
+                    {
+                        caughtException ??= ex;
+                    }
+                }
+            });
+
+            // Should not throw "LinkedList node does not belong to current LinkedList" exception
+            if (caughtException != null)
+            {
+                throw new Exception("Exception during concurrent Get/Remove test", caughtException);
+            }
+
+            // Cache should be in a valid state
+            Assert.That(cache.SumWeight, Is.EqualTo(cache.Count), "SumWeight should match Count");
+        }
+
+        [Test(Description = "Test concurrent TryGetValue and Set race condition")]
+        public void TestConcurrentTryGetValueAndSet()
+        {
+            var cache = new ConcurrentLruCache<int, string>(500);
+            int numKeys = 50;
+
+            // Populate cache
+            for (int i = 0; i < numKeys; i++)
+            {
+                cache.Set(i, $"initial{i}");
+            }
+
+            Exception caughtException = null;
+            object lockObj = new object();
+
+            // Run concurrent operations
+            Parallel.For(0, 2000, i =>
+            {
+                try
+                {
+                    int key = i % numKeys;
+
+                    if (i % 3 == 0)
+                    {
+                        // TryGetValue
+                        cache.TryGetValue(key, out _);
+                    }
+                    else if (i % 3 == 1)
+                    {
+                        // Set (update)
+                        cache.Set(key, $"updated{key}-{i}");
+                    }
+                    else
+                    {
+                        // Indexer get
+                        try
+                        {
+                            var _ = cache[key];
+                        }
+                        catch (KeyNotFoundException)
+                        {
+                            // Expected if key was evicted
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (lockObj)
+                    {
+                        caughtException ??= ex;
+                    }
+                }
+            });
+
+            // Should not throw "LinkedList node does not belong to current LinkedList" exception
+            if (caughtException != null)
+            {
+                throw new Exception("Exception during concurrent TryGetValue/Set test", caughtException);
+            }
+
+            // Cache should be in a valid state
+            Assert.That(cache.Count, Is.LessThanOrEqualTo(500), "Count should not exceed capacity");
+            Assert.That(cache.SumWeight, Is.EqualTo(cache.Count), "SumWeight should match Count");
+        }
+
+        [Test(Description = "Test concurrent operations with eviction")]
+        public void TestConcurrentWithEviction()
+        {
+            var cache = new ConcurrentLruCache<int, string>(100);
+            int numKeys = 200; // More keys than capacity to force eviction
+
+            Exception caughtException = null;
+            object lockObj = new object();
+
+            // Run concurrent operations that will cause frequent evictions
+            Parallel.For(0, 5000, i =>
+            {
+                try
+                {
+                    int key = i % numKeys;
+                    int operation = i % 4;
+
+                    switch (operation)
+                    {
+                        case 0:
+                            cache.Set(key, $"value{key}-{i}");
+                            break;
+                        case 1:
+                            cache.TryGetValue(key, out _);
+                            break;
+                        case 2:
+                            cache.GetOrAdd(key, k => $"value{k}-{i}");
+                            break;
+                        case 3:
+                            cache.Remove(key);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (lockObj)
+                    {
+                        caughtException ??= ex;
+                    }
+                }
+            });
+
+            // Should not throw any exceptions
+            if (caughtException != null)
+            {
+                throw new Exception("Exception during concurrent eviction test", caughtException);
+            }
+
+            // Cache should be in a valid state
+            Assert.That(cache.Count, Is.LessThanOrEqualTo(100), "Count should not exceed capacity");
+            Assert.That(cache.SumWeight, Is.LessThanOrEqualTo(100), "SumWeight should not exceed capacity");
+            Assert.That(cache.SumWeight, Is.EqualTo(cache.Count), "SumWeight should match Count");
+        }
+
+        [Test(Description = "Test high concurrency stress test")]
+        public void TestHighConcurrencyStress()
+        {
+            var cache = new ConcurrentLruCache<int, string>(1000);
+            int iterations = 10000;
+
+            Exception caughtException = null;
+            object lockObj = new object();
+
+            // High-intensity parallel operations
+            Parallel.For(0, iterations, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 }, i =>
+            {
+                try
+                {
+                    var random = new Random(i + Environment.TickCount);
+                    int key = random.Next(1500); // More keys than capacity
+                    int operation = random.Next(5);
+
+                    switch (operation)
+                    {
+                        case 0:
+                            cache.Set(key, $"value{key}");
+                            break;
+                        case 1:
+                            cache.TryGetValue(key, out _);
+                            break;
+                        case 2:
+                            try
+                            {
+                                var _ = cache[key];
+                            }
+                            catch (KeyNotFoundException)
+                            {
+                                // Expected
+                            }
+                            break;
+                        case 3:
+                            cache.GetOrAdd(key, k => $"value{k}");
+                            break;
+                        case 4:
+                            cache.Remove(key);
+                            break;
+                    }
+
+                    // Occasionally check cache state
+                    if (i % 100 == 0)
+                    {
+                        var count = cache.Count;
+                        var sumWeight = cache.SumWeight;
+                        Assert.That(count, Is.LessThanOrEqualTo(1000), "Count exceeded capacity during stress test");
+                        Assert.That(sumWeight, Is.LessThanOrEqualTo(1000), "SumWeight exceeded capacity during stress test");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (lockObj)
+                    {
+                        caughtException ??= ex;
+                    }
+                }
+            });
+
+            // Should not throw any exceptions
+            if (caughtException != null)
+            {
+                throw new Exception("Exception during high concurrency stress test", caughtException);
+            }
+
+            // Final verification
+            Assert.That(cache.Count, Is.LessThanOrEqualTo(1000), "Final count should not exceed capacity");
+            Assert.That(cache.SumWeight, Is.LessThanOrEqualTo(1000), "Final SumWeight should not exceed capacity");
+            Assert.That(cache.SumWeight, Is.EqualTo(cache.Count), "Final SumWeight should match Count");
+        }
+
         // Custom LRU cache implementation for testing custom weights
         private class CustomWeightConcurrentLruCache : ConcurrentLruCache<string, string>
         {

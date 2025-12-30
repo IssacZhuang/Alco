@@ -83,7 +83,7 @@ public class TestCollisionWorld3D
                 shape = new ShapeBox3D(new Vector3(i, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
             };
             world.PushCollisionTarget(target, target.shape);
-            //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision3D.BoxSphere(target.shape, caster1.shape)}");
+            //TestContext.WriteLine($"{i}, {target.shape}, {CollisionUtility3D.BoxSphere(target.shape, caster1.shape)}");
         };
 
         world.BuildTree();
@@ -121,7 +121,7 @@ public class TestCollisionWorld3D
                 shape = new ShapeBox3D(new Vector3(i, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
             };
             world.PushCollisionTarget(target, target.shape);
-            //TestContext.WriteLine($"{i}, {target.shape}, {UtilsCollision3D.BoxSphere(target.shape, caster1.shape)}");
+            //TestContext.WriteLine($"{i}, {target.shape}, {CollisionUtility3D.BoxSphere(target.shape, caster1.shape)}");
         };
 
         world.PushCollisionCaster(caster1, caster1.shape, caster1.cutomData);

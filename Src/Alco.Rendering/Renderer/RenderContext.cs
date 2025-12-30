@@ -16,8 +16,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     private readonly GPUCommandBuffer _command;
     private GPUCommandBuffer.RenderPass _renderScope;
     private readonly List<ICommandListener> _listeners;
-    private readonly List<Exception> _exceptionsBegin;
-    private readonly List<Exception> _exceptionsEnd;
     private GPUFrameBuffer? _framebuffer;
 
     //cached mesh data
@@ -51,8 +49,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _device = renderingSystem.GraphicsDevice;
         _command = _device.CreateCommandBuffer(new CommandBufferDescriptor(name));
         _listeners = new List<ICommandListener>();
-        _exceptionsBegin = new List<Exception>();
-        _exceptionsEnd = new List<Exception>();
     }
 
     /// <summary>
@@ -77,8 +73,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     /// Begin the render context.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
-    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandBegin"/> event; otherwise, an empty array.</returns>
-    public IReadOnlyList<Exception> Begin(
+    public void Begin(
         GPUFrameBuffer target,
         ReadOnlySpan<ClearColorData> clearColors,
         float? clearDepth = null,
@@ -92,19 +87,19 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
 
         ClearCache();
 
-        return InvokeBegin();
+        InvokeBegin();
     }
 
-    public IReadOnlyList<Exception> Begin(
+    public void Begin(
         GPUFrameBuffer target,
         float? clearDepth = null,
         uint? clearStencil = null
         )
     {
-        return Begin(target, ReadOnlySpan<ClearColorData>.Empty, clearDepth, clearStencil);
+        Begin(target, ReadOnlySpan<ClearColorData>.Empty, clearDepth, clearStencil);
     }
 
-    public IReadOnlyList<Exception> Begin(
+    public void Begin(
         GPUFrameBuffer target,
         ColorFloat clearColor,
         float? clearDepth = null,
@@ -112,7 +107,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         )
     {
         ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
-        return Begin(target, clearColors, clearDepth, clearStencil);
+        Begin(target, clearColors, clearDepth, clearStencil);
     }
 
     /// <summary>
@@ -247,10 +242,9 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     /// <summary>
     /// End the render context.
     /// </summary>
-    /// <returns>The exceptions that occurred during invoking the <see cref="ICommandListener.OnCommandEnd"/> event; otherwise, an empty array.</returns>
-    public IReadOnlyList<Exception> End()
+    public void End()
     {
-        var exceptions = InvokeEnd();
+        InvokeEnd();
 
         _renderScope.Dispose();
         _command.End();
@@ -258,7 +252,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         ClearCache();
 
         _framebuffer = null;
-        return exceptions;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -302,10 +295,8 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     /// <summary>
     /// Invokes the OnCommandBegin event on all listeners.
     /// </summary>
-    /// <returns>A list of exceptions that occurred during the invocation.</returns>
-    private IReadOnlyList<Exception> InvokeBegin()
+    private void InvokeBegin()
     {
-        _exceptionsBegin.Clear();
         foreach (var observer in _listeners)
         {
             try
@@ -314,19 +305,16 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
             }
             catch (Exception e)
             {
-                _exceptionsBegin.Add(e);
+                Log.Error(e);
             }
         }
-        return _exceptionsBegin;
     }
 
     /// <summary>
     /// Invokes the OnCommandEnd event on all listeners.
     /// </summary>
-    /// <returns>A list of exceptions that occurred during the invocation.</returns>
-    private IReadOnlyList<Exception> InvokeEnd()
+    private void InvokeEnd()
     {
-        _exceptionsEnd.Clear();
         foreach (var observer in _listeners)
         {
             try
@@ -335,10 +323,9 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
             }
             catch (Exception e)
             {
-                _exceptionsEnd.Add(e);
+                Log.Error(e);
             }
         }
-        return _exceptionsEnd;
     }
 
     protected override void Dispose(bool disposing)

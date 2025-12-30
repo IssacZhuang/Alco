@@ -41,6 +41,20 @@ public class TestJsonPreprocessor
             return false;
         }
 
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream stream, [NotNullWhen(false)] out string failureReason)
+        {
+            if (_files.TryGetValue(path, out var bytes))
+            {
+                stream = new MemoryStream(bytes);
+                failureReason = null;
+                return true;
+            }
+
+            stream = null;
+            failureReason = $"File not found: {path}";
+            return false;
+        }
+
         public void Dispose()
         {
         }

@@ -73,10 +73,10 @@ internal sealed class WebGPUTexture : WebGPUTextureBase
 
         WGPUTextureDescriptor textureDescriptor = new WGPUTextureDescriptor
         {
-            usage = UtilsWebGPU.ConvertTextureUsage(descriptor.Usage),
-            dimension = UtilsWebGPU.TextureDimensionToWebGPU(descriptor.Dimension),
+            usage = WebGPUUtility.ConvertTextureUsage(descriptor.Usage),
+            dimension = WebGPUUtility.TextureDimensionToWebGPU(descriptor.Dimension),
             size = _size,
-            format = UtilsWebGPU.PixelFormatToWebGPU(descriptor.Format),
+            format = WebGPUUtility.PixelFormatToWebGPU(descriptor.Format),
             mipLevelCount = descriptor.MipLevels,
             sampleCount = descriptor.SampleCount,
         };

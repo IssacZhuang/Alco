@@ -19,17 +19,17 @@ public class NoDebugStatsRenderer : IDebugStatsRenderer
 
     
 
-    public void DrawQuad(Vector2 position, float depth, Vector2 size, ColorFloat color)
+    public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
     {
         
     }
 
-    public unsafe float DrawText(Vector2 position, float depth, Font font, char* str, int strLength, float fontSize, ColorFloat color, Pivot pivot)
+    public unsafe float DrawText(ReadOnlySpan<char> str, Vector2 position, Font font, float fontSize, ColorFloat color, Pivot pivot)
     {
         return 0;
     }
 
-    public void DrawTexture(Vector2 position, float depth, Vector2 size, Texture2D texture, ColorFloat color)
+    public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
     {
         
     }

@@ -16,7 +16,7 @@ public sealed unsafe class NativeUtf8String : AutoDisposable
     {
         int utf8Bytes = Encoding.UTF8.GetByteCount(str);
         int length = utf8Bytes + 1;
-        _ptr = (byte*)UtilsMemory.Alloc(length);
+        _ptr = (byte*)MemoryUtility.Alloc(length);
         fixed (char* p = str)
         {
             Encoding.UTF8.GetBytes(p, str.Length, _ptr, utf8Bytes);
@@ -26,6 +26,6 @@ public sealed unsafe class NativeUtf8String : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        UtilsMemory.Free(_ptr);
+        MemoryUtility.Free(_ptr);
     }
 }

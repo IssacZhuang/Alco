@@ -52,10 +52,11 @@ public partial class Canvas : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
+    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
+        font ??= DefaultFont;
         _textRenderer.StencilReference = _mask;
-        return _textRenderer.DrawChars(font, str, matrix, pivot, color, lineSpacing);
+        return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing);
     }
 
     protected void IncreaceStencil(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)

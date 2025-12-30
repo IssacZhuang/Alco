@@ -29,8 +29,8 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private readonly Mesh _mesh;
     private readonly Material _material;
 
-    private NativeBuffer<TextData> _textBufferFull;
     private NativeBuffer<TextData> _textBufferPartial;
+    private NativeBuffer<Vector4> _charColorBuffer;
     private readonly List<GraphicsBuffer> _tmpGPUBuffers;
     private GraphicsBuffer? _textBufferGPU;
 
@@ -54,14 +54,14 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     {
         _renderingSystem = renderingSystem;
         _renderContext = renderContext;
-        
+
         _tmpGPUBuffers = new List<GraphicsBuffer>();
 
         _mesh = mesh;
         _material = material.CreateInstance();
 
-        _textBufferFull = new NativeBuffer<TextData>(MaxTextInstancingCount);
         _textBufferPartial = new NativeBuffer<TextData>(MaxTextInstancingCount);
+        _charColorBuffer = new NativeBuffer<Vector4>(256); // Initial capacity, will grow as needed
 
 
         //get resource ids
@@ -119,131 +119,87 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
     #region  Draw 2d
 
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(Font font, string str, float fontSize, Vector2 position, Rotation2D rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
-        }
+        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+        ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
+            new TextSlice { Color = color, Start = 0, Length = str.Length }
+        };
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, color, lineSpacing);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
-        }
+        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, ColorFloat.White, lineSpacing);
     }
 
     #endregion 
 
     #region Draw 3d
-    public unsafe float DrawString(Font font, string str, float fontSize, Vector3 position, Quaternion rotation, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, align, color, lineSpacing);
-        }
+        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
+        ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
+            new TextSlice { Color = color, Start = 0, Length = str.Length }
+        };
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, color, lineSpacing);
     }
 
-    public unsafe float DrawChars(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, count, fontSize, position, rotation, pivot, color, lineSpacing);
-    }
-
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, fontSize, position, rotation, pivot, color, lineSpacing);
-        }
+        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
+        return DrawTextCore(font, slices, str, transform.Matrix, pivot, ColorFloat.White, lineSpacing);
     }
 
     #endregion
 
     #region Draw by matrix
 
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawString(Font font, string str, float fontSize, Matrix4x4 matrix, Pivot align, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, matrix, align, color, lineSpacing);
-        }
+        ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
+            new TextSlice { Color = color, Start = 0, Length = str.Length }
+        };
+        return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
     {
-        return DrawTextCore(font, str, count, matrix, pivot, color, lineSpacing);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
-    {
-        fixed (char* p = str)
-        {
-            return DrawTextCore(font, p, str.Length, matrix, pivot, color, lineSpacing);
-        }
+        return DrawTextCore(font, slices, str, matrix, pivot, ColorFloat.White, lineSpacing);
     }
 
     #endregion
 
-    //draw 2d
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, ReadOnlySpan<TextSlice> slices, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
-        Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
-        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
-    }
-
-    //draw 3d
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe float DrawTextCore(Font font, char* str, int count, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing)
-    {
-        Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
-        return DrawTextCore(font, str, count, transform.Matrix, pivot, color, lineSpacing);
-    }
-
-    //draw by matrix
-    private unsafe float DrawTextCore(Font font, char* str, int count, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
-    {
-        if (count == 0)
+        int length = str.Length;
+        if (length == 0)
         {
             return 0;
         }
 
-        _textBufferFull.SetSize(count);
-
-        float x = 0;
-        float y = 0;
-
-        char c;
-        int localIndex = 0;
-        int remainInstanceCount = 0;
-        int remainChars = 0;
-        int drawCount = 0;
-
-        Vector2 realPivot = pivot.value = TrueTypePositionOffset - pivot.value;
-
-        TextData* textDataFullPtr = _textBufferFull.UnsafePointer;
-        for (int i = 0; i < count; i++)
+        // First pass: measure text extents (x,y) without writing to buffer
+        float measureX = 0;
+        float measureY = 0;
+        for (int i = 0; i < length; i++)
         {
-            c = str[i];
-            textDataFullPtr[i] = GetTextData(c, font.GetGlyph(c), color, lineSpacing, ref x, ref y);
+            char mc = str[i];
+            var mg = font.GetGlyph(mc);
+            measureX += mg.Advance;
         }
 
-        Vector2 textAreaSize = new Vector2(x, y + lineSpacing);
-
-        //Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
+        // Pivot offset uses measured size
+        Vector2 realPivot = pivot.value = TrueTypePositionOffset - pivot.value;
+        Vector2 textAreaSize = new Vector2(measureX, measureY + lineSpacing);
 
         Constant constant = new Constant
         {
@@ -251,12 +207,61 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
             VertexOffset = textAreaSize * realPivot
         };
 
+        // Build color array for each character
+        // This avoids iterating through slices for every character
+        // Ensure buffer has enough capacity
+        if (_charColorBuffer.Length < length)
+        {
+            _charColorBuffer.SetSizeWithoutCopy(length);
+        }
+
+
+        Vector4* charColors = _charColorBuffer.UnsafePointer;
+
+        // Initialize all characters with default color
+        for (int i = 0; i < length; i++)
+        {
+            charColors[i] = color;
+        }
+
+        // Apply slices (later slices override earlier ones)
+        if (slices.Length > 0)
+        {
+            for (int s = 0; s < slices.Length; s++)
+            {
+                TextSlice slice = slices[s];
+                int startIdx = slice.Start;
+                int sliceLen = slice.Length;
+                if (sliceLen <= 0) continue;
+                if (startIdx < 0) startIdx = 0;
+                if (startIdx > length) startIdx = length;
+                int endIdx = startIdx + sliceLen;
+                if (endIdx > length) endIdx = length;
+                if (startIdx >= endIdx) continue;
+
+                // Apply this slice's color to all characters in its range
+                for (int i = startIdx; i < endIdx; i++)
+                {
+                    charColors[i] = slice.Color;
+                }
+            }
+        }
+
+        // Second pass: emit glyphs directly into the staging buffer in chunks
+        float x = 0;
+        float y = 0;
+        char c;
+        int localIndex = 0;
+        int remainInstanceCount = 0;
+        int remainChars = 0;
+        int drawCount = 0;
+
         TextData* textDataPartialPtr = _textBufferPartial.UnsafePointer;
 
         while (true)
         {
             remainInstanceCount = MaxTextInstancingCount - _instanceIndex;
-            remainChars = count - localIndex;
+            remainChars = length - localIndex;
             drawCount = Math.Min(remainInstanceCount, remainChars);
 
             if (remainChars <= 0)
@@ -271,12 +276,16 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
                 continue;
             }
 
-
             uint instanceStart = (uint)_instanceIndex;
 
-            for (uint i = 0; i < drawCount; i++)
+            for (uint i = 0; i < (uint)drawCount; i++)
             {
-                textDataPartialPtr[_instanceIndex] = textDataFullPtr[localIndex + i];
+                int charIndex = localIndex + (int)i;
+                c = str[charIndex];
+
+                // Use pre-computed color for this character
+
+                textDataPartialPtr[_instanceIndex] = GetTextData(c, font.GetGlyph(c), charColors[charIndex], lineSpacing, ref x, ref y);
                 _instanceIndex++;
             }
 
@@ -324,8 +333,8 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     {
         _renderContext.RemoveListener(this);
         //dispose native resources
-        _textBufferFull.Dispose();
         _textBufferPartial.Dispose();
+        _charColorBuffer.Dispose();
     }
 
 

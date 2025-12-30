@@ -1,4 +1,4 @@
-using static Alco.ShaderCompiler.UtilsInterop;
+using static Alco.ShaderCompiler.InteropUtility;
 
 namespace Alco.ShaderCompiler;
 

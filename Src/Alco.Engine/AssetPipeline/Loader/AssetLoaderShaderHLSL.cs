@@ -65,7 +65,7 @@ public class AssetLoaderShaderHLSL : IAssetLoader
 
     private object CreateShader(in AssetLoadContext context)
     {
-        //ShaderCompileResultDeprecated preprocessed = UtilsShaderHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
+        //ShaderCompileResultDeprecated preprocessed = ShaderUtilityHLSL.Compile(Encoding.UTF8.GetString(file), filename, _includeResolver);
         string shaderText = GetShaderText(in context);
 
         return _renderingSystem.CreateShader(shaderText, context.Filename);

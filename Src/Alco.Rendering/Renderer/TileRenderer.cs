@@ -14,6 +14,7 @@ public sealed class TileItem
     
     public Vector4 Color { get; set; } = Vector4.One;
     public float BlendFactor { get; set; } = 0.2f;
+    public float Tiling { get; set; } = 1.0f;
 
     public TileItem(string name, Material material, float renderOrder, object? userData)
     {
@@ -22,6 +23,7 @@ public sealed class TileItem
         Name = name;
         Material = material;
         UserData = userData;
+        RenderOrder = renderOrder;
     }
 }
 
@@ -35,7 +37,7 @@ public sealed class TileSet
     public TileSet(params ReadOnlySpan<TileItem> items)
     {
         _items = items.ToArray();
-        Array.Sort(_items, static (a, b) => a.RenderOrder.CompareTo(b.RenderOrder));
+        //Array.Sort(_items, static (a, b) => a.RenderOrder.CompareTo(b.RenderOrder));
 
         Dictionary<TileItem, int> itemIndexMap = new();
         for (int i = 0; i < _items.Length; i++)
@@ -78,6 +80,7 @@ public sealed class TileRenderer : AutoDisposable
         public int _reserved = 0;
         public Vector4 Color;
         public float BlendFactor;
+        public float Tiling;
 
         public Constant(Matrix4x4 model, int2 size)
         {
@@ -85,6 +88,7 @@ public sealed class TileRenderer : AutoDisposable
             Size = size;
             CurrentTileId = 0;
             BlendFactor = 0.2f;
+            Tiling = 1.0f;
             Color = Vector4.One;
         }
     }
@@ -231,6 +235,7 @@ public sealed class TileRenderer : AutoDisposable
                 constant.CurrentTileId = i;
                 constant.BlendFactor = item.BlendFactor;
                 constant.Color = item.Color;
+                constant.Tiling = item.Tiling;
 
                 _renderers[i].Draw(constant);
             }

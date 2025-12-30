@@ -1,13 +1,15 @@
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Alco;
 
 namespace Alco.GUI;
 
 /// <summary>
 /// The base class for all UI nodes.
 /// </summary>
-public class UINode
+public class UINode : IEnumerable<UINode>
 {
     private readonly List<UINode> _children = new();
     private Vector2 _sizeDelta = Vector2.Zero;
@@ -20,9 +22,16 @@ public class UINode
 
     private bool _isRenderDataDirty = true;
 
-    private MaskState _maskState = MaskState.None;
+    private ColorFloat _localColor = ColorFloat.White;
+    private ColorFloat _renderColor = ColorFloat.White;
+    private bool _isColorDirty = true;
 
     public virtual bool BubbleEvent { get; set; } = true;
+
+    /// <summary>
+    /// The type of sound to play when this node is interacted with.
+    /// </summary>
+    public UISoundType SoundType { get; set; } = UISoundType.None;
 
     public event Action<Canvas, Vector2>? EventOnClick;
     public event Action<Canvas, Vector2>? EventOnHover;
@@ -33,24 +42,52 @@ public class UINode
     public event Action<Canvas, Vector2>? EventOnSelect;
     public event Action<Canvas, Vector2>? EventOnDeselect;
 
+    public UINode()
+    {
+        Children = new UINodeChildCollection(this);
+        Name = GetType().Name;
+    }
 
     /// <summary>
     /// The parent of the node. Must be null if the node is a root node.
     /// </summary>
     /// <value></value>
-    public UINode? Parent { get; set; } = null;
+    public UINode? Parent { get; private set; } = null;
+
 
     /// <summary>
     /// The name of the node.
     /// </summary>
     /// <value></value>
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; }
 
     /// <summary>
     /// Whether the node is enabled.
     /// </summary>
     /// <value></value>
-    public bool IsEnable { get; set; } = true;
+    public bool IsEnable
+    {
+        get => _isEnable;
+        set
+        {
+            if (_isEnable == value)
+            {
+                return;
+            }
+
+            _isEnable = value;
+
+            if (_isEnable)
+            {
+                OnEnable();
+            }
+            else
+            {
+                OnDisable();
+            }
+        }
+    }
+    private bool _isEnable = true;
 
     /// <summary>
     /// Whether the node is affected by the layout.
@@ -126,6 +163,19 @@ public class UINode
         }
     }
 
+    public Vector2 SizeDelta
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _sizeDelta;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _sizeDelta = value;
+            SetTransformDirty();
+            SetRenderDataDirty();
+        }
+    }
+
     /// <summary>
     /// The pivot point of the node. Only affect the content related to self
     /// </summary>
@@ -154,7 +204,7 @@ public class UINode
             _anchor = value;
             SetTransformDirty();
         }
-    } 
+    }
 
     public Transform2D LocalTransform
     {
@@ -183,9 +233,10 @@ public class UINode
             if (Parent != null)
             {
                 _transform = math.tolocal(Parent.WorldTransform, value);
-                //_transform.position -= Size * _pivot.value;
-                _transform.Position -= math.rotate(Size * _pivot.value, _transform.Rotation);
-                _transform.Position -= Parent.Size * _anchor.CenterPoint;
+                Vector2 realSize = Size * _transform.Scale;
+                _transform.Position -= math.rotate(realSize * _pivot.value, _transform.Rotation);
+                Vector2 parentRealSize = Parent.Size * Parent.WorldTransform.Scale;
+                _transform.Position -= parentRealSize * _anchor.CenterPoint;
             }
             else
             {
@@ -210,6 +261,18 @@ public class UINode
     }
 
     /// <summary>
+    /// The actual render size of the node in world space, including parent scale transformations.
+    /// This is the final size after all transformations are applied.
+    /// </summary>
+    public Vector2 RenderSize
+    {
+        get
+        {
+            return RenderTransform.Scale;
+        }
+    }
+
+    /// <summary>
     /// The bounding box of the node in the world space.
     /// </summary>
     /// <value></value>
@@ -225,29 +288,145 @@ public class UINode
 
     #endregion
 
-    #region Mask Properties
-
+    #region Color Properties
 
     /// <summary>
-    /// Is the node has mask.
+    /// The local color of the node. Will be multiplied with parent's current color to get the final current color.
     /// </summary>
-    /// <value></value>
-    public bool HasMask
+    public ColorFloat Color
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _maskState != MaskState.None;
+        get => _localColor;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _localColor = value;
+            SetColorDirty();
+        }
+    }
+
+    /// <summary>
+    /// The current color of the node, which is the local color multiplied by the parent's current color.
+    /// This is a read-only property that represents the final computed color.
+    /// </summary>
+    public ColorFloat RenderColor
+    {
+        get
+        {
+            TryRefreshColor();
+            return _renderColor;
+        }
     }
 
     #endregion
 
     /// <summary>
-    /// The children of the node.
+    /// Stretches this node horizontally within its parent using the specified padding.
+    /// Updates <see cref="SizeDelta"/>.X to subtract left and right padding from the width,
+    /// and adjusts <see cref="Position"/>.X to keep the element centered according to asymmetric padding.
+    /// </summary>
+    /// <param name="padding">X: left padding, Y: right padding.</param>
+    public void SetHorizontalStretch(float leftPadding, float rightPadding)
+    {
+        // Ensure horizontal stretch while preserving vertical anchor
+        Anchor = new Anchor(new Vector2(-0.5f, _anchor.min.Y), new Vector2(0.5f, _anchor.max.Y));
+
+        // Neutralize horizontal pivot so padding aligns to parent edges
+        Pivot = new Pivot(0f, _pivot.Y);
+
+        // Width = ParentWidth - (left + right) => SizeDelta.X = - (left + right)
+        Vector2 sizeDelta = SizeDelta;
+        sizeDelta.X = -(leftPadding + rightPadding);
+        SizeDelta = sizeDelta;
+
+        // Shift center when padding is asymmetric: +right shrinks right side, +left shrinks left side
+        // Center offset = (left - right) * 0.5
+        Vector2 pos = Position;
+        pos.X = (leftPadding - rightPadding) * 0.5f;
+        Position = pos;
+    }
+
+    /// <summary>
+    /// Stretches this node vertically within its parent using the specified padding.
+    /// Updates <see cref="SizeDelta"/>.Y to subtract top and bottom padding from the height,
+    /// and adjusts <see cref="Position"/>.Y to keep the element centered according to asymmetric padding.
+    /// </summary>
+    /// <param name="padding">X: top padding, Y: bottom padding.</param>
+    public void SetVerticalStretch(float topPadding, float bottomPadding)
+    {
+        // Ensure vertical stretch while preserving horizontal anchor
+        Anchor = new Anchor(new Vector2(_anchor.min.X, -0.5f), new Vector2(_anchor.max.X, 0.5f));
+
+        // Neutralize vertical pivot so padding aligns to parent edges
+        Pivot = new Pivot(_pivot.X, 0f);
+
+        // Height = ParentHeight - (top + bottom) => SizeDelta.Y = - (top + bottom)
+        Vector2 sizeDelta = SizeDelta;
+        sizeDelta.Y = -(topPadding + bottomPadding);
+        SizeDelta = sizeDelta;
+
+        // In this coordinate system, +Y is up. More top padding shifts the rect downward.
+        // Center offset = (bottom - top) * 0.5
+        Vector2 pos = Position;
+        pos.Y = (bottomPadding - topPadding) * 0.5f;
+        Position = pos;
+    }
+
+    /// <summary>
+    /// The children of the node. Supports both read access and collection initializer syntax.
+    /// Use like: new UINode { Name = "Root", Children = { child1, child2 } }
     /// </summary>
     /// <value></value>
-    public IReadOnlyList<UINode> Children
+    public UINodeChildCollection Children { get; }
+
+    public bool HasRoot([NotNullWhen(true)] out UIRoot? root)
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _children;
+        UINode? node = this;
+        while (node != null)
+        {
+            if (node is UIRoot r)
+            {
+                root = r;
+                return true;
+            }
+            node = node.Parent;
+        }
+        root = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Collection wrapper that supports both read access (IReadOnlyList) and 
+    /// collection initializer syntax while ensuring proper Add logic.
+    /// </summary>
+    public class UINodeChildCollection : IReadOnlyList<UINode>
+    {
+        private readonly UINode Parent;
+
+        public UINodeChildCollection(UINode parent)
+        {
+            Parent = parent;
+        }
+
+        // Collection initializer support
+        public void Add(UINode node)
+        {
+            Parent.Add(node);
+        }
+
+        // IReadOnlyList implementation
+        public UINode this[int index] => Parent._children[index];
+        public int Count => Parent._children.Count;
+
+        public IEnumerator<UINode> GetEnumerator()
+        {
+            return Parent._children.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Parent._children.GetEnumerator();
+        }
     }
 
     /// <summary>
@@ -272,7 +451,7 @@ public class UINode
     /// <param name="keepWorldTransform">Whether to keep the world transform of the child node.</param>
     /// <exception cref="ArgumentException">The node already has a parent or is already a child of this node.</exception>
     /// <summary>
-    public void Add(UINode node, bool keepWorldTransform = true)
+    public virtual void Add(UINode node, bool keepWorldTransform = true)
     {
         if (node.Parent != null)
         {
@@ -285,6 +464,10 @@ public class UINode
         }
 
         AddCore(node, keepWorldTransform);
+        if (HasRoot(out UIRoot? root))
+        {
+            AttachToTreeCore(root.Canvas, node);
+        }
     }
 
     /// <summary>
@@ -306,6 +489,10 @@ public class UINode
         }
 
         AddCore(node, keepWorldTransform);
+        if (HasRoot(out UIRoot? root))
+        {
+            AttachToTreeCore(root.Canvas, node);
+        }
         return true;
     }
 
@@ -322,8 +509,11 @@ public class UINode
             throw new ArgumentException($"The node {node.Name} is not a child of this node.");
         }
 
-        node.Parent = null;
-        _children.Remove(node);
+        RemoveCore(node);
+        if (HasRoot(out UIRoot? root))
+        {
+            DetachFromTreeCore(root.Canvas, node);
+        }
     }
 
     /// <summary>
@@ -338,8 +528,11 @@ public class UINode
             return false;
         }
 
-        node.Parent = null;
-        _children.Remove(node);
+        RemoveCore(node);
+        if (HasRoot(out UIRoot? root))
+        {
+            DetachFromTreeCore(root.Canvas, node);
+        }
         return true;
     }
 
@@ -355,9 +548,36 @@ public class UINode
             return;
         }
 
-        Parent?.Remove(this);
+        bool hasRootBefore = HasRoot(out UIRoot? rootBefore);
+        Canvas? canvasBefore = hasRootBefore ? rootBefore!.Canvas : null;
 
-        newParent.Add(this, keepWorldTransform);
+        Parent?.RemoveCore(this);
+        newParent.AddCore(this, keepWorldTransform);
+
+        bool hasRootAfter = HasRoot(out UIRoot? rootAfter);
+        Canvas? canvasAfter = hasRootAfter ? rootAfter!.Canvas : null;
+
+        if (hasRootBefore && !hasRootAfter)
+        {
+            DetachFromTreeCore(canvasBefore!, this);
+        }
+        else if (!hasRootBefore && hasRootAfter)
+        {
+            AttachToTreeCore(canvasAfter!, this);
+        }
+        else if (hasRootBefore && hasRootAfter && canvasBefore != canvasAfter)
+        {
+            // Moved across different roots: detach from old, then attach to new
+            DetachFromTreeCore(canvasBefore!, this);
+            AttachToTreeCore(canvasAfter!, this);
+        }
+
+    }
+
+    private void RemoveCore(UINode node)
+    {
+        node.Parent = null;
+        _children.Remove(node);
     }
 
     private void AddCore(UINode child, bool keepWorldTransform = true)
@@ -378,6 +598,42 @@ public class UINode
         }
 
         child.SetTransformDirty();
+        child.SetColorDirty();
+    }
+
+    private static void AttachToTreeCore(Canvas canvas, UINode node)
+    {
+        try
+        {
+            node.OnAttachToTree(canvas);
+        }
+        catch (Exception e)
+        {
+            canvas.HandleError(e, "attaching to tree", node);
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            AttachToTreeCore(canvas, node.Children[i]);
+        }
+    }
+
+
+    private static void DetachFromTreeCore(Canvas canvas, UINode node)
+    {
+        try
+        {
+            node.OnDetachFromTree(canvas);
+        }
+        catch (Exception e)
+        {
+            canvas.HandleError(e, "detaching from tree", node);
+        }
+
+        for (int i = 0; i < node.Children.Count; i++)
+        {
+            DetachFromTreeCore(canvas, node.Children[i]);
+        }
     }
 
     #endregion
@@ -521,10 +777,41 @@ public class UINode
     }
     protected virtual void OnUpdate(Canvas canvas, float delta)
     {
-        
+
     }
 
     protected virtual void OnUpdateRenderData(Canvas canvas, float delta)
+    {
+
+    }
+
+    protected virtual void OnAttachToTree(Canvas canvas)
+    {
+
+    }
+
+    protected virtual void OnDetachFromTree(Canvas canvas)
+    {
+
+    }
+
+    /// <summary>
+    /// Called when the node is enabled.
+    /// </summary>
+    protected virtual void OnEnable()
+    {
+
+    }
+
+    /// <summary>
+    /// Called when the node is disabled.
+    /// </summary>
+    protected virtual void OnDisable()
+    {
+
+    }
+
+    protected virtual void OnTransformRefreshed()
     {
 
     }
@@ -548,23 +835,33 @@ public class UINode
             return false;
         }
         ForceRefreshTransform();
-        
+
         return true;
     }
 
     protected void ForceRefreshTransform()
     {
         _worldTransform = _transform;
-        //_worldTransform.position += Size * _pivot.value;
-        _worldTransform.Position += math.rotate(Size * _pivot.value, _transform.Rotation);
+        Vector2 realSize = Size * _transform.Scale;
+        _worldTransform.Position -= math.rotate(realSize * _pivot.value, _transform.Rotation);
         if (Parent != null)
         {
-            _worldTransform.Position += Parent.Size * _anchor.CenterPoint;
+            Vector2 parentRealSize = Parent.Size * Parent.WorldTransform.Scale;
+            _worldTransform.Position += parentRealSize * _anchor.CenterPoint;
             _worldTransform = math.transform(Parent.WorldTransform, _worldTransform);
         }
 
         SpreadTransformDirty();
         _isTransformDirty = false;
+
+        try
+        {
+            OnTransformRefreshed();
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Error on refreshing transform of {Name}", e);
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -589,6 +886,45 @@ public class UINode
 
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected void SetColorDirty()
+    {
+        _isColorDirty = true;
+    }
+
+    protected void SpreadColorDirty()
+    {
+        for (int i = 0; i < _children.Count; i++)
+        {
+            _children[i].SetColorDirty();
+        }
+    }
+
+    protected bool TryRefreshColor()
+    {
+        if (!_isColorDirty)
+        {
+            return false;
+        }
+        ForceRefreshColor();
+        return true;
+    }
+
+    protected void ForceRefreshColor()
+    {
+        if (Parent != null)
+        {
+            _renderColor = _localColor * Parent.RenderColor;
+        }
+        else
+        {
+            _renderColor = _localColor;
+        }
+
+        SpreadColorDirty();
+        _isColorDirty = false;
+    }
+
 
     private Vector2 GetParentSize()
     {
@@ -600,25 +936,22 @@ public class UINode
         return _anchor.max - _anchor.min;
     }
 
-    public void Tick(Canvas canvas, float delta)
+    internal void Tick(Canvas canvas, float delta)
     {
         OnTick(canvas, delta);
-        // for (int i = 0; i < _children.Count; i++)
-        // {
-        //     _children[i].Tick(canvas, delta);
-        // }
     }
 
 
-    public void Update(Canvas canvas, float delta)
+    internal void Render(Canvas canvas, float delta)
     {
         if (!IsEnable)
         {
             return;
         }
-        
+
         OnUpdate(canvas, delta);
         TryRefreshTransform();
+        TryRefreshColor();
     }
 
     #region Event
@@ -693,6 +1026,92 @@ public class UINode
         {
             Parent.OnDeselect(canvas, mousePosition);
         }
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnClick.
+    /// </summary>
+    public void ClearEventOnClick()
+    {
+        EventOnClick = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnHover.
+    /// </summary>
+    public void ClearEventOnHover()
+    {
+        EventOnHover = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnPressDown.
+    /// </summary>
+    public void ClearEventOnPressDown()
+    {
+        EventOnPressDown = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnPressUp.
+    /// </summary>
+    public void ClearEventOnPressUp()
+    {
+        EventOnPressUp = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnPressing.
+    /// </summary>
+    public void ClearEventOnPressing()
+    {
+        EventOnPressing = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnDrag.
+    /// </summary>
+    public void ClearEventOnDrag()
+    {
+        EventOnDrag = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnSelect.
+    /// </summary>
+    public void ClearEventOnSelect()
+    {
+        EventOnSelect = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnDeselect.
+    /// </summary>
+    public void ClearEventOnDeselect()
+    {
+        EventOnDeselect = null;
+    }
+
+    #endregion
+
+    #region IEnumerable Implementation
+
+    /// <summary>
+    /// Returns an enumerator that iterates through the children.
+    /// </summary>
+    /// <returns>An enumerator for the children collection.</returns>
+    public IEnumerator<UINode> GetEnumerator()
+    {
+        return _children.GetEnumerator();
+    }
+
+    /// <summary>
+    /// Returns an enumerator that iterates through the children.
+    /// </summary>
+    /// <returns>An enumerator for the children collection.</returns>
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return _children.GetEnumerator();
     }
 
     #endregion

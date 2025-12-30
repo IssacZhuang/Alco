@@ -7,8 +7,13 @@ namespace Alco.Engine;
 /// </summary>
 public class NoInput : Input
 {
+    public override bool IsGamepadInputting => false;
+
     /// <inheritdoc />
     public override Vector2 MousePosition { get; set; }
+
+    /// <inheritdoc />
+    public override bool IsCursorVisible {get; set; } = true;
 
     /// <inheritdoc />
     public override Vector2 MouseDelta { get; }

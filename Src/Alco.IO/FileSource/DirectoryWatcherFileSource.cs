@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Win32.SafeHandles;
 
 namespace Alco.IO;
 
@@ -54,6 +55,23 @@ public class DirectoryWatcherFileSource : IFileSource
         catch (Exception e)
         {
             data = SafeMemoryHandle.Empty;
+            failureReason = e.ToString();
+            return false;
+        }
+    }
+
+    public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
+    {
+        try
+        {
+            string fullPath = Path.Combine(_directoryPath, path);
+            stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            failureReason = null;
+            return true;
+        }
+        catch (Exception e)
+        {
+            stream = null;
             failureReason = e.ToString();
             return false;
         }

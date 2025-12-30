@@ -29,9 +29,10 @@ public unsafe class Sdl3Input : Input
     private float _mouseWheelDelta;
 
     private readonly List<Sdl3Gamepad> _gamepads = new();
-    private Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
+    private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
     private readonly List<SDL_JoystickID> _toRemove = new();
-    
+    private bool _isGamepadInputting;
+
 
     public override Vector2 MousePosition
     {
@@ -46,6 +47,23 @@ public unsafe class Sdl3Input : Input
         }
     }
 
+    /// <inheritdoc />
+    public override bool IsCursorVisible
+    {
+        get => SDL_CursorVisible();
+        set
+        {
+            if (value)
+            {
+                SDL_ShowCursor();
+            }
+            else
+            {
+                SDL_HideCursor();
+            }
+        }
+    }
+
     public override Vector2 MouseDelta
     {
         get
@@ -56,19 +74,22 @@ public unsafe class Sdl3Input : Input
 
     public override float MouseWheelDelta => _mouseWheelDelta;
 
+    public override bool IsGamepadInputting => _isGamepadInputting;
+
     public Sdl3Input()
     {
-        
+
     }
 
-    internal void Init(){
+    internal void Init()
+    {
         Vector2 tmp = default;
         SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
         _mousePosition = tmp;
         _lastMousePosition = _mousePosition;
         _mouseDelta = new Vector2(0, 0);
     }
-    
+
 
     internal void Update()
     {
@@ -78,6 +99,13 @@ public unsafe class Sdl3Input : Input
         _mouseDelta = _mousePosition - _lastMousePosition;
         _lastMousePosition = _mousePosition;
         Reset();
+
+        // reset per-frame gamepad transient states
+        foreach (var gp in _gamepadMap.Values)
+        {
+            gp.ResetFrame();
+            gp.UpdateTriggerButtons();
+        }
 
         // Collect disconnected gamepads first to avoid modifying the dictionary during enumeration
         _toRemove.Clear();
@@ -161,17 +189,25 @@ public unsafe class Sdl3Input : Input
 
     internal void OnSdlKeyDown(SDL_Keycode key)
     {
-        int k = SdlKeyMap[key];
+        if(!SdlKeyMap.TryGetValue(key, out int k))
+        {
+            return;
+        }
         _state.iskeyDown[k] = true;
         _state.iskeyPressing[k] = true;
+        _isGamepadInputting = false;
         DoKeyDown((KeyCode)k);
     }
 
     internal void OnSdlKeyUp(SDL_Keycode key)
     {
-        int k = SdlKeyMap[key];
+        if(!SdlKeyMap.TryGetValue(key, out int k))
+        {
+            return;
+        }
         _state.iskeyUp[k] = true;
         _state.iskeyPressing[k] = false;
+        _isGamepadInputting = false;
         DoKeyUp((KeyCode)k);
     }
 
@@ -180,7 +216,8 @@ public unsafe class Sdl3Input : Input
         Mouse b = ConvertMosueButton(button);
         _state.isMouseDown[(int)b] = true;
         _state.isMousePressing[(int)b] = true;
-        DoMouseDown(b); 
+        _isGamepadInputting = false;
+        DoMouseDown(b);
     }
 
     internal void OnSdlMouseButtonUp(uint button)
@@ -188,6 +225,7 @@ public unsafe class Sdl3Input : Input
         Mouse b = ConvertMosueButton(button);
         _state.isMouseUp[(int)b] = true;
         _state.isMousePressing[(int)b] = false;
+        _isGamepadInputting = false;
         DoMouseUp(b);
     }
 
@@ -199,7 +237,39 @@ public unsafe class Sdl3Input : Input
 
     internal void OnSdlMouseWheel(float value)
     {
+        _isGamepadInputting = false;
         _mouseWheelDelta = value;
+    }
+
+    internal void OnSdlGamepadButtonDown(SDL_JoystickID which, SDL_GamepadButton button)
+    {
+        _isGamepadInputting = true;
+        if (_gamepadMap.TryGetValue(which, out var gp))
+        {
+            gp.RecordButtonDown(Sdl3Gamepad.ConvertButton(button));
+        }
+    }
+
+    internal void OnSdlGamepadButtonUp(SDL_JoystickID which, SDL_GamepadButton button)
+    {
+        _isGamepadInputting = true;
+        if (_gamepadMap.TryGetValue(which, out var gp))
+        {
+            gp.RecordButtonUp(Sdl3Gamepad.ConvertButton(button));
+        }
+    }
+
+    internal void OnSdlGamepadAxisMotion(SDL_JoystickID which, SDL_GamepadAxis axis, short value)
+    {
+        _ = which;
+        _ = axis;
+
+        const short threshold = (short)(short.MaxValue * 0.1f);
+
+        if (value > threshold)
+        {
+            _isGamepadInputting = true;
+        }
     }
 
     private void Reset()
@@ -216,7 +286,7 @@ public unsafe class Sdl3Input : Input
         }
         _mouseWheelDelta = 0;
     }
-    
+
     private static Mouse ConvertMosueButton(uint button)
     {
         return button switch

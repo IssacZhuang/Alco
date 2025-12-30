@@ -64,7 +64,7 @@ public sealed class GraphicsMaterial : Material
         {
 
             BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[(int)i];
-            if (UtilsMaterial.IsTextureSamplerGroup(bindGroupLayout.Bindings))
+            if (MaterialUtility.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
                 if (!_parameters.TryGetTexture(i, out Texture2D? _) &&
                     !_parameters.TryGetRenderTexture(i, out RenderTexture? _))

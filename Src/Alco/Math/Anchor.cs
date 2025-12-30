@@ -17,7 +17,7 @@ public struct Anchor
     public static readonly Anchor Center = new(new Vector2(0f, 0f), new Vector2(0f, 0f));
     public static readonly Anchor LeftCenter = new(new Vector2(-0.5f, 0f), new Vector2(-0.5f, 0f));
     public static readonly Anchor RightCenter = new(new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-    public static readonly Anchor CenterTop = new(new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));    
+    public static readonly Anchor CenterTop = new(new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
     public static readonly Anchor CenterBottom = new(new Vector2(0f, -0.5f), new Vector2(0f, -0.5f));
 
     public static readonly Anchor LeftTop = new(new Vector2(-0.5f, 0.5f), new Vector2(-0.5f, 0.5f));
@@ -38,5 +38,15 @@ public struct Anchor
     {
         this.min = min;
         this.max = max;
+    }
+
+    public static Anchor DestretchVertical(Anchor anchor)
+    {
+        return new Anchor(new Vector2(anchor.min.X, 0f), new Vector2(anchor.max.X, 0f));
+    }
+
+    public static Anchor DestretchHorizontal(Anchor anchor)
+    {
+        return new Anchor(new Vector2(0f, anchor.min.Y), new Vector2(0f, anchor.max.Y));
     }
 }

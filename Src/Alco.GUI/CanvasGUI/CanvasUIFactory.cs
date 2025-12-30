@@ -61,7 +61,7 @@ public class CanvasUIFactory
 
     public UIButton CreateButton(string str)
     {
-        UISprite bg = new UISprite()
+        UIImage bg = new UIImage()
         {
             Color = _style.ButtonColor,
             Size = _style.ButtonSize,
@@ -100,7 +100,7 @@ public class CanvasUIFactory
             Anchor = Anchor.Stretch
         };
 
-        UISprite bgHandle = new UISprite
+        UIImage bgHandle = new UIImage
         {
             Color = _style.SliderHandleColor,
             Size = _style.SliderHandleSize,
@@ -121,7 +121,7 @@ public class CanvasUIFactory
         handle.Add(bgHandle);
         handleParent.Add(handle);
 
-        UISprite bgSlider = new UISprite
+        UIImage bgSlider = new UIImage
         {
             Color = _style.SliderColor,
             Size = _style.SliderSize,

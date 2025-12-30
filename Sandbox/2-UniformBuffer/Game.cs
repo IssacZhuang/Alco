@@ -135,15 +135,15 @@ public class Game : GameEngine
         // string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
         // string filePathFragment = Path.Combine(appPath, "spirv", "Shader.slang.frag.spv");
 
-        Log.Info(UtilsShaderRelfection.GetSpirvReflection(vertexShader.Source));
+        Log.Info(ShaderRelfectionUtility.GetSpirvReflection(vertexShader.Source));
 
         if (!Directory.Exists(Path.Combine(appPath, "spirv")))
         {
             Directory.CreateDirectory(Path.Combine(appPath, "spirv"));
         }
 
-        File.WriteAllBytes(filePathVetex, vertexShader.Source);
-        File.WriteAllBytes(filePathFragment, fragmentShader.Source);
+        File.WriteAllBytes(filePathVetex, vertexShader.Source.ToArray());
+        File.WriteAllBytes(filePathFragment, fragmentShader.Source.ToArray());
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {

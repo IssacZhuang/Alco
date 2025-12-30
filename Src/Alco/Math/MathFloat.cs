@@ -202,6 +202,12 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static uint asuint(float a)
+        {
+            return *(uint*)&a;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float damp(float current, float target, ref float currentVelocity, float smoothTime, float maxSpeed, float deltaTime)
         {
             smoothTime = max(0.0001f, smoothTime);

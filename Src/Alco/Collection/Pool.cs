@@ -65,6 +65,25 @@ namespace Alco
             return false;
         }
 
+        /// <summary>
+        /// Pre-populates the pool with the specified number of items.
+        /// </summary>
+        /// <param name="count">The number of items to create and add to the pool.</param>
+        public void Warmup(int count)
+        {
+            if (_create == null)
+            {
+                throw new InvalidOperationException("Cannot warmup pool without a create function.");
+            }
+
+            int itemsToCreate = Math.Min(count, _stack.Length - Count);
+            for (int i = 0; i < itemsToCreate; i++)
+            {
+                T item = _create();
+                TryReturn(item);
+            }
+        }
+
         public void Clear()
         {
             for (int i = 0; i < _stack.Length; i++)

@@ -49,7 +49,7 @@ internal unsafe struct UnsafeArray<T> : IDisposable where T : unmanaged
     public UnsafeArray(int length)
     {
         _length = length;
-        _ptr = UtilsInterop.Alloc<T>(length);
+        _ptr = InteropUtility.Alloc<T>(length);
     }
 
     public void EnsureCapacity(int length)
@@ -58,7 +58,7 @@ internal unsafe struct UnsafeArray<T> : IDisposable where T : unmanaged
         {
             TryFree();
             _length = length;
-            _ptr = UtilsInterop.Alloc<T>(length);
+            _ptr = InteropUtility.Alloc<T>(length);
         }
     }
 
@@ -66,7 +66,7 @@ internal unsafe struct UnsafeArray<T> : IDisposable where T : unmanaged
     {
         if (_ptr != null)
         {
-            UtilsInterop.Free(_ptr);
+            InteropUtility.Free(_ptr);
             _ptr = null;
             _length = 0;
         }

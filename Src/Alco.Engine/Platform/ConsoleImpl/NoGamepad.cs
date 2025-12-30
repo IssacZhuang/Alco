@@ -7,6 +7,8 @@ public class NoGamepad : Gamepad
 
     public override bool IsConnected => false;
 
+    public override GamepadType GamepadType => GamepadType.Unknown;
+
     public override float GetAxis(GamepadAxis axis)
     {
         return 0;

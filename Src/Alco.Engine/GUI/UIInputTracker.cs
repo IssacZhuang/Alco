@@ -9,11 +9,8 @@ public class UIInputTracker : IUIInputTracker
     private readonly Input _input;
     private readonly View _window;
 
-    public event Action<ReadOnlySpan<char>>? OnTextInput
-    {
-        add => _window.OnTextInput += value;
-        remove => _window.OnTextInput -= value;
-    }
+    public GamepadButton? GamepadClickButton { get; set; } = null;
+    
     public UIInputTracker(Input system, View window)
     {
         _input = system;
@@ -32,100 +29,76 @@ public class UIInputTracker : IUIInputTracker
         get => _window.MousePosition;
     }
 
-    public bool IsMouseUp
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsMouseUp(Mouse.Left);
-    }
-
-    public bool IsMouseDown
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsMouseDown(Mouse.Left);
-    }
-
     public bool IsMousePressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsMousePressing(Mouse.Left);
+        get => _input.IsMousePressing(Mouse.Left) || GamepadClickButton.HasValue && (_input.PrimaryGamepad?.IsButtonPressed(GamepadClickButton.Value) ?? false);
     }
 
-    public bool IsKeyDeleteDown
+    public bool IsKeyDeletePressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Delete);
+        get => _input.IsKeyPressing(KeyCode.Delete);
     }
 
-    public bool IsKeyBackspaceDown
+    public bool IsKeyBackspacePressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Backspace);
+        get => _input.IsKeyPressing(KeyCode.Backspace);
     }
 
-    public bool IsKeyEnterDown
+    public bool IsKeyEnterPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Enter);
+        get => _input.IsKeyPressing(KeyCode.Enter);
     }
 
-    public bool IsKeyTabDown
+    public bool IsKeyTabPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Tab);
+        get => _input.IsKeyPressing(KeyCode.Tab);
     }
 
-    public bool IsKeyLeftDown
+    public bool IsKeyLeftPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Left);
+        get => _input.IsKeyPressing(KeyCode.Left);
     }
 
-    public bool IsKeyRightDown
+    public bool IsKeyRightPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Right);
+        get => _input.IsKeyPressing(KeyCode.Right);
     }
 
-    public bool IsKeyUp
+    public bool IsKeyUpPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Up);
+        get => _input.IsKeyPressing(KeyCode.Up);
     }
 
-    public bool IsKeyDown
+    public bool IsKeyDownPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Down);
+        get => _input.IsKeyPressing(KeyCode.Down);
     }
 
-    public bool IsKeyLeft
+    public bool IsKeySelectAllPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Left);
+        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyPressing(KeyCode.A);
     }
 
-    public bool IsKeyRight
+    public bool IsKeyCopyPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyDown(KeyCode.Right);
+        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyPressing(KeyCode.C);
     }
 
-    public bool IsKeySelectAllDown
+    public bool IsKeyPastePressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyDown(KeyCode.A);
-    }
-
-    public bool IsKeyCopyDown
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyDown(KeyCode.C);
-    }
-
-    public bool IsKeyPasteDown
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyDown(KeyCode.V);
+        get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyPressing(KeyCode.V);
     }
 
 

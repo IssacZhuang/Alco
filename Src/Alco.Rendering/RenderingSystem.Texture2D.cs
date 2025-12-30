@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using StbImageSharp;
 using Alco.Graphics;
 
-using static Alco.UtilsMemory;
+using static Alco.MemoryUtility;
 
 namespace Alco.Rendering;
 

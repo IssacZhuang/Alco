@@ -7,6 +7,28 @@ namespace Alco.Test
 {
     public class TestBinaryParser
     {
+        private class SerializableForPostLoad : ISerializable
+        {
+            public bool Loaded;
+            public bool PostLoaded;
+            public SerializableForPostLoad Child;
+
+            public void OnSerialize(SerializeNode node, SerializeMode mode)
+            {
+                node.BindSerializableOptional("child", ref Child, (SerializeReadNode rn) => new SerializableForPostLoad());
+
+                if (mode == SerializeMode.Load)
+                {
+                    Loaded = true;
+                }
+                
+                if (mode == SerializeMode.PostLoad)
+                {
+                    PostLoaded = true;
+                }
+            }
+        }
+
         public static BinaryArray NoiseArray()
         {
             string[] data = new string[5]{
@@ -70,7 +92,7 @@ namespace Alco.Test
             }
             table[keySubData] = subTable;
 
-            byte[] raw = BinaryParser.EncodeTable(table);
+            ReadOnlyMemory<byte> raw = BinaryParser.EncodeTable(table);
 
             BinaryTable table2 = BinaryParser.DecodeTable(raw);
 
@@ -133,9 +155,9 @@ namespace Alco.Test
             binObject["noise1"] = null;
             binObject["list"] = binArray;
             binObject["noise2"] = "noise";
-            byte[] raw = BinaryParser.EncodeTable(binObject);
+            ReadOnlyMemory<byte> raw = BinaryParser.EncodeTable(binObject);
 
-            BinaryTable binObject2 = BinaryParser.DecodeTable(raw);
+            BinaryTable binObject2 = BinaryParser.DecodeTable(raw.Span);
             BinaryArray binArray2 = binObject2["list"] as BinaryArray;
 
             for (int i = 0; i < data.Length; i++)
@@ -168,7 +190,7 @@ namespace Alco.Test
                 ["key4"] = "value4"
             };
 
-            byte[] raw = BinaryParser.EncodeTable(table);
+            ReadOnlyMemory<byte> raw = BinaryParser.EncodeTable(table);
 
             BinaryTable table2 = BinaryParser.DecodeTable(raw);
 
@@ -211,10 +233,10 @@ namespace Alco.Test
             originalTable["table"] = nestedTable;
 
             // Encode the table to a byte array
-            byte[] encodedBytes = BinaryParser.EncodeTable(originalTable);
+            ReadOnlyMemory<byte> encodedBytes = BinaryParser.EncodeTable(originalTable);
 
             // Create a ReadOnlySpan from the byte array
-            ReadOnlySpan<byte> bytesSpan = encodedBytes.AsSpan();
+            ReadOnlySpan<byte> bytesSpan = encodedBytes.Span;
 
             // Decode using the Span-based method
             BinaryTable decodedTable = BinaryParser.DecodeTable(bytesSpan);
@@ -257,6 +279,48 @@ namespace Alco.Test
 
             Assert.IsTrue(decodedNestedTable.TryGetValue<int>("nestedNumber", out int nestedIntValue));
             Assert.IsTrue(nestedIntValue == 789);
+        }
+
+        [Test(Description = "BinaryParser should trigger PostLoad after TableToObject new() path")]
+        public void TestPostLoad_TableToObject_New()
+        {
+            // prepare a table with a child node to ensure recursion
+            BinaryTable table = new BinaryTable();
+            table["child"] = new BinaryTable();
+
+            var obj = BinaryParser.TableToObject<SerializableForPostLoad>(table, (string error) => Assert.Fail(error), new ReferenceContext());
+            Assert.IsTrue(obj.Loaded);
+            Assert.IsTrue(obj.PostLoaded);
+        }
+
+        [Test(Description = "BinaryParser should trigger PostLoad after TableToObject factory path")]
+        public void TestPostLoad_TableToObject_Factory()
+        {
+            BinaryTable table = new BinaryTable();
+            table["child"] = new BinaryTable();
+
+            var obj = BinaryParser.TableToObject<SerializableForPostLoad>(
+                table,
+                (SerializeReadNode rn) => new SerializableForPostLoad(),
+                (string error) => Assert.Fail(error),
+                new ReferenceContext());
+
+            Assert.IsTrue(obj.Loaded);
+            Assert.IsTrue(obj.PostLoaded);
+        }
+
+        [Test(Description = "BinaryParser should trigger PostLoad after Populate path")]
+        public void TestPostLoad_Populate()
+        {
+            BinaryTable table = new BinaryTable();
+            table["child"] = new BinaryTable();
+            ReadOnlyMemory<byte> bytes = BinaryParser.EncodeTable(table);
+
+            var obj = new SerializableForPostLoad();
+            BinaryParser.Populate(bytes, obj, (string error) => Assert.Fail(error), new ReferenceContext());
+
+            Assert.IsTrue(obj.Loaded);
+            Assert.IsTrue(obj.PostLoaded);
         }
 
         struct StructForSerialize
@@ -302,10 +366,10 @@ namespace Alco.Test
             table["strVal"] = value.strVal;
             table["floatVal"] = value.floatVal;
             table["boolVal"] = value.boolVal;
-            byte[] bytes = BinaryParser.EncodeTable(table);
+            ReadOnlyMemory<byte> bytes = BinaryParser.EncodeTable(table);
 
-            TestContext.WriteLine("xml: " + UtilsTest.FormatSize(sizeXml));
-            TestContext.WriteLine("binary: " + UtilsTest.FormatSize(bytes.Length));
+            TestContext.WriteLine("xml: " + TestUtility.FormatSize(sizeXml));
+            TestContext.WriteLine("binary: " + TestUtility.FormatSize(bytes.Length));
         }
     }
 }

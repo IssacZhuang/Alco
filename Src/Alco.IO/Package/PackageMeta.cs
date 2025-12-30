@@ -36,14 +36,17 @@ public sealed class PackageEntry : ISerializable
 public sealed class PackageMeta : ISerializable
 {
     private string _name = string.Empty;
+    private string _version = "1.0";
     private readonly List<PackageEntry> _entries = new();
 
+    public string Version => _version;
     public IReadOnlyList<PackageEntry> Entries => _entries;
 
 
     public void OnSerialize(SerializeNode node, SerializeMode mode)
     {
         node.BindString(nameof(_name), ref _name);
+        node.BindString(nameof(_version), ref _version);
         node.BindCollectionSerializable(nameof(_entries), _entries);
     }
 

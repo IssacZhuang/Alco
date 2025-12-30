@@ -4,6 +4,32 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
+/// FXAA quality preset levels.
+/// </summary>
+public enum FXAAQuality
+{
+    /// <summary>
+    /// Low quality - 4 search steps, fastest performance
+    /// </summary>
+    Low,
+
+    /// <summary>
+    /// Medium quality - 8 search steps, balanced
+    /// </summary>
+    Medium,
+
+    /// <summary>
+    /// High quality - 12 search steps, recommended for most games
+    /// </summary>
+    High,
+
+    /// <summary>
+    /// Ultra quality - 29 search steps, maximum quality at the cost of performance
+    /// </summary>
+    Ultra
+}
+
+/// <summary>
 /// Fast Approximate Anti-Aliasing (FXAA) post-processing effect.
 /// Provides screen-space anti-aliasing with minimal performance cost.
 /// </summary>
@@ -15,8 +41,8 @@ public class FXAA : PostProcess
     private struct FXAAShaderData
     {
         public Vector2 InvFrameSize;    // 1.0 / frame size
-        public float Quality;           // Quality setting (0.5-2.0, default: 1.0)
         public float Threshold;         // Edge detection threshold (0.063-0.333, default: 0.125)
+        public float Padding;           // Padding for alignment
     }
 
     // Shader resource identifiers
@@ -30,8 +56,11 @@ public class FXAA : PostProcess
     // FXAA shader and pipeline
     private readonly Shader _fxaaShader;
     private GraphicsPipelineContext _fxaaPipelineInfo;
-    private readonly uint _fxaaShaderId_texture;
-    private readonly uint _fxaaShaderId_fxaaData;
+    private uint _fxaaShaderId_texture;
+    private uint _fxaaShaderId_fxaaData;
+
+    private FXAAQuality _quality = FXAAQuality.Medium;
+    private string[] _currentDefines = Array.Empty<string>();
 
     // Blit shader and pipeline for final copy
     private readonly Shader _blitShader;
@@ -41,22 +70,22 @@ public class FXAA : PostProcess
     private readonly GraphicsValueBuffer<FXAAShaderData> _fxaaShaderData;
 
     protected RenderTexture? _input;
-    private RenderTexture? _intermediateTexture; 
+    private RenderTexture? _intermediateTexture;
 
     /// <summary>
-    /// Gets or sets the quality setting for FXAA.
-    /// Higher values provide better quality at the cost of performance.
-    /// Valid range: 0.5 - 2.0, Default: 1.0
+    /// Gets or sets the FXAA quality preset.
+    /// Changes will require recompiling the shader with appropriate defines.
     /// </summary>
-    public float Quality
+    public FXAAQuality Quality
     {
-        get => _fxaaShaderData.Value.Quality;
+        get => _quality;
         set
         {
-            var data = _fxaaShaderData.Value;
-            data.Quality = Math.Clamp(value, 0.5f, 2.0f);
-            _fxaaShaderData.Value = data;
-            _fxaaShaderData.UpdateBuffer();
+            if (_quality != value)
+            {
+                _quality = value;
+                UpdateShaderDefines();
+            }
         }
     }
 
@@ -90,13 +119,8 @@ public class FXAA : PostProcess
         _fxaaShader = fxaaShader;
         _blitShader = blitShader;
 
-        // Initialize FXAA pipeline context
-        _fxaaPipelineInfo = GraphicsPipelineContext.Default;
-        _fxaaShader.TryUpdatePipelineContext(ref _fxaaPipelineInfo, renderingSystem.PrefferedSDRPass);
-
-        // Get FXAA shader resource IDs
-        _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
-        _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
+        // Initialize FXAA pipeline context with default HIGH quality
+        UpdateShaderDefines();
 
         // Initialize blit pipeline context
         _blitPipelineInfo = GraphicsPipelineContext.Default;
@@ -108,8 +132,8 @@ public class FXAA : PostProcess
         _fxaaShaderData.Value = new FXAAShaderData
         {
             InvFrameSize = Vector2.One,
-            Quality = 1.0f,
-            Threshold = 0.125f
+            Threshold = 0.125f,
+            Padding = 0.0f
         };
         _fxaaShaderData.UpdateBuffer();
 
@@ -162,14 +186,7 @@ public class FXAA : PostProcess
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }
 
-        // Step 1: Apply FXAA to intermediate texture
         _commandFXAA.Begin();
-        // _commandFXAA.SetFrameBuffer(_intermediateTexture);
-        // _commandFXAA.SetGraphicsPipeline(_fxaaPipelineInfo);
-        // uint indexCount = _commandFXAA.SetMesh(fullScreenMesh);
-        // _commandFXAA.SetGraphicsResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
-        // _commandFXAA.SetGraphicsResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
-        // _commandFXAA.DrawIndexed(indexCount, 1, 0, 0, 0);
 
         using (var renderPass = _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
         {
@@ -190,8 +207,30 @@ public class FXAA : PostProcess
 
         _commandFXAA.End();
         _renderingSystem.ScheduleCommandBuffer(_commandFXAA);
+    }
 
-        // Step 2: Blit intermediate texture to final target
+    /// <summary>
+    /// Updates the shader defines based on the current quality setting.
+    /// </summary>
+    private void UpdateShaderDefines()
+    {
+        string qualityDefine = _quality switch
+        {
+            FXAAQuality.Low => "FXAA_QUALITY_LOW",
+            FXAAQuality.Medium => "FXAA_QUALITY_MEDIUM",
+            FXAAQuality.High => "FXAA_QUALITY_HIGH",
+            FXAAQuality.Ultra => "FXAA_QUALITY_ULTRA",
+            _ => "FXAA_QUALITY_HIGH"
+        };
+
+        _currentDefines = new[] { qualityDefine };
+
+        // Get a new pipeline with the specified defines
+        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PrefferedSDRPass, _currentDefines);
+
+        // Update resource IDs after pipeline recreation
+        _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
+        _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
     }
 
     /// <summary>

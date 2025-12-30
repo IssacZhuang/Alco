@@ -6,13 +6,15 @@ Purpose: compact two-section asset package: Meta + Content.
 - Content: raw file bytes.
 
 Layout (little-endian):
-- [0..7] MetaLength: Int64 — size in bytes of Meta Payload
-- [8..8+MetaLength-1] Meta Payload (bytes from `BinaryParser`)
-- [8+MetaLength..end] Content Payload
+- [0..3] Magic: "alco" (ASCII) — file type identifier
+- [4..11] MetaLength: Int64 — size in bytes of Meta Payload
+- [12..12+MetaLength-1] Meta Payload (bytes from `BinaryParser`)
+- [12+MetaLength..end] Content Payload
 
 Meta schema (serialized field names include underscores):
 - PackageMeta
   - `_name`: string
+  - `_version`: string (format version, e.g., "1.0")
   - `_entries`: list<PackageEntry>
 - PackageEntry
   - `_name`: string
@@ -20,11 +22,13 @@ Meta schema (serialized field names include underscores):
   - `_size`: uint64 (length in bytes)
 
 Addressing:
-- `ContentBase = 8 + MetaLength`
+- `ContentBase = 12 + MetaLength`
 - `FileStart = ContentBase + entry._start`
 - `FileSize = entry._size`
 
 Notes:
-- No footer, alignment, or version field.
+- Magic field "alco" identifies file type.
+- Version stored in meta as string field.
+- No footer or alignment.
 - Supports concurrent reads from multiple threads. Readers use positional I/O and do not share mutable state; each thread must provide its own destination buffer.
 

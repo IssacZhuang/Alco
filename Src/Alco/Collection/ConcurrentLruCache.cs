@@ -86,15 +86,15 @@ public class ConcurrentLruCache<TKey, TValue> where TKey : notnull where TValue 
     {
         get
         {
-            if (_cacheMap.TryGetValue(key, out var node))
+            lock (_lock)
             {
-                lock (_lock)
+                if (_cacheMap.TryGetValue(key, out var node))
                 {
                     // Move to front (most recently used)
                     _lruList.Remove(node);
                     _lruList.AddFirst(node);
+                    return node.Value.Value;
                 }
-                return node.Value.Value;
             }
             throw new KeyNotFoundException($"The key '{key}' was not found in the cache.");
         }
@@ -115,16 +115,16 @@ public class ConcurrentLruCache<TKey, TValue> where TKey : notnull where TValue 
     /// </remarks>
     public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue? result)
     {
-        if (_cacheMap.TryGetValue(key, out var node))
+        lock (_lock)
         {
-            lock (_lock)
+            if (_cacheMap.TryGetValue(key, out var node))
             {
                 // Move to front (most recently used)
                 _lruList.Remove(node);
                 _lruList.AddFirst(node);
+                result = node.Value.Value;
+                return true;
             }
-            result = node.Value.Value;
-            return true;
         }
         result = default;
         return false;
@@ -141,24 +141,12 @@ public class ConcurrentLruCache<TKey, TValue> where TKey : notnull where TValue 
     {
         ArgumentNullException.ThrowIfNull(valueFactory);
 
-        // Fast path - check if key exists
-        if (_cacheMap.TryGetValue(key, out var existingNode))
-        {
-            lock (_lock)
-            {
-                // Move to front (most recently used)
-                _lruList.Remove(existingNode);
-                _lruList.AddFirst(existingNode);
-            }
-            return existingNode.Value.Value;
-        }
-
-        // Use lock for the entire slow path to prevent multiple threads from creating the value
         lock (_lock)
         {
-            // Double-check in case another thread added the key while we were waiting for the lock
-            if (_cacheMap.TryGetValue(key, out existingNode))
+            // Check if key exists
+            if (_cacheMap.TryGetValue(key, out var existingNode))
             {
+                // Move to front (most recently used)
                 _lruList.Remove(existingNode);
                 _lruList.AddFirst(existingNode);
                 return existingNode.Value.Value;

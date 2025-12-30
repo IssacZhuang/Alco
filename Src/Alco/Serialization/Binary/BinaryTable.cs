@@ -155,20 +155,20 @@ namespace Alco
             throw new InvalidOperationException($"Key '{key}' not found in table.");
         }
 
-        public bool TryGetBinary(string key, [NotNullWhen(true)] out byte[]? value)
+        public bool TryGetBinary(string key, [NotNullWhen(true)] out ReadOnlyMemory<byte> value)
         {
             if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
             {
                 value = binaryValue.Bytes;
                 return true;
             }
-            value = null;
+            value = ReadOnlyMemory<byte>.Empty;
             return false;
         }
 
-        public byte[] GetBinary(string key)
+        public ReadOnlyMemory<byte> GetBinary(string key)
         {
-            if (TryGetBinary(key, out byte[]? value))
+            if (TryGetBinary(key, out ReadOnlyMemory<byte> value))
             {
                 return value;
             }

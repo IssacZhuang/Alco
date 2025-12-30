@@ -9,13 +9,13 @@ namespace Alco.GUI;
 public class UISelectable : UINode
 {
 
-    public bool Interactable { get; set; } = true;
+    public bool IsInteractable { get; set; } = true;
 
 
-    protected override void OnUpdate(Canvas canvas, float delta)
+    protected override void OnTick(Canvas canvas, float delta)
     {
-        base.OnUpdate(canvas, delta);
-        if (Interactable)
+        base.OnTick(canvas, delta);
+        if (IsInteractable)
         {
             AddSelfForCollision(canvas);
         }

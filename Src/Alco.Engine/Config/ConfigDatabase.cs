@@ -1,8 +1,10 @@
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Alco;
 using Alco.IO;
 
 namespace Alco.Engine;
@@ -28,6 +30,9 @@ public class ConfigDatabase
     private volatile bool _isDirty = false;
     private readonly Lock _updateLock = new();
 
+    private uint _version = 0;
+
+
     /// <summary>
     /// [Thread-safe] All configs in the database.
     /// </summary>
@@ -40,6 +45,13 @@ public class ConfigDatabase
             return _configsList;
         }
     }
+
+    /// <summary>
+    /// [Thread-safe] Gets the version number of the configuration database.
+    /// The version is incremented whenever the configuration database is updated.
+    /// </summary>
+    /// <value>The current version number of the configuration database.</value>
+    public uint Version => _version;
 
     /// <summary>
     /// [Thread-safe] Get all configs of a specific type.
@@ -71,12 +83,11 @@ public class ConfigDatabase
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigDatabase"/> class.
+    /// Initializes a new instance of the <see cref="ConfigDatabase"/> class using explicit polymorphic root types
+    /// combined with auto-discovered root types marked by <see cref="PolymorphicTypeAttribute"/>.
     /// </summary>
-    /// <param name="polymorphicTypes">Types to support for polymorphic JSON serialization</param>
+    /// <param name="polymorphicTypes">Additional root types to support for polymorphic JSON serialization</param>
     /// <param name="converters">Custom JSON converters to use for deserialization</param>
-    /// <param name="onInfo">Callback for informational messages</param>
-    /// <param name="onWarning">Callback for warning messages</param>
     /// <param name="onError">Callback for error messages</param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
     public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onError)
@@ -84,16 +95,27 @@ public class ConfigDatabase
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
 
-        List<Type> polymorphicTypeList = new();
+        HashSet<Type> rootTypes = new HashSet<Type>();
+
+        // Auto-discovered roots by attribute
+        var discovered = TypeUtility.FindTypesWithAttribute<PolymorphicTypeAttribute>();
+        for (int i = 0; i < discovered.Length; i++)
+        {
+            rootTypes.Add(discovered[i]);
+        }
+
+        // Additional roots provided by caller
         for (int i = 0; i < polymorphicTypes.Length; i++)
         {
-            polymorphicTypeList.Add(polymorphicTypes[i]);
+            rootTypes.Add(polymorphicTypes[i]);
         }
-        polymorphicTypeList.Add(typeof(Configable));
+
+        // Always include Configable as polymorphic root
+        rootTypes.Add(typeof(Configable));
 
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new PolymorphicJsonTypeResolver(polymorphicTypeList.ToArray()),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver(rootTypes.ToArray()),
             WriteIndented = true,
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
@@ -104,9 +126,23 @@ public class ConfigDatabase
             _jsonSerializerOptions.Converters.Add(converter);
         }
 
+        _jsonSerializerOptions.Converters.Add(new JsonConverterConfigReferenceFactory(this));
+        _jsonSerializerOptions.Converters.Add(new JsonConverterConfigReferenceOptionalFactory(this));
+
         _jsonSerializerOptions.MakeReadOnly();
 
         _jsonPreprocessor = new JsonPreprocessor(onError);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConfigDatabase"/> class using auto-discovered polymorphic root types.
+    /// All classes marked with <see cref="PolymorphicTypeAttribute"/> across loaded assemblies will be considered roots.
+    /// </summary>
+    /// <param name="converters">Custom JSON converters to use for deserialization</param>
+    /// <param name="onError">Callback for error messages</param>
+    public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onError)
+        : this(Array.Empty<Type>(), converters, onError)
+    {
     }
 
     /// <summary>
@@ -234,10 +270,11 @@ public class ConfigDatabase
     /// <summary>
     /// Try to update configs from all file sources if it is dirty.
     /// </summary>
-    public void TryUpdateConfigs()
+    /// <param name="isForced">If true, forces an update even if the database is not dirty.</param>
+    public void TryUpdateConfigs(bool isForced = false)
     {
         // First check without lock (performance optimization)
-        if (!_isDirty)
+        if (!_isDirty && !isForced)
         {
             return;
         }
@@ -246,7 +283,7 @@ public class ConfigDatabase
         lock (_updateLock)
         {
             // Second check inside lock to ensure only one thread updates
-            if (!_isDirty)
+            if (!_isDirty && !isForced)
             {
                 return;
             }
@@ -272,7 +309,13 @@ public class ConfigDatabase
                 }
                 catch (Exception ex)
                 {
-                    _onError($"Error deserializing config: {ex}");
+                    string id = "unknown";
+                    JsonDocument document = documents[i];
+                    if (document != null && document.RootElement.TryGetProperty("Id", out var idProperty))
+                    {
+                        id = idProperty.GetString() ?? "unknown";
+                    }
+                    _onError($"Error deserializing config '{id}': {ex}");
                 }
             });
 
@@ -286,12 +329,7 @@ public class ConfigDatabase
                 }
             }
 
-            // resolve references
-            Parallel.ForEach(_configsList, config =>
-            {
-                ResolveReferences(config);
-            });
-
+            IncreaseVersion();
             _isDirty = false;
         }
     }
@@ -322,234 +360,7 @@ public class ConfigDatabase
         return table.ToFrozenDictionary();
     }
 
-    private void ResolveReferences(object? @object, string path = "", int depth = 0)
-    {
-        // Check maximum recursion depth to prevent infinite recursion
-        if (depth >= 64)
-        {
-            _onError($"Maximum recursion depth (64) exceeded while resolving references at path: {path}");
-            return;
-        }
 
-        if (@object == null)
-        {
-            return;
-        }
-
-        var type = @object.GetType();
-        if (type.IsPrimitive || type.IsEnum || type.IsValueType || !type.IsClass)
-        {
-            return;
-        }
-
-        if (@object is string)
-        {
-            //string never has references
-            return;
-        }
-
-        if (UtilsType.IsGenericList(type, out var genericType))
-        {
-            ResolveListReferences(@object, path, genericType, depth + 1);
-        }
-        else if (UtilsType.IsGenericDictionary(type, out var keyType, out var valueType))
-        {
-            ResolveDictionaryReferences(@object, path, keyType, valueType, depth + 1);
-        }
-
-        AccessTypeInfo accessTypeInfo = GetAccessTypeInfo(@object.GetType());
-        foreach (var accessMember in accessTypeInfo.Members)
-        {
-            var value = accessMember.GetValue<object>(@object);
-            if (value is Configable)
-            {
-                ResolveConfigProperty(@object, accessMember.Name, accessMember);
-            }
-            else
-            {
-                ResolveReferences(value, path + "." + accessMember.Name, depth + 1);
-            }
-        }
-    }
-
-    private void ResolveConfigProperty(object @object, string propertyName, AccessMemberInfo accessMember)
-    {
-        try
-        {
-            var config = accessMember.GetValue<Configable>(@object);
-
-            if (config == null)
-            {
-                _onError($"Config reference for property {propertyName} is null");
-                return;
-            }
-
-            Type type = config.GetType();
-
-            if (InternalTryGetConfig(config.Id, type, out var resolvedConfig))
-            {
-                accessMember.SetValue(@object, resolvedConfig);
-            }
-            else
-            {
-                _onError($"Config reference(id: {config.Id}) for property {propertyName} is not found");
-            }
-        }
-        catch (Exception ex)
-        {
-            _onError($"Error resolving config reference for property {propertyName} : {ex}");
-        }
-    }
-
-    /// <summary>
-    /// Resolves configuration references within list objects.
-    /// </summary>
-    /// <param name="list">The list object to resolve references in</param>
-    /// <param name="propertyName">The property name for error reporting</param>
-    /// <param name="genericType">The generic type of the list elements</param>
-    /// <param name="depth">Current recursion depth</param>
-    private void ResolveListReferences(object list, string propertyName, Type genericType, int depth)
-    {
-        try
-        {
-            if (genericType.IsAssignableTo(typeof(Configable)))
-            {
-                // If the list contains Configable objects, resolve each element
-                if (list is IList<Configable> configList)
-                {
-                    for (int i = 0; i < configList.Count; i++)
-                    {
-                        var config = configList[i];
-                        if (config != null && InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
-                        {
-                            configList[i] = resolvedConfig;
-                        }
-                        else if (config != null)
-                        {
-                            _onError($"Config reference(id: {config.Id}) in list property {propertyName}[{i}] is not found");
-                        }
-                    }
-                }
-                else
-                {
-                    // Handle non-generic IList case using reflection
-                    if (list is System.Collections.IList nonGenericList)
-                    {
-                        for (int i = 0; i < nonGenericList.Count; i++)
-                        {
-                            if (nonGenericList[i] is Configable config)
-                            {
-                                if (InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
-                                {
-                                    nonGenericList[i] = resolvedConfig;
-                                }
-                                else
-                                {
-                                    _onError($"Config reference(id: {config.Id}) in list property {propertyName}[{i}] is not found");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // If the list contains non-Configable objects, recursively resolve references in each element
-                if (list is System.Collections.IList nonGenericList)
-                {
-                    for (int i = 0; i < nonGenericList.Count; i++)
-                    {
-                        ResolveReferences(nonGenericList[i], $"{propertyName}[{i}]", depth);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _onError($"Error resolving list references for property {propertyName} : {ex}");
-        }
-    }
-
-    private void ResolveDictionaryReferences(object dictionary, string propertyName, Type keyType, Type valueType, int depth)
-    {
-        try
-        {
-            if (valueType.IsAssignableTo(typeof(Configable)))
-            {
-                // If the dictionary values are Configable objects, resolve each value
-                if (dictionary is IDictionary<object, Configable> configDict)
-                {
-                    var keysToUpdate = new List<object>();
-                    foreach (var kvp in configDict)
-                    {
-                        if (kvp.Value != null && InternalTryGetConfig(kvp.Value.Id, kvp.Value.GetType(), out var resolvedConfig))
-                        {
-                            keysToUpdate.Add(kvp.Key);
-                        }
-                        else if (kvp.Value != null)
-                        {
-                            _onError($"Config reference(id: {kvp.Value.Id}) in dictionary property {propertyName}[{kvp.Key}] is not found");
-                        }
-                    }
-
-                    foreach (var key in keysToUpdate)
-                    {
-                        var originalConfig = configDict[key];
-                        if (originalConfig != null && InternalTryGetConfig(originalConfig.Id, originalConfig.GetType(), out var resolvedConfig))
-                        {
-                            configDict[key] = resolvedConfig;
-                        }
-                    }
-                }
-                else
-                {
-                    // Handle non-generic IDictionary case using reflection
-                    if (dictionary is System.Collections.IDictionary nonGenericDict)
-                    {
-                        var keysToUpdate = new List<object>();
-                        foreach (System.Collections.DictionaryEntry entry in nonGenericDict)
-                        {
-                            if (entry.Value is Configable config)
-                            {
-                                if (InternalTryGetConfig(config.Id, config.GetType(), out var resolvedConfig))
-                                {
-                                    keysToUpdate.Add(entry.Key);
-                                }
-                                else
-                                {
-                                    _onError($"Config reference(id: {config.Id}) in dictionary property {propertyName}[{entry.Key}] is not found");
-                                }
-                            }
-                        }
-
-                        foreach (var key in keysToUpdate)
-                        {
-                            if (nonGenericDict[key] is Configable originalConfig &&
-                                InternalTryGetConfig(originalConfig.Id, originalConfig.GetType(), out var resolvedConfig))
-                            {
-                                nonGenericDict[key] = resolvedConfig;
-                            }
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // If the dictionary values are non-Configable objects, recursively resolve references in each value
-                if (dictionary is System.Collections.IDictionary nonGenericDict)
-                {
-                    foreach (System.Collections.DictionaryEntry entry in nonGenericDict)
-                    {
-                        ResolveReferences(entry.Value, $"{propertyName}[{entry.Key}]", depth);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _onError($"Error resolving dictionary references for property {propertyName} : {ex}");
-        }
-    }
 
     private bool InternalTryGetConfig(string id, Type type, [NotNullWhen(true)] out Configable? config)
     {
@@ -565,6 +376,18 @@ public class ConfigDatabase
     internal string[] DebugListAllConfigs()
     {
         return _configs.SelectMany(type => type.Value.Select(config => $"{type.Key}: {config.Value.Id} ({config.Value.GetType().Name})")).ToArray();
+    }
+
+    /// <summary>
+    /// [Thread-safe] Increments the version number of the configuration database.
+    /// This method is called whenever the configuration database is modified.
+    /// </summary>
+    public void IncreaseVersion()
+    {
+        unchecked
+        {
+            _version++;
+        }
     }
 }
 

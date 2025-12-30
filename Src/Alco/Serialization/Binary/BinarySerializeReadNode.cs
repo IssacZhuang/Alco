@@ -1,17 +1,23 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Alco;
 
 public class BinarySerializeReadNode : SerializeReadNode
 {
+    private readonly ReferenceContext? _referenceContext;
     protected BinaryTable _content;
     public BinaryTable Content => _content;
-    public BinarySerializeReadNode(BinaryTable content, Action<string>? onError = null)
+
+    public override ReferenceContext? ReferenceContext => _referenceContext;
+
+    public BinarySerializeReadNode(ReferenceContext? referenceContext, BinaryTable content, Action<string>? onError = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         _content = content;
+        _referenceContext = referenceContext;
         OnError = onError;
     }
 
@@ -28,7 +34,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             if (_content.TryGetTable(key, out BinaryTable? table))
             {
-                value.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                value.OnSerialize(node, SerializeMode.Load);
+                _referenceContext?.TryReadReferenceId(node, value);
             }
         }
         catch (Exception ex)
@@ -51,9 +59,10 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             if (_content.TryGetTable(key, out BinaryTable? table))
             {
-                BinarySerializeReadNode subNode = new BinarySerializeReadNode(table, OnError);
-                value ??= onCreate(subNode);
-                value.OnSerialize(subNode, SerializeMode.Load);
+                BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                value ??= onCreate(node);
+                value.OnSerialize(node, SerializeMode.Load);
+                _referenceContext?.TryReadReferenceId(node, value);
             }
         }
         catch (Exception ex)
@@ -64,13 +73,13 @@ public class BinarySerializeReadNode : SerializeReadNode
 
     public unsafe override void BindMemory<T>(string key, Span<T> memory)
     {
-        if (_content.TryGetBinary(key, out byte[]? binaryValue))
+        if (_content.TryGetBinary(key, out ReadOnlyMemory<byte> binaryValue))
         {
-            int length = Math.Min(memory.Length * sizeof(T), binaryValue.Length);
+            int length = Math.Min(memory.Length * sizeof(T), binaryValue.Span.Length);
             fixed (T* ptrMemory = memory)
             {
                 Span<byte> span = new Span<byte>(ptrMemory, length);
-                binaryValue.AsSpan().CopyTo(span);
+                binaryValue.Span.CopyTo(span);
             }
         }
     }
@@ -82,9 +91,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             for (int i = 0; i < array.Count; i++)
             {
-                if (array.TryGetBinary(i, out byte[]? binaryValue))
+                if (array.TryGetBinary(i, out ReadOnlyMemory<byte> binaryValue))
                 {
-                    value.Add(UtilsBinary.DecodeToValue<T>(binaryValue));
+                    value.Add(BinaryUtility.DecodeToValue<T>(binaryValue.Span));
                 }
             }
         }
@@ -105,6 +114,30 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    public override void BindArraySerializable<T>(string key, IReadOnlyList<T> value)
+    {
+        if (_content.TryGetArray(key, out BinaryArray? array))
+        {
+            int length = Math.Min(array.Count, value.Count);
+            for (int i = 0; i < length; i++)
+            {
+                try
+                {
+                    if (array.TryGetTable(i, out BinaryTable? table))
+                    {
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                        value[i].OnSerialize(node, SerializeMode.Load);
+                        _referenceContext?.TryReadReferenceId(node, value[i]);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind array serializable item at index {i} for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// Binds a collection of complex objects that implement ISerializable for deserialization.
     /// Handles exceptions gracefully per list item to prevent individual errors from affecting the entire collection.
@@ -117,21 +150,25 @@ public class BinarySerializeReadNode : SerializeReadNode
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
         {
-            for (int i = 0; i < array.Count; i++)
+
+            int i = 0;
+            try
             {
-                try
+                for (i = 0; i < array.Count; i++)
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
-                        T item = new T();
-                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                        T item = new();
+                        item.OnSerialize(node, SerializeMode.Load);
+                        _referenceContext?.TryReadReferenceId(node, item);
                         value.Add(item);
                     }
                 }
-                catch (Exception ex)
-                {
-                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
-                }
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
             }
         }
     }
@@ -149,20 +186,75 @@ public class BinarySerializeReadNode : SerializeReadNode
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
         {
-            for (int i = 0; i < array.Count; i++)
+            int i = 0;
+            try
             {
-                try
+                for (i = 0; i < array.Count; i++)
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
-                        T item = onCreate(new BinarySerializeReadNode(table, OnError));
-                        item.OnSerialize(new BinarySerializeReadNode(table, OnError), SerializeMode.Load);
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, table, OnError);
+                        T item = onCreate(node);
+                        item.OnSerialize(node, SerializeMode.Load);
+                        _referenceContext?.TryReadReferenceId(node, item);
                         value.Add(item);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
+            }
+        }
+    }
+
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                try
+                {
+                    if (table.TryGetTable(itemKey, out BinaryTable? itemTable))
+                    {
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, itemTable, OnError);
+                        T item = new();
+                        item.OnSerialize(node, SerializeMode.Load);
+                        _referenceContext?.TryReadReferenceId(node, item);
+                        value.Add(itemKey, item);
                     }
                 }
                 catch (Exception ex)
                 {
-                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
+                    AddError($"Failed to bind serializable dictionary item key '{itemKey}' for key '{key}': {ex}");
+                }
+            }
+        }
+    }
+
+    public override void BindDictionarySerializable<T>(string key, IDictionary<string, T> value, Func<SerializeReadNode, T> onCreate)
+    {
+        value.Clear();
+        if (_content.TryGetTable(key, out BinaryTable? table))
+        {
+            foreach (var itemKey in table.Keys)
+            {
+                try
+                {
+                    if (table.TryGetTable(itemKey, out BinaryTable? itemTable))
+                    {
+                        BinarySerializeReadNode node = new BinarySerializeReadNode(_referenceContext, itemTable, OnError);
+                        T item = onCreate(node);
+                        item.OnSerialize(node, SerializeMode.Load);
+                        _referenceContext?.TryReadReferenceId(node, item);
+                        value.Add(itemKey, item);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable dictionary item key '{itemKey}' for key '{key}': {ex}");
                 }
             }
         }
@@ -211,9 +303,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         {
             foreach (var itemKey in table.Keys)
             {
-                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                if (table.TryGetBinary(itemKey, out ReadOnlyMemory<byte> binaryValue))
                 {
-                    value.Add(itemKey, UtilsBinary.DecodeToValue<TValue>(binaryValue));
+                    value.Add(itemKey, BinaryUtility.DecodeToValue<TValue>(binaryValue.Span));
                 }
             }
         }
@@ -234,14 +326,14 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    public override void BindDictionary(string key, IDictionary<string, byte[]> value)
+    public override void BindDictionary(string key, IDictionary<string, ReadOnlyMemory<byte>> value)
     {
         value.Clear();
         if (_content.TryGetTable(key, out BinaryTable? table))
         {
             foreach (var itemKey in table.Keys)
             {
-                if (table.TryGetBinary(itemKey, out byte[]? binaryValue))
+                if (table.TryGetBinary(itemKey, out ReadOnlyMemory<byte> binaryValue))
                 {
                     value.Add(itemKey, binaryValue);
                 }
@@ -249,6 +341,22 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
-    
+    public override void BindBinary(string key, ref ReadOnlyMemory<byte> data)
+    {
+        if (_content.TryGetBinary(key, out ReadOnlyMemory<byte> binaryValue))
+        {
+            data = binaryValue;
+        }
+        else
+        {
+            data = Array.Empty<byte>();
+        }
+    }
 
+    public override void BindReference<T>(string key, ref T? referenceable) where T : default
+    {
+        //do nothing
+    }
+
+    
 }

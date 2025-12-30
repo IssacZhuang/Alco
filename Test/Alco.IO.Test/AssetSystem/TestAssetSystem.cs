@@ -175,6 +175,27 @@ public class TestAssetSystem
                     return false;
             }
         }
+
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
+        {
+            switch (path)
+            {
+                case "test.fast":
+                case "test.slow":
+                case "test.exception":
+                    stream = new MemoryStream(new byte[] { 0, 1, 2, 3 });
+                    failureReason = null;
+                    return true;
+                case "test.empty":
+                    stream = new MemoryStream(Array.Empty<byte>());
+                    failureReason = null;
+                    return true;
+                default:
+                    stream = null;
+                    failureReason = "File not found";
+                    return false;
+            }
+        }
     }
 
 
@@ -390,6 +411,20 @@ public class TestAssetSystem
                 return true;
             }
             data = default;
+            failureReason = "File not found";
+            return false;
+        }
+
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
+        {
+            if (_files.TryGetValue(path, out var content))
+            {
+                byte[] contentBytes = Encoding.UTF8.GetBytes(content);
+                stream = new MemoryStream(contentBytes);
+                failureReason = null;
+                return true;
+            }
+            stream = null;
             failureReason = "File not found";
             return false;
         }

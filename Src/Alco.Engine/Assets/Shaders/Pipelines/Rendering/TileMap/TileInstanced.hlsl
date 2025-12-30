@@ -9,6 +9,7 @@ struct Constants
     int _reserved; // for memory alignment
     float4 color;
     float blendFactor;
+    float tiling;
 };
 
 struct TileData
@@ -118,9 +119,9 @@ float4 PixelMain(V2F input)
     float2 uv = input.uv;
 
 #if defined(TEXTURE_BOMBING)
-    float4 color = TextureBombing(_texture, _textureSampler, input.worldPos);
+    float4 color = TextureBombing(_texture, _textureSampler, input.worldPos, constants.tiling);
 #else
-    float2 uvFrac = frac(uv);
+    float2 uvFrac = frac(uv * constants.tiling);
     float4 color = SAMPLE_TEX2D(_texture, uvFrac);
 #endif
 

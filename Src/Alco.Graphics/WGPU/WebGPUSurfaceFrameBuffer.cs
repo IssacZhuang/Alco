@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using WebGPU;
 using static WebGPU.WebGPU;
-using static Alco.Graphics.UtilsInterop;
+using static Alco.Graphics.InteropUtility;
 using System.Runtime.InteropServices;
 
 namespace Alco.Graphics.WebGPU;
@@ -201,7 +201,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
             _depthStencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
             _depthView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            if(UtilsPixelFormat.HasStencil(_depthStencilTexture.PixelFormat))
+            if(PixelFormatUtility.HasStencil(_depthStencilTexture.PixelFormat))
             {
                 _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
             }
@@ -257,7 +257,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                 );
             _depthStencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
             _depthView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            if(UtilsPixelFormat.HasStencil(_depthStencilTexture.PixelFormat))
+            if(PixelFormatUtility.HasStencil(_depthStencilTexture.PixelFormat))
             {
                 _stencilView = (WebGPUTextureView)Device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
             }
@@ -355,7 +355,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         ) : base(
             new TextureDescriptor(//just a dummy descriptor
                 TextureDimension.Texture2D,
-                UtilsWebGPU.PixelFormatToAbstract(wgpuTextureGetFormat(surfaceTexture.texture)),
+                WebGPUUtility.PixelFormatToAbstract(wgpuTextureGetFormat(surfaceTexture.texture)),
                 wgpuTextureGetWidth(surfaceTexture.texture),
                 wgpuTextureGetHeight(surfaceTexture.texture),
                 1,
@@ -375,7 +375,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
             _defaultView = wgpuTextureCreateView(_texture, null);
 
-            PixelFormat = UtilsWebGPU.PixelFormatToAbstract(wgpuTextureGetFormat(_texture));
+            PixelFormat = WebGPUUtility.PixelFormatToAbstract(wgpuTextureGetFormat(_texture));
         }
 
         public unsafe void PresentAndDrop()

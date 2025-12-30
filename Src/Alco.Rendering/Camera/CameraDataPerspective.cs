@@ -91,6 +91,6 @@ public struct CameraDataPerspective : ICamera
 
     public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
     {
-        return UtilsCameraMath.ScreenPointToRayPerspective(screenPosition, screenSize, ViewProjectionMatrix, Transform.Position);
+        return CameraMathUtility.ScreenPointToRayPerspective(screenPosition, screenSize, ViewProjectionMatrix, Transform.Position);
     }
 }

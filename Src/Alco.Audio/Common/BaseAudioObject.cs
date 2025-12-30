@@ -15,9 +15,9 @@ public abstract class BaseAudioObject : IDisposable
     ~BaseAudioObject()
     {
         //On GC
-        if (!IsDisposed)
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
-            Dispose();
+            Dispose(false);
         }
     }
 

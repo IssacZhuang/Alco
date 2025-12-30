@@ -45,7 +45,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
         }
         
 
-        _surfaceFormat = UtilsWebGPU.PixelFormatToWebGPU(descriptor.ColorFormat);
+        _surfaceFormat = WebGPUUtility.PixelFormatToWebGPU(descriptor.ColorFormat);
         bool isFormatSupported = false;
         for (int i = 0; i < _supportedSurfaceFormats.Length; i++)
         {
@@ -68,7 +68,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
         DepthAttachment? depth = null;
         if (descriptor.DepthFormat.HasValue)
         {
-            _depthFormat = UtilsWebGPU.PixelFormatToWebGPU(descriptor.DepthFormat.Value);
+            _depthFormat = WebGPUUtility.PixelFormatToWebGPU(descriptor.DepthFormat.Value);
             depth = new DepthAttachment()
             {
                 Format = descriptor.DepthFormat.Value,
@@ -82,7 +82,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
             {
                 new ColorAttachment()
                 {
-                    Format = UtilsWebGPU.PixelFormatToAbstract(_surfaceFormat),
+                    Format = WebGPUUtility.PixelFormatToAbstract(_surfaceFormat),
                     ClearColor = descriptor.ClearColor,
                 },
             },

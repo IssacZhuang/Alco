@@ -10,13 +10,13 @@ public partial class GameEngine
 {
     public virtual IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
-        // texture
-        yield return new AssetLoaderFontTTF(RenderingSystem);
-        yield return new AssetLoaderTexture2D(RenderingSystem);
-
         // shader
         yield return new AssetLoaderShaderHLSLInclude();
         yield return new AssetLoaderShaderHLSL(RenderingSystem);
+
+        // texture
+        yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
+        yield return new AssetLoaderTexture2D(RenderingSystem);
 
         // audio
         yield return new AssetLoaderAudioVorbis(AudioDevice);
@@ -66,10 +66,12 @@ public partial class GameEngine
         yield return new JsonConverterColorFloat();
         yield return new JsonConverterShader(AssetSystem);
         yield return new JsonConverterTexture2D(AssetSystem);
+        yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterDepthStencilState();
         yield return new JsonConverterBlendState();
         yield return new JsonConverterPivot();
         yield return new JsonStringEnumConverter();
         yield return new JsonConverterPadding();
+        yield return new JsonConverterCurvePointFactory();
     }
 }

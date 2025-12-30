@@ -108,6 +108,16 @@ namespace Alco
         {
             return new Half2(a.X / b.X, a.Y / b.Y);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(Half2 a, Half2 b)
+        {
+            return a.X == b.X && a.Y == b.Y;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(Half2 a, Half2 b)
+        {
+            return !(a == b);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Vector2(Half2 a)
@@ -119,6 +129,21 @@ namespace Alco
         public static implicit operator Half2(Vector2 a)
         {
             return new Half2((Half)a.X, (Half)a.Y);
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is Half2 other && this == other;
+        }
+
+        public bool Equals(Half2 other)
+        {
+            return this == other;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(X, Y);
         }
 
         public override string ToString()

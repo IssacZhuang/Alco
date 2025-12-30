@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>Alco.Engine</RootNamespace>
     <AssemblyName>Alco.Engine</AssemblyName>
     <Nullable>enable</Nullable>

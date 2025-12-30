@@ -125,7 +125,7 @@ public class Game : GameEngine
             UvRect = new Rect(0, 0, 1, 1)
         };
 
-        UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
+        GridUtility.FillCellsInRadius(_brushCells, _brushSize);
 
         _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
         _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightingManager.LightMap);
@@ -161,7 +161,7 @@ public class Game : GameEngine
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
-            UtilsGrid.FillCellsInRadius(_brushCells, _brushSize);
+            GridUtility.FillCellsInRadius(_brushCells, _brushSize);
         }
 
         if (ImGui.SliderInt("Surface Tile", ref _surfaceTileId, 0, _surfaceTileSet.Count - 1))
@@ -206,7 +206,7 @@ public class Game : GameEngine
             _targetZoom = math.clamp(_targetZoom, 2, 20);
         }
 
-        Ray3D cameraRay = UtilsCameraMath.ScreenPointToRay2D(MainView.MousePosition, MainView.Size, _camera.ViewProjectionMatrix, -100, 100);
+        Ray3D cameraRay = CameraMathUtility.ScreenPointToRay2D(MainView.MousePosition, MainView.Size, _camera.ViewProjectionMatrix, -100, 100);
 
         _zoom = math.damp(_zoom, _targetZoom, ref _zoomVelocity, 0.1f, 1000, delta);
         _camera.Size = new Vector2(_zoom * MainView.AspectRatio, _zoom);

@@ -14,25 +14,21 @@ namespace Alco.GUI
         /// </summary>
         /// <value></value>
         public Vector2 WindowSize { get; }
-        public bool IsMouseUp { get; }
-        public bool IsMouseDown { get; }
         public bool IsMousePressing { get; }
 
-        public bool IsKeyDeleteDown { get; }
-        public bool IsKeyBackspaceDown { get; }
-        public bool IsKeyEnterDown { get; }
-        public bool IsKeyTabDown { get; }
-        public bool IsKeyLeftDown { get; }
-        public bool IsKeyRightDown { get; }
-        public bool IsKeyUp { get; }
-        public bool IsKeyDown { get; }
-        public bool IsKeyLeft { get; }
-        public bool IsKeyRight { get; }
-        public bool IsKeySelectAllDown { get; }
+        public bool IsKeyDeletePressing { get; }
+        public bool IsKeyBackspacePressing { get; }
+        public bool IsKeyEnterPressing { get; }
+        public bool IsKeyTabPressing { get; }
+        public bool IsKeyLeftPressing { get; }
+        public bool IsKeyRightPressing { get; }
+        public bool IsKeyUpPressing { get; }
+        public bool IsKeyDownPressing { get; }
+        public bool IsKeySelectAllPressing { get; }
 
-        public bool IsKeyCopyDown { get; }
+        public bool IsKeyCopyPressing { get; }
 
-        public bool IsKeyPasteDown { get; }
+        public bool IsKeyPastePressing { get; }
 
         public bool IsMouseScrolling(out Vector2 delta);
         public void SetTextInput(float xNorm, float yNorm, float widthNorm, float heightNorm, int cursor);
