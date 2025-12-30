@@ -313,6 +313,15 @@ public class Game : GameEngine
         cube.Color = colorFloat;
         return $"Cube {cubeName} color set to {color}";
     }
+
+    [KernelFunction]
+    [AsyncKernelFunction]
+    [Description("Asynchronously hello form")]
+    public async Task<string> HelloFormAsync([Description("The name of the person")] string name)
+    {
+        await Task.Delay(200);
+        return $"Hello {name} from Async Form";
+    }
 }
 
 

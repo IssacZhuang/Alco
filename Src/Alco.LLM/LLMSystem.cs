@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Reflection;
 using Alco.Engine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
@@ -54,6 +55,15 @@ public class LLMSystem : BaseEngineSystem, IFunctionInvocationFilter
 
     protected virtual bool ShouldInvokeOnMainThread(FunctionInvocationContext context)
     {
+        MethodInfo? methodInfo = context.Function.UnderlyingMethod;
+        if (methodInfo == null)
+        {
+            return true;
+        }
+        if (methodInfo.GetCustomAttribute<AsyncKernelFunctionAttribute>() != null)
+        {
+            return false;
+        }
         return true;
     }
 
