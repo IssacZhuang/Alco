@@ -18,7 +18,8 @@ namespace _33_LLM;
 public class Game : GameEngine
 {
     private LLMSystem _llmSystem;
-    private LLMChat? _llmChat;
+    private LLMAgent? _llmAgent;
+    private LLMSession? _llmSession;
     private Preference _preference = null!;
     private string _modelId = "gpt-4o";
     private string _apiKey = "";
@@ -40,7 +41,6 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _llmSystem = new LLMSystem();
-        _llmSystem.AddPlugin(this);
         AddSystem(_llmSystem);
         _preference = new Preference(new DirectoryFileSystem(Environment.CurrentDirectory), "llm_config.json");
 
@@ -135,13 +135,13 @@ public class Game : GameEngine
 
         ImGui.Separator();
 
-        if (_llmSystem.IsConnected)
+        if (_llmAgent != null)
         {
             ImGui.TextColored(new Vector4(0, 1, 0, 1), "Status: Connected");
             if (ImGui.Button("Disconnect"))
             {
-                _llmSystem.Disconnect();
-                _llmChat = null;
+                _llmAgent = null;
+                _llmSession = null;
                 _chatHistory.Clear();
             }
         }
@@ -154,17 +154,31 @@ public class Game : GameEngine
                 {
                     if (!string.IsNullOrWhiteSpace(_customUri) && Uri.TryCreate(_customUri, UriKind.Absolute, out var uri))
                     {
-                        _llmSystem.Connect(_modelId, _apiKey, uri);
+                         _llmAgent = _llmSystem.CreateAgentFromRemote(uri, _apiKey, _modelId, this);
                     }
                     else
                     {
-                        _llmSystem.Connect(_modelId, _apiKey, string.IsNullOrWhiteSpace(_orgId) ? null : _orgId);
+                        // Fallback to OpenAI default URI if no custom URI is provided but we have API key
+                        // Or handle OrgId if supported in CreateAgentFromRemote (currently not in signature)
+                        // For now assuming custom URI or default OpenAI logic inside builder if URI is null?
+                        // But CreateAgentFromRemote requires URI.
+                        // Let's assume for Sandbox we just use the custom URI path for now or throw if empty.
+                        if (string.IsNullOrWhiteSpace(_apiKey))
+                        {
+                            throw new Exception("API Key is required");
+                        }
+                        // Default OpenAI endpoint if not custom?
+                        // The current API requires URI. Let's provide a way to use default OpenAI.
+                        // Wait, previous code supported orgId and optional URI.
+                        // We need to check LLMSystem API again. It requires URI.
+                        // Let's use https://api.openai.com/v1 if custom URI is empty.
+                        _llmAgent = _llmSystem.CreateAgentFromRemote(new Uri("https://api.openai.com/v1"), _apiKey, _modelId, this);
                     }
-                    _llmChat = _llmSystem.CreateContext();
+                    _llmSession = _llmAgent.CreateSession();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Error is already logged in LLMSystem.Connect
+                    _chatHistory.Add(("System", $"Connection Failed: {ex.Message}"));
                 }
             }
         }
@@ -174,7 +188,7 @@ public class Game : GameEngine
 
     private void RenderChatWindow()
     {
-        if (!_llmSystem.IsConnected)
+        if (_llmAgent == null)
         {
             return;
         }
@@ -258,7 +272,7 @@ public class Game : GameEngine
 
         try
         {
-            await foreach (var chunk in _llmChat!.ChatStreamingAsync(userMessage))
+            await foreach (var chunk in _llmSession!.ChatStreamingAsync(userMessage))
             {
                 var currentContent = _chatHistory[llmMessageIndex].Content + chunk;
                 _chatHistory[llmMessageIndex] = ("LLM", currentContent);

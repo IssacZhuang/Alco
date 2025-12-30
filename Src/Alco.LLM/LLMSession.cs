@@ -6,45 +6,72 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 namespace Alco.LLM;
 
 /// <summary>
-/// Represents the context for LLM operations, wrapping the Semantic Kernel.
+/// Configuration for LLMSession.
 /// </summary>
-public sealed class LLMChat
+public class LLMSessionConfig
+{
+    /// <summary>
+    /// The system prompt to initialize the chat history with.
+    /// </summary>
+    public string? SystemPrompt { get; set; }
+
+    /// <summary>
+    /// Controls the temperature for the LLM response.
+    /// </summary>
+    public double Temperature { get; set; } = 0.7;
+
+    /// <summary>
+    /// Controls whether to automatically invoke kernel functions (tools).
+    /// </summary>
+    public bool AutoInvokeKernelFunctions { get; set; } = true;
+}
+
+/// <summary>
+/// Represents the session for LLM operations, wrapping the Semantic Kernel and ChatHistory.
+/// </summary>
+public sealed class LLMSession
 {
     private readonly IChatCompletionService _chatCompletionService;
     private readonly ChatHistory _chatHistory;
     private readonly OpenAIPromptExecutionSettings _promptExecutionSettings;
+    private readonly Kernel _kernel;
 
     /// <summary>
-    /// Gets the Semantic Kernel instance.
-    /// </summary>
-    public Kernel Kernel { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LLMChat"/> class.
+    /// Initializes a new instance of the <see cref="LLMSession"/> class.
     /// </summary>
     /// <param name="kernel">The Semantic Kernel instance to use.</param>
-    public LLMChat(Kernel kernel)
+    /// <param name="config">Optional configuration for the session.</param>
+    public LLMSession(Kernel kernel, LLMSessionConfig? config = null)
     {
-        Kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
+        _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
+        
+        config ??= new LLMSessionConfig();
+
         _promptExecutionSettings = new OpenAIPromptExecutionSettings()
         {
-            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+            ToolCallBehavior = config.AutoInvokeKernelFunctions ? ToolCallBehavior.AutoInvokeKernelFunctions : null,
+            Temperature = config.Temperature,
         };
+
         _chatHistory = new ChatHistory();
+        if (!string.IsNullOrEmpty(config.SystemPrompt))
+        {
+            _chatHistory.AddSystemMessage(config.SystemPrompt);
+        }
     }
 
     public async Task<string> ChatAsync(string message)
     {
         _chatHistory.AddUserMessage(message);
-        var result = await _chatCompletionService.GetChatMessageContentAsync(_chatHistory, _promptExecutionSettings, Kernel);
+        var result = await _chatCompletionService.GetChatMessageContentAsync(_chatHistory, _promptExecutionSettings, _kernel);
         return result.ToString();
     }
 
     public async IAsyncEnumerable<string> ChatStreamingAsync(string message)
     {
         _chatHistory.AddUserMessage(message);
-        var stream = _chatCompletionService.GetStreamingChatMessageContentsAsync(_chatHistory, _promptExecutionSettings, Kernel);
+        var stream = _chatCompletionService.GetStreamingChatMessageContentsAsync(_chatHistory, _promptExecutionSettings, _kernel);
 
 
         var fullContent = new StringBuilder();
@@ -82,4 +109,3 @@ public sealed class LLMChat
         _chatHistory.AddAssistantMessage(fullContent.ToString());
     }
 }
-
