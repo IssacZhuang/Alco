@@ -5,7 +5,6 @@ using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
-using Alco.IO;
 using Alco.LLM;
 using Alco.Rendering;
 using Microsoft.SemanticKernel;
@@ -17,10 +16,19 @@ namespace _33_LLM;
 /// </summary>
 public class Game : GameEngine
 {
+    public class SandboxPreference
+    {
+        public string ModelId { get; set; } = "gpt-4o";
+        public string ApiKey { get; set; } = "";
+        public string OrgId { get; set; } = "";
+        public string CustomUri { get; set; } = "";
+    }
+
     private LLMSystem _llmSystem;
     private LLMAgent? _llmAgent;
     private LLMSession? _llmSession;
-    private Preference _preference = null!;
+    private SandboxPreference _preference;
+
     private string _modelId = "gpt-4o";
     private string _apiKey = "";
     private string _orgId = "";
@@ -42,7 +50,7 @@ public class Game : GameEngine
     {
         _llmSystem = new LLMSystem();
         AddSystem(_llmSystem);
-        _preference = new Preference(new DirectoryFileSystem(Environment.CurrentDirectory), "llm_config.json");
+        _preference = LoadPreference<SandboxPreference>("33-LLM", "config");
 
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
@@ -76,19 +84,19 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        _modelId = _preference.GetString("ModelId", _modelId);
-        _apiKey = _preference.GetString("ApiKey", _apiKey);
-        _orgId = _preference.GetString("OrgId", _orgId);
-        _customUri = _preference.GetString("CustomUri", _customUri);
+        _modelId = _preference.ModelId;
+        _apiKey = _preference.ApiKey;
+        _orgId = _preference.OrgId;
+        _customUri = _preference.CustomUri;
     }
 
     protected override void OnStop()
     {
-        _preference.SetString("ModelId", _modelId);
-        _preference.SetString("ApiKey", _apiKey);
-        _preference.SetString("OrgId", _orgId);
-        _preference.SetString("CustomUri", _customUri);
-        _preference.Save();
+        _preference.ModelId = _modelId;
+        _preference.ApiKey = _apiKey;
+        _preference.OrgId = _orgId;
+        _preference.CustomUri = _customUri;
+        SavePreference("33-LLM", "config", _preference);
     }
 
     protected override void OnUpdate(float delta)
