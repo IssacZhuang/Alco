@@ -160,14 +160,6 @@ public class UILayout : UINode
     }
 
     /// <summary>
-    /// Creates a new UILayout with the specified arrangement type
-    /// </summary>
-    public UILayout(LayoutType layoutType)
-    {
-        _layoutType = layoutType;
-    }
-
-    /// <summary>
     /// Adds a child node and automatically sets appropriate anchor based on layout type
     /// </summary>
     public override void Add(UINode node, bool keepWorldTransform = true)

@@ -45,12 +45,13 @@ public abstract class UIList<TData> : UINode
             ScrollMode = SrollMode.Vertical
         };
 
-        _layout = new UILayout(LayoutType.Vertical)
+        _layout = new UILayout()
         {
             Anchor = Anchor.TopHorizontalStretch,
             Pivot = Pivot.CenterTop,
             FitContentSize = true,
             IsFixedItemSize = false,
+            LayoutType = LayoutType.Vertical,
         };
 
         // Wire up hierarchy: this -> mask -> scrollable -> layout
