@@ -58,6 +58,25 @@ public class UIText : UISelectable
     /// <value></value>
     public float LineSpacing { get; set; } = 1f;
 
+    /// <summary>
+    /// Whether to fit the content size.
+    /// If true, the height of the text node will be adjusted to the content height.
+    /// Only works when OverflowHorizontal is NextLine.
+    /// </summary>
+    public bool FitContentSize
+    {
+        get => _fitContentSize;
+        set
+        {
+            _fitContentSize = value;
+            if (_fitContentSize)
+            {
+                SetLineBreakDirty();
+            }
+        }
+    }
+    private bool _fitContentSize = false;
+
 
     /// <summary>
     /// The text data.
@@ -289,6 +308,15 @@ public class UIText : UISelectable
         //add the last line
         //this can be an empty line if the last char is '\n'
         _lines.Add(line);
+
+        if (_fitContentSize && _overflowHorizontal == OverflowModeHorizontal.NextLine)
+        {
+            float height = _lines.Count * _fontSize * LineSpacing;
+            if (Math.Abs(Size.Y - height) > 0.001f)
+            {
+                Size = new Vector2(Size.X, height);
+            }
+        }
     }
 
     protected Span<char> ResizeText(int length)

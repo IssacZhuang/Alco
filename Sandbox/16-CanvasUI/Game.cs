@@ -144,36 +144,39 @@ public class Game : GameEngine
         _root.Add(_label);
 
         // Create Vertical Layout Demo
-        _verticalLayout = new UILayout(LayoutType.Vertical)
+        _verticalLayout = new UILayout()
         {
             Position = Vector2.Zero,
             Size = new Vector2(200, 100),
             Padding = new Padding(0, 8, 0, 8),
             Spacing = new Vector2(4f),
             FitContentSize = true,
+            LayoutType = LayoutType.Vertical,
         };
         
         _verticalLayoutMask = CreateLayoutDemo(_verticalLayout, "Vertical Layout", 0xaaaaaa);
 
         // Create Horizontal Layout Demo
-        _horizontalLayout = new UILayout(LayoutType.Horizontal)
+        _horizontalLayout = new UILayout()
         {
             Position = Vector2.Zero,
             Size = new Vector2(100, 200),
             Padding = new Padding(8, 0, 8, 0),
             Spacing = new Vector2(4f),
             FitContentSize = true,
+            LayoutType = LayoutType.Horizontal,
         };
         
         _horizontalLayoutMask = CreateLayoutDemo(_horizontalLayout, "Horizontal Layout", 0xbbaaaa);
 
         // Create Grid Layout Demo  
-        _gridLayout = new UILayout(LayoutType.Grid)
+        _gridLayout = new UILayout()
         {
             Position = Vector2.Zero,
             Size = new Vector2(300, 200),
             Spacing = new Vector2(4f),
             Padding = new Padding(10, 10, 10, 10),
+            LayoutType = LayoutType.Grid,
         };
         
         _gridLayoutMask = CreateLayoutDemo(_gridLayout, "Grid Layout", 0xaabbaa);
