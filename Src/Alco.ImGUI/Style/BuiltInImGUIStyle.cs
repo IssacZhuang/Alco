@@ -13,6 +13,11 @@ public static class BuiltInImGUIStyle
     /// </summary>
     public static void ApplyVisualStudio2026Style()
     {
+        if (ImGui.GetCurrentContext() == IntPtr.Zero)
+        {
+            return;
+        }
+
         ImGuiStylePtr style = ImGui.GetStyle();
         
         style.WindowRounding = 0.0f;
@@ -85,6 +90,11 @@ public static class BuiltInImGUIStyle
     /// </summary>
     public static void ApplyVisualStudioCodeStyle()
     {
+        if (ImGui.GetCurrentContext() == IntPtr.Zero)
+        {
+            return;
+        }
+
         ImGuiStylePtr style = ImGui.GetStyle();
 
         style.WindowRounding = 0.0f;
