@@ -32,6 +32,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_BlitDepth => GetShader("Shaders/Pipelines/Utils/BlitDepth.hlsl");
 
+    public Shader Shader_BlitWithColor => GetShader("Shaders/Pipelines/Utils/BlitWithColor.hlsl");
+
     public Shader Shader_TextureCompressBC3 => GetShader("Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl");
 
     public Shader Shader_BloomBlit => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl");
