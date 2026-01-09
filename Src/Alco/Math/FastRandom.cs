@@ -107,6 +107,18 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool NextBool()
+        {
+            return (NextState() & 0x1) == 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool NextBool(float probability)
+        {
+            return NextFloat() < probability;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int NextInt()
         {
             return (int)NextState() ^ -2147483648;
