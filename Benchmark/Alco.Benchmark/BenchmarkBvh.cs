@@ -148,7 +148,6 @@ public class BenchmarkBvh
         _castRayTask = new CastRayTask(bvh2D);
 
         bvh2D.BuildTree(colliders2D.AsSpan());
-        bvh2D.CastBatchRay(rays2D.AsSpan());
     }
 
     [GlobalCleanup]
@@ -185,17 +184,10 @@ public class BenchmarkBvh
     {
         bvh2D.BuildTree(colliders2D.AsSpan());
     }
-
-    [Benchmark(Description = "BVH 2D Cast ray: ")]
-    public void CastRay2D()
-    {
-        bvh2D.CastBatchRay(rays2D.AsSpan());
-    }
-
-    private struct CountCollector : ICollisionCollector<RayCastResult2D>
+    private struct CountCollector : IBvhCollisionCollector
     {
         public int Count;
-        public bool AddHit(RayCastResult2D result)
+        public bool OnHit(ColliderCastResult2D result)
         {
             Count++;
             return true;
@@ -214,8 +206,7 @@ public class BenchmarkBvh
 
         protected override void ExecuteCore(int index)
         {
-            var collector = new CountCollector();
-            _bvh.CastRay(rays[index], ref collector);
+            _bvh.CastRay(rays[index]);
         }
     }
 

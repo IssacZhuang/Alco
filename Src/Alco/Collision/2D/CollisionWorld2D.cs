@@ -24,15 +24,6 @@ public unsafe class CollisionWorld2D : AutoDisposable
     private MiniHeap<ColliderSphere2D> _targetSpheres;
     private NativeArrayList<ColliderRef2D> _targetColliders;
 
-    private MiniHeap<ColliderBox2D> _casterBoxes;
-    private MiniHeap<ColliderSphere2D> _casterSpheres;
-    private NativeArrayList<ColliderRef2D> _colliderOfCaster;//same index as _colliderCasters
-    private readonly List<ICollisionCaster> _colliderCasters = new List<ICollisionCaster>();
-
-    private NativeArrayList<Ray2D> _rayOfCaster;//same index as _rayCasters
-    private NativeArrayList<int> _rayUserDataOfCaster;//same index as _rayCasters
-    private readonly List<IRayCaster2D> _rayCasters = new List<IRayCaster2D>();
-
 
     public CollisionWorld2D()
     {
@@ -69,43 +60,6 @@ public unsafe class CollisionWorld2D : AutoDisposable
         PushTargetCore(target, collider);
     }
 
-
-
-    /// <summary>
-    /// Add object that can hit other objects. This object can only hit other objects but cannot be hit.
-    /// </summary>
-    /// <param name="caster"> Object that can hit other objects. </param>
-    /// <param name="shape"> Shape of the object. </param>
-    public void PushCollisionCaster(ICollisionCaster caster, in ShapeBox2D shape, int userData = 0)
-    {
-        ColliderBox2D* collider = _casterBoxes.Alloc(new ColliderBox2D
-        {
-            Shape = shape
-        });
-
-        PushColliderCasterCore(caster, collider, userData);
-    }
-
-    /// <summary>
-    /// Add object that can hit other objects. This object can only hit other objects but cannot be hit.
-    /// </summary>
-    /// <param name="caster"> Object that can hit other objects. </param>
-    /// <param name="shape"> Shape of the object. </param>
-    public void PushCollisionCaster(ICollisionCaster caster, in ShapeSphere2D shape, int userData = 0)
-    {
-        ColliderSphere2D* collider = _casterSpheres.Alloc(new ColliderSphere2D
-        {
-            Shape = shape
-        });
-
-        PushColliderCasterCore(caster, collider, userData);
-    }
-
-    public void PushRayCaster(IRayCaster2D caster, in Ray2D ray, int userData = 0)
-    {
-        PushRayCasterCore(caster, ray, userData);
-    }
-
     /// <summary>
     /// Build the BVH tree for the targets.
     /// </summary>
@@ -115,227 +69,127 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
     /// <summary>
-    /// Simulate the casters to hit the targets.
-    /// <br/> This method is simulating the collision world in multi-threading.
+    /// Casts a collider against the world and collects hits using the provided collector.
     /// </summary>
-    public void Simulate()
+    /// <typeparam name="TCollector">The type of the collector.</typeparam>
+    /// <param name="collider">The collider to cast.</param>
+    /// <param name="collector">The collector to gather hit results.</param>
+    public void CastCollider<TCollector>(ColliderRef2D collider, ref TCollector collector) where TCollector : struct, ICollisionCollector
     {
-        if (_colliderCasters.Count != 0)
-        {
-            ReadOnlySpan<NativeArrayList<ColliderCastResult2D>> result = _bvh.CastBatchColliderRefCollector(_colliderOfCaster.AsSpan());
-            for (int i = 0; i < _colliderCasters.Count; i++)
-            {
-                NativeArrayList<ColliderCastResult2D> hitTargets = result[i];
-                ICollisionCaster caster = _colliderCasters[i];
-                ColliderRef2D casterCollider = _colliderOfCaster[i];
-                for (int j = 0; j < hitTargets.Length; j++)
-                {
-                    ColliderCastResult2D target = hitTargets[j];
-                    int targetIndex = target.Collider.UserData;
-                    caster.OnHit(_targets[targetIndex], casterCollider.UserData);
-                }
-            }
-        }
-
-        if (_rayCasters.Count != 0)
-        {
-            ReadOnlySpan<RayCastResult2D> result2 = _bvh.CastBatchRayFirstHit(_rayOfCaster.AsSpan());
-            for (int i = 0; i < _rayCasters.Count; i++)
-            {
-                RayCastResult2D hit = result2[i];
-
-                if (!hit.Hit)
-                {
-                    continue;
-                }
-                IRayCaster2D caster = _rayCasters[i];
-                int targetIndex = hit.Collider.UserData;
-                caster.OnHit(_targets[targetIndex], hit.HitInfo, _rayUserDataOfCaster[i]);
-            }
-        }
+        ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
+        _bvh.CastCollider(collider, ref adapter);
+        collector = adapter.UserCollector;
     }
 
     /// <summary>
-    /// Cast a collider to hit the targets.
+    /// Casts a sphere collider against the world and collects hits using the provided collector.
     /// </summary>
-    /// <param name="caster">The caster that casts the collider. </param>
-    /// <param name="collider">The collider that is casted. </param>
-    /// <param name="userData">The custom data that is passed to the caster when the target is hit. </param>
-    public void CastCollider(ICollisionCaster caster, ColliderRef2D collider, int userData = 0)
+    /// <typeparam name="TCollector">The type of the collector.</typeparam>
+    /// <param name="collector">The collector to gather hit results.</param>
+    /// <param name="shape">The sphere shape to cast.</param>
+    public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere2D shape) where TCollector : struct, ICollisionCollector
     {
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastColliderRefCollector(collider);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            caster.OnHit(_targets[target.Collider.UserData], userData);
-        }
-    }
-
-    /// <summary>
-    /// Cast a collider to hit the targets.
-    /// </summary>
-    /// <param name="caster">The caster that casts the collider. </param>
-    /// <param name="collider">The collider that is casted. </param>
-    /// <param name="userData">The custom data that is passed to the caster when the target is hit. </param>
-    public void CastCollider<T>(ICollisionCaster caster, T collider, int userData = 0) where T : unmanaged, ICollider2D
-    {
+        ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
         ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-        CastCollider(caster, colliderRef, userData);
+        CastCollider(colliderRef, ref collector);
     }
+
+    /// <summary>
+    /// Casts a box collider against the world and collects hits using the provided collector.
+    /// </summary>
+    /// <typeparam name="TCollector">The type of the collector.</typeparam>
+    /// <param name="collector">The collector to gather hit results.</param>
+    /// <param name="shape">The box shape to cast.</param>
+    public void CastBox<TCollector>(ref TCollector collector, in ShapeBox2D shape) where TCollector : struct, ICollisionCollector
+    {
+        ColliderBox2D collider = new ColliderBox2D { Shape = shape };
+        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
+        CastCollider(colliderRef, ref collector);
+    }
+
+    /// <summary>
+    /// Casts a point against the world and collects hits using the provided collector.
+    /// </summary>
+    /// <typeparam name="TCollector">The type of the collector.</typeparam>
+    /// <param name="point">The point to cast.</param>
+    /// <param name="collector">The collector to gather hit results.</param>
+    public void CastPoint<TCollector>(Vector2 point, ref TCollector collector) where TCollector : struct, ICollisionCollector
+    {
+        ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
+        _bvh.CastPoint(point, ref adapter);
+        collector = adapter.UserCollector;
+    }
+
 
     /// <summary>
     /// Casts a 2D oriented box shape and collects hit targets directly into a provided set.
     /// </summary>
-    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
-    /// <param name="collector">The destination set for collected targets.</param>
-    /// <param name="shape">The box shape to cast.</param>
     public void CastBox<TTarget>(ISet<TTarget> collector, in ShapeBox2D shape) where TTarget : class
     {
         ColliderBox2D collider = new ColliderBox2D { Shape = shape };
         ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastColliderRefCollector(colliderRef);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            object obj = _targets[target.Collider.UserData];
-            if (obj is TTarget t)
-            {
-                collector.Add(t);
-            }
-        }
+
+        var adapter = new SetCollector<TTarget>(collector);
+        CastCollider(colliderRef, ref adapter);
     }
 
     /// <summary>
     /// Casts a 2D oriented box shape and collects hit targets into a provided collection.
     /// </summary>
-    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
-    /// <param name="collector">The destination collection for collected targets.</param>
-    /// <param name="shape">The box shape to cast.</param>
     public void CastBox<TTarget>(ICollection<TTarget> collector, in ShapeBox2D shape) where TTarget : class
     {
         ColliderBox2D collider = new ColliderBox2D { Shape = shape };
         ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastColliderRefCollector(colliderRef);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            object obj = _targets[target.Collider.UserData];
-            if (obj is TTarget t)
-            {
-                collector.Add(t);
-            }
-        }
+
+        var adapter = new CollectionCollector<TTarget>(collector);
+        CastCollider(colliderRef, ref adapter);
     }
 
     /// <summary>
     /// Casts a 2D sphere shape and collects hit targets directly into a provided set.
     /// </summary>
-    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
-    /// <param name="collector">The destination set for collected targets.</param>
-    /// <param name="shape">The sphere shape to cast.</param>
     public void CastSphere<TTarget>(ISet<TTarget> collector, in ShapeSphere2D shape) where TTarget : class
     {
         ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
         ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastColliderRefCollector(colliderRef);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            object obj = _targets[target.Collider.UserData];
-            if (obj is TTarget t)
-            {
-                collector.Add(t);
-            }
-        }
+
+        var adapter = new SetCollector<TTarget>(collector);
+        CastCollider(colliderRef, ref adapter);
     }
 
     /// <summary>
     /// Casts a 2D sphere shape and collects hit targets into a provided collection.
     /// </summary>
-    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
-    /// <param name="collector">The destination collection for collected targets.</param>
-    /// <param name="shape">The sphere shape to cast.</param>
     public void CastSphere<TTarget>(ICollection<TTarget> collector, in ShapeSphere2D shape) where TTarget : class
     {
         ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
         ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastColliderRefCollector(colliderRef);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            object obj = _targets[target.Collider.UserData];
-            if (obj is TTarget t)
-            {
-                collector.Add(t);
-            }
-        }
+
+        var adapter = new CollectionCollector<TTarget>(collector);
+        CastCollider(colliderRef, ref adapter);
     }
 
     /// <summary>
     /// Casts a point and collects hit targets directly into a provided set.
     /// </summary>
-    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
-    /// <param name="collector">The destination set for collected targets.</param>
-    /// <param name="point">The point to cast in world space.</param>
     public void CastPoint<TTarget>(ISet<TTarget> collector, in Vector2 point) where TTarget : class
     {
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastPointRefCollector(point);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            object obj = _targets[target.Collider.UserData];
-            if (obj is TTarget t)
-            {
-                collector.Add(t);
-            }
-        }
+        var adapter = new SetCollector<TTarget>(collector);
+        CastPoint(point, ref adapter);
     }
 
     /// <summary>
     /// Casts a point and collects hit targets into a provided collection.
     /// </summary>
-    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
-    /// <param name="collector">The destination collection for collected targets.</param>
-    /// <param name="point">The point to cast in world space.</param>
     public void CastPoint<TTarget>(ICollection<TTarget> collector, in Vector2 point) where TTarget : class
     {
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastPointRefCollector(point);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            object obj = _targets[target.Collider.UserData];
-            if (obj is TTarget t)
-            {
-                collector.Add(t);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Cast a point to hit the targets.
-    /// <br/> Not thread safe.
-    /// </summary>
-    /// <param name="caster">The caster that casts the point. </param>
-    /// <param name="point">The point that is casted. </param>
-    /// <param name="userData">The custom data that is passed to the caster when the target is hit. </param>
-    public void CastPoint(ICollisionCaster caster, Vector2 point, int userData = 0)
-    {
-        ReadOnlySpan<ColliderCastResult2D> result = _bvh.CastPointRefCollector(point);
-        for (int i = 0; i < result.Length; i++)
-        {
-            ColliderCastResult2D target = result[i];
-            caster.OnHit(_targets[target.Collider.UserData], userData);
-        }
+        var adapter = new CollectionCollector<TTarget>(collector);
+        CastPoint(point, ref adapter);
     }
 
     /// <summary>
     /// Casts a ray against targets and returns the first hit.
     /// </summary>
-    /// <typeparam name="TTarget">The desired target object type to collect.</typeparam>
-    /// <param name="ray">The ray to cast in world space.</param>
-    /// <param name="hitTarget">The target object that was hit, if any.</param>
-    /// <param name="hit">The raycast hit information, if any.</param>
-    /// <returns>True if a target was hit, false otherwise.</returns>
     public bool TryCastRayFirstHit<TTarget>(in Ray2D ray, out TTarget? hitTarget, out RaycastHit2D hit) where TTarget : class
     {
         hitTarget = null;
@@ -358,6 +212,30 @@ public unsafe class CollisionWorld2D : AutoDisposable
         return false;
     }
 
+    /// <summary>
+    /// Casts a ray against targets and returns the closest hit.
+    /// </summary>
+    public bool TryCastRay<TTarget>(in Ray2D ray, out TTarget? hitTarget, out RaycastHit2D hit) where TTarget : class
+    {
+        hitTarget = null;
+        hit = default;
+
+        RayCastResult2D result = _bvh.CastRay(ray);
+        if (!result.Hit)
+        {
+            return false;
+        }
+
+        object obj = _targets[result.Collider.UserData];
+        if (obj is TTarget t)
+        {
+            hitTarget = t;
+            hit = result.HitInfo;
+            return true;
+        }
+
+        return false;
+    }
 
     public void ClearTargets()
     {
@@ -367,24 +245,9 @@ public unsafe class CollisionWorld2D : AutoDisposable
         _targetColliders.Clear();
     }
 
-    public void ClearCasters()
-    {
-
-        _casterBoxes.Reset();
-        _casterSpheres.Reset();
-
-        _colliderCasters.Clear();
-        _colliderOfCaster.Clear();
-
-        _rayOfCaster.Clear();
-        _rayUserDataOfCaster.Clear();
-        _rayCasters.Clear();
-    }
-
     public void ClearAll()
     {
         ClearTargets();
-        ClearCasters();
     }
 
     private void PushTargetCore<T>(object target, T* collider) where T : unmanaged, ICollider2D
@@ -396,22 +259,6 @@ public unsafe class CollisionWorld2D : AutoDisposable
         _targetColliders.Add(colliderRef);
     }
 
-
-    private void PushColliderCasterCore<T>(ICollisionCaster caster, T* collider, int userData) where T : unmanaged, ICollider2D
-    {
-        ColliderRef2D colliderRef = ColliderRef2D.Create(collider);
-        colliderRef.UserData = userData;
-        _colliderOfCaster.Add(colliderRef);
-        _colliderCasters.Add(caster);
-    }
-
-    private void PushRayCasterCore(IRayCaster2D caster, in Ray2D ray, int userData)
-    {
-        _rayOfCaster.Add(ray);
-        _rayUserDataOfCaster.Add(userData);
-        _rayCasters.Add(caster);
-    }
-
     protected override void Dispose(bool disposing)
     {
         _bvh.Dispose();
@@ -420,15 +267,66 @@ public unsafe class CollisionWorld2D : AutoDisposable
         _targetSpheres.Dispose();
         _targetColliders.Dispose();
 
-        _casterBoxes.Dispose();
-        _casterSpheres.Dispose();
-        _colliderOfCaster.Dispose();
-
-        _rayOfCaster.Dispose();
-        _rayUserDataOfCaster.Dispose();
-
-        _colliderCasters.Clear();
-        _rayCasters.Clear();
         _targets.Clear();
+    }
+
+    // --- Internal Adapters ---
+
+    private struct ObjectCollectorAdapter<TUserCollector> : IBvhCollisionCollector
+        where TUserCollector : ICollisionCollector
+    {
+        private readonly List<object> _targets;
+        public TUserCollector UserCollector;
+
+        public ObjectCollectorAdapter(List<object> targets, TUserCollector userCollector)
+        {
+            _targets = targets;
+            UserCollector = userCollector;
+        }
+
+        public bool OnHit(ColliderCastResult2D result)
+        {
+            int id = result.Collider.UserData;
+            object target = _targets[id];
+            return UserCollector.OnHit(target);
+        }
+    }
+
+    private struct SetCollector<T> : ICollisionCollector where T : class
+    {
+        private readonly ISet<T> _set;
+
+        public SetCollector(ISet<T> set)
+        {
+            _set = set;
+        }
+
+        public bool OnHit(object target)
+        {
+            if (target is T t)
+            {
+                _set.Add(t);
+            }
+            return true;
+        }
+    }
+
+    private struct CollectionCollector<T> : ICollisionCollector where T : class
+    {
+        private readonly ICollection<T> _collection;
+
+        public CollectionCollector(ICollection<T> collection)
+        {
+            _collection = collection;
+        }
+
+        public bool OnHit(object target)
+        {
+            if (target is T t)
+            {
+                _collection.Add(t);
+            }
+            return true;
+        }
     }
 }
