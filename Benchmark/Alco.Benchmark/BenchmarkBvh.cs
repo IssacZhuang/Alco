@@ -145,6 +145,7 @@ public class BenchmarkBvh
         }
 
         bvh2D = new NativeBvh2D();
+        _castRayTask = new CastRayTask(bvh2D);
 
         bvh2D.BuildTree(colliders2D.AsSpan());
         bvh2D.CastBatchRay(rays2D.AsSpan());
@@ -164,6 +165,7 @@ public class BenchmarkBvh
         rays2D.Dispose();
         colliders2D.Dispose();
         bvh2D.Dispose();
+        _castRayTask.Dispose();
     }
 
     [Benchmark(Description = "BVH 3D Build tree: ")]
@@ -188,5 +190,41 @@ public class BenchmarkBvh
     public void CastRay2D()
     {
         bvh2D.CastBatchRay(rays2D.AsSpan());
+    }
+
+    private struct CountCollector : ICollisionCollector<RayCastResult2D>
+    {
+        public int Count;
+        public bool AddHit(RayCastResult2D result)
+        {
+            Count++;
+            return true;
+        }
+    }
+
+    private class CastRayTask : ReuseableBatchTask
+    {
+        private NativeBvh2D _bvh;
+        public NativeArrayList<Ray2D> rays;
+
+        public CastRayTask(NativeBvh2D bvh)
+        {
+            _bvh = bvh;
+        }
+
+        protected override void ExecuteCore(int index)
+        {
+            var collector = new CountCollector();
+            _bvh.CastRay(rays[index], ref collector);
+        }
+    }
+
+    private CastRayTask _castRayTask;
+
+    [Benchmark(Description = "BVH 2D Cast ray external collector: ")]
+    public void CastRay2DExternalCollector()
+    {
+        _castRayTask.rays = rays2D;
+        _castRayTask.RunParallel(rays2D.Length, 16);
     }
 }

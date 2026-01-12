@@ -383,6 +383,34 @@ namespace Alco
             return CastColliderCore(collider, _root);
         }
 
+        public void CastRay<TCollector>(Ray2D ray, ref TCollector collector) where TCollector : struct, ICollisionCollector<RayCastResult2D>
+        {
+            if (_nodeSize == 0)
+            {
+                return;
+            }
+
+            CastRayCore(ref ray, _root, ref collector);
+        }
+
+        public void CastCollider<TCollector>(ColliderRef2D collider, ref TCollector collector) where TCollector : struct, ICollisionCollector<ColliderCastResult2D>
+        {
+            if (_nodeSize == 0)
+            {
+                return;
+            }
+
+            CastColliderCore(collider, _root, ref collector);
+        }
+
+        public void CastPointRefCollector<TCollector>(Vector2 point, ref TCollector collector) where TCollector : struct, ICollisionCollector<ColliderCastResult2D>
+        {
+            if (_nodeSize > 0)
+            {
+                CastPointCollectorCore(point, _root, ref collector);
+            }
+        }
+
         //cast collision for multiple result
 
         public ReadOnlySpan<ColliderCastResult2D> CastPointRefCollector(Vector2 point)
@@ -544,6 +572,133 @@ namespace Alco
 
             }
 
+        }
+
+        private void CastRayCore<TCollector>(ref Ray2D ray, Node node, ref TCollector collector) where TCollector : struct, ICollisionCollector<RayCastResult2D>
+        {
+            Node* stack = stackalloc Node[_treeDepth];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+
+            BoundingBox2D rayBox = ray.GetBoundingBox();
+
+            while (stackCount > 0)
+            {
+                Node top = stack[--stackCount];
+
+                if (!rayBox.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.IntersectRay(ray, out RaycastHit2D hitInfo))
+                    {
+                        RayCastResult2D resultItem = new RayCastResult2D
+                        {
+                            Hit = true,
+                            HitInfo = hitInfo,
+                            Collider = top.collider
+                        };
+                        if (!collector.AddHit(resultItem))
+                        {
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+            }
+        }
+
+        private void CastColliderCore<TCollector>(ColliderRef2D collider, Node node, ref TCollector collector) where TCollector : struct, ICollisionCollector<ColliderCastResult2D>
+        {
+            Node* stack = stackalloc Node[_treeDepth];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            BoundingBox2D aabb = collider.GetBoundingBox();
+
+            while (stackCount > 0)
+            {
+                Node top = stack[--stackCount];
+
+                if (!aabb.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.CollidesWith(collider))
+                    {
+                        ColliderCastResult2D resultItem = new ColliderCastResult2D
+                        {
+                            Hit = true,
+                            Collider = top.collider
+                        };
+                        if (!collector.AddHit(resultItem))
+                        {
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+            }
+        }
+
+        private void CastPointCollectorCore<TCollector>(Vector2 point, Node node, ref TCollector collector) where TCollector : struct, ICollisionCollector<ColliderCastResult2D>
+        {
+            Node* stack = stackalloc Node[_treeDepth];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+
+            while (stackCount > 0)
+            {
+                Node top = stack[--stackCount];
+
+                if (!top.boundingBox.Contains(point)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.IntersectPoint(point))
+                    {
+                        ColliderCastResult2D resultItem = new ColliderCastResult2D
+                        {
+                            Hit = true,
+                            Collider = top.collider
+                        };
+                        if (!collector.AddHit(resultItem))
+                        {
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+            }
         }
 
 
