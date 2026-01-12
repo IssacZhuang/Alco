@@ -69,19 +69,6 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
     /// <summary>
-    /// Casts a collider against the world and collects hits using the provided collector.
-    /// </summary>
-    /// <typeparam name="TCollector">The type of the collector.</typeparam>
-    /// <param name="collider">The collider to cast.</param>
-    /// <param name="collector">The collector to gather hit results.</param>
-    public void CastCollider<TCollector>(ColliderRef2D collider, ref TCollector collector) where TCollector : struct, ICollisionCollector
-    {
-        ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
-        _bvh.CastCollider(collider, ref adapter);
-        collector = adapter.UserCollector;
-    }
-
-    /// <summary>
     /// Casts a sphere collider against the world and collects hits using the provided collector.
     /// </summary>
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
@@ -89,9 +76,9 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// <param name="shape">The sphere shape to cast.</param>
     public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere2D shape) where TCollector : struct, ICollisionCollector
     {
-        ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
-        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-        CastCollider(colliderRef, ref collector);
+        ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
+        _bvh.CastSphere(shape, ref adapter);
+        collector = adapter.UserCollector;
     }
 
     /// <summary>
@@ -102,9 +89,9 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// <param name="shape">The box shape to cast.</param>
     public void CastBox<TCollector>(ref TCollector collector, in ShapeBox2D shape) where TCollector : struct, ICollisionCollector
     {
-        ColliderBox2D collider = new ColliderBox2D { Shape = shape };
-        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-        CastCollider(colliderRef, ref collector);
+        ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
+        _bvh.CastBox(shape, ref adapter);
+        collector = adapter.UserCollector;
     }
 
     /// <summary>
@@ -126,11 +113,8 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     public void CastBox<TTarget>(ISet<TTarget> collector, in ShapeBox2D shape) where TTarget : class
     {
-        ColliderBox2D collider = new ColliderBox2D { Shape = shape };
-        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-
         var adapter = new SetCollector<TTarget>(collector);
-        CastCollider(colliderRef, ref adapter);
+        CastBox(ref adapter, shape);
     }
 
     /// <summary>
@@ -138,11 +122,8 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     public void CastBox<TTarget>(ICollection<TTarget> collector, in ShapeBox2D shape) where TTarget : class
     {
-        ColliderBox2D collider = new ColliderBox2D { Shape = shape };
-        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-
         var adapter = new CollectionCollector<TTarget>(collector);
-        CastCollider(colliderRef, ref adapter);
+        CastBox(ref adapter, shape);
     }
 
     /// <summary>
@@ -150,11 +131,8 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     public void CastSphere<TTarget>(ISet<TTarget> collector, in ShapeSphere2D shape) where TTarget : class
     {
-        ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
-        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-
         var adapter = new SetCollector<TTarget>(collector);
-        CastCollider(colliderRef, ref adapter);
+        CastSphere(ref adapter, shape);
     }
 
     /// <summary>
@@ -162,11 +140,8 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// </summary>
     public void CastSphere<TTarget>(ICollection<TTarget> collector, in ShapeSphere2D shape) where TTarget : class
     {
-        ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
-        ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-
         var adapter = new CollectionCollector<TTarget>(collector);
-        CastCollider(colliderRef, ref adapter);
+        CastSphere(ref adapter, shape);
     }
 
     /// <summary>

@@ -69,14 +69,10 @@ namespace Alco.Test
 
             // Test Collider Cast with Collector
             {
-                ColliderBox2D boxCast = new ColliderBox2D
-                {
-                    Shape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), Rotation2D.Identity)
-                };
-                ColliderRef2D boxRef = ColliderRef2D.Create(&boxCast);
+                ShapeBox2D boxShape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), Rotation2D.Identity);
 
                 FirstHitCollector colliderCollector = new FirstHitCollector();
-                bvh.CastCollider(boxRef, ref colliderCollector);
+                bvh.CastBox(boxShape, ref colliderCollector);
 
                 Assert.IsTrue(colliderCollector.HasHit);
             }

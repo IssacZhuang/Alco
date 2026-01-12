@@ -212,8 +212,8 @@ public class BenchmarkBvh
 
     private CastRayTask _castRayTask;
 
-    [Benchmark(Description = "BVH 2D Cast ray external collector: ")]
-    public void CastRay2DExternalCollector()
+    [Benchmark(Description = "BVH 2D Cast ray: ")]
+    public void CastRay2D()
     {
         _castRayTask.rays = rays2D;
         _castRayTask.RunParallel(rays2D.Length, 16);

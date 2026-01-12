@@ -106,48 +106,39 @@ namespace Alco
         }
 
         /// <summary>
-        /// Casts a collider against the BVH to find all overlapping colliders.
+        /// Casts a sphere collider against the BVH to find all overlapping colliders.
         /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
         /// </summary>
         /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
-        /// <param name="collider">The collider to cast.</param>
+        /// <param name="shape">The sphere shape to cast.</param>
         /// <param name="collector">The collector to gather hit results.</param>
-        public void CastCollider<TCollector>(ColliderRef2D collider, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
+        public void CastSphere<TCollector>(in ShapeSphere2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
         {
             if (_nodeSize == 0)
             {
                 return;
             }
 
-            CastColliderCore(collider, _root, ref collector);
-        }
-
-        /// <summary>
-        /// Casts a collider against the BVH to find all overlapping colliders.
-        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
-        /// </summary>
-        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
-        /// <param name="shape">The sphere shape to cast.</param>
-        /// <param name="collector">The collector to gather hit results.</param>
-        public void CastCollider<TCollector>(in ShapeSphere2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
-        {
             ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
-            ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-            CastCollider(colliderRef, ref collector);
+            CastSphereCore(ref collider, _root, ref collector);
         }
 
         /// <summary>
-        /// Casts a collider against the BVH to find all overlapping colliders.
+        /// Casts a box collider against the BVH to find all overlapping colliders.
         /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
         /// </summary>
         /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
         /// <param name="shape">The box shape to cast.</param>
         /// <param name="collector">The collector to gather hit results.</param>
-        public void CastCollider<TCollector>(in ShapeBox2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
+        public void CastBox<TCollector>(in ShapeBox2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
         {
+            if (_nodeSize == 0)
+            {
+                return;
+            }
+
             ColliderBox2D collider = new ColliderBox2D { Shape = shape };
-            ColliderRef2D colliderRef = ColliderRef2D.Create(&collider);
-            CastCollider(colliderRef, ref collector);
+            CastBoxCore(ref collider, _root, ref collector);
         }
 
         /// <summary>
@@ -283,7 +274,7 @@ namespace Alco
             return result;
         }
 
-        private void CastColliderCore<TCollector>(ColliderRef2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
+        private void CastSphereCore<TCollector>(ref ColliderSphere2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
@@ -298,7 +289,49 @@ namespace Alco
 
                 if (top.IsLeaf)
                 {
-                    if (top.collider.CollidesWith(collider))
+                    if (collider.CollidesWith(top.collider.UnsafePointer))
+                    {
+                        ColliderCastResult2D resultItem = new ColliderCastResult2D
+                        {
+                            Hit = true,
+                            Collider = top.collider
+                        };
+                        if (!collector.OnHit(resultItem))
+                        {
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+            }
+        }
+
+        private void CastBoxCore<TCollector>(ref ColliderBox2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
+        {
+            Node* stack = stackalloc Node[_treeDepth];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            BoundingBox2D aabb = collider.GetBoundingBox();
+
+            while (stackCount > 0)
+            {
+                Node top = stack[--stackCount];
+
+                if (!aabb.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (collider.CollidesWith(top.collider.UnsafePointer))
                     {
                         ColliderCastResult2D resultItem = new ColliderCastResult2D
                         {
