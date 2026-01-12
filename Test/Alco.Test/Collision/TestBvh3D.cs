@@ -156,11 +156,21 @@ namespace Alco.Test
                 shape = new ShapeSphere3D(new Vector3(-1.2f, 0, 0), 1f)
             };
 
-            Assert.IsFalse(bvh.CastCollider(boxCast1).Hit);
-            Assert.IsTrue(bvh.CastCollider(boxCast2).Hit);
+            FirstHitCollector3D collector = new FirstHitCollector3D();
+            bvh.CastBox(boxCast1.Shape, ref collector);
+            Assert.IsFalse(collector.HasHit);
 
-            Assert.IsFalse(bvh.CastCollider(sphereCast1).Hit);
-            Assert.IsTrue(bvh.CastCollider(sphereCast2).Hit);
+            collector = new FirstHitCollector3D();
+            bvh.CastBox(boxCast2.Shape, ref collector);
+            Assert.IsTrue(collector.HasHit);
+
+            collector = new FirstHitCollector3D();
+            bvh.CastSphere(sphereCast1.shape, ref collector);
+            Assert.IsFalse(collector.HasHit);
+
+            collector = new FirstHitCollector3D();
+            bvh.CastSphere(sphereCast2.shape, ref collector);
+            Assert.IsTrue(collector.HasHit);
 
             boxs.Dispose();
             spheres.Dispose();
