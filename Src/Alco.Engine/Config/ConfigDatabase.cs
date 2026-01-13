@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -58,7 +59,7 @@ public class ConfigDatabase
     /// </summary>
     /// <param name="type">The type of the configs to get.</param>
     /// <returns>All configs of the specified type.</returns>
-    public IEnumerable<Configable> GetConfigs(Type type)
+    public ImmutableArray<Configable> GetConfigs(Type type)
     {
         TryUpdateConfigs();
         return GetTypedConfigsDictionary(type).Values;
