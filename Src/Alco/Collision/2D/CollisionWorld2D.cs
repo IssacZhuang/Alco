@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Alco;
@@ -98,9 +99,9 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// Casts a point against the world and collects hits using the provided collector.
     /// </summary>
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
-    /// <param name="point">The point to cast.</param>
     /// <param name="collector">The collector to gather hit results.</param>
-    public void CastPoint<TCollector>(Vector2 point, ref TCollector collector) where TCollector : ICollisionCollector
+    /// <param name="point">The point to cast.</param>
+    public void CastPoint<TCollector>(ref TCollector collector, Vector2 point) where TCollector : ICollisionCollector
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastPoint(point, ref adapter);
@@ -132,38 +133,13 @@ public unsafe class CollisionWorld2D : AutoDisposable
     public void CastPoint<TTarget>(ICollection<TTarget> collector, in Vector2 point) where TTarget : class
     {
         var adapter = new CollectionCollector<TTarget>(collector);
-        CastPoint(point, ref adapter);
-    }
-
-    /// <summary>
-    /// Casts a ray against targets and returns the first hit.
-    /// </summary>
-    public bool TryCastRayFirstHit<TTarget>(in Ray2D ray, out TTarget? hitTarget, out RaycastHit2D hit) where TTarget : class
-    {
-        hitTarget = null;
-        hit = default;
-
-        RayCastResult2D result = _bvh.CastRayFirstHit(ray);
-        if (!result.Hit)
-        {
-            return false;
-        }
-
-        object obj = _targets[result.Collider.UserData];
-        if (obj is TTarget t)
-        {
-            hitTarget = t;
-            hit = result.HitInfo;
-            return true;
-        }
-
-        return false;
+        CastPoint(ref adapter, point);
     }
 
     /// <summary>
     /// Casts a ray against targets and returns the closest hit.
     /// </summary>
-    public bool TryCastRay<TTarget>(in Ray2D ray, out TTarget? hitTarget, out RaycastHit2D hit) where TTarget : class
+    public bool TryCastRay<TTarget>(in Ray2D ray, [NotNullWhen(true)] out TTarget? hitTarget, out RaycastHit2D hit) where TTarget : class
     {
         hitTarget = null;
         hit = default;

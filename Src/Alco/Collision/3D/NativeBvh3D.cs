@@ -90,22 +90,6 @@ namespace Alco
         }
 
         /// <summary>
-        /// Casts a ray against the BVH to find the first hit encountered.
-        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
-        /// </summary>
-        /// <param name="ray">The ray to cast.</param>
-        /// <returns>The result of the ray cast containing hit information.</returns>
-        public RayCastResult3D CastRayFirstHit(Ray3D ray)
-        {
-            if (_nodeSize == 0)
-            {
-                return RayCastResult3D.none;
-            }
-
-            return CastRayFirstHitCore(ref ray, _root);
-        }
-
-        /// <summary>
         /// Casts a sphere collider against the BVH to find all overlapping colliders.
         /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
         /// </summary>
@@ -207,52 +191,6 @@ namespace Alco
                             result.HitInfo = hitInfo;
                             result.Collider = top.collider;
                         }
-                    }
-
-                    continue;
-
-                }
-
-                if (top.left >= 0)
-                {
-                    stack[stackCount++] = GetNode(top.left);
-                }
-
-                if (top.right >= 0)
-                {
-                    stack[stackCount++] = GetNode(top.right);
-                }
-
-            }
-
-            return result;
-        }
-
-        private RayCastResult3D CastRayFirstHitCore(ref Ray3D ray, Node node)
-        {
-            //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
-            Node* stack = stackalloc Node[_treeDepth];
-            int stackCount = 0;
-            stack[stackCount++] = node;
-            RayCastResult3D result = RayCastResult3D.none;
-            BoundingBox3D rayBox = ray.GetBoundingBox();
-
-            while (stackCount > 0)
-            {
-                //Node top = stack.Pop();
-                Node top = stack[--stackCount];
-
-                //if (!CollisionUtility3D.RayAABB(ray, top.boundingBox)) continue;
-                if (!rayBox.Intersects(top.boundingBox)) continue;
-
-                if (top.IsLeaf)
-                {
-                    if (top.collider.IntersectRay(ray, out RaycastHit3D hitInfo))
-                    {
-                        result.Hit = true;
-                        result.HitInfo = hitInfo;
-                        result.Collider = top.collider;
-                        return result;
                     }
 
                     continue;

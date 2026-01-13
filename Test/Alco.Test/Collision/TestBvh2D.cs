@@ -61,7 +61,7 @@ namespace Alco.Test
             {
                 Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-1.2f, 0), new Vector2(120f, 0));
 
-                RayCastResult2D result = bvh.CastRayFirstHit(ray);
+                RayCastResult2D result = bvh.CastRay(ray);
 
                 Assert.IsTrue(result.Hit);
                 TestContext.WriteLine($"Ray hit at fraction: {result.HitInfo.Fraction}");

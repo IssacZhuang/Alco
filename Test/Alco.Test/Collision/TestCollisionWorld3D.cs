@@ -140,7 +140,7 @@ public class TestCollisionWorld3D
         world.BuildTree();
 
         TestCollector collector = new TestCollector();
-        world.CastPoint(point, ref collector);
+        world.CastPoint(ref collector, point);
         Assert.That(collector.hitIds.Count, Is.EqualTo(3));
     }
 
@@ -161,12 +161,12 @@ public class TestCollisionWorld3D
 
         // Ray from left to right along x-axis at y=0,z=0; should hit the box with id 42
         Ray3D ray1 = new Ray3D(new Vector3(-10, 0, 0), new Vector3(100, 0, 0));
-        Assert.That(world.TryCastRayFirstHit(ray1, out TestBoxTarget? hitTarget1, out _), Is.True);
+        Assert.That(world.TryCastRay(ray1, out TestBoxTarget? hitTarget1, out _), Is.True);
         Assert.That(hitTarget1?.id, Is.EqualTo(42));
 
         // Ray above boxes at y=5, no hit expected
         Ray3D ray2 = new Ray3D(new Vector3(-10, 5, 0), new Vector3(100, 0, 0));
-        Assert.That(world.TryCastRayFirstHit(ray2, out TestBoxTarget? hitTarget2, out _), Is.False);
+        Assert.That(world.TryCastRay(ray2, out TestBoxTarget? hitTarget2, out _), Is.False);
         Assert.That(hitTarget2, Is.Null);
     }
 }
