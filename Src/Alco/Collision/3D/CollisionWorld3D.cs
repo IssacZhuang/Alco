@@ -74,7 +74,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
     /// <param name="collector">The collector to gather hit results.</param>
     /// <param name="shape">The sphere shape to cast.</param>
-    public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere3D shape) where TCollector : struct, ICollisionCollector
+    public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere3D shape) where TCollector : ICollisionCollector
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastSphere(shape, ref adapter);
@@ -87,7 +87,7 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
     /// <param name="collector">The collector to gather hit results.</param>
     /// <param name="shape">The box shape to cast.</param>
-    public void CastBox<TCollector>(ref TCollector collector, in ShapeBox3D shape) where TCollector : struct, ICollisionCollector
+    public void CastBox<TCollector>(ref TCollector collector, in ShapeBox3D shape) where TCollector : ICollisionCollector
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastBox(shape, ref adapter);
@@ -100,21 +100,11 @@ public unsafe class CollisionWorld3D : AutoDisposable
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
     /// <param name="point">The point to cast.</param>
     /// <param name="collector">The collector to gather hit results.</param>
-    public void CastPoint<TCollector>(Vector3 point, ref TCollector collector) where TCollector : struct, ICollisionCollector
+    public void CastPoint<TCollector>(Vector3 point, ref TCollector collector) where TCollector : ICollisionCollector
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastPoint(point, ref adapter);
         collector = adapter.UserCollector;
-    }
-
-
-    /// <summary>
-    /// Casts a 3D oriented box shape and collects hit targets directly into a provided set.
-    /// </summary>
-    public void CastBox<TTarget>(ISet<TTarget> collector, in ShapeBox3D shape) where TTarget : class
-    {
-        var adapter = new SetCollector<TTarget>(collector);
-        CastBox(ref adapter, shape);
     }
 
     /// <summary>
@@ -127,30 +117,12 @@ public unsafe class CollisionWorld3D : AutoDisposable
     }
 
     /// <summary>
-    /// Casts a 3D sphere shape and collects hit targets directly into a provided set.
-    /// </summary>
-    public void CastSphere<TTarget>(ISet<TTarget> collector, in ShapeSphere3D shape) where TTarget : class
-    {
-        var adapter = new SetCollector<TTarget>(collector);
-        CastSphere(ref adapter, shape);
-    }
-
-    /// <summary>
     /// Casts a 3D sphere shape and collects hit targets into a provided collection.
     /// </summary>
     public void CastSphere<TTarget>(ICollection<TTarget> collector, in ShapeSphere3D shape) where TTarget : class
     {
         var adapter = new CollectionCollector<TTarget>(collector);
         CastSphere(ref adapter, shape);
-    }
-
-    /// <summary>
-    /// Casts a point and collects hit targets directly into a provided set.
-    /// </summary>
-    public void CastPoint<TTarget>(ISet<TTarget> collector, in Vector3 point) where TTarget : class
-    {
-        var adapter = new SetCollector<TTarget>(collector);
-        CastPoint(point, ref adapter);
     }
 
     /// <summary>
@@ -264,25 +236,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
             int id = result.Collider.UserData;
             object target = _targets[id];
             return UserCollector.OnHit(target);
-        }
-    }
-
-    private struct SetCollector<T> : ICollisionCollector where T : class
-    {
-        private readonly ISet<T> _set;
-
-        public SetCollector(ISet<T> set)
-        {
-            _set = set;
-        }
-
-        public bool OnHit(object target)
-        {
-            if (target is T t)
-            {
-                _set.Add(t);
-            }
-            return true;
         }
     }
 
