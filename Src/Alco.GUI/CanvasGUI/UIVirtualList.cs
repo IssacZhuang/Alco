@@ -139,10 +139,10 @@ public abstract class UIVirtualList<TData> : UINode
         };
         
         // Setup hierarchy: this -> mask -> scrollable -> container
-        _mask.Add(_scrollable, false);
-        _scrollable.Add(_container, false);
+        _mask.Add(_scrollable);
+        _scrollable.Add(_container);
         _scrollable.Content = _container;
-        Add(_mask, false);
+        Add(_mask);
 
         // Try to auto-detect item size by creating one prototype item and
         // returning it to the pool, so it can be reused later.

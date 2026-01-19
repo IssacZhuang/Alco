@@ -162,7 +162,7 @@ public class UILayout : UINode
     /// <summary>
     /// Adds a child node and automatically sets appropriate anchor based on layout type
     /// </summary>
-    public override void Add(UINode node, bool keepWorldTransform = true)
+    public override void Add(UINode node, bool keepWorldTransform = false)
     {
         // Set appropriate anchor based on layout type
         if(ShouldIncludeInLayout(node))

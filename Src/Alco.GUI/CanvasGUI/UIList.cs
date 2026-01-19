@@ -55,10 +55,10 @@ public abstract class UIList<TData> : UINode
         };
 
         // Wire up hierarchy: this -> mask -> scrollable -> layout
-        _mask.Add(_scrollable, false);
-        _scrollable.Add(_layout, false);
+        _mask.Add(_scrollable);
+        _scrollable.Add(_layout);
         _scrollable.Content = _layout;
-        Add(_mask, false);
+        Add(_mask);
     }
 
     /// <summary>

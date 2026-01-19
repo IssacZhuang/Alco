@@ -451,7 +451,7 @@ public class UINode : IEnumerable<UINode>
     /// <param name="keepWorldTransform">Whether to keep the world transform of the child node.</param>
     /// <exception cref="ArgumentException">The node already has a parent or is already a child of this node.</exception>
     /// <summary>
-    public virtual void Add(UINode node, bool keepWorldTransform = true)
+    public virtual void Add(UINode node, bool keepWorldTransform = false)
     {
         if (node.Parent != null)
         {
