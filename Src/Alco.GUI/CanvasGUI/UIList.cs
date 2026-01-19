@@ -149,7 +149,7 @@ public abstract class UIList<TData> : UINode
         for (int i = _layout.Children.Count; i < desiredCount; i++)
         {
             UINode item = CreateItem();
-            _layout.Add(item, false);
+            _layout.Add(item);
         }
 
         // bind
