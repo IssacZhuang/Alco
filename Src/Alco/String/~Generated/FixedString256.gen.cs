@@ -340,6 +340,40 @@ public unsafe partial struct FixedString256 : IEquatable<FixedString256>
 
     /// <summary>
     /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
+    /// Appends a float value to the end of the current content with a specified number of decimal places.
+    /// If the resulting length would exceed MaxLength, the operation is ignored.
+    /// </summary>
+    /// <param name="value">The float value to append.</param>
+    /// <param name="decimalPlaces">The number of decimal places to include.</param>
+    public void Append(float value, int decimalPlaces)
+    {
+        if (Length >= MaxLength) return;
+
+        if (value < 0)
+        {
+            Append('-');
+            value = -value;
+        }
+
+        int integral = (int)value;
+        Append(integral);
+
+        if (decimalPlaces > 0)
+        {
+            Append('.');
+            float fractional = value - integral;
+            for (int i = 0; i < decimalPlaces; i++)
+            {
+                fractional *= 10;
+                int digit = (int)fractional;
+                Append((char)('0' + (digit % 10)));
+                fractional -= digit;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Works like <see cref="System.Text.StringBuilder.Append"/><br/>
     /// Appends characters from a pointer to the end of the current content.
     /// If the resulting length would exceed MaxLength, only the characters that fit will be appended.
     /// </summary>
