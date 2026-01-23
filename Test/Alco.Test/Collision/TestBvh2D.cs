@@ -61,10 +61,38 @@ namespace Alco.Test
             {
                 Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-1.2f, 0), new Vector2(120f, 0));
 
-                RayCastResult2D result = bvh.CastRay(ray);
+                RayCastResult2D result = bvh.CastRayClosestHit(ray);
 
                 Assert.IsTrue(result.Hit);
                 TestContext.WriteLine($"Ray hit at fraction: {result.HitInfo.Fraction}");
+            }
+
+            // Test Ray Cast with Collector
+            {
+                Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-1.2f, 0), new Vector2(120f, 0));
+
+                FirstHitCollector collector = new FirstHitCollector();
+                bvh.CastRay(ray, ref collector);
+
+                Assert.IsTrue(collector.HasHit);
+            }
+
+            // Test Ray Cast Multi Hit with NativeListCollector
+            {
+                Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-12f, 0), new Vector2(25f, 0));
+                NativeArrayList<ColliderCastResult2D> hitResults = new NativeArrayList<ColliderCastResult2D>(8);
+                NativeListCollector multiCollector = new NativeListCollector(&hitResults);
+
+                bvh.CastRay(ray, ref multiCollector);
+
+                Assert.IsTrue(hitResults.Length > 1);
+                TestContext.WriteLine($"Ray hit {hitResults.Length} objects");
+                for (int i = 0; i < hitResults.Length; i++)
+                {
+                    hitResults[i].Collider.IntersectRay(ray, out var hit);
+                    TestContext.WriteLine($"Hit {i} at fraction: {hit.Fraction}");
+                }
+                hitResults.Dispose();
             }
 
             // Test Collider Cast with Collector

@@ -79,14 +79,31 @@ namespace Alco
         /// </summary>
         /// <param name="ray">The ray to cast.</param>
         /// <returns>The result of the ray cast containing hit information.</returns>
-        public RayCastResult3D CastRay(Ray3D ray)
+        public RayCastResult3D CastRayClosestHit(Ray3D ray)
         {
             if (_nodeSize == 0)
             {
                 return RayCastResult3D.none;
             }
 
-            return CastRayCore(ref ray, _root);
+            return CastRayClosestHitCore(ref ray, _root);
+        }
+
+        /// <summary>
+        /// Casts a ray against the BVH and collects hits using the provided collector.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
+        /// </summary>
+        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
+        /// <param name="ray">The ray to cast.</param>
+        /// <param name="collector">The collector to gather hit results.</param>
+        public void CastRay<TCollector>(Ray3D ray, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector3D
+        {
+            if (_nodeSize == 0)
+            {
+                return;
+            }
+
+            CastRayCore(ref ray, _root, ref collector);
         }
 
         /// <summary>
@@ -163,7 +180,7 @@ namespace Alco
         // cast collider implementation
 
 
-        private RayCastResult3D CastRayCore(ref Ray3D ray, Node node)
+        private RayCastResult3D CastRayClosestHitCore(ref Ray3D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
             Node* stack = stackalloc Node[_treeDepth];
@@ -210,6 +227,49 @@ namespace Alco
             }
 
             return result;
+        }
+
+        private void CastRayCore<TCollector>(ref Ray3D ray, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector3D
+        {
+            Node* stack = stackalloc Node[_treeDepth];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+
+            BoundingBox3D rayBox = ray.GetBoundingBox();
+
+            while (stackCount > 0)
+            {
+                Node top = stack[--stackCount];
+
+                if (!rayBox.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.IntersectRay(ray, out RaycastHit3D hitInfo))
+                    {
+                        ColliderCastResult3D resultItem = new ColliderCastResult3D
+                        {
+                            Hit = true,
+                            Collider = top.collider
+                        };
+                        if (!collector.OnHit(resultItem))
+                        {
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+            }
         }
 
         private void CastSphereCore<TCollector>(ref ColliderSphere3D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector3D

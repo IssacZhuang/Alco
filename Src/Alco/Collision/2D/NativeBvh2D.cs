@@ -79,14 +79,31 @@ namespace Alco
         /// </summary>
         /// <param name="ray">The ray to cast.</param>
         /// <returns>The result of the ray cast containing hit information.</returns>
-        public RayCastResult2D CastRay(Ray2D ray)
+        public RayCastResult2D CastRayClosestHit(Ray2D ray)
         {
             if (_nodeSize == 0)
             {
                 return RayCastResult2D.none;
             }
 
-            return CastRayCore(ref ray, _root);
+            return CastRayClosestHitCore(ref ray, _root);
+        }
+
+        /// <summary>
+        /// Casts a ray against the BVH and collects hits using the provided collector.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
+        /// </summary>
+        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
+        /// <param name="ray">The ray to cast.</param>
+        /// <param name="collector">The collector to gather hit results.</param>
+        public void CastRay<TCollector>(Ray2D ray, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
+        {
+            if (_nodeSize == 0)
+            {
+                return;
+            }
+
+            CastRayCore(ref ray, _root, ref collector);
         }
 
         /// <summary>
@@ -163,7 +180,7 @@ namespace Alco
         // cast collider implementation
 
 
-        private RayCastResult2D CastRayCore(ref Ray2D ray, Node node)
+        private RayCastResult2D CastRayClosestHitCore(ref Ray2D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
             Node* stack = stackalloc Node[_treeDepth];
@@ -210,6 +227,49 @@ namespace Alco
             }
 
             return result;
+        }
+
+        private void CastRayCore<TCollector>(ref Ray2D ray, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector
+        {
+            Node* stack = stackalloc Node[_treeDepth];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+
+            BoundingBox2D rayBox = ray.GetBoundingBox();
+
+            while (stackCount > 0)
+            {
+                Node top = stack[--stackCount];
+
+                if (!rayBox.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (top.collider.IntersectRay(ray, out RaycastHit2D hitInfo))
+                    {
+                        ColliderCastResult2D resultItem = new ColliderCastResult2D
+                        {
+                            Hit = true,
+                            Collider = top.collider
+                        };
+                        if (!collector.OnHit(resultItem))
+                        {
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+            }
         }
 
         private void CastSphereCore<TCollector>(ref ColliderSphere2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector

@@ -161,12 +161,37 @@ public class TestCollisionWorld3D
 
         // Ray from left to right along x-axis at y=0,z=0; should hit the box with id 42
         Ray3D ray1 = new Ray3D(new Vector3(-10, 0, 0), new Vector3(100, 0, 0));
-        Assert.That(world.TryCastRay(ray1, out TestBoxTarget? hitTarget1, out _), Is.True);
+        Assert.That(world.TryCastRayClosestHit(ray1, out TestBoxTarget? hitTarget1, out _), Is.True);
         Assert.That(hitTarget1?.id, Is.EqualTo(42));
 
         // Ray above boxes at y=5, no hit expected
         Ray3D ray2 = new Ray3D(new Vector3(-10, 5, 0), new Vector3(100, 0, 0));
-        Assert.That(world.TryCastRay(ray2, out TestBoxTarget? hitTarget2, out _), Is.False);
+        Assert.That(world.TryCastRayClosestHit(ray2, out TestBoxTarget? hitTarget2, out _), Is.False);
         Assert.That(hitTarget2, Is.Null);
+    }
+
+    [Test]
+    public void TestRayCastMulti3D()
+    {
+        using CollisionWorld3D world = new CollisionWorld3D();
+
+        for (int i = 0; i < 5; i++)
+        {
+            TestBoxTarget target = new TestBoxTarget
+            {
+                id = i,
+                shape = new ShapeBox3D(new Vector3(i * 10, 0, 0), new Vector3(1, 1, 1), Quaternion.Identity)
+            };
+            world.PushCollisionTarget(target, target.shape);
+        }
+
+        world.BuildTree();
+
+        // Ray passing through all 5 boxes
+        Ray3D ray = new Ray3D(new Vector3(-5, 0, 0), new Vector3(100, 0, 0));
+        List<TestBoxTarget> hits = new List<TestBoxTarget>();
+        world.CastRay(hits, ray);
+
+        Assert.That(hits.Count, Is.EqualTo(5));
     }
 }

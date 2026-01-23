@@ -211,7 +211,7 @@ public class BenchmarkBvh
 
         protected override void ExecuteCore(int index)
         {
-            _bvh.CastRay(rays[index]);
+            _bvh.CastRayClosestHit(rays[index]);
         }
     }
 
@@ -227,7 +227,7 @@ public class BenchmarkBvh
 
         protected override void ExecuteCore(int index)
         {
-            _bvh.CastRay(rays[index]);
+            _bvh.CastRayClosestHit(rays[index]);
         }
     }
 

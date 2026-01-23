@@ -71,22 +71,41 @@ namespace Alco.Test
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
             NativeBvh3D bvh = new NativeBvh3D();
-            Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
-
             bvh.BuildTree(colliders.AsSpan());
 
-            //RayCastResult result = bvh.CastRay(ray);
+            // Test Ray Cast (NativeBvh3D.CastRay / CastRayFirstHit don't use collector anymore)
+            {
+                Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
 
-            //Assert.IsFalse(result.hit);
+                RayCastResult3D result = bvh.CastRayClosestHit(ray);
 
+                Assert.IsFalse(!result.Hit);
+                TestContext.WriteLine(result.HitInfo.Fraction);
+                TestContext.WriteLine(result.HitInfo.Point);
+            }
 
-            ray = Ray3D.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
+            // Test Ray Cast with Collector
+            {
+                Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
 
-            RayCastResult3D result = bvh.CastRay(ray);
+                FirstHitCollector3D collector = new FirstHitCollector3D();
+                bvh.CastRay(ray, ref collector);
 
-            Assert.IsFalse(!result.Hit);
-            TestContext.WriteLine(result.HitInfo.Fraction);
-            TestContext.WriteLine(result.HitInfo.Point);
+                Assert.IsTrue(collector.HasHit);
+            }
+
+            // Test Ray Cast Multi Hit with NativeListCollector
+            {
+                Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-12f, 0, 0), new Vector3(25f, 0, 0));
+                NativeArrayList<ColliderCastResult3D> hitResults = new NativeArrayList<ColliderCastResult3D>(8);
+                NativeListCollector3D multiCollector = new NativeListCollector3D(&hitResults);
+
+                bvh.CastRay(ray, ref multiCollector);
+
+                Assert.IsTrue(hitResults.Length > 1);
+                TestContext.WriteLine($"Ray hit {hitResults.Length} objects");
+                hitResults.Dispose();
+            }
 
             boxs.Dispose();
             spheres.Dispose();

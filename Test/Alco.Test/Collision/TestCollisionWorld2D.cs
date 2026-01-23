@@ -176,11 +176,11 @@ public unsafe class TestCollisionWorld2D
 
         // Ray from left to right along x-axis at y=0; should hit the box with id 0 first
         Ray2D ray1 = new Ray2D(new Vector2(-10, 0), new Vector2(100, 0));
-        bool hit1 = world.TryCastRay<TestBoxTarget>(ray1, out TestBoxTarget hitObject1, out RaycastHit2D hitInfo1);
+        bool hit1 = world.TryCastRayClosestHit<TestBoxTarget>(ray1, out TestBoxTarget hitObject1, out RaycastHit2D hitInfo1);
 
         // Ray above boxes at y=5, no hit expected
         Ray2D ray2 = new Ray2D(new Vector2(-10, 5), new Vector2(100, 0));
-        bool hit2 = world.TryCastRay<TestBoxTarget>(ray2, out TestBoxTarget hitObject2, out RaycastHit2D hitInfo2);
+        bool hit2 = world.TryCastRayClosestHit<TestBoxTarget>(ray2, out TestBoxTarget hitObject2, out RaycastHit2D hitInfo2);
 
         Assert.That(hit1, Is.True);
         Assert.That(hitObject1, Is.Not.Null);
@@ -188,5 +188,30 @@ public unsafe class TestCollisionWorld2D
 
         Assert.That(hit2, Is.False);
         Assert.That(hitObject2, Is.Null);
+    }
+
+    [Test]
+    public void TestRayCastMulti2D()
+    {
+        using CollisionWorld2D world = new CollisionWorld2D();
+
+        for (int i = 0; i < 5; i++)
+        {
+            TestBoxTarget target = new TestBoxTarget
+            {
+                id = i,
+                shape = new ShapeBox2D(new Vector2(i * 10, 0), new Vector2(1, 1), Rotation2D.Identity)
+            };
+            world.PushCollisionTarget(target, target.shape);
+        }
+
+        world.BuildTree();
+
+        // Ray passing through all 5 boxes
+        Ray2D ray = new Ray2D(new Vector2(-5, 0), new Vector2(100, 0));
+        List<TestBoxTarget> hits = new List<TestBoxTarget>();
+        world.CastRay(hits, ray);
+
+        Assert.That(hits.Count, Is.EqualTo(5));
     }
 }

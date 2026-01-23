@@ -70,6 +70,19 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
     /// <summary>
+    /// Casts a ray against the world and collects hits using the provided collector.
+    /// </summary>
+    /// <typeparam name="TCollector">The type of the collector.</typeparam>
+    /// <param name="collector">The collector to gather hit results.</param>
+    /// <param name="ray">The ray to cast.</param>
+    public void CastRay<TCollector>(ref TCollector collector, in Ray2D ray) where TCollector : ICollisionCollector
+    {
+        ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
+        _bvh.CastRay(ray, ref adapter);
+        collector = adapter.UserCollector;
+    }
+
+    /// <summary>
     /// Casts a sphere collider against the world and collects hits using the provided collector.
     /// </summary>
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
@@ -110,6 +123,15 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
 
     /// <summary>
+    /// Casts a ray and collects hit targets into a provided collection.
+    /// </summary>
+    public void CastRay<TTarget>(ICollection<TTarget> collector, in Ray2D ray) where TTarget : class
+    {
+        var adapter = new CollectionCollector<TTarget>(collector);
+        CastRay(ref adapter, ray);
+    }
+
+    /// <summary>
     /// Casts a 2D oriented box shape and collects hit targets into a provided collection.
     /// </summary>
     public void CastBox<TTarget>(ICollection<TTarget> collector, in ShapeBox2D shape) where TTarget : class
@@ -139,12 +161,12 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// <summary>
     /// Casts a ray against targets and returns the closest hit.
     /// </summary>
-    public bool TryCastRay<TTarget>(in Ray2D ray, [NotNullWhen(true)] out TTarget? hitTarget, out RaycastHit2D hit) where TTarget : class
+    public bool TryCastRayClosestHit<TTarget>(in Ray2D ray, [NotNullWhen(true)] out TTarget? hitTarget, out RaycastHit2D hit) where TTarget : class
     {
         hitTarget = null;
         hit = default;
 
-        RayCastResult2D result = _bvh.CastRay(ray);
+        RayCastResult2D result = _bvh.CastRayClosestHit(ray);
         if (!result.Hit)
         {
             return false;
