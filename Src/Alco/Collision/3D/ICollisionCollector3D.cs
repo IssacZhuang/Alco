@@ -7,16 +7,13 @@ namespace Alco
         bool OnHit(ColliderCastResult3D result);
     }
 
-    /// <summary>
-    /// Interface for collecting collision results from CollisionWorld3D with the target object.
-    /// </summary>
-    public interface ICollisionCollector3D
+    public interface IBvhRayCastCollector3D
     {
-        /// <summary>
-        /// Called when a target is hit.
-        /// </summary>
-        /// <param name="target">The target object that was hit.</param>
-        /// <returns>True to continue the query, false to stop.</returns>
-        bool OnHit(object target);
+        bool OnHit(RayCastResult3D result);
+    }
+
+    public interface IRayCastCollector3D
+    {
+        bool OnHit(object target, RaycastHit3D hit);
     }
 }

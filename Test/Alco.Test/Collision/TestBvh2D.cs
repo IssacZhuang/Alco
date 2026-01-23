@@ -9,30 +9,52 @@ using System.Runtime;
 
 namespace Alco.Test
 {
-    public struct NativeListCollector : IBvhCollisionCollector2D
+    public struct NativeListCollector : IBvhCollisionCastCollector2D, IBvhRayCastCollector2D
     {
         private unsafe NativeArrayList<ColliderCastResult2D>* _list;
+        private unsafe NativeArrayList<RayCastResult2D>* _rayList;
 
         public unsafe NativeListCollector(NativeArrayList<ColliderCastResult2D>* list)
         {
             _list = list;
+            _rayList = null;
+        }
+
+        public unsafe NativeListCollector(NativeArrayList<RayCastResult2D>* rayList)
+        {
+            _list = null;
+            _rayList = rayList;
         }
 
         public unsafe bool OnHit(ColliderCastResult2D result)
         {
-            _list->Add(result);
+            if (_list != null) _list->Add(result);
+            return true;
+        }
+
+        public unsafe bool OnHit(RayCastResult2D result)
+        {
+            if (_rayList != null) _rayList->Add(result);
             return true;
         }
     }
 
-    public struct FirstHitCollector : IBvhCollisionCollector2D
+    public struct FirstHitCollector : IBvhCollisionCastCollector2D, IBvhRayCastCollector2D
     {
         public ColliderCastResult2D Result;
+        public RayCastResult2D RayResult;
         public bool HasHit;
 
         public bool OnHit(ColliderCastResult2D result)
         {
             Result = result;
+            HasHit = true;
+            return false;
+        }
+
+        public bool OnHit(RayCastResult2D result)
+        {
+            RayResult = result;
             HasHit = true;
             return false;
         }
@@ -108,7 +130,7 @@ namespace Alco.Test
             // Test Ray Cast Multi Hit with NativeListCollector
             {
                 Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-12f, 0), new Vector2(25f, 0));
-                NativeArrayList<ColliderCastResult2D> hitResults = new NativeArrayList<ColliderCastResult2D>(8);
+                NativeArrayList<RayCastResult2D> hitResults = new NativeArrayList<RayCastResult2D>(8);
                 NativeListCollector multiCollector = new NativeListCollector(&hitResults);
 
                 bvh.CastRay(ray, ref multiCollector);

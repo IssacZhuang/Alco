@@ -96,7 +96,7 @@ namespace Alco
         /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
         /// <param name="ray">The ray to cast.</param>
         /// <param name="collector">The collector to gather hit results.</param>
-        public void CastRay<TCollector>(Ray2D ray, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        public void CastRay<TCollector>(Ray2D ray, ref TCollector collector) where TCollector : struct, IBvhRayCastCollector2D
         {
             if (_nodeSize == 0)
             {
@@ -113,7 +113,7 @@ namespace Alco
         /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
         /// <param name="shape">The sphere shape to cast.</param>
         /// <param name="collector">The collector to gather hit results.</param>
-        public void CastSphere<TCollector>(in ShapeSphere2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        public void CastSphere<TCollector>(in ShapeSphere2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             if (_nodeSize == 0)
             {
@@ -131,7 +131,7 @@ namespace Alco
         /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
         /// <param name="shape">The box shape to cast.</param>
         /// <param name="collector">The collector to gather hit results.</param>
-        public void CastBox<TCollector>(in ShapeBox2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        public void CastBox<TCollector>(in ShapeBox2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             if (_nodeSize == 0)
             {
@@ -149,7 +149,7 @@ namespace Alco
         /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
         /// <param name="point">The point to test.</param>
         /// <param name="collector">The collector to gather hit results.</param>
-        public void CastPoint<TCollector>(Vector2 point, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        public void CastPoint<TCollector>(Vector2 point, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             if (_nodeSize > 0)
             {
@@ -229,7 +229,7 @@ namespace Alco
             return result;
         }
 
-        private void CastRayCore<TCollector>(ref Ray2D ray, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        private void CastRayCore<TCollector>(ref Ray2D ray, Node node, ref TCollector collector) where TCollector : struct, IBvhRayCastCollector2D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
@@ -247,9 +247,10 @@ namespace Alco
                 {
                     if (top.collider.IntersectRay(ray, out RaycastHit2D hitInfo))
                     {
-                        ColliderCastResult2D resultItem = new ColliderCastResult2D
+                        RayCastResult2D resultItem = new RayCastResult2D
                         {
                             Hit = true,
+                            HitInfo = hitInfo,
                             Collider = top.collider
                         };
                         if (!collector.OnHit(resultItem))
@@ -272,7 +273,7 @@ namespace Alco
             }
         }
 
-        private void CastSphereCore<TCollector>(ref ColliderSphere2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        private void CastSphereCore<TCollector>(ref ColliderSphere2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
@@ -314,7 +315,7 @@ namespace Alco
             }
         }
 
-        private void CastBoxCore<TCollector>(ref ColliderBox2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        private void CastBoxCore<TCollector>(ref ColliderBox2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
@@ -356,7 +357,7 @@ namespace Alco
             }
         }
 
-        private void CastPointCollectorCore<TCollector>(Vector2 point, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector2D
+        private void CastPointCollectorCore<TCollector>(Vector2 point, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;

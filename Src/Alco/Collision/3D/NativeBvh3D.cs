@@ -96,7 +96,7 @@ namespace Alco
         /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
         /// <param name="ray">The ray to cast.</param>
         /// <param name="collector">The collector to gather hit results.</param>
-        public void CastRay<TCollector>(Ray3D ray, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector3D
+        public void CastRay<TCollector>(Ray3D ray, ref TCollector collector) where TCollector : struct, IBvhRayCastCollector3D
         {
             if (_nodeSize == 0)
             {
@@ -229,7 +229,7 @@ namespace Alco
             return result;
         }
 
-        private void CastRayCore<TCollector>(ref Ray3D ray, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCollector3D
+        private void CastRayCore<TCollector>(ref Ray3D ray, Node node, ref TCollector collector) where TCollector : struct, IBvhRayCastCollector3D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
@@ -247,9 +247,10 @@ namespace Alco
                 {
                     if (top.collider.IntersectRay(ray, out RaycastHit3D hitInfo))
                     {
-                        ColliderCastResult3D resultItem = new ColliderCastResult3D
+                        RayCastResult3D resultItem = new RayCastResult3D
                         {
                             Hit = true,
+                            HitInfo = hitInfo,
                             Collider = top.collider
                         };
                         if (!collector.OnHit(resultItem))

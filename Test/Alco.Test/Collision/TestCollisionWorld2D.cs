@@ -11,7 +11,7 @@ public unsafe class TestCollisionWorld2D
         public ShapeBox2D shape;
     }
 
-    public struct TestSphereCollector : ICollisionCollector2D
+    public struct TestSphereCollector : ICollisionCastCollector
     {
         public List<int> hitIds;
         public int cutomData;
