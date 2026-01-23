@@ -10,6 +10,34 @@ using TestFramework;
 
 namespace Alco.Test
 {
+    public struct NativeListCollector3D : IBvhCollisionCollector3D
+    {
+        private unsafe NativeArrayList<ColliderCastResult3D>* _list;
+
+        public unsafe NativeListCollector3D(NativeArrayList<ColliderCastResult3D>* list)
+        {
+            _list = list;
+        }
+
+        public unsafe bool OnHit(ColliderCastResult3D result)
+        {
+            _list->Add(result);
+            return true;
+        }
+    }
+
+    public struct FirstHitCollector3D : IBvhCollisionCollector3D
+    {
+        public ColliderCastResult3D Result;
+        public bool HasHit;
+
+        public bool OnHit(ColliderCastResult3D result)
+        {
+            Result = result;
+            HasHit = true;
+            return false;
+        }
+    }
 
     public class TestBvh3D
     {

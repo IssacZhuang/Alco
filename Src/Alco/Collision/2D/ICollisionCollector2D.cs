@@ -2,15 +2,15 @@ using System;
 
 namespace Alco
 {
-    public interface IBvhCollisionCollector3D
+    public interface IBvhCollisionCollector2D
     {
-        bool OnHit(ColliderCastResult3D result);
+        bool OnHit(ColliderCastResult2D result);
     }
 
     /// <summary>
-    /// Interface for collecting collision results from CollisionWorld3D with the target object.
+    /// Interface for collecting collision results from CollisionWorld2D with the target object.
     /// </summary>
-    public interface ICollisionCollector3D
+    public interface ICollisionCollector2D
     {
         /// <summary>
         /// Called when a target is hit.

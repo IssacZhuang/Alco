@@ -84,7 +84,7 @@ public class CubeSystem : IDisposable
         }
     }
 
-    private struct CubeCollisionCollector : ICollisionCollector
+    private struct CubeCollisionCollector : ICollisionCollector2D
     {
         private readonly Cube _cube;
         public CubeCollisionCollector(Cube cube) => _cube = cube;

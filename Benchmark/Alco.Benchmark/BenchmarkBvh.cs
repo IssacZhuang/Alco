@@ -189,7 +189,7 @@ public class BenchmarkBvh
     {
         bvh2D.BuildTree(colliders2D.AsSpan());
     }
-    private struct CountCollector : IBvhCollisionCollector
+    private struct CountCollector : IBvhCollisionCollector2D
     {
         public int Count;
         public bool OnHit(ColliderCastResult2D result)

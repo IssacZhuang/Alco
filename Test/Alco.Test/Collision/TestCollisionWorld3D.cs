@@ -13,7 +13,7 @@ public class TestCollisionWorld3D
         public ShapeBox3D shape;
     }
 
-    public struct TestCollector : ICollisionCollector
+    public struct TestCollector : ICollisionCollector2D
     {
         public List<int> hitIds;
         public TestCollector() { hitIds = new List<int>(); }

@@ -75,7 +75,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
     /// <param name="collector">The collector to gather hit results.</param>
     /// <param name="ray">The ray to cast.</param>
-    public void CastRay<TCollector>(ref TCollector collector, in Ray2D ray) where TCollector : ICollisionCollector
+    public void CastRay<TCollector>(ref TCollector collector, in Ray2D ray) where TCollector : ICollisionCollector2D
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastRay(ray, ref adapter);
@@ -88,7 +88,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
     /// <param name="collector">The collector to gather hit results.</param>
     /// <param name="shape">The sphere shape to cast.</param>
-    public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere2D shape) where TCollector : ICollisionCollector
+    public void CastSphere<TCollector>(ref TCollector collector, in ShapeSphere2D shape) where TCollector : ICollisionCollector2D
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastSphere(shape, ref adapter);
@@ -101,7 +101,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
     /// <param name="collector">The collector to gather hit results.</param>
     /// <param name="shape">The box shape to cast.</param>
-    public void CastBox<TCollector>(ref TCollector collector, in ShapeBox2D shape) where TCollector : ICollisionCollector
+    public void CastBox<TCollector>(ref TCollector collector, in ShapeBox2D shape) where TCollector : ICollisionCollector2D
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastBox(shape, ref adapter);
@@ -114,7 +114,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     /// <typeparam name="TCollector">The type of the collector.</typeparam>
     /// <param name="collector">The collector to gather hit results.</param>
     /// <param name="point">The point to cast.</param>
-    public void CastPoint<TCollector>(ref TCollector collector, Vector2 point) where TCollector : ICollisionCollector
+    public void CastPoint<TCollector>(ref TCollector collector, Vector2 point) where TCollector : ICollisionCollector2D
     {
         ObjectCollectorAdapter<TCollector> adapter = new ObjectCollectorAdapter<TCollector>(_targets, collector);
         _bvh.CastPoint(point, ref adapter);
@@ -218,8 +218,8 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
     // --- Internal Adapters ---
 
-    private struct ObjectCollectorAdapter<TUserCollector> : IBvhCollisionCollector
-        where TUserCollector : ICollisionCollector
+    private struct ObjectCollectorAdapter<TUserCollector> : IBvhCollisionCollector2D
+        where TUserCollector : ICollisionCollector2D
     {
         private readonly List<object> _targets;
         public TUserCollector UserCollector;
@@ -239,7 +239,7 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
 
-    private struct CollectionCollector<T> : ICollisionCollector where T : class
+    private struct CollectionCollector<T> : ICollisionCollector2D where T : class
     {
         private readonly ICollection<T> _collection;
 

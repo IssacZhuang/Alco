@@ -9,6 +9,34 @@ using System.Runtime;
 
 namespace Alco.Test
 {
+    public struct NativeListCollector : IBvhCollisionCollector2D
+    {
+        private unsafe NativeArrayList<ColliderCastResult2D>* _list;
+
+        public unsafe NativeListCollector(NativeArrayList<ColliderCastResult2D>* list)
+        {
+            _list = list;
+        }
+
+        public unsafe bool OnHit(ColliderCastResult2D result)
+        {
+            _list->Add(result);
+            return true;
+        }
+    }
+
+    public struct FirstHitCollector : IBvhCollisionCollector2D
+    {
+        public ColliderCastResult2D Result;
+        public bool HasHit;
+
+        public bool OnHit(ColliderCastResult2D result)
+        {
+            Result = result;
+            HasHit = true;
+            return false;
+        }
+    }
 
     public class TestBvh2D
     {
