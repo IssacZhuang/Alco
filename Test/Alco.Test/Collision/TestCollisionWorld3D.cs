@@ -13,12 +13,21 @@ public class TestCollisionWorld3D
         public ShapeBox3D shape;
     }
 
-    public struct TestCollector : ICollisionCastCollector
+    public struct TestCollector : ICollisionCastCollector, IRayCastCollector3D
     {
         public List<int> hitIds;
         public TestCollector() { hitIds = new List<int>(); }
 
         public bool OnHit(object target)
+        {
+            if (target is TestBoxTarget box)
+            {
+                hitIds.Add(box.id);
+            }
+            return true;
+        }
+
+        public bool OnHit(object target, RaycastHit3D hit)
         {
             if (target is TestBoxTarget box)
             {
@@ -189,9 +198,9 @@ public class TestCollisionWorld3D
 
         // Ray passing through all 5 boxes
         Ray3D ray = new Ray3D(new Vector3(-5, 0, 0), new Vector3(100, 0, 0));
-        List<TestBoxTarget> hits = new List<TestBoxTarget>();
-        world.CastRay(hits, ray);
+        TestCollector collector = new TestCollector();
+        world.CastRay(ref collector, ray);
 
-        Assert.That(hits.Count, Is.EqualTo(5));
+        Assert.That(collector.hitIds.Count, Is.EqualTo(5));
     }
 }

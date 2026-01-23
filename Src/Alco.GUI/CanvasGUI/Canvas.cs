@@ -386,7 +386,8 @@ public partial class Canvas : AutoDisposable
 
         _hitNodes.Clear();
         _collisionWorld.BuildTree();
-        _collisionWorld.CastPoint(_hitNodes, mouseWorldPosition);
+        var collector = new NodeCollector(_hitNodes);
+        _collisionWorld.CastPoint(ref collector, mouseWorldPosition);
 
         UINode? selectable = null;
         for (int i = 0; i < _hitNodes.Count; i++)
@@ -579,6 +580,25 @@ public partial class Canvas : AutoDisposable
         }
 
 
+    }
+
+    private struct NodeCollector : ICollisionCastCollector
+    {
+        private readonly List<UINode> _hitNodes;
+
+        public NodeCollector(List<UINode> hitNodes)
+        {
+            _hitNodes = hitNodes;
+        }
+
+        public bool OnHit(object target)
+        {
+            if (target is UINode node)
+            {
+                _hitNodes.Add(node);
+            }
+            return true;
+        }
     }
 
     private static bool CheckMask(UINode node, Vector2 mousePosition)

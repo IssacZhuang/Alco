@@ -122,42 +122,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
     }
 
     /// <summary>
-    /// Casts a ray and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastRay<TTarget>(ICollection<TTarget> collector, in Ray3D ray) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastRay(ref adapter, ray);
-    }
-
-    /// <summary>
-    /// Casts a 3D oriented box shape and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastBox<TTarget>(ICollection<TTarget> collector, in ShapeBox3D shape) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastBox(ref adapter, shape);
-    }
-
-    /// <summary>
-    /// Casts a 3D sphere shape and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastSphere<TTarget>(ICollection<TTarget> collector, in ShapeSphere3D shape) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastSphere(ref adapter, shape);
-    }
-
-    /// <summary>
-    /// Casts a point and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastPoint<TTarget>(ICollection<TTarget> collector, in Vector3 point) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastPoint(ref adapter, point);
-    }
-
-    /// <summary>
     /// Casts a ray against targets and returns the closest hit.
     /// </summary>
     public bool TryCastRayClosestHit<TTarget>(in Ray3D ray, [NotNullWhen(true)] out TTarget? hitTarget, out RaycastHit3D hit) where TTarget : class
@@ -254,34 +218,6 @@ public unsafe class CollisionWorld3D : AutoDisposable
             int id = result.Collider.UserData;
             object target = _targets[id];
             return UserCollector.OnHit(target, result.HitInfo);
-        }
-    }
-
-    private struct CollectionCollector<T> : ICollisionCastCollector, IRayCastCollector3D where T : class
-    {
-        private readonly ICollection<T> _collection;
-
-        public CollectionCollector(ICollection<T> collection)
-        {
-            _collection = collection;
-        }
-
-        public bool OnHit(object target)
-        {
-            if (target is T t)
-            {
-                _collection.Add(t);
-            }
-            return true;
-        }
-
-        public bool OnHit(object target, RaycastHit3D hit)
-        {
-            if (target is T t)
-            {
-                _collection.Add(t);
-            }
-            return true;
         }
     }
 }

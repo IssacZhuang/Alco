@@ -121,43 +121,6 @@ public unsafe class CollisionWorld2D : AutoDisposable
         collector = adapter.UserCollector;
     }
 
-
-    /// <summary>
-    /// Casts a ray and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastRay<TTarget>(ICollection<TTarget> collector, in Ray2D ray) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastRay(ref adapter, ray);
-    }
-
-    /// <summary>
-    /// Casts a 2D oriented box shape and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastBox<TTarget>(ICollection<TTarget> collector, in ShapeBox2D shape) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastBox(ref adapter, shape);
-    }
-
-    /// <summary>
-    /// Casts a 2D sphere shape and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastSphere<TTarget>(ICollection<TTarget> collector, in ShapeSphere2D shape) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastSphere(ref adapter, shape);
-    }
-
-    /// <summary>
-    /// Casts a point and collects hit targets into a provided collection.
-    /// </summary>
-    public void CastPoint<TTarget>(ICollection<TTarget> collector, in Vector2 point) where TTarget : class
-    {
-        var adapter = new CollectionCollector<TTarget>(collector);
-        CastPoint(ref adapter, point);
-    }
-
     /// <summary>
     /// Casts a ray against targets and returns the closest hit.
     /// </summary>
@@ -256,35 +219,6 @@ public unsafe class CollisionWorld2D : AutoDisposable
             int id = result.Collider.UserData;
             object target = _targets[id];
             return UserCollector.OnHit(target, result.HitInfo);
-        }
-    }
-
-
-    private struct CollectionCollector<T> : ICollisionCastCollector, IRayCastCollector2D where T : class
-    {
-        private readonly ICollection<T> _collection;
-
-        public CollectionCollector(ICollection<T> collection)
-        {
-            _collection = collection;
-        }
-
-        public bool OnHit(object target)
-        {
-            if (target is T t)
-            {
-                _collection.Add(t);
-            }
-            return true;
-        }
-
-        public bool OnHit(object target, RaycastHit2D hit)
-        {
-            if (target is T t)
-            {
-                _collection.Add(t);
-            }
-            return true;
         }
     }
 }

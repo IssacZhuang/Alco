@@ -11,7 +11,7 @@ public unsafe class TestCollisionWorld2D
         public ShapeBox2D shape;
     }
 
-    public struct TestSphereCollector : ICollisionCastCollector
+    public struct TestSphereCollector : ICollisionCastCollector, IRayCastCollector2D
     {
         public List<int> hitIds;
         public int cutomData;
@@ -27,6 +27,15 @@ public unsafe class TestCollisionWorld2D
             if (hitObject is TestBoxTarget target)
             {
                 hitIds.Add(target.id);
+            }
+            return true;
+        }
+
+        public bool OnHit(object target, RaycastHit2D hit)
+        {
+            if (target is TestBoxTarget box)
+            {
+                hitIds.Add(box.id);
             }
             return true;
         }
@@ -209,9 +218,9 @@ public unsafe class TestCollisionWorld2D
 
         // Ray passing through all 5 boxes
         Ray2D ray = new Ray2D(new Vector2(-5, 0), new Vector2(100, 0));
-        List<TestBoxTarget> hits = new List<TestBoxTarget>();
-        world.CastRay(hits, ray);
+        TestSphereCollector collector = new TestSphereCollector(0);
+        world.CastRay(ref collector, ray);
 
-        Assert.That(hits.Count, Is.EqualTo(5));
+        Assert.That(collector.hitIds.Count, Is.EqualTo(5));
     }
 }
