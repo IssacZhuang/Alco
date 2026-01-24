@@ -35,7 +35,7 @@ public class JsonConverterCurvePoint<T> : JsonConverter<CurvePoint<T>> where T :
                 string? propertyName = reader.GetString();
                 reader.Read();
 
-                if (string.Equals(propertyName, nameof(CurvePoint<>.Time), StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(propertyName, nameof(CurvePoint<>.Key), StringComparison.OrdinalIgnoreCase))
                 {
                     time = reader.GetSingle();
                 }
@@ -56,7 +56,7 @@ public class JsonConverterCurvePoint<T> : JsonConverter<CurvePoint<T>> where T :
     public override void Write(Utf8JsonWriter writer, CurvePoint<T> value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
-        writer.WriteNumber(nameof(CurvePoint<>.Time), value.Time);
+        writer.WriteNumber(nameof(CurvePoint<>.Key), value.Key);
         writer.WritePropertyName(nameof(CurvePoint<>.Value));
         JsonSerializer.Serialize(writer, value.Value, options);
         writer.WriteEndObject();

@@ -98,7 +98,7 @@ public abstract class BaseCurveHermite<T> : ICurve<T>, ICollection<CurvePoint<T>
         {
             return;
         }
-        _points.Sort((a, b) => a.Time.CompareTo(b.Time));
+        _points.Sort((a, b) => a.Key.CompareTo(b.Key));
         CalculateSlopes();
         _isDirty = false;
     }
@@ -141,7 +141,7 @@ public abstract class BaseCurveHermite<T> : ICurve<T>, ICollection<CurvePoint<T>
 
     private T CalculateSegmentSlope(CurvePoint<T> p1, CurvePoint<T> p2)
     {
-        float dt = p2.Time - p1.Time;
+        float dt = p2.Key - p1.Key;
         if (Math.Abs(dt) < 1e-6f)
         {
             return default;
@@ -163,19 +163,19 @@ public abstract class BaseCurveHermite<T> : ICurve<T>, ICollection<CurvePoint<T>
         {
             return default;
         }
-        if (time <= _points[0].Time)
+        if (time <= _points[0].Key)
         {
             return _points[0].Value;
         }
-        if (time >= _points[_points.Count - 1].Time)
+        if (time >= _points[_points.Count - 1].Key)
         {
             return _points[_points.Count - 1].Value;
         }
 
         int i = BinarySearchFloor(time);
-        
-        float t0 = _points[i].Time;
-        float t1 = _points[i + 1].Time;
+
+        float t0 = _points[i].Key;
+        float t1 = _points[i + 1].Key;
         float dt = t1 - t0;
         
         if (Math.Abs(dt) < 1e-6f)
@@ -238,11 +238,11 @@ public abstract class BaseCurveHermite<T> : ICurve<T>, ICollection<CurvePoint<T>
         while (low <= high)
         {
             int mid = (low + high) / 2;
-            if (t < _points[mid].Time)
+            if (t < _points[mid].Key)
             {
                 high = mid - 1;
             }
-            else if (t > _points[mid].Time)
+            else if (t > _points[mid].Key)
             {
                 low = mid + 1;
             }

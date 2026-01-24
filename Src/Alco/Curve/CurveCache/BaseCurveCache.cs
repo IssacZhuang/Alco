@@ -54,8 +54,8 @@ public abstract class BaseCurveCache<T> : ICurve<T> where T : struct
         }
 
         _step = step;
-        _startTime = curve[0].Time;
-        _endTime = curve[curve.Count - 1].Time;
+        _startTime = curve[0].Key;
+        _endTime = curve[curve.Count - 1].Key;
         _points = CacheCurve(curve, step);
     }
 
@@ -88,10 +88,10 @@ public abstract class BaseCurveCache<T> : ICurve<T> where T : struct
         }
 
         int index2 = index + 1;
-        
-        float t1 = _points[index].Time;
-        float t2 = _points[index2].Time; // Should be equivalent to t1 + _step, but use actual point time for precision
-        
+
+        float t1 = _points[index].Key;
+        float t2 = _points[index2].Key; // Should be equivalent to t1 + _step, but use actual point time for precision
+
         float vT = (t - t1) / (t2 - t1);
         
         return Lerp(_points[index].Value, _points[index2].Value, vT);

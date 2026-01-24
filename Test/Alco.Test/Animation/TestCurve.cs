@@ -123,8 +123,8 @@ namespace Alco.Test
             Assert.AreEqual(50f, curve.Evaluate(1.0f), 1e-5f);
             Assert.AreEqual(25f, curve.Evaluate(0.5f), 1e-5f); // Between (0,0) and (1,50)
 
-            // 2. Test modifying Time (out of order)
-            // Change point at index 1 (time 1) to time 3.
+            // 2. Test modifying Key (out of order)
+            // Change point at index 1 (Key 1) to Key 3.
             // Points should become: (0,0), (2,20), (3,50)
             curve[1] = new CurvePoint<float>(3, 50);
             
@@ -133,9 +133,9 @@ namespace Alco.Test
             Assert.AreEqual(35f, curve.Evaluate(2.5f), 1e-5f);
             
             // Check order via indexer after Sort() has been triggered by Evaluate
-            Assert.AreEqual(0f, curve[0].Time);
-            Assert.AreEqual(2f, curve[1].Time);
-            Assert.AreEqual(3f, curve[2].Time);
+            Assert.AreEqual(0f, curve[0].Key);
+            Assert.AreEqual(2f, curve[1].Key);
+            Assert.AreEqual(3f, curve[2].Key);
         }
     }
 }

@@ -29,7 +29,7 @@ public class CurveAnimation<T> where T : struct
         get
         {
             if (valueCurve.Count == 0) return 0;
-            return valueCurve[valueCurve.Count - 1].Time - valueCurve[0].Time;
+            return valueCurve[valueCurve.Count - 1].Key - valueCurve[0].Key;
         }
     }
 
