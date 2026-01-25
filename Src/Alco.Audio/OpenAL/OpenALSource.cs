@@ -42,9 +42,22 @@ internal class OpenALSource : AudioSource
         set
         {
             _gain = value;
-            if (_sourceId != 0)
-                AL.SetSourceProperty(_sourceId, SourceFloat.Gain, value);
+            UpdateHardwareGain();
         }
+    }
+
+    private void UpdateHardwareGain()
+    {
+        if (_sourceId != 0)
+        {
+            float busVolume = Bus?.EffectiveVolume ?? 1f;
+            AL.SetSourceProperty(_sourceId, SourceFloat.Gain, _gain * busVolume);
+        }
+    }
+
+    protected override void OnBusVolumeChanged()
+    {
+        UpdateHardwareGain();
     }
 
     public override float Pitch
@@ -200,7 +213,7 @@ internal class OpenALSource : AudioSource
     {
         if (_sourceId == 0) return;
 
-        AL.SetSourceProperty(_sourceId, SourceFloat.Gain, _gain);
+        UpdateHardwareGain();
         AL.SetSourceProperty(_sourceId, SourceFloat.Pitch, _pitch);
         AL.SetSourceProperty(_sourceId, SourceFloat.RolloffFactor, _rolloff);
         AL.SetSourceProperty(_sourceId, SourceVector3.Position, new Vector3(_position.X, _position.Y, -_position.Z));
