@@ -4,7 +4,7 @@ namespace Alco.Audio;
 /// Represents an audio bus for hierarchical volume control.
 /// Buses can be nested to create a tree structure (e.g., Master -> SFX -> Explosion).
 /// </summary>
-public class AudioBus
+public sealed class AudioBus
 {
     private float _localVolume = 1f;
     private float _effectiveVolume = 1f;
