@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Alco.GUI;
@@ -54,5 +55,11 @@ public class UIToggle : UIButton
         }
 
         _onToggleEvent?.Invoke(isOn);
+    }
+
+    public override void OnClick(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnClick(canvas, mousePosition);
+        OnToggle(!_isOn);
     }
 }
