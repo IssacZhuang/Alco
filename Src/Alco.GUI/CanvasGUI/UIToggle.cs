@@ -10,6 +10,7 @@ public class UIToggle : UIButton
 {
     private bool _isOn;
     private event Action<bool>? _onToggleEvent;
+    private UINode? _checkmark;
 
     /// <summary>
     /// The value of the toggle.
@@ -21,7 +22,7 @@ public class UIToggle : UIButton
         set
         {
             if (_isOn == value) return;
-            OnToggle(_isOn);
+            OnToggle(value);
         }
     }
 
@@ -29,7 +30,19 @@ public class UIToggle : UIButton
     /// The checkmark of the toggle. It will be enabled when the toggle is checked.
     /// </summary>
     /// <value></value>
-    public UINode? Checkmark { get; set; } = null;
+    public UINode? Checkmark
+    {
+        get => _checkmark;
+        set
+        {
+            if (_checkmark == value) return;
+            _checkmark = value;
+            if (_checkmark != null)
+            {
+                _checkmark.IsEnable = _isOn;
+            }
+        }
+    }
 
     /// <summary>
     /// Called when the toggle value is changed.
