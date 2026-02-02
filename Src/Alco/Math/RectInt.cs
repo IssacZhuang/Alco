@@ -113,5 +113,56 @@ namespace Alco
         {
             return new RectInt(rect.Location.X, rect.Location.Y, rect.Width, rect.Height);
         }
+
+        /// <summary>
+        /// Compares two <see cref="RectInt"/> instances for equality.
+        /// </summary>
+        /// <param name="left">The first rectangle.</param>
+        /// <param name="right">The second rectangle.</param>
+        /// <returns>True if the rectangles are equal, false otherwise.</returns>
+        public static bool operator ==(RectInt left, RectInt right)
+        {
+            return left.Origin == right.Origin && left.Size == right.Size;
+        }
+
+        /// <summary>
+        /// Compares two <see cref="RectInt"/> instances for inequality.
+        /// </summary>
+        /// <param name="left">The first rectangle.</param>
+        /// <param name="right">The second rectangle.</param>
+        /// <returns>True if the rectangles are not equal, false otherwise.</returns>
+        public static bool operator !=(RectInt left, RectInt right)
+        {
+            return !(left == right);
+        }
+
+        /// <summary>
+        /// Determines whether the specified object is equal to the current rectangle.
+        /// </summary>
+        /// <param name="obj">The object to compare with the current rectangle.</param>
+        /// <returns>True if the specified object is equal to the current rectangle; otherwise, false.</returns>
+        public override bool Equals(object? obj)
+        {
+            return obj is RectInt other && Equals(other);
+        }
+
+        /// <summary>
+        /// Determines whether the specified <see cref="RectInt"/> is equal to the current rectangle.
+        /// </summary>
+        /// <param name="other">The rectangle to compare with the current rectangle.</param>
+        /// <returns>True if the specified rectangle is equal to the current rectangle; otherwise, false.</returns>
+        public bool Equals(RectInt other)
+        {
+            return Origin.Equals(other.Origin) && Size.Equals(other.Size);
+        }
+
+        /// <summary>
+        /// Serves as the default hash function.
+        /// </summary>
+        /// <returns>A hash code for the current rectangle.</returns>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Origin, Size);
+        }
     }
 }
