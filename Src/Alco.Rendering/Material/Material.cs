@@ -16,6 +16,8 @@ public abstract class Material : AutoDisposable
 
     private uint _version;
 
+    public uint Version => _version;
+
     public int ResourceGroupCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
