@@ -210,7 +210,7 @@ IDisposable
 
         _builtInAssets = new BuiltInAssets(_assetSystem);
 
-        _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
+        _audioDevice = CreateAudioDevice(_setting.Audio);
 
         foreach (var fileSource in CreateDefaultFileSources())
         {

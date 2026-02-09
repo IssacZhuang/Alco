@@ -1,11 +1,17 @@
+using Alco.Audio.NoAudio;
 using Alco.Audio.OpenAL;
 
 namespace Alco.Audio;
 
 public static class AudioDeviceFactory
 {
-    public static AudioDevice CreateOpenALDevice(IAudioDeviceHost lifeCycleProvider)
+    public static AudioDevice GetNoAudioDevice()
     {
-        return new OpenALDevice(lifeCycleProvider);
+        return new NoAudioDevice();
+    }
+
+    public static AudioDevice CreateOpenALDevice(IAudioDeviceHost host)
+    {
+        return new OpenALDevice(host);
     }
 }
