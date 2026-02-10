@@ -90,6 +90,13 @@ public abstract class AudioDevice
     /// <returns>The created clip.</returns>
     protected abstract AudioClip CreateAudioClipCore(ReadOnlySpan<float> data, int channel, int sampleRate, string? name);
 
+    /// <summary>
+    /// Called periodically (e.g. once per frame) to allow the device to perform
+    /// maintenance such as detecting disconnection and attempting reconnection.
+    /// </summary>
+    /// <param name="delta">Time in seconds since the last poll.</param>
+    public virtual void Poll(float delta) { }
+
     protected abstract void Dispose(bool disposing);
 
     private void Dispose()

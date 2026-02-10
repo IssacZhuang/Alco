@@ -362,6 +362,8 @@ IDisposable
         // Process any callbacks queued for the main thread
         _synchronizationContext.ProcessCallbacks();
 
+        _audioDevice.Poll(delta);
+
         try
         {
             OnBeginFrame();
