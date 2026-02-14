@@ -13,5 +13,6 @@ public enum WindowMode
     Normal = 0,
     Minimized = 1,
     Maximized = 2,
-    Fullscreen = 3,
+    ExclusiveFullscreen = 3,
+    BorderlessFullscreen = 4,
 }
