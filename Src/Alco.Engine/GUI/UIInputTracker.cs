@@ -133,4 +133,14 @@ public class UIInputTracker : IUIInputTracker
     {
         return _input.GetClipboardText();
     }
+
+    public void RequestTextInput()
+    {
+        _window.RequestTextInput();
+    }
+
+    public void ReleaseTextInput()
+    {
+        _window.ReleaseTextInput();
+    }
 }

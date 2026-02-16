@@ -19,6 +19,7 @@ public sealed class ImGUIInputHandler : AutoDisposable
 
     private readonly Input _inputSystem;
     private readonly View _view;
+    private bool _wantTextInput;
 
     /// <summary>
     /// The constructor of the ImGUIInputHandler.
@@ -44,6 +45,21 @@ public sealed class ImGUIInputHandler : AutoDisposable
     public void Update()
     {
         ImGuiIOPtr io = ImGui.GetIO();
+
+        bool wantTextInput = io.WantTextInput;
+        if (wantTextInput != _wantTextInput)
+        {
+            _wantTextInput = wantTextInput;
+            if (wantTextInput)
+            {
+                _view.RequestTextInput();
+            }
+            else
+            {
+                _view.ReleaseTextInput();
+            }
+        }
+
         // do not use _inputSystem.MousePosition, it is the position relative to the screen, not the window
         //io.AddMousePosEvent(_inputSystem.MousePosition.X, _inputSystem.MousePosition.Y);
 
@@ -56,6 +72,10 @@ public sealed class ImGUIInputHandler : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
+        if (_wantTextInput)
+        {
+            _view.ReleaseTextInput();
+        }
         _inputSystem.OnKeyDown -= OnKeyDown;
         _inputSystem.OnKeyUp -= OnKeyUp;
         _inputSystem.OnMouseDown -= OnMouseDown;

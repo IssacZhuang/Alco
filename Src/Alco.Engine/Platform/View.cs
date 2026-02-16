@@ -17,31 +17,47 @@ public unsafe abstract class View : AutoDisposable
     private readonly WeakEvent _onMinimize = new();
     private readonly WeakEvent _onRestore = new();
 
-    private bool _isInputing = false;
+    private int _textInputRefCount = 0;
 
     public uint Width => Size.X;
     public uint Height => Size.Y;
 
-    public bool IsTextInputEnabled
-    {
-        get => _isInputing;
-        set
-        {
-            if (value == _isInputing)
-            {
-                return;
-            }
+    public bool IsTextInputEnabled => _textInputRefCount > 0;
 
-            if (value)
-            {
-                StartTextInput();
-            }
-            else
+    public void RequestTextInput()
+    {
+        _textInputRefCount++;
+        if (_textInputRefCount == 1)
+        {
+            StartTextInput();
+        }
+    }
+
+    public void ReleaseTextInput()
+    {
+        if (_textInputRefCount > 0)
+        {
+            _textInputRefCount--;
+            if (_textInputRefCount == 0)
             {
                 EndTextInput();
             }
+        }
+    }
 
-            _isInputing = value;
+    internal void ForceStopTextInput()
+    {
+        if (_textInputRefCount > 0)
+        {
+            EndTextInput();
+        }
+    }
+
+    internal void ResumeTextInputIfNeeded()
+    {
+        if (_textInputRefCount > 0)
+        {
+            StartTextInput();
         }
     }
 

@@ -37,5 +37,8 @@ namespace Alco.GUI
 
         public void RegisterTextInput(Action<ReadOnlySpan<char>> action);
         public void UnregisterTextInput(Action<ReadOnlySpan<char>> action);
+
+        public void RequestTextInput();
+        public void ReleaseTextInput();
     }
 }

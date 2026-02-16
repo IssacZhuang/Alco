@@ -291,6 +291,18 @@ public partial class Canvas : AutoDisposable
 
     public void SetTextInputArea(ITextInput node, BoundingBox2D inputArea, int cursor)
     {
+        bool wasTextInput = _textInput != null;
+        bool isTextInput = node != null;
+
+        if (!wasTextInput && isTextInput)
+        {
+            _inputTracker.RequestTextInput();
+        }
+        else if (wasTextInput && !isTextInput)
+        {
+            _inputTracker.ReleaseTextInput();
+        }
+
         _textInput = node;
 
         Vector2 position = inputArea.Center;
@@ -308,11 +320,24 @@ public partial class Canvas : AutoDisposable
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
+    public void ClearTextInput()
+    {
+        if (_textInput != null)
+        {
+            _inputTracker.ReleaseTextInput();
+            _textInput = null;
+        }
+    }
+
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            if (_textInput != null)
+            {
+                _inputTracker.ReleaseTextInput();
+            }
             _inputTracker?.UnregisterTextInput(OnTextInput);
             _collisionWorld.Dispose();
             _renderContext.Dispose();
@@ -326,13 +351,20 @@ public partial class Canvas : AutoDisposable
         _hovered = null;
         _holded = null;
         _selected = null;
+        _textInput = null;
     }
 
 
 
     private void OnMouseDown(UINode? node, Vector2 mousePosition)
     {
-        if (node == null || !CheckMask(node, mousePosition))
+        if (node == null)
+        {
+            ClearTextInput();
+            return;
+        }
+
+        if (!CheckMask(node, mousePosition))
         {
             return;
         }
@@ -347,6 +379,11 @@ public partial class Canvas : AutoDisposable
         }
         _selected = node;
         _selected?.OnSelect(this, mousePosition);
+
+        if (node is not ITextInput)
+        {
+            ClearTextInput();
+        }
     }
 
     private void OnMouseUp(UINode? node, Vector2 mousePosition)

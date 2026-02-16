@@ -181,11 +181,11 @@ public unsafe class Sdl3Platform : Platform
                 break;
             case SDL_EventType.WindowFocusGained:
                 Sdl3Window window4 = _windows[e.window.windowID];
-                window4.IsTextInputEnabled = true;
+                window4.ResumeTextInputIfNeeded();
                 break;
             case SDL_EventType.WindowFocusLost:
                 Sdl3Window window5 = _windows[e.window.windowID];
-                window5.IsTextInputEnabled = false;
+                window5.ForceStopTextInput();
                 break;
             case SDL_EventType.GamepadButtonDown:
                 _input.OnSdlGamepadButtonDown(e.gbutton.which, (SDL_GamepadButton)e.gbutton.button);
