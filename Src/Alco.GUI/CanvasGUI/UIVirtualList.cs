@@ -169,8 +169,8 @@ public abstract class UIVirtualList<TData> : UINode
         Vector2 contentSize = ContentSize;
         _container.Size = contentSize; // Use absolute size instead of SizeDelta
         
-        SetLayoutDirty();
         RefreshVisibleItems();
+        RefreshItems();
     }
 
     /// <summary>
@@ -188,8 +188,8 @@ public abstract class UIVirtualList<TData> : UINode
         Vector2 contentSize = ContentSize;
         _container.Size = contentSize;
 
-        SetLayoutDirty();
         RefreshVisibleItems();
+        RefreshItems();
     }
     
     /// <summary>
