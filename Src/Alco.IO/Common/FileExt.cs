@@ -53,6 +53,9 @@ public static class FileExt
     public const string AudioFlac = ".flac";
     public const string AudioAiff = ".aiff";
 
+    //model
+    public const string ModelOBJ = ".obj";
+
     //meta
     public const string Meta = ".meta";
 }

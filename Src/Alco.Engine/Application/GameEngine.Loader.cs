@@ -18,6 +18,9 @@ public partial class GameEngine
         yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
         yield return new AssetLoaderTexture2D(RenderingSystem);
 
+        // mesh
+        yield return new AssetLoaderMeshObj(RenderingSystem);
+
         // audio
         yield return new AssetLoaderAudioVorbis(AudioDevice);
         yield return new AssetLoaderAudioWave(AudioDevice);
