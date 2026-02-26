@@ -9,8 +9,7 @@ public static class Utils
         string? current = Directory.GetCurrentDirectory();
         while (current != null)
         {
-            string[] files = Directory.GetFiles(current, "*.sln");
-            if (files.Length > 0)
+            if (Directory.GetFiles(current, "*.sln").Length > 0 || Directory.GetFiles(current, "*.slnx").Length > 0)
             {
                 return current;
             }
