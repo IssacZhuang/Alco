@@ -54,6 +54,7 @@
 - Nullable resources (e.g., late-loaded assets, lazily initialized dependencies) are exceptions and may be initialized after construction.
 - Prefer constructor injection over two-phase initialization (e.g., avoid separate `Initialize()` methods).
 - Objects should be ready for use immediately after construction without requiring additional setup calls.
+- For mutable value types or mutable references, recommend using getter/setter properties instead of public fields, and they don't need to be passed in the constructor.
 
 ## Interaction Guidelines
 - When writing code, if there are any ambiguities or unclear requirements, always ask for the user's intent and wait for confirmation before proceeding. Do not guess or make assumptions.
