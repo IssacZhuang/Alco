@@ -1,8 +1,0 @@
-{
-    "mcpServers": {
-        "alco-editor": {
-            "url": "http://localhost:5000/sse",
-            "description": "Alco Editor"
-        }
-    }
-}
