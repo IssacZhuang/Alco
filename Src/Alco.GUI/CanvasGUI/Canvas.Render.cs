@@ -95,4 +95,24 @@ public partial class Canvas : AutoDisposable
         _stencilDecreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
         _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilDecreaseMaterial, constant);
     }
+
+    /// <summary>
+    /// Binds the canvas camera buffer to the material instance.
+    /// </summary>
+    /// <param name="materialInstance">The material instance to bind the camera to.</param>
+    public void BindCameraToMaterial(MaterialInstance materialInstance)
+    {
+        materialInstance.TrySetBuffer(ShaderResourceId.Camera, _camera);
+    }
+
+    /// <summary>
+    /// Draws a quad using the specified material instance and constant data.
+    /// </summary>
+    /// <param name="materialInstance">The material instance to use for rendering.</param>
+    /// <param name="constant">The sprite constant data containing model matrix, color, and UV rect.</param>
+    public void DrawMaterial(MaterialInstance materialInstance, in SpriteConstant constant)
+    {
+        _renderContext.SetStencilReference(_mask);
+        _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, materialInstance, constant);
+    }
 }
