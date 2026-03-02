@@ -21,13 +21,6 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
 
     private readonly uint _shaderId_texture;
 
-    public uint? StencilReference
-    {
-        get => _material.StencilReference;
-        set => _material.StencilReference = value;
-    }
-
-
     /// <summary>
     /// Initializes a new instance of the <see cref="SpriteRenderer"/> class.
     /// </summary>

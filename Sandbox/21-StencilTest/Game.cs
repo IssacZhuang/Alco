@@ -57,8 +57,6 @@ public class Game : GameEngine
             StencilWriteMask = 0xFF,
         };
 
-        _materialStencilWrite.StencilReference = 250;
-
         _materialStencilTest = RenderingSystem.CreateMaterial(_shader, "Unlit");
         _materialStencilTest.SetBuffer("_camera", _camera);
         _materialStencilTest.DepthStencilState = new DepthStencilState
@@ -70,8 +68,6 @@ public class Game : GameEngine
             StencilReadMask = 0xFF,
             StencilWriteMask = 0xFF,
         };
-
-        _materialStencilTest.StencilReference = 250;
 
         _cubeStencilWrite = new Cube(RenderingSystem.MeshCube, _materialStencilWrite);
         _cubeStencilWrite.Color = Color1;
@@ -112,6 +108,7 @@ public class Game : GameEngine
 
 
         _renderer.Begin(MainFrameBuffer);
+        _renderer.SetStencilReference(250);
         _cubeStencilWrite.OnDraw(_renderer);
         _cubeStencilTest1.OnDraw(_renderer);
         _cubeStencilTest2.OnDraw(_renderer);

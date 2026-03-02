@@ -22,7 +22,7 @@ public partial class Canvas : AutoDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawSprite(Texture2D? texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
     {
-        _spriteRenderer.StencilReference = _mask;
+        _renderContext.SetStencilReference(_mask);
         _spriteRenderer.Draw(texture?? _renderingSystem.TextureWhite, matrix, uvRect, color);
     }
 
@@ -44,8 +44,7 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        // Set stencil reference and texture directly on the existing material
-        _spriteMaterial.StencilReference = _mask;
+        _renderContext.SetStencilReference(_mask);
         _spriteMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
 
         _dynamicMeshRenderer.DrawWithConstant(vertices, indices, _spriteMaterial, constant);
@@ -55,7 +54,7 @@ public partial class Canvas : AutoDisposable
     public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         font ??= DefaultFont;
-        _textRenderer.StencilReference = _mask;
+        _renderContext.SetStencilReference(_mask);
         return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing);
     }
 
@@ -68,7 +67,7 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        _stencilIncreaseMaterial.StencilReference = _mask;
+        _renderContext.SetStencilReference(_mask);
         _mask = (_mask + 1) % 0xFF;
         _stencilIncreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
         _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilIncreaseMaterial, constant);
@@ -83,7 +82,7 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        _stencilDecreaseMaterial.StencilReference = _mask;
+        _renderContext.SetStencilReference(_mask);
 
         if (_mask == 0)
         {
