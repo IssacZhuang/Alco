@@ -227,8 +227,6 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override void SetStencilReferenceCore(uint value)
     {
-        ValidateGraphicsPipeline();
-
         wgpuRenderPassEncoderSetStencilReference(_renderPass, value);
     }
 

@@ -24,10 +24,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     private uint _meshVersion;
     private uint _indexCount;
 
-    //deferred stencil reference
-    private uint _stencilReference;
-    private bool _hasStencilReference;
-
     /// <summary>
     /// The framebuffer that is currently being rendered to.
     /// </summary>
@@ -116,17 +112,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetStencilReference(uint value)
     {
-        _stencilReference = value;
-        _hasStencilReference = true;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ApplyStencilReference()
-    {
-        if (_hasStencilReference)
-        {
-            _renderScope.SetStencilReference(_stencilReference);
-        }
+        _renderScope.SetStencilReference(value);
     }
 
     /// <summary>
@@ -140,7 +126,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
-        ApplyStencilReference();
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
         _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
@@ -164,7 +149,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         //     throw new ArgumentException("The size of the constant does not match the push constants size");
         // }
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
-        ApplyStencilReference();
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
         PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
@@ -196,7 +180,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
-        ApplyStencilReference();
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
         _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
@@ -232,7 +215,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         Debug.Assert(_framebuffer != null);
         ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_framebuffer!.AttachmentLayout);
         _renderScope.SetPipeline(pipelineInfo.Pipeline);
-        ApplyStencilReference();
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
         PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
@@ -308,7 +290,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         _mesh = null;
         _subMeshIndex = 0;
-        _hasStencilReference = false;
     }
 
     /// <summary>
