@@ -34,6 +34,11 @@ public class UIMaterialRenderer : UINode
         }
     }
 
+    /// <summary>
+    /// Gets or sets the UV rectangle for sampling the texture.
+    /// </summary>
+    public Rect UvRect { get; set; } = Rect.One;
+
     protected override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
@@ -66,7 +71,7 @@ public class UIMaterialRenderer : UINode
         {
             Model = RenderTransform.Matrix,
             Color = RenderColor,
-            UvRect = Rect.One
+            UvRect = UvRect
         };
 
         canvas.DrawMaterial(_materialInstance, in constant);
