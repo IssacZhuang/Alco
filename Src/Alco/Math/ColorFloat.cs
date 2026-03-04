@@ -194,5 +194,88 @@ public struct ColorFloat
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator *(float a, ColorFloat b) => new ColorFloat { value = a * b.value };
 
-    
+    /// <summary>
+    /// Creates a new <see cref="ColorFloat"/> from HSV components.
+    /// </summary>
+    /// <param name="h">Hue in the range [0, 1].</param>
+    /// <param name="s">Saturation in the range [0, 1].</param>
+    /// <param name="v">Value (brightness) in the range [0, 1].</param>
+    /// <param name="a">Alpha in the range [0, 1]. Defaults to 1.</param>
+    /// <returns>The corresponding RGB color.</returns>
+    public static ColorFloat FromHsv(float h, float s, float v, float a = 1f)
+    {
+        h = ((h % 1f) + 1f) % 1f;
+
+        float c = v * s;
+        float hPrime = h * 6f;
+        float x = c * (1f - MathF.Abs(hPrime % 2f - 1f));
+
+        float r, g, b;
+        if (hPrime < 1f)
+        {
+            r = c; g = x; b = 0f;
+        }
+        else if (hPrime < 2f)
+        {
+            r = x; g = c; b = 0f;
+        }
+        else if (hPrime < 3f)
+        {
+            r = 0f; g = c; b = x;
+        }
+        else if (hPrime < 4f)
+        {
+            r = 0f; g = x; b = c;
+        }
+        else if (hPrime < 5f)
+        {
+            r = x; g = 0f; b = c;
+        }
+        else
+        {
+            r = c; g = 0f; b = x;
+        }
+
+        float m = v - c;
+        return new ColorFloat(r + m, g + m, b + m, a);
+    }
+
+    /// <summary>
+    /// Converts this RGB color to HSV components.
+    /// </summary>
+    /// <returns>A tuple of (h, s, v) each in the range [0, 1].</returns>
+    public readonly (float h, float s, float v) ToHsv()
+    {
+        float r = value.X;
+        float g = value.Y;
+        float b = value.Z;
+
+        float max = MathF.Max(r, MathF.Max(g, b));
+        float min = MathF.Min(r, MathF.Min(g, b));
+        float delta = max - min;
+
+        float v = max;
+
+        float s = max > 0f ? delta / max : 0f;
+
+        float h;
+        if (delta == 0f)
+        {
+            h = 0f;
+        }
+        else if (max == r)
+        {
+            h = ((g - b) / delta % 6f + 6f) % 6f / 6f;
+        }
+        else if (max == g)
+        {
+            h = ((b - r) / delta + 2f) / 6f;
+        }
+        else
+        {
+            h = ((r - g) / delta + 4f) / 6f;
+        }
+
+        return (h, s, v);
+    }
 }

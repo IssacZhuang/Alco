@@ -76,11 +76,4 @@ public class UIMaterialRenderer : UINode
 
         canvas.DrawMaterial(_materialInstance, in constant);
     }
-
-    protected override void OnDetachFromTree(Canvas canvas)
-    {
-        _materialInstance?.Dispose();
-        _materialInstance = null;
-        base.OnDetachFromTree(canvas);
-    }
 }
