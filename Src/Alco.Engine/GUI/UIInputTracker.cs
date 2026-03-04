@@ -13,6 +13,16 @@ public class UIInputTracker : IUIInputTracker
 
     public float ScrollDeadZone { get; set; } = 0.1f;
 
+    /// <summary>
+    /// Sensitivity multiplier for mouse scroll wheel input.
+    /// </summary>
+    public float MouseScrollSensitivity { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Sensitivity multiplier for gamepad scroll input.
+    /// </summary>
+    public float GamepadScrollSensitivity { get; set; } = 0.1f;
+
     public UIInputTracker(Input system, View window)
     {
         _input = system;
@@ -108,6 +118,7 @@ public class UIInputTracker : IUIInputTracker
     {
         if (_input.IsMouseScrolling(out delta))
         {
+            delta *= MouseScrollSensitivity;
             return true;
         }
 
@@ -118,7 +129,7 @@ public class UIInputTracker : IUIInputTracker
             float ry = gamepad.GetAxis(GamepadAxis.RightY);
             if (MathF.Abs(rx) >= ScrollDeadZone || MathF.Abs(ry) >= ScrollDeadZone)
             {
-                delta = new Vector2(rx, ry);
+                delta = new Vector2(rx, ry) * GamepadScrollSensitivity;
                 return true;
             }
         }

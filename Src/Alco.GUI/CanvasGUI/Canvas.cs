@@ -264,7 +264,6 @@ public partial class Canvas : AutoDisposable
     {
         _collisionWorld.ClearAll();
         TickNode(Root, delta);
-        HandleInput();
     }
 
     /// <summary>
@@ -274,6 +273,7 @@ public partial class Canvas : AutoDisposable
     /// <param name="delta">Delta time in seconds.</param>
     public void Update(GPUFrameBuffer renderTarget, float delta)
     {
+        HandleInput();
         _renderContext.Begin(renderTarget);
         _mask = 0;
         UpdateNode(Root, delta);
