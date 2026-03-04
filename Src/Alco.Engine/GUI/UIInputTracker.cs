@@ -10,7 +10,9 @@ public class UIInputTracker : IUIInputTracker
     private readonly View _window;
 
     public GamepadButton? GamepadClickButton { get; set; } = null;
-    
+
+    public float ScrollDeadZone { get; set; } = 0.1f;
+
     public UIInputTracker(Input system, View window)
     {
         _input = system;
@@ -23,13 +25,13 @@ public class UIInputTracker : IUIInputTracker
         get => _window.Size;
     }
 
-    public Vector2 MousePosition
+    public Vector2 CursorPosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _window.MousePosition;
     }
 
-    public bool IsMousePressing
+    public bool IsConfirmPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input.IsMousePressing(Mouse.Left) || GamepadClickButton.HasValue && (_input.PrimaryGamepad?.IsButtonPressed(GamepadClickButton.Value) ?? false);
@@ -102,9 +104,27 @@ public class UIInputTracker : IUIInputTracker
     }
 
 
-    public bool IsMouseScrolling(out Vector2 delta)
+    public bool IsScrolling(out Vector2 delta)
     {
-        return _input.IsMouseScrolling(out delta);
+        if (_input.IsMouseScrolling(out delta))
+        {
+            return true;
+        }
+
+        Gamepad? gamepad = _input.PrimaryGamepad;
+        if (gamepad != null)
+        {
+            float rx = gamepad.GetAxis(GamepadAxis.RightX);
+            float ry = gamepad.GetAxis(GamepadAxis.RightY);
+            if (MathF.Abs(rx) >= ScrollDeadZone || MathF.Abs(ry) >= ScrollDeadZone)
+            {
+                delta = new Vector2(rx, ry);
+                return true;
+            }
+        }
+
+        delta = Vector2.Zero;
+        return false;
     }
 
     public void SetTextInput(float xNorm, float yNorm, float widthNorm, float heightNorm, int cursor)

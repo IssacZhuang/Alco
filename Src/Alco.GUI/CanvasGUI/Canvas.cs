@@ -82,7 +82,7 @@ public partial class Canvas : AutoDisposable
 
     public bool IsCapturingKeyboard => _textInput != null;
 
-    public Vector2 MousePosition {get;private set;}
+    public Vector2 CursorPosition {get;private set;}
 
     public BoundingBox2D Bound
     {
@@ -416,10 +416,10 @@ public partial class Canvas : AutoDisposable
         // _hovered = null;
         //the mouse position is in screen space, the origin is at the top left corner
 
-        Vector2 mousePosition = _inputTracker.MousePosition;
-        Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        Vector2 cursorPosition = _inputTracker.CursorPosition;
+        Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(cursorPosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
 
-        MousePosition = mouseWorldPosition;
+        CursorPosition = mouseWorldPosition;
 
         _hitNodes.Clear();
         _collisionWorld.BuildTree();
@@ -448,7 +448,7 @@ public partial class Canvas : AutoDisposable
 
         _hovered = selectable;
 
-        _mouseLeftState.SetState(_inputTracker.IsMousePressing);
+        _mouseLeftState.SetState(_inputTracker.IsConfirmPressing);
 
         if (_mouseLeftState.IsDown)
         {
