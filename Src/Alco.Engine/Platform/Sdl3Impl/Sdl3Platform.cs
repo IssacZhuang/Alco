@@ -145,7 +145,7 @@ public unsafe class Sdl3Platform : Platform
                 _input.OnSdlMouseButtonUp(e.button.button);
                 break;
             case SDL_EventType.MouseWheel:
-                _input.OnSdlMouseWheel(e.wheel.y);
+                _input.OnSdlMouseWheel(e.wheel.x, e.wheel.y);
                 break;
             case SDL_EventType.TextInput:
                 Sdl3Window window1 = _windows[e.window.windowID];

@@ -540,6 +540,11 @@ public partial class Canvas : AutoDisposable
                 _textInput?.OnTextInput(this, text);
             }
         }
+
+        if (_inputTracker.IsScrolling(out Vector2 scrollDelta))
+        {
+            _hovered?.OnScroll(this, scrollDelta);
+        }
     }
 
     private void UpdateNode(UINode node, float delta)

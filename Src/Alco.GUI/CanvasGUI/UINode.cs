@@ -41,6 +41,7 @@ public class UINode : IEnumerable<UINode>
     public event Action<Canvas, Vector2>? EventOnDrag;
     public event Action<Canvas, Vector2>? EventOnSelect;
     public event Action<Canvas, Vector2>? EventOnDeselect;
+    public event Action<Canvas, Vector2>? EventOnScroll;
 
     public UINode()
     {
@@ -1028,6 +1029,15 @@ public class UINode : IEnumerable<UINode>
         }
     }
 
+    public virtual void OnScroll(Canvas canvas, Vector2 scrollDelta)
+    {
+        EventOnScroll?.Invoke(canvas, scrollDelta);
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnScroll(canvas, scrollDelta);
+        }
+    }
+
     /// <summary>
     /// Clears all event handlers attached to EventOnClick.
     /// </summary>
@@ -1090,6 +1100,14 @@ public class UINode : IEnumerable<UINode>
     public void ClearEventOnDeselect()
     {
         EventOnDeselect = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnScroll.
+    /// </summary>
+    public void ClearEventOnScroll()
+    {
+        EventOnScroll = null;
     }
 
     #endregion

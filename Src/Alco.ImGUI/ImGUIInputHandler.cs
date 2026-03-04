@@ -74,7 +74,7 @@ public sealed unsafe class ImGUIInputHandler : AutoDisposable
         Vector2 mousePosition = _view.MousePosition;
         io.AddMousePosEvent(mousePosition.X, mousePosition.Y);
 
-        io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta);
+        io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta.Y);
 
     }
 

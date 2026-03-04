@@ -26,7 +26,7 @@ public unsafe class Sdl3Input : Input
     private Vector2 _lastMousePosition;
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
-    private float _mouseWheelDelta;
+    private Vector2 _mouseWheelDelta;
 
     private readonly List<Sdl3Gamepad> _gamepads = new();
     private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
@@ -72,7 +72,7 @@ public unsafe class Sdl3Input : Input
         }
     }
 
-    public override float MouseWheelDelta => _mouseWheelDelta;
+    public override Vector2 MouseWheelDelta => _mouseWheelDelta;
 
     public override bool IsGamepadInputting => _isGamepadInputting;
 
@@ -177,8 +177,8 @@ public unsafe class Sdl3Input : Input
 
     public override bool IsMouseScrolling(out Vector2 delta)
     {
-        delta = default;
-        return false;
+        delta = _mouseWheelDelta;
+        return delta.X != 0 || delta.Y != 0;
     }
 
     public override bool IsMouseUp(Mouse button)
@@ -229,16 +229,10 @@ public unsafe class Sdl3Input : Input
         DoMouseUp(b);
     }
 
-    public override bool IsMouseWheelScrolling(out float delta)
-    {
-        delta = _mouseWheelDelta;
-        return _mouseWheelDelta != 0;
-    }
-
-    internal void OnSdlMouseWheel(float value)
+    internal void OnSdlMouseWheel(float x, float y)
     {
         _isGamepadInputting = false;
-        _mouseWheelDelta = value;
+        _mouseWheelDelta = new Vector2(x, y);
     }
 
     internal void OnSdlGamepadButtonDown(SDL_JoystickID which, SDL_GamepadButton button)
@@ -284,7 +278,8 @@ public unsafe class Sdl3Input : Input
             _state.isMouseDown[i] = false;
             _state.isMouseUp[i] = false;
         }
-        _mouseWheelDelta = 0;
+        
+        _mouseWheelDelta = Vector2.Zero;
     }
 
     private static Mouse ConvertMosueButton(uint button)

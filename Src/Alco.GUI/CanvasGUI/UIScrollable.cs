@@ -86,6 +86,11 @@ public class UIScrollable : UISelectable
     /// </summary>
     public float Inertia { get; set; } = 0.05f;
 
+    /// <summary>
+    /// Scroll sensitivity for mouse wheel input.
+    /// </summary>
+    public float ScrollSensitivity { get; set; } = 20;
+
     protected override void OnTick(Canvas canvas, float delta)
     {
         base.OnTick(canvas, delta);
@@ -162,6 +167,18 @@ public class UIScrollable : UISelectable
         {
             _inertiaVelocity = Vector2.Zero;
         }
+    }
+
+    public override void OnScroll(Canvas canvas, Vector2 scrollDelta)
+    {
+        base.OnScroll(canvas, scrollDelta);
+        if (_content == null)
+        {
+            return;
+        }
+
+        Vector2 displacement = -scrollDelta * ScrollSensitivity;
+        OnScroll(displacement);
     }
 
     protected void OnScroll(Vector2 displacement)
