@@ -65,6 +65,7 @@ public partial class Canvas : AutoDisposable
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
+    private Vector2 _lastCursorPosition;
     private InputState _mouseLeftState;
     private InputState _keyBackspaceState;
     private InputState _keyDeleteState;
@@ -413,40 +414,46 @@ public partial class Canvas : AutoDisposable
             return;
         }
 
-        // _hovered = null;
-        //the mouse position is in screen space, the origin is at the top left corner
-
         Vector2 cursorPosition = _inputTracker.CursorPosition;
+        bool cursorMoved = cursorPosition != _lastCursorPosition;
+        _lastCursorPosition = cursorPosition;
+
         Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(cursorPosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
 
         CursorPosition = mouseWorldPosition;
 
-        _hitNodes.Clear();
-        _collisionWorld.BuildTree();
-        var collector = new NodeCollector(_hitNodes);
-        _collisionWorld.CastPoint(ref collector, mouseWorldPosition);
-
         UINode? selectable = null;
-        for (int i = 0; i < _hitNodes.Count; i++)
+        if (cursorMoved)
         {
-            UINode node = _hitNodes[i];
-            if (CheckMask(node, mouseWorldPosition))
+            _hitNodes.Clear();
+            _collisionWorld.BuildTree();
+            var collector = new NodeCollector(_hitNodes);
+            _collisionWorld.CastPoint(ref collector, mouseWorldPosition);
+
+            for (int i = 0; i < _hitNodes.Count; i++)
             {
-                selectable = node;
-                break;
+                UINode node = _hitNodes[i];
+                if (CheckMask(node, mouseWorldPosition))
+                {
+                    selectable = node;
+                    break;
+                }
             }
+
+            if (selectable != _hovered && selectable != null)
+            {
+                if ((selectable.SoundType & UISoundType.Hover) != 0)
+                {
+                    SoundPlayer?.PlayOnHoverSound();
+                }
+            }
+
+            _hovered = selectable;
         }
-
-
-        if (selectable != _hovered && selectable != null)
+        else
         {
-            if ((selectable.SoundType & UISoundType.Hover) != 0)
-            {
-                SoundPlayer?.PlayOnHoverSound();
-            }
+            selectable = _hovered;
         }
-
-        _hovered = selectable;
 
         _mouseLeftState.SetState(_inputTracker.IsConfirmPressing);
 
@@ -465,7 +472,7 @@ public partial class Canvas : AutoDisposable
                 selectable.OnPressing(this, mouseWorldPosition);
             }
         }
-        else
+        else if (cursorMoved)
         {
             if (selectable != null)
             {
