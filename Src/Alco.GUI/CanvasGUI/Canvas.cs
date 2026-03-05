@@ -60,6 +60,14 @@ public partial class Canvas : AutoDisposable
 
     public Font DefaultFont { get; }
 
+    /// <summary>
+    /// The input tracker used by this canvas.
+    /// </summary>
+    public IUIInputTracker InputTracker
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _inputTracker;
+    }
 
     private UINode? _holded;
     private UINode? _hovered;
@@ -133,6 +141,31 @@ public partial class Canvas : AutoDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _selected;
+    }
+
+    /// <summary>
+    /// Programmatically sets the hovered node (e.g. for gamepad/keyboard navigation).
+    /// Triggers hover sound and <see cref="UINode.OnHover"/> callback on the target node.
+    /// Mouse movement will naturally override this on the next frame the cursor moves.
+    /// </summary>
+    /// <param name="node">The node to hover, or null to clear hover.</param>
+    public void SetHovered(UINode? node)
+    {
+        if (_hovered == node)
+        {
+            return;
+        }
+
+        _hovered = node;
+
+        if (node != null)
+        {
+            if ((node.SoundType & UISoundType.Hover) != 0)
+            {
+                SoundPlayer?.PlayOnHoverSound();
+            }
+            node.OnHover(this, CursorPosition);
+        }
     }
 
     /// <summary>
