@@ -11,7 +11,7 @@ namespace Alco.GUI;
 public class UILayoutNavigator : UILayout
 {
     private int _focusedIndex = -1;
-    private bool _isActive = true;
+    private bool _canNavigate = true;
 
     // Edge detection for navigation directions
     private bool _prevUp;
@@ -19,14 +19,13 @@ public class UILayoutNavigator : UILayout
     private bool _prevLeft;
     private bool _prevRight;
 
-    /// <summary>
-    /// Gets or sets whether this navigator is active.
-    /// When inactive, no navigation input is processed.
+/// <summary>
+    /// Gets or sets whether this navigator can process navigation input.
     /// </summary>
-    public bool IsActive
+    public bool CanNavigate
     {
-        get => _isActive;
-        set => _isActive = value;
+        get => _canNavigate;
+        set => _canNavigate = value;
     }
 
     /// <summary>
@@ -86,7 +85,7 @@ public class UILayoutNavigator : UILayout
     {
         base.OnTick(canvas, delta);
 
-        if (!_isActive)
+        if (!_canNavigate)
         {
             return;
         }
