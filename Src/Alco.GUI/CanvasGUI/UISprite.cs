@@ -15,6 +15,7 @@ public class UIImage : UINode
 
     private ArrayBuffer<Vertex>? _vertices = null;
     private ArrayBuffer<ushort>? _indices = null;
+    private Vector2 _lastMeshSize;
 
     /// <summary>
     /// The texture of the sprite. The white quad will be rendered if it is null.
@@ -106,15 +107,17 @@ public class UIImage : UINode
     {
         if (ImageType == ImageType.Sliced && Texture != null)
         {
+            _lastMeshSize = Size;
             Vertices.SetSizeWithoutCopy(16);
             Indices.SetSizeWithoutCopy(54);
-            MeshUtility.Populate9SliceMeshData(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), new Vector2(Texture.Width, Texture.Height), Size, Texture.SlicePadding);
+            MeshUtility.Populate9SliceMeshData(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), new Vector2(Texture.Width, Texture.Height), _lastMeshSize, Texture.SlicePadding);
         }
         else if (ImageType == ImageType.Tiled && Texture != null)
         {
+            _lastMeshSize = Size;
             Vertices.SetSizeWithoutCopy(4);
             Indices.SetSizeWithoutCopy(6);
-            MeshUtility.PopulateTiledMeshData(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), new Vector2(Texture.Width, Texture.Height), Size, TilingScale);
+            MeshUtility.PopulateTiledMeshData(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), new Vector2(Texture.Width, Texture.Height), _lastMeshSize, TilingScale);
         }
     }
 
@@ -125,6 +128,11 @@ public class UIImage : UINode
 
         if (ImageType == ImageType.Sliced && Texture != null)
         {
+            // Detect implicit size changes (e.g., stretch anchor with parent resize)
+            if (Size != _lastMeshSize)
+            {
+                OnUpdateRenderData(canvas, delta);
+            }
             Transform2D transform = RenderTransform;
             transform.Scale = Vector2.One; // already scaled in mesh
             canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), Texture, transform.Matrix, UvRect, RenderColor);
@@ -132,6 +140,11 @@ public class UIImage : UINode
         }
         else if (ImageType == ImageType.Tiled && Texture != null)
         {
+            // Detect implicit size changes (e.g., stretch anchor with parent resize)
+            if (Size != _lastMeshSize)
+            {
+                OnUpdateRenderData(canvas, delta);
+            }
             Transform2D transform = RenderTransform;
             transform.Scale = Vector2.One; // already scaled in mesh
             canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), Texture, transform.Matrix, UvRect, RenderColor);
