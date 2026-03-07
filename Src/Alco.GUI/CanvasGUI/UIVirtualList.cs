@@ -37,6 +37,14 @@ public abstract class UIVirtualList<TData> : UINode
 
     private bool _isLayoutDirty = false;
 
+    // Navigation state
+    private int _focusedIndex = -1;
+    private bool _canNavigate;
+    private bool _prevUp;
+    private bool _prevDown;
+    private bool _prevLeft;
+    private bool _prevRight;
+
     /// <summary>
     /// Gets or sets the fixed size of each item in the grid.
     /// </summary>
@@ -100,7 +108,22 @@ public abstract class UIVirtualList<TData> : UINode
     /// Gets the internal scrollable viewport.
     /// </summary>
     public UIScrollable Scrollable => _scrollable;
-    
+
+    /// <summary>
+    /// Gets or sets whether this virtual list can process keyboard navigation input.
+    /// </summary>
+    public bool CanNavigate
+    {
+        get => _canNavigate;
+        set => _canNavigate = value;
+    }
+
+    /// <summary>
+    /// Gets the current focused data index.
+    /// Returns -1 if no item is focused.
+    /// </summary>
+    public int FocusedIndex => _focusedIndex;
+
     /// <summary>
     /// Gets the total content size.
     /// </summary>
@@ -457,6 +480,184 @@ public abstract class UIVirtualList<TData> : UINode
         if (item is IUIListItem<TData> uiListItem)
         {
             uiListItem.SetData(index, data);
+        }
+    }
+
+    /// <summary>
+    /// Sets focus to the data item at the specified index.
+    /// The index is clamped to valid range. Pass -1 to clear focus.
+    /// </summary>
+    /// <param name="index">The data index to focus, or -1 to clear.</param>
+    public void SetFocus(int index)
+    {
+        if (index < 0)
+        {
+            _focusedIndex = -1;
+            return;
+        }
+
+        int count = _data.Count;
+        if (count == 0)
+        {
+            _focusedIndex = -1;
+            return;
+        }
+
+        _focusedIndex = Math.Clamp(index, 0, count - 1);
+    }
+
+    /// <summary>
+    /// Clears the current focus.
+    /// </summary>
+    public void ClearFocus()
+    {
+        _focusedIndex = -1;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnTick(Canvas canvas, float delta)
+    {
+        base.OnTick(canvas, delta);
+
+        if (!_canNavigate)
+        {
+            return;
+        }
+
+        IUIInputTracker inputTracker = canvas.InputTracker;
+
+        bool up = inputTracker.IsKeyUpPressing;
+        bool down = inputTracker.IsKeyDownPressing;
+        bool left = inputTracker.IsKeyLeftPressing;
+        bool right = inputTracker.IsKeyRightPressing;
+
+        bool upEdge = up && !_prevUp;
+        bool downEdge = down && !_prevDown;
+        bool leftEdge = left && !_prevLeft;
+        bool rightEdge = right && !_prevRight;
+
+        _prevUp = up;
+        _prevDown = down;
+        _prevLeft = left;
+        _prevRight = right;
+
+        bool navigated = false;
+        if (_columnsPerRow <= 1)
+        {
+            // Single-column: Up/Down navigates items
+            if (upEdge) navigated = NavigateByOffset(-1);
+            else if (downEdge) navigated = NavigateByOffset(1);
+        }
+        else
+        {
+            // Multi-column grid: Up/Down by row, Left/Right by column
+            if (upEdge) navigated = NavigateByOffset(-_columnsPerRow);
+            else if (downEdge) navigated = NavigateByOffset(_columnsPerRow);
+            else if (leftEdge) navigated = NavigateByOffset(-1);
+            else if (rightEdge) navigated = NavigateByOffset(1);
+        }
+
+        if (navigated)
+        {
+            EnsureFocusedVisible();
+            ApplyHover(canvas);
+        }
+    }
+
+    /// <summary>
+    /// Moves the focused index by the given offset, clamping to valid range.
+    /// </summary>
+    /// <param name="offset">The offset to apply (e.g. +1, -1, +columnsPerRow).</param>
+    /// <returns>True if focus changed.</returns>
+    private bool NavigateByOffset(int offset)
+    {
+        int count = _data.Count;
+        if (count == 0) return false;
+
+        if (_focusedIndex < 0)
+        {
+            _focusedIndex = offset > 0 ? 0 : count - 1;
+            return true;
+        }
+
+        int newIndex = _focusedIndex + offset;
+        newIndex = Math.Clamp(newIndex, 0, count - 1);
+
+        if (newIndex == _focusedIndex) return false;
+
+        _focusedIndex = newIndex;
+        return true;
+    }
+
+    /// <summary>
+    /// Scrolls the viewport so that the currently focused item is fully visible.
+    /// </summary>
+    private void EnsureFocusedVisible()
+    {
+        if (_focusedIndex < 0 || _data.Count == 0 || _itemSize.Y <= 0)
+            return;
+
+        float viewportHeight = _mask.Size.Y;
+        if (viewportHeight <= 0)
+            return;
+
+        float itemWithSpacingY = _itemSize.Y + _spacing.Y;
+        int focusedRow = _focusedIndex / _columnsPerRow;
+
+        // Item's position in content space (distance from content top)
+        float itemTop = focusedRow * itemWithSpacingY;
+        float itemBottom = itemTop + _itemSize.Y;
+
+        // Current visible range in content space
+        float contentHeight = ContentSize.Y;
+        float heightDiff = math.max(contentHeight - viewportHeight, 0);
+        float centerOffset = heightDiff * (0.5f - _container.Pivot.Y);
+        float scrollY = ScrollOffset.Y;
+
+        float visibleTop = centerOffset + scrollY;
+        float visibleBottom = visibleTop + viewportHeight;
+
+        if (itemTop < visibleTop)
+        {
+            float dy = -(visibleTop - itemTop);
+            _scrollable.ScrollBy(new Vector2(0, dy));
+        }
+        else if (itemBottom > visibleBottom)
+        {
+            float dy = itemBottom - visibleBottom;
+            _scrollable.ScrollBy(new Vector2(0, dy));
+        }
+
+        // Force immediate refresh so the focused item node exists for ApplyHover
+        RefreshVisibleItems();
+    }
+
+    /// <summary>
+    /// Finds the active UINode for the given data index, or null if not currently active.
+    /// </summary>
+    /// <param name="dataIndex">The data index to look up.</param>
+    /// <returns>The UINode, or null.</returns>
+    private UINode? FindActiveNode(int dataIndex)
+    {
+        foreach (var activeItem in _activeItems)
+        {
+            if (activeItem.Index == dataIndex)
+            {
+                return activeItem.Node;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Applies the current focus to the canvas hover system.
+    /// </summary>
+    private void ApplyHover(Canvas canvas)
+    {
+        UINode? node = FindActiveNode(_focusedIndex);
+        if (node != null)
+        {
+            canvas.SetHovered(node);
         }
     }
 

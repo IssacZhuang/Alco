@@ -181,6 +181,17 @@ public class UIScrollable : UISelectable
         OnScroll(displacement);
     }
 
+    /// <summary>
+    /// Scrolls the content by the specified displacement (in pixels).
+    /// Positive Y moves content up (shows later items), negative Y moves content down (shows earlier items).
+    /// The resulting position is clamped to valid scroll bounds.
+    /// </summary>
+    /// <param name="displacement">The scroll displacement vector.</param>
+    public void ScrollBy(Vector2 displacement)
+    {
+        OnScroll(displacement);
+    }
+
     protected void OnScroll(Vector2 displacement)
     {
         if (_content == null)
