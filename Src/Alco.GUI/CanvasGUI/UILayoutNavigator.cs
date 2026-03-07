@@ -8,7 +8,7 @@ namespace Alco.GUI;
 /// enabling gamepad-style menu navigation.
 /// Input is read from the canvas <see cref="IUIInputTracker"/> automatically.
 /// </summary>
-public class UILayoutNavigator : UILayout
+public class UILayoutNavigator : UILayout, INavigationFocusable
 {
     private int _focusedIndex = -1;
     private bool _canNavigate = true;
@@ -87,6 +87,12 @@ public class UILayoutNavigator : UILayout
 
         if (!_canNavigate)
         {
+            return;
+        }
+
+        if (canvas.NavigationFocus != this)
+        {
+            SyncEdgeState(canvas.InputTracker);
             return;
         }
 
@@ -255,6 +261,19 @@ public class UILayoutNavigator : UILayout
         {
             canvas.SetHovered(focused);
         }
+    }
+
+    /// <summary>
+    /// Updates edge-detection state without triggering navigation.
+    /// Called when this navigator is not the active one, to prevent
+    /// stale-edge bursts when it becomes active on a later frame.
+    /// </summary>
+    private void SyncEdgeState(IUIInputTracker inputTracker)
+    {
+        _prevUp = inputTracker.IsKeyUpPressing;
+        _prevDown = inputTracker.IsKeyDownPressing;
+        _prevLeft = inputTracker.IsKeyLeftPressing;
+        _prevRight = inputTracker.IsKeyRightPressing;
     }
 
     /// <summary>

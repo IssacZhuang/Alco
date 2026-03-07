@@ -7,7 +7,7 @@ namespace Alco.GUI;
 /// A virtual list that only renders visible items, with fixed item sizes for efficient scrolling.
 /// Items are recycled and repositioned as the user scrolls, providing high performance for large lists.
 /// </summary>
-public abstract class UIVirtualList<TData> : UINode
+public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
 {
     private struct ActiveItem
     {
@@ -524,6 +524,12 @@ public abstract class UIVirtualList<TData> : UINode
             return;
         }
 
+        if (canvas.NavigationFocus != this)
+        {
+            SyncEdgeState(canvas.InputTracker);
+            return;
+        }
+
         IUIInputTracker inputTracker = canvas.InputTracker;
 
         bool up = inputTracker.IsKeyUpPressing;
@@ -562,6 +568,19 @@ public abstract class UIVirtualList<TData> : UINode
             EnsureFocusedVisible();
             ApplyHover(canvas);
         }
+    }
+
+    /// <summary>
+    /// Updates edge-detection state without triggering navigation.
+    /// Called when this virtual list is not the active navigator, to prevent
+    /// stale-edge bursts when it becomes active on a later frame.
+    /// </summary>
+    private void SyncEdgeState(IUIInputTracker inputTracker)
+    {
+        _prevUp = inputTracker.IsKeyUpPressing;
+        _prevDown = inputTracker.IsKeyDownPressing;
+        _prevLeft = inputTracker.IsKeyLeftPressing;
+        _prevRight = inputTracker.IsKeyRightPressing;
     }
 
     /// <summary>

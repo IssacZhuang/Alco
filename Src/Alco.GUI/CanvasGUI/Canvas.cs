@@ -58,6 +58,8 @@ public partial class Canvas : AutoDisposable
     private readonly List<UINode> _hitNodes = new List<UINode>(64);
     private readonly IUIInputTracker _inputTracker;
 
+    private INavigationFocusable? _navigationFocus;
+
     public Font DefaultFont { get; }
 
     /// <summary>
@@ -67,6 +69,17 @@ public partial class Canvas : AutoDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _inputTracker;
+    }
+
+    /// <summary>
+    /// The navigable control that owns directional input this frame.
+    /// Determined automatically each frame: the last enabled
+    /// <see cref="INavigationFocusable"/> in depth-first traversal order.
+    /// </summary>
+    public INavigationFocusable? NavigationFocus
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _navigationFocus;
     }
 
     private UINode? _holded;
@@ -297,6 +310,8 @@ public partial class Canvas : AutoDisposable
     public void Tick(float delta)
     {
         _collisionWorld.ClearAll();
+        _navigationFocus = null;
+        ScanNavigationFocus(Root);
         TickNode(Root, delta);
     }
 
@@ -640,6 +655,15 @@ public partial class Canvas : AutoDisposable
 
         //recover stencil value in CPU
         _mask = mask;
+    }
+
+    private void ScanNavigationFocus(UINode node)
+    {
+        if (!node.IsEnable) return;
+        if (node is INavigationFocusable focusable && focusable.CanNavigate)
+            _navigationFocus = focusable;
+        for (int i = 0; i < node.Children.Count; i++)
+            ScanNavigationFocus(node.Children[i]);
     }
 
     private void TickNode(UINode node, float delta)
