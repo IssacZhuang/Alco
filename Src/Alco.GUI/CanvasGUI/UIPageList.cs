@@ -450,8 +450,19 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
 
         if (navigated)
         {
-            ApplyHover(canvas);
+            OnNavigated(canvas);
         }
+    }
+
+    /// <summary>
+    /// Called after a successful keyboard navigation.
+    /// The default implementation applies hover to the focused item.
+    /// Override to customize post-navigation behavior (e.g. update selection).
+    /// </summary>
+    /// <param name="canvas">The current canvas.</param>
+    protected virtual void OnNavigated(Canvas canvas)
+    {
+        ApplyHover(canvas);
     }
 
     private void SyncEdgeState(IUIInputTracker inputTracker)

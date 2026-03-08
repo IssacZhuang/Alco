@@ -566,8 +566,19 @@ public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
         if (navigated)
         {
             EnsureFocusedVisible();
-            ApplyHover(canvas);
+            OnNavigated(canvas);
         }
+    }
+
+    /// <summary>
+    /// Called after a successful keyboard navigation.
+    /// The default implementation applies hover to the focused item.
+    /// Override to customize post-navigation behavior (e.g. update selection).
+    /// </summary>
+    /// <param name="canvas">The current canvas.</param>
+    protected virtual void OnNavigated(Canvas canvas)
+    {
+        ApplyHover(canvas);
     }
 
     /// <summary>
