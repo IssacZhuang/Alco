@@ -13,8 +13,6 @@ public class UIInputTracker : IUIInputTracker
 
     public float ScrollDeadZone { get; set; } = 0.1f;
 
-    private const float NavigationDeadZone = 0.5f;
-
     /// <summary>
     /// Sensitivity multiplier for mouse scroll wheel input.
     /// </summary>
@@ -81,9 +79,7 @@ public class UIInputTracker : IUIInputTracker
             if (_input.IsKeyPressing(KeyCode.Left))
                 return true;
             Gamepad? gamepad = _input.PrimaryGamepad;
-            return gamepad != null &&
-                (gamepad.IsButtonPressed(GamepadButton.DPadLeft) ||
-                 gamepad.GetAxis(GamepadAxis.LeftX) < -NavigationDeadZone);
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadLeft);
         }
     }
 
@@ -95,9 +91,7 @@ public class UIInputTracker : IUIInputTracker
             if (_input.IsKeyPressing(KeyCode.Right))
                 return true;
             Gamepad? gamepad = _input.PrimaryGamepad;
-            return gamepad != null &&
-                (gamepad.IsButtonPressed(GamepadButton.DPadRight) ||
-                 gamepad.GetAxis(GamepadAxis.LeftX) > NavigationDeadZone);
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadRight);
         }
     }
 
@@ -109,9 +103,7 @@ public class UIInputTracker : IUIInputTracker
             if (_input.IsKeyPressing(KeyCode.Up))
                 return true;
             Gamepad? gamepad = _input.PrimaryGamepad;
-            return gamepad != null &&
-                (gamepad.IsButtonPressed(GamepadButton.DPadUp) ||
-                 gamepad.GetAxis(GamepadAxis.LeftY) > NavigationDeadZone);
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadUp);
         }
     }
 
@@ -123,9 +115,7 @@ public class UIInputTracker : IUIInputTracker
             if (_input.IsKeyPressing(KeyCode.Down))
                 return true;
             Gamepad? gamepad = _input.PrimaryGamepad;
-            return gamepad != null &&
-                (gamepad.IsButtonPressed(GamepadButton.DPadDown) ||
-                 gamepad.GetAxis(GamepadAxis.LeftY) < -NavigationDeadZone);
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadDown);
         }
     }
 

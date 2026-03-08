@@ -250,7 +250,6 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
             SetDataForItem(activeItem.Node, index, _data[index]);
         }
 
-        SetLayoutDirty();
     }
 
     /// <summary>
