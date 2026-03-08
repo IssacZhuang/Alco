@@ -298,7 +298,11 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         _isLayoutDirty = true;
     }
 
-    private int GetItemsPerPage()
+    /// <summary>
+    /// Gets the number of items displayed per page based on container size and item configuration.
+    /// </summary>
+    /// <returns>The number of items per page.</returns>
+    public int GetItemsPerPage()
     {
         if (_itemSize.Y <= 0) return 0;
 
