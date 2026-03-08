@@ -26,6 +26,7 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     private readonly List<ActiveItem> _activeItems = new();
     private readonly Pool<UINode> _itemPool;
     private readonly List<TData> _data = new();
+    private readonly UIMask _mask;
     private readonly UINode _container;
 
     private Vector2 _itemSize = new(100f, 50f);
@@ -147,13 +148,19 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     {
         _itemPool = new Pool<UINode>(32, CreateItem);
 
+        _mask = new UIMask
+        {
+            Anchor = Anchor.Stretch
+        };
+
         _container = new UINode
         {
             Anchor = Anchor.Stretch,
             Pivot = Pivot.Center,
         };
 
-        Add(_container);
+        _mask.Add(_container);
+        Add(_mask);
 
         TryAutoDetectItemSize();
     }
