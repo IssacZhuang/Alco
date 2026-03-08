@@ -12,8 +12,8 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
 {
     private int _focusedIndex = -1;
     private bool _canNavigate = true;
+    private bool _focusChanged;
 
-    // Edge detection for navigation directions
     private bool _prevUp;
     private bool _prevDown;
     private bool _prevLeft;
@@ -70,6 +70,7 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
         }
 
         _focusedIndex = Math.Clamp(index, 0, count - 1);
+        _focusChanged = true;
     }
 
     /// <summary>
@@ -90,9 +91,16 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
             return;
         }
 
+        if (_focusChanged)
+        {
+            _focusChanged = false;
+            ApplyHover(canvas);
+        }
+
         if (canvas.NavigationFocus != this)
         {
             SyncEdgeState(canvas.InputTracker);
+            _focusedIndex = -1;
             return;
         }
 
