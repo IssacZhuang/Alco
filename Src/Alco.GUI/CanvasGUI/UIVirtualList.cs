@@ -548,25 +548,27 @@ public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
         _prevRight = right;
 
         bool navigated = false;
+        int newFocusIndex = _focusedIndex;
         if (_columnsPerRow <= 1)
         {
             // Single-column: Up/Down navigates items
-            if (upEdge) navigated = NavigateByOffset(-1);
-            else if (downEdge) navigated = NavigateByOffset(1);
+            if (upEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
+            else if (downEdge) navigated = NavigateByOffset(1, out newFocusIndex);
         }
         else
         {
             // Multi-column grid: Up/Down by row, Left/Right by column
-            if (upEdge) navigated = NavigateByOffset(-_columnsPerRow);
-            else if (downEdge) navigated = NavigateByOffset(_columnsPerRow);
-            else if (leftEdge) navigated = NavigateByOffset(-1);
-            else if (rightEdge) navigated = NavigateByOffset(1);
+            if (upEdge) navigated = NavigateByOffset(-_columnsPerRow, out newFocusIndex);
+            else if (downEdge) navigated = NavigateByOffset(_columnsPerRow, out newFocusIndex);
+            else if (leftEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
+            else if (rightEdge) navigated = NavigateByOffset(1, out newFocusIndex);
         }
 
         if (navigated)
         {
+            _focusedIndex = newFocusIndex;
             EnsureFocusedVisible();
-            OnNavigated(canvas);
+            OnNavigated(canvas, newFocusIndex);
         }
     }
 
@@ -576,9 +578,14 @@ public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
     /// Override to customize post-navigation behavior (e.g. update selection).
     /// </summary>
     /// <param name="canvas">The current canvas.</param>
-    protected virtual void OnNavigated(Canvas canvas)
+    /// <param name="focusIndex">The new focused data index.</param>
+    protected virtual void OnNavigated(Canvas canvas, int focusIndex)
     {
-        ApplyHover(canvas);
+        UINode? node = FindActiveNode(focusIndex);
+        if (node != null)
+        {
+            canvas.SetHovered(node);
+        }
     }
 
     /// <summary>
@@ -598,24 +605,33 @@ public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
     /// Moves the focused index by the given offset, clamping to valid range.
     /// </summary>
     /// <param name="offset">The offset to apply (e.g. +1, -1, +columnsPerRow).</param>
+    /// <param name="newFocusIndex">The new focused index after navigation.</param>
     /// <returns>True if focus changed.</returns>
-    private bool NavigateByOffset(int offset)
+    private bool NavigateByOffset(int offset, out int newFocusIndex)
     {
         int count = _data.Count;
-        if (count == 0) return false;
+        if (count == 0)
+        {
+            newFocusIndex = _focusedIndex;
+            return false;
+        }
 
         if (_focusedIndex < 0)
         {
-            _focusedIndex = offset > 0 ? 0 : count - 1;
+            newFocusIndex = offset > 0 ? 0 : count - 1;
             return true;
         }
 
         int newIndex = _focusedIndex + offset;
         newIndex = Math.Clamp(newIndex, 0, count - 1);
 
-        if (newIndex == _focusedIndex) return false;
+        if (newIndex == _focusedIndex)
+        {
+            newFocusIndex = _focusedIndex;
+            return false;
+        }
 
-        _focusedIndex = newIndex;
+        newFocusIndex = newIndex;
         return true;
     }
 
@@ -677,18 +693,6 @@ public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
             }
         }
         return null;
-    }
-
-    /// <summary>
-    /// Applies the current focus to the canvas hover system.
-    /// </summary>
-    private void ApplyHover(Canvas canvas)
-    {
-        UINode? node = FindActiveNode(_focusedIndex);
-        if (node != null)
-        {
-            canvas.SetHovered(node);
-        }
     }
 
     /// <summary>

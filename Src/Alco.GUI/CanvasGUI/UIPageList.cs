@@ -435,34 +435,42 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         _prevRight = right;
 
         bool navigated = false;
+        int newFocusIndex = _focusedIndex;
         if (_columnsPerRow <= 1)
         {
-            if (upEdge) navigated = NavigateByOffset(-1);
-            else if (downEdge) navigated = NavigateByOffset(1);
+            if (upEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
+            else if (downEdge) navigated = NavigateByOffset(1, out newFocusIndex);
         }
         else
         {
-            if (upEdge) navigated = NavigateByOffset(-_columnsPerRow);
-            else if (downEdge) navigated = NavigateByOffset(_columnsPerRow);
-            else if (leftEdge) navigated = NavigateByOffset(-1);
-            else if (rightEdge) navigated = NavigateByOffset(1);
+            if (upEdge) navigated = NavigateByOffset(-_columnsPerRow, out newFocusIndex);
+            else if (downEdge) navigated = NavigateByOffset(_columnsPerRow, out newFocusIndex);
+            else if (leftEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
+            else if (rightEdge) navigated = NavigateByOffset(1, out newFocusIndex);
         }
 
         if (navigated)
         {
-            OnNavigated(canvas);
+            OnNavigated(canvas, newFocusIndex);
         }
     }
 
     /// <summary>
     /// Called after a successful keyboard navigation.
-    /// The default implementation applies hover to the focused item.
+    /// The default implementation sets the focused index and applies hover to the focused item.
     /// Override to customize post-navigation behavior (e.g. update selection).
     /// </summary>
     /// <param name="canvas">The current canvas.</param>
-    protected virtual void OnNavigated(Canvas canvas)
+    /// <param name="focusIndex">The new focused data index.</param>
+    protected virtual void OnNavigated(Canvas canvas, int focusIndex)
     {
-        ApplyHover(canvas);
+        _focusedIndex = focusIndex;
+
+        UINode? node = FindActiveNode(_focusedIndex);
+        if (node != null)
+        {
+            canvas.SetHovered(node);
+        }
     }
 
     private void SyncEdgeState(IUIInputTracker inputTracker)
@@ -473,29 +481,41 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         _prevRight = inputTracker.IsKeyRightPressing;
     }
 
-    private bool NavigateByOffset(int offset)
+    private bool NavigateByOffset(int offset, out int newFocusIndex)
     {
         int itemsPerPage = GetItemsPerPage();
-        if (itemsPerPage <= 0) return false;
+        if (itemsPerPage <= 0)
+        {
+            newFocusIndex = _focusedIndex;
+            return false;
+        }
 
         int startIndex = _currentPage * itemsPerPage;
         int endIndex = Math.Min(startIndex + itemsPerPage - 1, _data.Count - 1);
         int pageItemCount = endIndex - startIndex + 1;
 
-        if (pageItemCount <= 0) return false;
+        if (pageItemCount <= 0)
+        {
+            newFocusIndex = _focusedIndex;
+            return false;
+        }
 
         if (_focusedIndex < 0)
         {
-            _focusedIndex = offset > 0 ? startIndex : endIndex;
+            newFocusIndex = offset > 0 ? startIndex : endIndex;
             return true;
         }
 
         int newIndex = _focusedIndex + offset;
         newIndex = Math.Clamp(newIndex, startIndex, endIndex);
 
-        if (newIndex == _focusedIndex) return false;
+        if (newIndex == _focusedIndex)
+        {
+            newFocusIndex = _focusedIndex;
+            return false;
+        }
 
-        _focusedIndex = newIndex;
+        newFocusIndex = newIndex;
         return true;
     }
 
@@ -509,15 +529,6 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
             }
         }
         return null;
-    }
-
-    private void ApplyHover(Canvas canvas)
-    {
-        UINode? node = FindActiveNode(_focusedIndex);
-        if (node != null)
-        {
-            canvas.SetHovered(node);
-        }
     }
 
     protected override void OnUpdate(Canvas canvas, float delta)
