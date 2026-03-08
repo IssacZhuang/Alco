@@ -9,7 +9,7 @@ namespace Alco.GUI;
 /// Items are recycled when navigating between pages.
 /// The number of items per page is automatically calculated based on container size, ItemSize, and Spacing.
 /// </summary>
-public abstract class UIPageList<TData> : UINode, INavigationFocusable
+public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageList
 {
     private struct ActiveItem
     {
