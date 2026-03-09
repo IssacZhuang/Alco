@@ -17,29 +17,14 @@ public class LLMSystem : BaseEngineSystem, IFunctionInvocationFilter
     }
 
     /// <summary>
-    /// Creates an LLMAgent configured to connect to a remote OpenAI-compatible service.
+    /// Creates an LLMAgent with the specified options.
+    /// The LLMSystem is automatically set as the function invocation filter.
     /// </summary>
-    /// <param name="uri">The custom endpoint URI.</param>
-    /// <param name="apiKey">The API key for authentication.</param>
-    /// <param name="modelId">The model ID to use.</param>
-    /// <param name="plugins">The plugins to add to the kernel.</param>
+    /// <param name="options">The options for creating the agent.</param>
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
-    public LLMAgent CreateAgentFromRemote(Uri uri, string apiKey, string modelId, params ReadOnlySpan<object> plugins)
+    public LLMAgent CreateAgent(LLMAgentOptions options)
     {
-        return LLMAgent.CreateFromRemote(uri, apiKey, modelId, this, plugins);
-    }
-
-    /// <summary>
-    /// Creates an LLMAgent configured to connect to a remote OpenAI-compatible service using plugin types.
-    /// </summary>
-    /// <param name="uri">The custom endpoint URI.</param>
-    /// <param name="apiKey">The API key for authentication.</param>
-    /// <param name="modelId">The model ID to use.</param>
-    /// <param name="pluginTypes">The plugin types to add to the kernel.</param>
-    /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
-    public LLMAgent CreateAgentFromRemote(Uri uri, string apiKey, string modelId, params ReadOnlySpan<Type> pluginTypes)
-    {
-        return LLMAgent.CreateFromRemote(uri, apiKey, modelId, this, pluginTypes);
+        return LLMAgent.Create(options with { FunctionInvocationFilter = this });
     }
 
     public async Task OnFunctionInvocationAsync(FunctionInvocationContext context, Func<FunctionInvocationContext, Task> next)

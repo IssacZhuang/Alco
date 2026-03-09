@@ -162,25 +162,28 @@ public class Game : GameEngine
                 {
                     if (!string.IsNullOrWhiteSpace(_customUri) && Uri.TryCreate(_customUri, UriKind.Absolute, out var uri))
                     {
-                         _llmAgent = _llmSystem.CreateAgentFromRemote(uri, _apiKey, _modelId, this);
+                         _llmAgent = _llmSystem.CreateAgent(new LLMAgentOptions
+                         {
+                             Endpoint = uri,
+                             ApiKey = _apiKey,
+                             ModelId = _modelId,
+                             Plugins = new[] { this }
+                         });
                     }
                     else
                     {
-                        // Fallback to OpenAI default URI if no custom URI is provided but we have API key
-                        // Or handle OrgId if supported in CreateAgentFromRemote (currently not in signature)
-                        // For now assuming custom URI or default OpenAI logic inside builder if URI is null?
-                        // But CreateAgentFromRemote requires URI.
-                        // Let's assume for Sandbox we just use the custom URI path for now or throw if empty.
+                        // Fallback to OpenAI default URI if no custom URI is provided
                         if (string.IsNullOrWhiteSpace(_apiKey))
                         {
                             throw new Exception("API Key is required");
                         }
-                        // Default OpenAI endpoint if not custom?
-                        // The current API requires URI. Let's provide a way to use default OpenAI.
-                        // Wait, previous code supported orgId and optional URI.
-                        // We need to check LLMSystem API again. It requires URI.
-                        // Let's use https://api.openai.com/v1 if custom URI is empty.
-                        _llmAgent = _llmSystem.CreateAgentFromRemote(new Uri("https://api.openai.com/v1"), _apiKey, _modelId, this);
+                        _llmAgent = _llmSystem.CreateAgent(new LLMAgentOptions
+                        {
+                            Endpoint = new Uri("https://api.openai.com/v1"),
+                            ApiKey = _apiKey,
+                            ModelId = _modelId,
+                            Plugins = new[] { this }
+                        });
                     }
                     _llmSession = _llmAgent.CreateSession();
                 }
