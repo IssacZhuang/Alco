@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
+using ModelContextProtocol.Server;
 
 namespace Alco.LLM;
 
@@ -88,5 +89,16 @@ public class LLMAgent
     public LLMSession CreateSession(LLMSessionConfig? config = null)
     {
         return new LLMSession(_kernel, config);
+    }
+
+    public void WithSkTools(IMcpServerBuilder builder)
+    {
+        foreach (var plugin in _kernel.Plugins)
+        {
+            foreach (var function in plugin)
+            {
+                builder.Services.AddSingleton(services => McpServerTool.Create(function));
+            }
+        }
     }
 }

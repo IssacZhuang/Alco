@@ -10,6 +10,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.71.0" />
+    <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.1.0" />
   </ItemGroup>
 </Project>
 

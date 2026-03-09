@@ -4,6 +4,7 @@ using System.Reflection;
 using Alco.Engine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
+using ModelContextProtocol.Server;
 
 namespace Alco.LLM;
 
