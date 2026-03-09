@@ -128,7 +128,6 @@ public class ConfigDatabase
         }
 
         _jsonSerializerOptions.Converters.Add(new JsonConverterConfigReferenceFactory(this));
-        _jsonSerializerOptions.Converters.Add(new JsonConverterConfigReferenceOptionalFactory(this));
 
         _jsonSerializerOptions.MakeReadOnly();
 
