@@ -14,6 +14,14 @@ namespace Alco.GUI
         /// </summary>
         /// <value></value>
         public Vector2 WindowSize { get; }
+        /// <summary>
+        /// Indicates whether the mouse left button is currently being pressed.
+        /// </summary>
+        public bool IsMouseLeftPressing { get; }
+
+        /// <summary>
+        /// Indicates whether the confirm button (gamepad) is currently being pressed.
+        /// </summary>
         public bool IsConfirmPressing { get; }
 
         public bool IsKeyDeletePressing { get; }

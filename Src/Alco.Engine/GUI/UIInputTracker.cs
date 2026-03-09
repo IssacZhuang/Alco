@@ -41,10 +41,22 @@ public class UIInputTracker : IUIInputTracker
         get => _window.MousePosition;
     }
 
+    /// <summary>
+    /// Indicates whether the mouse left button is currently being pressed.
+    /// </summary>
+    public bool IsMouseLeftPressing
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsMousePressing(Mouse.Left);
+    }
+
+    /// <summary>
+    /// Indicates whether the confirm button (gamepad) is currently being pressed.
+    /// </summary>
     public bool IsConfirmPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsMousePressing(Mouse.Left) || GamepadClickButton.HasValue && (_input.PrimaryGamepad?.IsButtonPressed(GamepadClickButton.Value) ?? false);
+        get => GamepadClickButton.HasValue && (_input.PrimaryGamepad?.IsButtonPressed(GamepadClickButton.Value) ?? false);
     }
 
     public bool IsKeyDeletePressing

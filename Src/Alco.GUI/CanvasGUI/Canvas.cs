@@ -88,6 +88,7 @@ public partial class Canvas : AutoDisposable
     private ITextInput? _textInput;
     private Vector2 _lastCursorPosition;
     private InputState _mouseLeftState;
+    private InputState _confirmState;
     private InputState _keyBackspaceState;
     private InputState _keyDeleteState;
     private InputState _keyEnterState;
@@ -405,42 +406,52 @@ public partial class Canvas : AutoDisposable
 
 
 
-    private void OnMouseDown(UINode? node, Vector2 mousePosition)
+    private void OnConfirmDown(UINode? node, Vector2 cursorPosition, bool checkMask)
     {
         if (node == null)
         {
-            ClearTextInput();
+            if (checkMask)
+            {
+                ClearTextInput();
+            }
             return;
         }
 
-        if (!CheckMask(node, mousePosition))
+        if (checkMask && !CheckMask(node, cursorPosition))
         {
             return;
         }
 
         _holded = node;
+        node.OnPressDown(this, cursorPosition);
 
-        node?.OnPressDown(this, mousePosition);
-
-        if (_selected != null && _selected != node)
+        if (checkMask)
         {
-            _selected.OnDeselect(this, mousePosition);
-        }
-        _selected = node;
-        _selected?.OnSelect(this, mousePosition);
+            if (_selected != null && _selected != node)
+            {
+                _selected.OnDeselect(this, cursorPosition);
+            }
+            _selected = node;
+            _selected?.OnSelect(this, cursorPosition);
 
-        if (node is not ITextInput)
-        {
-            ClearTextInput();
+            if (node is not ITextInput)
+            {
+                ClearTextInput();
+            }
         }
     }
 
-    private void OnMouseUp(UINode? node, Vector2 mousePosition)
+    private void OnConfirmUp(UINode? node, Vector2 cursorPosition)
     {
-        _holded?.OnPressUp(this, mousePosition);
-        if (node == _holded && _holded != null)
+        if (_holded == null)
         {
-            _holded.OnClick(this, mousePosition);
+            return;
+        }
+
+        _holded.OnPressUp(this, cursorPosition);
+        if (_holded == node)
+        {
+            _holded.OnClick(this, cursorPosition);
             if ((_holded.SoundType & UISoundType.Click) != 0)
             {
                 SoundPlayer?.PlayOnClickSound();
@@ -503,15 +514,16 @@ public partial class Canvas : AutoDisposable
             selectable = _hovered;
         }
 
-        _mouseLeftState.SetState(_inputTracker.IsConfirmPressing);
+        _mouseLeftState.SetState(_inputTracker.IsMouseLeftPressing);
+        _confirmState.SetState(_inputTracker.IsConfirmPressing);
 
         if (_mouseLeftState.IsDown)
         {
-            OnMouseDown(selectable, mouseWorldPosition);
+            OnConfirmDown(selectable, mouseWorldPosition, checkMask: true);
         }
         else if (_mouseLeftState.IsUp)
         {
-            OnMouseUp(selectable, mouseWorldPosition);
+            OnConfirmUp(selectable, mouseWorldPosition);
         }
         else if (_mouseLeftState.IsPressing)
         {
@@ -525,6 +537,22 @@ public partial class Canvas : AutoDisposable
             if (selectable != null)
             {
                 selectable.OnHover(this, mouseWorldPosition);
+            }
+        }
+
+        if (_confirmState.IsDown)
+        {
+            OnConfirmDown(selectable, mouseWorldPosition, checkMask: false);
+        }
+        else if (_confirmState.IsUp)
+        {
+            OnConfirmUp(selectable, mouseWorldPosition);
+        }
+        else if (_confirmState.IsPressing)
+        {
+            if (selectable != null)
+            {
+                selectable.OnPressing(this, mouseWorldPosition);
             }
         }
 
