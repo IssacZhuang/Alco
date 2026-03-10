@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Alco.Graphics;
 using StbImageWriteSharp;
 
@@ -19,6 +18,7 @@ public sealed class TextureEncoderPNG : AutoDisposable
     private RenderTexture? _cachedRenderTexture;
     private uint _cachedWidth;
     private uint _cachedHeight;
+    private NativeBuffer<byte> _cachedData;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TextureEncoderPNG"/> class.
@@ -65,24 +65,15 @@ public sealed class TextureEncoderPNG : AutoDisposable
         _renderContext.Draw(_fullScreenMesh, _blitMaterial);
         _renderContext.End();
 
-        nuint dataSize = targetWidth * targetHeight * 4;
-        byte* data = (byte*)NativeMemory.Alloc(dataSize);
-        try
-        {
-            _device.ReadTexture(_cachedRenderTexture.ColorTextures[0].NativeTexture, data, (uint)dataSize);
+        _device.ReadTexture(_cachedRenderTexture.ColorTextures[0].NativeTexture, _cachedData.UnsafePointer, (uint)_cachedData.Length);
 
-            ImageWriter writer = new ImageWriter();
-            writer.WritePng(data, (int)targetWidth, (int)targetHeight, StbImageSharp.ColorComponents.RedGreenBlueAlpha, output);
-        }
-        finally
-        {
-            NativeMemory.Free(data);
-        }
+        ImageWriter writer = new ImageWriter();
+        writer.WritePng(_cachedData.UnsafePointer, (int)targetWidth, (int)targetHeight, StbImageSharp.ColorComponents.RedGreenBlueAlpha, output);
     }
 
     private void EnsureRenderTexture(uint width, uint height)
     {
-        if (_cachedRenderTexture != null && _cachedWidth >= width && _cachedHeight >= height)
+        if (_cachedRenderTexture != null && _cachedWidth == width && _cachedHeight == height)
         {
             return;
         }
@@ -97,10 +88,12 @@ public sealed class TextureEncoderPNG : AutoDisposable
             height,
             "texture_encoder_png_render_texture"
         );
+        _cachedData.SetSizeWithoutCopy((int)(width * height * 4));
     }
 
     protected override void Dispose(bool disposing)
     {
+        _cachedData.Dispose();
         if (disposing)
         {
             _renderContext.Dispose();
