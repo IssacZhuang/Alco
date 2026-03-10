@@ -198,6 +198,11 @@ public class UIInputBox : UIText, ITextInput
             return 0;
         }
 
+        if (_lines.Count == 0)
+        {
+            return 0;
+        }
+
         if (line >= _lines.Count)
         {
             line = _lines.Count - 1;
