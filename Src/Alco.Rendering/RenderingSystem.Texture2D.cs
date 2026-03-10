@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using StbImageSharp;
+using StbImageWriteSharp;
 using Alco.Graphics;
 
 using static Alco.MemoryUtility;
@@ -334,6 +336,40 @@ public partial class RenderingSystem
             // Use already decoded data instead of re-decoding
             _device.WriteTexture(texture, image.UnsafePointer, (uint)image.Data.Length);
             texture2D.UnsafeHotReload(texture, textureView);
+        }
+    }
+
+    /// <summary>
+    /// Encodes a Texture2D to PNG format and writes to the specified stream.
+    /// </summary>
+    /// <param name="texture">The texture to encode. Must be RGBA8Unorm or RGBA8UnormSrgb format.</param>
+    /// <param name="output">The output stream to write the PNG data.</param>
+    /// <exception cref="ArgumentException">Thrown when texture format is not supported.</exception>
+    public unsafe void EncodeTextureToPNG(Texture2D texture, Stream output)
+    {
+        PixelFormat format = texture.NativeTexture.PixelFormat;
+        if (format != PixelFormat.RGBA8Unorm && format != PixelFormat.RGBA8UnormSrgb)
+        {
+            throw new ArgumentException(
+                $"Texture format {format} is not supported. Only RGBA8Unorm and RGBA8UnormSrgb are supported.",
+                nameof(texture));
+        }
+
+        uint width = texture.Width;
+        uint height = texture.Height;
+        nuint dataSize = (nuint)(width * height * 4);
+
+        byte* data = (byte*)NativeMemory.Alloc(dataSize);
+        try
+        {
+            _device.ReadTexture(texture.NativeTexture, data, (uint)dataSize);
+
+            ImageWriter writer = new ImageWriter();
+            writer.WritePng(data, (int)width, (int)height, ColorComponents.RedGreenBlueAlpha, output);
+        }
+        finally
+        {
+            NativeMemory.Free(data);
         }
     }
 }
