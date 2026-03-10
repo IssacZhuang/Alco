@@ -167,6 +167,14 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
+        if (TextSpan.IsEmpty && _isCursorVisible && IsEditable && _isSelecting && Font != null)
+        {
+            Transform2D cursorTransform = Transform2D.Identity;
+            cursorTransform.Position = Size * TextPivot;
+            cursorTransform.Scale = new Vector2(FontSize) * CursorScale;
+            canvas.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor);
+        }
+
         //DebugShowLineBreak();
     }
 
