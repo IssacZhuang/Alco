@@ -48,12 +48,31 @@ public static partial class DebugStats
     /// <param name="str">The text</param>
     public unsafe static void Text(ReadOnlySpan<char> str)
     {
+        Text(str, _style.TextColor);
+    }
+
+    /// <summary>
+    /// Draw a text with a custom color
+    /// </summary>
+    /// <param name="text">The text to display</param>
+    /// <param name="color">The text color</param>
+    public static void Text(string text, ColorFloat color)
+    {
+        Text(text.AsSpan(), color);
+    }
+
+    /// <summary>
+    /// Draw text with a custom color
+    /// </summary>
+    /// <param name="str">The text</param>
+    /// <param name="color">The text color</param>
+    public static void Text(ReadOnlySpan<char> str, ColorFloat color)
+    {
         CheckBegin();
         Vector2 drawPos = ProcessPostion();
         drawPos.Y = -drawPos.Y;
 
-        float normalizedTextLength;
-        normalizedTextLength = _renderer.DrawText(str, drawPos, _style.Font, _style.FontSize, _style.TextColor, Pivot.LeftCenter);
+        float normalizedTextLength = _renderer.DrawText(str, drawPos, _style.Font, _style.FontSize, color, Pivot.LeftCenter);
 
         float fontSize = _style.FontSize;
         SetNextOffset(new Vector2(normalizedTextLength * fontSize, fontSize + _style.Margin.W));
