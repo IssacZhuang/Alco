@@ -178,7 +178,14 @@ public partial class Canvas : AutoDisposable
             {
                 SoundPlayer?.PlayOnHoverSound();
             }
-            node.OnHover(this, CursorPosition);
+            try
+            {
+                node.OnHover(this, CursorPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnHover", node);
+            }
         }
     }
 
@@ -423,16 +430,40 @@ public partial class Canvas : AutoDisposable
         }
 
         _holded = node;
-        node.OnPressDown(this, cursorPosition);
+        try
+        {
+            node.OnPressDown(this, cursorPosition);
+        }
+        catch (Exception e)
+        {
+            HandleError(e, "OnPressDown", node);
+        }
 
         if (checkMask)
         {
             if (_selected != null && _selected != node)
             {
-                _selected.OnDeselect(this, cursorPosition);
+                try
+                {
+                    _selected.OnDeselect(this, cursorPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnDeselect", _selected);
+                }
             }
             _selected = node;
-            _selected?.OnSelect(this, cursorPosition);
+            if (_selected != null)
+            {
+                try
+                {
+                    _selected.OnSelect(this, cursorPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnSelect", _selected);
+                }
+            }
 
             if (node is not ITextInput)
             {
@@ -448,11 +479,27 @@ public partial class Canvas : AutoDisposable
             return;
         }
 
-        _holded.OnPressUp(this, cursorPosition);
-        if (_holded == node)
+        UINode holded = _holded;
+        try
         {
-            _holded.OnClick(this, cursorPosition);
-            if ((_holded.SoundType & UISoundType.Click) != 0)
+            holded.OnPressUp(this, cursorPosition);
+        }
+        catch (Exception e)
+        {
+            HandleError(e, "OnPressUp", holded);
+        }
+
+        if (holded == node)
+        {
+            try
+            {
+                holded.OnClick(this, cursorPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnClick", holded);
+            }
+            if ((holded.SoundType & UISoundType.Click) != 0)
             {
                 SoundPlayer?.PlayOnClickSound();
             }
@@ -463,7 +510,15 @@ public partial class Canvas : AutoDisposable
 
     private void OnTextInput(ReadOnlySpan<char> text)
     {
-        _textInput?.OnTextInput(this, text);
+        if (_textInput == null) return;
+        try
+        {
+            _textInput.OnTextInput(this, text);
+        }
+        catch (Exception e)
+        {
+            HandleError(e, "OnTextInput", _textInput as UINode);
+        }
     }
 
     private void HandleInput()
@@ -529,14 +584,28 @@ public partial class Canvas : AutoDisposable
         {
             if (selectable != null)
             {
-                selectable.OnPressing(this, mouseWorldPosition);
+                try
+                {
+                    selectable.OnPressing(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnPressing", selectable);
+                }
             }
         }
         else if (cursorMoved)
         {
             if (selectable != null)
             {
-                selectable.OnHover(this, mouseWorldPosition);
+                try
+                {
+                    selectable.OnHover(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnHover", selectable);
+                }
             }
         }
 
@@ -552,11 +621,28 @@ public partial class Canvas : AutoDisposable
         {
             if (selectable != null)
             {
-                selectable.OnPressing(this, mouseWorldPosition);
+                try
+                {
+                    selectable.OnPressing(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnPressing", selectable);
+                }
             }
         }
 
-        _holded?.OnDrag(this, mouseWorldPosition);
+        if (_holded != null)
+        {
+            try
+            {
+                _holded.OnDrag(this, mouseWorldPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnDrag", _holded);
+            }
+        }
 
         // update key states (pressing => edge detection here)
         _keyBackspaceState.SetState(_inputTracker.IsKeyBackspacePressing);
@@ -572,61 +658,149 @@ public partial class Canvas : AutoDisposable
         _pasteState.SetState(_inputTracker.IsKeyPastePressing);
 
         //input box shortcuts (trigger on down edge)
-        if (_keyBackspaceState.IsDown)
+        if (_textInput != null)
         {
-            _textInput?.HandleKeyBackspace();
-        }
-        else if (_keyDeleteState.IsDown)
-        {
-            _textInput?.HandleKeyDelete();
-        }
-        else if (_keyEnterState.IsDown)
-        {
-            _textInput?.OnTextInput(this, "\n");
-        }
-        else if (_keyTabState.IsDown)
-        {
-            _textInput?.HandleKeyTab();
-        }
-        else if (_keyLeftState.IsDown)
-        {
-            _textInput?.HandleKeyArrowLeft();
-        }
-        else if (_keyRightState.IsDown)
-        {
-            _textInput?.HandleKeyArrowRight();
-        }
-        else if (_keyUpState.IsDown)
-        {
-            _textInput?.HandleKeyArrowUp();
-        }
-        else if (_keyDownState.IsDown)
-        {
-            _textInput?.HandleKeyArrowDown();
-        }
-        else if (_selectAllState.IsDown)
-        {
-            _textInput?.SelectAll();
-        }
-        else if (_copyState.IsDown)
-        {
-            if (_textInput != null)
+            if (_keyBackspaceState.IsDown)
             {
-                _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
+                try
+                {
+                    _textInput.HandleKeyBackspace();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyBackspace", _textInput as UINode);
+                }
+            }
+            else if (_keyDeleteState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyDelete();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyDelete", _textInput as UINode);
+                }
+            }
+            else if (_keyEnterState.IsDown)
+            {
+                try
+                {
+                    _textInput.OnTextInput(this, "\n");
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnTextInput", _textInput as UINode);
+                }
+            }
+            else if (_keyTabState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyTab();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyTab", _textInput as UINode);
+                }
+            }
+            else if (_keyLeftState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowLeft();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowLeft", _textInput as UINode);
+                }
+            }
+            else if (_keyRightState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowRight();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowRight", _textInput as UINode);
+                }
+            }
+            else if (_keyUpState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowUp();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowUp", _textInput as UINode);
+                }
+            }
+            else if (_keyDownState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowDown();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowDown", _textInput as UINode);
+                }
+            }
+            else if (_selectAllState.IsDown)
+            {
+                try
+                {
+                    _textInput.SelectAll();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "SelectAll", _textInput as UINode);
+                }
+            }
+            else if (_copyState.IsDown)
+            {
+                try
+                {
+                    _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "GetSelectedText", _textInput as UINode);
+                }
             }
         }
-        else if (_pasteState.IsDown)
+
+        if (_pasteState.IsDown)
         {
             ReadOnlySpan<char> text = _inputTracker.GetClipboardText();
-            if (text.Length > 0)
+            if (text.Length > 0 && _textInput != null)
             {
-                _textInput?.OnTextInput(this, text);
+                try
+                {
+                    _textInput.OnTextInput(this, text);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnTextInput", _textInput as UINode);
+                }
             }
         }
 
         if (_inputTracker.IsScrolling(out Vector2 scrollDelta))
         {
-            _hovered?.OnScroll(this, scrollDelta);
+            if (_hovered != null)
+            {
+                try
+                {
+                    _hovered.OnScroll(this, scrollDelta);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnScroll", _hovered);
+                }
+            }
         }
     }
 
@@ -754,7 +928,7 @@ public partial class Canvas : AutoDisposable
         return true;
     }
 
-    public void HandleError(Exception exception, string operation, UINode node)
+    public void HandleError(Exception exception, string operation, UINode? node)
     {
         if (ErrorHandler != null)
         {
@@ -762,7 +936,7 @@ public partial class Canvas : AutoDisposable
         }
         else
         {
-            string nodeName = node.Name;
+            string nodeName = node?.Name ?? "Unknown";
             Log.Error($"Error in {operation} of {nodeName}: {exception}");
         }
     }
