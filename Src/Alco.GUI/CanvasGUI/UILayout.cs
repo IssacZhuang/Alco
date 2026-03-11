@@ -52,6 +52,7 @@ public class UILayout : UINode
         set
         {
             _layoutType = value;
+            _isDirty = true;
         }
     }
 
@@ -63,7 +64,11 @@ public class UILayout : UINode
     public Padding Padding
     {
         get => _padding;
-        set => _padding = value;
+        set
+        {
+            _padding = value;
+            _isDirty = true;
+        }
     }
 
     public float FixedItemWidth
@@ -103,6 +108,7 @@ public class UILayout : UINode
         set
         {
             _spacing = value;
+            _isDirty = true;
         }
     }
 
@@ -127,6 +133,7 @@ public class UILayout : UINode
         set
         {
             _fitContentSize = value;
+            _isDirty = true;
         }
     }
 
