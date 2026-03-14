@@ -537,7 +537,8 @@ public partial class Canvas : AutoDisposable
         CursorPosition = mouseWorldPosition;
 
         UINode? selectable = null;
-        if (cursorMoved)
+        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved;
+        if (shouldUpdateHover)
         {
             _hitNodes.Clear();
             _collisionWorld.BuildTree();
@@ -594,7 +595,7 @@ public partial class Canvas : AutoDisposable
                 }
             }
         }
-        else if (cursorMoved)
+        else if (shouldUpdateHover)
         {
             if (selectable != null)
             {

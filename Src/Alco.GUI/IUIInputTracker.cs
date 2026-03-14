@@ -48,5 +48,10 @@ namespace Alco.GUI
 
         public void RequestTextInput();
         public void ReleaseTextInput();
+
+        /// <summary>
+        /// Indicates whether gamepad input is currently active.
+        /// </summary>
+        public bool IsGamepadInputting { get; }
     }
 }
