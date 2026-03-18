@@ -115,6 +115,22 @@ internal unsafe class OpenALDevice : AudioDevice
                 }
             }
         }
+
+        public void RecoverLoopingSources()
+        {
+            lock (_lock)
+            {
+                for (int i = 0; i < _activeSources.Count; i++)
+                {
+                    uint id = _activeSources[i];
+                    if (TryGetSource(id, out _, out OpenALSource? source) && source.IsLooping)
+                    {
+                        AL.SourcePlay(id);
+                        _host.LogInfo($"Recovered looping source {id}");
+                    }
+                }
+            }
+        }
     }
 
     private const string AL_SOFT_source_spatialize = "AL_SOFT_source_spatialize";
@@ -125,8 +141,14 @@ internal unsafe class OpenALDevice : AudioDevice
     private static readonly AL AL = AL.GetApi(true);
 
     private readonly Device* _device;
+    private readonly Context* _context;
     private readonly Lock _lock = new Lock();
     private AudioAttenuationMode _attenuationMode = AudioAttenuationMode.Inverse;
+
+    private readonly ALContextHelper _alcExt;
+    private float _deviceCheckTimer;
+    private bool _disconnected;
+    private const float DeviceCheckInterval = 1.0f;
 
     private const int MaxSources = 256;
     private readonly SourcePool _sourcePool;
@@ -217,7 +239,8 @@ internal unsafe class OpenALDevice : AudioDevice
     public OpenALDevice(IAudioDeviceHost host) : base(host)
     {
         _device = ALC.OpenDevice(string.Empty);
-        ALC.MakeContextCurrent(ALC.CreateContext(_device, null));
+        _context = ALC.CreateContext(_device, null);
+        ALC.MakeContextCurrent(_context);
 
         // AL.DopplerFactor(1);
         // AL.SpeedOfSound(343.3f);
@@ -236,6 +259,16 @@ internal unsafe class OpenALDevice : AudioDevice
         if (!SupportsDirectChannels)
         {
             _host.LogWarning("AL_SOFT_direct_channels is not supported, the direct channels is not available");
+        }
+
+        _alcExt = new ALContextHelper(_device);
+        if (_alcExt.IsReopenSupported)
+        {
+            _host.LogInfo("ALC_SOFT_reopen_device extension loaded");
+        }
+        else
+        {
+            _host.LogWarning("ALC_SOFT_reopen_device is not supported, hot-plug recovery will not be available");
         }
 
         // Pre-allocate sources
@@ -257,8 +290,63 @@ internal unsafe class OpenALDevice : AudioDevice
         AL.DistanceModel(model);
     }
 
+    public override void Poll(float delta)
+    {
+        _deviceCheckTimer += delta;
+        if (_deviceCheckTimer < DeviceCheckInterval) return;
+        _deviceCheckTimer = 0f;
+
+        if (!_alcExt.IsDeviceConnected(_device))
+        {
+            if (!_disconnected)
+            {
+                _disconnected = true;
+                _host.LogWarning("Audio device disconnected");
+            }
+            TryReopenDevice(null);
+        }
+        else if (_disconnected)
+        {
+            _disconnected = false;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the underlying audio output device is still connected.
+    /// </summary>
+    public bool IsDeviceConnected()
+    {
+        return _alcExt.IsDeviceConnected(_device);
+    }
+
+    /// <summary>
+    /// Attempts to reopen the device on a different output.
+    /// Pass null to reopen on the current default device.
+    /// </summary>
+    /// <param name="deviceName">Target device name, or null for default.</param>
+    /// <returns>True if the device was successfully reopened.</returns>
+    public bool ReopenDevice(string? deviceName)
+    {
+        return TryReopenDevice(deviceName);
+    }
+
+    private bool TryReopenDevice(string? deviceName)
+    {
+        if (_alcExt.TryReopenDevice(_device, deviceName))
+        {
+            _disconnected = false;
+            _host.LogSuccess($"Audio device reopened successfully");
+            _sourcePool.RecoverLoopingSources();
+            return true;
+        }
+
+        return false;
+    }
+
     protected override void Dispose(bool disposing)
     {
+        ALC.MakeContextCurrent(null);
+        ALC.DestroyContext(_context);
         ALC.CloseDevice(_device);
         _host.LogInfo("OpenAL device closed");
     }

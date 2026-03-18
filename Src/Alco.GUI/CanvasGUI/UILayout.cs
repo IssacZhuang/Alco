@@ -52,6 +52,7 @@ public class UILayout : UINode
         set
         {
             _layoutType = value;
+            _isDirty = true;
         }
     }
 
@@ -63,7 +64,11 @@ public class UILayout : UINode
     public Padding Padding
     {
         get => _padding;
-        set => _padding = value;
+        set
+        {
+            _padding = value;
+            _isDirty = true;
+        }
     }
 
     public float FixedItemWidth
@@ -103,6 +108,7 @@ public class UILayout : UINode
         set
         {
             _spacing = value;
+            _isDirty = true;
         }
     }
 
@@ -127,6 +133,7 @@ public class UILayout : UINode
         set
         {
             _fitContentSize = value;
+            _isDirty = true;
         }
     }
 
@@ -160,17 +167,9 @@ public class UILayout : UINode
     }
 
     /// <summary>
-    /// Creates a new UILayout with the specified arrangement type
-    /// </summary>
-    public UILayout(LayoutType layoutType)
-    {
-        _layoutType = layoutType;
-    }
-
-    /// <summary>
     /// Adds a child node and automatically sets appropriate anchor based on layout type
     /// </summary>
-    public override void Add(UINode node, bool keepWorldTransform = true)
+    public override void Add(UINode node, bool keepWorldTransform = false)
     {
         // Set appropriate anchor based on layout type
         if(ShouldIncludeInLayout(node))

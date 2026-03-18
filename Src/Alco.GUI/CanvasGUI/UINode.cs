@@ -41,6 +41,7 @@ public class UINode : IEnumerable<UINode>
     public event Action<Canvas, Vector2>? EventOnDrag;
     public event Action<Canvas, Vector2>? EventOnSelect;
     public event Action<Canvas, Vector2>? EventOnDeselect;
+    public event Action<Canvas, Vector2>? EventOnScroll;
 
     public UINode()
     {
@@ -451,7 +452,7 @@ public class UINode : IEnumerable<UINode>
     /// <param name="keepWorldTransform">Whether to keep the world transform of the child node.</param>
     /// <exception cref="ArgumentException">The node already has a parent or is already a child of this node.</exception>
     /// <summary>
-    public virtual void Add(UINode node, bool keepWorldTransform = true)
+    public virtual void Add(UINode node, bool keepWorldTransform = false)
     {
         if (node.Parent != null)
         {
@@ -846,8 +847,7 @@ public class UINode : IEnumerable<UINode>
         _worldTransform.Position -= math.rotate(realSize * _pivot.value, _transform.Rotation);
         if (Parent != null)
         {
-            Vector2 parentRealSize = Parent.Size * Parent.WorldTransform.Scale;
-            _worldTransform.Position += parentRealSize * _anchor.CenterPoint;
+            _worldTransform.Position += Parent.Size * _anchor.CenterPoint;
             _worldTransform = math.transform(Parent.WorldTransform, _worldTransform);
         }
 
@@ -1028,6 +1028,15 @@ public class UINode : IEnumerable<UINode>
         }
     }
 
+    public virtual void OnScroll(Canvas canvas, Vector2 scrollDelta)
+    {
+        EventOnScroll?.Invoke(canvas, scrollDelta);
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnScroll(canvas, scrollDelta);
+        }
+    }
+
     /// <summary>
     /// Clears all event handlers attached to EventOnClick.
     /// </summary>
@@ -1090,6 +1099,14 @@ public class UINode : IEnumerable<UINode>
     public void ClearEventOnDeselect()
     {
         EventOnDeselect = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnScroll.
+    /// </summary>
+    public void ClearEventOnScroll()
+    {
+        EventOnScroll = null;
     }
 
     #endregion

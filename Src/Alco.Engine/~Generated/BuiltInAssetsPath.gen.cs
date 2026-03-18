@@ -27,6 +27,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_BlitDepth = "Shaders/Pipelines/Utils/BlitDepth.hlsl";
 
+   public const string Shader_BlitWithColor = "Shaders/Pipelines/Utils/BlitWithColor.hlsl";
+
    public const string Shader_TextureCompressBC3 = "Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl";
 
    public const string Shader_BloomBlit = "Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl";

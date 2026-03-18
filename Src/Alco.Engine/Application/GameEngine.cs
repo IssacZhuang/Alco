@@ -210,7 +210,7 @@ IDisposable
 
         _builtInAssets = new BuiltInAssets(_assetSystem);
 
-        _audioDevice = AudioDeviceFactory.CreateOpenALDevice(this);
+        _audioDevice = CreateAudioDevice(_setting.Audio);
 
         foreach (var fileSource in CreateDefaultFileSources())
         {
@@ -361,6 +361,8 @@ IDisposable
     {
         // Process any callbacks queued for the main thread
         _synchronizationContext.ProcessCallbacks();
+
+        _audioDevice.Poll(delta);
 
         try
         {

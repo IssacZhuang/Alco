@@ -9,23 +9,70 @@ using System.Runtime;
 
 namespace Alco.Test
 {
+    public struct NativeListCollector : IBvhCollisionCastCollector2D, IBvhRayCastCollector2D
+    {
+        private unsafe NativeArrayList<ColliderCastResult2D>* _list;
+        private unsafe NativeArrayList<RayCastResult2D>* _rayList;
+
+        public unsafe NativeListCollector(NativeArrayList<ColliderCastResult2D>* list)
+        {
+            _list = list;
+            _rayList = null;
+        }
+
+        public unsafe NativeListCollector(NativeArrayList<RayCastResult2D>* rayList)
+        {
+            _list = null;
+            _rayList = rayList;
+        }
+
+        public unsafe bool OnHit(ColliderCastResult2D result)
+        {
+            if (_list != null) _list->Add(result);
+            return true;
+        }
+
+        public unsafe bool OnHit(RayCastResult2D result)
+        {
+            if (_rayList != null) _rayList->Add(result);
+            return true;
+        }
+    }
+
+    public struct FirstHitCollector : IBvhCollisionCastCollector2D, IBvhRayCastCollector2D
+    {
+        public ColliderCastResult2D Result;
+        public RayCastResult2D RayResult;
+        public bool HasHit;
+
+        public bool OnHit(ColliderCastResult2D result)
+        {
+            Result = result;
+            HasHit = true;
+            return false;
+        }
+
+        public bool OnHit(RayCastResult2D result)
+        {
+            RayResult = result;
+            HasHit = true;
+            return false;
+        }
+    }
 
     public class TestBvh2D
     {
-        [Test(Description = "BVH ray collision 2D")]
-        public unsafe void TestRayCollision()
+        [Test(Description = "BVH collision 2D with Collector")]
+        public unsafe void TestBvhCollision()
         {
             NativeArrayList<ColliderBox2D> boxs = new NativeArrayList<ColliderBox2D>(8);
             NativeArrayList<ColliderSphere2D> spheres = new NativeArrayList<ColliderSphere2D>(8);
             NativeArrayList<ColliderRef2D> colliders = new NativeArrayList<ColliderRef2D>();
 
-
-
             boxs.Add(new ColliderBox2D
             {
                 Shape = new ShapeBox2D(new Vector2(20, 0), new Vector2(1f), Rotation2D.Identity)
             });
-
 
             boxs.Add(new ColliderBox2D
             {
@@ -47,80 +94,6 @@ namespace Alco.Test
                 Shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
             });
 
-            boxs.Add(new ColliderBox2D
-            {
-                Shape = new ShapeBox2D(new Vector2(-10, 0), new Vector2(1f), Rotation2D.Identity)
-            });
-
-
-
-
-
-            for (int i = 0; i < boxs.Length; i++)
-            {
-                colliders.Add(ColliderRef2D.Create(boxs.UnsafePointer + i));
-            }
-
-            for (int i = 0; i < spheres.Length; i++)
-            {
-                colliders.Add(ColliderRef2D.Create(spheres.UnsafePointer + i));
-            }
-
-            // colliders.Add(ColliderRef.Create(boxs.Ptr));
-            // colliders.Add(ColliderRef.Create(spheres.Ptr));
-
-            NativeBvh2D bvh = new NativeBvh2D();
-            Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-2, 1.1f), new Vector2(200, 1.1f));
-
-            bvh.BuildTree(colliders.AsSpan());
-
-            //RayCastResult result = bvh.CastRay(ray);
-
-            //Assert.IsFalse(result.hit);
-
-
-            ray = Ray2D.CreateWithStartAndEnd(new Vector2(-1.2f, 0), new Vector2(120f, 0));
-
-            RayCastResult2D result = bvh.CastRay(ray);
-
-            Assert.IsFalse(!result.Hit);
-            TestContext.WriteLine(result.HitInfo.Fraction);
-            TestContext.WriteLine(result.HitInfo.Point);
-
-            boxs.Dispose();
-            spheres.Dispose();
-            colliders.Dispose();
-            bvh.Dispose();
-
-        }
-
-        [Test(Description = "BVH collider collision 2D")]
-        public unsafe void TestColliderCollision()
-        {
-            NativeArrayList<ColliderBox2D> boxs = new NativeArrayList<ColliderBox2D>(8);
-            NativeArrayList<ColliderSphere2D> spheres = new NativeArrayList<ColliderSphere2D>(8);
-            NativeArrayList<ColliderRef2D> colliders = new NativeArrayList<ColliderRef2D>();
-
-            boxs.Add(new ColliderBox2D
-            {
-                Shape = new ShapeBox2D(Vector2.Zero, new Vector2(1f), Rotation2D.Identity)
-            });
-
-            boxs.Add(new ColliderBox2D
-            {
-                Shape = new ShapeBox2D(new Vector2(5, 0), new Vector2(1f), Rotation2D.Identity)
-            });
-
-            boxs.Add(new ColliderBox2D
-            {
-                Shape = new ShapeBox2D(new Vector2(5, 5), new Vector2(1f), Rotation2D.Identity)
-            });
-
-            spheres.Add(new ColliderSphere2D
-            {
-                Shape = new ShapeSphere2D(Vector2.Zero, 1f)
-            });
-
             for (int i = 0; i < boxs.Length; i++)
             {
                 colliders.Add(ColliderRef2D.Create(boxs.UnsafePointer + i));
@@ -132,41 +105,60 @@ namespace Alco.Test
             }
 
             NativeBvh2D bvh = new NativeBvh2D();
-
             bvh.BuildTree(colliders.AsSpan());
 
-            ColliderBox2D boxCast1 = new ColliderBox2D
+            // Test Ray Cast (NativeBvh2D.CastRay / CastRayFirstHit don't use collector anymore)
             {
-                Shape = new ShapeBox2D(new Vector2(-2, 1.1f), new Vector2(1f), Rotation2D.Identity)
-            };
+                Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-1.2f, 0), new Vector2(120f, 0));
 
-            ColliderBox2D boxCast2 = new ColliderBox2D
+                RayCastResult2D result = bvh.CastRayClosestHit(ray);
+
+                Assert.IsTrue(result.Hit);
+                TestContext.WriteLine($"Ray hit at fraction: {result.HitInfo.Fraction}");
+            }
+
+            // Test Ray Cast with Collector
             {
-                Shape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), Rotation2D.Identity)
-            };
+                Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-1.2f, 0), new Vector2(120f, 0));
 
-            ColliderSphere2D sphereCast1 = new ColliderSphere2D
+                FirstHitCollector collector = new FirstHitCollector();
+                bvh.CastRay(ray, ref collector);
+
+                Assert.IsTrue(collector.HasHit);
+            }
+
+            // Test Ray Cast Multi Hit with NativeListCollector
             {
-                Shape = new ShapeSphere2D(new Vector2(-2, 1.1f), 1f)
-            };
+                Ray2D ray = Ray2D.CreateWithStartAndEnd(new Vector2(-12f, 0), new Vector2(25f, 0));
+                NativeArrayList<RayCastResult2D> hitResults = new NativeArrayList<RayCastResult2D>(8);
+                NativeListCollector multiCollector = new NativeListCollector(&hitResults);
 
-            ColliderSphere2D sphereCast2 = new ColliderSphere2D
+                bvh.CastRay(ray, ref multiCollector);
+
+                Assert.IsTrue(hitResults.Length > 1);
+                TestContext.WriteLine($"Ray hit {hitResults.Length} objects");
+                for (int i = 0; i < hitResults.Length; i++)
+                {
+                    hitResults[i].Collider.IntersectRay(ray, out var hit);
+                    TestContext.WriteLine($"Hit {i} at fraction: {hit.Fraction}");
+                }
+                hitResults.Dispose();
+            }
+
+            // Test Collider Cast with Collector
             {
-                Shape = new ShapeSphere2D(new Vector2(-1.2f, 0), 1f)
-            };
+                ShapeBox2D boxShape = new ShapeBox2D(new Vector2(-1.2f, 0), new Vector2(1f), Rotation2D.Identity);
 
-            Assert.IsFalse(bvh.CastCollider(boxCast1).Hit);
-            Assert.IsTrue(bvh.CastCollider(boxCast2).Hit);
+                FirstHitCollector colliderCollector = new FirstHitCollector();
+                bvh.CastBox(boxShape, ref colliderCollector);
 
-            Assert.IsFalse(bvh.CastCollider(sphereCast1).Hit);
-            Assert.IsTrue(bvh.CastCollider(sphereCast2).Hit);
+                Assert.IsTrue(colliderCollector.HasHit);
+            }
 
             boxs.Dispose();
             spheres.Dispose();
             colliders.Dispose();
             bvh.Dispose();
-
         }
     }
 }
-

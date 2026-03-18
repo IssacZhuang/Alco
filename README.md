@@ -1,13 +1,13 @@
 # Alco
 
-Alco is a high-performance game engine designed for optimal CPU and GPU utilization. It's built with .NET 9.0 and provides a comprehensive set of tools and libraries for game development.
+Alco is a high-performance game engine designed for optimal CPU and GPU utilization. It's built with .NET 10.0 and provides a comprehensive set of tools and libraries for game development.
 
 ## Features
 
 - Cross-platform support (Windows, Linux, macOS)
 - Modern graphics API support through WGPU
 - Comprehensive rendering pipeline
-- High performance math and spatial **implmentation**
+- High performance math and spatial implementation
 - Audio system
 - Input/Output handling
 - GUI framework
@@ -15,69 +15,30 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 - Auto memory management
 - Shader compilation tools
 
-## Cordinate System
-
-The cordinate system and matrix layout are following the Unreal Engine style.
-
-- Left-handed coordinate system
-- The matrix layout is row-major
-
-**3D**
-- x+ is forward
-- y+ is right
-- z+ is up
-
-**2D**
-- x+ is right
-- y+ is up
-- z+ is face into the screen (depth)
-
 ## Project Structure
 
-- **Src/** - Core engine components
-  - **Alco/** - Base library including math, spatial, threading and some utilities
-  - **Alco.Engine/** - Main engine implementation
-  - **Alco.Graphics/** - Graphics abstraction layer
-  - **Alco.Rendering/** - Rendering pipeline
-  - **Alco.Audio/** - Audio system
-  - **Alco.GUI/** - GUI framework
-  - **Alco.IO/** - Input/Output handling
-  - **Alco.ShaderCompiler/** - Shader compilation tools
-- **Sandbox/** - Example applications demonstrating engine features
+- **Src/** - Engine source code
+- **Sandbox/** - Example applications
 - **Test/** - Unit and integration tests
 - **Benchmark/** - Performance benchmarks
 - **Docs/** - Documentation
 - **Tool/** - Development tools
 - **Editor/** - Engine editor
 
+See [CLAUDE.md](CLAUDE.md) for detailed project structure, coordinate system, and coding standards.
+
 ## Examples
 
-The `Sandbox/` directory contains numerous examples demonstrating various engine features:
-****
-- Basic window creation
-- Rendering primitives
-- Texture handling
-- Compute shaders
-- 2D transformations
-- Instancing
-- Text rendering
-- Asset loading
-- Sprite rendering
-- Post-processing effects
-- Collision detection
-- UI implementation
-- Audio playback
-- Multi-window support
-- And more...
+The `Sandbox/` directory contains numerous examples demonstrating various engine features including rendering, UI, audio, asset loading, and more.
 
 ## Getting Started
 
-1. Clone the repository
+1. Clone the repository as git submodule
 2. Add reference of Alco.Engine in your own game
 
 ## Requirements
 
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - Visual Studio 2022 or compatible IDE
 
 ## Third-Party Libraries

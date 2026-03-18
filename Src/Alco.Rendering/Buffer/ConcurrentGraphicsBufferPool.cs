@@ -152,7 +152,7 @@ public sealed class ConcurrentGraphicsBufferPool : AutoDisposable, IGraphicsBuff
         {
             foreach (var pool in _pools)
             {
-                foreach (var buffer in pool.Pool)
+                while (pool.Pool.TryTake(out var buffer))
                 {
                     buffer.Dispose();
                 }

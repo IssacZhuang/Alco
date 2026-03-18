@@ -2,14 +2,30 @@ using System.Numerics;
 
 namespace Alco.GUI;
 
-public class UISlider : UINode
+/// <summary>
+/// A slider UI control that allows users to select a value by dragging a handle or clicking on the track.
+/// </summary>
+public class UISlider : UIButton
 {
     private float _value;
     private UISelectable? _handle;
     private UIText? _valueText;
+
+    /// <summary>
+    /// Occurs when the slider value changes.
+    /// </summary>
     public event Action<float>? EventOnValueChanged;
 
+    /// <summary>
+    /// Gets or sets whether dragging the handle is required to change the value.
+    /// When false, the value can only be changed by dragging the handle.
+    /// When true, clicking anywhere on the slider sets the value directly.
+    /// </summary>
+    public bool ClickToSetValue { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the handle selectable that represents the draggable thumb of the slider.
+    /// </summary>
     public UISelectable? Handle
     {
         get => _handle;
@@ -64,6 +80,18 @@ public class UISlider : UINode
         node.EventOnDrag -= OnHandleDrag;
     }
 
+
+    public override void OnPressing(Canvas canvas, Vector2 mousePosition)
+    {
+        if (!ClickToSetValue) return;
+
+        // Convert world mouse position to slider's local space
+        Vector2 local = math.tolocal(WorldTransform, mousePosition);
+        float t = local.X / Size.X + 0.5f; // map [-w/2, +w/2] -> [0, 1]
+        UpdateValue(t);
+    }
+
+
     private void UpdateValue(float value)
     {
         value = math.clamp(value, 0, 1);
@@ -94,7 +122,8 @@ public class UISlider : UINode
             return;
         }
 
-        
+
+
         Vector2 parentSize = handleParent.Size;
         _handle.Position = new Vector2(parentSize.X * (value - 0.5f), 0);
 
@@ -115,6 +144,8 @@ public class UISlider : UINode
 
     private void OnHandleDrag(Canvas canvas, Vector2 mousePosition)
     {
+        if (ClickToSetValue) return;
+
         if (_handle == null)
         {
             return;
@@ -130,5 +161,4 @@ public class UISlider : UINode
         float t = local.X / parent.Size.X + 0.5f; // map [-w/2, +w/2] -> [0, 1]
         UpdateValue(t);
     }
-
 }

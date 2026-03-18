@@ -58,14 +58,37 @@ public partial class Canvas : AutoDisposable
     private readonly List<UINode> _hitNodes = new List<UINode>(64);
     private readonly IUIInputTracker _inputTracker;
 
+    private INavigationFocusable? _navigationFocus;
+
     public Font DefaultFont { get; }
 
+    /// <summary>
+    /// The input tracker used by this canvas.
+    /// </summary>
+    public IUIInputTracker InputTracker
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _inputTracker;
+    }
+
+    /// <summary>
+    /// The navigable control that owns directional input this frame.
+    /// Determined automatically each frame: the last enabled
+    /// <see cref="INavigationFocusable"/> in depth-first traversal order.
+    /// </summary>
+    public INavigationFocusable? NavigationFocus
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _navigationFocus;
+    }
 
     private UINode? _holded;
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
+    private Vector2 _lastCursorPosition;
     private InputState _mouseLeftState;
+    private InputState _confirmState;
     private InputState _keyBackspaceState;
     private InputState _keyDeleteState;
     private InputState _keyEnterState;
@@ -82,7 +105,7 @@ public partial class Canvas : AutoDisposable
 
     public bool IsCapturingKeyboard => _textInput != null;
 
-    public Vector2 MousePosition {get;private set;}
+    public Vector2 CursorPosition {get;private set;}
 
     public BoundingBox2D Bound
     {
@@ -132,6 +155,38 @@ public partial class Canvas : AutoDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _selected;
+    }
+
+    /// <summary>
+    /// Programmatically sets the hovered node (e.g. for gamepad/keyboard navigation).
+    /// Triggers hover sound and <see cref="UINode.OnHover"/> callback on the target node.
+    /// Mouse movement will naturally override this on the next frame the cursor moves.
+    /// </summary>
+    /// <param name="node">The node to hover, or null to clear hover.</param>
+    public void SetHovered(UINode? node)
+    {
+        if (_hovered == node)
+        {
+            return;
+        }
+
+        _hovered = node;
+
+        if (node != null)
+        {
+            if ((node.SoundType & UISoundType.Hover) != 0)
+            {
+                SoundPlayer?.PlayOnHoverSound();
+            }
+            try
+            {
+                node.OnHover(this, CursorPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnHover", node);
+            }
+        }
     }
 
     /// <summary>
@@ -263,8 +318,9 @@ public partial class Canvas : AutoDisposable
     public void Tick(float delta)
     {
         _collisionWorld.ClearAll();
+        _navigationFocus = null;
+        ScanNavigationFocus(Root);
         TickNode(Root, delta);
-        HandleInput();
     }
 
     /// <summary>
@@ -274,6 +330,7 @@ public partial class Canvas : AutoDisposable
     /// <param name="delta">Delta time in seconds.</param>
     public void Update(GPUFrameBuffer renderTarget, float delta)
     {
+        HandleInput();
         _renderContext.Begin(renderTarget);
         _mask = 0;
         UpdateNode(Root, delta);
@@ -291,6 +348,18 @@ public partial class Canvas : AutoDisposable
 
     public void SetTextInputArea(ITextInput node, BoundingBox2D inputArea, int cursor)
     {
+        bool wasTextInput = _textInput != null;
+        bool isTextInput = node != null;
+
+        if (!wasTextInput && isTextInput)
+        {
+            _inputTracker.RequestTextInput();
+        }
+        else if (wasTextInput && !isTextInput)
+        {
+            _inputTracker.ReleaseTextInput();
+        }
+
         _textInput = node;
 
         Vector2 position = inputArea.Center;
@@ -308,11 +377,24 @@ public partial class Canvas : AutoDisposable
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
+    public void ClearTextInput()
+    {
+        if (_textInput != null)
+        {
+            _inputTracker.ReleaseTextInput();
+            _textInput = null;
+        }
+    }
+
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            if (_textInput != null)
+            {
+                _inputTracker.ReleaseTextInput();
+            }
             _inputTracker?.UnregisterTextInput(OnTextInput);
             _collisionWorld.Dispose();
             _renderContext.Dispose();
@@ -326,36 +408,98 @@ public partial class Canvas : AutoDisposable
         _hovered = null;
         _holded = null;
         _selected = null;
+        _textInput = null;
     }
 
 
 
-    private void OnMouseDown(UINode? node, Vector2 mousePosition)
+    private void OnConfirmDown(UINode? node, Vector2 cursorPosition, bool checkMask)
     {
-        if (node == null || !CheckMask(node, mousePosition))
+        if (node == null)
+        {
+            if (checkMask)
+            {
+                ClearTextInput();
+            }
+            return;
+        }
+
+        if (checkMask && !CheckMask(node, cursorPosition))
         {
             return;
         }
 
         _holded = node;
-
-        node?.OnPressDown(this, mousePosition);
-
-        if (_selected != null && _selected != node)
+        try
         {
-            _selected.OnDeselect(this, mousePosition);
+            node.OnPressDown(this, cursorPosition);
         }
-        _selected = node;
-        _selected?.OnSelect(this, mousePosition);
+        catch (Exception e)
+        {
+            HandleError(e, "OnPressDown", node);
+        }
+
+        if (checkMask)
+        {
+            if (_selected != null && _selected != node)
+            {
+                try
+                {
+                    _selected.OnDeselect(this, cursorPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnDeselect", _selected);
+                }
+            }
+            _selected = node;
+            if (_selected != null)
+            {
+                try
+                {
+                    _selected.OnSelect(this, cursorPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnSelect", _selected);
+                }
+            }
+
+            if (node is not ITextInput)
+            {
+                ClearTextInput();
+            }
+        }
     }
 
-    private void OnMouseUp(UINode? node, Vector2 mousePosition)
+    private void OnConfirmUp(UINode? node, Vector2 cursorPosition)
     {
-        _holded?.OnPressUp(this, mousePosition);
-        if (node == _holded && _holded != null)
+        if (_holded == null)
         {
-            _holded.OnClick(this, mousePosition);
-            if ((_holded.SoundType & UISoundType.Click) != 0)
+            return;
+        }
+
+        UINode holded = _holded;
+        try
+        {
+            holded.OnPressUp(this, cursorPosition);
+        }
+        catch (Exception e)
+        {
+            HandleError(e, "OnPressUp", holded);
+        }
+
+        if (holded == node)
+        {
+            try
+            {
+                holded.OnClick(this, cursorPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnClick", holded);
+            }
+            if ((holded.SoundType & UISoundType.Click) != 0)
             {
                 SoundPlayer?.PlayOnClickSound();
             }
@@ -366,7 +510,15 @@ public partial class Canvas : AutoDisposable
 
     private void OnTextInput(ReadOnlySpan<char> text)
     {
-        _textInput?.OnTextInput(this, text);
+        if (_textInput == null) return;
+        try
+        {
+            _textInput.OnTextInput(this, text);
+        }
+        catch (Exception e)
+        {
+            HandleError(e, "OnTextInput", _textInput as UINode);
+        }
     }
 
     private void HandleInput()
@@ -376,66 +528,122 @@ public partial class Canvas : AutoDisposable
             return;
         }
 
-        // _hovered = null;
-        //the mouse position is in screen space, the origin is at the top left corner
+        Vector2 cursorPosition = _inputTracker.CursorPosition;
+        bool cursorMoved = cursorPosition != _lastCursorPosition;
+        _lastCursorPosition = cursorPosition;
 
-        Vector2 mousePosition = _inputTracker.MousePosition;
-        Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(mousePosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(cursorPosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
 
-        MousePosition = mouseWorldPosition;
-
-        _hitNodes.Clear();
-        _collisionWorld.BuildTree();
-        _collisionWorld.CastPoint(_hitNodes, mouseWorldPosition);
+        CursorPosition = mouseWorldPosition;
 
         UINode? selectable = null;
-        for (int i = 0; i < _hitNodes.Count; i++)
+        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved;
+        if (shouldUpdateHover)
         {
-            UINode node = _hitNodes[i];
-            if (CheckMask(node, mouseWorldPosition))
+            _hitNodes.Clear();
+            _collisionWorld.BuildTree();
+            var collector = new NodeCollector(_hitNodes);
+            _collisionWorld.CastPoint(ref collector, mouseWorldPosition);
+
+            for (int i = 0; i < _hitNodes.Count; i++)
             {
-                selectable = node;
-                break;
+                UINode node = _hitNodes[i];
+                if (CheckMask(node, mouseWorldPosition))
+                {
+                    selectable = node;
+                    break;
+                }
             }
+
+            if (selectable != _hovered && selectable != null)
+            {
+                if ((selectable.SoundType & UISoundType.Hover) != 0)
+                {
+                    SoundPlayer?.PlayOnHoverSound();
+                }
+            }
+
+            _hovered = selectable;
+        }
+        else
+        {
+            selectable = _hovered;
         }
 
-
-        if (selectable != _hovered && selectable != null)
-        {
-            if ((selectable.SoundType & UISoundType.Hover) != 0)
-            {
-                SoundPlayer?.PlayOnHoverSound();
-            }
-        }
-
-        _hovered = selectable;
-
-        _mouseLeftState.SetState(_inputTracker.IsMousePressing);
+        _mouseLeftState.SetState(_inputTracker.IsMouseLeftPressing);
+        _confirmState.SetState(_inputTracker.IsConfirmPressing);
 
         if (_mouseLeftState.IsDown)
         {
-            OnMouseDown(selectable, mouseWorldPosition);
+            OnConfirmDown(selectable, mouseWorldPosition, checkMask: true);
         }
         else if (_mouseLeftState.IsUp)
         {
-            OnMouseUp(selectable, mouseWorldPosition);
+            OnConfirmUp(selectable, mouseWorldPosition);
         }
         else if (_mouseLeftState.IsPressing)
         {
             if (selectable != null)
             {
-                selectable.OnPressing(this, mouseWorldPosition);
+                try
+                {
+                    selectable.OnPressing(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnPressing", selectable);
+                }
             }
         }
-        else
+        else if (shouldUpdateHover)
         {
             if (selectable != null)
             {
-                selectable.OnHover(this, mouseWorldPosition);
+                try
+                {
+                    selectable.OnHover(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnHover", selectable);
+                }
             }
         }
 
-        _holded?.OnDrag(this, mouseWorldPosition);
+        if (_confirmState.IsDown)
+        {
+            OnConfirmDown(selectable, mouseWorldPosition, checkMask: false);
+        }
+        else if (_confirmState.IsUp)
+        {
+            OnConfirmUp(selectable, mouseWorldPosition);
+        }
+        else if (_confirmState.IsPressing)
+        {
+            if (selectable != null)
+            {
+                try
+                {
+                    selectable.OnPressing(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnPressing", selectable);
+                }
+            }
+        }
+
+        if (_holded != null)
+        {
+            try
+            {
+                _holded.OnDrag(this, mouseWorldPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnDrag", _holded);
+            }
+        }
 
         // update key states (pressing => edge detection here)
         _keyBackspaceState.SetState(_inputTracker.IsKeyBackspacePressing);
@@ -451,55 +659,148 @@ public partial class Canvas : AutoDisposable
         _pasteState.SetState(_inputTracker.IsKeyPastePressing);
 
         //input box shortcuts (trigger on down edge)
-        if (_keyBackspaceState.IsDown)
+        if (_textInput != null)
         {
-            _textInput?.HandleKeyBackspace();
-        }
-        else if (_keyDeleteState.IsDown)
-        {
-            _textInput?.HandleKeyDelete();
-        }
-        else if (_keyEnterState.IsDown)
-        {
-            _textInput?.OnTextInput(this, "\n");
-        }
-        else if (_keyTabState.IsDown)
-        {
-            _textInput?.HandleKeyTab();
-        }
-        else if (_keyLeftState.IsDown)
-        {
-            _textInput?.HandleKeyArrowLeft();
-        }
-        else if (_keyRightState.IsDown)
-        {
-            _textInput?.HandleKeyArrowRight();
-        }
-        else if (_keyUpState.IsDown)
-        {
-            _textInput?.HandleKeyArrowUp();
-        }
-        else if (_keyDownState.IsDown)
-        {
-            _textInput?.HandleKeyArrowDown();
-        }
-        else if (_selectAllState.IsDown)
-        {
-            _textInput?.SelectAll();
-        }
-        else if (_copyState.IsDown)
-        {
-            if (_textInput != null)
+            if (_keyBackspaceState.IsDown)
             {
-                _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
+                try
+                {
+                    _textInput.HandleKeyBackspace();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyBackspace", _textInput as UINode);
+                }
+            }
+            else if (_keyDeleteState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyDelete();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyDelete", _textInput as UINode);
+                }
+            }
+            else if (_keyEnterState.IsDown)
+            {
+                try
+                {
+                    _textInput.OnTextInput(this, "\n");
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnTextInput", _textInput as UINode);
+                }
+            }
+            else if (_keyTabState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyTab();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyTab", _textInput as UINode);
+                }
+            }
+            else if (_keyLeftState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowLeft();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowLeft", _textInput as UINode);
+                }
+            }
+            else if (_keyRightState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowRight();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowRight", _textInput as UINode);
+                }
+            }
+            else if (_keyUpState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowUp();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowUp", _textInput as UINode);
+                }
+            }
+            else if (_keyDownState.IsDown)
+            {
+                try
+                {
+                    _textInput.HandleKeyArrowDown();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "HandleKeyArrowDown", _textInput as UINode);
+                }
+            }
+            else if (_selectAllState.IsDown)
+            {
+                try
+                {
+                    _textInput.SelectAll();
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "SelectAll", _textInput as UINode);
+                }
+            }
+            else if (_copyState.IsDown)
+            {
+                try
+                {
+                    _inputTracker.CopyToClipboard(_textInput.GetSelectedText());
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "GetSelectedText", _textInput as UINode);
+                }
             }
         }
-        else if (_pasteState.IsDown)
+
+        if (_pasteState.IsDown)
         {
             ReadOnlySpan<char> text = _inputTracker.GetClipboardText();
-            if (text.Length > 0)
+            if (text.Length > 0 && _textInput != null)
             {
-                _textInput?.OnTextInput(this, text);
+                try
+                {
+                    _textInput.OnTextInput(this, text);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnTextInput", _textInput as UINode);
+                }
+            }
+        }
+
+        if (_inputTracker.IsScrolling(out Vector2 scrollDelta))
+        {
+            if (_hovered != null)
+            {
+                try
+                {
+                    _hovered.OnScroll(this, scrollDelta);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnScroll", _hovered);
+                }
             }
         }
     }
@@ -559,6 +860,15 @@ public partial class Canvas : AutoDisposable
         _mask = mask;
     }
 
+    private void ScanNavigationFocus(UINode node)
+    {
+        if (!node.IsEnable) return;
+        if (node is INavigationFocusable focusable && focusable.CanNavigate)
+            _navigationFocus = focusable;
+        for (int i = 0; i < node.Children.Count; i++)
+            ScanNavigationFocus(node.Children[i]);
+    }
+
     private void TickNode(UINode node, float delta)
     {
         if (node.IsEnable)
@@ -581,6 +891,25 @@ public partial class Canvas : AutoDisposable
 
     }
 
+    private struct NodeCollector : ICollisionCastCollector
+    {
+        private readonly List<UINode> _hitNodes;
+
+        public NodeCollector(List<UINode> hitNodes)
+        {
+            _hitNodes = hitNodes;
+        }
+
+        public bool OnHit(object target)
+        {
+            if (target is UINode node)
+            {
+                _hitNodes.Add(node);
+            }
+            return true;
+        }
+    }
+
     private static bool CheckMask(UINode node, Vector2 mousePosition)
     {
         UINode? parent = node.Parent;
@@ -600,7 +929,7 @@ public partial class Canvas : AutoDisposable
         return true;
     }
 
-    public void HandleError(Exception exception, string operation, UINode node)
+    public void HandleError(Exception exception, string operation, UINode? node)
     {
         if (ErrorHandler != null)
         {
@@ -608,7 +937,7 @@ public partial class Canvas : AutoDisposable
         }
         else
         {
-            string nodeName = node.Name;
+            string nodeName = node?.Name ?? "Unknown";
             Log.Error($"Error in {operation} of {nodeName}: {exception}");
         }
     }

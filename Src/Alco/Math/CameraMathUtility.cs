@@ -81,6 +81,28 @@ public static class CameraMathUtility
     }
 
     /// <summary>
+    /// Converts a 2D world point to screen pixel coordinates.
+    /// This is the inverse of <see cref="ScreenPointToWorld2D"/>.
+    /// </summary>
+    /// <param name="worldPoint">The world space position.</param>
+    /// <param name="viewProjMatrix">The combined view-projection matrix.</param>
+    /// <param name="screenSize">The size of the screen in pixels.</param>
+    /// <returns>The screen pixel position.</returns>
+    public static Vector2 WorldPointToScreen2D(Vector2 worldPoint, Matrix4x4 viewProjMatrix, Vector2 screenSize)
+    {
+        Vector4 clipPoint = Vector4.Transform(new Vector4(worldPoint.X, worldPoint.Y, 0f, 1f), viewProjMatrix);
+        if (clipPoint.W != 0)
+        {
+            clipPoint /= clipPoint.W;
+        }
+
+        return new Vector2(
+            (clipPoint.X + 1f) * 0.5f * screenSize.X,
+            (1f - clipPoint.Y) * 0.5f * screenSize.Y
+        );
+    }
+
+    /// <summary>
     /// Converts a screen point to a 3D ray for orthographic projection.
     /// In orthographic projection, all rays are parallel and have the same direction.
     /// </summary>

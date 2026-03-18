@@ -8,6 +8,35 @@ namespace Alco.Audio;
 /// </summary>
 public abstract class AudioSource : BaseAudioObject
 {
+    private AudioBus? _bus;
+
+    /// <summary>
+    /// Gets or sets the audio bus associated with this source.
+    /// If null, only the local Gain and Device.Volume will affect the output.
+    /// </summary>
+    public AudioBus? Bus
+    {
+        get => _bus;
+        set
+        {
+            if (_bus == value) return;
+
+            if (_bus != null)
+            {
+                _bus.OnVolumeChanged -= OnBusVolumeChanged;
+            }
+
+            _bus = value;
+
+            if (_bus != null)
+            {
+                _bus.OnVolumeChanged += OnBusVolumeChanged;
+            }
+
+            OnBusVolumeChanged();
+        }
+    }
+
     /// <summary>
     /// The clip to play on this source. Set to null to clear.
     /// </summary>
@@ -93,4 +122,9 @@ public abstract class AudioSource : BaseAudioObject
     protected abstract void PlayCore();
     protected abstract void StopCore();
 
+    /// <summary>
+    /// Called when the associated bus volume changes or when a new bus is assigned.
+    /// Implementations should update the hardware gain accordingly.
+    /// </summary>
+    protected abstract void OnBusVolumeChanged();
 }

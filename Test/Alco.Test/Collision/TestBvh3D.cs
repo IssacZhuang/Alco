@@ -10,6 +10,56 @@ using TestFramework;
 
 namespace Alco.Test
 {
+    public struct NativeListCollector3D : IBvhCollisionCollector3D, IBvhRayCastCollector3D
+    {
+        private unsafe NativeArrayList<ColliderCastResult3D>* _list;
+        private unsafe NativeArrayList<RayCastResult3D>* _rayList;
+
+        public unsafe NativeListCollector3D(NativeArrayList<ColliderCastResult3D>* list)
+        {
+            _list = list;
+            _rayList = null;
+        }
+
+        public unsafe NativeListCollector3D(NativeArrayList<RayCastResult3D>* rayList)
+        {
+            _list = null;
+            _rayList = rayList;
+        }
+
+        public unsafe bool OnHit(ColliderCastResult3D result)
+        {
+            if (_list != null) _list->Add(result);
+            return true;
+        }
+
+        public unsafe bool OnHit(RayCastResult3D result)
+        {
+            if (_rayList != null) _rayList->Add(result);
+            return true;
+        }
+    }
+
+    public struct FirstHitCollector3D : IBvhCollisionCollector3D, IBvhRayCastCollector3D
+    {
+        public ColliderCastResult3D Result;
+        public RayCastResult3D RayResult;
+        public bool HasHit;
+
+        public bool OnHit(ColliderCastResult3D result)
+        {
+            Result = result;
+            HasHit = true;
+            return false;
+        }
+
+        public bool OnHit(RayCastResult3D result)
+        {
+            RayResult = result;
+            HasHit = true;
+            return false;
+        }
+    }
 
     public class TestBvh3D
     {
@@ -71,22 +121,41 @@ namespace Alco.Test
             // colliders.Add(ColliderRef.Create(spheres.Ptr));
 
             NativeBvh3D bvh = new NativeBvh3D();
-            Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-2, 1.1f, 0), new Vector3(200, 1.1f, 0));
-
             bvh.BuildTree(colliders.AsSpan());
 
-            //RayCastResult result = bvh.CastRay(ray);
+            // Test Ray Cast (NativeBvh3D.CastRay / CastRayFirstHit don't use collector anymore)
+            {
+                Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
 
-            //Assert.IsFalse(result.hit);
+                RayCastResult3D result = bvh.CastRayClosestHit(ray);
 
+                Assert.IsFalse(!result.Hit);
+                TestContext.WriteLine(result.HitInfo.Fraction);
+                TestContext.WriteLine(result.HitInfo.Point);
+            }
 
-            ray = Ray3D.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
+            // Test Ray Cast with Collector
+            {
+                Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-1.2f, 0, 0), new Vector3(120f, 0, 0));
 
-            RayCastResult3D result = bvh.CastRay(ray);
+                FirstHitCollector3D collector = new FirstHitCollector3D();
+                bvh.CastRay(ray, ref collector);
 
-            Assert.IsFalse(!result.Hit);
-            TestContext.WriteLine(result.HitInfo.Fraction);
-            TestContext.WriteLine(result.HitInfo.Point);
+                Assert.IsTrue(collector.HasHit);
+            }
+
+            // Test Ray Cast Multi Hit with NativeListCollector
+            {
+                Ray3D ray = Ray3D.CreateWithStartAndEnd(new Vector3(-12f, 0, 0), new Vector3(25f, 0, 0));
+                NativeArrayList<RayCastResult3D> hitResults = new NativeArrayList<RayCastResult3D>(8);
+                NativeListCollector3D multiCollector = new NativeListCollector3D(&hitResults);
+
+                bvh.CastRay(ray, ref multiCollector);
+
+                Assert.IsTrue(hitResults.Length > 1);
+                TestContext.WriteLine($"Ray hit {hitResults.Length} objects");
+                hitResults.Dispose();
+            }
 
             boxs.Dispose();
             spheres.Dispose();
@@ -156,11 +225,21 @@ namespace Alco.Test
                 shape = new ShapeSphere3D(new Vector3(-1.2f, 0, 0), 1f)
             };
 
-            Assert.IsFalse(bvh.CastCollider(boxCast1).Hit);
-            Assert.IsTrue(bvh.CastCollider(boxCast2).Hit);
+            FirstHitCollector3D collector = new FirstHitCollector3D();
+            bvh.CastBox(boxCast1.Shape, ref collector);
+            Assert.IsFalse(collector.HasHit);
 
-            Assert.IsFalse(bvh.CastCollider(sphereCast1).Hit);
-            Assert.IsTrue(bvh.CastCollider(sphereCast2).Hit);
+            collector = new FirstHitCollector3D();
+            bvh.CastBox(boxCast2.Shape, ref collector);
+            Assert.IsTrue(collector.HasHit);
+
+            collector = new FirstHitCollector3D();
+            bvh.CastSphere(sphereCast1.shape, ref collector);
+            Assert.IsFalse(collector.HasHit);
+
+            collector = new FirstHitCollector3D();
+            bvh.CastSphere(sphereCast2.shape, ref collector);
+            Assert.IsTrue(collector.HasHit);
 
             boxs.Dispose();
             spheres.Dispose();

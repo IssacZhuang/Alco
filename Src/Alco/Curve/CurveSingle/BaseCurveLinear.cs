@@ -68,7 +68,7 @@ public abstract class BaseCurveLinear<T> :ICurve<T>, ICollection<CurvePoint<T>> 
         {
             return;
         }
-        _points.Sort(static (a, b) => a.Time.CompareTo(b.Time));
+        _points.Sort(static (a, b) => a.Key.CompareTo(b.Key));
         _isSortDirty = false;
     }
 
@@ -81,11 +81,11 @@ public abstract class BaseCurveLinear<T> :ICurve<T>, ICollection<CurvePoint<T>> 
         {
             return default;
         }
-        if (time <= _points[0].Time)
+        if (time <= _points[0].Key)
         {
             return _points[0].Value;
         }
-        if (time >= _points[_points.Count - 1].Time)
+        if (time >= _points[_points.Count - 1].Key)
         {
             return _points[_points.Count - 1].Value;
         }
@@ -93,7 +93,7 @@ public abstract class BaseCurveLinear<T> :ICurve<T>, ICollection<CurvePoint<T>> 
         int i = BinarySearchFloor(time);
         CurvePoint<T> keyFrame1 = _points[i];
         CurvePoint<T> keyFrame2 = _points[i + 1];
-        float t = (time - keyFrame1.Time) / (keyFrame2.Time - keyFrame1.Time);
+        float t = (time - keyFrame1.Key) / (keyFrame2.Key - keyFrame1.Key);
         return Lerp(keyFrame1.Value, keyFrame2.Value, t);
     }
 
@@ -106,11 +106,11 @@ public abstract class BaseCurveLinear<T> :ICurve<T>, ICollection<CurvePoint<T>> 
         while (low <= high)
         {
             int mid = (low + high) / 2;
-            if (t < _points[mid].Time)
+            if (t < _points[mid].Key)
             {
                 high = mid - 1;
             }
-            else if (t > _points[mid].Time)
+            else if (t > _points[mid].Key)
             {
                 low = mid + 1;
             }

@@ -1,11 +1,11 @@
 using System;
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
-using System.Linq;
-using System.Text.Json.Serialization;
-using System.Collections.Generic;
-using System.Reflection;
 using System.Collections.Frozen;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Alco.Engine;
 
@@ -43,13 +43,6 @@ public class PolymorphicJsonTypeResolver : DefaultJsonTypeInfoResolver
 
     private static void SetAllDerivedType(JsonTypeInfo typeInfo)
     {
-        typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
-        {
-            TypeDiscriminatorPropertyName = "$type",
-            IgnoreUnrecognizedTypeDiscriminators = false,
-            UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization
-        };
-
         //todo: performance optimization
         var derivedTypes = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(a =>
@@ -68,9 +61,22 @@ public class PolymorphicJsonTypeResolver : DefaultJsonTypeInfoResolver
                        !t.IsAbstract)
             .ToArray();
 
-        foreach (Type derivedType in derivedTypes)
+        if (derivedTypes.Length > 0)
         {
-            typeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(derivedType, derivedType.FullName ?? derivedType.Name));
+            typeInfo.PolymorphismOptions = new JsonPolymorphismOptions
+            {
+                TypeDiscriminatorPropertyName = "$type",
+                IgnoreUnrecognizedTypeDiscriminators = false,
+                UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FailSerialization
+            };
+
+
+            foreach (Type derivedType in derivedTypes)
+            {
+                typeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(derivedType, derivedType.FullName ?? derivedType.Name));
+            }
         }
+
+
     }
 }

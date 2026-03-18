@@ -42,7 +42,8 @@ public unsafe partial class Sdl3Window : View
             switch (value)
             {
                 case WindowMode.Normal:
-                    //_ = SDL_SetWindowFullscreen(_window, false);
+                    _ = SDL_SetWindowFullscreen(_window, false);
+                    _ = SDL_SetWindowBordered(_window, true);
                     _ = SDL_RestoreWindow(_window);
                     break;
                 case WindowMode.Minimized:
@@ -51,8 +52,16 @@ public unsafe partial class Sdl3Window : View
                 case WindowMode.Maximized:
                     _ = SDL_MaximizeWindow(_window);
                     break;
-                case WindowMode.Fullscreen:
+                case WindowMode.ExclusiveFullscreen:
                     _ = SDL_SetWindowFullscreen(_window, true);
+                    break;
+                case WindowMode.BorderlessFullscreen:
+                    _ = SDL_SetWindowFullscreen(_window, false);
+                    _ = SDL_SetWindowBordered(_window, false);
+                    SDL_DisplayID display = SDL_GetDisplayForWindow(_window);
+                    SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(display);
+                    _ = SDL_SetWindowPosition(_window, 0, 0);
+                    _ = SDL_SetWindowSize(_window, mode->w, mode->h);
                     break;
             }
         }
@@ -197,7 +206,8 @@ public unsafe partial class Sdl3Window : View
             WindowMode.Normal => SDL_WindowFlags.Resizable,
             WindowMode.Minimized => SDL_WindowFlags.Minimized,
             WindowMode.Maximized => SDL_WindowFlags.Maximized,
-            WindowMode.Fullscreen => SDL_WindowFlags.Fullscreen,
+            WindowMode.ExclusiveFullscreen => SDL_WindowFlags.Fullscreen,
+            WindowMode.BorderlessFullscreen => SDL_WindowFlags.Borderless,
             _ => SDL_WindowFlags.Resizable
         };
     }
@@ -206,7 +216,11 @@ public unsafe partial class Sdl3Window : View
     {
         if ((flags & SDL_WindowFlags.Fullscreen) != 0)
         {
-            return WindowMode.Fullscreen;
+            return WindowMode.ExclusiveFullscreen;
+        }
+        else if ((flags & SDL_WindowFlags.Borderless) != 0)
+        {
+            return WindowMode.BorderlessFullscreen;
         }
         else if ((flags & SDL_WindowFlags.Maximized) != 0)
         {

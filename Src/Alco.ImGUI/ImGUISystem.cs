@@ -44,8 +44,8 @@ public class ImGUISystem: BaseEngineSystem
 
     public override void OnStop()
     {
-        _imGUIRenderer.Dispose();
         _imGUIInputHandler.Dispose();
+        _imGUIRenderer.Dispose();
         _material.Dispose();
         _shader.Dispose();
     }

@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace Alco.Test;
 
-public class TestCollisionWorld2D
+public unsafe class TestCollisionWorld2D
 {
     public class TestBoxTarget
     {
@@ -11,68 +11,54 @@ public class TestCollisionWorld2D
         public ShapeBox2D shape;
     }
 
-    public class TestSphereCaster : ICollisionCaster
+    public struct TestSphereCollector : ICollisionCastCollector, IRayCastCollector2D
     {
-        public List<int> hitIds = new List<int>();
-        public ShapeSphere2D shape;
+        public List<int> hitIds;
         public int cutomData;
 
-        public TestSphereCaster(ShapeSphere2D shape)
+        public TestSphereCollector(int customData)
         {
-            this.shape = shape;
-            this.cutomData = 123;
+            this.hitIds = new List<int>();
+            this.cutomData = customData;
         }
-        public void OnHit(object hitObject, int userData)
+
+        public bool OnHit(object hitObject)
         {
-            Assert.That(userData, Is.EqualTo(this.cutomData));
             if (hitObject is TestBoxTarget target)
             {
                 hitIds.Add(target.id);
             }
-        }
-    }
-
-    public class TestRayCaster2D : IRayCaster2D
-    {
-        public int? hitId;
-        public int expectedUserData;
-        public RaycastHit2D? hitInfo;
-
-        public TestRayCaster2D(int expectedUserData)
-        {
-            this.expectedUserData = expectedUserData;
+            return true;
         }
 
-        public void OnHit(object hitObject, in RaycastHit2D hit, int userData)
+        public bool OnHit(object target, RaycastHit2D hit)
         {
-            Assert.That(userData, Is.EqualTo(this.expectedUserData));
-            if (hitObject is TestBoxTarget target)
+            if (target is TestBoxTarget box)
             {
-                hitId = target.id;
-                hitInfo = hit;
+                hitIds.Add(box.id);
             }
+            return true;
         }
     }
 
-    [Test(Description = "collision world 3d")]
+    [Test(Description = "collision world 2d")]
     public void TestShapeCast2D()
     {
         using CollisionWorld2D world = new CollisionWorld2D();
 
-        TestSphereCaster caster1 = new TestSphereCaster(new ShapeSphere2D
+        ShapeSphere2D shape1 = new ShapeSphere2D
         {
             Center = new Vector2(10, 0),
             Radius = 10.1f
-        });
+        };
+        TestSphereCollector collector1 = new TestSphereCollector(123);
 
-        TestSphereCaster caster2 = new TestSphereCaster(new ShapeSphere2D
+        ShapeSphere2D shape2 = new ShapeSphere2D
         {
             Center = new Vector2(70, 0),
             Radius = 10.1f
-        });
-
-        world.PushCollisionCaster(caster1, caster1.shape, caster1.cutomData);
-        world.PushCollisionCaster(caster2, caster2.shape, caster2.cutomData);
+        };
+        TestSphereCollector collector2 = new TestSphereCollector(123);
 
         int boxCount = 100;
         for (int i = 0; i < boxCount; i++)
@@ -83,34 +69,36 @@ public class TestCollisionWorld2D
                 shape = new ShapeBox2D(new Vector2(i, 0), new Vector2(1, 1), Rotation2D.Identity)
             };
             world.PushCollisionTarget(target, target.shape);
-            //TestContext.WriteLine($"{i}, {target.shape}, {CollisionUtility2D.BoxSphere(target.shape, caster1.shape)}");
         };
 
         world.BuildTree();
-        world.Simulate();
-        Assert.That(caster1.hitIds.Count, Is.EqualTo(21));
-        Assert.That(caster2.hitIds.Count, Is.EqualTo(21));
+
+        world.CastSphere(ref collector1, shape1);
+        world.CastSphere(ref collector2, shape2);
+
+        Assert.That(collector1.hitIds.Count, Is.EqualTo(21));
+        Assert.That(collector2.hitIds.Count, Is.EqualTo(21));
 
 
         //reuse test: no target
 
-        caster1.hitIds.Clear();
-        caster2.hitIds.Clear();
+        collector1.hitIds.Clear();
+        collector2.hitIds.Clear();
         world.ClearAll();
 
-        world.PushCollisionCaster(caster1, caster1.shape);
-        world.PushCollisionCaster(caster2, caster2.shape);
-
         world.BuildTree();
-        world.Simulate();
-        Assert.That(caster1.hitIds.Count, Is.EqualTo(0));
-        Assert.That(caster2.hitIds.Count, Is.EqualTo(0));
+
+        world.CastSphere(ref collector1, shape1);
+        world.CastSphere(ref collector2, shape2);
+
+        Assert.That(collector1.hitIds.Count, Is.EqualTo(0));
+        Assert.That(collector2.hitIds.Count, Is.EqualTo(0));
 
 
         // reuse test with target
 
-        caster1.hitIds.Clear();
-        caster2.hitIds.Clear();
+        collector1.hitIds.Clear();
+        collector2.hitIds.Clear();
         world.ClearAll();
 
         for (int i = 0; i < boxCount; i++)
@@ -121,16 +109,15 @@ public class TestCollisionWorld2D
                 shape = new ShapeBox2D(new Vector2(i, 0), new Vector2(1, 1), Rotation2D.Identity)
             };
             world.PushCollisionTarget(target, target.shape);
-            //TestContext.WriteLine($"{i}, {target.shape}, {CollisionUtility2D.BoxSphere(target.shape, caster1.shape)}");
         };
 
-        world.PushCollisionCaster(caster1, caster1.shape, caster1.cutomData);
-        world.PushCollisionCaster(caster2, caster2.shape, caster2.cutomData);
-
         world.BuildTree();
-        world.Simulate();
-        Assert.That(caster1.hitIds.Count, Is.EqualTo(21));
-        Assert.That(caster2.hitIds.Count, Is.EqualTo(21));
+
+        world.CastSphere(ref collector1, shape1);
+        world.CastSphere(ref collector2, shape2);
+
+        Assert.That(collector1.hitIds.Count, Is.EqualTo(21));
+        Assert.That(collector2.hitIds.Count, Is.EqualTo(21));
 
     }
 
@@ -140,12 +127,7 @@ public class TestCollisionWorld2D
         using CollisionWorld2D world = new CollisionWorld2D();
 
         Vector2 point = new Vector2(0, 0);
-        // the shape is not in use
-        TestSphereCaster caster1 = new TestSphereCaster(new ShapeSphere2D
-        {
-            Center = new Vector2(10, 0),
-            Radius = 10.1f
-        });
+        TestSphereCollector collector1 = new TestSphereCollector(123);
 
         //hit 
         TestBoxTarget box1 = new TestBoxTarget
@@ -182,8 +164,8 @@ public class TestCollisionWorld2D
 
         world.BuildTree();
 
-        world.CastPoint(caster1, point, caster1.cutomData);
-        Assert.That(caster1.hitIds.Count, Is.EqualTo(3));
+        world.CastPoint(ref collector1, point);
+        Assert.That(collector1.hitIds.Count, Is.EqualTo(3));
     }
 
     [Test]
@@ -202,21 +184,43 @@ public class TestCollisionWorld2D
         world.BuildTree();
 
         // Ray from left to right along x-axis at y=0; should hit the box with id 0 first
-        int userData1 = 456;
-        TestRayCaster2D rayCaster1 = new TestRayCaster2D(userData1);
         Ray2D ray1 = new Ray2D(new Vector2(-10, 0), new Vector2(100, 0));
-        world.PushRayCaster(rayCaster1, ray1, userData1);
+        bool hit1 = world.TryCastRayClosestHit<TestBoxTarget>(ray1, out TestBoxTarget hitObject1, out RaycastHit2D hitInfo1);
 
         // Ray above boxes at y=5, no hit expected
-        int userData2 = 789;
-        TestRayCaster2D rayCaster2 = new TestRayCaster2D(userData2);
         Ray2D ray2 = new Ray2D(new Vector2(-10, 5), new Vector2(100, 0));
-        world.PushRayCaster(rayCaster2, ray2, userData2);
+        bool hit2 = world.TryCastRayClosestHit<TestBoxTarget>(ray2, out TestBoxTarget hitObject2, out RaycastHit2D hitInfo2);
 
-        world.Simulate();
+        Assert.That(hit1, Is.True);
+        Assert.That(hitObject1, Is.Not.Null);
+        Assert.That(hitObject1!.id, Is.EqualTo(42));
 
-        Assert.That(rayCaster1.hitId.HasValue, Is.True);
-        Assert.That(rayCaster1.hitId.Value, Is.EqualTo(42));
-        Assert.That(rayCaster2.hitId.HasValue, Is.False);
+        Assert.That(hit2, Is.False);
+        Assert.That(hitObject2, Is.Null);
+    }
+
+    [Test]
+    public void TestRayCastMulti2D()
+    {
+        using CollisionWorld2D world = new CollisionWorld2D();
+
+        for (int i = 0; i < 5; i++)
+        {
+            TestBoxTarget target = new TestBoxTarget
+            {
+                id = i,
+                shape = new ShapeBox2D(new Vector2(i * 10, 0), new Vector2(1, 1), Rotation2D.Identity)
+            };
+            world.PushCollisionTarget(target, target.shape);
+        }
+
+        world.BuildTree();
+
+        // Ray passing through all 5 boxes
+        Ray2D ray = new Ray2D(new Vector2(-5, 0), new Vector2(100, 0));
+        TestSphereCollector collector = new TestSphereCollector(0);
+        world.CastRay(ref collector, ray);
+
+        Assert.That(collector.hitIds.Count, Is.EqualTo(5));
     }
 }

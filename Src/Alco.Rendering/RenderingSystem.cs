@@ -270,9 +270,9 @@ public partial class RenderingSystem
 
     private void OnDispose()
     {
-        _globalRenderData.Dispose();
-        _bufferPool.Dispose();
         _host.OnUpdate -= OnUpdate;
         _host.OnDispose -= OnDispose;
+        _globalRenderData.Dispose();
+        _bufferPool.Dispose();
     }
 }

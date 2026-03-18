@@ -3,7 +3,7 @@ using Alco;
 using Alco.Graphics;
 using Alco.Rendering;
 
-public class Cube:ICollisionCaster
+public class Cube
 {
     public Transform2D Transform;
     public ColorFloat Color;
@@ -21,7 +21,7 @@ public class Cube:ICollisionCaster
     }
 
 
-    public void OnHit(object hitObject, int userData)
+    public void OnHit(object hitObject)
     {
         if(hitObject is Droplet droplet)
         {

@@ -58,6 +58,25 @@ public class UIText : UISelectable
     /// <value></value>
     public float LineSpacing { get; set; } = 1f;
 
+    /// <summary>
+    /// Whether to fit the content size.
+    /// If true, the height of the text node will be adjusted to the content height.
+    /// Only works when OverflowHorizontal is NextLine.
+    /// </summary>
+    public bool FitContentSize
+    {
+        get => _fitContentSize;
+        set
+        {
+            _fitContentSize = value;
+            if (_fitContentSize)
+            {
+                SetLineBreakDirty();
+            }
+        }
+    }
+    private bool _fitContentSize = false;
+
 
     /// <summary>
     /// The text data.
@@ -242,11 +261,6 @@ public class UIText : UISelectable
         }
         _isLineBreakDirty = false;
         Span<char> text = TextSpan;
-        Line line = new Line()
-        {
-            start = 0
-        };
-
         _lines.Clear();
 
         if (_textLength == 0)
@@ -254,41 +268,96 @@ public class UIText : UISelectable
             return;
         }
 
+        int currentLineStart = 0;
+        int currentLineCount = 0;
+        float currentLineWidth = 0;
+        int lastBreakIndex = -1;
+        float lastBreakWidth = 0;
+
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
             GlyphInfo glyph = Font!.GetGlyph(c);
+            float charWidth = glyph.Advance;
 
-
-            //line break
-            if (_overflowHorizontal == OverflowModeHorizontal.NextLine && (line.width + glyph.Advance) * _fontSize > Size.X)
+            if (c == '\n' || c == '\r')
             {
-                _lines.Add(line);
-                Line newLine = new Line()
+                currentLineCount++;
+                _lines.Add(new Line
                 {
-                    start = line.start + line.count,
-                };
-                line = newLine;
+                    start = currentLineStart,
+                    count = currentLineCount,
+                    width = currentLineWidth
+                });
+
+                currentLineStart = i + 1;
+                currentLineCount = 0;
+                currentLineWidth = 0;
+                lastBreakIndex = -1;
+                continue;
             }
 
-            line.count++;
-            line.width += glyph.Advance;
-
-            if (c == '\n' ||
-            c == '\r')
+            if (_overflowHorizontal == OverflowModeHorizontal.NextLine && (currentLineWidth + charWidth) * _fontSize > Size.X)
             {
-                _lines.Add(line);
-                Line newLine = new Line()
+                if (lastBreakIndex != -1 && lastBreakIndex >= currentLineStart)
                 {
-                    start = line.start + line.count,
-                };
-                line = newLine;
+                    _lines.Add(new Line
+                    {
+                        start = currentLineStart,
+                        count = lastBreakIndex - currentLineStart + 1,
+                        width = lastBreakWidth
+                    });
+
+                    currentLineStart = lastBreakIndex + 1;
+                    i = lastBreakIndex;
+                    currentLineCount = 0;
+                    currentLineWidth = 0;
+                    lastBreakIndex = -1;
+                    continue;
+                }
+                else if (currentLineCount > 0)
+                {
+                    _lines.Add(new Line
+                    {
+                        start = currentLineStart,
+                        count = currentLineCount,
+                        width = currentLineWidth
+                    });
+
+                    currentLineStart = i;
+                    i--;
+                    currentLineCount = 0;
+                    currentLineWidth = 0;
+                    lastBreakIndex = -1;
+                    continue;
+                }
+            }
+
+            currentLineWidth += charWidth;
+            currentLineCount++;
+
+            if (char.IsWhiteSpace(c) || c == '-' || c >= 0x2E80)
+            {
+                lastBreakIndex = i;
+                lastBreakWidth = currentLineWidth;
             }
         }
 
-        //add the last line
-        //this can be an empty line if the last char is '\n'
-        _lines.Add(line);
+        _lines.Add(new Line
+        {
+            start = currentLineStart,
+            count = currentLineCount,
+            width = currentLineWidth
+        });
+
+        if (_fitContentSize && _overflowHorizontal == OverflowModeHorizontal.NextLine)
+        {
+            float height = _lines.Count * _fontSize * LineSpacing;
+            if (Math.Abs(Size.Y - height) > 0.001f)
+            {
+                Size = new Vector2(Size.X, height);
+            }
+        }
     }
 
     protected Span<char> ResizeText(int length)

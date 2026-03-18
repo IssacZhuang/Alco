@@ -31,12 +31,6 @@ public sealed class MaterialInstance : Material
 
     public override void PushResources(GPUCommandBuffer.RenderPass renderPass)
     {
-        if(StencilReference.HasValue){
-            renderPass.SetStencilReference(StencilReference.Value);
-        }else if(_parent.StencilReference.HasValue){
-            renderPass.SetStencilReference(_parent.StencilReference.Value);
-        }
-
         int length = ResourceGroupCount;
 
         for (uint i = 0; i < length; i++)
@@ -54,13 +48,6 @@ public sealed class MaterialInstance : Material
 
     public override void PushResources(GPURenderBundle renderBundle)
     {
-        // the stencil value is dynamic state which is not supported in render bundle
-        // if(StencilReference.HasValue){
-        //     renderBundle.SetStencilReference(StencilReference.Value);
-        // }else if(_parent.StencilReference.HasValue){
-        //     renderBundle.SetStencilReference(_parent.StencilReference.Value);
-        // }
-
         int length = ResourceGroupCount;
         for (uint i = 0; i < length; i++)
         {

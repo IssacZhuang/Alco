@@ -24,9 +24,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     private uint _meshVersion;
     private uint _indexCount;
 
-
-
-
     /// <summary>
     /// The framebuffer that is currently being rendered to.
     /// </summary>
@@ -40,8 +37,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _command;
     }
-
-
 
     internal RenderContext(RenderingSystem renderingSystem, string name)
     {
@@ -111,6 +106,16 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     }
 
     /// <summary>
+    /// Sets the stencil reference value for subsequent draw calls.
+    /// </summary>
+    /// <param name="value">The stencil reference value.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetStencilReference(uint value)
+    {
+        _renderScope.SetStencilReference(value);
+    }
+
+    /// <summary>
     /// Draws a mesh with the specified material.
     /// </summary>
     /// <param name="mesh">The mesh to draw.</param>
@@ -125,7 +130,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         material.PushResources(_renderScope);
         _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
-
 
     /// <summary>
     /// Draws a mesh with the specified material and push constants.
@@ -163,7 +167,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         DrawInstanced(mesh, material, instanceCount, 0, subMeshIndex);
     }
 
-
     /// <summary>
     /// Draws a mesh multiple times with the specified material.
     /// </summary>
@@ -181,8 +184,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         material.PushResources(_renderScope);
         _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
     }
-
-
 
     /// <summary>
     /// Draws a mesh multiple times with the specified material and push constants.
@@ -219,7 +220,6 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
         _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
-
 
     /// <summary>
     /// Execute the commands recorded in the <see cref="SubRenderContext"/>.

@@ -18,7 +18,7 @@ public class NoInput : Input
     /// <inheritdoc />
     public override Vector2 MouseDelta { get; }
 
-    public override float MouseWheelDelta { get; }
+    public override Vector2 MouseWheelDelta { get; }
 
     public override void CopyToClipboard(ReadOnlySpan<char> text)
     {
@@ -71,12 +71,6 @@ public class NoInput : Input
     public override bool IsMouseUp(Mouse button)
     {
         return true;
-    }
-
-    public override bool IsMouseWheelScrolling(out float delta)
-    {
-        delta = 0;
-        return false;
     }
 
     public override IReadOnlyList<Gamepad> GetGamepads()

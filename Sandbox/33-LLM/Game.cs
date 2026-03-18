@@ -5,7 +5,6 @@ using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
-using Alco.IO;
 using Alco.LLM;
 using Alco.Rendering;
 using Microsoft.SemanticKernel;
@@ -17,10 +16,19 @@ namespace _33_LLM;
 /// </summary>
 public class Game : GameEngine
 {
+    public class SandboxPreference
+    {
+        public string ModelId { get; set; } = "gpt-4o";
+        public string ApiKey { get; set; } = "";
+        public string OrgId { get; set; } = "";
+        public string CustomUri { get; set; } = "";
+    }
+
     private LLMSystem _llmSystem;
     private LLMAgent? _llmAgent;
     private LLMSession? _llmSession;
-    private Preference _preference = null!;
+    private SandboxPreference _preference;
+
     private string _modelId = "gpt-4o";
     private string _apiKey = "";
     private string _orgId = "";
@@ -42,7 +50,7 @@ public class Game : GameEngine
     {
         _llmSystem = new LLMSystem();
         AddSystem(_llmSystem);
-        _preference = new Preference(new DirectoryFileSystem(Environment.CurrentDirectory), "llm_config.json");
+        _preference = LoadPreference<SandboxPreference>("33-LLM", "config");
 
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
@@ -76,19 +84,19 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        _modelId = _preference.GetString("ModelId", _modelId);
-        _apiKey = _preference.GetString("ApiKey", _apiKey);
-        _orgId = _preference.GetString("OrgId", _orgId);
-        _customUri = _preference.GetString("CustomUri", _customUri);
+        _modelId = _preference.ModelId;
+        _apiKey = _preference.ApiKey;
+        _orgId = _preference.OrgId;
+        _customUri = _preference.CustomUri;
     }
 
     protected override void OnStop()
     {
-        _preference.SetString("ModelId", _modelId);
-        _preference.SetString("ApiKey", _apiKey);
-        _preference.SetString("OrgId", _orgId);
-        _preference.SetString("CustomUri", _customUri);
-        _preference.Save();
+        _preference.ModelId = _modelId;
+        _preference.ApiKey = _apiKey;
+        _preference.OrgId = _orgId;
+        _preference.CustomUri = _customUri;
+        SavePreference("33-LLM", "config", _preference);
     }
 
     protected override void OnUpdate(float delta)
@@ -154,25 +162,28 @@ public class Game : GameEngine
                 {
                     if (!string.IsNullOrWhiteSpace(_customUri) && Uri.TryCreate(_customUri, UriKind.Absolute, out var uri))
                     {
-                         _llmAgent = _llmSystem.CreateAgentFromRemote(uri, _apiKey, _modelId, this);
+                         _llmAgent = _llmSystem.CreateAgent(new LLMAgentOptions
+                         {
+                             Endpoint = uri,
+                             ApiKey = _apiKey,
+                             ModelId = _modelId,
+                             Plugins = new[] { this }
+                         });
                     }
                     else
                     {
-                        // Fallback to OpenAI default URI if no custom URI is provided but we have API key
-                        // Or handle OrgId if supported in CreateAgentFromRemote (currently not in signature)
-                        // For now assuming custom URI or default OpenAI logic inside builder if URI is null?
-                        // But CreateAgentFromRemote requires URI.
-                        // Let's assume for Sandbox we just use the custom URI path for now or throw if empty.
+                        // Fallback to OpenAI default URI if no custom URI is provided
                         if (string.IsNullOrWhiteSpace(_apiKey))
                         {
                             throw new Exception("API Key is required");
                         }
-                        // Default OpenAI endpoint if not custom?
-                        // The current API requires URI. Let's provide a way to use default OpenAI.
-                        // Wait, previous code supported orgId and optional URI.
-                        // We need to check LLMSystem API again. It requires URI.
-                        // Let's use https://api.openai.com/v1 if custom URI is empty.
-                        _llmAgent = _llmSystem.CreateAgentFromRemote(new Uri("https://api.openai.com/v1"), _apiKey, _modelId, this);
+                        _llmAgent = _llmSystem.CreateAgent(new LLMAgentOptions
+                        {
+                            Endpoint = new Uri("https://api.openai.com/v1"),
+                            ApiKey = _apiKey,
+                            ModelId = _modelId,
+                            Plugins = new[] { this }
+                        });
                     }
                     _llmSession = _llmAgent.CreateSession();
                 }
@@ -197,7 +208,7 @@ public class Game : GameEngine
 
         // Chat History
         float footerHeightToReserve = ImGui.GetStyle().ItemSpacing.Y + ImGui.GetFrameHeightWithSpacing();
-        ImGui.BeginChild("ScrollingRegion", new Vector2(0, -footerHeightToReserve), ImGuiChildFlags.None, ImGuiWindowFlags.HorizontalScrollbar);
+        ImGui.BeginChild("ScrollingRegion", new Vector2(0, -footerHeightToReserve), ImGuiChildFlags.None, ImGuiWindowFlags.None);
 
         foreach (var (role, content) in _chatHistory)
         {

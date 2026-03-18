@@ -45,19 +45,20 @@ public abstract class UIList<TData> : UINode
             ScrollMode = SrollMode.Vertical
         };
 
-        _layout = new UILayout(LayoutType.Vertical)
+        _layout = new UILayout()
         {
             Anchor = Anchor.TopHorizontalStretch,
             Pivot = Pivot.CenterTop,
             FitContentSize = true,
             IsFixedItemSize = false,
+            LayoutType = LayoutType.Vertical,
         };
 
         // Wire up hierarchy: this -> mask -> scrollable -> layout
-        _mask.Add(_scrollable, false);
-        _scrollable.Add(_layout, false);
+        _mask.Add(_scrollable);
+        _scrollable.Add(_layout);
         _scrollable.Content = _layout;
-        Add(_mask, false);
+        Add(_mask);
     }
 
     /// <summary>
@@ -148,7 +149,7 @@ public abstract class UIList<TData> : UINode
         for (int i = _layout.Children.Count; i < desiredCount; i++)
         {
             UINode item = CreateItem();
-            _layout.Add(item, false);
+            _layout.Add(item);
         }
 
         // bind

@@ -1,4 +1,5 @@
 using System;
+using Alco.Audio;
 using Alco.Graphics;
 
 namespace Alco.Engine
@@ -17,6 +18,7 @@ namespace Alco.Engine
             GametTickRate = 60;
             View = ViewSetting.Default;
             Graphics = GraphicsSetting.Default;
+            Audio = AudioSetting.Default;
             Assets = AssetsSetting.Default;
         }
 
@@ -26,6 +28,14 @@ namespace Alco.Engine
         public bool HasGPU
         {
             get => Graphics.Backend != GraphicsBackend.None;
+        }
+
+        /// <summary>
+        /// Check if the game engine requires audio interface
+        /// </summary>
+        public bool HasAudio
+        {
+            get => Audio.Backend != AudioBackend.None;
         }
 
         /// <summary>
@@ -52,6 +62,11 @@ namespace Alco.Engine
         /// The graphics setting 
         /// </summary>
         public GraphicsSetting Graphics;
+
+        /// <summary>
+        /// The audio setting
+        /// </summary>
+        public AudioSetting Audio;
 
         /// <summary>
         /// The assets setting
@@ -82,6 +97,7 @@ namespace Alco.Engine
             {
                 GametTickRate = 60,
                 Graphics = GraphicsSetting.NoGPU,
+                Audio = AudioSetting.NoAudio,
                 Assets = AssetsSetting.Default,
                 Platform = new ConsolePlatform()
             }.With<PluginDefaultAssets>();

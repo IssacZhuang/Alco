@@ -167,6 +167,14 @@ public class UIInputBox : UIText, ITextInput
             }
         }
 
+        if (TextSpan.IsEmpty && _isCursorVisible && IsEditable && _isSelecting && Font != null)
+        {
+            Transform2D cursorTransform = Transform2D.Identity;
+            cursorTransform.Position = Size * TextPivot;
+            cursorTransform.Scale = new Vector2(FontSize) * CursorScale;
+            canvas.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor);
+        }
+
         //DebugShowLineBreak();
     }
 
@@ -194,6 +202,11 @@ public class UIInputBox : UIText, ITextInput
         int line = (int)(localY / -lineHeight);
 
         if (line < 0)
+        {
+            return 0;
+        }
+
+        if (_lines.Count == 0)
         {
             return 0;
         }

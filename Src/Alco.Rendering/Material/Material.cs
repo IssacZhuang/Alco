@@ -16,6 +16,8 @@ public abstract class Material : AutoDisposable
 
     private uint _version;
 
+    public uint Version => _version;
+
     public int ResourceGroupCount
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -115,12 +117,6 @@ public abstract class Material : AutoDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _parameters.ResourceGroups[index];
     }
-
-    /// <summary>
-    /// The stencil reference value which used in <see cref="GPUCommandBuffer.SetStencilReference"/>.
-    /// <br/> [Note] This value is only available for <see cref="GPUCommandBuffer"/> but not <see cref="GPURenderBundle"/>
-    /// </summary>
-    public uint? StencilReference;
 
     /// <summary>
     /// The name of the material.

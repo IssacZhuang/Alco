@@ -6,17 +6,17 @@ namespace Alco;
 
 public struct CurvePoint<T> : IComparable<CurvePoint<T>>
 {
-    public float Time;
+    public float Key;
     public T Value;
 
-    public CurvePoint(float time, T value)
+    public CurvePoint(float key, T value)
     {
-        this.Time = time;
+        this.Key = key;
         this.Value = value;
     }
 
     public int CompareTo(CurvePoint<T> other)
     {
-        return this.Time.CompareTo(other.Time);
+        return this.Key.CompareTo(other.Key);
     }
 }

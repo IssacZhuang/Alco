@@ -1,0 +1,75 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Benchmark/">
+    <Project Path="Benchmark/Alco.Benchmark/Alco.Benchmark.csproj" />
+    <Project Path="Benchmark/Alco.Engine.Benchmark/Alco.Engine.Benchmark.csproj" />
+    <Project Path="Benchmark/BenchmarkFramework/BenchmarkFramework.csproj" />
+  </Folder>
+  <Folder Name="/Generator/">
+    <Project Path="Generator/Generator.csproj" />
+  </Folder>
+  <Folder Name="/Sandbox/">
+    <Project Path="Sandbox/0-BasicWindow/0-BasicWindow.csproj" />
+    <Project Path="Sandbox/1-DrawQuad/1-DrawQuad.csproj" />
+    <Project Path="Sandbox/10-AsyncAssetLoading/10-AsyncAssetLoading.csproj" />
+    <Project Path="Sandbox/11-AssetLoaderHLSL/11-AssetLoaderHLSL.csproj" />
+    <Project Path="Sandbox/12-SpriteRendering/12-SpriteRendering.csproj" />
+    <Project Path="Sandbox/13-BloomHDR/13-BloomHDR.csproj" />
+    <Project Path="Sandbox/14-Collision/14-Collision.csproj" />
+    <Project Path="Sandbox/15-SpacePartition/15-SpacePartition.csproj" />
+    <Project Path="Sandbox/16-CanvasUI/16-CanvasUI.csproj" />
+    <Project Path="Sandbox/17-AudioDevice/17-AudioDevice.csproj" />
+    <Project Path="Sandbox/18-GcBurner/18-GcBurner.csproj" />
+    <Project Path="Sandbox/19-MultiWindow/19-MultiWindow.csproj" />
+    <Project Path="Sandbox/2-UniformBuffer/2-UniformBuffer.csproj" />
+    <Project Path="Sandbox/20-GPUReadBack/20-GPUReadBack.csproj" />
+    <Project Path="Sandbox/21-StencilTest/21-StencilTest.csproj" />
+    <Project Path="Sandbox/22-AtlasPacker/22-AtlasPacker.csproj" />
+    <Project Path="Sandbox/23-TiledTerrain2D/23-TiledTerrain2D.csproj" />
+    <Project Path="Sandbox/24-FloodFill/24-FloodFill.csproj" />
+    <Project Path="Sandbox/25-TextureCompression/25-TextureCompression.csproj" />
+    <Project Path="Sandbox/26-ImGUI/26-ImGUI.csproj" />
+    <Project Path="Sandbox/27-Particles/27-Particles.csproj" />
+    <Project Path="Sandbox/28-Gizmo/28-Gizmo.csproj" />
+    <Project Path="Sandbox/29-Noise/29-Noise.csproj" />
+    <Project Path="Sandbox/3-TextureBinding/3-TextureBinding.csproj" />
+    <Project Path="Sandbox/30-ParticleBatching/30-ParticleBatching.csproj" />
+    <Project Path="Sandbox/31-FilePicker/31-FilePicker.csproj" />
+    <Project Path="Sandbox/32-Gamepad/32-Gamepad.csproj" />
+    <Project Path="Sandbox/33-LLM/33-LLM.csproj" />
+    <Project Path="Sandbox/4-ComputeShader/4-ComputeShader.csproj" />
+    <Project Path="Sandbox/5-Transform2D/5-Transform2D.csproj" />
+    <Project Path="Sandbox/6-PushConstants/6-PushConstants.csproj" />
+    <Project Path="Sandbox/7-Instancing/7-Instancing.csproj" />
+    <Project Path="Sandbox/8-StorageBuffer/8-StorageBuffer.csproj" />
+    <Project Path="Sandbox/9-TextRendering/9-TextRendering.csproj" />
+    <Project Path="Sandbox/~SandboxUtils/~SandboxUtils.csproj" />
+  </Folder>
+  <Folder Name="/Src/">
+    <Project Path="Src/Alco.Audio/Alco.Audio.csproj" />
+    <Project Path="Src/Alco.Engine/Alco.Engine.csproj" />
+    <Project Path="Src/Alco.Graphics/Alco.Graphics.csproj" />
+    <Project Path="Src/Alco.GUI/Alco.GUI.csproj" />
+    <Project Path="Src/Alco.ImGUI/Alco.ImGUI.csproj" />
+    <Project Path="Src/Alco.IO/Alco.IO.csproj" />
+    <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
+    <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
+    <Project Path="Src/Alco.ShaderCompiler/Alco.ShaderCompiler.csproj" />
+    <Project Path="Src/Alco/Alco.csproj" />
+  </Folder>
+  <Folder Name="/Test/">
+    <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
+    <Project Path="Test/Alco.IO.Test/Alco.IO.Test.csproj" />
+    <Project Path="Test/Alco.Rendering.Test/Alco.Rendering.Test.csproj" />
+    <Project Path="Test/Alco.Test/Alco.Test.csproj" />
+    <Project Path="Test/TestFramework/TestFramework.csproj" />
+  </Folder>
+  <Folder Name="/Tool/">
+    <Project Path="Tool/MsdfFontGenerator.Desktop/MsdfFontGenerator.Desktop.csproj" />
+    <Project Path="Tool/MsdfFontGenerator/MsdfFontGenerator.csproj" />
+  </Folder>
+</Solution>

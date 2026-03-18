@@ -7,7 +7,7 @@ using Alco.GUI;
 using Alco.Rendering;
 using FastRandom = Alco.FastRandom;
 
-public class CubeSystem
+public class CubeSystem : IDisposable
 {
     private static readonly ColorFloat DefaultColor = 0xff4444;
     private readonly Texture2D _texture;
@@ -16,6 +16,7 @@ public class CubeSystem
     private readonly Pool<Cube> _pool = new Pool<Cube>(10000, () => new Cube());
     private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _spriteRenderer;
+    private readonly PerformCollisionTask _collisionTask;
 
     private FastRandom _random = new FastRandom(123);
 
@@ -24,6 +25,7 @@ public class CubeSystem
         _texture = texCube;
         _renderContext = rendering.CreateRenderContext();
         _spriteRenderer = rendering.CreateSpriteRenderer(_renderContext, material, "Sprite");
+        _collisionTask = new PerformCollisionTask();
     }
 
     public void OnTick(float delta)
@@ -60,12 +62,36 @@ public class CubeSystem
         }
     }
 
-    public void PushCollisionCaster(CollisionWorld2D collisionWorld)
+    public void PerformCollision(CollisionWorld2D collisionWorld)
     {
-        for (int i = 0; i < _activeList.Count; i++)
+        if (_activeList.Count == 0) return;
+
+        _collisionTask.activeList = _activeList;
+        _collisionTask.collisionWorld = collisionWorld;
+        _collisionTask.RunParallel(_activeList.Count, 16);
+    }
+
+    private class PerformCollisionTask : ReuseableBatchTask
+    {
+        public List<Cube>? activeList;
+        public CollisionWorld2D? collisionWorld;
+
+        protected override void ExecuteCore(int index)
         {
-            Cube entity = _activeList[i];
-            collisionWorld.PushCollisionCaster(entity, entity.Shape);
+            Cube entity = activeList![index];
+            var collector = new CubeCollisionCollector(entity);
+            collisionWorld!.CastBox(ref collector, entity.Shape);
+        }
+    }
+
+    private struct CubeCollisionCollector : ICollisionCastCollector
+    {
+        private readonly Cube _cube;
+        public CubeCollisionCollector(Cube cube) => _cube = cube;
+        public bool OnHit(object target)
+        {
+            _cube.OnHit(target);
+            return true;
         }
     }
 
@@ -79,5 +105,11 @@ public class CubeSystem
         }
         _renderContext.End();
 
+    }
+
+    public void Dispose()
+    {
+        _collisionTask.Dispose();
+        _renderContext.Dispose();
     }
 }

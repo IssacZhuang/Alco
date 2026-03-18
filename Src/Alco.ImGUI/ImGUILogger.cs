@@ -44,6 +44,7 @@ public class ImGUILogger : ILogger
     //also log to console
     private readonly ConsoleLogger _consoleLogger = new ConsoleLogger();
     private readonly ConcurrentQueue<LogInfo> _logQueue = new ConcurrentQueue<LogInfo>();
+    private volatile bool _hasUnreadError = false;
 
     private readonly SpanStringBuilder _stringBuilder = new SpanStringBuilder();
 
@@ -75,6 +76,11 @@ public class ImGUILogger : ILogger
     public event Action<string>? OnLogDoubleClick;
 
     /// <summary>
+    /// Gets whether there are unread error messages.
+    /// </summary>
+    public bool HasUnreadError => _hasUnreadError;
+
+    /// <summary>
     /// Gets or sets whether the logger window is open.
     /// </summary>
     public bool IsOpen = true;
@@ -86,6 +92,7 @@ public class ImGUILogger : ILogger
     public void Error(ReadOnlySpan<char> message)
     {
         EnqueueLog(LogType.Error, message.ToString());
+        _hasUnreadError = true;
         _consoleLogger.Error(message);
     }
 
@@ -131,6 +138,11 @@ public class ImGUILogger : ILogger
     /// </summary>
     public void Draw()
     {
+        if (IsOpen)
+        {
+            _hasUnreadError = false;
+        }
+
         if (!IsOpen)
         {
             return;

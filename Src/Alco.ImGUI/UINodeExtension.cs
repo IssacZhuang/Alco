@@ -118,6 +118,89 @@ public static class UINodeExtension
         }
     }
 
+    /// <summary>
+    /// Draw a debug tree view with inspector for the Canvas, displaying Holded, Hovered, and Selected nodes as text and colored outlines.
+    /// </summary>
+    /// <param name="canvas">The canvas to debug.</param>
+    /// <param name="selectedNode">Reference to the currently selected node from the inspector.</param>
+    public static void DrawDebugTreeWithInspector(this Canvas canvas, ref UINode? selectedNode)
+    {
+        if (ImGui.BeginTable("ui_debug", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.Borders))
+        {
+            ImGui.TableSetupColumn("Tree", ImGuiTableColumnFlags.WidthFixed, 360.0f);
+            ImGui.TableSetupColumn("Inspector", ImGuiTableColumnFlags.WidthStretch);
+
+            // left tree
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(0);
+            ImGui.Text("UI Root Tree:");
+
+            // Use remaining space for tree with scrollbar
+            Vector2 treeAvailableSpace = ImGui.GetContentRegionAvail();
+            ImGui.BeginChild("UITreeView", new Vector2(0, treeAvailableSpace.Y - 10));
+            canvas.Root.DrawDebugTree(ref selectedNode);
+            ImGui.EndChild();
+
+            // right inspector
+            ImGui.TableSetColumnIndex(1);
+            ImGui.Text("Inspector:");
+
+            // Use remaining space for inspector with scrollbar
+            Vector2 inspectorAvailableSpace = ImGui.GetContentRegionAvail();
+            ImGui.BeginChild("UIInspector", new Vector2(0, inspectorAvailableSpace.Y - 10));
+
+            // Display selected node inspector
+            if (selectedNode != null)
+            {
+                selectedNode.DrawDebugInspector();
+            }
+            else
+            {
+                ImGui.Text("Select a node on the left");
+            }
+
+            // Display Canvas state text information using FixedString to reduce allocations
+            ImGui.Separator();
+            ImGui.Text("Canvas State:");
+
+            FixedString256 text;
+
+            text = "Holded: ";
+            text += canvas.Holded?.Name ?? "(none)";
+            text += " (";
+            text += canvas.Holded?.GetType().Name ?? "null";
+            text += ")";
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), text);
+
+            text = "Hovered: ";
+            text += canvas.Hovered?.Name ?? "(none)";
+            text += " (";
+            text += canvas.Hovered?.GetType().Name ?? "null";
+            text += ")";
+            ImGui.TextColored(new Vector4(0, 1, 0, 1), text);
+
+            text = "Selected: ";
+            text += canvas.Selected?.Name ?? "(none)";
+            text += " (";
+            text += canvas.Selected?.GetType().Name ?? "null";
+            text += ")";
+            ImGui.TextColored(new Vector4(0, 0, 1, 1), text);
+
+            ImGui.EndChild();
+
+            ImGui.EndTable();
+        }
+
+        // Draw highlights for Canvas's special nodes
+        canvas.Holded?.DrawHighlight(2f, new Vector4(1, 0, 0, 1));    // Red
+        canvas.Hovered?.DrawHighlight(2f, new Vector4(0, 1, 0, 1));    // Green
+        canvas.Selected?.DrawHighlight(2f, new Vector4(0, 0, 1, 1));    // Blue
+        if (selectedNode != null)
+        {
+            selectedNode.DrawHighlight(1f, new Vector4(1, 1, 0, 1));  // Yellow
+        }
+    }
+
     public static void DrawDebugInspector(this UINode node)
     {
         FixedString128 label;

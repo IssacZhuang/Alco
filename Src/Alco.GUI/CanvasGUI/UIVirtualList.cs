@@ -7,7 +7,7 @@ namespace Alco.GUI;
 /// A virtual list that only renders visible items, with fixed item sizes for efficient scrolling.
 /// Items are recycled and repositioned as the user scrolls, providing high performance for large lists.
 /// </summary>
-public abstract class UIVirtualList<TData> : UINode
+public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
 {
     private struct ActiveItem
     {
@@ -36,6 +36,14 @@ public abstract class UIVirtualList<TData> : UINode
     private Vector2 _lastContainerPosition = new(float.NaN, float.NaN);
 
     private bool _isLayoutDirty = false;
+
+    // Navigation state
+    private int _focusedIndex = -1;
+    private bool _canNavigate;
+    private bool _prevUp;
+    private bool _prevDown;
+    private bool _prevLeft;
+    private bool _prevRight;
 
     /// <summary>
     /// Gets or sets the fixed size of each item in the grid.
@@ -100,7 +108,22 @@ public abstract class UIVirtualList<TData> : UINode
     /// Gets the internal scrollable viewport.
     /// </summary>
     public UIScrollable Scrollable => _scrollable;
-    
+
+    /// <summary>
+    /// Gets or sets whether this virtual list can process keyboard navigation input.
+    /// </summary>
+    public bool CanNavigate
+    {
+        get => _canNavigate;
+        set => _canNavigate = value;
+    }
+
+    /// <summary>
+    /// Gets the current focused data index.
+    /// Returns -1 if no item is focused.
+    /// </summary>
+    public int FocusedIndex => _focusedIndex;
+
     /// <summary>
     /// Gets the total content size.
     /// </summary>
@@ -139,10 +162,10 @@ public abstract class UIVirtualList<TData> : UINode
         };
         
         // Setup hierarchy: this -> mask -> scrollable -> container
-        _mask.Add(_scrollable, false);
-        _scrollable.Add(_container, false);
+        _mask.Add(_scrollable);
+        _scrollable.Add(_container);
         _scrollable.Content = _container;
-        Add(_mask, false);
+        Add(_mask);
 
         // Try to auto-detect item size by creating one prototype item and
         // returning it to the pool, so it can be reused later.
@@ -169,8 +192,8 @@ public abstract class UIVirtualList<TData> : UINode
         Vector2 contentSize = ContentSize;
         _container.Size = contentSize; // Use absolute size instead of SizeDelta
         
-        SetLayoutDirty();
         RefreshVisibleItems();
+        RefreshItems();
     }
 
     /// <summary>
@@ -188,8 +211,8 @@ public abstract class UIVirtualList<TData> : UINode
         Vector2 contentSize = ContentSize;
         _container.Size = contentSize;
 
-        SetLayoutDirty();
         RefreshVisibleItems();
+        RefreshItems();
     }
     
     /// <summary>
@@ -458,6 +481,218 @@ public abstract class UIVirtualList<TData> : UINode
         {
             uiListItem.SetData(index, data);
         }
+    }
+
+    /// <summary>
+    /// Sets focus to the data item at the specified index.
+    /// The index is clamped to valid range. Pass -1 to clear focus.
+    /// </summary>
+    /// <param name="index">The data index to focus, or -1 to clear.</param>
+    public void SetFocus(int index)
+    {
+        if (index < 0)
+        {
+            _focusedIndex = -1;
+            return;
+        }
+
+        int count = _data.Count;
+        if (count == 0)
+        {
+            _focusedIndex = -1;
+            return;
+        }
+
+        _focusedIndex = Math.Clamp(index, 0, count - 1);
+    }
+
+    /// <summary>
+    /// Clears the current focus.
+    /// </summary>
+    public void ClearFocus()
+    {
+        _focusedIndex = -1;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnTick(Canvas canvas, float delta)
+    {
+        base.OnTick(canvas, delta);
+
+        if (!_canNavigate)
+        {
+            return;
+        }
+
+        if (canvas.NavigationFocus != this)
+        {
+            SyncEdgeState(canvas.InputTracker);
+            return;
+        }
+
+        IUIInputTracker inputTracker = canvas.InputTracker;
+
+        bool up = inputTracker.IsKeyUpPressing;
+        bool down = inputTracker.IsKeyDownPressing;
+        bool left = inputTracker.IsKeyLeftPressing;
+        bool right = inputTracker.IsKeyRightPressing;
+
+        bool upEdge = up && !_prevUp;
+        bool downEdge = down && !_prevDown;
+        bool leftEdge = left && !_prevLeft;
+        bool rightEdge = right && !_prevRight;
+
+        _prevUp = up;
+        _prevDown = down;
+        _prevLeft = left;
+        _prevRight = right;
+
+        bool navigated = false;
+        int newFocusIndex = _focusedIndex;
+        if (_columnsPerRow <= 1)
+        {
+            // Single-column: Up/Down navigates items
+            if (upEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
+            else if (downEdge) navigated = NavigateByOffset(1, out newFocusIndex);
+        }
+        else
+        {
+            // Multi-column grid: Up/Down by row, Left/Right by column
+            if (upEdge) navigated = NavigateByOffset(-_columnsPerRow, out newFocusIndex);
+            else if (downEdge) navigated = NavigateByOffset(_columnsPerRow, out newFocusIndex);
+            else if (leftEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
+            else if (rightEdge) navigated = NavigateByOffset(1, out newFocusIndex);
+        }
+
+        if (navigated)
+        {
+            _focusedIndex = newFocusIndex;
+            EnsureFocusedVisible();
+            OnNavigated(canvas, newFocusIndex);
+        }
+    }
+
+    /// <summary>
+    /// Called after a successful keyboard navigation.
+    /// The default implementation applies hover to the focused item.
+    /// Override to customize post-navigation behavior (e.g. update selection).
+    /// </summary>
+    /// <param name="canvas">The current canvas.</param>
+    /// <param name="focusIndex">The new focused data index.</param>
+    protected virtual void OnNavigated(Canvas canvas, int focusIndex)
+    {
+        UINode? node = FindActiveNode(focusIndex);
+        if (node != null)
+        {
+            canvas.SetHovered(node);
+        }
+    }
+
+    /// <summary>
+    /// Updates edge-detection state without triggering navigation.
+    /// Called when this virtual list is not the active navigator, to prevent
+    /// stale-edge bursts when it becomes active on a later frame.
+    /// </summary>
+    private void SyncEdgeState(IUIInputTracker inputTracker)
+    {
+        _prevUp = inputTracker.IsKeyUpPressing;
+        _prevDown = inputTracker.IsKeyDownPressing;
+        _prevLeft = inputTracker.IsKeyLeftPressing;
+        _prevRight = inputTracker.IsKeyRightPressing;
+    }
+
+    /// <summary>
+    /// Moves the focused index by the given offset, clamping to valid range.
+    /// </summary>
+    /// <param name="offset">The offset to apply (e.g. +1, -1, +columnsPerRow).</param>
+    /// <param name="newFocusIndex">The new focused index after navigation.</param>
+    /// <returns>True if focus changed.</returns>
+    private bool NavigateByOffset(int offset, out int newFocusIndex)
+    {
+        int count = _data.Count;
+        if (count == 0)
+        {
+            newFocusIndex = _focusedIndex;
+            return false;
+        }
+
+        if (_focusedIndex < 0)
+        {
+            newFocusIndex = offset > 0 ? 0 : count - 1;
+            return true;
+        }
+
+        int newIndex = _focusedIndex + offset;
+        newIndex = Math.Clamp(newIndex, 0, count - 1);
+
+        if (newIndex == _focusedIndex)
+        {
+            newFocusIndex = _focusedIndex;
+            return false;
+        }
+
+        newFocusIndex = newIndex;
+        return true;
+    }
+
+    /// <summary>
+    /// Scrolls the viewport so that the currently focused item is fully visible.
+    /// </summary>
+    private void EnsureFocusedVisible()
+    {
+        if (_focusedIndex < 0 || _data.Count == 0 || _itemSize.Y <= 0)
+            return;
+
+        float viewportHeight = _mask.Size.Y;
+        if (viewportHeight <= 0)
+            return;
+
+        float itemWithSpacingY = _itemSize.Y + _spacing.Y;
+        int focusedRow = _focusedIndex / _columnsPerRow;
+
+        // Item's position in content space (distance from content top)
+        float itemTop = focusedRow * itemWithSpacingY;
+        float itemBottom = itemTop + _itemSize.Y;
+
+        // Current visible range in content space
+        float contentHeight = ContentSize.Y;
+        float heightDiff = math.max(contentHeight - viewportHeight, 0);
+        float centerOffset = heightDiff * (0.5f - _container.Pivot.Y);
+        float scrollY = ScrollOffset.Y;
+
+        float visibleTop = centerOffset + scrollY;
+        float visibleBottom = visibleTop + viewportHeight;
+
+        if (itemTop < visibleTop)
+        {
+            float dy = -(visibleTop - itemTop);
+            _scrollable.ScrollBy(new Vector2(0, dy));
+        }
+        else if (itemBottom > visibleBottom)
+        {
+            float dy = itemBottom - visibleBottom;
+            _scrollable.ScrollBy(new Vector2(0, dy));
+        }
+
+        // Force immediate refresh so the focused item node exists for ApplyHover
+        RefreshVisibleItems();
+    }
+
+    /// <summary>
+    /// Finds the active UINode for the given data index, or null if not currently active.
+    /// </summary>
+    /// <param name="dataIndex">The data index to look up.</param>
+    /// <returns>The UINode, or null.</returns>
+    private UINode? FindActiveNode(int dataIndex)
+    {
+        foreach (var activeItem in _activeItems)
+        {
+            if (activeItem.Index == dataIndex)
+            {
+                return activeItem.Node;
+            }
+        }
+        return null;
     }
 
     /// <summary>

@@ -23,7 +23,7 @@ public class ConsoleLogger : AutoDisposable, ILogger
     public ConsoleLogger()
     {
         var stdout = Console.OpenStandardOutput();
-        _writer = new StreamWriter(stdout, Encoding.UTF8);
+        _writer = new StreamWriter(stdout, new UTF8Encoding(false));
         _writer.AutoFlush = true;
     }
 

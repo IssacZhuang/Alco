@@ -77,7 +77,7 @@ public class CanvasUIFactory
             Anchor = Anchor.Stretch
         };
 
-        bg.Add(text);
+        bg.Add(text, true);
 
         UIButton button = new UIButton
         {
@@ -89,7 +89,7 @@ public class CanvasUIFactory
             TransitionMode = TransitionMode.ColorTint,
         };
 
-        button.Add(bg);
+        button.Add(bg, true);
         return button;
     }
 
@@ -118,8 +118,8 @@ public class CanvasUIFactory
             Anchor = Anchor.CenterVerticalStretch
         };
 
-        handle.Add(bgHandle);
-        handleParent.Add(handle);
+        handle.Add(bgHandle, true);
+        handleParent.Add(handle, true);
 
         UIImage bgSlider = new UIImage
         {
@@ -145,9 +145,9 @@ public class CanvasUIFactory
             Value = 0
         };
 
-        slider.Add(bgSlider);
-        slider.Add(handleParent);
-        slider.Add(text);
+        slider.Add(bgSlider, true);
+        slider.Add(handleParent, true);
+        slider.Add(text, true);
 
         return slider;
     }

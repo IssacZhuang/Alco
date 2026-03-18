@@ -10,7 +10,19 @@ public class UIInputTracker : IUIInputTracker
     private readonly View _window;
 
     public GamepadButton? GamepadClickButton { get; set; } = null;
-    
+
+    public float ScrollDeadZone { get; set; } = 0.1f;
+
+    /// <summary>
+    /// Sensitivity multiplier for mouse scroll wheel input.
+    /// </summary>
+    public float MouseScrollSensitivity { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Sensitivity multiplier for gamepad scroll input.
+    /// </summary>
+    public float GamepadScrollSensitivity { get; set; } = 0.1f;
+
     public UIInputTracker(Input system, View window)
     {
         _input = system;
@@ -23,16 +35,28 @@ public class UIInputTracker : IUIInputTracker
         get => _window.Size;
     }
 
-    public Vector2 MousePosition
+    public Vector2 CursorPosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _window.MousePosition;
     }
 
-    public bool IsMousePressing
+    /// <summary>
+    /// Indicates whether the mouse left button is currently being pressed.
+    /// </summary>
+    public bool IsMouseLeftPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsMousePressing(Mouse.Left) || GamepadClickButton.HasValue && (_input.PrimaryGamepad?.IsButtonPressed(GamepadClickButton.Value) ?? false);
+        get => _input.IsMousePressing(Mouse.Left);
+    }
+
+    /// <summary>
+    /// Indicates whether the confirm button (gamepad) is currently being pressed.
+    /// </summary>
+    public bool IsConfirmPressing
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => GamepadClickButton.HasValue && (_input.PrimaryGamepad?.IsButtonPressed(GamepadClickButton.Value) ?? false);
     }
 
     public bool IsKeyDeletePressing
@@ -62,25 +86,49 @@ public class UIInputTracker : IUIInputTracker
     public bool IsKeyLeftPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyPressing(KeyCode.Left);
+        get
+        {
+            if (_input.IsKeyPressing(KeyCode.Left))
+                return true;
+            Gamepad? gamepad = _input.PrimaryGamepad;
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadLeft);
+        }
     }
 
     public bool IsKeyRightPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyPressing(KeyCode.Right);
+        get
+        {
+            if (_input.IsKeyPressing(KeyCode.Right))
+                return true;
+            Gamepad? gamepad = _input.PrimaryGamepad;
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadRight);
+        }
     }
 
     public bool IsKeyUpPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyPressing(KeyCode.Up);
+        get
+        {
+            if (_input.IsKeyPressing(KeyCode.Up))
+                return true;
+            Gamepad? gamepad = _input.PrimaryGamepad;
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadUp);
+        }
     }
 
     public bool IsKeyDownPressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _input.IsKeyPressing(KeyCode.Down);
+        get
+        {
+            if (_input.IsKeyPressing(KeyCode.Down))
+                return true;
+            Gamepad? gamepad = _input.PrimaryGamepad;
+            return gamepad != null && gamepad.IsButtonPressed(GamepadButton.DPadDown);
+        }
     }
 
     public bool IsKeySelectAllPressing
@@ -102,9 +150,28 @@ public class UIInputTracker : IUIInputTracker
     }
 
 
-    public bool IsMouseScrolling(out Vector2 delta)
+    public bool IsScrolling(out Vector2 delta)
     {
-        return _input.IsMouseScrolling(out delta);
+        if (_input.IsMouseScrolling(out delta))
+        {
+            delta *= MouseScrollSensitivity;
+            return true;
+        }
+
+        Gamepad? gamepad = _input.PrimaryGamepad;
+        if (gamepad != null)
+        {
+            float rx = gamepad.GetAxis(GamepadAxis.RightX);
+            float ry = gamepad.GetAxis(GamepadAxis.RightY);
+            if (MathF.Abs(rx) >= ScrollDeadZone || MathF.Abs(ry) >= ScrollDeadZone)
+            {
+                delta = new Vector2(rx, ry) * GamepadScrollSensitivity;
+                return true;
+            }
+        }
+
+        delta = Vector2.Zero;
+        return false;
     }
 
     public void SetTextInput(float xNorm, float yNorm, float widthNorm, float heightNorm, int cursor)
@@ -132,5 +199,21 @@ public class UIInputTracker : IUIInputTracker
     public ReadOnlySpan<char> GetClipboardText()
     {
         return _input.GetClipboardText();
+    }
+
+    public void RequestTextInput()
+    {
+        _window.RequestTextInput();
+    }
+
+    public void ReleaseTextInput()
+    {
+        _window.ReleaseTextInput();
+    }
+
+    public bool IsGamepadInputting
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _input.IsGamepadInputting;
     }
 }

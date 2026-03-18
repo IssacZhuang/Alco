@@ -49,9 +49,8 @@ public class Game : GameEngine
 
         _collisionWorld.ClearAll();
         _dropletSystem.PushCollisionTarget(_collisionWorld);
-        _cubeSystem.PushCollisionCaster(_collisionWorld);
         _collisionWorld.BuildTree();
-        _collisionWorld.Simulate();
+        _cubeSystem.PerformCollision(_collisionWorld);
     }
 
     protected override void OnUpdate(float delta)
@@ -83,6 +82,7 @@ public class Game : GameEngine
     {
         base.OnStop();
         _dropletSystem.Dispose();
+        _cubeSystem.Dispose();
         _texDroplet.Dispose();
         _shaderSprite.Dispose();
         _collisionWorld.Dispose();

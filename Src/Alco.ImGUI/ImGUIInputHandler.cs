@@ -1,12 +1,14 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Alco;
 using Alco.Engine;
 using Alco.ImGUI;
 
 namespace Alco.ImGUI;
 
-public sealed class ImGUIInputHandler : AutoDisposable
+public sealed unsafe class ImGUIInputHandler : AutoDisposable
 {
     public static bool IsCapturingMouse
     {
@@ -17,8 +19,11 @@ public sealed class ImGUIInputHandler : AutoDisposable
         }
     }
 
+    private static View? s_view;
+
     private readonly Input _inputSystem;
     private readonly View _view;
+    private bool _wantTextInput;
 
     /// <summary>
     /// The constructor of the ImGUIInputHandler.
@@ -39,23 +44,68 @@ public sealed class ImGUIInputHandler : AutoDisposable
         _inputSystem.OnMouseDown += OnMouseDown;
         _inputSystem.OnMouseUp += OnMouseUp;
         _view.OnTextInput += OnTextInput;
+
+        s_view = view;
+        ImGuiPlatformIOPtr platformIO = ImGui.GetPlatformIO();
+        platformIO.Platform_SetImeDataFn = (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, ImGuiViewport*, ImGuiPlatformImeData*, void>)&SetImeDataCallback;
     }
 
     public void Update()
     {
         ImGuiIOPtr io = ImGui.GetIO();
+
+        bool wantTextInput = io.WantTextInput;
+        if (wantTextInput != _wantTextInput)
+        {
+            _wantTextInput = wantTextInput;
+            if (wantTextInput)
+            {
+                _view.RequestTextInput();
+            }
+            else
+            {
+                _view.ReleaseTextInput();
+            }
+        }
+
         // do not use _inputSystem.MousePosition, it is the position relative to the screen, not the window
         //io.AddMousePosEvent(_inputSystem.MousePosition.X, _inputSystem.MousePosition.Y);
 
         Vector2 mousePosition = _view.MousePosition;
         io.AddMousePosEvent(mousePosition.X, mousePosition.Y);
 
-        io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta);
+        io.AddMouseWheelEvent(0, _inputSystem.MouseWheelDelta.Y);
 
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static void SetImeDataCallback(IntPtr ctx, ImGuiViewport* viewport, ImGuiPlatformImeData* data)
+    {
+        View? view = s_view;
+        if (view == null)
+            return;
+
+        if (data->WantVisible != 0)
+        {
+            view.SetTextInputArea(
+                (int)data->InputPos.X,
+                (int)data->InputPos.Y,
+                0,
+                (int)data->InputLineHeight,
+                0);
+        }
     }
 
     protected override void Dispose(bool disposing)
     {
+        s_view = null;
+        ImGuiPlatformIOPtr platformIO = ImGui.GetPlatformIO();
+        platformIO.Platform_SetImeDataFn = IntPtr.Zero;
+
+        if (_wantTextInput)
+        {
+            _view.ReleaseTextInput();
+        }
         _inputSystem.OnKeyDown -= OnKeyDown;
         _inputSystem.OnKeyUp -= OnKeyUp;
         _inputSystem.OnMouseDown -= OnMouseDown;

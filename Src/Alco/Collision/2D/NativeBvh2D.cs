@@ -6,245 +6,162 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// A native implementation of a Bounding Volume Hierarchy (BVH) for 2D collision detection.
+    /// </summary>
     public unsafe class NativeBvh2D : IDisposable
     {
         private const int BatchSize = 16;
 
         private const int ChildCount = 2;
 
-        public struct Node
+        /// <summary>
+        /// Represents a node in the BVH tree.
+        /// </summary>
+        private struct Node
         {
+            /// <summary>
+            /// The index of the left child node, or -1 if none.
+            /// </summary>
             public int left;
+
+            /// <summary>
+            /// The index of the right child node, or -1 if none.
+            /// </summary>
             public int right;
+
+            /// <summary>
+            /// The bounding box of this node.
+            /// </summary>
             public BoundingBox2D boundingBox;
+
+            /// <summary>
+            /// The collider associated with this node if it is a leaf.
+            /// </summary>
             public ColliderRef2D collider;
+
+            /// <summary>
+            /// Gets a value indicating whether this node is a leaf node.
+            /// </summary>
             public bool IsLeaf => collider.HasCollider;
         }
 
-        private class CastRayTask : ReuseableBatchTask
-        {
-            private NativeBvh2D _bvh;
-            public Ray2D* rays;
-            public RayCastResult2D* results;
-
-            public CastRayTask(NativeBvh2D bvh)
-            {
-                _bvh = bvh;
-            }
-
-            protected override void ExecuteCore(int index)
-            {
-                results[index] = _bvh.CastRay(rays[index]);
-            }
-        }
-
-        private class CastRayFirstHitTask : ReuseableBatchTask
-        {
-            private NativeBvh2D _bvh;
-            public Ray2D* rays;
-            public RayCastResult2D* results;
-
-            public CastRayFirstHitTask(NativeBvh2D bvh)
-            {
-                _bvh = bvh;
-            }
-
-            protected override void ExecuteCore(int index)
-            {
-                results[index] = _bvh.CastRayFirstHit(rays[index]);
-            }
-        }
-
-        private class CastColliderRefTask : ReuseableBatchTask
-        {
-            private NativeBvh2D _bvh;
-            public ColliderRef2D* colliders;
-            public ColliderCastResult2D* results;
-
-            public CastColliderRefTask(NativeBvh2D bvh)
-            {
-                _bvh = bvh;
-            }
-
-            protected override void ExecuteCore(int index)
-            {
-                results[index] = _bvh.CastCollider(colliders[index]);
-            }
-        }
-
-        private class CastColliderRefCollectorTask : ReuseableBatchTask
-        {
-            private NativeBvh2D _bvh;
-            public ColliderRef2D* colliders;
-            public NativeArrayList<ColliderCastResult2D>* results;
-
-            public CastColliderRefCollectorTask(NativeBvh2D bvh)
-            {
-                _bvh = bvh;
-            }
-
-            protected override void ExecuteCore(int index)
-            {
-                _bvh.CastColliderCollectorCore(colliders[index], _bvh._root, results + index);
-            }
-        }
-
-        //reuse task
-        private readonly CastRayTask _castRayTask;
-        private readonly CastRayFirstHitTask _castRayFirstHitTask;
-        private readonly CastColliderRefTask _castColliderRefTask;
-        private readonly CastColliderRefCollectorTask _castColliderRefCollectorTask;
 
         private NativeBuffer<Node> _nodes;
-        // result for parallel job
-        private NativeBuffer<RayCastResult2D> _batchRayCastResult;
-        private NativeBuffer<ColliderCastResult2D> _batchColliderCastResult;
-        private NativeBuffer<NativeArrayList<ColliderCastResult2D>> _batchColliderCastResultCollector;
 
-        //result for single job
-        private NativeArrayList<ColliderCastResult2D> _castResultCollector;
 
         private Node _root;
         private int _nodeSize;
         private int _treeDepth;
         private bool _isDisposed;
 
+        /// <summary>
+        /// Gets the current number of nodes in the BVH.
+        /// </summary>
         public int Size => _nodeSize;
+
+        /// <summary>
+        /// Gets the maximum capacity of nodes in the BVH.
+        /// </summary>
         public int Capacity => _nodes.Length;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="NativeBvh2D"/> class.
+        /// </summary>
         public NativeBvh2D()
         {
-            _castRayTask = new CastRayTask(this);
-            _castRayFirstHitTask = new CastRayFirstHitTask(this);
-            _castColliderRefTask = new CastColliderRefTask(this);
-            _castColliderRefCollectorTask = new CastColliderRefCollectorTask(this);
             _isDisposed = false;
-
-            _castResultCollector = new NativeArrayList<ColliderCastResult2D>(4);
         }
 
-        public RayCastResult2D CastRay(Ray2D ray)
+        /// <summary>
+        /// Casts a ray against the BVH to find the closest hit.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
+        /// </summary>
+        /// <param name="ray">The ray to cast.</param>
+        /// <returns>The result of the ray cast containing hit information.</returns>
+        public RayCastResult2D CastRayClosestHit(Ray2D ray)
         {
             if (_nodeSize == 0)
             {
                 return RayCastResult2D.none;
             }
 
-            return CastRay(ref ray, _root);
+            return CastRayClosestHitCore(ref ray, _root);
         }
 
-        public RayCastResult2D CastRayFirstHit(Ray2D ray)
+        /// <summary>
+        /// Casts a ray against the BVH and collects hits using the provided collector.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
+        /// </summary>
+        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
+        /// <param name="ray">The ray to cast.</param>
+        /// <param name="collector">The collector to gather hit results.</param>
+        public void CastRay<TCollector>(Ray2D ray, ref TCollector collector) where TCollector : struct, IBvhRayCastCollector2D
         {
             if (_nodeSize == 0)
             {
-                return RayCastResult2D.none;
+                return;
             }
 
-            return CastRayFirstHit(ref ray, _root);
+            CastRayCore(ref ray, _root, ref collector);
         }
 
-        public ReadOnlySpan<RayCastResult2D> CastBatchRayFirstHit(ReadOnlySpan<Ray2D> rays)
+        /// <summary>
+        /// Casts a sphere collider against the BVH to find all overlapping colliders.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
+        /// </summary>
+        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
+        /// <param name="shape">The sphere shape to cast.</param>
+        /// <param name="collector">The collector to gather hit results.</param>
+        public void CastSphere<TCollector>(in ShapeSphere2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
-            _batchRayCastResult.SetSizeWithoutCopy(rays.Length);
             if (_nodeSize == 0)
             {
-                for (int i = 0; i < rays.Length; i++)
-                {
-                    _batchRayCastResult[i] = RayCastResult2D.none;
-                }
-                return _batchRayCastResult.AsSpan();
+                return;
             }
 
-            fixed (Ray2D* raysPtr = rays)
-            {
-                _castRayFirstHitTask.rays = raysPtr;
-                _castRayFirstHitTask.results = _batchRayCastResult.UnsafePointer;
-                _castRayFirstHitTask.RunParallel(rays.Length, BatchSize);
-            }
-
-            return _batchRayCastResult.AsSpan();
+            ColliderSphere2D collider = new ColliderSphere2D { Shape = shape };
+            CastSphereCore(ref collider, _root, ref collector);
         }
 
-        public ReadOnlySpan<RayCastResult2D> CastBatchRay(ReadOnlySpan<Ray2D> rays)
+        /// <summary>
+        /// Casts a box collider against the BVH to find all overlapping colliders.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
+        /// </summary>
+        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
+        /// <param name="shape">The box shape to cast.</param>
+        /// <param name="collector">The collector to gather hit results.</param>
+        public void CastBox<TCollector>(in ShapeBox2D shape, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
-            _batchRayCastResult.SetSizeWithoutCopy(rays.Length);
             if (_nodeSize == 0)
             {
-                for (int i = 0; i < rays.Length; i++)
-                {
-                    _batchRayCastResult[i] = RayCastResult2D.none;
-                }
-                return _batchRayCastResult.AsSpan();
+                return;
             }
 
-            fixed (Ray2D* raysPtr = rays)
-            {
-                _castRayTask.rays = raysPtr;
-                _castRayTask.results = _batchRayCastResult.UnsafePointer;
-                _castRayTask.RunParallel(rays.Length, BatchSize);
-            }
-            return _batchRayCastResult.AsSpan();
+            ColliderBox2D collider = new ColliderBox2D { Shape = shape };
+            CastBoxCore(ref collider, _root, ref collector);
         }
 
-        public ReadOnlySpan<ColliderCastResult2D> CastBatchColliderRef(ReadOnlySpan<ColliderRef2D> colliders)
+        /// <summary>
+        /// Casts a point against the BVH to find all colliders containing the point.
+        /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree"/>.
+        /// </summary>
+        /// <typeparam name="TCollector">The type of the collision collector.</typeparam>
+        /// <param name="point">The point to test.</param>
+        /// <param name="collector">The collector to gather hit results.</param>
+        public void CastPoint<TCollector>(Vector2 point, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
-            _batchColliderCastResult.SetSizeWithoutCopy(colliders.Length);
-
-            if (_nodeSize == 0)
+            if (_nodeSize > 0)
             {
-                for (int i = 0; i < colliders.Length; i++)
-                {
-                    _batchColliderCastResult[i] = ColliderCastResult2D.None;
-                }
-                return _batchColliderCastResult.AsSpan();
+                CastPointCollectorCore(point, _root, ref collector);
             }
-
-            fixed (ColliderRef2D* collidersPtr = colliders)
-            {
-                _castColliderRefTask.colliders = collidersPtr;
-                _castColliderRefTask.results = _batchColliderCastResult.UnsafePointer;
-                _castColliderRefTask.RunParallel(colliders.Length, BatchSize);
-            }
-
-            return _batchColliderCastResult.AsSpan();
         }
 
-        public ReadOnlySpan<NativeArrayList<ColliderCastResult2D>> CastBatchColliderRefCollector(ReadOnlySpan<ColliderRef2D> colliders)
-        {
-            int lengthBefore = _batchColliderCastResultCollector.Length;
-            _batchColliderCastResultCollector.SetSize(colliders.Length);
-            int allocCount = _batchColliderCastResultCollector.Length - lengthBefore;
-
-            for (int i = 0; i < allocCount; i++)
-            {
-                _batchColliderCastResultCollector[lengthBefore + i] = new NativeArrayList<ColliderCastResult2D>(4);
-            }
-
-            if (_nodeSize == 0)
-            {
-                for (int i = 0; i < colliders.Length; i++)
-                {
-                    _batchColliderCastResultCollector.UnsafePointer[i].Clear();
-                }
-                return _batchColliderCastResultCollector.AsSpan();
-            }
-
-            for (int i = 0; i < colliders.Length; i++)
-            {
-                NativeArrayList<ColliderCastResult2D>* collector = _batchColliderCastResultCollector.UnsafePointer + i;
-                collector->Clear();
-            }
-
-            fixed (ColliderRef2D* collidersPtr = colliders)
-            {
-                _castColliderRefCollectorTask.colliders = collidersPtr;
-                _castColliderRefCollectorTask.results = _batchColliderCastResultCollector.UnsafePointer;
-                _castColliderRefCollectorTask.RunParallel(colliders.Length, BatchSize);
-            }
-
-            return _batchColliderCastResultCollector.AsSpan();
-        }
-
+        /// <summary>
+        /// Builds the BVH tree from a collection of colliders.
+        /// This method is NOT thread-safe and cannot be called concurrently with any query methods.
+        /// </summary>
+        /// <param name="colliders">The colliders to include in the tree.</param>
         public void BuildTree(ReadOnlySpan<ColliderRef2D> colliders)
         {
             _nodes.SetSizeWithoutCopy(colliders.Length * 2 + (int)math.sqrt(colliders.Length) + 2);
@@ -253,66 +170,17 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Node GetNodeSafe(int index)
-        {
-            return _nodes[index];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Node GetNode(int index)
         {
             return _nodes.UnsafePointer[index];
         }
 
-        //cast collision for single result
 
-        private RayCastResult2D CastRayFirstHit(ref Ray2D ray, Node node)
-        {
-            //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
-            Node* stack = stackalloc Node[_treeDepth];
-            int stackCount = 0;
-            stack[stackCount++] = node;
-            RayCastResult2D result = RayCastResult2D.none;
-            BoundingBox2D rayBox = ray.GetBoundingBox();
 
-            while (stackCount > 0)
-            {
-                //Node top = stack.Pop();
-                Node top = stack[--stackCount];
+        // cast collider implementation
 
-                //if (!CollisionUtility2D.RayAABB(ray, top.boundingBox)) continue;
-                if (!rayBox.Intersects(top.boundingBox)) continue;
 
-                if (top.IsLeaf)
-                {
-                    if (top.collider.IntersectRay(ray, out RaycastHit2D hitInfo))
-                    {
-                        result.Hit = true;
-                        result.HitInfo = hitInfo;
-                        result.Collider = top.collider;
-                        return result;
-                    }
-
-                    continue;
-
-                }
-
-                if (top.left >= 0)
-                {
-                    stack[stackCount++] = GetNode(top.left);
-                }
-
-                if (top.right >= 0)
-                {
-                    stack[stackCount++] = GetNode(top.right);
-                }
-
-            }
-
-            return result;
-        }
-
-        private RayCastResult2D CastRay(ref Ray2D ray, Node node)
+        private RayCastResult2D CastRayClosestHitCore(ref Ray2D ray, Node node)
         {
             //NativeStack<Node> stack = new NativeStack<Node>(_nodeSize * 2);
             Node* stack = stackalloc Node[_treeDepth];
@@ -361,86 +229,36 @@ namespace Alco
             return result;
         }
 
-        public ColliderCastResult2D CastCollider<T>(T collider) where T : unmanaged, ICollider2D
-        {
-            if (_nodeSize == 0)
-            {
-                return ColliderCastResult2D.None;
-            }
-
-            ColliderRef2D reference = ColliderRef2D.Create(&collider);
-
-            return CastColliderCore(reference, _root);
-        }
-
-        public ColliderCastResult2D CastCollider(ColliderRef2D collider)
-        {
-            if (_nodeSize == 0)
-            {
-                return ColliderCastResult2D.None;
-            }
-
-            return CastColliderCore(collider, _root);
-        }
-
-        //cast collision for multiple result
-
-        public ReadOnlySpan<ColliderCastResult2D> CastPointRefCollector(Vector2 point)
-        {
-            _castResultCollector.Clear();
-            NativeArrayList<ColliderCastResult2D> tmpResult = _castResultCollector;
-            if (_nodeSize > 0)
-            {
-                CastPointCollectorCore(point, _root, &tmpResult);
-                _castResultCollector = tmpResult;
-            }
-            return _castResultCollector.AsSpan();
-        }
-
-        public ReadOnlySpan<ColliderCastResult2D> CastColliderRefCollector(ColliderRef2D collider)
-        {
-            _castResultCollector.Clear();
-            NativeArrayList<ColliderCastResult2D> tmpResult = _castResultCollector;
-            if (_nodeSize > 0)
-            {
-                CastColliderCollectorCore(collider, _root, &tmpResult);
-                _castResultCollector = tmpResult;
-            }
-
-            return _castResultCollector.AsSpan();
-        }
-
-        // cast collider implementation
-
-        private ColliderCastResult2D CastColliderCore(ColliderRef2D collider, Node node)
+        private void CastRayCore<TCollector>(ref Ray2D ray, Node node, ref TCollector collector) where TCollector : struct, IBvhRayCastCollector2D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
             stack[stackCount++] = node;
-            ColliderCastResult2D result = ColliderCastResult2D.None;
-            BoundingBox2D aabb = collider.GetBoundingBox();
 
+            BoundingBox2D rayBox = ray.GetBoundingBox();
 
             while (stackCount > 0)
             {
-                //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
-                if (!aabb.Intersects(top.boundingBox)) continue;
+                if (!rayBox.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {
-                    if (top.collider.CollidesWith(collider))
+                    if (top.collider.IntersectRay(ray, out RaycastHit2D hitInfo))
                     {
-
-                        result.Hit = true;
-                        result.Collider = top.collider;
-
-                        return result;
+                        RayCastResult2D resultItem = new RayCastResult2D
+                        {
+                            Hit = true,
+                            HitInfo = hitInfo,
+                            Collider = top.collider
+                        };
+                        if (!collector.OnHit(resultItem))
+                        {
+                            return;
+                        }
                     }
-
                     continue;
-
                 }
 
                 if (top.left >= 0)
@@ -452,41 +270,37 @@ namespace Alco
                 {
                     stack[stackCount++] = GetNode(top.right);
                 }
-
             }
-
-            return result;
         }
 
-        private void CastColliderCollectorCore(ColliderRef2D collider, Node node, NativeArrayList<ColliderCastResult2D>* result)
+        private void CastSphereCore<TCollector>(ref ColliderSphere2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
             stack[stackCount++] = node;
             BoundingBox2D aabb = collider.GetBoundingBox();
 
-
             while (stackCount > 0)
             {
-                //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
                 if (!aabb.Intersects(top.boundingBox)) continue;
 
                 if (top.IsLeaf)
                 {
-                    if (top.collider.CollidesWith(collider))
+                    if (collider.CollidesWith(top.collider.UnsafePointer))
                     {
                         ColliderCastResult2D resultItem = new ColliderCastResult2D
                         {
                             Hit = true,
                             Collider = top.collider
                         };
-                        result->Add(resultItem);
+                        if (!collector.OnHit(resultItem))
+                        {
+                            return;
+                        }
                     }
-
                     continue;
-
                 }
 
                 if (top.left >= 0)
@@ -498,12 +312,52 @@ namespace Alco
                 {
                     stack[stackCount++] = GetNode(top.right);
                 }
-
             }
-
         }
 
-        private void CastPointCollectorCore(Vector2 point, Node node, NativeArrayList<ColliderCastResult2D>* result)
+        private void CastBoxCore<TCollector>(ref ColliderBox2D collider, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
+        {
+            Node* stack = stackalloc Node[_treeDepth];
+            int stackCount = 0;
+            stack[stackCount++] = node;
+            BoundingBox2D aabb = collider.GetBoundingBox();
+
+            while (stackCount > 0)
+            {
+                Node top = stack[--stackCount];
+
+                if (!aabb.Intersects(top.boundingBox)) continue;
+
+                if (top.IsLeaf)
+                {
+                    if (collider.CollidesWith(top.collider.UnsafePointer))
+                    {
+                        ColliderCastResult2D resultItem = new ColliderCastResult2D
+                        {
+                            Hit = true,
+                            Collider = top.collider
+                        };
+                        if (!collector.OnHit(resultItem))
+                        {
+                            return;
+                        }
+                    }
+                    continue;
+                }
+
+                if (top.left >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.left);
+                }
+
+                if (top.right >= 0)
+                {
+                    stack[stackCount++] = GetNode(top.right);
+                }
+            }
+        }
+
+        private void CastPointCollectorCore<TCollector>(Vector2 point, Node node, ref TCollector collector) where TCollector : struct, IBvhCollisionCastCollector2D
         {
             Node* stack = stackalloc Node[_treeDepth];
             int stackCount = 0;
@@ -511,7 +365,6 @@ namespace Alco
 
             while (stackCount > 0)
             {
-                //Node top = stack.Pop();
                 Node top = stack[--stackCount];
 
                 if (!top.boundingBox.Contains(point)) continue;
@@ -525,11 +378,12 @@ namespace Alco
                             Hit = true,
                             Collider = top.collider
                         };
-                        result->Add(resultItem);
+                        if (!collector.OnHit(resultItem))
+                        {
+                            return;
+                        }
                     }
-
                     continue;
-
                 }
 
                 if (top.left >= 0)
@@ -541,9 +395,7 @@ namespace Alco
                 {
                     stack[stackCount++] = GetNode(top.right);
                 }
-
             }
-
         }
 
 
@@ -657,28 +509,15 @@ namespace Alco
 
 
 
+        /// <summary>
+        /// Releases all resources used by the <see cref="NativeBvh2D"/>.
+        /// </summary>
         public void Dispose()
         {
             if (_isDisposed)
             {
                 return;
             }
-
-            _castRayTask?.Dispose();
-            _castRayFirstHitTask?.Dispose();
-            _castColliderRefTask?.Dispose();
-            _castColliderRefCollectorTask?.Dispose();
-
-            _batchRayCastResult.Dispose();
-
-            for (int i = 0; i < _batchColliderCastResultCollector.Length; i++)
-            {
-                _batchColliderCastResultCollector[i].Dispose();
-            }
-
-            _batchColliderCastResultCollector.Dispose();
-            _batchColliderCastResult.Dispose();
-            _castResultCollector.Dispose();
 
             _nodes.Dispose();
             _isDisposed = true;

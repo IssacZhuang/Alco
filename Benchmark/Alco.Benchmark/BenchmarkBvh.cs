@@ -20,6 +20,9 @@ public class BenchmarkBvh
     NativeArrayList<ColliderRef2D> colliders2D;
     NativeBvh2D bvh2D;
 
+    private CastRayTask _castRayTask;
+    private CastRayTask3D _castRayTask3D;
+
     [GlobalSetup]
     public unsafe void Setup()
     {
@@ -84,9 +87,9 @@ public class BenchmarkBvh
             colliders3D.Add(ColliderRef3D.Create(ptrSphere + i));
         }
         bvh3D = new NativeBvh3D();
+        _castRayTask3D = new CastRayTask3D(bvh3D);
 
         bvh3D.BuildTree(colliders3D.AsSpan());
-        bvh3D.CastBatchRay(rays3D.AsSpan());
     }
 
     private unsafe void Setup2D()
@@ -145,9 +148,9 @@ public class BenchmarkBvh
         }
 
         bvh2D = new NativeBvh2D();
+        _castRayTask = new CastRayTask(bvh2D);
 
         bvh2D.BuildTree(colliders2D.AsSpan());
-        bvh2D.CastBatchRay(rays2D.AsSpan());
     }
 
     [GlobalCleanup]
@@ -158,12 +161,14 @@ public class BenchmarkBvh
         rays3D.Dispose();
         colliders3D.Dispose();
         bvh3D.Dispose();
+        _castRayTask3D.Dispose();
 
         boxs2D.Dispose();
         spheres2D.Dispose();
         rays2D.Dispose();
         colliders2D.Dispose();
         bvh2D.Dispose();
+        _castRayTask.Dispose();
     }
 
     [Benchmark(Description = "BVH 3D Build tree: ")]
@@ -175,7 +180,8 @@ public class BenchmarkBvh
     [Benchmark(Description = "BVH 3D Cast ray: ")]
     public void CastRay3D()
     {
-        bvh3D.CastBatchRay(rays3D.AsSpan());
+        _castRayTask3D.rays = rays3D;
+        _castRayTask3D.RunParallel(rays3D.Length, 16);
     }
 
     [Benchmark(Description = "BVH 2D Build tree: ")]
@@ -183,10 +189,52 @@ public class BenchmarkBvh
     {
         bvh2D.BuildTree(colliders2D.AsSpan());
     }
+    private struct CountCollector : IBvhCollisionCastCollector2D
+    {
+        public int Count;
+        public bool OnHit(ColliderCastResult2D result)
+        {
+            Count++;
+            return true;
+        }
+    }
+
+    private class CastRayTask3D : ReuseableBatchTask
+    {
+        private NativeBvh3D _bvh;
+        public NativeArrayList<Ray3D> rays;
+
+        public CastRayTask3D(NativeBvh3D bvh)
+        {
+            _bvh = bvh;
+        }
+
+        protected override void ExecuteCore(int index)
+        {
+            _bvh.CastRayClosestHit(rays[index]);
+        }
+    }
+
+    private class CastRayTask : ReuseableBatchTask
+    {
+        private NativeBvh2D _bvh;
+        public NativeArrayList<Ray2D> rays;
+
+        public CastRayTask(NativeBvh2D bvh)
+        {
+            _bvh = bvh;
+        }
+
+        protected override void ExecuteCore(int index)
+        {
+            _bvh.CastRayClosestHit(rays[index]);
+        }
+    }
 
     [Benchmark(Description = "BVH 2D Cast ray: ")]
     public void CastRay2D()
     {
-        bvh2D.CastBatchRay(rays2D.AsSpan());
+        _castRayTask.rays = rays2D;
+        _castRayTask.RunParallel(rays2D.Length, 16);
     }
 }

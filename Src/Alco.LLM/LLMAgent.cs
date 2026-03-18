@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
+using ModelContextProtocol.Server;
 
 namespace Alco.LLM;
 
@@ -21,27 +22,39 @@ public class LLMAgent
     }
 
     /// <summary>
-    /// Creates an LLMAgent configured to connect to a remote OpenAI-compatible service.
+    /// Creates an LLMAgent with the specified options.
     /// </summary>
-    /// <param name="uri">The custom endpoint URI.</param>
-    /// <param name="apiKey">The API key for authentication.</param>
-    /// <param name="modelId">The model ID to use.</param>
-    /// <param name="invocationFilter">Optional function invocation filter.</param>
-    /// <param name="plugins">The list of plugins to add to the kernel.</param>
+    /// <param name="options">The options for creating the agent.</param>
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
-    public static LLMAgent CreateFromRemote(Uri uri, string apiKey, string modelId, IFunctionInvocationFilter? invocationFilter = null, params ReadOnlySpan<object> plugins)
+    public static LLMAgent Create(LLMAgentOptions options)
     {
         var builder = Kernel.CreateBuilder();
-        builder.AddOpenAIChatCompletion(modelId, uri, apiKey);
+        builder.AddOpenAIChatCompletion(options.ModelId, options.Endpoint, options.ApiKey);
 
-        if (invocationFilter != null)
+        if (options.FunctionInvocationFilter != null)
         {
-            builder.Services.AddSingleton(invocationFilter);
+            builder.Services.AddSingleton(options.FunctionInvocationFilter);
         }
 
-        foreach (var plugin in plugins)
+        if (options.Plugins != null)
         {
-            builder.Plugins.AddFromObject(plugin);
+            for (int i = 0; i < options.Plugins.Count; i++)
+            {
+                builder.Plugins.AddFromObject(options.Plugins[i]);
+            }
+        }
+
+        if (options.PluginTypes != null)
+        {
+            for (int i = 0; i < options.PluginTypes.Count; i++)
+            {
+                var type = options.PluginTypes[i];
+                var instance = Activator.CreateInstance(type);
+                if (instance != null)
+                {
+                    builder.Plugins.AddFromObject(instance, type.Name);
+                }
+            }
         }
 
         var kernel = builder.Build();
@@ -56,5 +69,16 @@ public class LLMAgent
     public LLMSession CreateSession(LLMSessionConfig? config = null)
     {
         return new LLMSession(_kernel, config);
+    }
+
+    public void PushToolToMcp(IMcpServerBuilder builder)
+    {
+        foreach (var plugin in _kernel.Plugins)
+        {
+            foreach (var function in plugin)
+            {
+                builder.Services.AddSingleton(services => McpServerTool.Create(function));
+            }
+        }
     }
 }
