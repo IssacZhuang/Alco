@@ -847,8 +847,7 @@ public class UINode : IEnumerable<UINode>
         _worldTransform.Position -= math.rotate(realSize * _pivot.value, _transform.Rotation);
         if (Parent != null)
         {
-            Vector2 parentRealSize = Parent.Size * Parent.WorldTransform.Scale;
-            _worldTransform.Position += parentRealSize * _anchor.CenterPoint;
+            _worldTransform.Position += Parent.Size * _anchor.CenterPoint;
             _worldTransform = math.transform(Parent.WorldTransform, _worldTransform);
         }
 

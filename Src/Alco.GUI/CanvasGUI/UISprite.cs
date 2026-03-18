@@ -134,7 +134,7 @@ public class UIImage : UINode
                 OnUpdateRenderData(canvas, delta);
             }
             Transform2D transform = RenderTransform;
-            transform.Scale = Vector2.One; // already scaled in mesh
+            transform.Scale = WorldTransform.Scale; // mesh already contains Size, keep only world scale
             canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), Texture, transform.Matrix, UvRect, RenderColor);
             return;
         }
@@ -146,7 +146,7 @@ public class UIImage : UINode
                 OnUpdateRenderData(canvas, delta);
             }
             Transform2D transform = RenderTransform;
-            transform.Scale = Vector2.One; // already scaled in mesh
+            transform.Scale = WorldTransform.Scale; // mesh already contains Size, keep only world scale
             canvas.DrawSpriteWithCustomMesh(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), Texture, transform.Matrix, UvRect, RenderColor);
             return;
         }
