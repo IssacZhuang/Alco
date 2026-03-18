@@ -150,7 +150,6 @@ namespace Alco.Engine.Test
         {
             public string Name { get; set; } = string.Empty;
             public List<ConfigReference<TestConfig>> RequiredRefs { get; set; } = new();
-            public List<ConfigReferenceOptional<AnotherTestConfig>> OptionalRefs { get; set; } = new();
         }
 
         /// <summary>
@@ -160,7 +159,6 @@ namespace Alco.Engine.Test
         {
             public string Name { get; set; } = string.Empty;
             public HashSet<ConfigReference<TestConfig>> RequiredRefs { get; set; } = new();
-            public HashSet<ConfigReferenceOptional<AnotherTestConfig>> OptionalRefs { get; set; } = new();
         }
 
 
@@ -1177,39 +1175,18 @@ namespace Alco.Engine.Test
             }
             """;
 
-            var optionalConfig1Json = """
-            {
-                "$type": "Alco.Engine.Test.TestConfigDatabase+AnotherTestConfig",
-                "Id": "list-optional-target-1",
-                "Description": "Optional Target Config 1",
-                "Score": 1.5
-            }
-            """;
-
-            var optionalConfig2Json = """
-            {
-                "$type": "Alco.Engine.Test.TestConfigDatabase+AnotherTestConfig",
-                "Id": "list-optional-target-2",
-                "Description": "Optional Target Config 2",
-                "Score": 2.5
-            }
-            """;
-
             var listConfigJson = """
             {
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ListReferenceConfig",
                 "Id": "list-config",
                 "Name": "List Reference Config",
-                "RequiredRefs": ["list-ref-target-1", "list-ref-target-2", "list-ref-target-3"],
-                "OptionalRefs": ["list-optional-target-1", "list-optional-target-2"]
+                "RequiredRefs": ["list-ref-target-1", "list-ref-target-2", "list-ref-target-3"]
             }
             """;
 
             _fileSource.AddFile("list-ref-target-1.json", config1Json);
             _fileSource.AddFile("list-ref-target-2.json", config2Json);
             _fileSource.AddFile("list-ref-target-3.json", config3Json);
-            _fileSource.AddFile("list-optional-target-1.json", optionalConfig1Json);
-            _fileSource.AddFile("list-optional-target-2.json", optionalConfig2Json);
             _fileSource.AddFile("list-config.json", listConfigJson);
             _configDatabase.AddFileSource(_fileSource);
 
@@ -1228,61 +1205,6 @@ namespace Alco.Engine.Test
             Assert.That(listConfig.RequiredRefs[0].Config.Value, Is.EqualTo(10));
             Assert.That(listConfig.RequiredRefs[1].Config.Value, Is.EqualTo(20));
             Assert.That(listConfig.RequiredRefs[2].Config.Value, Is.EqualTo(30));
-
-            // Verify optional references - should resolve to valid configs
-            Assert.That(listConfig.OptionalRefs, Has.Count.EqualTo(2));
-            Assert.That(listConfig.OptionalRefs[0].Config, Is.Not.Null);
-            Assert.That(listConfig.OptionalRefs[1].Config, Is.Not.Null);
-            Assert.That(listConfig.OptionalRefs[0].Config?.Score, Is.EqualTo(1.5f));
-            Assert.That(listConfig.OptionalRefs[1].Config?.Score, Is.EqualTo(2.5f));
-        }
-
-        [Test]
-        public void ConfigReference_ListReferencesWithEmptyOptionalRefs_ShouldHandleNulls()
-        {
-            // Arrange - Create configs for testing empty optional references
-            var validConfigJson = """
-            {
-                "$type": "Alco.Engine.Test.TestConfigDatabase+AnotherTestConfig",
-                "Id": "valid-optional-config",
-                "Description": "Valid Optional Config",
-                "Score": 3.5
-            }
-            """;
-
-            var listConfigJson = """
-            {
-                "$type": "Alco.Engine.Test.TestConfigDatabase+ListReferenceConfig",
-                "Id": "list-config-empty",
-                "Name": "List Config With Empty Refs",
-                "RequiredRefs": [],
-                "OptionalRefs": ["", "valid-optional-config", ""]
-            }
-            """;
-
-            _fileSource.AddFile("valid-optional-config.json", validConfigJson);
-            _fileSource.AddFile("list-config-empty.json", listConfigJson);
-            _configDatabase.AddFileSource(_fileSource);
-
-            // Act
-            var result = _configDatabase.TryGetConfig("list-config-empty", typeof(ListReferenceConfig), out var config);
-
-            // Assert
-            Assert.That(result, Is.True);
-            Assert.That(config, Is.InstanceOf<ListReferenceConfig>());
-
-            var listConfig = (ListReferenceConfig)config;
-            Assert.That(listConfig.Name, Is.EqualTo("List Config With Empty Refs"));
-
-            // Verify required references are empty
-            Assert.That(listConfig.RequiredRefs, Is.Empty);
-
-            // Verify optional references handle empty IDs correctly
-            Assert.That(listConfig.OptionalRefs, Has.Count.EqualTo(3));
-            Assert.That(listConfig.OptionalRefs[0].Config, Is.Null); // Empty string returns null
-            Assert.That(listConfig.OptionalRefs[1].Config, Is.Not.Null); // Valid config
-            Assert.That(listConfig.OptionalRefs[1].Config?.Score, Is.EqualTo(3.5f));
-            Assert.That(listConfig.OptionalRefs[2].Config, Is.Null); // Empty string returns null
         }
 
         [Test]
@@ -1294,8 +1216,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+ListReferenceConfig",
                 "Id": "list-config-invalid",
                 "Name": "List Config With Invalid Ref",
-                "RequiredRefs": ["non-existent-config"],
-                "OptionalRefs": []
+                "RequiredRefs": ["non-existent-config"]
             }
             """;
 
@@ -1326,19 +1247,19 @@ namespace Alco.Engine.Test
             // Arrange - Create multiple configs and a config with hashset of references
             var config1Json = """
             {
-                "$type": "Alco.Engine.Test.TestConfigDatabase+AnotherTestConfig",
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
                 "Id": "hashset-ref-target-1",
-                "Description": "Target Config 1",
-                "Score": 1.1
+                "Name": "Target Config 1",
+                "Value": 11
             }
             """;
 
             var config2Json = """
             {
-                "$type": "Alco.Engine.Test.TestConfigDatabase+AnotherTestConfig",
+                "$type": "Alco.Engine.Test.TestConfigDatabase+TestConfig",
                 "Id": "hashset-ref-target-2",
-                "Description": "Target Config 2",
-                "Score": 2.2
+                "Name": "Target Config 2",
+                "Value": 22
             }
             """;
 
@@ -1356,8 +1277,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+HashSetReferenceConfig",
                 "Id": "hashset-config",
                 "Name": "HashSet Reference Config",
-                "RequiredRefs": ["hashset-ref-target-3"],
-                "OptionalRefs": ["hashset-ref-target-1", "hashset-ref-target-2"]
+                "RequiredRefs": ["hashset-ref-target-1", "hashset-ref-target-2", "hashset-ref-target-3"]
             }
             """;
 
@@ -1378,17 +1298,11 @@ namespace Alco.Engine.Test
             Assert.That(hashSetConfig.Name, Is.EqualTo("HashSet Reference Config"));
 
             // Verify required references
-            Assert.That(hashSetConfig.RequiredRefs, Has.Count.EqualTo(1));
-            var requiredRef = hashSetConfig.RequiredRefs.First();
-            Assert.That(requiredRef.Config.Value, Is.EqualTo(33));
-
-            // Verify optional references
-            Assert.That(hashSetConfig.OptionalRefs, Has.Count.EqualTo(2));
-            var optionalRefs = hashSetConfig.OptionalRefs.ToList();
-            var scores = optionalRefs.Select(r => r.Config?.Score).Where(s => s.HasValue).ToList();
-            Assert.That(scores, Has.Count.EqualTo(2));
-            Assert.That(scores.Contains(1.1f), Is.True);
-            Assert.That(scores.Contains(2.2f), Is.True);
+            Assert.That(hashSetConfig.RequiredRefs, Has.Count.EqualTo(3));
+            var values = hashSetConfig.RequiredRefs.Select(r => r.Config.Value).ToList();
+            Assert.That(values.Contains(11), Is.True);
+            Assert.That(values.Contains(22), Is.True);
+            Assert.That(values.Contains(33), Is.True);
         }
 
         [Test]
@@ -1409,8 +1323,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+HashSetReferenceConfig",
                 "Id": "hashset-duplicate-config",
                 "Name": "HashSet With Duplicates",
-                "RequiredRefs": ["hashset-duplicate-target", "hashset-duplicate-target"],
-                "OptionalRefs": ["non-existent-optional", ""]
+                "RequiredRefs": ["hashset-duplicate-target", "hashset-duplicate-target"]
             }
             """;
 
@@ -1430,19 +1343,10 @@ namespace Alco.Engine.Test
 
             // HashSet should deduplicate based on reference equality (same Id)
             Assert.That(hashSetConfig.RequiredRefs, Has.Count.EqualTo(1));
-            Assert.That(hashSetConfig.OptionalRefs, Has.Count.EqualTo(2)); // One valid, one empty
 
             // Verify the references point to the same config
             var requiredRefsList = hashSetConfig.RequiredRefs.ToList();
             Assert.That(requiredRefsList[0].Config.Value, Is.EqualTo(42));
-
-            var optionalRefsList = hashSetConfig.OptionalRefs.ToList();
-            // One optional ref is empty string (null), one is non-existent (should throw)
-            var emptyRef = optionalRefsList.First(r => r.Id == "");
-            var nonExistentRef = optionalRefsList.First(r => r.Id == "non-existent-optional");
-
-            Assert.That(emptyRef.Config, Is.Null); // Empty string returns null
-            Assert.Throws<Exception>(() => { var config = nonExistentRef.Config; }); // Non-existent throws
         }
 
         [Test]
@@ -1463,8 +1367,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+HashSetReferenceConfig",
                 "Id": "hashset-equality-1",
                 "Name": "HashSet Config 1",
-                "RequiredRefs": ["hashset-equality-target"],
-                "OptionalRefs": []
+                "RequiredRefs": ["hashset-equality-target"]
             }
             """;
 
@@ -1473,8 +1376,7 @@ namespace Alco.Engine.Test
                 "$type": "Alco.Engine.Test.TestConfigDatabase+HashSetReferenceConfig",
                 "Id": "hashset-equality-2",
                 "Name": "HashSet Config 2",
-                "RequiredRefs": ["hashset-equality-target"],
-                "OptionalRefs": []
+                "RequiredRefs": ["hashset-equality-target"]
             }
             """;
 

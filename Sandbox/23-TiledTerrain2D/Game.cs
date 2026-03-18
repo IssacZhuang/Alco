@@ -200,7 +200,8 @@ public class Game : GameEngine
             _camera.Transform.Position += new Vector2(-Input.MouseDelta.X * speed, Input.MouseDelta.Y * speed);
         }
 
-        if (Input.IsMouseWheelScrolling(out float wheelDelta))
+        float wheelDelta = Input.MouseWheelDelta.Y;
+        if (wheelDelta != 0)
         {
             _targetZoom -= wheelDelta * 0.5f;
             _targetZoom = math.clamp(_targetZoom, 2, 20);
