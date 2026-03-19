@@ -194,6 +194,31 @@ public partial class Canvas : AutoDisposable
     /// </summary>
     public IUISoundPlayer? SoundPlayer { get; set; }
 
+    /// <summary>
+    /// Clears all canvas references to the specified node.
+    /// Called when a node is detached from the tree to prevent stale references.
+    /// </summary>
+    /// <param name="node">The node to clear references for.</param>
+    internal void ClearNodeReference(UINode node)
+    {
+        if (_hovered == node)
+        {
+            _hovered = null;
+        }
+        if (_holded == node)
+        {
+            _holded = null;
+        }
+        if (_selected == node)
+        {
+            _selected = null;
+        }
+        if (_textInput == node)
+        {
+            _textInput = null;
+        }
+    }
+
     public CameraData2D CameraData => _camera.Data;
 
     public Vector4 DebugDrawColor { get; set; }

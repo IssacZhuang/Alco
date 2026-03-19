@@ -622,6 +622,9 @@ public class UINode : IEnumerable<UINode>
 
     private static void DetachFromTreeCore(Canvas canvas, UINode node)
     {
+        // Clear canvas references to this node to prevent stale references
+        canvas.ClearNodeReference(node);
+
         try
         {
             node.OnDetachFromTree(canvas);
