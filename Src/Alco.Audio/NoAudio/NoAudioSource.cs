@@ -8,6 +8,8 @@ internal class NoAudioSource : AudioSource
     private float _gain = 1f;
     private float _pitch = 1f;
     private float _rolloff = 1f;
+    private float _referenceDistance = 1f;
+    private float _maxDistance = float.MaxValue;
     private Vector3 _position;
     private Vector3 _velocity;
     private bool _isSpatial;
@@ -35,6 +37,18 @@ internal class NoAudioSource : AudioSource
     {
         get => _rolloff;
         set => _rolloff = value;
+    }
+
+    public override float ReferenceDistance
+    {
+        get => _referenceDistance;
+        set => _referenceDistance = value;
+    }
+
+    public override float MaxDistance
+    {
+        get => _maxDistance;
+        set => _maxDistance = value;
     }
 
     public override Vector3 Position
