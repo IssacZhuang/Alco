@@ -45,7 +45,7 @@ public class TestStructuredFileBase
         var meta = new TestStructuredFileMeta("hello", 42);
         byte[] content = { 0x01, 0x02, 0x03, 0x04 };
 
-        byte[] data = StructuredFile.Compose(meta, content);
+        byte[] data = StructuredFileUtility.Compose(meta, content);
 
         using var ms = new MemoryStream(data);
         using var reader = new BinaryReader(ms);
@@ -71,9 +71,9 @@ public class TestStructuredFileBase
     {
         var meta = new TestStructuredFileMeta("world", 99);
         byte[] content = { 0xDE, 0xAD, 0xBE, 0xEF };
-        byte[] data = StructuredFile.Compose(meta, content);
+        byte[] data = StructuredFileUtility.Compose(meta, content);
 
-        var (readMeta, readContent) = StructuredFile.Read<TestStructuredFileMeta>(data);
+        var (readMeta, readContent) = StructuredFileUtility.Read<TestStructuredFileMeta>(data);
 
         Assert.That(readMeta.Name, Is.EqualTo("world"));
         Assert.That(readMeta.Value, Is.EqualTo(99));
@@ -86,9 +86,9 @@ public class TestStructuredFileBase
     {
         var meta = new TestStructuredFileMeta("meta", 7);
         byte[] content = { 0xAA, 0xBB };
-        byte[] data = StructuredFile.Compose(meta, content);
+        byte[] data = StructuredFileUtility.Compose(meta, content);
 
-        TestStructuredFileMeta readMeta = StructuredFile.ReadMeta<TestStructuredFileMeta>(data);
+        TestStructuredFileMeta readMeta = StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(data);
 
         Assert.That(readMeta.Name, Is.EqualTo("meta"));
         Assert.That(readMeta.Value, Is.EqualTo(7));
@@ -99,7 +99,7 @@ public class TestStructuredFileBase
     {
         byte[] badData = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xFF };
 
-        Assert.Throws<InvalidDataException>(() => StructuredFile.Read<TestStructuredFileMeta>(badData));
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(badData));
     }
 
     [Test]
@@ -107,7 +107,7 @@ public class TestStructuredFileBase
     {
         byte[] shortData = "test"u8.ToArray(); // only 4 bytes
 
-        Assert.Throws<InvalidDataException>(() => StructuredFile.Read<TestStructuredFileMeta>(shortData));
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(shortData));
     }
 
     [Test]
@@ -115,7 +115,7 @@ public class TestStructuredFileBase
     {
         var meta = new TestStructuredFileMeta("x", 1);
         byte[] content = { 0x01 };
-        byte[] data = StructuredFile.Compose(meta, content);
+        byte[] data = StructuredFileUtility.Compose(meta, content);
 
         // Corrupt metaLength to -1 (offset 4, little-endian)
         data[4] = 0xFF;
@@ -123,7 +123,7 @@ public class TestStructuredFileBase
         data[6] = 0xFF;
         data[7] = 0xFF;
 
-        Assert.Throws<InvalidDataException>(() => StructuredFile.Read<TestStructuredFileMeta>(data));
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(data));
     }
 
     [Test]
@@ -131,10 +131,10 @@ public class TestStructuredFileBase
     {
         var meta = new TestStructuredFileMeta("stream", 3);
         byte[] content = { 0x01, 0x02, 0x03 };
-        byte[] data = StructuredFile.Compose(meta, content);
+        byte[] data = StructuredFileUtility.Compose(meta, content);
 
         using var ms = new MemoryStream(data);
-        TestStructuredFileMeta readMeta = StructuredFile.ReadMeta<TestStructuredFileMeta>(ms);
+        TestStructuredFileMeta readMeta = StructuredFileUtility.ReadMeta<TestStructuredFileMeta>(ms);
 
         Assert.That(readMeta.Name, Is.EqualTo("stream"));
         Assert.That(readMeta.Value, Is.EqualTo(3));
@@ -145,10 +145,10 @@ public class TestStructuredFileBase
     {
         var meta = new TestStructuredFileMeta("writeto", 10);
         byte[] content = { 0xCA, 0xFE };
-        byte[] expected = StructuredFile.Compose(meta, content);
+        byte[] expected = StructuredFileUtility.Compose(meta, content);
 
         using var ms = new MemoryStream();
-        StructuredFile.WriteTo(ms, meta, content);
+        StructuredFileUtility.WriteTo(ms, meta, content);
 
         Assert.That(ms.ToArray(), Is.EqualTo(expected));
     }
@@ -158,10 +158,10 @@ public class TestStructuredFileBase
     {
         var meta = new TestStructuredFileMeta("streamread", 22);
         byte[] content = { 0x01, 0x02 };
-        byte[] data = StructuredFile.Compose(meta, content);
+        byte[] data = StructuredFileUtility.Compose(meta, content);
 
         using var ms = new MemoryStream(data);
-        var (readMeta, readContent) = StructuredFile.Read<TestStructuredFileMeta>(ms);
+        var (readMeta, readContent) = StructuredFileUtility.Read<TestStructuredFileMeta>(ms);
 
         Assert.That(readMeta.Name, Is.EqualTo("streamread"));
         Assert.That(readContent.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02 }));
@@ -172,7 +172,7 @@ public class TestStructuredFileBase
     {
         var meta = new TestStructuredFileMeta("x", 1);
         byte[] content = { 0x01 };
-        byte[] data = StructuredFile.Compose(meta, content);
+        byte[] data = StructuredFileUtility.Compose(meta, content);
 
         // Corrupt contentLength to -1 (offset = 8 + metaLength)
         int metaLength = BitConverter.ToInt32(data.AsSpan(4, 4));
@@ -182,6 +182,6 @@ public class TestStructuredFileBase
         data[contentLengthOffset + 2] = 0xFF;
         data[contentLengthOffset + 3] = 0xFF;
 
-        Assert.Throws<InvalidDataException>(() => StructuredFile.Read<TestStructuredFileMeta>(data));
+        Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(data));
     }
 }

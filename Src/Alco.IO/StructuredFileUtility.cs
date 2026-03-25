@@ -9,7 +9,7 @@ namespace Alco.IO;
 /// Provides static utility methods for reading and writing structured binary files
 /// with the format: [magic][metaLength][meta][contentLength][content].
 /// </summary>
-public static class StructuredFile
+public static class StructuredFileUtility
 {
     /// <summary>
     /// Composes the full file bytes from metadata and content.
