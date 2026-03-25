@@ -6,55 +6,27 @@ using Alco;
 namespace Alco.IO;
 
 /// <summary>
-/// Represents the result of reading a structured file, containing metadata and raw content bytes.
+/// Provides static utility methods for reading and writing structured binary files
+/// with the format: [magic][metaLength][meta][contentLength][content].
 /// </summary>
-public readonly struct StructuredFileData<TMeta> where TMeta : ISerializable, new()
+public static class StructuredFile
 {
-    /// <summary>
-    /// Gets the metadata deserialized from the meta section.
-    /// </summary>
-    public TMeta Meta { get; }
-
-    /// <summary>
-    /// Gets the raw content bytes. Must remain alive while this memory is used.
-    /// </summary>
-    public ReadOnlyMemory<byte> Content { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="StructuredFileData{TMeta}"/> struct.
-    /// </summary>
-    public StructuredFileData(TMeta meta, ReadOnlyMemory<byte> content)
-    {
-        Meta = meta;
-        Content = content;
-    }
-}
-
-/// <summary>
-/// Abstract base class for structured binary files with the format: [magic][metaLength][meta][contentLength][content].
-/// </summary>
-/// <typeparam name="TMeta">The metadata type, must implement <see cref="ISerializable"/>.</typeparam>
-public abstract class StructuredFile<TMeta> where TMeta : ISerializable, new()
-{
-    /// <summary>
-    /// Gets the magic number that identifies this file format. Must return a span backed by a stable byte array.
-    /// </summary>
-    protected abstract ReadOnlySpan<byte> Magic { get; }
-
     /// <summary>
     /// Composes the full file bytes from metadata and content.
     /// </summary>
+    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
     /// <param name="meta">The metadata to encode via BinaryParser.</param>
     /// <param name="content">The raw content bytes.</param>
     /// <returns>The complete file as a byte array.</returns>
-    public byte[] Compose(TMeta meta, ReadOnlySpan<byte> content)
+    public static byte[] Compose<TMeta>(TMeta meta, ReadOnlySpan<byte> content)
+        where TMeta : IStructuredFileMeta, new()
     {
         ReadOnlyMemory<byte> metaBytes = BinaryParser.Encode(meta);
         int metaLength = metaBytes.Length;
         int contentLength = content.Length;
 
         byte[] data = new byte[4 + 4 + metaLength + 4 + contentLength];
-        Magic.CopyTo(data.AsSpan(0, 4));
+        TMeta.Magic.CopyTo(data.AsSpan(0, 4));
         BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(4, 4), metaLength);
         metaBytes.Span.CopyTo(data.AsSpan(8, metaLength));
         BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(8 + metaLength, 4), contentLength);
@@ -66,68 +38,28 @@ public abstract class StructuredFile<TMeta> where TMeta : ISerializable, new()
     /// <summary>
     /// Writes the structured file to a stream.
     /// </summary>
+    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
     /// <param name="stream">The stream to write to.</param>
     /// <param name="meta">The metadata to encode via BinaryParser.</param>
     /// <param name="content">The raw content bytes.</param>
-    public void WriteTo(Stream stream, TMeta meta, ReadOnlySpan<byte> content)
+    public static void WriteTo<TMeta>(Stream stream, TMeta meta, ReadOnlySpan<byte> content)
+        where TMeta : IStructuredFileMeta, new()
     {
-        byte[] data = Compose(meta, content);
+        byte[] data = Compose<TMeta>(meta, content);
         stream.Write(data);
     }
 
     /// <summary>
     /// Reads both metadata and content from memory data.
     /// </summary>
+    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
     /// <param name="data">The full file data. Must remain alive while the returned content memory is used.</param>
-    /// <returns>A <see cref="StructuredFileData{TMeta}"/> containing the metadata and content.</returns>
-    public StructuredFileData<TMeta> Read(ReadOnlyMemory<byte> data)
-    {
-        return Parse(data, Magic);
-    }
-
-    /// <summary>
-    /// Reads both metadata and content from a stream by buffering into memory.
-    /// </summary>
-    /// <param name="stream">The stream to read from.</param>
-    /// <returns>A <see cref="StructuredFileData{TMeta}"/> containing the metadata and content.</returns>
-    public StructuredFileData<TMeta> Read(Stream stream)
-    {
-        using var ms = new MemoryStream();
-        stream.CopyTo(ms);
-        return Read(ms.ToArray());
-    }
-
-    /// <summary>
-    /// Reads only the metadata from memory data.
-    /// </summary>
-    /// <param name="data">The full file data.</param>
-    /// <returns>The deserialized metadata.</returns>
-    public TMeta ReadMeta(ReadOnlySpan<byte> data)
-    {
-        return ParseMeta(data, Magic);
-    }
-
-    /// <summary>
-    /// Reads only the metadata from a stream. Reads exactly 8 + metaLength bytes from the current position.
-    /// The contentLength field (next 4 bytes) is NOT consumed.
-    /// </summary>
-    /// <param name="stream">The stream to read from.</param>
-    /// <returns>The deserialized metadata.</returns>
-    public TMeta ReadMeta(Stream stream)
-    {
-        return ParseMeta(stream, Magic);
-    }
-
-    /// <summary>
-    /// Parses both metadata and content from memory data using the specified magic number.
-    /// </summary>
-    /// <param name="data">The full file data.</param>
-    /// <param name="magic">The expected magic number.</param>
-    /// <returns>A <see cref="StructuredFileData{TMeta}"/> containing the metadata and content.</returns>
-    public static StructuredFileData<TMeta> Parse(ReadOnlyMemory<byte> data, ReadOnlySpan<byte> magic)
+    /// <returns>A tuple containing the deserialized metadata and the content bytes.</returns>
+    public static (TMeta Meta, ReadOnlyMemory<byte> Content) Read<TMeta>(ReadOnlyMemory<byte> data)
+        where TMeta : IStructuredFileMeta, new()
     {
         ReadOnlySpan<byte> span = data.Span;
-        ValidateMagicAndReadMeta(span, magic, out int metaLength, out TMeta meta);
+        TMeta meta = ValidateMagicAndReadMeta<TMeta>(span, TMeta.Magic, out int metaLength);
 
         if (span.Length < 12 + metaLength)
         {
@@ -146,35 +78,50 @@ public abstract class StructuredFile<TMeta> where TMeta : ISerializable, new()
             throw new InvalidDataException("Invalid file length.");
         }
 
-        return new StructuredFileData<TMeta>(meta, data.Slice(12 + metaLength, contentLength));
+        return (meta, data.Slice(12 + metaLength, contentLength));
     }
 
     /// <summary>
-    /// Parses only the metadata from memory data using the specified magic number.
+    /// Reads both metadata and content from a stream by buffering into memory.
     /// </summary>
-    /// <param name="data">The full file data.</param>
-    /// <param name="magic">The expected magic number.</param>
-    /// <returns>The deserialized metadata.</returns>
-    public static TMeta ParseMeta(ReadOnlySpan<byte> data, ReadOnlySpan<byte> magic)
-    {
-        ValidateMagicAndReadMeta(data, magic, out _, out TMeta meta);
-        return meta;
-    }
-
-    /// <summary>
-    /// Parses only the metadata from a stream using the specified magic number.
-    /// Reads exactly 8 + metaLength bytes. Does NOT consume the contentLength field.
-    /// </summary>
+    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
     /// <param name="stream">The stream to read from.</param>
-    /// <param name="magic">The expected magic number.</param>
+    /// <returns>A tuple containing the deserialized metadata and the content bytes.</returns>
+    public static (TMeta Meta, ReadOnlyMemory<byte> Content) Read<TMeta>(Stream stream)
+        where TMeta : IStructuredFileMeta, new()
+    {
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return Read<TMeta>(ms.ToArray());
+    }
+
+    /// <summary>
+    /// Reads only the metadata from memory data.
+    /// </summary>
+    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
+    /// <param name="data">The full file data.</param>
     /// <returns>The deserialized metadata.</returns>
-    public static TMeta ParseMeta(Stream stream, ReadOnlySpan<byte> magic)
+    public static TMeta ReadMeta<TMeta>(ReadOnlyMemory<byte> data)
+        where TMeta : IStructuredFileMeta, new()
+    {
+        return ValidateMagicAndReadMeta<TMeta>(data.Span, TMeta.Magic, out _);
+    }
+
+    /// <summary>
+    /// Reads only the metadata from a stream. Reads exactly 8 + metaLength bytes from the current position.
+    /// The contentLength field (next 4 bytes) is NOT consumed.
+    /// </summary>
+    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
+    /// <param name="stream">The stream to read from.</param>
+    /// <returns>The deserialized metadata.</returns>
+    public static TMeta ReadMeta<TMeta>(Stream stream)
+        where TMeta : IStructuredFileMeta, new()
     {
         Span<byte> header = stackalloc byte[8];
         int bytesRead = stream.Read(header);
-        if (bytesRead < 8 || !header.Slice(0, 4).SequenceEqual(magic))
+        if (bytesRead < 8 || !header.Slice(0, 4).SequenceEqual(TMeta.Magic))
         {
-            throw new InvalidDataException($"Invalid magic. Expected '{Encoding.ASCII.GetString(magic)}'.");
+            throw new InvalidDataException($"Invalid magic. Expected '{Encoding.ASCII.GetString(TMeta.Magic)}'.");
         }
 
         int metaLength = BinaryPrimitives.ReadInt32LittleEndian(header.Slice(4, 4));
@@ -194,7 +141,17 @@ public abstract class StructuredFile<TMeta> where TMeta : ISerializable, new()
         return BinaryParser.Decode<TMeta>(metaData);
     }
 
-    private static void ValidateMagicAndReadMeta(ReadOnlySpan<byte> data, ReadOnlySpan<byte> magic, out int metaLength, out TMeta meta)
+    /// <summary>
+    /// Validates the magic number and reads the metadata from a byte span.
+    /// </summary>
+    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
+    /// <param name="data">The file data to read from.</param>
+    /// <param name="magic">The expected magic number.</param>
+    /// <param name="metaLength">The length of the meta section in bytes.</param>
+    /// <returns>The deserialized metadata.</returns>
+    /// <exception cref="InvalidDataException">Thrown when the magic number, meta length, or file length is invalid.</exception>
+    private static TMeta ValidateMagicAndReadMeta<TMeta>(ReadOnlySpan<byte> data, ReadOnlySpan<byte> magic, out int metaLength)
+        where TMeta : IStructuredFileMeta, new()
     {
         if (data.Length < 8 || !data.Slice(0, 4).SequenceEqual(magic))
         {
@@ -213,6 +170,6 @@ public abstract class StructuredFile<TMeta> where TMeta : ISerializable, new()
             throw new InvalidDataException("Invalid file length.");
         }
 
-        meta = BinaryParser.Decode<TMeta>(data.Slice(8, metaLength));
+        return BinaryParser.Decode<TMeta>(data.Slice(8, metaLength));
     }
 }
