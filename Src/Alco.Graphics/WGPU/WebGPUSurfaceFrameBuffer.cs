@@ -228,6 +228,17 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     public bool RequestSurfaceTexture()
     {
         bool isTextureUsable = _colorTextures[0].GetNewOutputTexture(ref (*_colorAttachments).view, out bool shouldResize);
+
+        // Some GPU drivers (e.g. Intel Vulkan) may return SuccessOptimal
+        // with a surface texture at the old resolution after a window resize.
+        // Detect this mismatch and force a surface reconfigure.
+        if (isTextureUsable && (_colorTextures[0].Width != _config.width || _colorTextures[0].Height != _config.height))
+        {
+            _colorTextures[0].Drop();
+            shouldResize = true;
+            isTextureUsable = false;
+        }
+
         if (shouldResize)
         {
             WGPUSurfaceConfiguration config = _config;
@@ -387,6 +398,17 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _texture = WGPUTexture.Null;
         }
 
+        /// <summary>
+        /// Release the current surface texture without presenting it.
+        /// </summary>
+        public unsafe void Drop()
+        {
+            wgpuTextureRelease(_texture);
+            wgpuTextureViewRelease(_defaultView);
+            _defaultView = WGPUTextureView.Null;
+            _texture = WGPUTexture.Null;
+        }
+
         //return true if the texture is usable
         public unsafe bool GetNewOutputTexture(ref WGPUTextureView view, out bool shouldResize)
         {
@@ -423,7 +445,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _height = wgpuTextureGetHeight(_texture);
 
             //refresh the view
-            
+
             _defaultView = wgpuTextureCreateView(_texture, null);
             view = _defaultView;
 
