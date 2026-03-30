@@ -196,6 +196,14 @@ public unsafe class Sdl3Platform : Platform
             case SDL_EventType.GamepadAxisMotion:
                 _input.OnSdlGamepadAxisMotion(e.gaxis.which, (SDL_GamepadAxis)e.gaxis.axis, e.gaxis.value);
                 break;
+            case SDL_EventType.AudioDeviceAdded:
+                if (!e.adevice.recording)
+                    DoAudioDefaultDeviceChanged();
+                break;
+            case SDL_EventType.AudioDeviceRemoved:
+                if (!e.adevice.recording)
+                    DoAudioDefaultDeviceChanged();
+                break;
         }
     }
 }
