@@ -231,6 +231,7 @@ IDisposable
 
         _platform = _setting.Platform ?? new Sdl3Platform();
         _input = _platform.Input;
+        _platform.OnAudioDefaultDeviceChanged += () => _audioDevice.NotifyDefaultDeviceChanged();
 
         _profiler = new EngineProfiler(this);
 
