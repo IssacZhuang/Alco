@@ -311,6 +311,14 @@ internal unsafe class OpenALDevice : AudioDevice
         }
     }
 
+    public override void NotifyDefaultDeviceChanged()
+    {
+        if (_alcExt.IsReopenSupported)
+        {
+            TryReopenDevice(null);
+        }
+    }
+
     /// <summary>
     /// Checks whether the underlying audio output device is still connected.
     /// </summary>
