@@ -13,6 +13,10 @@ public abstract class Platform : AutoDisposable
     /// The update event, called every frame
     /// </summary>
     public event Action<float>? OnUpdate;
+    /// <summary>
+    /// Raised when the system's default audio playback device may have changed.
+    /// </summary>
+    public event Action? OnAudioDefaultDeviceChanged;
 
 
     /// <summary>
@@ -55,5 +59,11 @@ public abstract class Platform : AutoDisposable
     protected void DoUpdate(float deltaTime)
     {
         OnUpdate?.Invoke(deltaTime);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    protected void DoAudioDefaultDeviceChanged()
+    {
+        OnAudioDefaultDeviceChanged?.Invoke();
     }
 }
