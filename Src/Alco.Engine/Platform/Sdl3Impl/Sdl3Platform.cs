@@ -55,7 +55,7 @@ public unsafe class Sdl3Platform : Platform
     public override void RunMainLoop(bool runOnce)
     {
         //init subsystem
-        SDL_Init(SDL_InitFlags.Joystick | SDL_InitFlags.Gamepad);
+        SDL_Init(SDL_InitFlags.Audio | SDL_InitFlags.Joystick | SDL_InitFlags.Gamepad);
         
         if(runOnce)
         {
