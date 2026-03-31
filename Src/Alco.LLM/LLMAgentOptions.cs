@@ -26,9 +26,15 @@ public record LLMAgentOptions
 
     /// <summary>
     /// Gets or initializes the list of tool types marked with <see cref="GameToolAttribute"/>
-    /// to register with the agent.
+    /// to register with the agent. These types' static methods are discovered.
     /// </summary>
     public IList<Type>? ToolTypes { get; init; }
+
+    /// <summary>
+    /// Gets or initializes the list of tool instances whose instance and static methods
+    /// marked with <see cref="ToolFunctionAttribute"/> are registered with the agent.
+    /// </summary>
+    public IList<object>? ToolInstances { get; init; }
 
     /// <summary>
     /// Gets or initializes the optional function invocation filter.

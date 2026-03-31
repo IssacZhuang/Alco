@@ -40,7 +40,7 @@ public class LLMAgent
         }
 
         var kernel = builder.Build();
-        var bridge = new GameToolBridge(kernel, options.ToolTypes ?? Array.Empty<Type>());
+        var bridge = new GameToolBridge(kernel, options.ToolTypes ?? Array.Empty<Type>(), options.ToolInstances);
 
         return new LLMAgent(kernel, bridge);
     }
