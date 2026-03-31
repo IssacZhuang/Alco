@@ -25,14 +25,10 @@ public record LLMAgentOptions
     public required string ModelId { get; init; }
 
     /// <summary>
-    /// Gets or initializes the list of plugin instances to add to the kernel.
+    /// Gets or initializes the list of tool types marked with <see cref="GameToolAttribute"/>
+    /// to register with the agent.
     /// </summary>
-    public IList<object>? Plugins { get; init; }
-
-    /// <summary>
-    /// Gets or initializes the list of plugin types to add to the kernel.
-    /// </summary>
-    public IList<Type>? PluginTypes { get; init; }
+    public IList<Type>? ToolTypes { get; init; }
 
     /// <summary>
     /// Gets or initializes the optional function invocation filter.
