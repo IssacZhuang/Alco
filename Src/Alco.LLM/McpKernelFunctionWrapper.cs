@@ -65,7 +65,7 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
             for (int i = 0; i < _function.Metadata.Parameters.Count; i++)
             {
                 var param = _function.Metadata.Parameters[i];
-                if (arguments.TryGetValue(param.Name, out var value))
+                if (arguments.TryGetValue(param.Name, out var value) && param.ParameterType != null)
                 {
                     kernelArgs[param.Name] = ConvertArgument(value, param.ParameterType);
                 }
@@ -102,7 +102,9 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
         for (int i = 0; i < _function.Metadata.Parameters.Count; i++)
         {
             var param = _function.Metadata.Parameters[i];
-            var paramSchema = JsonSchemaExporter.GetJsonSchemaAsNode(_jsonOptions, param.ParameterType);
+            var paramSchema = param.ParameterType != null
+                ? JsonSchemaExporter.GetJsonSchemaAsNode(_jsonOptions, param.ParameterType)
+                : JsonSchemaExporter.GetJsonSchemaAsNode(_jsonOptions, typeof(string));
 
             if (paramSchema is JsonObject obj && !string.IsNullOrEmpty(param.Description))
             {

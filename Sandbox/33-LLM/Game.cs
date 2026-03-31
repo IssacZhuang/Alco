@@ -166,7 +166,8 @@ public class Game : GameEngine
                              Endpoint = uri,
                              ApiKey = _apiKey,
                              ModelId = _modelId,
-                             ToolInstances = new[] { this }
+                             ToolInstances = new[] { this },
+                             JsonConverters = [..CreateDefaultJsonConverters()],
                          });
                     }
                     else
@@ -181,7 +182,8 @@ public class Game : GameEngine
                             Endpoint = new Uri("https://api.openai.com/v1"),
                             ApiKey = _apiKey,
                             ModelId = _modelId,
-                            ToolInstances = new[] { this }
+                            ToolInstances = new[] { this },
+                            JsonConverters = [..CreateDefaultJsonConverters()],
                         });
                     }
                     _llmSession = _llmAgent.CreateSession();
