@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using ModelContextProtocol.Server;
@@ -12,16 +13,19 @@ public class LLMAgent
 {
     private readonly Kernel _kernel;
     private readonly GameToolBridge _bridge;
+    private readonly JsonSerializerOptions _jsonOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMAgent"/> class.
     /// </summary>
     /// <param name="kernel">The semantic kernel instance.</param>
     /// <param name="bridge">The game tool bridge managing tool registration.</param>
-    public LLMAgent(Kernel kernel, GameToolBridge bridge)
+    /// <param name="jsonOptions">The JSON serializer options for tool parameter handling.</param>
+    private LLMAgent(Kernel kernel, GameToolBridge bridge, JsonSerializerOptions jsonOptions)
     {
         _kernel = kernel;
         _bridge = bridge;
+        _jsonOptions = jsonOptions;
     }
 
     /// <summary>
@@ -31,6 +35,16 @@ public class LLMAgent
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public static LLMAgent Create(LLMAgentOptions options)
     {
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
+
+        for (int i = 0; i < options.JsonConverters.Count; i++)
+        {
+            jsonOptions.Converters.Add(options.JsonConverters[i]);
+        }
+
         var builder = Kernel.CreateBuilder();
         builder.AddOpenAIChatCompletion(options.ModelId, options.Endpoint, options.ApiKey);
 
@@ -39,10 +53,12 @@ public class LLMAgent
             builder.Services.AddSingleton(options.FunctionInvocationFilter);
         }
 
+        builder.Services.AddSingleton(jsonOptions);
+
         var kernel = builder.Build();
         var bridge = new GameToolBridge(kernel, options.ToolTypes ?? Array.Empty<Type>(), options.ToolInstances);
 
-        return new LLMAgent(kernel, bridge);
+        return new LLMAgent(kernel, bridge, jsonOptions);
     }
 
     /// <summary>
@@ -65,7 +81,7 @@ public class LLMAgent
     {
         for (int i = 0; i < _bridge.Functions.Count; i++)
         {
-            var wrapper = new McpKernelFunctionWrapper(_bridge.Functions[i], _kernel);
+            var wrapper = new McpKernelFunctionWrapper(_bridge.Functions[i], _kernel, _jsonOptions);
             builder.Services.AddSingleton(_ => McpServerTool.Create(wrapper));
         }
     }

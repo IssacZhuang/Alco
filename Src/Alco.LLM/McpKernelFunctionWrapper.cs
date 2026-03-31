@@ -16,6 +16,7 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
 {
     private readonly KernelFunction _function;
     private readonly Kernel _kernel;
+    private readonly JsonSerializerOptions _jsonOptions;
     private readonly JsonElement _cachedSchema;
 
     /// <inheritdoc/>
@@ -32,10 +33,12 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
     /// </summary>
     /// <param name="function">The kernel function to wrap.</param>
     /// <param name="kernel">The kernel instance used for invocation.</param>
-    public McpKernelFunctionWrapper(KernelFunction function, Kernel kernel)
+    /// <param name="jsonOptions">The JSON serializer options for parameter deserialization.</param>
+    public McpKernelFunctionWrapper(KernelFunction function, Kernel kernel, JsonSerializerOptions jsonOptions)
     {
         _function = function;
         _kernel = kernel;
+        _jsonOptions = jsonOptions;
         _cachedSchema = BuildSchemaFromParameters();
     }
 
