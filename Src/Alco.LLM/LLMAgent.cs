@@ -11,14 +11,17 @@ namespace Alco.LLM;
 public class LLMAgent
 {
     private readonly Kernel _kernel;
+    private readonly GameToolBridge _bridge;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMAgent"/> class.
     /// </summary>
     /// <param name="kernel">The semantic kernel instance.</param>
-    public LLMAgent(Kernel kernel)
+    /// <param name="bridge">The game tool bridge managing tool registration.</param>
+    public LLMAgent(Kernel kernel, GameToolBridge bridge)
     {
         _kernel = kernel;
+        _bridge = bridge;
     }
 
     /// <summary>
@@ -36,29 +39,10 @@ public class LLMAgent
             builder.Services.AddSingleton(options.FunctionInvocationFilter);
         }
 
-        if (options.Plugins != null)
-        {
-            for (int i = 0; i < options.Plugins.Count; i++)
-            {
-                builder.Plugins.AddFromObject(options.Plugins[i]);
-            }
-        }
-
-        if (options.PluginTypes != null)
-        {
-            for (int i = 0; i < options.PluginTypes.Count; i++)
-            {
-                var type = options.PluginTypes[i];
-                var instance = Activator.CreateInstance(type);
-                if (instance != null)
-                {
-                    builder.Plugins.AddFromObject(instance, type.Name);
-                }
-            }
-        }
-
         var kernel = builder.Build();
-        return new LLMAgent(kernel);
+        var bridge = new GameToolBridge(kernel, options.ToolTypes ?? Array.Empty<Type>());
+
+        return new LLMAgent(kernel, bridge);
     }
 
     /// <summary>
@@ -71,14 +55,18 @@ public class LLMAgent
         return new LLMSession(_kernel, config);
     }
 
-    public void PushToolToMcp(IMcpServerBuilder builder)
+    /// <summary>
+    /// Registers all tool functions with an MCP server builder.
+    /// Each function is wrapped to ensure invocations route through
+    /// the Semantic Kernel pipeline, preserving thread safety.
+    /// </summary>
+    /// <param name="builder">The MCP server builder to register tools with.</param>
+    public void RegisterToolsToMcp(IMcpServerBuilder builder)
     {
-        foreach (var plugin in _kernel.Plugins)
+        for (int i = 0; i < _bridge.Functions.Count; i++)
         {
-            foreach (var function in plugin)
-            {
-                builder.Services.AddSingleton(services => McpServerTool.Create(function));
-            }
+            var wrapper = new McpKernelFunctionWrapper(_bridge.Functions[i], _kernel);
+            builder.Services.AddSingleton(_ => McpServerTool.Create(wrapper));
         }
     }
 }
