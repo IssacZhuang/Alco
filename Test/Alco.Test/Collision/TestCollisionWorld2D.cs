@@ -11,6 +11,12 @@ public unsafe class TestCollisionWorld2D
         public ShapeBox2D shape;
     }
 
+    public class TestSphereTarget
+    {
+        public int id;
+        public ShapeSphere2D shape;
+    }
+
     public struct TestSphereCollector : ICollisionCastCollector, IRayCastCollector2D
     {
         public List<int> hitIds;
@@ -222,5 +228,60 @@ public unsafe class TestCollisionWorld2D
         world.CastRay(ref collector, ray);
 
         Assert.That(collector.hitIds.Count, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void TestRayFromInsideSphere2D()
+    {
+        using CollisionWorld2D world = new CollisionWorld2D();
+
+        TestSphereTarget target = new TestSphereTarget
+        {
+            id = 0,
+            shape = new ShapeSphere2D { Center = new Vector2(10, 0), Radius = 5f }
+        };
+        world.PushCollisionTarget(target, target.shape);
+        world.BuildTree();
+
+        // Ray starts at the center of the sphere, moving outward — should NOT hit
+        Ray2D ray = new Ray2D(new Vector2(10, 0), new Vector2(1, 0));
+        Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out _, out _), Is.False);
+    }
+
+    [Test]
+    public void TestRayFromInsideBox2D()
+    {
+        using CollisionWorld2D world = new CollisionWorld2D();
+
+        TestBoxTarget target = new TestBoxTarget
+        {
+            id = 0,
+            shape = new ShapeBox2D(new Vector2(10, 0), new Vector2(5, 5), Rotation2D.Identity)
+        };
+        world.PushCollisionTarget(target, target.shape);
+        world.BuildTree();
+
+        // Ray starts at the center of the box, moving outward — should NOT hit
+        Ray2D ray = new Ray2D(new Vector2(10, 0), new Vector2(1, 0));
+        Assert.That(world.TryCastRayClosestHit<TestBoxTarget>(ray, out _, out _), Is.False);
+    }
+
+    [Test]
+    public void TestRayFromOutsideToInsideSphere2D()
+    {
+        using CollisionWorld2D world = new CollisionWorld2D();
+
+        TestSphereTarget target = new TestSphereTarget
+        {
+            id = 0,
+            shape = new ShapeSphere2D { Center = new Vector2(10, 0), Radius = 5f }
+        };
+        world.PushCollisionTarget(target, target.shape);
+        world.BuildTree();
+
+        // Ray starts outside the sphere, moving toward it — should hit
+        Ray2D ray = new Ray2D(new Vector2(0, 0), new Vector2(20, 0));
+        Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out var hitTarget, out _), Is.True);
+        Assert.That(hitTarget!.id, Is.EqualTo(0));
     }
 }

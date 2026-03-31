@@ -13,6 +13,12 @@ public class TestCollisionWorld3D
         public ShapeBox3D shape;
     }
 
+    public class TestSphereTarget
+    {
+        public int id;
+        public ShapeSphere3D shape;
+    }
+
     public struct TestCollector : ICollisionCastCollector, IRayCastCollector3D
     {
         public List<int> hitIds;
@@ -202,5 +208,60 @@ public class TestCollisionWorld3D
         world.CastRay(ref collector, ray);
 
         Assert.That(collector.hitIds.Count, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void TestRayFromInsideSphere3D()
+    {
+        using CollisionWorld3D world = new CollisionWorld3D();
+
+        TestSphereTarget target = new TestSphereTarget
+        {
+            id = 0,
+            shape = new ShapeSphere3D { Center = new Vector3(10, 0, 0), Radius = 5f }
+        };
+        world.PushCollisionTarget(target, target.shape);
+        world.BuildTree();
+
+        // Ray starts at the center of the sphere, moving outward — should NOT hit
+        Ray3D ray = new Ray3D(new Vector3(10, 0, 0), new Vector3(1, 0, 0));
+        Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out _, out _), Is.False);
+    }
+
+    [Test]
+    public void TestRayFromInsideBox3D()
+    {
+        using CollisionWorld3D world = new CollisionWorld3D();
+
+        TestBoxTarget target = new TestBoxTarget
+        {
+            id = 0,
+            shape = new ShapeBox3D(new Vector3(10, 0, 0), new Vector3(5, 5, 5), Quaternion.Identity)
+        };
+        world.PushCollisionTarget(target, target.shape);
+        world.BuildTree();
+
+        // Ray starts at the center of the box, moving outward — should NOT hit
+        Ray3D ray = new Ray3D(new Vector3(10, 0, 0), new Vector3(1, 0, 0));
+        Assert.That(world.TryCastRayClosestHit<TestBoxTarget>(ray, out _, out _), Is.False);
+    }
+
+    [Test]
+    public void TestRayFromOutsideToInsideSphere3D()
+    {
+        using CollisionWorld3D world = new CollisionWorld3D();
+
+        TestSphereTarget target = new TestSphereTarget
+        {
+            id = 0,
+            shape = new ShapeSphere3D { Center = new Vector3(10, 0, 0), Radius = 5f }
+        };
+        world.PushCollisionTarget(target, target.shape);
+        world.BuildTree();
+
+        // Ray starts outside the sphere, moving toward it — should hit
+        Ray3D ray = new Ray3D(new Vector3(0, 0, 0), new Vector3(20, 0, 0));
+        Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out var hitTarget, out _), Is.True);
+        Assert.That(hitTarget!.id, Is.EqualTo(0));
     }
 }
