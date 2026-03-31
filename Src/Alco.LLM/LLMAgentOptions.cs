@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Microsoft.SemanticKernel;
 
 namespace Alco.LLM;
@@ -40,4 +41,10 @@ public record LLMAgentOptions
     /// Gets or initializes the optional function invocation filter.
     /// </summary>
     public IFunctionInvocationFilter? FunctionInvocationFilter { get; init; }
+
+    /// <summary>
+    /// Gets or initializes the JSON converters for tool parameter serialization and deserialization.
+    /// Pass <c>gameEngine.CreateDefaultJsonConverters()</c> for engine type compatibility.
+    /// </summary>
+    public IList<JsonConverter> JsonConverters { get; init; } = [];
 }
