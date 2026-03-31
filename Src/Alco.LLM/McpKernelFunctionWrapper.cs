@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Schema;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 
@@ -8,9 +10,9 @@ namespace Alco.LLM;
 
 /// <summary>
 /// Wraps a <see cref="KernelFunction"/> as an <see cref="AIFunction"/> that routes
-/// invocations through the Semantic Kernel public pipeline. This ensures that
-/// <see cref="Microsoft.SemanticKernel.IFunctionInvocationFilter"/> instances
-/// are triggered for MCP calls.
+/// invocations through the Semantic Kernel pipeline. Uses the provided
+/// <see cref="JsonSerializerOptions"/> for schema generation and argument deserialization,
+/// enabling engine data types as tool parameters.
 /// </summary>
 internal sealed class McpKernelFunctionWrapper : AIFunction
 {
@@ -33,7 +35,7 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
     /// </summary>
     /// <param name="function">The kernel function to wrap.</param>
     /// <param name="kernel">The kernel instance used for invocation.</param>
-    /// <param name="jsonOptions">The JSON serializer options for parameter deserialization.</param>
+    /// <param name="jsonOptions">The JSON serializer options with engine converters.</param>
     public McpKernelFunctionWrapper(KernelFunction function, Kernel kernel, JsonSerializerOptions jsonOptions)
     {
         _function = function;
@@ -51,38 +53,63 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
         return result.GetValue<object>();
     }
 
+    /// <summary>
+    /// Maps MCP arguments to kernel arguments, deserializing <see cref="JsonElement"/>
+    /// values to the target parameter types using the configured converters.
+    /// </summary>
     private KernelArguments MapToKernelArguments(AIFunctionArguments arguments)
     {
         var kernelArgs = new KernelArguments();
         if (arguments != null)
         {
-            foreach (var kvp in arguments)
+            for (int i = 0; i < _function.Metadata.Parameters.Count; i++)
             {
-                kernelArgs[kvp.Key] = kvp.Value;
+                var param = _function.Metadata.Parameters[i];
+                if (arguments.TryGetValue(param.Name, out var value))
+                {
+                    kernelArgs[param.Name] = ConvertArgument(value, param.ParameterType);
+                }
             }
         }
         return kernelArgs;
     }
 
+    /// <summary>
+    /// Converts a raw argument value to the target parameter type.
+    /// Handles <see cref="JsonElement"/> deserialization using engine converters.
+    /// </summary>
+    private object? ConvertArgument(object? value, Type targetType)
+    {
+        if (value == null) return null;
+        if (targetType.IsInstanceOfType(value)) return value;
+        if (value is JsonElement jsonElement)
+        {
+            return JsonSerializer.Deserialize(jsonElement, targetType, _jsonOptions);
+        }
+        var json = JsonSerializer.Serialize(value, _jsonOptions);
+        return JsonSerializer.Deserialize(json, targetType, _jsonOptions);
+    }
+
+    /// <summary>
+    /// Builds a JSON schema for the tool parameters using <see cref="JsonSchemaExporter"/>,
+    /// which respects the configured converters and naming policy.
+    /// </summary>
     private JsonElement BuildSchemaFromParameters()
     {
-        var properties = new Dictionary<string, object>();
-        var required = new List<string>();
+        var properties = new JsonObject();
+        var required = new JsonArray();
 
         for (int i = 0; i < _function.Metadata.Parameters.Count; i++)
         {
             var param = _function.Metadata.Parameters[i];
-            var propSchema = new Dictionary<string, object>
-            {
-                ["type"] = MapTypeToJsonSchemaType(param.ParameterType)
-            };
+            var paramSchema = JsonSchemaExporter.GetJsonSchemaAsNode(_jsonOptions, param.ParameterType);
 
-            if (!string.IsNullOrEmpty(param.Description))
+            if (paramSchema is JsonObject obj && !string.IsNullOrEmpty(param.Description))
             {
-                propSchema["description"] = param.Description;
+                obj["description"] = param.Description;
             }
 
-            properties[param.Name] = propSchema;
+            properties[param.Name] = paramSchema;
 
             if (param.IsRequired)
             {
@@ -90,7 +117,7 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
             }
         }
 
-        var schema = new Dictionary<string, object>
+        var schema = new JsonObject
         {
             ["type"] = "object",
             ["properties"] = properties,
@@ -101,20 +128,6 @@ internal sealed class McpKernelFunctionWrapper : AIFunction
             schema["required"] = required;
         }
 
-        return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(schema));
-    }
-
-    private static string MapTypeToJsonSchemaType(Type? type)
-    {
-        if (type == null) return "string";
-
-        if (type == typeof(int) || type == typeof(long) || type == typeof(short) || type == typeof(byte))
-            return "integer";
-        if (type == typeof(float) || type == typeof(double) || type == typeof(decimal))
-            return "number";
-        if (type == typeof(bool))
-            return "boolean";
-
-        return "string";
+        return JsonSerializer.Deserialize<JsonElement>(schema.ToJsonString());
     }
 }
