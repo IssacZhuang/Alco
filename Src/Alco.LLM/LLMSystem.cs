@@ -2,9 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Reflection;
 using Alco.Engine;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
-using ModelContextProtocol.Server;
 
 namespace Alco.LLM;
 
@@ -52,6 +50,13 @@ public class LLMSystem : BaseEngineSystem, IFunctionInvocationFilter
         }
     }
 
+    /// <summary>
+    /// Determines whether the function should be invoked on the main thread.
+    /// Functions marked with <see cref="ToolFunctionAttribute.AsyncSafe"/> are
+    /// executed directly on the calling thread.
+    /// </summary>
+    /// <param name="context">The function invocation context.</param>
+    /// <returns><c>true</c> if the function should run on the main thread.</returns>
     protected virtual bool ShouldInvokeOnMainThread(FunctionInvocationContext context)
     {
         MethodInfo? methodInfo = context.Function.UnderlyingMethod;
@@ -59,10 +64,13 @@ public class LLMSystem : BaseEngineSystem, IFunctionInvocationFilter
         {
             return true;
         }
-        if (methodInfo.GetCustomAttribute<AsyncKernelFunctionAttribute>() != null)
+
+        var attr = methodInfo.GetCustomAttribute<ToolFunctionAttribute>();
+        if (attr != null && attr.AsyncSafe)
         {
             return false;
         }
+
         return true;
     }
 
