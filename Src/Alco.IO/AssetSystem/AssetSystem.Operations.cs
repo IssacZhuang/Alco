@@ -325,6 +325,7 @@ public sealed partial class AssetSystem
         if (asset == null || !type.IsInstanceOfType(asset))
         {
             failedReason = $"The asset loader {loader.Name} returned an asset of type {asset?.GetType().Name} instead of {type.Name}";
+            profileScope?.Fail();
             return false;
         }
 

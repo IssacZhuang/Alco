@@ -79,8 +79,6 @@ public class DropletSystem : IDisposable
 
     private FastRandom _random = new FastRandom(123);
 
-    private readonly Profiler _profiler = new Profiler();
-
     public DropletSystem(ViewRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         _renderContext = system.CreateRenderContext();
