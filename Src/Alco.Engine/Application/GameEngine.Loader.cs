@@ -15,8 +15,16 @@ public partial class GameEngine
         yield return new AssetLoaderShaderHLSL(RenderingSystem);
 
         // texture
-        yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
-        yield return new AssetLoaderTexture2D(RenderingSystem);
+        if (Setting.HasGPU)
+        {
+            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
+            yield return new AssetLoaderTexture2D(RenderingSystem);
+        }
+        else
+        {
+            yield return new AssetLoaderFontTTFNoGPU(RenderingSystem);
+            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem);
+        }
 
         // audio
         yield return new AssetLoaderAudioVorbis(AudioDevice);
