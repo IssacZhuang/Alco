@@ -52,7 +52,8 @@ namespace Alco.IO
 
         private void Dispose()
         {
-            RemoveAllFileSource();
+            // Do not clear file sources here — pending async loads may still
+            // need them. Everything will be collected when this object is GC'd.
             Profiler.Dispose();
 
             _host.LogInfo("Asset system closed");
