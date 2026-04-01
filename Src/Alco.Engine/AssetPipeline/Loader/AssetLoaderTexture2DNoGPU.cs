@@ -42,7 +42,6 @@ public class AssetLoaderTexture2DNoGPU : IAssetLoader
             Name = context.Filename
         };
 
-        Texture2DMeta? metaData = null;
         if (context.AssetSystem.TryLoad<Texture2DMeta>(context.Filename + ".meta", out var meta, out _))
         {
             option = option with
@@ -51,23 +50,8 @@ public class AssetLoaderTexture2DNoGPU : IAssetLoader
                 AddressMode = meta.AddressMode,
                 SlicePadding = meta.SlicePadding
             };
-
-            metaData = meta;
         }
 
-        Texture2D texture = _renderingSystem.CreateTexture2D(1, 1, option);
-
-        if (metaData != null && metaData.Sprites != null && metaData.Sprites.Count > 0)
-        {
-            texture.ClearSprites();
-            foreach (var kvp in metaData.Sprites)
-            {
-                RectInt pixelRect = kvp.Value;
-                Rect uvRect = pixelRect.Normalize(1, 1);
-                texture.SetSprite(kvp.Key, uvRect);
-            }
-        }
-
-        return texture;
+        return _renderingSystem.CreateTexture2D(1, 1, option);
     }
 }
