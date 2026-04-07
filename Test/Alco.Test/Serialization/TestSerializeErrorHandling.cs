@@ -242,9 +242,12 @@ public class TestSerializeErrorHandling
 
         // Container name should be deserialized successfully
         Assert.That(deserializedContainer.ContainerName, Is.EqualTo("TestContainer"));
-        // Only successfully deserialized items should be in the list (Item0, Item2, Item4)
-        Assert.That(deserializedContainer.ObjectList.Count, Is.EqualTo(1));
+        // All items except the faulty one should be deserialized (Item0, Item2, Item3, Item4)
+        Assert.That(deserializedContainer.ObjectList.Count, Is.EqualTo(4));
         Assert.That(deserializedContainer.ObjectList[0].Name, Is.EqualTo("Item0"));
+        Assert.That(deserializedContainer.ObjectList[1].Name, Is.EqualTo("Item2"));
+        Assert.That(deserializedContainer.ObjectList[2].Name, Is.EqualTo("Item3"));
+        Assert.That(deserializedContainer.ObjectList[3].Name, Is.EqualTo("Item4"));
     }
 
     [Test]
