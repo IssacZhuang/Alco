@@ -166,7 +166,6 @@ namespace Alco
         {
             _nodes.SetSizeWithoutCopy(colliders.Length * 2 + (int)math.sqrt(colliders.Length) + 2);
             BuildBottomTop(colliders);
-            _treeDepth = (int)math.log2(colliders.Length + 1) + 1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -405,6 +404,7 @@ namespace Alco
 
             if (colliders.Length == 0)
             {
+                _treeDepth = 0;
                 return;
             }
 
@@ -412,6 +412,7 @@ namespace Alco
             {
                 AddNode(CreateLeaf(colliders[0]));
                 _root = _nodes[0];
+                _treeDepth = 1;
                 return;
             }
 
@@ -423,6 +424,7 @@ namespace Alco
         {
             int start = 0;
             int end = _nodeSize;
+            int depth = 1; // leaf level
 
             Node* ptr = _nodes.UnsafePointer;
 
@@ -447,13 +449,17 @@ namespace Alco
                 start = end;
                 end = start + parentCount;
                 _nodeSize += parentCount;
+                depth++;
             }
 
             if (end - start == 2)
             {
                 _root = CreateParent(start, start + 1);
                 AddNode(_root);
+                depth++;
             }
+
+            _treeDepth = depth;
         }
 
         private Node CreateParent(int singleChild)
