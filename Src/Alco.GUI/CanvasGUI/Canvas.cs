@@ -593,6 +593,13 @@ public partial class Canvas : AutoDisposable
         else
         {
             selectable = _hovered;
+
+            // Clear stale hover reference if the node or any ancestor is disabled
+            if (selectable != null && !IsEnabledInHierarchy(selectable))
+            {
+                _hovered = null;
+                selectable = null;
+            }
         }
 
         _mouseLeftState.SetState(_inputTracker.IsMouseLeftPressing);
@@ -914,6 +921,21 @@ public partial class Canvas : AutoDisposable
         }
 
 
+    }
+
+    /// <summary>
+    /// Checks whether a node and all its ancestors are enabled.
+    /// </summary>
+    private static bool IsEnabledInHierarchy(UINode node)
+    {
+        UINode? current = node;
+        while (current != null)
+        {
+            if (!current.IsEnable)
+                return false;
+            current = current.Parent;
+        }
+        return true;
     }
 
     private struct NodeCollector : ICollisionCastCollector
