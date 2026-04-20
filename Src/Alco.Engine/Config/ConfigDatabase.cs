@@ -35,6 +35,12 @@ public class ConfigDatabase
 
 
     /// <summary>
+    /// Gets the JSON serializer options used by this database.
+    /// Public access for editor tools that need to serialize/deserialize configs.
+    /// </summary>
+    public JsonSerializerOptions SerializerOptions => _jsonSerializerOptions;
+
+    /// <summary>
     /// [Thread-safe] All configs in the database.
     /// </summary>
     /// <value>All configs in the database.</value>
