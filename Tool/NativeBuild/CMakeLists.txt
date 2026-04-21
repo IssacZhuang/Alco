@@ -36,9 +36,28 @@ else()
 endif()
 set_target_properties(cimguizmo PROPERTIES PREFIX "")
 
-# Export all symbols from cimgui so cimguizmo can use ImGui C++ symbols
-set_target_properties(cimgui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-target_link_libraries(cimguizmo cimgui)
+if(WIN32)
+    # On Windows, data variables can't be imported from DLLs without dllimport.
+    # Include ImGui sources directly in cimguizmo to avoid this issue.
+    set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../ThirdParty/cimgui/imgui)
+    target_sources(cimguizmo PRIVATE
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_demo.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+    )
+    target_include_directories(cimguizmo PRIVATE ${IMGUI_DIR})
+    # Provide g_errorCallback (defined in cimgui.cpp for the cimgui target)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cimguizmo_globals.cpp
+        "#include \"imgui.h\"\n"
+        "CimguiErrorCallback g_errorCallback = nullptr;\n"
+    )
+    target_sources(cimguizmo PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cimguizmo_globals.cpp)
+else()
+    # On macOS/Linux, all symbols are exported from shared libraries by default
+    target_link_libraries(cimguizmo cimgui)
+endif()
 
 # Output to Alco.ImGUI runtimes directory
 set(OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../Src/Alco.ImGUI/runtimes/${TARGET_RID}/native)
