@@ -62,6 +62,16 @@ public abstract class AudioSource : BaseAudioObject
     /// </summary>
     public abstract float Rolloff { get; set; }
     /// <summary>
+    /// The distance at which the sound begins to attenuate.
+    /// Within this distance, the sound is at full volume.
+    /// </summary>
+    public abstract float ReferenceDistance { get; set; }
+    /// <summary>
+    /// The maximum distance at which the sound is audible.
+    /// Beyond this distance, the volume is clamped to its minimum.
+    /// </summary>
+    public abstract float MaxDistance { get; set; }
+    /// <summary>
     /// World-space position of the source when spatialized.
     /// </summary>
     public abstract Vector3 Position { get; set; }

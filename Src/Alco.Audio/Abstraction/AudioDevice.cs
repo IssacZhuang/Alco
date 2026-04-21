@@ -97,6 +97,12 @@ public abstract class AudioDevice
     /// <param name="delta">Time in seconds since the last poll.</param>
     public virtual void Poll(float delta) { }
 
+    /// <summary>
+    /// Called when the system default audio playback device may have changed.
+    /// Implementations may attempt to reopen on the new default device.
+    /// </summary>
+    public virtual void NotifyDefaultDeviceChanged() { }
+
     protected abstract void Dispose(bool disposing);
 
     private void Dispose()

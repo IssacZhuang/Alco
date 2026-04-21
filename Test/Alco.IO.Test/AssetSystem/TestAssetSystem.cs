@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
 using Alco.IO;
@@ -249,15 +250,14 @@ public class TestAssetSystem
         TestFastAsset[] fastAssets = new TestFastAsset[count];
         TestSlowAsset[] slowAssets = new TestSlowAsset[count];
 
-        Profiler profiler = new Profiler();
-
-        profiler.Start();
+        long startFast = Stopwatch.GetTimestamp();
         Parallel.For(0, count, i =>
         {
             fastAssets[i] = assetSystem.Load<TestFastAsset>("test.fast");
         });
-
-        TestContext.WriteLine($"Concurrent Load Time for fast asset: {profiler.End().Miliseconds}");
+        long elapsedFast = Stopwatch.GetTimestamp() - startFast;
+        double msFast = Math.Round(elapsedFast * (1000.0 / Stopwatch.Frequency), 3);
+        TestContext.WriteLine($"Concurrent Load Time for fast asset: {msFast}");
 
         TestFastAsset check = null;
         //all assets in the array should be the same
@@ -274,13 +274,14 @@ public class TestAssetSystem
         }
 
         
-        profiler.Start();
+        long startSlow = Stopwatch.GetTimestamp();
         Parallel.For(0, count, i =>
         {
             slowAssets[i] = assetSystem.Load<TestSlowAsset>("test.slow");
         });
-
-        TestContext.WriteLine($"Concurrent Load Time for slow asset: {profiler.End().Miliseconds}");
+        long elapsedSlow = Stopwatch.GetTimestamp() - startSlow;
+        double msSlow = Math.Round(elapsedSlow * (1000.0 / Stopwatch.Frequency), 3);
+        TestContext.WriteLine($"Concurrent Load Time for slow asset: {msSlow}");
 
         TestSlowAsset checkSlow = null;
         //all assets in the array should be the same

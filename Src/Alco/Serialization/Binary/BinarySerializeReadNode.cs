@@ -150,11 +150,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
         {
-
-            int i = 0;
-            try
+            for (int i = 0; i < array.Count; i++)
             {
-                for (i = 0; i < array.Count; i++)
+                try
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
@@ -165,10 +163,10 @@ public class BinarySerializeReadNode : SerializeReadNode
                         value.Add(item);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
+                }
             }
         }
     }
@@ -186,10 +184,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         value.Clear();
         if (_content.TryGetArray(key, out BinaryArray? array))
         {
-            int i = 0;
-            try
+            for (int i = 0; i < array.Count; i++)
             {
-                for (i = 0; i < array.Count; i++)
+                try
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
@@ -200,10 +197,10 @@ public class BinarySerializeReadNode : SerializeReadNode
                         value.Add(item);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
+                catch (Exception ex)
+                {
+                    AddError($"Failed to bind serializable list item at index {i} for key '{key}': {ex}");
+                }
             }
         }
     }

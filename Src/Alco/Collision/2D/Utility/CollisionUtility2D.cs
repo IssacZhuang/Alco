@@ -74,11 +74,11 @@ namespace Alco
             float b = 2.0f * math.dot(rayDisplacement, diff);
             float c = math.dot(diff, diff) - sphereRadius * sphereRadius;
             float discriminant = b * b - 4.0f * a * c;
+            // Ray origin is inside the sphere (c < 0).
+            // Consistent with RayBox: no hit when ray starts inside the shape.
             if (c < 0.0f)
             {
-                fraction = 0.0f;
-                normal = math.normalize(-rayDisplacement);
-                return true;
+                return false;
             }
             if (discriminant < 0.0f)
             {

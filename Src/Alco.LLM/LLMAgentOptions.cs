@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Microsoft.SemanticKernel;
 
 namespace Alco.LLM;
@@ -25,17 +26,25 @@ public record LLMAgentOptions
     public required string ModelId { get; init; }
 
     /// <summary>
-    /// Gets or initializes the list of plugin instances to add to the kernel.
+    /// Gets or initializes the list of tool types marked with <see cref="GameToolAttribute"/>
+    /// to register with the agent. These types' static methods are discovered.
     /// </summary>
-    public IList<object>? Plugins { get; init; }
+    public IList<Type>? ToolTypes { get; init; }
 
     /// <summary>
-    /// Gets or initializes the list of plugin types to add to the kernel.
+    /// Gets or initializes the list of tool instances whose instance and static methods
+    /// marked with <see cref="ToolFunctionAttribute"/> are registered with the agent.
     /// </summary>
-    public IList<Type>? PluginTypes { get; init; }
+    public IList<object>? ToolInstances { get; init; }
 
     /// <summary>
     /// Gets or initializes the optional function invocation filter.
     /// </summary>
     public IFunctionInvocationFilter? FunctionInvocationFilter { get; init; }
+
+    /// <summary>
+    /// Gets or initializes the JSON converters for tool parameter serialization and deserialization.
+    /// Pass <c>gameEngine.CreateDefaultJsonConverters()</c> for engine type compatibility.
+    /// </summary>
+    public IList<JsonConverter> JsonConverters { get; init; } = [];
 }

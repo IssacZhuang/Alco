@@ -55,7 +55,7 @@ public unsafe class Sdl3Platform : Platform
     public override void RunMainLoop(bool runOnce)
     {
         //init subsystem
-        SDL_Init(SDL_InitFlags.Joystick | SDL_InitFlags.Gamepad);
+        SDL_Init(SDL_InitFlags.Audio | SDL_InitFlags.Joystick | SDL_InitFlags.Gamepad);
         
         if(runOnce)
         {
@@ -195,6 +195,14 @@ public unsafe class Sdl3Platform : Platform
                 break;
             case SDL_EventType.GamepadAxisMotion:
                 _input.OnSdlGamepadAxisMotion(e.gaxis.which, (SDL_GamepadAxis)e.gaxis.axis, e.gaxis.value);
+                break;
+            case SDL_EventType.AudioDeviceAdded:
+                if (!e.adevice.recording)
+                    DoAudioDefaultDeviceChanged();
+                break;
+            case SDL_EventType.AudioDeviceRemoved:
+                if (!e.adevice.recording)
+                    DoAudioDefaultDeviceChanged();
                 break;
         }
     }

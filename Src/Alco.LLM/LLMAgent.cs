@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using ModelContextProtocol.Server;
@@ -11,14 +12,20 @@ namespace Alco.LLM;
 public class LLMAgent
 {
     private readonly Kernel _kernel;
+    private readonly GameToolBridge _bridge;
+    private readonly JsonSerializerOptions _jsonOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMAgent"/> class.
     /// </summary>
     /// <param name="kernel">The semantic kernel instance.</param>
-    public LLMAgent(Kernel kernel)
+    /// <param name="bridge">The game tool bridge managing tool registration.</param>
+    /// <param name="jsonOptions">The JSON serializer options for tool parameter handling.</param>
+    private LLMAgent(Kernel kernel, GameToolBridge bridge, JsonSerializerOptions jsonOptions)
     {
         _kernel = kernel;
+        _bridge = bridge;
+        _jsonOptions = jsonOptions;
     }
 
     /// <summary>
@@ -28,6 +35,16 @@ public class LLMAgent
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public static LLMAgent Create(LLMAgentOptions options)
     {
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
+
+        for (int i = 0; i < options.JsonConverters.Count; i++)
+        {
+            jsonOptions.Converters.Add(options.JsonConverters[i]);
+        }
+
         var builder = Kernel.CreateBuilder();
         builder.AddOpenAIChatCompletion(options.ModelId, options.Endpoint, options.ApiKey);
 
@@ -36,29 +53,12 @@ public class LLMAgent
             builder.Services.AddSingleton(options.FunctionInvocationFilter);
         }
 
-        if (options.Plugins != null)
-        {
-            for (int i = 0; i < options.Plugins.Count; i++)
-            {
-                builder.Plugins.AddFromObject(options.Plugins[i]);
-            }
-        }
-
-        if (options.PluginTypes != null)
-        {
-            for (int i = 0; i < options.PluginTypes.Count; i++)
-            {
-                var type = options.PluginTypes[i];
-                var instance = Activator.CreateInstance(type);
-                if (instance != null)
-                {
-                    builder.Plugins.AddFromObject(instance, type.Name);
-                }
-            }
-        }
+        builder.Services.AddSingleton(jsonOptions);
 
         var kernel = builder.Build();
-        return new LLMAgent(kernel);
+        var bridge = new GameToolBridge(kernel, options.ToolTypes ?? Array.Empty<Type>(), options.ToolInstances);
+
+        return new LLMAgent(kernel, bridge, jsonOptions);
     }
 
     /// <summary>
@@ -71,14 +71,18 @@ public class LLMAgent
         return new LLMSession(_kernel, config);
     }
 
-    public void PushToolToMcp(IMcpServerBuilder builder)
+    /// <summary>
+    /// Registers all tool functions with an MCP server builder.
+    /// Each function is wrapped to ensure invocations route through
+    /// the Semantic Kernel pipeline, preserving thread safety.
+    /// </summary>
+    /// <param name="builder">The MCP server builder to register tools with.</param>
+    public void RegisterToolsToMcp(IMcpServerBuilder builder)
     {
-        foreach (var plugin in _kernel.Plugins)
+        for (int i = 0; i < _bridge.Functions.Count; i++)
         {
-            foreach (var function in plugin)
-            {
-                builder.Services.AddSingleton(services => McpServerTool.Create(function));
-            }
+            var wrapper = new McpKernelFunctionWrapper(_bridge.Functions[i], _kernel, _jsonOptions);
+            builder.Services.AddSingleton(_ => McpServerTool.Create(wrapper));
         }
     }
 }

@@ -7,7 +7,6 @@ using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.LLM;
 using Alco.Rendering;
-using Microsoft.SemanticKernel;
 
 namespace _33_LLM;
 
@@ -167,7 +166,8 @@ public class Game : GameEngine
                              Endpoint = uri,
                              ApiKey = _apiKey,
                              ModelId = _modelId,
-                             Plugins = new[] { this }
+                             ToolInstances = new[] { this },
+                             JsonConverters = [..CreateDefaultJsonConverters()],
                          });
                     }
                     else
@@ -182,7 +182,8 @@ public class Game : GameEngine
                             Endpoint = new Uri("https://api.openai.com/v1"),
                             ApiKey = _apiKey,
                             ModelId = _modelId,
-                            Plugins = new[] { this }
+                            ToolInstances = new[] { this },
+                            JsonConverters = [..CreateDefaultJsonConverters()],
                         });
                     }
                     _llmSession = _llmAgent.CreateSession();
@@ -299,14 +300,14 @@ public class Game : GameEngine
         }
     }
 
-    [KernelFunction]
+    [ToolFunction]
     [Description("Get the list of cubes")]
     public string ListCube()
     {
         return string.Join(", ", _entities.Keys);
     }
 
-    [KernelFunction]
+    [ToolFunction]
     [Description("Set the color of a cube")]
     public string SetCubeColor(
         [Description("The name of the cube to set the color of")] string cubeName,
@@ -325,8 +326,7 @@ public class Game : GameEngine
         return $"Cube {cubeName} color set to {color}";
     }
 
-    [KernelFunction]
-    [AsyncKernelFunction]
+    [ToolFunction(AsyncSafe = true)]
     [Description("Asynchronously hello form")]
     public async Task<string> HelloFormAsync([Description("The name of the person")] string name)
     {
@@ -334,5 +334,3 @@ public class Game : GameEngine
         return $"Hello {name} from Async Form";
     }
 }
-
-

@@ -26,6 +26,8 @@ internal class OpenALSource : AudioSource
     private float _gain = 1f;
     private float _pitch = 1f;
     private float _rolloff = 1f;
+    private float _referenceDistance = 1f;
+    private float _maxDistance = float.MaxValue;
     private Vector3 _position = Vector3.Zero;
     private Vector3 _velocity = Vector3.Zero;
     private bool _isLooping = false;
@@ -82,6 +84,32 @@ internal class OpenALSource : AudioSource
             _rolloff = value;
             if (_sourceId != 0)
                 AL.SetSourceProperty(_sourceId, SourceFloat.RolloffFactor, value);
+        }
+    }
+
+    public override float ReferenceDistance
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _referenceDistance;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _referenceDistance = value;
+            if (_sourceId != 0)
+                AL.SetSourceProperty(_sourceId, SourceFloat.ReferenceDistance, value);
+        }
+    }
+
+    public override float MaxDistance
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _maxDistance;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set
+        {
+            _maxDistance = value;
+            if (_sourceId != 0)
+                AL.SetSourceProperty(_sourceId, SourceFloat.MaxDistance, value);
         }
     }
 
@@ -216,6 +244,8 @@ internal class OpenALSource : AudioSource
         UpdateHardwareGain();
         AL.SetSourceProperty(_sourceId, SourceFloat.Pitch, _pitch);
         AL.SetSourceProperty(_sourceId, SourceFloat.RolloffFactor, _rolloff);
+        AL.SetSourceProperty(_sourceId, SourceFloat.ReferenceDistance, _referenceDistance);
+        AL.SetSourceProperty(_sourceId, SourceFloat.MaxDistance, _maxDistance);
         AL.SetSourceProperty(_sourceId, SourceVector3.Position, new Vector3(_position.X, _position.Y, -_position.Z));
         AL.SetSourceProperty(_sourceId, SourceVector3.Velocity, new Vector3(_velocity.X, _velocity.Y, -_velocity.Z));
         AL.SetSourceProperty(_sourceId, SourceBoolean.Looping, _isLooping);

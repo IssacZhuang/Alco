@@ -5,7 +5,11 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Alco.IO;
 
-public class DirectoryWatcherFileSource : IFileSource
+/// <summary>
+/// A file source that watches a directory for file changes and provides file data.
+/// Automatically disposes the <see cref="FileSystemWatcher"/> via <see cref="AutoDisposable"/>.
+/// </summary>
+public class DirectoryWatcherFileSource : AutoDisposable, IFileSource
 {
     private readonly string _directoryPath;
     private readonly AssetSystem _assetSystem;
@@ -92,7 +96,7 @@ public class DirectoryWatcherFileSource : IFileSource
         return path.Replace('\\', '/');
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
         _watcher.Dispose();
     }

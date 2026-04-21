@@ -1,4 +1,3 @@
-using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 
@@ -7,7 +6,6 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         uint length = 1024 * 1024 * 50;
-        Profiler profiler = new Profiler();
 
         float[] data = new float[length];
         for (int i = 0; i < length; i++)

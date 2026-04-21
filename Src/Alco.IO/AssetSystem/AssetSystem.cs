@@ -11,8 +11,6 @@ namespace Alco.IO
     /// </summary> 
     public sealed partial class AssetSystem
     {
-        private readonly ThreadLocal<AssetProfiler> Profiler = new ThreadLocal<AssetProfiler>(() => new AssetProfiler());
-
         private const int FetchJobAttempCount = 20;
         private readonly ConcurrentDictionary<string, AssetHandle> _assetLookup = new ConcurrentDictionary<string, AssetHandle>();
         // key: extension, value: asset loader
@@ -52,9 +50,8 @@ namespace Alco.IO
 
         private void Dispose()
         {
-            RemoveAllFileSource();
-            Profiler.Dispose();
-
+            // Do not clear file sources here — pending async loads may still
+            // need them. Everything will be collected when this object is GC'd.
             _host.LogInfo("Asset system closed");
             _host.OnDispose -= Dispose;
 

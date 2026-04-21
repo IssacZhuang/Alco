@@ -88,6 +88,14 @@ public unsafe class Sdl3Input : Input
         _mousePosition = tmp;
         _lastMousePosition = _mousePosition;
         _mouseDelta = new Vector2(0, 0);
+
+        // Check if any gamepads are connected at startup
+        // If so, default to gamepad mode so UI navigation works immediately
+        ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
+        if (gamepads.Length > 0)
+        {
+            _isGamepadInputting = true;
+        }
     }
 
 

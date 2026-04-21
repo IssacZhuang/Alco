@@ -324,43 +324,57 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
 
     private void RefreshPage()
     {
-        foreach (var activeItem in _activeItems)
-        {
-            activeItem.Node.IsEnable = false;
-            activeItem.Node.IsLayoutAffected = false;
-            if (activeItem.Node.Parent == _container)
-            {
-                _container.Remove(activeItem.Node);
-            }
-            _itemPool.TryReturn(activeItem.Node);
-        }
-        _activeItems.Clear();
-
         int itemsPerPage = GetItemsPerPage();
+        int neededCount;
+        int startIndex;
+
         if (itemsPerPage <= 0 || _data.Count == 0)
         {
-            _isLayoutDirty = false;
-            return;
+            neededCount = 0;
+            startIndex = 0;
+        }
+        else
+        {
+            startIndex = _currentPage * itemsPerPage;
+            int endIndex = Math.Min(startIndex + itemsPerPage - 1, _data.Count - 1);
+            neededCount = endIndex - startIndex + 1;
         }
 
-        int startIndex = _currentPage * itemsPerPage;
-        int endIndex = Math.Min(startIndex + itemsPerPage - 1, _data.Count - 1);
+        // Return excess items to pool (remove from tail to preserve earlier items)
+        while (_activeItems.Count > neededCount)
+        {
+            int lastIdx = _activeItems.Count - 1;
+            var last = _activeItems[lastIdx];
+            last.Node.IsEnable = false;
+            last.Node.IsLayoutAffected = false;
+            if (last.Node.Parent == _container)
+            {
+                _container.Remove(last.Node);
+            }
+            _itemPool.TryReturn(last.Node);
+            _activeItems.RemoveAt(lastIdx);
+        }
 
-        for (int i = startIndex; i <= endIndex; i++)
+        // Get more items from pool if needed
+        while (_activeItems.Count < neededCount)
         {
             if (!_itemPool.TryGet(out UINode? node) || node == null) break;
-
-            node.Anchor = Anchor.Center;
-            node.Pivot = Pivot.Center;
-
-            var activeItem = new ActiveItem(node, i);
-            PositionItem(activeItem);
-            SetDataForItem(node, i, _data[i]);
 
             node.IsEnable = true;
             node.IsLayoutAffected = false;
             _container.Add(node, false);
-            _activeItems.Add(activeItem);
+            _activeItems.Add(new ActiveItem(node, 0));
+        }
+
+        // Update all active items with correct data and positions
+        for (int i = 0; i < _activeItems.Count; i++)
+        {
+            int dataIndex = startIndex + i;
+            var activeItem = new ActiveItem(_activeItems[i].Node, dataIndex);
+            _activeItems[i] = activeItem;
+
+            PositionItem(activeItem);
+            SetDataForItem(activeItem.Node, dataIndex, _data[dataIndex]);
         }
 
         _isLayoutDirty = false;
