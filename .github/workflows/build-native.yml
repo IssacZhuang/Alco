@@ -37,8 +37,10 @@ jobs:
       - name: Verify exports
         working-directory: Tool/NativeBuild
         run: |
-          $dll = "../../Src/Alco.ImGUI/runtimes/win-${{ matrix.arch }}/native/cimgui.dll"
-          $exports = dumpbin /exports $dll | Select-String "cimgui_set_error_callback"
+          $dll = Resolve-Path "../../Src/Alco.ImGUI/runtimes/win-${{ matrix.arch }}/native/cimgui.dll"
+          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vsPath\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          $exports = & $dumpbin.FullName /exports $dll | Select-String "cimgui_set_error_callback"
           if ($exports) { Write-Host "OK: cimgui_set_error_callback found" }
           else { Write-Error "MISSING: cimgui_set_error_callback not in exports"; exit 1 }
 
