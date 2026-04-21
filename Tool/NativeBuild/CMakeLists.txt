@@ -27,6 +27,7 @@ target_include_directories(cimguizmo PUBLIC
 )
 target_compile_definitions(cimguizmo PUBLIC
     IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
+    IMGUI_USER_CONFIG="../imconfig_alco.h"
 )
 if(WIN32)
     target_compile_definitions(cimguizmo PUBLIC IMGUI_IMPL_API=extern\t\"C\"\t__declspec\(dllexport\))
@@ -34,6 +35,10 @@ else()
     target_compile_definitions(cimguizmo PUBLIC IMGUI_IMPL_API=extern\t\"C\"\t)
 endif()
 set_target_properties(cimguizmo PROPERTIES PREFIX "")
+
+# Export all symbols from cimgui so cimguizmo can use ImGui C++ symbols
+set_target_properties(cimgui PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+target_link_libraries(cimguizmo cimgui)
 
 # Output to Alco.ImGUI runtimes directory
 set(OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../Src/Alco.ImGUI/runtimes/${TARGET_RID}/native)
