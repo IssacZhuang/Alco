@@ -45,6 +45,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
         ImGuizmo.SetImGuiContext(_imGuiContext);
+        ImGuiNative.InitializeErrorHandling();
 
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
 
