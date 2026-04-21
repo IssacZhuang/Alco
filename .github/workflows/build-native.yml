@@ -102,7 +102,9 @@ jobs:
       matrix:
         include:
           - arch: x64
+            cmake_arch: x86_64
           - arch: arm64
+            cmake_arch: arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -113,7 +115,7 @@ jobs:
           mkdir -p "build/$rid"
           cmake -S . -B "build/$rid" \
             -DTARGET_RID="$rid" \
-            -DCMAKE_OSX_ARCHITECTURES="${{ matrix.arch }}"
+            -DCMAKE_OSX_ARCHITECTURES="${{ matrix.cmake_arch }}"
           cmake --build "build/$rid" --config Release
 
       - name: Verify exports

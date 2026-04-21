@@ -26,7 +26,6 @@ target_include_directories(cimguizmo PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../../ThirdParty/cimgui/imgui
 )
 target_compile_definitions(cimguizmo PUBLIC
-    CIMGUI_DEFINE_ENUMS_AND_STRUCTS
     IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
 )
 if(WIN32)
