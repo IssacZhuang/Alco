@@ -5629,6 +5629,10 @@ CIMGUI_API void ImGuiPlatformIO_Set_Platform_GetWindowPos(ImGuiPlatformIO* platf
 CIMGUI_API void ImGuiPlatformIO_Set_Platform_GetWindowSize(ImGuiPlatformIO* platform_io, void(*user_callback)(ImGuiViewport* vp, ImVec2* out_size));
 #endif
 
+#ifndef CIMGUI_ERROR_CALLBACK_DEFINED
+typedef void (*CimguiErrorCallback)(const char* expr, const char* file, int line);
+#define CIMGUI_ERROR_CALLBACK_DEFINED
+#endif
 CIMGUI_API void cimgui_set_error_callback(CimguiErrorCallback callback);
 
 #endif //CIMGUI_INCLUDED

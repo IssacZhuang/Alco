@@ -3,7 +3,10 @@
 
 #include <cstdlib>
 
+#ifndef CIMGUI_ERROR_CALLBACK_DEFINED
 typedef void (*CimguiErrorCallback)(const char* expr, const char* file, int line);
+#define CIMGUI_ERROR_CALLBACK_DEFINED
+#endif
 extern CimguiErrorCallback g_errorCallback;
 
 #define IM_ASSERT(EXPR) do { \
