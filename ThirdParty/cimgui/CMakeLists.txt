@@ -48,10 +48,6 @@ if(IMGUI_WCHAR32)
 	target_compile_definitions(cimgui PUBLIC IMGUI_USE_WCHAR32)
 endif(IMGUI_WCHAR32)
 
-if(CIMGUI_VARGS0)
-	target_compile_definitions(cimgui PUBLIC CIMGUI_VARGS0)
-endif(CIMGUI_VARGS0)
-
 add_definitions("-DIMGUI_USER_CONFIG=\"../imconfig_alco.h\"")
 target_compile_definitions(cimgui PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1)
 if (WIN32)
