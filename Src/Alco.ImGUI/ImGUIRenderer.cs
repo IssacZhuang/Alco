@@ -30,9 +30,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private readonly HashSet<FontLanguage> _addedLanguages = new HashSet<FontLanguage>();
 
     private readonly List<Texture2D> _textures = new List<Texture2D>();
-    private ImGuiNative.ImGuiErrorRecoveryState _recoveryState;
-    private bool _recoveryStateStored;
-    private bool _frameValid;
 
     public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
     {
@@ -55,7 +52,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         ImGuiIOPtr io = ImGui.GetIO();
 
         io.ConfigErrorRecovery = true;
-        io.ConfigErrorRecoveryEnableAssert = true;
+        io.ConfigErrorRecoveryEnableAssert = false;
         io.ConfigErrorRecoveryEnableDebugLog = true;
         io.ConfigErrorRecoveryEnableTooltip = true;
 
@@ -106,48 +103,14 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         ImGuizmo.SetRect(0, 0, width, height);
 
-        _frameValid = true;
-        if (_recoveryStateStored)
-            RecoverState();
-
-        try
-        {
-            ImGui.NewFrame();
-            ImGui.ErrorRecoveryStoreState(ref _recoveryState);
-            _recoveryStateStored = true;
-            ImGuizmo.BeginFrame();
-        }
-        catch (Exception e)
-        {
-            Log.Error("[ImGUI] Error during NewFrame: ", e);
-            if (_recoveryStateStored)
-                RecoverState();
-            _frameValid = false;
-            return;
-        }
-
+        ImGui.NewFrame();
+        ImGuizmo.BeginFrame();
         _target = target;
     }
 
     public void End()
     {
-        if (!_frameValid)
-            return;
-
-        try
-        {
-            ImGui.Render();
-        }
-        catch (Exception e)
-        {
-            RecoverState();
-            Log.Error("[ImGUI] Error during Render: ", e);
-            _frameValid = false;
-            _target = null;
-            _textures.Clear();
-            return;
-        }
-
+        ImGui.Render();
         ImDrawDataPtr drawData = ImGui.GetDrawData();
 
         if (drawData.CmdListsCount <= 0)
@@ -331,14 +294,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
         }
 
         return false;
-    }
-
-    private void RecoverState()
-    {
-        ImGuiIOPtr io = ImGui.GetIO();
-        io.ConfigErrorRecoveryEnableAssert = false;
-        ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
-        io.ConfigErrorRecoveryEnableAssert = true;
     }
 
     protected override void Dispose(bool disposing)
