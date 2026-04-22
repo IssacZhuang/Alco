@@ -48,12 +48,10 @@ if(WIN32)
         ${IMGUI_DIR}/imgui_tables.cpp
     )
     target_include_directories(cimguizmo PRIVATE ${IMGUI_DIR})
-    # Provide g_errorCallback (defined in cimgui.cpp for the cimgui target)
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cimguizmo_globals.cpp
-        "#include \"imgui.h\"\n"
-        "CimguiErrorCallback g_errorCallback = nullptr;\n"
+    # Provide g_errorCallback (committed in cimguizmo_globals.cpp; see file for rationale)
+    target_sources(cimguizmo PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../ThirdParty/cimguizmo/cimguizmo_globals.cpp
     )
-    target_sources(cimguizmo PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/cimguizmo_globals.cpp)
 else()
     # On macOS/Linux, all symbols are exported from shared libraries by default
     target_link_libraries(cimguizmo cimgui)
