@@ -45,13 +45,14 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
         ImGuizmo.SetImGuiContext(_imGuiContext);
+        ImGuiNative.InitializeErrorHandling();
 
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
 
         ImGuiIOPtr io = ImGui.GetIO();
 
         io.ConfigErrorRecovery = true;
-        io.ConfigErrorRecoveryEnableAssert = true;
+        io.ConfigErrorRecoveryEnableAssert = false;
         io.ConfigErrorRecoveryEnableDebugLog = true;
         io.ConfigErrorRecoveryEnableTooltip = true;
 
@@ -139,20 +140,15 @@ public unsafe class ImGUIRenderer : AutoDisposable
             void* indexDataPtr = (void*)cmdList.IdxBuffer.Data;
             uint indexDataSize = (uint)(cmdList.IdxBuffer.Size * sizeof(ushort));
 
-            //the vertex buffer is always aligned to 4 bytes because ImDrawVert is 4 bytes aligned
             _mesh.UpdateVertexUnsafe(vertexDataPtr, vertexDataSize, vertexBufferOffset);
 
 
-            //_mesh.UpdateIndicesUnsafe(indexDataPtr, indexDataSize, indexBufferOffset);
-            //the offset of index buffer might not be memory aligned, so we need to copy the index data to a temporary buffer
-            //_mesh.UpdateIndicesUnsafe(_tmpIndexBuffer.UnsafePointer, indexDataSize, indexBufferOffset);
             MemoryUtility.MemCopy(indexDataPtr, tmpIndexBufferPtr + indexBufferOffset, indexDataSize);
 
             vertexBufferOffset += vertexDataSize;
             indexBufferOffset += indexDataSize;
         }
 
-        //update the index buffer
         _mesh.UpdateIndicesUnsafe(_tmpIndexBuffer.UnsafePointer, totalIndexBufferSize, 0);
 
         var io = ImGui.GetIO();
@@ -299,7 +295,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         return false;
     }
-
 
     protected override void Dispose(bool disposing)
     {

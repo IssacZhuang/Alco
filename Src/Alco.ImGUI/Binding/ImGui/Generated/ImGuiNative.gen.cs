@@ -1348,5 +1348,27 @@ namespace Alco.ImGUI
         public static extern Vector4* ImVec4_ImVec4_Nil();
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
         public static extern Vector4* ImVec4_ImVec4_Float(float _x, float _y, float _z, float _w);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct ImGuiErrorRecoveryState
+        {
+            public short SizeOfWindowStack;
+            public short SizeOfIDStack;
+            public short SizeOfTreeStack;
+            public short SizeOfColorStack;
+            public short SizeOfStyleVarStack;
+            public short SizeOfFontStack;
+            public short SizeOfFocusScopeStack;
+            public short SizeOfGroupStack;
+            public short SizeOfItemFlagsStack;
+            public short SizeOfBeginPopupStack;
+            public short SizeOfDisabledStack;
+        }
+
+        [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void igErrorRecoveryStoreState(ImGuiErrorRecoveryState* state);
+
+        [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void igErrorRecoveryTryToRecoverState(ImGuiErrorRecoveryState* state);
     }
 }
