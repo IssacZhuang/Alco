@@ -31,6 +31,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
     private readonly List<Texture2D> _textures = new List<Texture2D>();
     private ImGuiNative.ImGuiErrorRecoveryState _recoveryState;
+    private bool _recoveryStateStored;
     private bool _frameValid;
 
     public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
@@ -106,18 +107,21 @@ public unsafe class ImGUIRenderer : AutoDisposable
         ImGuizmo.SetRect(0, 0, width, height);
 
         _frameValid = true;
-        ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
+        if (_recoveryStateStored)
+            RecoverState();
 
         try
         {
             ImGui.NewFrame();
             ImGui.ErrorRecoveryStoreState(ref _recoveryState);
+            _recoveryStateStored = true;
             ImGuizmo.BeginFrame();
         }
         catch (Exception e)
         {
             Log.Error("[ImGUI] Error during NewFrame: ", e);
-            ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
+            if (_recoveryStateStored)
+                RecoverState();
             _frameValid = false;
             return;
         }
@@ -136,7 +140,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         }
         catch (Exception e)
         {
-            ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
+            RecoverState();
             Log.Error("[ImGUI] Error during Render: ", e);
             _frameValid = false;
             _target = null;
@@ -329,6 +333,13 @@ public unsafe class ImGUIRenderer : AutoDisposable
         return false;
     }
 
+    private void RecoverState()
+    {
+        ImGuiIOPtr io = ImGui.GetIO();
+        io.ConfigErrorRecoveryEnableAssert = false;
+        ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
+        io.ConfigErrorRecoveryEnableAssert = true;
+    }
 
     protected override void Dispose(bool disposing)
     {

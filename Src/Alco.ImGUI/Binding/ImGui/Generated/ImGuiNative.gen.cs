@@ -1366,9 +1366,9 @@ namespace Alco.ImGUI
         }
 
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void igErrorRecoveryStoreState(ref ImGuiErrorRecoveryState state);
+        public static extern void igErrorRecoveryStoreState(ImGuiErrorRecoveryState* state);
 
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void igErrorRecoveryTryToRecoverState(ref ImGuiErrorRecoveryState state);
+        public static extern void igErrorRecoveryTryToRecoverState(ImGuiErrorRecoveryState* state);
     }
 }

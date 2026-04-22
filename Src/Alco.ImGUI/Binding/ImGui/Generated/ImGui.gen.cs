@@ -28656,9 +28656,15 @@ namespace Alco.ImGUI
             return ret;
         }
         internal static void ErrorRecoveryStoreState(ref ImGuiNative.ImGuiErrorRecoveryState state)
-            => ImGuiNative.igErrorRecoveryStoreState(ref state);
+        {
+            fixed (ImGuiNative.ImGuiErrorRecoveryState* ptr = &state)
+                ImGuiNative.igErrorRecoveryStoreState(ptr);
+        }
 
         internal static void ErrorRecoveryTryToRecoverState(ref ImGuiNative.ImGuiErrorRecoveryState state)
-            => ImGuiNative.igErrorRecoveryTryToRecoverState(ref state);
+        {
+            fixed (ImGuiNative.ImGuiErrorRecoveryState* ptr = &state)
+                ImGuiNative.igErrorRecoveryTryToRecoverState(ptr);
+        }
     }
 }
