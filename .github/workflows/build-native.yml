@@ -47,7 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: win-${{ matrix.arch }}
-          path: Src/Alco.ImGUI/runtimes/win-${{ matrix.arch }}/native/
+          path: Src/Alco.ImGUI/runtimes/win-${{ matrix.arch }}/native/*.dll
 
   build-linux:
     runs-on: ubuntu-latest
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}
-          path: Src/Alco.ImGUI/runtimes/linux-${{ matrix.arch }}/native/
+          path: Src/Alco.ImGUI/runtimes/linux-${{ matrix.arch }}/native/*.so
 
   build-macos:
     runs-on: macos-latest
@@ -132,7 +132,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: osx-${{ matrix.arch }}
-          path: Src/Alco.ImGUI/runtimes/osx-${{ matrix.arch }}/native/
+          path: Src/Alco.ImGUI/runtimes/osx-${{ matrix.arch }}/native/*.dylib
 
   build-android:
     runs-on: ubuntu-latest
@@ -170,7 +170,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: android-${{ matrix.arch }}
-          path: Src/Alco.ImGUI/runtimes/android-${{ matrix.arch }}/native/
+          path: Src/Alco.ImGUI/runtimes/android-${{ matrix.arch }}/native/*.so
 
   commit-artifacts:
     needs: [build-windows, build-linux, build-macos, build-android]
