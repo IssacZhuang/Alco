@@ -1,15 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rm:*)",
-      "Bash(dotnet build)",
-      "Bash(dotnet build:*)",
-      "Bash(grep:*)",
-      "Bash(ren:*)",
-      "Bash(mv:*)",
-      "Bash(dotnet run:*)"
-    ],
-    "deny": [],
-    "ask": []
-  }
+      "Edit",
+      "Write",
+      "Read",
+      "Bash(*)",
+      "WebSearch"
+    ]
+  },
+  "enabledPlugins": {
+    "csharp-lsp@claude-plugins-official": true
+  },
+  "alwaysThinkingEnabled": true,
+  "defaultMode": "bypassPermissions"
 }
