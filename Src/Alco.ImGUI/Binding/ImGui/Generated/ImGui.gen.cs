@@ -28655,5 +28655,10 @@ namespace Alco.ImGUI
             IntPtr* ret = ImGuiNative.ImGuiFreeType_GetBuilderForFreeType();
             return ret;
         }
+        internal static void ErrorRecoveryStoreState(ref ImGuiNative.ImGuiErrorRecoveryState state)
+            => ImGuiNative.igErrorRecoveryStoreState(ref state);
+
+        internal static void ErrorRecoveryTryToRecoverState(ref ImGuiNative.ImGuiErrorRecoveryState state)
+            => ImGuiNative.igErrorRecoveryTryToRecoverState(ref state);
     }
 }
