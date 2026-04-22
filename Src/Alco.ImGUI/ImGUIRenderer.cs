@@ -30,6 +30,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private readonly HashSet<FontLanguage> _addedLanguages = new HashSet<FontLanguage>();
 
     private readonly List<Texture2D> _textures = new List<Texture2D>();
+    private ImGuiNative.ImGuiErrorRecoveryState _recoveryState;
+    private bool _frameValid;
 
     public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
     {
@@ -103,14 +105,45 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         ImGuizmo.SetRect(0, 0, width, height);
 
-        ImGui.NewFrame();
-        ImGuizmo.BeginFrame();
+        _frameValid = true;
+        ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
+
+        try
+        {
+            ImGui.NewFrame();
+            ImGui.ErrorRecoveryStoreState(ref _recoveryState);
+            ImGuizmo.BeginFrame();
+        }
+        catch (Exception e)
+        {
+            Log.Error("[ImGUI] Error during NewFrame: ", e);
+            ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
+            _frameValid = false;
+            return;
+        }
+
         _target = target;
     }
 
     public void End()
     {
-        ImGui.Render();
+        if (!_frameValid)
+            return;
+
+        try
+        {
+            ImGui.Render();
+        }
+        catch (Exception e)
+        {
+            ImGui.ErrorRecoveryTryToRecoverState(ref _recoveryState);
+            Log.Error("[ImGUI] Error during Render: ", e);
+            _frameValid = false;
+            _target = null;
+            _textures.Clear();
+            return;
+        }
+
         ImDrawDataPtr drawData = ImGui.GetDrawData();
 
         if (drawData.CmdListsCount <= 0)
@@ -140,20 +173,15 @@ public unsafe class ImGUIRenderer : AutoDisposable
             void* indexDataPtr = (void*)cmdList.IdxBuffer.Data;
             uint indexDataSize = (uint)(cmdList.IdxBuffer.Size * sizeof(ushort));
 
-            //the vertex buffer is always aligned to 4 bytes because ImDrawVert is 4 bytes aligned
             _mesh.UpdateVertexUnsafe(vertexDataPtr, vertexDataSize, vertexBufferOffset);
 
 
-            //_mesh.UpdateIndicesUnsafe(indexDataPtr, indexDataSize, indexBufferOffset);
-            //the offset of index buffer might not be memory aligned, so we need to copy the index data to a temporary buffer
-            //_mesh.UpdateIndicesUnsafe(_tmpIndexBuffer.UnsafePointer, indexDataSize, indexBufferOffset);
             MemoryUtility.MemCopy(indexDataPtr, tmpIndexBufferPtr + indexBufferOffset, indexDataSize);
 
             vertexBufferOffset += vertexDataSize;
             indexBufferOffset += indexDataSize;
         }
 
-        //update the index buffer
         _mesh.UpdateIndicesUnsafe(_tmpIndexBuffer.UnsafePointer, totalIndexBufferSize, 0);
 
         var io = ImGui.GetIO();
