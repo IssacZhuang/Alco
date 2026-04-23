@@ -1,30 +1,30 @@
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 #pragma warning disable 1591
 
 /// <summary> The denormal type DXC should use </summary>
-public enum DenormalType { Any, Preserve, Ftz }
+internal enum DenormalType { Any, Preserve, Ftz }
 
 /// <summary> HLSL language versions consumed by DXC </summary>
-public enum LanguageVersion { _2016, _2017, _2018, _2021 }
+internal enum LanguageVersion { _2016, _2017, _2018, _2021 }
 
 /// <summary> Library linkage type </summary>
-public enum Linkage { Internal, External }
+internal enum Linkage { Internal, External }
 
 /// <summary> How DXC should handle flow control constructs </summary>
-public enum FlowControlMode { Avoid, Prefer }
+internal enum FlowControlMode { Avoid, Prefer }
 
 /// <summary> The debug info output type </summary>
-public enum DebugInfoType { Normal, Slim }
+internal enum DebugInfoType { Normal, Slim }
 
 /// <summary> Shader optimization level </summary>
-public enum OptimizationLevel { O0, O1, O2, O3 }
+internal enum OptimizationLevel { O0, O1, O2, O3 }
 
 /// <summary> How DXC should pack shader matrices </summary>
-public enum MatrixPackMode { ColumnMajor, RowMajor }
+internal enum MatrixPackMode { ColumnMajor, RowMajor }
 
 /// <summary> How shaders should compute their signing hash </summary>
-public enum HashComputationMode { FromSource, FromBinaryOnly }
+internal enum HashComputationMode { FromSource, FromBinaryOnly }
 
 #pragma warning restore 1591
 
@@ -36,12 +36,12 @@ public enum HashComputationMode { FromSource, FromBinaryOnly }
 /// This class is primarily a wrapper around native DXC command line arguments, 
 /// and therefore does not perform validation of certain input combinations that could break DXC and cause a segmentation fault.
 /// </remarks>
-public partial class CompilerOptions
-{   
+internal partial class CompilerOptions
+{
     /// <summary>
     /// Creates a new CompilerOptions instance with a given profile
     /// </summary>
-    public CompilerOptions(ShaderProfile profile)
+    internal CompilerOptions(ShaderProfile profile)
     {
         this.profile = profile;
     }

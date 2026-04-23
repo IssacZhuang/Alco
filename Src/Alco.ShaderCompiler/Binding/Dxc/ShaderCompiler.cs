@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 /// <summary>
 /// A delegate for shader header inclusion.
@@ -14,7 +14,7 @@ public delegate string FileIncludeHandler(string includeName);
 /// <summary>
 /// A static class that allows accessing shader compilation functionality found in the DirectXShaderCompiler.
 /// </summary>
-public static class ShaderCompiler
+internal static class ShaderCompiler
 {
     private static readonly DxcCompiler3 s_compiler;
     private static readonly DxcUtils s_utils;

@@ -1,6 +1,6 @@
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
-public partial class CompilerOptions
+internal partial class CompilerOptions
 {   
     /// <summary> Load a binary file rather than compiling </summary>
     [CompilerOption(name:"-dumpbin")]

@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
-using DirectXShaderCompiler.NET;
 using Alco.Graphics;
 using Alco.ShaderCompiler;
 

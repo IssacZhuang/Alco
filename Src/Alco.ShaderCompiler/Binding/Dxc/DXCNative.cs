@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct DxcBuffer

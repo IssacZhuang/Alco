@@ -1,7 +1,7 @@
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 
-public partial class CompilerOptions
+internal partial class CompilerOptions
 {   
     /// <summary> Collect all global constants outside cbuffer declarations into cbuffer GlobalCB { ... }. Still experimental, not all dependency scenarios handled. </summary>
     [CompilerOption(name:"-decl-global-cb")]

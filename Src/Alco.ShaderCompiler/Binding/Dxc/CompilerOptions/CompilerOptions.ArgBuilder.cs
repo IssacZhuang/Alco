@@ -1,8 +1,8 @@
 using System.Reflection;
 
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
-public partial class CompilerOptions
+internal partial class CompilerOptions
 {
     private enum AssignmentType { Equals, Spaced }
 

@@ -1,13 +1,13 @@
 using System.Linq;
 
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 #pragma warning disable 1591
 
 /// <summary>
 /// The shader program types that DXC can consume
 /// </summary>
-public enum ShaderType : ushort
+internal enum ShaderType : ushort
 {
     Fragment = 100,
     Vertex = 200,
@@ -23,7 +23,7 @@ public enum ShaderType : ushort
 /// <summary>
 /// The shader profile for DXC to consume
 /// </summary>
-public enum ShaderProfile : ushort
+internal enum ShaderProfile : ushort
 {
     Fragment_6_0 = ShaderType.Fragment + 60, 
     Fragment_6_1 = ShaderType.Fragment + 61, 
@@ -106,7 +106,7 @@ public enum ShaderProfile : ushort
 }
 
 
-public static class ShaderProfileExtensions
+internal static class ShaderProfileExtensions
 {  
     private static readonly Dictionary<ushort, ShaderProfile> profileValues = Enum.GetValues<ShaderProfile>().ToDictionary(s => (ushort)s);
 
