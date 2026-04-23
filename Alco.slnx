@@ -67,6 +67,7 @@
     <Project Path="Test/Alco.Rendering.Test/Alco.Rendering.Test.csproj" />
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
     <Project Path="Test/TestFramework/TestFramework.csproj" />
+    <Project Path="Test/Alco.ShaderCompiler.Test/Alco.ShaderCompiler.Test.csproj" />
   </Folder>
   <Folder Name="/Tool/">
     <Project Path="Tool/MsdfFontGenerator.Desktop/MsdfFontGenerator.Desktop.csproj" />
