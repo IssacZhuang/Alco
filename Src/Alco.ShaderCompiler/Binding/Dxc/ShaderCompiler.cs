@@ -11,56 +11,20 @@ namespace DirectXShaderCompiler.NET;
 public delegate string FileIncludeHandler(string includeName);
 
 /// <summary>
-/// A static class that allows accessing shader compilation functionality found in the DirectXShaderCompiler. 
+/// A static class that allows accessing shader compilation functionality found in the DirectXShaderCompiler.
 /// </summary>
 public static class ShaderCompiler
 {
-    private static readonly unsafe NativeDxcCompiler* nativeCompiler = DXCNative.DxcInitialize();
+    private static readonly DxcCompiler3 s_compiler;
+    private static readonly DxcUtils s_utils;
 
-    private static readonly unsafe void* includePtr = (void*)Marshal.GetFunctionPointerForDelegate<NativeDxcIncludeFunction>(Include);
-    private static unsafe NativeDxcIncludeResult* Include(IntPtr nativeContext, byte* headerUtf8)
+    // Shared vtable for all include handler COM callbacks
+    private static unsafe IntPtr* s_includeHandlerVtable;
+
+    static ShaderCompiler()
     {
-        if (nativeContext == IntPtr.Zero)
-            return null;
-
-        string? headerName = Marshal.PtrToStringUTF8((IntPtr)headerUtf8);
-
-        if (headerName != null)
-        {
-            FileIncludeHandler handler = Marshal.GetDelegateForFunctionPointer<FileIncludeHandler>(nativeContext);
-            string includeFile = handler.Invoke(headerName);
-
-            NativeDxcIncludeResult includeResult = new NativeDxcIncludeResult
-            {
-                header_data = NativeStringUtility.GetUTF8Ptr(includeFile, out uint len, false),
-                header_length = len
-            };
-
-            return (NativeDxcIncludeResult*)AllocStruct(includeResult);
-        }
-
-        return null;
-    }
-
-    private static readonly unsafe void* freeIncludePtr = (void*)Marshal.GetFunctionPointerForDelegate<NativeDxcFreeIncludeFunction>(FreeInclude);
-    private static unsafe int FreeInclude(IntPtr nativeContext, NativeDxcIncludeResult* includeResult)
-    {
-        if (includeResult == null)
-            return 0;
-
-        NativeDxcIncludeResult result = Marshal.PtrToStructure<NativeDxcIncludeResult>((IntPtr)includeResult);
-
-        Marshal.FreeHGlobal((IntPtr)result.header_data);
-        Marshal.FreeHGlobal((IntPtr)includeResult);
-
-        return 0;
-    }
-
-    private static unsafe IntPtr AllocStruct<T>(T type) where T : struct
-    {
-        IntPtr memPtr = Marshal.AllocHGlobal(Marshal.SizeOf<T>());
-        Marshal.StructureToPtr(type, memPtr, false);
-        return memPtr;
+        s_utils = new DxcUtils(DXCNative.CreateInstance(DxcGuids.CLSID_DxcUtils, DxcGuids.IID_IDxcUtils));
+        s_compiler = new DxcCompiler3(DXCNative.CreateInstance(DxcGuids.CLSID_DxcCompiler, DxcGuids.IID_IDxcCompiler3));
     }
 
     /// <summary>
@@ -83,100 +47,183 @@ public static class ShaderCompiler
     /// <param name="compilerArgs">The array of string arguments to compile the shader with.</param>
     /// <param name="includeHandler">The include handler to use for header inclusion.</param>
     /// <returns>A CompilationResult structure containing the resulting bytecode and possible errors.</returns>
-    public static CompilationResult Compile(string code, string[] compilerArgs, FileIncludeHandler? includeHandler = null)
+    public static unsafe CompilationResult Compile(string code, string[] compilerArgs, FileIncludeHandler? includeHandler = null)
     {
-        byte[] codeUtf8 = NativeStringUtility.GetUTF8Bytes(code, true);
-        byte[][] argsUtf8 = new byte[compilerArgs.Length][];
-
-        for (int i = 0; i < compilerArgs.Length; i++)
-            argsUtf8[i] = NativeStringUtility.GetUTF8Bytes(compilerArgs[i], true);
-
-        return Compile(codeUtf8, argsUtf8, includeHandler);
-    }
-
-    /// <summary>
-    /// Compiles a string of shader code.
-    /// </summary>
-    /// <param name="code">The code string to compile.</param>
-    /// <param name="compilerArgs">The array of string arguments to compile the shader with.</param>
-    /// <param name="includeHandler">The include handler to use for header inclusion.</param>
-    /// <returns>A CompilationResult structure containing the resulting bytecode and possible errors.</returns>
-    public unsafe static CompilationResult Compile(byte[] code, byte[][] compilerArgs, FileIncludeHandler? includeHandler = null)
-    {   
-        GCHandle codePinned = GCHandle.Alloc(code, GCHandleType.Pinned);
-
-        Span<GCHandle> argsHandles = stackalloc GCHandle[compilerArgs.Length];
-        byte** argsUtf8 = stackalloc byte*[compilerArgs.Length];
-
-        for (int i = 0; i < compilerArgs.Length; i++)
+        IntPtr sourcePtr = Marshal.StringToHGlobalAnsi(code);
+        DxcBuffer buffer = new()
         {
-            argsHandles[i] = GCHandle.Alloc(compilerArgs[i], GCHandleType.Pinned);
-            argsUtf8[i] = (byte*)argsHandles[i].AddrOfPinnedObject();
-        }
-
-        NativeDxcIncludeCallbacks* callbacks = stackalloc NativeDxcIncludeCallbacks[1];
-
-        if (includeHandler != null)
-            callbacks->include_ctx = (void*)Marshal.GetFunctionPointerForDelegate(includeHandler);
-        else
-            callbacks->include_ctx = null;
-
-        callbacks->include_func = includePtr;
-        callbacks->free_func = freeIncludePtr;
-
-        NativeDxcCompileOptions* options = stackalloc NativeDxcCompileOptions[1];
-
-        options->code = (byte*)codePinned.AddrOfPinnedObject();
-        options->code_len = (nuint)code.Length;
-        options->args = argsUtf8;
-        options->args_len = (nuint)compilerArgs.Length;
-
-        if(includeHandler != null)
-            options->include_callbacks = callbacks;
-
-        CompilationResult result = GetResult(DXCNative.DxcCompile(nativeCompiler, options));
-
-        codePinned.Free();
-
-        for (int i = 0; i < compilerArgs.Length; i++)
-            argsHandles[i].Free();
-
-        return result;
-    }
-
-    private static unsafe CompilationResult GetResult(NativeDxcCompileResult* resultPtr)
-    {
-        NativeDxcCompileError* errorPtr = DXCNative.DxcCompileResultGetError(resultPtr);
-
-        byte[] objectBytes = [];
-        string? compilationErrors = null;
-
-        if (errorPtr != null)
-        {
-            byte* errorStringPtr = DXCNative.DxcCompileErrorGetString(errorPtr);
-            nuint errorStringLen = DXCNative.DxcCompileErrorGetStringLength(errorPtr);
-
-            compilationErrors = Marshal.PtrToStringUTF8((IntPtr)errorStringPtr, (int)errorStringLen);
-            DXCNative.DxcCompileErrorRelease(errorPtr);
-        }
-        else
-        {
-            NativeDxcCompileObject* objectPtr = DXCNative.DxcCompileResultGetObject(resultPtr);
-            byte* objectBytesPtr = DXCNative.DxcCompileObjectGetBytes(objectPtr);
-            nuint objectBytesLen = DXCNative.DxcCompileObjectGetBytesLength(objectPtr);
-
-            objectBytes = new byte[(int)objectBytesLen];
-            Marshal.Copy((IntPtr)objectBytesPtr, objectBytes, 0, (int)objectBytesLen);
-
-            DXCNative.DxcCompileObjectRelease(objectPtr);
-        }
-
-        DXCNative.DxcCompileResultRelease(resultPtr);
-
-        return new CompilationResult()
-        {
-            objectBytes = objectBytes,
-            compilationErrors = compilationErrors
+            Ptr = sourcePtr,
+            Size = (nuint)code.Length,
+            Encoding = DxcGuids.DXC_CP_ACP
         };
+
+        Utf16PinnedStringArray argsArray = default;
+        IntPtr includeHandlerPtr = IntPtr.Zero;
+        GCHandle includeHandlerGc = default;
+
+        try
+        {
+            if (compilerArgs.Length > 0)
+                argsArray = new Utf16PinnedStringArray(compilerArgs);
+
+            if (includeHandler != null)
+            {
+                includeHandlerPtr = CreateIncludeHandler(includeHandler, out includeHandlerGc);
+            }
+
+            int hr = s_compiler.Compile(
+                ref buffer,
+                argsArray.Handle,
+                (uint)compilerArgs.Length,
+                includeHandlerPtr,
+                DxcGuids.IID_IDxcResult,
+                out IntPtr resultPtr);
+
+            if (hr < 0)
+            {
+                return new CompilationResult
+                {
+                    objectBytes = [],
+                    compilationErrors = $"DXC compilation failed with HRESULT 0x{hr:X8}"
+                };
+            }
+
+            return ExtractResult(resultPtr);
+        }
+        finally
+        {
+            if (sourcePtr != IntPtr.Zero)
+                Marshal.FreeHGlobal(sourcePtr);
+            argsArray.Release();
+            if (includeHandlerPtr != IntPtr.Zero)
+                FreeIncludeHandler(includeHandlerPtr, includeHandlerGc);
+        }
     }
+
+    private static unsafe CompilationResult ExtractResult(IntPtr resultPtr)
+    {
+        var result = new DxcResult(resultPtr);
+
+        try
+        {
+            byte[] objectBytes = [];
+            string? compilationErrors = null;
+
+            if (result.HasOutput(DxcOutKind.Errors))
+            {
+                IntPtr errorsPtr = result.GetOutput(DxcOutKind.Errors, DxcGuids.IID_IDxcBlobUtf8);
+                if (errorsPtr != IntPtr.Zero)
+                {
+                    var errorsBlob = new DxcBlobUtf8(errorsPtr);
+                    compilationErrors = errorsBlob.GetString();
+                    errorsBlob.Release();
+                }
+            }
+            else if (result.HasOutput(DxcOutKind.Object))
+            {
+                IntPtr blobPtr = result.GetOutput(DxcOutKind.Object, DxcGuids.IID_IDxcBlobUtf8);
+                if (blobPtr != IntPtr.Zero)
+                {
+                    var blob = new DxcBlob(blobPtr);
+                    objectBytes = blob.ToArray();
+                    blob.Release();
+                }
+            }
+
+            return new CompilationResult
+            {
+                objectBytes = objectBytes,
+                compilationErrors = compilationErrors
+            };
+        }
+        finally
+        {
+            result.Release();
+        }
+    }
+
+    #region IDxcIncludeHandler COM Callback
+
+    private static unsafe IntPtr CreateIncludeHandler(FileIncludeHandler handler, out GCHandle gcHandle)
+    {
+        IntPtr* vtable = GetOrCreateIncludeHandlerVtable();
+
+        // Allocate COM object: [vtable_ptr] [gc_handle]
+        IntPtr* comObject = (IntPtr*)NativeMemory.Alloc(2, (nuint)IntPtr.Size);
+        comObject[0] = (IntPtr)vtable;
+        gcHandle = GCHandle.Alloc(handler);
+        comObject[1] = GCHandle.ToIntPtr(gcHandle);
+
+        return (IntPtr)comObject;
+    }
+
+    private static unsafe void FreeIncludeHandler(IntPtr comObjectPtr, GCHandle gcHandle)
+    {
+        if (gcHandle.IsAllocated)
+            gcHandle.Free();
+        NativeMemory.Free((void*)comObjectPtr);
+    }
+
+    private static unsafe IntPtr* GetOrCreateIncludeHandlerVtable()
+    {
+        if (s_includeHandlerVtable != null)
+            return s_includeHandlerVtable;
+
+        s_includeHandlerVtable = (IntPtr*)NativeMemory.Alloc(4, (nuint)IntPtr.Size);
+        s_includeHandlerVtable[0] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int>)&IncludeHandler_QI;
+        s_includeHandlerVtable[1] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint>)&IncludeHandler_AddRef;
+        s_includeHandlerVtable[2] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint>)&IncludeHandler_Release;
+        s_includeHandlerVtable[3] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr*, int>)&IncludeHandler_LoadSource;
+        return s_includeHandlerVtable;
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static int IncludeHandler_QI(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
+    {
+        *ppvObject = thisPtr;
+        return 0; // S_OK
+    }
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint IncludeHandler_AddRef(IntPtr thisPtr) => 2;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static uint IncludeHandler_Release(IntPtr thisPtr) => 1;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+    private static unsafe int IncludeHandler_LoadSource(IntPtr thisPtr, IntPtr filename, IntPtr* ppIncludeSource)
+    {
+        try
+        {
+            *ppIncludeSource = IntPtr.Zero;
+
+            if (filename == IntPtr.Zero)
+                return unchecked((int)0x80070057); // E_INVALIDARG
+
+            // Extract the managed delegate from the COM object context
+            IntPtr* comObj = (IntPtr*)thisPtr;
+            GCHandle handle = GCHandle.FromIntPtr(comObj[1]);
+            FileIncludeHandler handler = (FileIncludeHandler)handle.Target!;
+
+            string filenameStr = Marshal.PtrToStringUni(filename)!;
+            string content = handler(filenameStr);
+
+            // Create an IDxcBlob via IDxcUtils::CreateBlob (copies the data)
+            IntPtr contentPtr = Marshal.StringToHGlobalAnsi(content);
+            try
+            {
+                return s_utils.CreateBlob(contentPtr, (uint)content.Length, DxcGuids.DXC_CP_ACP, out *ppIncludeSource);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(contentPtr);
+            }
+        }
+        catch
+        {
+            return unchecked((int)0x80004005); // E_FAIL
+        }
+    }
+
+    #endregion
 }
