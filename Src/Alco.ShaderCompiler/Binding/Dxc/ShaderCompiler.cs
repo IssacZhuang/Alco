@@ -82,7 +82,7 @@ public static class ShaderCompiler
                 DxcGuids.IID_IDxcResult,
                 out IntPtr resultPtr);
 
-            if (hr < 0)
+            if (hr < 0 && resultPtr == IntPtr.Zero)
             {
                 return new CompilationResult
                 {
