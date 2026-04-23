@@ -115,14 +115,16 @@ public static class ShaderCompiler
                 if (errorsPtr != IntPtr.Zero)
                 {
                     var errorsBlob = new DxcBlobUtf8(errorsPtr);
-                    compilationErrors = errorsBlob.GetString();
+                    string errors = errorsBlob.GetString();
                     errorsBlob.Release();
+                    if (errors.Length > 0)
+                        compilationErrors = errors;
                 }
             }
 
             if (result.HasOutput(DxcOutKind.Object))
             {
-                IntPtr blobPtr = result.GetOutput(DxcOutKind.Object, DxcGuids.IID_IDxcBlobUtf8);
+                IntPtr blobPtr = result.GetOutput(DxcOutKind.Object, DxcGuids.IID_IDxcBlob);
                 if (blobPtr != IntPtr.Zero)
                 {
                     var blob = new DxcBlob(blobPtr);
@@ -179,7 +181,7 @@ public static class ShaderCompiler
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
-    private static int IncludeHandler_QI(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
+    private static unsafe int IncludeHandler_QI(IntPtr thisPtr, Guid* riid, IntPtr* ppvObject)
     {
         *ppvObject = thisPtr;
         return 0; // S_OK

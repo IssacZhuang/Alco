@@ -25,6 +25,7 @@ internal static class DxcGuids
     public static readonly Guid IID_IDxcCompiler3 = new("228B4687-5A6A-4730-900C-9702B2203F54");
     public static readonly Guid IID_IDxcResult = new("58346CDA-DDE7-4497-9461-6F87AF5E0659");
     public static readonly Guid IID_IDxcBlobUtf8 = new("3DA636C9-BA71-4024-A301-30CBF125305B");
+    public static readonly Guid IID_IDxcBlob = new("8BA5FB08-5195-40e2-AC58-0D989C3A0102");
     public static readonly Guid IID_IDxcUtils = new("4605C4CB-2019-492A-ADA4-65F20BB7D67F");
 
     public const uint DXC_CP_ACP = 0;
@@ -192,9 +193,11 @@ internal sealed class DxcUtils
     /// </summary>
     public unsafe int CreateBlob(IntPtr data, uint size, uint codePage, out IntPtr blobEncoding)
     {
-        blobEncoding = IntPtr.Zero;
-        return ((delegate* unmanaged[Stdcall]<IntPtr, void*, uint, uint, void*, int>)Com.Vcall(NativePointer, 6))(
-            NativePointer, (void*)data, size, codePage, &blobEncoding);
+        IntPtr result_ = IntPtr.Zero;
+        int hr = ((delegate* unmanaged[Stdcall]<IntPtr, void*, uint, uint, void*, int>)Com.Vcall(NativePointer, 6))(
+            NativePointer, (void*)data, size, codePage, &result_);
+        blobEncoding = result_;
+        return hr;
     }
 
     public void Release() => Com.Release(NativePointer);
