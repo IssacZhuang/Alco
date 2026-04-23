@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace DirectXShaderCompiler.NET;
 
@@ -49,12 +50,14 @@ public static class ShaderCompiler
     /// <returns>A CompilationResult structure containing the resulting bytecode and possible errors.</returns>
     public static unsafe CompilationResult Compile(string code, string[] compilerArgs, FileIncludeHandler? includeHandler = null)
     {
-        IntPtr sourcePtr = Marshal.StringToHGlobalAnsi(code);
+        byte[] sourceBytes = Encoding.UTF8.GetBytes(code);
+        IntPtr sourcePtr = Marshal.AllocHGlobal(sourceBytes.Length);
+        Marshal.Copy(sourceBytes, 0, sourcePtr, sourceBytes.Length);
         DxcBuffer buffer = new()
         {
             Ptr = sourcePtr,
-            Size = (nuint)code.Length,
-            Encoding = DxcGuids.DXC_CP_ACP
+            Size = (nuint)sourceBytes.Length,
+            Encoding = DxcGuids.DXC_CP_UTF8
         };
 
         Utf16PinnedStringArray argsArray = default;
@@ -212,10 +215,12 @@ public static class ShaderCompiler
             string content = handler(filenameStr);
 
             // Create an IDxcBlob via IDxcUtils::CreateBlob (copies the data)
-            IntPtr contentPtr = Marshal.StringToHGlobalAnsi(content);
+            byte[] contentBytes = Encoding.UTF8.GetBytes(content);
+            IntPtr contentPtr = Marshal.AllocHGlobal(contentBytes.Length);
+            Marshal.Copy(contentBytes, 0, contentPtr, contentBytes.Length);
             try
             {
-                return s_utils.CreateBlob(contentPtr, (uint)content.Length, DxcGuids.DXC_CP_ACP, out *ppIncludeSource);
+                return s_utils.CreateBlob(contentPtr, (uint)contentBytes.Length, DxcGuids.DXC_CP_UTF8, out *ppIncludeSource);
             }
             finally
             {

@@ -29,6 +29,7 @@ internal static class DxcGuids
     public static readonly Guid IID_IDxcUtils = new("4605C4CB-2019-492A-ADA4-65F20BB7D67F");
 
     public const uint DXC_CP_ACP = 0;
+    public const uint DXC_CP_UTF8 = 65001;
 }
 
 internal static class DXCNative
