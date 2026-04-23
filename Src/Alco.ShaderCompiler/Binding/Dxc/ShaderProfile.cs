@@ -34,6 +34,7 @@ internal enum ShaderProfile : ushort
     Fragment_6_6 = ShaderType.Fragment + 66, 
     Fragment_6_7 = ShaderType.Fragment + 67,
     Fragment_6_8 = ShaderType.Fragment + 68,
+    Fragment_6_9 = ShaderType.Fragment + 69,
 
     Vertex_6_0 = ShaderType.Vertex + 60,
     Vertex_6_1 = ShaderType.Vertex + 61,
@@ -44,6 +45,7 @@ internal enum ShaderProfile : ushort
     Vertex_6_6 = ShaderType.Vertex + 66, 
     Vertex_6_7 = ShaderType.Vertex + 67,
     Vertex_6_8 = ShaderType.Vertex + 68,
+    Vertex_6_9 = ShaderType.Vertex + 69,
 
     Geometry_6_0 = ShaderType.Geometry + 60,
     Geometry_6_1 = ShaderType.Geometry + 61,
@@ -54,7 +56,8 @@ internal enum ShaderProfile : ushort
     Geometry_6_6 = ShaderType.Geometry + 66, 
     Geometry_6_7 = ShaderType.Geometry + 67,
     Geometry_6_8 = ShaderType.Geometry + 68,
-    
+    Geometry_6_9 = ShaderType.Geometry + 69,
+
     Hull_6_0 = ShaderType.Hull + 60,
     Hull_6_1 = ShaderType.Hull + 61,
     Hull_6_2 = ShaderType.Hull + 62,
@@ -64,7 +67,8 @@ internal enum ShaderProfile : ushort
     Hull_6_6 = ShaderType.Hull + 66, 
     Hull_6_7 = ShaderType.Hull + 67,
     Hull_6_8 = ShaderType.Hull + 68,
-    
+    Hull_6_9 = ShaderType.Hull + 69,
+
     Domain_6_0 = ShaderType.Domain + 60,
     Domain_6_1 = ShaderType.Domain + 61,
     Domain_6_2 = ShaderType.Domain + 62,
@@ -74,7 +78,8 @@ internal enum ShaderProfile : ushort
     Domain_6_6 = ShaderType.Domain + 66, 
     Domain_6_7 = ShaderType.Domain + 67,
     Domain_6_8 = ShaderType.Domain + 68,
-    
+    Domain_6_9 = ShaderType.Domain + 69,
+
     Compute_6_0 = ShaderType.Compute + 60,
     Compute_6_1 = ShaderType.Compute + 61,
     Compute_6_2 = ShaderType.Compute + 62,
@@ -84,7 +89,8 @@ internal enum ShaderProfile : ushort
     Compute_6_6 = ShaderType.Compute + 66, 
     Compute_6_7 = ShaderType.Compute + 67,
     Compute_6_8 = ShaderType.Compute + 68,
-    
+    Compute_6_9 = ShaderType.Compute + 69,
+
     Library_6_1 = ShaderType.Library + 61,
     Library_6_2 = ShaderType.Library + 62,
     Library_6_3 = ShaderType.Library + 63,
@@ -93,16 +99,19 @@ internal enum ShaderProfile : ushort
     Library_6_6 = ShaderType.Library + 66, 
     Library_6_7 = ShaderType.Library + 67,
     Library_6_8 = ShaderType.Library + 68,
+    Library_6_9 = ShaderType.Library + 69,
 
     Mesh_6_5 = ShaderType.Mesh + 65,
     Mesh_6_6 = ShaderType.Mesh + 66,
     Mesh_6_7 = ShaderType.Mesh + 67,
     Mesh_6_8 = ShaderType.Mesh + 68,
+    Mesh_6_9 = ShaderType.Mesh + 69,
 
     Amplification_6_5 = ShaderType.Amplification + 65,
     Amplification_6_6 = ShaderType.Amplification + 66, 
     Amplification_6_7 = ShaderType.Amplification + 67,
     Amplification_6_8 = ShaderType.Amplification + 68,
+    Amplification_6_9 = ShaderType.Amplification + 69,
 }
 
 

@@ -6,7 +6,7 @@ namespace Alco.ShaderCompiler;
 internal enum DenormalType { Any, Preserve, Ftz }
 
 /// <summary> HLSL language versions consumed by DXC </summary>
-internal enum LanguageVersion { _2016, _2017, _2018, _2021 }
+internal enum LanguageVersion { _2016, _2017, _2018, _2021, _202x }
 
 /// <summary> Library linkage type </summary>
 internal enum Linkage { Internal, External }
