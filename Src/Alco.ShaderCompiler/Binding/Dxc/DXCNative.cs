@@ -82,9 +82,12 @@ internal sealed class DxcBlob
     {
         unsafe
         {
+            IntPtr bufferPtr = GetBufferPointer();
             nuint size = GetBufferSize();
+            if (bufferPtr == IntPtr.Zero || size == 0)
+                return [];
             byte[] result = new byte[(int)size];
-            Marshal.Copy(GetBufferPointer(), result, 0, (int)size);
+            Marshal.Copy(bufferPtr, result, 0, (int)size);
             return result;
         }
     }
