@@ -205,31 +205,47 @@ internal sealed class DxcUtils
 }
 
 /// <summary>
-/// Pins an array of strings as wchar_t** (UTF-16) for passing to IDxcCompiler3.Compile.
+/// Pins an array of strings as wchar_t** for passing to IDxcCompiler3.Compile.
+/// On Windows, wchar_t is 2 bytes (UTF-16). On Linux/macOS, wchar_t is 4 bytes (UTF-32).
 /// </summary>
-internal unsafe ref struct Utf16PinnedStringArray
+internal unsafe ref struct DxcPinnedStringArray
 {
     private readonly IntPtr* _handle;
     public readonly int Length;
 
-    public Utf16PinnedStringArray(string[] strings)
+    public DxcPinnedStringArray(string[] strings)
     {
         Length = strings.Length;
         _handle = (IntPtr*)NativeMemory.Alloc((nuint)(Length * IntPtr.Size));
 
         for (int i = 0; i < Length; i++)
         {
-            int charCount = strings[i].Length;
-            uint byteCount = (uint)((charCount + 1) * sizeof(char));
-            char* dst = (char*)NativeMemory.Alloc(byteCount);
+            _handle[i] = AllocateWcharString(strings[i]);
+        }
+    }
 
-            if (charCount > 0)
+    private static IntPtr AllocateWcharString(string s)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            int byteCount = (s.Length + 1) * sizeof(char);
+            char* dst = (char*)NativeMemory.Alloc((nuint)byteCount);
+            if (s.Length > 0)
             {
-                fixed (char* src = strings[i])
-                    Unsafe.CopyBlock(dst, src, (uint)(charCount * sizeof(char)));
+                fixed (char* src = s)
+                    Unsafe.CopyBlock(dst, src, (uint)(s.Length * sizeof(char)));
             }
-            dst[charCount] = '\0';
-            _handle[i] = (IntPtr)dst;
+            dst[s.Length] = '\0';
+            return (IntPtr)dst;
+        }
+        else
+        {
+            // UTF-32: each char is 4 bytes
+            uint* dst = (uint*)NativeMemory.Alloc((nuint)((s.Length + 1) * sizeof(uint)));
+            for (int j = 0; j < s.Length; j++)
+                dst[j] = s[j];
+            dst[s.Length] = 0;
+            return (IntPtr)dst;
         }
     }
 

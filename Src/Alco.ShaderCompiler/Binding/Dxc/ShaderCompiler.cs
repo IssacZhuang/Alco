@@ -60,14 +60,14 @@ public static class ShaderCompiler
             Encoding = DxcGuids.DXC_CP_UTF8
         };
 
-        Utf16PinnedStringArray argsArray = default;
+        DxcPinnedStringArray argsArray = default;
         IntPtr includeHandlerPtr = IntPtr.Zero;
         GCHandle includeHandlerGc = default;
 
         try
         {
             if (compilerArgs.Length > 0)
-                argsArray = new Utf16PinnedStringArray(compilerArgs);
+                argsArray = new DxcPinnedStringArray(compilerArgs);
 
             if (includeHandler != null)
             {
@@ -211,7 +211,7 @@ public static class ShaderCompiler
             GCHandle handle = GCHandle.FromIntPtr(comObj[1]);
             FileIncludeHandler handler = (FileIncludeHandler)handle.Target!;
 
-            string filenameStr = Marshal.PtrToStringUni(filename)!;
+            string filenameStr = PtrToStringWChar(filename)!;
             string content = handler(filenameStr);
 
             // Create an IDxcBlob via IDxcUtils::CreateBlob (copies the data)
@@ -234,4 +234,28 @@ public static class ShaderCompiler
     }
 
     #endregion
+
+    /// <summary>
+    /// Reads a null-terminated wchar_t* string. UTF-16 on Windows, UTF-32 on Linux/macOS.
+    /// </summary>
+    private static unsafe string? PtrToStringWChar(IntPtr ptr)
+    {
+        if (ptr == IntPtr.Zero) return null;
+
+        if (OperatingSystem.IsWindows())
+        {
+            return Marshal.PtrToStringUni(ptr);
+        }
+        else
+        {
+            // wchar_t is 4 bytes (UTF-32) on Linux/macOS
+            uint* p = (uint*)ptr;
+            int len = 0;
+            while (p[len] != 0) len++;
+            char* chars = stackalloc char[len];
+            for (int i = 0; i < len; i++)
+                chars[i] = (char)p[i];
+            return new string(chars, 0, len);
+        }
+    }
 }
