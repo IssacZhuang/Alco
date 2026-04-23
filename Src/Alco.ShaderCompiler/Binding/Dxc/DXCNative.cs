@@ -136,6 +136,8 @@ internal sealed class DxcResult
         // IDxcResult::GetOutput(DxcOutKind, REFIID, void**, IDxcBlobWide**)
         ((delegate* unmanaged[Stdcall]<IntPtr, int, void*, void*, void*, int>)Com.Vcall(NativePointer, 7))(
             NativePointer, (int)kind, &iid, &outputPtr, &outputName);
+        if (outputName != IntPtr.Zero)
+            Com.Release(outputName);
         return outputPtr;
     }
 
