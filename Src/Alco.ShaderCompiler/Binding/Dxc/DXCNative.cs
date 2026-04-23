@@ -102,7 +102,7 @@ internal sealed class DxcBlobUtf8
     public unsafe string GetString()
     {
         IntPtr ptr = ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr>)Com.Vcall(NativePointer, 6))(NativePointer);
-        return Marshal.PtrToStringAnsi(ptr)!;
+        return Marshal.PtrToStringUTF8(ptr)!;
     }
 
     public void Release() => Com.Release(NativePointer);

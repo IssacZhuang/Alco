@@ -119,7 +119,8 @@ public static class ShaderCompiler
                     errorsBlob.Release();
                 }
             }
-            else if (result.HasOutput(DxcOutKind.Object))
+
+            if (result.HasOutput(DxcOutKind.Object))
             {
                 IntPtr blobPtr = result.GetOutput(DxcOutKind.Object, DxcGuids.IID_IDxcBlobUtf8);
                 if (blobPtr != IntPtr.Zero)
