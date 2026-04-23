@@ -3,244 +3,237 @@ using System.Runtime.InteropServices;
 
 namespace DirectXShaderCompiler.NET;
 
-
 [StructLayout(LayoutKind.Sequential)]
-internal struct NativeDxcCompiler { }
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct NativeDxcCompileResult { }
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct NativeDxcCompileError { }
-
-[StructLayout(LayoutKind.Sequential)]
-internal struct NativeDxcCompileObject { }
-
-
-[StructLayout(LayoutKind.Sequential)]
-internal unsafe struct NativeDxcIncludeResult
+internal struct DxcBuffer
 {
-    internal byte* header_data;
-    internal nuint header_length;
+    public IntPtr Ptr;
+    public nuint Size;
+    public uint Encoding;
 }
 
-internal unsafe delegate NativeDxcIncludeResult* NativeDxcIncludeFunction(IntPtr context, byte* headerNameUtf8); 
-internal unsafe delegate int NativeDxcFreeIncludeFunction(IntPtr context, NativeDxcIncludeResult* includeResult);
-
-
-[StructLayout(LayoutKind.Sequential)]
-internal unsafe struct NativeDxcIncludeCallbacks {
-    internal void* include_ctx;
-    internal void* include_func;
-    internal void* free_func;
-}
-
-
-[StructLayout(LayoutKind.Sequential)]
-internal unsafe struct NativeDxcCompileOptions {
-    // Required
-    internal byte* code; // utf-8 string pointer
-    internal nuint code_len;
-    internal byte** args; // Array of utf-8 string pointers
-    internal nuint args_len;
-
-    // Optional
-    internal NativeDxcIncludeCallbacks* include_callbacks; // nullable
-}
-
-
-internal static partial class DXCNative
+internal enum DxcOutKind
 {
-    const string LibName = "dxcompiler";
+    None = 0,
+    Object = 1,
+    Errors = 2,
+}
 
-    /*
+internal static class DxcGuids
+{
+    public static readonly Guid CLSID_DxcCompiler = new("73e22d93-e6ce-47f3-b5bf-f0664f39c1b0");
+    public static readonly Guid CLSID_DxcUtils = new("6245d6af-66e0-48fd-80b4-4d271796748c");
+    public static readonly Guid IID_IDxcCompiler3 = new("228B4687-5A6A-4730-900C-9702B2203F54");
+    public static readonly Guid IID_IDxcResult = new("58346CDA-DDE7-4497-9461-6F87AF5E0659");
+    public static readonly Guid IID_IDxcBlobUtf8 = new("3DA636C9-BA71-4024-A301-30CBF125305B");
+    public static readonly Guid IID_IDxcUtils = new("4605C4CB-2019-492A-ADA4-65F20BB7D67F");
 
-    internal struct PlatformInfo
+    public const uint DXC_CP_ACP = 0;
+}
+
+internal static class DXCNative
+{
+    [DllImport("dxcompiler", EntryPoint = "DxcCreateInstance", CallingConvention = CallingConvention.StdCall)]
+    private static unsafe extern int DxcCreateInstance_(void* rclsid, void* riid, void* ppv);
+
+    /// <summary>
+    /// Creates a COM object instance via DXC's DxcCreateInstance factory.
+    /// </summary>
+    public static unsafe IntPtr CreateInstance(Guid clsid, Guid iid)
     {
-        internal OSPlatform platform;
-        internal Architecture architecture;
-    
-        internal PlatformInfo(OSPlatform platform, Architecture architecture)
+        IntPtr ptr;
+        int hr = DxcCreateInstance_(&clsid, &iid, &ptr);
+        if (hr < 0)
+            throw new COMException($"DxcCreateInstance failed for {clsid}", hr);
+        return ptr;
+    }
+}
+
+internal static class Com
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static unsafe IntPtr Vcall(IntPtr nativePtr, int index) => (*(IntPtr**)nativePtr)[index];
+
+    public static unsafe void Release(IntPtr nativePtr)
+    {
+        ((delegate* unmanaged[Stdcall]<IntPtr, uint>)Vcall(nativePtr, 2))(nativePtr);
+    }
+}
+
+/// <summary>
+/// IDxcBlob COM wrapper — provides access to compiled shader bytecode.
+/// </summary>
+internal sealed class DxcBlob
+{
+    public IntPtr NativePointer { get; }
+    public DxcBlob(IntPtr nativePointer) => NativePointer = nativePointer;
+
+    /// <summary>Gets a pointer to the blob data.</summary>
+    public unsafe IntPtr GetBufferPointer() =>
+        ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr>)Com.Vcall(NativePointer, 3))(NativePointer);
+
+    /// <summary>Gets the size of the blob data in bytes.</summary>
+    public unsafe nuint GetBufferSize() =>
+        ((delegate* unmanaged[Stdcall]<IntPtr, nuint>)Com.Vcall(NativePointer, 4))(NativePointer);
+
+    /// <summary>Copies the blob data to a managed byte array.</summary>
+    public byte[] ToArray()
+    {
+        unsafe
         {
-            this.platform = platform;
-            this.architecture = architecture;
-        }
-    
-        internal static OSPlatform GetPlatform()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return OSPlatform.OSX;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) 
-                return OSPlatform.Linux;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
-                return OSPlatform.Windows;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD))
-                return OSPlatform.FreeBSD;
-            throw new Exception("Cannot determine operating system.");
-        }
-    
-        internal static PlatformInfo GetCurrentPlatform()
-        {
-            return new PlatformInfo(GetPlatform(), RuntimeInformation.ProcessArchitecture);
-        }
-    
-        public override readonly string ToString()
-        {
-            return $"({platform}, {architecture})";
+            nuint size = GetBufferSize();
+            byte[] result = new byte[(int)size];
+            Marshal.Copy(GetBufferPointer(), result, 0, (int)size);
+            return result;
         }
     }
 
-    const string WinLib = LibName + ".dll";
-    const string OSXLib = "lib" + LibName + ".dylib";
-    const string LinuxLib = "lib" + LibName + ".so";
+    public void Release() => Com.Release(NativePointer);
+}
 
-    private static string CreateLibPath(string platform) => Path.Combine("runtimes", platform, "native");
+/// <summary>
+/// IDxcBlobUtf8 COM wrapper — provides access to UTF-8 error strings.
+/// </summary>
+internal sealed class DxcBlobUtf8
+{
+    public IntPtr NativePointer { get; }
+    public DxcBlobUtf8(IntPtr nativePointer) => NativePointer = nativePointer;
 
-    private static readonly Dictionary<PlatformInfo, (string, string)> LibraryPathDict = new()
+    /// <summary>Gets the error string content.</summary>
+    public unsafe string GetString()
     {
-        { new PlatformInfo(OSPlatform.Windows, Architecture.X64), (CreateLibPath("win-x64"), WinLib) },
-        { new PlatformInfo(OSPlatform.Windows, Architecture.Arm64), (CreateLibPath("win-arm64"), WinLib) },
-
-        { new PlatformInfo(OSPlatform.OSX, Architecture.X64), (CreateLibPath("osx-x64"), OSXLib) },
-        { new PlatformInfo(OSPlatform.OSX, Architecture.Arm64), (CreateLibPath("osx-arm64"), OSXLib) },
-
-        { new PlatformInfo(OSPlatform.Linux, Architecture.X64), (CreateLibPath("linux-x64"), LinuxLib) },
-        { new PlatformInfo(OSPlatform.Linux, Architecture.Arm64), (CreateLibPath("linux-arm64"), LinuxLib) },
-    };
-
-
-    private static bool _assembliesResolved;
-    private static string[]? additionalSearchPaths;
-
-
-    internal static void ResolveAssemblies(string[]? additionalSearchPaths)
-    {
-        if (_assembliesResolved)
-            return;
-
-        DXCNative.additionalSearchPaths = additionalSearchPaths;
-
-        //NativeLibrary.SetDllImportResolver(Assembly.GetExecutingAssembly(), DllImportResolver);
-
-        _assembliesResolved = true;
+        IntPtr ptr = ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr>)Com.Vcall(NativePointer, 6))(NativePointer);
+        return Marshal.PtrToStringAnsi(ptr)!;
     }
 
-    private static IntPtr DllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    public void Release() => Com.Release(NativePointer);
+}
+
+/// <summary>
+/// IDxcResult COM wrapper — provides access to compilation outputs.
+/// </summary>
+/// <remarks>
+/// Vtable layout (inherits IDxcOperationResult which inherits IUnknown):
+/// [0] QI, [1] AddRef, [2] Release, [3] GetStatus, [4] GetResult, [5] GetErrorBuffer,
+/// [6] HasOutput, [7] GetOutput
+/// </remarks>
+internal sealed class DxcResult
+{
+    public IntPtr NativePointer { get; }
+    public DxcResult(IntPtr nativePointer) => NativePointer = nativePointer;
+
+    /// <summary>Checks whether a specific output kind is available.</summary>
+    public unsafe bool HasOutput(DxcOutKind kind)
     {
-        if (libraryName != LibName)
-            return IntPtr.Zero;
+        int result = ((delegate* unmanaged[Stdcall]<IntPtr, int, int>)Com.Vcall(NativePointer, 6))(NativePointer, (int)kind);
+        return result != 0;
+    }
 
-        PlatformInfo platform = PlatformInfo.GetCurrentPlatform();
+    /// <summary>Gets an output by kind and IID. Returns the raw native pointer.</summary>
+    public unsafe IntPtr GetOutput(DxcOutKind kind, Guid iid)
+    {
+        IntPtr outputPtr = IntPtr.Zero;
+        IntPtr outputName = IntPtr.Zero;
+        // IDxcResult::GetOutput(DxcOutKind, REFIID, void**, IDxcBlobWide**)
+        ((delegate* unmanaged[Stdcall]<IntPtr, int, void*, void*, void*, int>)Com.Vcall(NativePointer, 7))(
+            NativePointer, (int)kind, &iid, &outputPtr, &outputName);
+        return outputPtr;
+    }
 
-        (string, string) libraryPath = LibraryPathDict[platform];
+    public void Release() => Com.Release(NativePointer);
+}
 
-        string applicationPath = AppContext.BaseDirectory;
-        string assemblyPath = Path.GetDirectoryName(assembly.Location) ?? applicationPath;
+/// <summary>
+/// IDxcCompiler3 COM wrapper — the main shader compilation interface.
+/// </summary>
+/// <remarks>
+/// Vtable layout (inherits IUnknown): [0] QI, [1] AddRef, [2] Release, [3] Compile, [4] Disassemble
+/// </remarks>
+internal sealed class DxcCompiler3
+{
+    public IntPtr NativePointer { get; }
+    public DxcCompiler3(IntPtr nativePointer) => NativePointer = nativePointer;
 
-        List<string> searchPaths = new()
+    /// <summary>
+    /// Compiles shader source with the given arguments.
+    /// </summary>
+    public unsafe int Compile(ref DxcBuffer source, IntPtr arguments, uint argCount, IntPtr includeHandler, Guid riid, out IntPtr result)
+    {
+        fixed (void* resultPtr = &result)
+        fixed (void* sourcePtr = &source)
         {
-            // Possible library locations in release build
-            applicationPath, // App path
-            assemblyPath,    // Assembly path
+            return ((delegate* unmanaged[Stdcall]<IntPtr, void*, void*, uint, void*, void*, void*, int>)Com.Vcall(NativePointer, 3))(
+                NativePointer, sourcePtr, (void*)arguments, argCount, (void*)includeHandler, &riid, resultPtr);
+        }
+    }
 
-            // Possible library locations in debug build
-            Path.Join(applicationPath, libraryPath.Item1), 
-            Path.Join(assemblyPath, libraryPath.Item1),  
-        };
-        
-        // Add other possible library paths
-        if (additionalSearchPaths != null)
+    public void Release() => Com.Release(NativePointer);
+}
+
+/// <summary>
+/// IDxcUtils COM wrapper — utility methods for blob creation.
+/// </summary>
+/// <remarks>
+/// Vtable layout (inherits IUnknown):
+/// [0] QI, [1] AddRef, [2] Release,
+/// [3] CreateBlobFromBlob, [4] CreateBlobFromPinned, [5] MoveToBlob,
+/// [6] CreateBlob, [7] LoadFile, [8] CreateReadOnlyStreamFromBlob,
+/// [9] CreateDefaultIncludeHandler, ...
+/// </remarks>
+internal sealed class DxcUtils
+{
+    public IntPtr NativePointer { get; }
+    public DxcUtils(IntPtr nativePointer) => NativePointer = nativePointer;
+
+    /// <summary>
+    /// Creates a blob from a copy of the given data.
+    /// IDxcUtils::CreateBlob(data, size, codePage, out IDxcBlobEncoding)
+    /// </summary>
+    public unsafe int CreateBlob(IntPtr data, uint size, uint codePage, out IntPtr blobEncoding)
+    {
+        blobEncoding = IntPtr.Zero;
+        return ((delegate* unmanaged[Stdcall]<IntPtr, void*, uint, uint, void*, int>)Com.Vcall(NativePointer, 6))(
+            NativePointer, (void*)data, size, codePage, &blobEncoding);
+    }
+
+    public void Release() => Com.Release(NativePointer);
+}
+
+/// <summary>
+/// Pins an array of strings as wchar_t** (UTF-16) for passing to IDxcCompiler3.Compile.
+/// </summary>
+internal unsafe ref struct Utf16PinnedStringArray
+{
+    private readonly IntPtr* _handle;
+    public readonly int Length;
+
+    public Utf16PinnedStringArray(string[] strings)
+    {
+        Length = strings.Length;
+        _handle = (IntPtr*)NativeMemory.Alloc((nuint)(Length * IntPtr.Size));
+
+        for (int i = 0; i < Length; i++)
         {
-            foreach (string path in additionalSearchPaths)
+            int charCount = strings[i].Length;
+            uint byteCount = (uint)((charCount + 1) * sizeof(char));
+            char* dst = (char*)NativeMemory.Alloc(byteCount);
+
+            if (charCount > 0)
             {
-                // Root path, no need to combine
-                if (Path.IsPathRooted(path))
-                {
-                    searchPaths.Add(path);
-                }
-                else
-                {
-                    // Add possible application and assembly paths.
-                    searchPaths.Add(Path.Join(applicationPath, path));
-                    searchPaths.Add(Path.Join(assemblyPath, path));
-                }
+                fixed (char* src = strings[i])
+                    Unsafe.CopyBlock(dst, src, (uint)(charCount * sizeof(char)));
             }
+            dst[charCount] = '\0';
+            _handle[i] = (IntPtr)dst;
         }
-
-        string bestPath = "/"; 
-        foreach (string path in searchPaths)
-        {
-            string filePath = Path.Join(path, libraryPath.Item2);
-
-            if (File.Exists(filePath))
-                bestPath = filePath;
-        }
-
-        return NativeLibrary.Load(bestPath, assembly, DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.ApplicationDirectory);
     }
-    */
 
-// -----------------
-// NativeDxcCompiler
-// -----------------
+    public IntPtr Handle => (IntPtr)_handle;
 
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial NativeDxcCompiler* DxcInitialize();
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial void DxcFinalize(NativeDxcCompiler* compilerPtr);
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial NativeDxcCompileResult* DxcCompile(NativeDxcCompiler* compilerPtr, NativeDxcCompileOptions* compileOptions);
-
-// ----------------------
-// NativeDxcCompileResult
-// ----------------------
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial NativeDxcCompileError* DxcCompileResultGetError(NativeDxcCompileResult* resultPtr);
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial NativeDxcCompileObject* DxcCompileResultGetObject(NativeDxcCompileResult* resultPtr);
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial void DxcCompileResultRelease(NativeDxcCompileResult* resultPtr);
-
-// ----------------------
-// NativeDxcCompileObject
-// ----------------------
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial byte* DxcCompileObjectGetBytes(NativeDxcCompileObject* objectPtr);
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial nuint DxcCompileObjectGetBytesLength(NativeDxcCompileObject* objectPtr);
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial void DxcCompileObjectRelease(NativeDxcCompileObject* objectPtr);
-
-// ---------------------
-// NativeDxcCompileError
-// ---------------------
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial byte* DxcCompileErrorGetString(NativeDxcCompileError* errorPtr);
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial nuint DxcCompileErrorGetStringLength(NativeDxcCompileError* errorPtr);
-
-    [LibraryImport(LibName)]
-    [UnmanagedCallConv(CallConvs = [ typeof(CallConvCdecl) ] )]
-    unsafe internal static partial void DxcCompileErrorRelease(NativeDxcCompileError* errorPtr);
+    public void Release()
+    {
+        if (Length == 0) return;
+        for (int i = 0; i < Length; i++)
+            NativeMemory.Free((void*)_handle[i]);
+        NativeMemory.Free(_handle);
+    }
 }
