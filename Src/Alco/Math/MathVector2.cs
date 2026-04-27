@@ -109,6 +109,14 @@ namespace Alco
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector2 moveTowards(Vector2 current, Vector2 target, float maxDistanceDelta)
+        {
+            Vector2 delta = target - current;
+            float dist = delta.Length();
+            return dist <= maxDistanceDelta ? target : current + delta / dist * maxDistanceDelta;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 acos(Vector2 a)
         {
             return new Vector2(acos(a.X), acos(a.Y));
