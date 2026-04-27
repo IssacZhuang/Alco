@@ -27,6 +27,7 @@ public unsafe class Sdl3Input : Input
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
     private Vector2 _mouseWheelDelta;
+    private Vector2 _warpDelta;
 
     private readonly List<Sdl3Gamepad> _gamepads = new();
     private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
@@ -45,6 +46,14 @@ public unsafe class Sdl3Input : Input
             _ = SDL_WarpMouseGlobal((int)value.X, (int)value.Y);
             _mousePosition = value;
         }
+    }
+
+    /// <inheritdoc />
+    public override void WarpMousePreservingDelta(Vector2 globalPosition)
+    {
+        _warpDelta += globalPosition - _mousePosition;
+        _ = SDL_WarpMouseGlobal((int)globalPosition.X, (int)globalPosition.Y);
+        _mousePosition = globalPosition;
     }
 
     /// <inheritdoc />
@@ -104,7 +113,8 @@ public unsafe class Sdl3Input : Input
         Vector2 tmp = default;
         SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
         _mousePosition = tmp;
-        _mouseDelta = _mousePosition - _lastMousePosition;
+        _mouseDelta = _mousePosition - _lastMousePosition - _warpDelta;
+        _warpDelta = Vector2.Zero;
         _lastMousePosition = _mousePosition;
         Reset();
 
