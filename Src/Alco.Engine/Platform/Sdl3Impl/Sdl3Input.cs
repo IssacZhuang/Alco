@@ -51,9 +51,13 @@ public unsafe class Sdl3Input : Input
     /// <inheritdoc />
     public override void WarpMousePreservingDelta(Vector2 globalPosition)
     {
-        _warpDelta += globalPosition - _mousePosition;
+        // SDL_WarpMouseGlobal truncates to integers, so we must track the
+        // actual (truncated) position to keep MouseDelta accurate.
+        // Otherwise sub-pixel warps create a feedback loop that cancels the displacement.
+        Vector2 actual = new Vector2((int)globalPosition.X, (int)globalPosition.Y);
+        _warpDelta += actual - _mousePosition;
         _ = SDL_WarpMouseGlobal((int)globalPosition.X, (int)globalPosition.Y);
-        _mousePosition = globalPosition;
+        _mousePosition = actual;
     }
 
     /// <inheritdoc />
