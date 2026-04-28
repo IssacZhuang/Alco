@@ -55,7 +55,12 @@ public unsafe class Sdl3Input : Input
         // actual (truncated) position to keep MouseDelta accurate.
         // Otherwise sub-pixel warps create a feedback loop that cancels the displacement.
         Vector2 actual = new Vector2((int)globalPosition.X, (int)globalPosition.Y);
-        _warpDelta += actual - _mousePosition;
+        // Read the CURRENT cursor position — _mousePosition may be stale because
+        // Update() runs after the game logic that calls this method.
+        // Using the stale value would absorb the user's mouse movement into _warpDelta.
+        Vector2 currentPos = default;
+        SDL_GetGlobalMouseState(&currentPos.X, &currentPos.Y);
+        _warpDelta += actual - currentPos;
         _ = SDL_WarpMouseGlobal((int)globalPosition.X, (int)globalPosition.Y);
         _mousePosition = actual;
     }
