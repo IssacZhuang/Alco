@@ -87,8 +87,6 @@ public partial class Canvas : AutoDisposable
     private UINode? _selected;
     private ITextInput? _textInput;
     private Vector2 _lastCursorPosition;
-    private int _version;
-    private int _lastHoverVersion;
     private InputState _mouseLeftState;
     private InputState _confirmState;
     private InputState _keyBackspaceState;
@@ -190,12 +188,6 @@ public partial class Canvas : AutoDisposable
             }
         }
     }
-
-    /// <summary>
-    /// Increments the canvas version to signal that the UI tree structure has changed.
-    /// Triggers hover recalculation on the next HandleInput call, bypassing the gamepad cursor-movement gate.
-    /// </summary>
-    public void IncrementVersion() { unchecked { _version++; } }
 
     /// <summary>
     /// The sound player used to play UI sounds.
@@ -570,8 +562,7 @@ public partial class Canvas : AutoDisposable
         CursorPosition = mouseWorldPosition;
 
         UINode? selectable = null;
-        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved || _version != _lastHoverVersion;
-        _lastHoverVersion = _version;
+        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved;
         if (shouldUpdateHover)
         {
             _hitNodes.Clear();

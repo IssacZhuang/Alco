@@ -604,7 +604,6 @@ public class UINode : IEnumerable<UINode>
 
     private static void AttachToTreeCore(Canvas canvas, UINode node)
     {
-        canvas.IncrementVersion();
         try
         {
             node.OnAttachToTree(canvas);
@@ -623,7 +622,6 @@ public class UINode : IEnumerable<UINode>
 
     private static void DetachFromTreeCore(Canvas canvas, UINode node)
     {
-        canvas.IncrementVersion();
         // Clear canvas references to this node to prevent stale references
         canvas.ClearNodeReference(node);
 
