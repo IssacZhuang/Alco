@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
+using Alco.Engine;
 
 namespace Alco.LLM;
 
@@ -131,11 +132,25 @@ public sealed class ToolRegistry
         var properties = new JsonObject();
         var required = new JsonArray();
 
+        var exporterOptions = new JsonSchemaExporterOptions
+        {
+            TransformSchemaNode = (context, schema) =>
+            {
+                if (schema.GetValueKind() == JsonValueKind.True
+                    && jsonOptions.GetConverter(context.TypeInfo.Type) is IJsonSchemaProvider provider)
+                {
+                    return provider.GetSchema().DeepClone();
+                }
+
+                return schema;
+            },
+        };
+
         foreach (var param in method.GetParameters())
         {
             var paramSchema = param.ParameterType != null
-                ? JsonSchemaExporter.GetJsonSchemaAsNode(jsonOptions, param.ParameterType)
-                : JsonSchemaExporter.GetJsonSchemaAsNode(jsonOptions, typeof(string));
+                ? JsonSchemaExporter.GetJsonSchemaAsNode(jsonOptions, param.ParameterType, exporterOptions)
+                : JsonSchemaExporter.GetJsonSchemaAsNode(jsonOptions, typeof(string), exporterOptions);
 
             if (paramSchema is JsonObject obj && !string.IsNullOrEmpty(param.Name))
             {

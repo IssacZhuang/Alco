@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Alco.Engine;
 
@@ -7,9 +8,13 @@ namespace Alco.Engine;
 /// JSON converter for Alco.uint4 type.
 /// Serializes uint4 as a JSON object of four unsigned integer values in the format {"x": 1, "y": 2, "z": 3, "w": 4}.
 /// </summary>
-public unsafe class JsonConverterUInt4 : BaseJsonConverterUIntVector<uint4>
+public unsafe class JsonConverterUInt4 : BaseJsonConverterUIntVector<uint4>, IJsonSchemaProvider
 {
     private static readonly string[] ComponentNames = { "x", "y", "z", "w" };
+    private static readonly JsonNode Schema = CreateVectorSchema(ComponentNames);
+
+    /// <inheritdoc/>
+    public JsonNode GetSchema() => Schema;
 
     /// <summary>
     /// Reads a JSON object and converts it to a uint4.

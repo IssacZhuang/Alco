@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Alco.Engine;
 
@@ -8,9 +9,13 @@ namespace Alco.Engine;
 /// JSON converter for System.Numerics.Vector2 type.
 /// Serializes Vector2 as a JSON object of two float values in the format {"x": 1.0, "y": 2.0}.
 /// </summary>
-public unsafe class JsonConverterVector2 : BaseJsonConverterVector<Vector2>
+public unsafe class JsonConverterVector2 : BaseJsonConverterVector<Vector2>, IJsonSchemaProvider
 {
     private static readonly string[] ComponentNames = { "x", "y" };
+    private static readonly JsonNode Schema = CreateVectorSchema(ComponentNames);
+
+    /// <inheritdoc/>
+    public JsonNode GetSchema() => Schema;
 
     /// <summary>
     /// Reads a JSON object and converts it to a Vector2.

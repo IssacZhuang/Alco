@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Alco.Engine;
 
@@ -8,9 +9,13 @@ namespace Alco.Engine;
 /// JSON converter for Alco.Half2 type.
 /// Serializes Half2 as a JSON object of two float values in the format {"x": 1.0, "y": 2.0}.
 /// </summary>
-public unsafe class JsonConverterHalf2 : BaseJsonConverterHalfVector<Half2>
+public unsafe class JsonConverterHalf2 : BaseJsonConverterHalfVector<Half2>, IJsonSchemaProvider
 {
     private static readonly string[] ComponentNames = { "x", "y" };
+    private static readonly JsonNode Schema = CreateVectorSchema(ComponentNames);
+
+    /// <inheritdoc/>
+    public JsonNode GetSchema() => Schema;
 
     /// <summary>
     /// Reads a JSON object and converts it to a Half2.

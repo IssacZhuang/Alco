@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Alco.Engine;
 
@@ -7,9 +8,13 @@ namespace Alco.Engine;
 /// JSON converter for Alco.uint2 type.
 /// Serializes uint2 as a JSON object of two unsigned integer values in the format {"x": 1, "y": 2}.
 /// </summary>
-public unsafe class JsonConverterUInt2 : BaseJsonConverterUIntVector<uint2>
+public unsafe class JsonConverterUInt2 : BaseJsonConverterUIntVector<uint2>, IJsonSchemaProvider
 {
     private static readonly string[] ComponentNames = { "x", "y" };
+    private static readonly JsonNode Schema = CreateVectorSchema(ComponentNames);
+
+    /// <inheritdoc/>
+    public JsonNode GetSchema() => Schema;
 
     /// <summary>
     /// Reads a JSON object and converts it to a uint2.
