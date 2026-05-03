@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Alco.Engine;
 using Microsoft.SemanticKernel;
 
@@ -14,7 +16,13 @@ namespace Alco.LLM;
 public class LLMSystem : BaseEngineSystem, IFunctionInvocationFilter
 {
     private readonly ConcurrentQueue<Action> _skCallbackQueue = new();
+    private readonly JsonSerializerOptions _jsonOptions;
     private ToolRegistry? _registry;
+
+    /// <summary>
+    /// Gets the JSON serializer options configured with engine type converters.
+    /// </summary>
+    public JsonSerializerOptions JsonOptions => _jsonOptions;
 
     /// <summary>
     /// Gets or sets the tool registry whose main thread queue is drained on each tick.
@@ -27,6 +35,24 @@ public class LLMSystem : BaseEngineSystem, IFunctionInvocationFilter
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="LLMSystem"/> class.
+    /// </summary>
+    /// <param name="engine">The game engine used to create JSON converters for engine types.</param>
+    public LLMSystem(GameEngine engine)
+    {
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+        };
+
+        foreach (var converter in engine.CreateDefaultJsonConverters())
+        {
+            _jsonOptions.Converters.Add(converter);
+        }
+    }
+
+    /// <summary>
     /// Creates an LLMAgent with the specified options.
     /// The LLMSystem is automatically set as the function invocation filter
     /// and its registry reference is wired up.
@@ -35,7 +61,7 @@ public class LLMSystem : BaseEngineSystem, IFunctionInvocationFilter
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public LLMAgent CreateAgent(LLMAgentOptions options)
     {
-        var agent = LLMAgent.Create(options with { FunctionInvocationFilter = this });
+        var agent = LLMAgent.Create(options with { FunctionInvocationFilter = this }, _jsonOptions);
         _registry = agent.Registry;
         return agent;
     }

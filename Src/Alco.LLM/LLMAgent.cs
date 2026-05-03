@@ -1,6 +1,5 @@
 using System;
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 
@@ -45,20 +44,10 @@ public class LLMAgent
     /// Discovers tool functions and registers them with both the SK kernel and the HTTP API layer.
     /// </summary>
     /// <param name="options">The options for creating the agent.</param>
+    /// <param name="jsonOptions">The JSON serializer options configured with engine type converters.</param>
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
-    public static LLMAgent Create(LLMAgentOptions options)
+    public static LLMAgent Create(LLMAgentOptions options, JsonSerializerOptions jsonOptions)
     {
-        var jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
-        };
-
-        for (int i = 0; i < options.JsonConverters.Count; i++)
-        {
-            jsonOptions.Converters.Add(options.JsonConverters[i]);
-        }
-
         var builder = Kernel.CreateBuilder();
         builder.AddOpenAIChatCompletion(options.ModelId, options.Endpoint, options.ApiKey);
 

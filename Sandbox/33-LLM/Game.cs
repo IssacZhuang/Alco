@@ -47,7 +47,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _llmSystem = new LLMSystem();
+        _llmSystem = new LLMSystem(this);
         AddSystem(_llmSystem);
         _preference = LoadPreference<SandboxPreference>("33-LLM", "config");
 
@@ -167,7 +167,6 @@ public class Game : GameEngine
                              ApiKey = _apiKey,
                              ModelId = _modelId,
                              ToolInstances = new[] { this },
-                             JsonConverters = [..CreateDefaultJsonConverters()],
                          });
                     }
                     else
@@ -183,7 +182,6 @@ public class Game : GameEngine
                             ApiKey = _apiKey,
                             ModelId = _modelId,
                             ToolInstances = new[] { this },
-                            JsonConverters = [..CreateDefaultJsonConverters()],
                         });
                     }
                     _llmSession = _llmAgent.CreateSession();

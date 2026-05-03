@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using Alco.Engine;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -15,6 +16,7 @@ public sealed class GameApiServer : IDisposable
 {
     private WebApplication? _app;
     private readonly ToolRegistry _registry;
+    private readonly JsonSerializerOptions _jsonOptions;
     private readonly int _port;
 
     /// <summary>
@@ -31,10 +33,12 @@ public sealed class GameApiServer : IDisposable
     /// Initializes a new instance of the <see cref="GameApiServer"/> class.
     /// </summary>
     /// <param name="registry">The tool registry to expose via HTTP.</param>
+    /// <param name="jsonOptions">The JSON serializer options for HTTP response serialization.</param>
     /// <param name="port">The port to listen on.</param>
-    public GameApiServer(ToolRegistry registry, int port = 52100)
+    public GameApiServer(ToolRegistry registry, JsonSerializerOptions jsonOptions, int port = 52100)
     {
         _registry = registry;
+        _jsonOptions = jsonOptions;
         _port = port;
     }
 
@@ -47,6 +51,15 @@ public sealed class GameApiServer : IDisposable
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls($"http://localhost:{_port}");
+
+        builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = _jsonOptions.PropertyNamingPolicy;
+            foreach (var converter in _jsonOptions.Converters)
+            {
+                options.SerializerOptions.Converters.Add(converter);
+            }
+        });
 
         var app = builder.Build();
         app.MapToolApi(_registry);
