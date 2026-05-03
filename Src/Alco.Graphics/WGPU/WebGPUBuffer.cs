@@ -22,8 +22,11 @@ internal sealed unsafe class WebGPUBuffer : GPUBuffer
 
     protected override void Dispose(bool disposing)
     {
-        wgpuBufferDestroy(_buffer);
-        wgpuBufferRelease(_buffer);
+        if (_buffer != WGPUBuffer.Null)
+        {
+            wgpuBufferDestroy(_buffer);
+            wgpuBufferRelease(_buffer);
+        }
     }
 
     #endregion

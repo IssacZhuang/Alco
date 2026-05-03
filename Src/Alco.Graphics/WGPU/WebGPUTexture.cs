@@ -38,8 +38,11 @@ internal sealed class WebGPUTexture : WebGPUTextureBase
 
     protected override void Dispose(bool disposing)
     {
-        wgpuTextureDestroy(_nativeTexture);
-        wgpuTextureRelease(_nativeTexture);
+        if (_nativeTexture != WGPUTexture.Null)
+        {
+            wgpuTextureDestroy(_nativeTexture);
+            wgpuTextureRelease(_nativeTexture);
+        }
     }
 
     #endregion

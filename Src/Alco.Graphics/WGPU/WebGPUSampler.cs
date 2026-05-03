@@ -19,8 +19,10 @@ internal sealed class WebGPUSampler : GPUSampler
 
     protected override void Dispose(bool disposing)
     {
-
+        if (_native != WGPUSampler.Null)
+        {
             wgpuSamplerRelease(_native);
+        }
     }
 
     #endregion
