@@ -44,7 +44,8 @@ public class AssetLoaderTexture2D : IAssetLoader
     {
         ImageLoadOption option = ImageLoadOption.Default with
         {
-            Name = context.Filename
+            Name = context.Filename,
+            //PremultiplyAlpha = true
         };
 
         Texture2DMeta? metaData = null;

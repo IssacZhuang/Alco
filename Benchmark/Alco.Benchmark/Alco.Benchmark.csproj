@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,5 +9,12 @@
     <ProjectReference Include="..\..\Benchmark\BenchmarkFramework\BenchmarkFramework.csproj" />
 
     <ProjectReference Include="..\..\Src\Alco\Alco.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.Rendering\Alco.Rendering.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Files\**">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
