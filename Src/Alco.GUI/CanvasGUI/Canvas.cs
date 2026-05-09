@@ -85,7 +85,7 @@ public partial class Canvas : AutoDisposable
     private UINode? _holded;
     private Vector2 _pressPosition;
 
-    private const float DragClickThreshold = 5.0f;
+    public float DragClickThreshold { get; set; } = 10.0f;
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
