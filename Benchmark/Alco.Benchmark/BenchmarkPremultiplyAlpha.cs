@@ -9,39 +9,24 @@ namespace Alco.Benchmark;
 [Config(typeof(DefaultBenchmarkConfig))]
 public unsafe class BenchmarkPremultiplyAlpha
 {
-    private byte[] _originalData = null!;
-    private byte[] _workData = null!;
-    private int _pixelCount;
+    private byte[] _fileBytes = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        byte[] fileBytes = File.ReadAllBytes("Files/test.png");
-        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, ColorComponents.RedGreenBlueAlpha);
-        _pixelCount = image.Width * image.Height;
-        _originalData = new byte[image.Data.Length];
-        image.Data.CopyTo(_originalData);
-        _workData = new byte[_originalData.Length];
+        _fileBytes = File.ReadAllBytes("Files/test.png");
     }
 
-    [IterationSetup]
-    public void IterationSetup()
+    [Benchmark(Baseline = true, Description = "Decode only")]
+    public void DecodeOnly()
     {
-        Array.Copy(_originalData, _workData, _originalData.Length);
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(_fileBytes, ColorComponents.RedGreenBlueAlpha);
     }
 
-    [Benchmark(Baseline = true, Description = "No Premultiply")]
-    public void NoPremultiply()
+    [Benchmark(Description = "Decode + PremultiplyAlpha")]
+    public void DecodeAndPremultiply()
     {
-        // Baseline: just the data copy (already done in IterationSetup)
-    }
-
-    [Benchmark(Description = "PremultiplyAlpha")]
-    public void PremultiplyAlpha()
-    {
-        fixed (byte* ptr = _workData)
-        {
-            RenderingSystem.PremultiplyAlpha(ptr, _pixelCount);
-        }
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(_fileBytes, ColorComponents.RedGreenBlueAlpha);
+        RenderingSystem.PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
     }
 }
