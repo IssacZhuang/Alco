@@ -28,7 +28,7 @@ public class FileVector
         builder.AppendLine("{");
 
         //class
-        builder.AppendLine($"    public struct {_vectorType}{_vectorSize}");
+        builder.AppendLine($"    public struct {_vectorType}{_vectorSize} : IEquatable<{_vectorType}{_vectorSize}>");
         builder.AppendLine("    {");
 
         //fields

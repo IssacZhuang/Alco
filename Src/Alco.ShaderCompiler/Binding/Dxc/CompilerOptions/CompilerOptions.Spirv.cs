@@ -1,11 +1,11 @@
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 #pragma warning disable 1591
 
 /// <summary>
 /// Modification to a Vulkan descriptor set and binding
 /// </summary>
-public struct RegisterBinding
+internal struct RegisterBinding
 {
     public int typeNumber;
     public int space;
@@ -14,7 +14,7 @@ public struct RegisterBinding
 }
 
 /// <summary> Target Vulkan environments DXC supports </summary>
-public enum TargetEnvironment
+internal enum TargetEnvironment
 {
     Vulkan1_0,
     Vulkan1_1,
@@ -26,7 +26,7 @@ public enum TargetEnvironment
 
 #pragma warning restore 1591
 
-public partial class CompilerOptions
+internal partial class CompilerOptions
 {   
     /// <summary> Specify whitelist of debug info category (file -> source -> line, tool, vulkan-with-source) </summary>
     [CompilerOption(name:"-fspv-debug", Assignment = AssignmentType.Equals)]

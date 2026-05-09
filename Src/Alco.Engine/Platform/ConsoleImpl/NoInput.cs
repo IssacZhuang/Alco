@@ -20,6 +20,11 @@ public class NoInput : Input
 
     public override Vector2 MouseWheelDelta { get; }
 
+    /// <inheritdoc />
+    public override void WarpMousePreservingDelta(Vector2 globalPosition)
+    {
+    }
+
     public override void CopyToClipboard(ReadOnlySpan<char> text)
     {
         

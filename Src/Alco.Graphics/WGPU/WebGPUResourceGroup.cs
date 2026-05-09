@@ -25,7 +25,10 @@ internal unsafe sealed class WebGPUResourceGroup : GPUResourceGroup
 
     protected override void Dispose(bool disposing)
     {
-        wgpuBindGroupRelease(_native);
+        if (_native != WGPUBindGroup.Null)
+        {
+            wgpuBindGroupRelease(_native);
+        }
     }
 
     #endregion

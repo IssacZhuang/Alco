@@ -1,10 +1,10 @@
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 
 /// <summary>
 /// The result structure returned by <see cref="ShaderCompiler"/> compilation methods 
 /// </summary>
-public struct CompilationResult
+internal struct CompilationResult
 {
     /// <summary> The compiled binary returned by the operation. </summary>
     /// <remarks> This field will be null if an error was encountered. </remarks>

@@ -1,6 +1,5 @@
 using System.Text;
 using Alco.Graphics;
-using DirectXShaderCompiler.NET;
 
 namespace Alco.ShaderCompiler;
 
@@ -54,7 +53,7 @@ public static class ShaderCompilerDxc
         }
     
 
-        CompilationResult result = DirectXShaderCompiler.NET.ShaderCompiler.Compile(hlslCode, options, includeHandler);
+        CompilationResult result = ShaderCompiler.Compile(hlslCode, options, includeHandler);
 
         if (result.compilationErrors != null)
         {

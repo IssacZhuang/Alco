@@ -22,7 +22,10 @@ internal sealed class WebGPUBindGroup : GPUBindGroup
 
     protected override void Dispose(bool disposing)
     {
-        wgpuBindGroupLayoutRelease(_native);
+        if (_native != WGPUBindGroupLayout.Null)
+        {
+            wgpuBindGroupLayoutRelease(_native);
+        }
     }
 
     #endregion

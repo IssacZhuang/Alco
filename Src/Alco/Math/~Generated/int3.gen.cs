@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
-    public struct int3
+    public struct int3 : IEquatable<int3>
     {
         public int X;
         public int Y;

@@ -38,7 +38,13 @@ V2F MainVS(Vertex input) {
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
   Constants constants = _instances[input.instanceId];
+#if defined(PREMULTIPLIED)
+  float4 texColor = _texture.Sample(_textureSampler, input.uv);
+  float4 color = float4(texColor.rgb * constants.color.rgb * constants.color.a,
+                         texColor.a * constants.color.a);
+#else
   float4 color = _texture.Sample(_textureSampler, input.uv) * constants.color;
+#endif
 #if defined(ALPHA_TEST)
   if (color.a < 0.01f)
   {

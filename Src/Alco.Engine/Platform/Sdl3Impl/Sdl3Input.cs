@@ -27,6 +27,7 @@ public unsafe class Sdl3Input : Input
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
     private Vector2 _mouseWheelDelta;
+    private Vector2 _warpDelta;
 
     private readonly List<Sdl3Gamepad> _gamepads = new();
     private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
@@ -45,6 +46,23 @@ public unsafe class Sdl3Input : Input
             _ = SDL_WarpMouseGlobal((int)value.X, (int)value.Y);
             _mousePosition = value;
         }
+    }
+
+    /// <inheritdoc />
+    public override void WarpMousePreservingDelta(Vector2 globalPosition)
+    {
+        // SDL_WarpMouseGlobal truncates to integers, so we must track the
+        // actual (truncated) position to keep MouseDelta accurate.
+        // Otherwise sub-pixel warps create a feedback loop that cancels the displacement.
+        Vector2 actual = new Vector2((int)globalPosition.X, (int)globalPosition.Y);
+        // Read the CURRENT cursor position — _mousePosition may be stale because
+        // Update() runs after the game logic that calls this method.
+        // Using the stale value would absorb the user's mouse movement into _warpDelta.
+        Vector2 currentPos = default;
+        SDL_GetGlobalMouseState(&currentPos.X, &currentPos.Y);
+        _warpDelta += actual - currentPos;
+        _ = SDL_WarpMouseGlobal((int)globalPosition.X, (int)globalPosition.Y);
+        _mousePosition = actual;
     }
 
     /// <inheritdoc />
@@ -104,7 +122,8 @@ public unsafe class Sdl3Input : Input
         Vector2 tmp = default;
         SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
         _mousePosition = tmp;
-        _mouseDelta = _mousePosition - _lastMousePosition;
+        _mouseDelta = _mousePosition - _lastMousePosition - _warpDelta;
+        _warpDelta = Vector2.Zero;
         _lastMousePosition = _mousePosition;
         Reset();
 

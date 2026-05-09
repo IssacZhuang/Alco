@@ -96,6 +96,13 @@ public abstract class Input
     public abstract Vector2 MouseDelta { get; }
 
     /// <summary>
+    /// Warps the mouse cursor to the specified global screen position
+    /// without causing the warp to appear in the next frame's <see cref="MouseDelta"/>.
+    /// </summary>
+    /// <param name="globalPosition">The global screen position to warp to.</param>
+    public abstract void WarpMousePreservingDelta(Vector2 globalPosition);
+
+    /// <summary>
     /// Gets the delta movement of the mouse wheel.
     /// </summary>
     public abstract Vector2 MouseWheelDelta { get; }

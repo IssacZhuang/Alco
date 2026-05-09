@@ -16,7 +16,10 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
 
     protected override void Dispose(bool disposing)
     {
-        wgpuComputePipelineRelease(_native);
+        if (_native != WGPUComputePipeline.Null)
+        {
+            wgpuComputePipelineRelease(_native);
+        }
     }
 
     #endregion

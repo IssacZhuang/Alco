@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Alco.Engine;
@@ -10,6 +11,25 @@ namespace Alco.Engine;
 /// </summary>
 public unsafe abstract class BaseJsonConverterUIntVector<T> : JsonConverter<T>
 {
+    /// <summary>
+    /// Creates a JSON Schema for an unsigned integer vector object with named components.
+    /// </summary>
+    /// <param name="componentNames">The property names (e.g. ["x", "y"]).</param>
+    /// <returns>A JSON Schema object node.</returns>
+    protected static JsonNode CreateVectorSchema(string[] componentNames)
+    {
+        var properties = new JsonObject();
+        for (int i = 0; i < componentNames.Length; i++)
+        {
+            properties[componentNames[i]] = new JsonObject { ["type"] = "integer" };
+        }
+
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["properties"] = properties,
+        };
+    }
     /// <summary>
     /// Read an unsigned integer array from the reader expecting a JSON object with component properties.
     /// </summary>
