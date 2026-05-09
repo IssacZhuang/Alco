@@ -83,6 +83,9 @@ public partial class Canvas : AutoDisposable
     }
 
     private UINode? _holded;
+    private Vector2 _pressPosition;
+
+    private const float DragClickThreshold = 5.0f;
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
@@ -455,6 +458,7 @@ public partial class Canvas : AutoDisposable
         }
 
         _holded = node;
+        _pressPosition = cursorPosition;
         try
         {
             node.OnPressDown(this, cursorPosition);
@@ -514,7 +518,7 @@ public partial class Canvas : AutoDisposable
             HandleError(e, "OnPressUp", holded);
         }
 
-        if (holded == node)
+        if (holded == node && Vector2.Distance(cursorPosition, _pressPosition) < DragClickThreshold)
         {
             try
             {
