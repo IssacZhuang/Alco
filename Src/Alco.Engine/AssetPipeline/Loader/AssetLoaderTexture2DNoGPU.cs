@@ -68,6 +68,8 @@ public class AssetLoaderTexture2DNoGPU : IAssetLoader
                     option = option with { AddressMode = importOption.AddressMode.Value };
                 if (importOption.SlicePadding.HasValue)
                     option = option with { SlicePadding = importOption.SlicePadding.Value };
+                if (importOption.PremultiplyAlpha.HasValue)
+                    option = option with { PremultiplyAlpha = importOption.PremultiplyAlpha.Value };
             }
         }
 

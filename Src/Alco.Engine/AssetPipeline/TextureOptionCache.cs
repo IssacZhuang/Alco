@@ -93,6 +93,7 @@ public class TextureOptionCache : DirectoryOptionCache<Texture2DMeta>
             FilterMode = overrides.FilterMode ?? baseMeta.FilterMode,
             AddressMode = overrides.AddressMode ?? baseMeta.AddressMode,
             SlicePadding = overrides.SlicePadding ?? baseMeta.SlicePadding,
+            PremultiplyAlpha = overrides.PremultiplyAlpha ?? baseMeta.PremultiplyAlpha,
         };
     }
 }
