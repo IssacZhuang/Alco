@@ -1,22 +1,31 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using Alco.IO;
 
 namespace Alco.Engine;
 
 /// <summary>
 /// Abstract base for lazily discovering, merging, and caching directory-level option files.
-/// Thread-safe. O(1) lookup after first computation per directory.
+/// Thread-safe. Option files are loaded per-directory on demand — no upfront scan.
+/// Auto-invalidates when <see cref="AssetSystem.Version"/> changes.
 /// </summary>
 /// <typeparam name="TOption">The option model type.</typeparam>
 public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
 {
+    private readonly struct RawOption
+    {
+        public TOption? Value { get; }
+        public bool Found { get; }
+        private RawOption(TOption? value, bool found) { Value = value; Found = found; }
+        public static RawOption Missing => new(null, false);
+        public static RawOption Present(TOption value) => new(value, true);
+    }
+
     private readonly AssetSystem _assetSystem;
+    private readonly ConcurrentDictionary<string, RawOption> _rawOptions = new();
     private readonly ConcurrentDictionary<string, TOption> _mergedCache = new();
-    private Dictionary<string, TOption>? _rawOptions;
+    private int _lastVersion;
 
     /// <summary>
     /// The option file name to scan for (e.g., ".texture-option.meta").
@@ -40,18 +49,26 @@ public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
     protected DirectoryOptionCache(AssetSystem assetSystem)
     {
         _assetSystem = assetSystem;
+        _lastVersion = assetSystem.Version;
     }
 
     /// <summary>
     /// Attempts to get the cascade-merged option for a directory.
     /// Returns false if no option files exist in this directory's ancestry.
+    /// Auto-invalidates if <see cref="AssetSystem.Version"/> has changed.
     /// </summary>
     /// <param name="directory">The directory path to look up.</param>
     /// <param name="option">The merged option, if found.</param>
     /// <returns>True if an option was found; otherwise, false.</returns>
     public bool TryGetOption(string directory, [NotNullWhen(true)] out TOption? option)
     {
-        EnsureRawOptionsLoaded();
+        int currentVersion = _assetSystem.Version;
+        if (_lastVersion != currentVersion)
+        {
+            Invalidate();
+            _lastVersion = currentVersion;
+        }
+
         string normalizedDir = NormalizeDirectory(directory);
 
         if (_mergedCache.TryGetValue(normalizedDir, out option))
@@ -73,7 +90,7 @@ public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
     /// </summary>
     public void Invalidate()
     {
-        _rawOptions = null;
+        _rawOptions.Clear();
         _mergedCache.Clear();
     }
 
@@ -82,48 +99,35 @@ public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
     /// </summary>
     protected AssetSystem AssetSystem => _assetSystem;
 
-    private void EnsureRawOptionsLoaded()
+    private RawOption GetOrLoadRawOption(string directory)
     {
-        if (_rawOptions != null)
-            return;
-
-        lock (this)
+        return _rawOptions.GetOrAdd(directory, static (dir, self) =>
         {
-            if (_rawOptions != null)
-                return;
+            string path = string.IsNullOrEmpty(dir)
+                ? self.OptionFileName
+                : $"{dir}/{self.OptionFileName}";
 
-            var raw = new Dictionary<string, TOption>();
-            JsonSerializerOptions jsonOptions = CreateJsonOptions();
-
-            foreach (string filename in _assetSystem.AllAssetNames)
+            if (self._assetSystem.IsFileExist(path) &&
+                self._assetSystem.TryLoadRaw(path, out var data))
             {
-                if (!filename.EndsWith(OptionFileName, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (_assetSystem.TryLoadRaw(filename, out var data))
+                try
                 {
-                    try
-                    {
-                        string json = System.Text.Encoding.UTF8.GetString(data.AsReadOnlySpan());
-                        if (JsonSerializer.Deserialize<TOption>(json, jsonOptions) is TOption opt)
-                        {
-                            string dir = NormalizeDirectory(Path.GetDirectoryName(filename));
-                            raw[dir] = opt;
-                        }
-                    }
-                    catch (JsonException)
-                    {
-                        // Skip malformed option files
-                    }
-                    finally
-                    {
-                        data.Dispose();
-                    }
+                    string json = System.Text.Encoding.UTF8.GetString(data.AsReadOnlySpan());
+                    if (JsonSerializer.Deserialize<TOption>(json, self.CreateJsonOptions()) is TOption opt)
+                        return RawOption.Present(opt);
+                }
+                catch (JsonException)
+                {
+                    // Skip malformed option files
+                }
+                finally
+                {
+                    data.Dispose();
                 }
             }
 
-            _rawOptions = raw;
-        }
+            return RawOption.Missing;
+        }, this);
     }
 
     private TOption? BuildMergedOption(string directory)
@@ -143,18 +147,19 @@ public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
         TOption? result = null;
         foreach (string seg in segments)
         {
-            if (_rawOptions!.TryGetValue(seg, out var raw))
+            RawOption raw = GetOrLoadRawOption(seg);
+            if (raw.Found)
             {
-                if (result == null)
-                    result = raw;
-                else
-                    result = MergeOptions(result, raw);
+                result = result == null ? raw.Value : MergeOptions(result, raw.Value!);
             }
         }
 
         return result;
     }
 
+    /// <summary>
+    /// Normalizes a directory path to forward slashes with no trailing slash.
+    /// </summary>
     protected static string NormalizeDirectory(string? path)
     {
         if (string.IsNullOrEmpty(path))
