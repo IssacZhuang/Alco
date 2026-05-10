@@ -107,6 +107,7 @@ public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
                 ? self.OptionFileName
                 : $"{dir}/{self.OptionFileName}";
 
+            self._assetSystem.TryRefreshEntries();
             if (self._assetSystem.IsFileExist(path) &&
                 self._assetSystem.TryLoadRaw(path, out var data))
             {
