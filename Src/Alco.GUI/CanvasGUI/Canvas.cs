@@ -1023,6 +1023,32 @@ public partial class Canvas : AutoDisposable
         return true;
     }
 
+    /// <summary>
+    /// Dispatches an event to <paramref name="target"/> and bubbles up through
+    /// its ancestor chain. Each node's invocation is individually wrapped in
+    /// try/catch so an exception in one node does not prevent others from
+    /// receiving the event. Bubbling stops after a node with
+    /// <see cref="UINode.BubbleEvent"/> == false.
+    /// </summary>
+    private void DispatchBubble(UINode? target, string operation, Action<UINode> action)
+    {
+        UINode? current = target;
+        while (current != null)
+        {
+            try
+            {
+                action(current);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, operation, current);
+            }
+
+            if (!current.BubbleEvent) break;
+            current = current.Parent;
+        }
+    }
+
     public void HandleError(Exception exception, string operation, UINode? node)
     {
         if (ErrorHandler != null)
