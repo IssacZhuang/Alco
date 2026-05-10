@@ -173,7 +173,20 @@ public partial class Canvas : AutoDisposable
             return;
         }
 
+        var oldHovered = _hovered;
         _hovered = node;
+
+        if (oldHovered != null)
+        {
+            try
+            {
+                oldHovered.OnUnhover(this, CursorPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnUnhover", oldHovered);
+            }
+        }
 
         if (node != null)
         {
@@ -206,6 +219,14 @@ public partial class Canvas : AutoDisposable
     {
         if (_hovered == node)
         {
+            try
+            {
+                node.OnUnhover(this, CursorPosition);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, "OnUnhover", node);
+            }
             _hovered = null;
         }
         if (_holded == node)
@@ -604,6 +625,14 @@ public partial class Canvas : AutoDisposable
             // Clear stale hover reference if the node or any ancestor is disabled
             if (selectable != null && !IsEnabledInHierarchy(selectable))
             {
+                try
+                {
+                    selectable.OnUnhover(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnUnhover", selectable);
+                }
                 _hovered = null;
                 selectable = null;
             }
