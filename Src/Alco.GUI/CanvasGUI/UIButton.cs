@@ -175,11 +175,6 @@ public class UIButton : UISelectable
     {
         base.OnUpdate(canvas, delta);
 
-        if (_selectableState == SelectableState.Hover && canvas.Hovered != this)
-        {
-            TryChangeTransitionState(SelectableState.Normal);
-        }
-
         if (!_inTransition)
         {
             return;
@@ -217,6 +212,13 @@ public class UIButton : UISelectable
     {
         base.OnHover(canvas, mousePosition);
         TryChangeTransitionState(SelectableState.Hover);
+    }
+
+    /// <inheritdoc/>
+    public override void OnUnhover(Canvas canvas, Vector2 mousePosition)
+    {
+        base.OnUnhover(canvas, mousePosition);
+        TryChangeTransitionState(SelectableState.Normal);
     }
 
     public override void OnPressDown(Canvas canvas, Vector2 mousePosition)
