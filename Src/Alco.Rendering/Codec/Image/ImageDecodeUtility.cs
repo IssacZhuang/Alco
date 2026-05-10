@@ -6,6 +6,8 @@ namespace Alco.Rendering.Codec.Image;
 /// </summary>
 public static unsafe class ImageDecodeUtility
 {
+    private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
     /// <summary>
     /// Query image dimensions without full decode.
     /// Detects format by magic bytes: PNG (89 50 4E 47) or JPEG (FF D8).
@@ -15,7 +17,13 @@ public static unsafe class ImageDecodeUtility
     /// <exception cref="ImageDecodeException">Unrecognized format or corrupt header.</exception>
     public static (int Width, int Height) GetImageInfo(ReadOnlySpan<byte> data)
     {
-        throw new NotImplementedException();
+        if (data.Length >= 8 && data[..8].SequenceEqual(PngSignature))
+            return PngDecoder.GetInfo(data);
+
+        if (data.Length >= 2 && data[0] == 0xFF && data[1] == 0xD8)
+            return JpegDecoder.GetInfo(data);
+
+        throw new ImageDecodeException("Unrecognized image format. Expected PNG or JPEG header.");
     }
 
     /// <summary>
@@ -27,9 +35,7 @@ public static unsafe class ImageDecodeUtility
     /// <returns>Pointer to RGBA8 pixel data. Caller must free via <c>NativeMemory.Free</c>.</returns>
     /// <exception cref="ImageDecodeException">Invalid or unsupported PNG data.</exception>
     public static byte* DecodePng(ReadOnlySpan<byte> data, out int width, out int height)
-    {
-        throw new NotImplementedException();
-    }
+        => PngDecoder.Decode(data, out width, out height);
 
     /// <summary>
     /// Decode JPEG data to RGBA8 pixel buffer.
@@ -40,9 +46,7 @@ public static unsafe class ImageDecodeUtility
     /// <returns>Pointer to RGBA8 pixel data. Caller must free via <c>NativeMemory.Free</c>.</returns>
     /// <exception cref="ImageDecodeException">Invalid or unsupported JPEG data.</exception>
     public static byte* DecodeJpeg(ReadOnlySpan<byte> data, out int width, out int height)
-    {
-        throw new NotImplementedException();
-    }
+        => JpegDecoder.Decode(data, out width, out height);
 
     /// <summary>
     /// Auto-detect format by header magic and decode to RGBA8.
@@ -55,6 +59,12 @@ public static unsafe class ImageDecodeUtility
     /// <exception cref="ImageDecodeException">Unknown format or corrupt data.</exception>
     public static byte* DecodeAuto(ReadOnlySpan<byte> data, out int width, out int height)
     {
-        throw new NotImplementedException();
+        if (data.Length >= 8 && data[..8].SequenceEqual(PngSignature))
+            return PngDecoder.Decode(data, out width, out height);
+
+        if (data.Length >= 2 && data[0] == 0xFF && data[1] == 0xD8)
+            return JpegDecoder.Decode(data, out width, out height);
+
+        throw new ImageDecodeException("Unrecognized image format. Expected PNG or JPEG header.");
     }
 }
