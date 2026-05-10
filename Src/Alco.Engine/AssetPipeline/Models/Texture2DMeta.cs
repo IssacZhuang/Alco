@@ -32,6 +32,12 @@ public class Texture2DMeta : Meta
     /// </summary>
     public Padding? SlicePadding { get; set; }
 
+    /// <summary>
+    /// Whether to convert the image from straight alpha to premultiplied alpha during loading.
+    /// Null means inherit from directory option or engine default.
+    /// </summary>
+    public bool? PremultiplyAlpha { get; set; }
+
     public Dictionary<string, Rect> Sprites { get; set; } = new();
 
 
