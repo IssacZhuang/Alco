@@ -84,13 +84,13 @@ internal static unsafe class JpegDecoder
                 if (progressive)
                 {
                     DecodeProgressive(data, width, height, numComponents, components,
-                        quantTables, dcTables, acTables, restartInterval, scans,
+                        quantTables, restartInterval, scans,
                         componentPlanes, componentStrides);
                 }
                 else
                 {
                     DecodeBaseline(data, width, height, numComponents, components,
-                        quantTables, dcTables, acTables, restartInterval, scans,
+                        quantTables, restartInterval, scans,
                         componentPlanes, componentStrides);
                 }
 
@@ -275,6 +275,10 @@ internal static unsafe class JpegDecoder
                     int entropyStart = pos + length;
                     int entropyEnd;
                     scan.EntropyData = ExtractCleanEntropyData(data, entropyStart, out entropyEnd);
+                    // Snapshot current Huffman tables — later DHT markers may redefine them.
+                    // Deep-copy arrays since BuildTable overwrites them in-place.
+                    scan.DcTables = SnapshotTables(dcTables);
+                    scan.AcTables = SnapshotTables(acTables);
                     scans.Add(scan);
                     pos = entropyEnd;
                     continue; // pos was advanced past entropy data
@@ -382,9 +386,13 @@ internal static unsafe class JpegDecoder
 
             ref var table = ref (tableClass == 0 ? ref dcTables[tableId] : ref acTables[tableId]);
 
-            // Ensure arrays are allocated
-            table.Values ??= new ushort[totalSymbols > 0 ? totalSymbols : 1];
-            table.CodeSizes ??= new byte[totalSymbols > 0 ? totalSymbols : 1];
+            // Ensure arrays are allocated and large enough for the current symbol count.
+            // A DHT may redefine a table with a different number of symbols than before.
+            int minValues = Math.Max(totalSymbols, 1);
+            if (table.Values == null || table.Values.Length < minValues)
+                table.Values = new ushort[minValues];
+            if (table.CodeSizes == null || table.CodeSizes.Length < minValues)
+                table.CodeSizes = new byte[minValues];
             table.MinCode ??= new int[17];
             table.MaxCode ??= new int[17];
             table.ValPtr ??= new int[17];
@@ -521,39 +529,41 @@ internal static unsafe class JpegDecoder
     }
 
     /// <summary>
-    /// Extract and clean the entropy-coded segment starting at <paramref name="startPos"/>.
-    /// Removes restart markers (FF D0-D7) from the stream so the Huffman bit reader
-    /// sees a clean byte stream. Returns the cleaned data as a byte array.
-    /// Also returns the end position in the original data.
+    /// Extract the entropy-coded segment starting at <paramref name="startPos"/>.
+    /// Returns the raw bytes including byte stuffing (FF 00), with only restart markers (FF D0-D7) stripped.
+    /// The Huffman bit reader handles byte stuffing inline during decoding.
     /// </summary>
     private static byte[] ExtractCleanEntropyData(ReadOnlySpan<byte> data, int startPos, out int endPos)
     {
-        // First pass: find the end and count the output size
+        // Find end of entropy data: FF followed by a non-00, non-restart byte
         int scan = startPos;
         int outputSize = 0;
 
-        while (scan + 1 < data.Length)
+        while (scan < data.Length)
         {
             if (data[scan] == 0xFF)
             {
+                if (scan + 1 >= data.Length)
+                    break;
+
                 byte next = data[scan + 1];
 
                 if (next == 0x00)
                 {
-                    // Byte stuffing: keep FF, skip 00
-                    outputSize++;
+                    // Byte stuffing: keep both FF and 00
+                    outputSize += 2;
                     scan += 2;
                     continue;
                 }
 
                 if (next >= 0xD0 && next <= 0xD7)
                 {
-                    // Restart marker: skip both bytes entirely
+                    // Restart marker: skip both bytes
                     scan += 2;
                     continue;
                 }
 
-                // Found a real marker
+                // Found a real marker — stop
                 break;
             }
 
@@ -563,20 +573,24 @@ internal static unsafe class JpegDecoder
 
         endPos = scan;
 
-        // Second pass: copy data without restart markers
+        // Copy data, only removing restart markers
         byte[] result = new byte[outputSize];
         scan = startPos;
         int writePos = 0;
 
-        while (scan + 1 < data.Length && writePos < outputSize)
+        while (scan < data.Length && writePos < outputSize)
         {
             if (data[scan] == 0xFF)
             {
+                if (scan + 1 >= data.Length)
+                    break;
+
                 byte next = data[scan + 1];
 
                 if (next == 0x00)
                 {
                     result[writePos++] = 0xFF;
+                    result[writePos++] = 0x00;
                     scan += 2;
                     continue;
                 }
@@ -610,6 +624,26 @@ internal static unsafe class JpegDecoder
         if (marker == 0xFF01)
             return false;
         return true;
+    }
+
+    /// <summary>
+    /// Deep-copy a Huffman table array so that later BuildTable calls
+    /// do not mutate arrays shared with earlier scan snapshots.
+    /// </summary>
+    private static JpegHuffman.HuffmanTable[] SnapshotTables(JpegHuffman.HuffmanTable[] tables)
+    {
+        var snapshot = new JpegHuffman.HuffmanTable[tables.Length];
+        for (int i = 0; i < tables.Length; i++)
+        {
+            ref readonly var src = ref tables[i];
+            ref var dst = ref snapshot[i];
+            dst.Values = src.Values != null ? (ushort[])src.Values.Clone() : null;
+            dst.CodeSizes = src.CodeSizes != null ? (byte[])src.CodeSizes.Clone() : null;
+            dst.MinCode = src.MinCode != null ? (int[])src.MinCode.Clone() : null;
+            dst.MaxCode = src.MaxCode != null ? (int[])src.MaxCode.Clone() : null;
+            dst.ValPtr = src.ValPtr != null ? (int[])src.ValPtr.Clone() : null;
+        }
+        return snapshot;
     }
 
     #endregion
@@ -698,7 +732,6 @@ internal static unsafe class JpegDecoder
     private static void DecodeBaseline(
         ReadOnlySpan<byte> data, int width, int height, int numComponents,
         ComponentInfo[] components, ushort[][] quantTables,
-        JpegHuffman.HuffmanTable[] dcTables, JpegHuffman.HuffmanTable[] acTables,
         int restartInterval, List<ScanInfo> scans,
         byte** componentPlanes, int* componentStrides)
     {
@@ -780,7 +813,7 @@ internal static unsafe class JpegDecoder
                             coeffs.Clear();
                             int dcCategory = JpegHuffman.DecodeSymbol(
                                 ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                in dcTables[dcTableIdx]);
+                                in scan.DcTables[dcTableIdx]);
 
                             if (dcCategory < 0)
                                 throw new ImageDecodeException("Invalid DC Huffman code.");
@@ -798,7 +831,7 @@ internal static unsafe class JpegDecoder
                             {
                                 int acSymbol = JpegHuffman.DecodeSymbol(
                                     ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                    in acTables[acTableIdx]);
+                                    in scan.AcTables[acTableIdx]);
 
                                 if (acSymbol < 0)
                                     throw new ImageDecodeException("Invalid AC Huffman code.");
@@ -888,7 +921,6 @@ internal static unsafe class JpegDecoder
     private static void DecodeProgressive(
         ReadOnlySpan<byte> data, int width, int height, int numComponents,
         ComponentInfo[] components, ushort[][] quantTables,
-        JpegHuffman.HuffmanTable[] dcTables, JpegHuffman.HuffmanTable[] acTables,
         int restartInterval, List<ScanInfo> scans,
         byte** componentPlanes, int* componentStrides)
     {
@@ -922,10 +954,21 @@ internal static unsafe class JpegDecoder
             NativeMemory.Fill(coeffBuffer, (nuint)totalBlocks * 64 * (nuint)sizeof(short), 0);
 
             // Decode each scan into the coefficient buffer
-            foreach (var scan in scans)
+            for (int scanIdx = 0; scanIdx < scans.Count; scanIdx++)
             {
-                DecodeProgressiveScan(scan, coeffBuffer, numComponents, components,
-                    dcTables, acTables, mcuCountX, mcuCountY, restartInterval);
+                ref readonly var scan = ref CollectionsMarshal.AsSpan(scans)[scanIdx];
+                try
+                {
+                    DecodeProgressiveScan(scan, coeffBuffer, numComponents, components,
+                        scan.DcTables, scan.AcTables, mcuCountX, mcuCountY, restartInterval);
+                }
+                catch (Exception ex)
+                {
+                    throw new ImageDecodeException(
+                        $"Failed on progressive scan #{scanIdx} (comps={scan.Components.Length}, " +
+                        $"Ss={scan.Ss}, Se={scan.Se}, Ah={scan.Ah}, Al={scan.Al}, " +
+                        $"entropyLen={scan.EntropyData.Length}): {ex.Message}", ex);
+                }
             }
 
             // Dequantize + IDCT + place into component planes
@@ -1015,6 +1058,11 @@ internal static unsafe class JpegDecoder
         int mcusSinceRestart = 0;
         int restartMarkerIndex = 0;
 
+        // EOB run counter for progressive AC scans.
+        // When non-zero, this many consecutive blocks have all-zero coefficients
+        // in the current spectral range (JPEG spec section G.1.2.2).
+        int eobRun = 0;
+
         for (int mcuY = 0; mcuY < mcuCountY; mcuY++)
         {
             for (int mcuX = 0; mcuX < mcuCountX; mcuX++)
@@ -1024,6 +1072,7 @@ internal static unsafe class JpegDecoder
                 {
                     bitsAvailable = 0;
                     bitBuffer = 0;
+                    eobRun = 0;
 
                     for (int i = 0; i < numComponents; i++)
                         dcPredictors[i] = 0;
@@ -1053,39 +1102,42 @@ internal static unsafe class JpegDecoder
 
                             if (isDC)
                             {
-                                // Progressive DC scan
-                                int dcCategory = JpegHuffman.DecodeSymbol(
-                                    ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                    in dcTables[scanComp.DcTable]);
-
-                                if (dcCategory < 0)
-                                    throw new ImageDecodeException("Invalid progressive DC Huffman code.");
-
-                                int dcDiff = JpegHuffman.ReceiveExtend(
-                                    dcCategory, ref bitBuffer, ref bitsAvailable,
-                                    entropyData, ref dataPos);
-
-                                dcPredictors[compIdx] += dcDiff;
-
-                                // Apply successive approximation
-                                if (scan.Al > 0)
-                                    blockCoeffs[0] = (short)((dcPredictors[compIdx] << scan.Al) | (blockCoeffs[0] & ((1 << scan.Al) - 1)));
-                                else
-                                    blockCoeffs[0] = (short)dcPredictors[compIdx];
-
-                                // Handle point transform for Ah > 0 (refinement scan)
-                                if (scan.Ah != 0)
+                                if (scan.Ah == 0)
                                 {
-                                    // Read one bit for refinement
+                                    // Progressive DC first scan: decode Huffman symbol + magnitude
+                                    int dcCategory = JpegHuffman.DecodeSymbol(
+                                        ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
+                                        in dcTables[scanComp.DcTable]);
+
+                                    if (dcCategory < 0)
+                                        throw new ImageDecodeException("Invalid progressive DC Huffman code.");
+
+                                    int dcDiff = JpegHuffman.ReceiveExtend(
+                                        dcCategory, ref bitBuffer, ref bitsAvailable,
+                                        entropyData, ref dataPos);
+
+                                    dcPredictors[compIdx] += dcDiff;
+
+                                    // Apply successive approximation
+                                    if (scan.Al > 0)
+                                        blockCoeffs[0] = (short)((dcPredictors[compIdx] << scan.Al) | (blockCoeffs[0] & ((1 << scan.Al) - 1)));
+                                    else
+                                        blockCoeffs[0] = (short)dcPredictors[compIdx];
+                                }
+                                else
+                                {
+                                    // Progressive DC refinement scan: read one bit and add to existing coefficient
                                     FillBitBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
 
-                                    if (bitsAvailable > 0)
-                                    {
-                                        int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
-                                        bitsAvailable--;
-                                        bitBuffer &= (1UL << bitsAvailable) - 1;
-                                        blockCoeffs[0] |= (short)(bit << scan.Al);
-                                    }
+                                    if (bitsAvailable <= 0)
+                                        throw new ImageDecodeException("Unexpected end of data in DC refinement scan.");
+
+                                    int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
+                                    bitsAvailable--;
+                                    bitBuffer &= (1UL << bitsAvailable) - 1;
+
+                                    if (bit != 0)
+                                        blockCoeffs[0] += (short)(1 << scan.Al);
                                 }
                             }
                             else
@@ -1099,92 +1151,76 @@ internal static unsafe class JpegDecoder
                                 if (scan.Ah == 0)
                                 {
                                     // First AC scan for this range
-                                    while (acPos <= scan.Se)
+                                    // Check if we're in an EOB run from a previous block
+                                    if (eobRun > 0)
                                     {
-                                        int acSymbol = JpegHuffman.DecodeSymbol(
-                                            ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                            in acTables[scanComp.AcTable]);
-
-                                        if (acSymbol < 0)
-                                            throw new ImageDecodeException("Invalid progressive AC Huffman code.");
-
-                                        if (acSymbol == 0x00)
+                                        eobRun--;
+                                    }
+                                    else
+                                    {
+                                        while (acPos <= scan.Se)
                                         {
-                                            // EOB
-                                            break;
-                                        }
+                                            int acSymbol = JpegHuffman.DecodeSymbol(
+                                                ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
+                                                in acTables[scanComp.AcTable]);
 
-                                        if (acSymbol == 0xF0)
-                                        {
-                                            // ZRL
-                                            acPos += 16;
-                                            continue;
-                                        }
+                                            if (acSymbol < 0)
+                                                throw new ImageDecodeException("Invalid progressive AC Huffman code.");
 
-                                        int run = (acSymbol >> 4) & 0x0F;
-                                        int bits = acSymbol & 0x0F;
+                                            int run = (acSymbol >> 4) & 0x0F;
+                                            int size = acSymbol & 0x0F;
 
-                                        acPos += run;
+                                            if (size == 0)
+                                            {
+                                                if (run < 15)
+                                                {
+                                                    // EOB run: this block and the next (2^run - 1 + extra_bits) blocks
+                                                    // are all zero in this spectral range
+                                                    eobRun = 1 << run;
+                                                    if (run > 0)
+                                                    {
+                                                        int extraBits = JpegHuffman.Receive(
+                                                            run, ref bitBuffer, ref bitsAvailable,
+                                                            entropyData, ref dataPos);
+                                                        eobRun += extraBits;
+                                                    }
+                                                    eobRun--; // Current block is the first in the run
+                                                    break;
+                                                }
 
-                                        if (acPos > scan.Se || acPos >= 64)
-                                            break;
+                                                // ZRL: skip 16 zeros
+                                                acPos += 16;
+                                                continue;
+                                            }
 
-                                        if (bits > 0)
-                                        {
+                                            acPos += run;
+
+                                            if (acPos > scan.Se || acPos >= 64)
+                                                break;
+
                                             int acValue = JpegHuffman.ReceiveExtend(
-                                                bits, ref bitBuffer, ref bitsAvailable,
+                                                size, ref bitBuffer, ref bitsAvailable,
                                                 entropyData, ref dataPos);
 
                                             blockCoeffs[acPos] = (short)(acValue << scan.Al);
+                                            acPos++;
                                         }
-
-                                        acPos++;
                                     }
                                 }
                                 else
                                 {
-                                    // Refinement AC scan
-                                    while (acPos <= scan.Se)
+                                    // Refinement AC scan (Ah > 0)
+                                    // JPEG spec section G.1.2.2: refinement scans use size=1 with sign bit,
+                                    // and interleave refinement of existing non-zero coefficients.
+                                    short refinementBit = (short)(1 << scan.Al);
+
+                                    if (eobRun > 0)
                                     {
-                                        // Decode refinement: read one bit per non-zero coefficient,
-                                        // or Huffman-coded run of zeros with refinement bits
-                                        int acSymbol = JpegHuffman.DecodeSymbol(
-                                            ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                            in acTables[scanComp.AcTable]);
-
-                                        if (acSymbol < 0)
-                                            throw new ImageDecodeException("Invalid progressive AC refinement Huffman code.");
-
-                                        if (acSymbol == 0x00)
+                                        eobRun--;
+                                        // Refine all non-zero coefficients in the spectral range
+                                        for (int k = scan.Ss; k <= scan.Se && k < 64; k++)
                                         {
-                                            // EOB: refine remaining non-zero coefficients
-                                            for (int i = acPos; i <= scan.Se && i < 64; i++)
-                                            {
-                                                if (blockCoeffs[i] != 0)
-                                                {
-                                                    FillBitBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
-                                                    if (bitsAvailable > 0)
-                                                    {
-                                                        int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
-                                                        bitsAvailable--;
-                                                        bitBuffer &= (1UL << bitsAvailable) - 1;
-                                                        blockCoeffs[i] += (short)(bit << scan.Al);
-                                                    }
-                                                }
-                                            }
-                                            break;
-                                        }
-
-                                        int run = (acSymbol >> 4) & 0x0F;
-                                        int bits = acSymbol & 0x0F;
-
-                                        // Refine non-zero coefficients during the run
-                                        while (run > 0)
-                                        {
-                                            if (acPos > scan.Se || acPos >= 64)
-                                                break;
-
-                                            if (blockCoeffs[acPos] != 0)
+                                            if (blockCoeffs[k] != 0)
                                             {
                                                 FillBitBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
                                                 if (bitsAvailable > 0)
@@ -1192,28 +1228,105 @@ internal static unsafe class JpegDecoder
                                                     int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
                                                     bitsAvailable--;
                                                     bitBuffer &= (1UL << bitsAvailable) - 1;
-                                                    blockCoeffs[acPos] += (short)(bit << scan.Al);
+                                                    if (bit != 0 && (blockCoeffs[k] & refinementBit) == 0)
+                                                    {
+                                                        if (blockCoeffs[k] > 0)
+                                                            blockCoeffs[k] += refinementBit;
+                                                        else
+                                                            blockCoeffs[k] -= refinementBit;
+                                                    }
                                                 }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        acPos = scan.Ss;
+                                        do
+                                        {
+                                            int acSymbol = JpegHuffman.DecodeSymbol(
+                                                ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
+                                                in acTables[scanComp.AcTable]);
+
+                                            if (acSymbol < 0)
+                                                throw new ImageDecodeException(
+                                                    $"Invalid progressive AC refinement Huffman code at MCU ({mcuX},{mcuY}) " +
+                                                    $"acPos={acPos} dataPos={dataPos}/{entropyData.Length} bitsAvail={bitsAvailable}");
+
+                                            int r = (acSymbol >> 4) & 0x0F;
+                                            int sz = acSymbol & 0x0F;
+
+                                            if (sz == 0)
+                                            {
+                                                if (r < 15)
+                                                {
+                                                    // EOB run
+                                                    eobRun = (1 << r) - 1;
+                                                    if (r > 0)
+                                                    {
+                                                        int extraBits = JpegHuffman.Receive(
+                                                            r, ref bitBuffer, ref bitsAvailable,
+                                                            entropyData, ref dataPos);
+                                                        eobRun += extraBits;
+                                                    }
+                                                    r = 64; // Signal EOB — walk to end of range
+                                                }
+                                                // else ZRL: r = 15, will skip 16 zeros in the walk loop
                                             }
                                             else
                                             {
-                                                run--;
+                                                // In refinement scan, size must be exactly 1
+                                                if (sz != 1)
+                                                    throw new ImageDecodeException("Invalid progressive AC refinement: size must be 1.");
+
+                                                // Read sign bit to determine coefficient sign
+                                                FillBitBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
+                                                int signBit = 0;
+                                                if (bitsAvailable > 0)
+                                                {
+                                                    signBit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
+                                                    bitsAvailable--;
+                                                    bitBuffer &= (1UL << bitsAvailable) - 1;
+                                                }
+                                                sz = signBit != 0 ? refinementBit : -refinementBit;
                                             }
 
-                                            acPos++;
-                                        }
-
-                                        // New non-zero coefficient
-                                        if (bits > 0 && acPos <= scan.Se && acPos < 64)
-                                        {
-                                            int acValue = JpegHuffman.ReceiveExtend(
-                                                bits, ref bitBuffer, ref bitsAvailable,
-                                                entropyData, ref dataPos);
-
-                                            blockCoeffs[acPos] = (short)(acValue << scan.Al);
-                                        }
-
-                                        acPos++;
+                                            // Walk through positions: refine non-zero coefficients,
+                                            // count down run to place new coefficient
+                                            while (acPos <= scan.Se)
+                                            {
+                                                if (blockCoeffs[acPos] != 0)
+                                                {
+                                                    // Refine existing non-zero coefficient
+                                                    FillBitBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
+                                                    if (bitsAvailable > 0)
+                                                    {
+                                                        int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
+                                                        bitsAvailable--;
+                                                        bitBuffer &= (1UL << bitsAvailable) - 1;
+                                                        if (bit != 0 && (blockCoeffs[acPos] & refinementBit) == 0)
+                                                        {
+                                                            if (blockCoeffs[acPos] > 0)
+                                                                blockCoeffs[acPos] += refinementBit;
+                                                            else
+                                                                blockCoeffs[acPos] -= refinementBit;
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    if (r == 0)
+                                                    {
+                                                        // Place new coefficient at this zero position
+                                                        blockCoeffs[acPos] = (short)sz;
+                                                        acPos++;
+                                                        break;
+                                                    }
+                                                    r--;
+                                                }
+                                                acPos++;
+                                            }
+                                        } while (acPos <= scan.Se);
                                     }
                                 }
                             }
@@ -1346,6 +1459,8 @@ internal static unsafe class JpegDecoder
     /// <summary>
     /// Scan information for one SOS marker.
     /// Entropy-coded data is stored as a clean byte array with restart markers removed.
+    /// Includes snapshots of the Huffman tables as they were at the time of the SOS marker,
+    /// since later DHT markers may redefine tables between scans in progressive JPEG.
     /// </summary>
     private struct ScanInfo
     {
@@ -1355,6 +1470,8 @@ internal static unsafe class JpegDecoder
         public int Ah;            // Successive approximation high
         public int Al;            // Successive approximation low (point transform)
         public byte[] EntropyData; // Clean entropy data (RST markers stripped)
+        public JpegHuffman.HuffmanTable[] DcTables; // Snapshot of DC tables at SOS time
+        public JpegHuffman.HuffmanTable[] AcTables; // Snapshot of AC tables at SOS time
     }
 
     #endregion

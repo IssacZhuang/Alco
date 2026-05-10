@@ -225,6 +225,38 @@ internal static class JpegHuffman
     }
 
     /// <summary>
+    /// Read raw unsigned bits from the bit stream without sign extension.
+    /// Used for EOB run counts and other unsigned fields in progressive JPEG.
+    /// </summary>
+    /// <param name="bits">Number of bits to read (0-16).</param>
+    /// <param name="bitBuffer">Current bit buffer. Updated in place.</param>
+    /// <param name="bitsAvailable">Number of valid bits. Updated in place.</param>
+    /// <param name="data">Source data span.</param>
+    /// <param name="dataPos">Current byte position. Updated in place.</param>
+    /// <returns>The unsigned value.</returns>
+    public static int Receive(
+        int bits,
+        ref ulong bitBuffer,
+        ref int bitsAvailable,
+        ReadOnlySpan<byte> data,
+        ref int dataPos)
+    {
+        if (bits == 0)
+            return 0;
+
+        FillBuffer(ref bitBuffer, ref bitsAvailable, data, ref dataPos);
+
+        if (bitsAvailable < bits)
+            return 0;
+
+        int value = (int)((bitBuffer >> (bitsAvailable - bits)) & ((1UL << bits) - 1));
+        bitBuffer &= (1UL << (bitsAvailable - bits)) - 1;
+        bitsAvailable -= bits;
+
+        return value;
+    }
+
+    /// <summary>
     /// Fill the bit buffer with more data from the source span.
     /// Reads bytes one at a time, handling JPEG byte stuffing (0xFF 0x00 -> 0xFF).
     /// </summary>
