@@ -5,6 +5,7 @@ using System.Runtime.Intrinsics.X86;
 using StbImageSharp;
 using StbImageWriteSharp;
 using Alco.Graphics;
+using Alco.Rendering.Codec.Image;
 
 using static Alco.MemoryUtility;
 
@@ -26,19 +27,20 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        using ImageResultBuffer image = ImageResultBuffer.FromStream(stream, targetComponents);
+        byte[] bytes = new byte[stream.Length];
+        stream.ReadExactly(bytes);
+        byte* pixels = ImageDecodeUtility.DecodeAuto(bytes, out int w, out int h);
+        try
+        {
+            if (optionReal.PremultiplyAlpha)
+                PremultiplyAlpha(pixels, w * h);
 
-        if (optionReal.PremultiplyAlpha)
-            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
-
-        return CreateTexture2D(
-            image.UnsafePointer,
-            (uint)image.Data.Length,
-            (uint)image.Width,
-            (uint)image.Height,
-            option
-        );
+            return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
+        }
+        finally
+        {
+            NativeMemory.Free(pixels);
+        }
     }
 
     /// <summary>
@@ -53,19 +55,18 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
+        byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
+        try
+        {
+            if (optionReal.PremultiplyAlpha)
+                PremultiplyAlpha(pixels, w * h);
 
-        if (optionReal.PremultiplyAlpha)
-            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
-
-        return CreateTexture2D(
-            image.UnsafePointer,
-            (uint)image.Data.Length,
-            (uint)image.Width,
-            (uint)image.Height,
-            option
-        );
+            return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
+        }
+        finally
+        {
+            NativeMemory.Free(pixels);
+        }
     }
 
     /// <summary>
