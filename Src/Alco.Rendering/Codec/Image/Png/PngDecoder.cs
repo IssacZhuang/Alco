@@ -310,12 +310,13 @@ internal static unsafe class PngDecoder
             Span<byte> decompressedSpan = new(decompressed, decompressedSize);
             PngZlib.DecompressZlib(idatData, decompressedSpan);
 
-            // Defilter in-place
-            PngDefilter.Defilter(decompressedSpan, width, height, bytesPerPixel);
+            // Defilter in-place (pass actual stride, not width * bytesPerPixel)
+            PngDefilter.Defilter(decompressedSpan, width, height, bytesPerPixel, stride);
 
-            // Convert source format to RGBA8
+            // Convert source format to RGBA8.
+            // Decompressed data layout: [filter_byte][pixel_data] per row, stride is 1+stride.
             ConvertToRGBA8(output, decompressed, width, height, stride,
-                bitDepth, colorType, palette, transparency);
+                bitDepth, colorType, palette, transparency, hasFilterBytes: true);
         }
         finally
         {
@@ -365,22 +366,21 @@ internal static unsafe class PngDecoder
             Span<byte> decompressedSpan = new(decompressed, totalSize);
             PngZlib.DecompressZlib(idatData, decompressedSpan);
 
-            // Allocate a temporary source-format buffer to merge all passes into
-            int sourceStride = stride;
-            nuint sourceBufferSize = (nuint)(height * sourceStride);
-            byte* sourceBuffer = (byte*)NativeMemory.Alloc(sourceBufferSize);
+            // For sub-byte depths (1, 2, 4 bit), we cannot merge into a source-format buffer
+            // because pixels are packed at bit boundaries. Instead, convert each pass directly
+            // to RGBA8 and write to the output buffer at the correct positions.
+            bool isSubByte = bitDepth < 8;
 
-            try
+            if (isSubByte)
             {
-                // Initialize source buffer to zero
-                NativeMemory.Fill(sourceBuffer, sourceBufferSize, 0);
-
                 int offset = 0;
                 for (int pass = 0; pass < 7; pass++)
                 {
                     var (pw, ph) = passDims[pass];
                     if (pw == 0 || ph == 0)
+                    {
                         continue;
+                    }
 
                     int passSize = passSizes[pass];
                     int passStride = passStrides[pass];
@@ -388,28 +388,129 @@ internal static unsafe class PngDecoder
                     Span<byte> passData = decompressedSpan.Slice(offset, passSize);
 
                     // Defilter this pass in-place
-                    PngDefilter.Defilter(passData, pw, ph, bytesPerPixel);
+                    PngDefilter.Defilter(passData, pw, ph, bytesPerPixel, passStride);
 
-                    // Merge into source buffer
-                    PngAdam7.MergePass(sourceBuffer, sourceStride,
-                        passData, 1 + passStride,
-                        pass, width, height, bytesPerPixel);
+                    // Convert sub-byte pass pixels directly to RGBA8 output
+                    ConvertInterlacedPassToRGBA8(output, passData, passStride,
+                        pass, width, height, pw, ph, bitDepth, colorType, palette, transparency);
 
                     offset += passSize;
                 }
-
-                // Convert the merged source buffer to RGBA8
-                ConvertToRGBA8(output, sourceBuffer, width, height, sourceStride,
-                    bitDepth, colorType, palette, transparency);
             }
-            finally
+            else
             {
-                NativeMemory.Free(sourceBuffer);
+                // Byte-aligned depths: merge into source buffer, then convert all at once
+                int sourceStride = stride;
+                nuint sourceBufferSize = (nuint)(height * sourceStride);
+                byte* sourceBuffer = (byte*)NativeMemory.Alloc(sourceBufferSize);
+
+                try
+                {
+                    NativeMemory.Fill(sourceBuffer, sourceBufferSize, 0);
+
+                    int offset = 0;
+                    for (int pass = 0; pass < 7; pass++)
+                    {
+                        var (pw, ph) = passDims[pass];
+                        if (pw == 0 || ph == 0)
+                            continue;
+
+                        int passSize = passSizes[pass];
+                        int passStride = passStrides[pass];
+
+                        Span<byte> passData = decompressedSpan.Slice(offset, passSize);
+
+                        PngDefilter.Defilter(passData, pw, ph, bytesPerPixel, passStride);
+
+                        PngAdam7.MergePass(sourceBuffer, sourceStride,
+                            passData, 1 + passStride,
+                            pass, width, height, bytesPerPixel);
+
+                        offset += passSize;
+                    }
+
+                    ConvertToRGBA8(output, sourceBuffer, width, height, sourceStride,
+                        bitDepth, colorType, palette, transparency, hasFilterBytes: false);
+                }
+                finally
+                {
+                    NativeMemory.Free(sourceBuffer);
+                }
             }
         }
         finally
         {
             NativeMemory.Free(decompressed);
+        }
+    }
+
+    /// <summary>
+    /// Convert a single Adam7 pass of sub-byte pixels directly to RGBA8 output.
+    /// Each pixel is placed at its correct (destX, destY) position in the output buffer.
+    /// </summary>
+    private static unsafe void ConvertInterlacedPassToRGBA8(
+        byte* output, ReadOnlySpan<byte> passData, int passStride,
+        int pass, int imageWidth, int imageHeight,
+        int passWidth, int passHeight, int bitDepth, int colorType,
+        byte[]? palette, byte[]? transparency)
+    {
+        var (startX, startY, incX, incY) = PngAdam7.PassParams[pass];
+        int mask = (1 << bitDepth) - 1;
+
+        for (int y = 0; y < passHeight; y++)
+        {
+            int passRowOffset = y * (1 + passStride) + 1; // Skip filter byte
+            int destY = startY + y * incY;
+            byte* dstRow = output + destY * imageWidth * 4;
+
+            int bitPos = 0;
+            int byteIdx = 0;
+
+            for (int x = 0; x < passWidth; x++)
+            {
+                int destX = startX + x * incX;
+                int shift = 8 - bitDepth - bitPos;
+                int sample = (passData[passRowOffset + byteIdx] >> shift) & mask;
+
+                // Convert sample to RGBA8 based on color type
+                byte r, g, b, a;
+                switch (colorType)
+                {
+                    case 0: // Grayscale
+                        {
+                            byte gray = ScaleToByte(sample, bitDepth);
+                            r = g = b = gray;
+                            a = 0xFF;
+                        }
+                        break;
+                    case 3: // Indexed
+                        {
+                            int index = sample;
+                            r = palette![index * 3 + 0];
+                            g = palette[index * 3 + 1];
+                            b = palette[index * 3 + 2];
+                            a = (transparency != null && index < transparency.Length)
+                                ? transparency[index]
+                                : (byte)0xFF;
+                        }
+                        break;
+                    default:
+                        r = g = b = a = 0;
+                        break;
+                }
+
+                dstRow[destX * 4 + 0] = r;
+                dstRow[destX * 4 + 1] = g;
+                dstRow[destX * 4 + 2] = b;
+                dstRow[destX * 4 + 3] = a;
+
+                bitPos += bitDepth;
+                if (bitPos == 8)
+                {
+                    bitPos = 0;
+                    byteIdx++;
+                }
+            }
         }
     }
 
@@ -421,44 +522,51 @@ internal static unsafe class PngDecoder
     /// Convert source-format pixel data to RGBA8.
     /// For interlaced images, the source data is already deinterlaced into full-size image layout.
     /// </summary>
+    /// <param name="hasFilterBytes">If true, each row in source starts with a filter byte (stride becomes 1+sourceStride).</param>
     private static void ConvertToRGBA8(
         byte* output, byte* source, int width, int height, int sourceStride,
-        int bitDepth, int colorType, byte[]? palette, byte[]? transparency)
+        int bitDepth, int colorType, byte[]? palette, byte[]? transparency,
+        bool hasFilterBytes)
     {
+        // Compute the actual row-to-row distance in source data
+        int rowStride = hasFilterBytes ? 1 + sourceStride : sourceStride;
+
         switch (colorType)
         {
             case 0: // Grayscale
-                ConvertGrayscale(output, source, width, height, sourceStride, bitDepth, transparency);
+                ConvertGrayscale(output, source, width, height, sourceStride, rowStride, bitDepth, transparency, hasFilterBytes);
                 break;
             case 2: // RGB
-                ConvertRGB(output, source, width, height, sourceStride, bitDepth, transparency);
+                ConvertRGB(output, source, width, height, sourceStride, rowStride, bitDepth, transparency, hasFilterBytes);
                 break;
             case 3: // Indexed
-                ConvertIndexed(output, source, width, height, sourceStride, bitDepth, palette!, transparency);
+                ConvertIndexed(output, source, width, height, sourceStride, rowStride, bitDepth, palette!, transparency, hasFilterBytes);
                 break;
             case 4: // Grayscale + Alpha
-                ConvertGrayscaleAlpha(output, source, width, height, sourceStride, bitDepth);
+                ConvertGrayscaleAlpha(output, source, width, height, sourceStride, rowStride, bitDepth, hasFilterBytes);
                 break;
             case 6: // RGBA
-                ConvertRGBA(output, source, width, height, sourceStride, bitDepth);
+                ConvertRGBA(output, source, width, height, sourceStride, rowStride, bitDepth, hasFilterBytes);
                 break;
         }
     }
 
     private static void ConvertGrayscale(
         byte* output, byte* source, int width, int height, int sourceStride,
-        int bitDepth, byte[]? transparency)
+        int rowStride, int bitDepth, byte[]? transparency, bool hasFilterBytes)
     {
         ushort tRNSValue = 0;
         bool hasTRNS = transparency != null && transparency.Length >= 2;
         if (hasTRNS)
             tRNSValue = (ushort)((transparency![0] << 8) | transparency[1]);
 
+        int pixelOffset = hasFilterBytes ? 1 : 0;
+
         if (bitDepth == 8)
         {
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 for (int x = 0; x < width; x++)
@@ -480,7 +588,7 @@ internal static unsafe class PngDecoder
         {
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 for (int x = 0; x < width; x++)
@@ -506,7 +614,7 @@ internal static unsafe class PngDecoder
 
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 int bitPos = 0;
@@ -536,7 +644,7 @@ internal static unsafe class PngDecoder
 
     private static void ConvertRGB(
         byte* output, byte* source, int width, int height, int sourceStride,
-        int bitDepth, byte[]? transparency)
+        int rowStride, int bitDepth, byte[]? transparency, bool hasFilterBytes)
     {
         bool hasTRNS = transparency != null && transparency.Length >= 6;
         ushort tRNSR = 0, tRNSG = 0, tRNSB = 0;
@@ -547,11 +655,13 @@ internal static unsafe class PngDecoder
             tRNSB = (ushort)((transparency[4] << 8) | transparency[5]);
         }
 
+        int pixelOffset = hasFilterBytes ? 1 : 0;
+
         if (bitDepth == 8)
         {
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 for (int x = 0; x < width; x++)
@@ -575,7 +685,7 @@ internal static unsafe class PngDecoder
         {
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 for (int x = 0; x < width; x++)
@@ -606,13 +716,14 @@ internal static unsafe class PngDecoder
 
     private static void ConvertIndexed(
         byte* output, byte* source, int width, int height, int sourceStride,
-        int bitDepth, byte[] palette, byte[]? transparency)
+        int rowStride, int bitDepth, byte[] palette, byte[]? transparency, bool hasFilterBytes)
     {
         int mask = (1 << bitDepth) - 1;
+        int pixelOffset = hasFilterBytes ? 1 : 0;
 
         for (int y = 0; y < height; y++)
         {
-            byte* srcRow = source + y * sourceStride;
+            byte* srcRow = source + y * rowStride + pixelOffset;
             byte* dstRow = output + y * width * 4;
 
             int bitPos = 0;
@@ -647,13 +758,15 @@ internal static unsafe class PngDecoder
 
     private static void ConvertGrayscaleAlpha(
         byte* output, byte* source, int width, int height, int sourceStride,
-        int bitDepth)
+        int rowStride, int bitDepth, bool hasFilterBytes)
     {
+        int pixelOffset = hasFilterBytes ? 1 : 0;
+
         if (bitDepth == 8)
         {
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 for (int x = 0; x < width; x++)
@@ -672,7 +785,7 @@ internal static unsafe class PngDecoder
         {
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 for (int x = 0; x < width; x++)
@@ -691,19 +804,26 @@ internal static unsafe class PngDecoder
 
     private static void ConvertRGBA(
         byte* output, byte* source, int width, int height, int sourceStride,
-        int bitDepth)
+        int rowStride, int bitDepth, bool hasFilterBytes)
     {
+        int pixelOffset = hasFilterBytes ? 1 : 0;
+
         if (bitDepth == 8)
         {
-            // Direct passthrough: source is already RGBA8
-            long totalBytes = (long)width * height * 4;
-            Buffer.MemoryCopy(source, output, totalBytes, totalBytes);
+            // Copy row by row, skipping filter bytes if present
+            for (int y = 0; y < height; y++)
+            {
+                byte* srcRow = source + y * rowStride + pixelOffset;
+                byte* dstRow = output + y * width * 4;
+                int copyBytes = width * 4;
+                Buffer.MemoryCopy(srcRow, dstRow, copyBytes, copyBytes);
+            }
         }
         else // bitDepth == 16
         {
             for (int y = 0; y < height; y++)
             {
-                byte* srcRow = source + y * sourceStride;
+                byte* srcRow = source + y * rowStride + pixelOffset;
                 byte* dstRow = output + y * width * 4;
 
                 for (int x = 0; x < width; x++)

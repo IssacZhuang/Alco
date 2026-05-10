@@ -102,7 +102,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -134,7 +134,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -170,7 +170,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -212,7 +212,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -252,7 +252,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -297,7 +297,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -332,7 +332,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         for (int y = 0; y < height; y++)
         {
@@ -364,7 +364,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         for (int y = 0; y < height; y++)
         {
@@ -401,7 +401,7 @@ public class TestPngDefilter
             byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
             byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-            PngDefilter.Defilter(scanlines, width, height, bpp);
+            PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
             for (int y = 0; y < height; y++)
             {
@@ -439,7 +439,7 @@ public class TestPngDefilter
             byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
             byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-            PngDefilter.Defilter(scanlines, width, height, bpp);
+            PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
             for (int y = 0; y < height; y++)
             {
@@ -472,7 +472,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         for (int y = 0; y < height; y++)
         {
@@ -503,7 +503,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -554,7 +554,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int stride = width * bpp;
         for (int y = 0; y < height; y++)
@@ -587,7 +587,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int rowSize = 1 + stride;
         for (int y = 0; y < height; y++)
@@ -618,7 +618,7 @@ public class TestPngDefilter
         byte[] scanlines = BuildScanlines(filterTypes, pixelRows, bpp);
         byte[][] expected = DefilterReference(filterTypes, pixelRows, bpp);
 
-        PngDefilter.Defilter(scanlines, width, height, bpp);
+        PngDefilter.Defilter(scanlines, width, height, bpp, width * bpp);
 
         int rowSize = 1 + stride;
         for (int y = 0; y < height; y++)

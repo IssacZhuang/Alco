@@ -17,9 +17,9 @@ internal static unsafe class PngDefilter
     /// <param name="width">Image width in pixels.</param>
     /// <param name="height">Image height in pixels.</param>
     /// <param name="bytesPerPixel">Bytes per pixel in source format (before RGBA conversion). E.g. 1 for grayscale, 3 for RGB, 4 for RGBA.</param>
-    public static unsafe void Defilter(Span<byte> scanlines, int width, int height, int bytesPerPixel)
+    /// <param name="stride">Bytes per row of pixel data (excluding filter byte). For sub-byte depths, this is ceil(width * bitsPerPixel / 8).</param>
+    public static unsafe void Defilter(Span<byte> scanlines, int width, int height, int bytesPerPixel, int stride)
     {
-        int stride = width * bytesPerPixel;
         int rowSize = 1 + stride;
 
         // Allocate a buffer for the previous row's defiltered pixel data.
