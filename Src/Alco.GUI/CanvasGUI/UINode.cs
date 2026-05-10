@@ -41,6 +41,7 @@ public class UINode : IEnumerable<UINode>
     public event Action<Canvas, Vector2>? EventOnDrag;
     public event Action<Canvas, Vector2>? EventOnSelect;
     public event Action<Canvas, Vector2>? EventOnDeselect;
+    public event Action<Canvas, Vector2>? EventOnUnhover;
     public event Action<Canvas, Vector2>? EventOnScroll;
 
     public UINode()
@@ -977,6 +978,21 @@ public class UINode : IEnumerable<UINode>
         }
     }
 
+    /// <summary>
+    /// Called when the cursor leaves this node's hover area.
+    /// Bubbles up to parent nodes if <see cref="BubbleEvent"/> is true.
+    /// </summary>
+    /// <param name="canvas">The canvas that dispatched the event.</param>
+    /// <param name="mousePosition">The current mouse position.</param>
+    public virtual void OnUnhover(Canvas canvas, Vector2 mousePosition)
+    {
+        EventOnUnhover?.Invoke(canvas, mousePosition);
+        if (BubbleEvent && Parent != null)
+        {
+            Parent.OnUnhover(canvas, mousePosition);
+        }
+    }
+
     public virtual void OnPressing(Canvas canvas, Vector2 mousePosition)
     {
         EventOnPressing?.Invoke(canvas, mousePosition);
@@ -1054,6 +1070,14 @@ public class UINode : IEnumerable<UINode>
     public void ClearEventOnHover()
     {
         EventOnHover = null;
+    }
+
+    /// <summary>
+    /// Clears all event handlers attached to EventOnUnhover.
+    /// </summary>
+    public void ClearEventOnUnhover()
+    {
+        EventOnUnhover = null;
     }
 
     /// <summary>
