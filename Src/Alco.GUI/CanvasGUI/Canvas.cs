@@ -566,6 +566,7 @@ public partial class Canvas : AutoDisposable
         CursorPosition = mouseWorldPosition;
 
         UINode? selectable = null;
+        UINode? oldHovered = null;
         bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved;
         if (shouldUpdateHover)
         {
@@ -592,11 +593,13 @@ public partial class Canvas : AutoDisposable
                 }
             }
 
+            oldHovered = _hovered;
             _hovered = selectable;
         }
         else
         {
             selectable = _hovered;
+            oldHovered = _hovered;
 
             // Clear stale hover reference if the node or any ancestor is disabled
             if (selectable != null && !IsEnabledInHierarchy(selectable))
@@ -633,6 +636,17 @@ public partial class Canvas : AutoDisposable
         }
         else if (shouldUpdateHover)
         {
+            if (oldHovered != null && oldHovered != selectable)
+            {
+                try
+                {
+                    oldHovered.OnUnhover(this, mouseWorldPosition);
+                }
+                catch (Exception e)
+                {
+                    HandleError(e, "OnUnhover", oldHovered);
+                }
+            }
             if (selectable != null)
             {
                 try
