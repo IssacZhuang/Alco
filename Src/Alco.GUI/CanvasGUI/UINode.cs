@@ -963,97 +963,51 @@ public class UINode : IEnumerable<UINode>
     public virtual void OnClick(Canvas canvas, Vector2 mousePosition)
     {
         EventOnClick?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnClick(canvas, mousePosition);
-        }
     }
 
     public virtual void OnHover(Canvas canvas, Vector2 mousePosition)
     {
         EventOnHover?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnHover(canvas, mousePosition);
-        }
     }
 
-    /// <summary>
-    /// Called when the cursor leaves this node's hover area.
-    /// Bubbles up to parent nodes if <see cref="BubbleEvent"/> is true.
-    /// </summary>
-    /// <param name="canvas">The canvas that dispatched the event.</param>
-    /// <param name="mousePosition">The current mouse position.</param>
     public virtual void OnUnhover(Canvas canvas, Vector2 mousePosition)
     {
         EventOnUnhover?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnUnhover(canvas, mousePosition);
-        }
     }
 
     public virtual void OnPressing(Canvas canvas, Vector2 mousePosition)
     {
         EventOnPressing?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnPressing(canvas, mousePosition);
-        }
     }
 
     public virtual void OnPressDown(Canvas canvas, Vector2 mousePosition)
     {
         EventOnPressDown?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnPressDown(canvas, mousePosition);
-        }
     }
 
     public virtual void OnPressUp(Canvas canvas, Vector2 mousePosition)
     {
         EventOnPressUp?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnPressUp(canvas, mousePosition);
-        }
     }
 
     public virtual void OnDrag(Canvas canvas, Vector2 mousePosition)
     {
         EventOnDrag?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnDrag(canvas, mousePosition);
-        }
     }
 
     public virtual void OnSelect(Canvas canvas, Vector2 mousePosition)
     {
         EventOnSelect?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnSelect(canvas, mousePosition);
-        }
     }
 
     public virtual void OnDeselect(Canvas canvas, Vector2 mousePosition)
     {
         EventOnDeselect?.Invoke(canvas, mousePosition);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnDeselect(canvas, mousePosition);
-        }
     }
 
     public virtual void OnScroll(Canvas canvas, Vector2 scrollDelta)
     {
         EventOnScroll?.Invoke(canvas, scrollDelta);
-        if (BubbleEvent && Parent != null)
-        {
-            Parent.OnScroll(canvas, scrollDelta);
-        }
     }
 
     /// <summary>
