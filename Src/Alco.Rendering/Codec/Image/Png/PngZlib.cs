@@ -1,13 +1,12 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.X86;
 
 namespace Alco.Rendering.Codec.Image;
 
 /// <summary>
 /// Decompresses zlib-wrapped DEFLATE streams as used in PNG IDAT chunks.
 /// Includes a bit reader for LSB-first DEFLATE parsing, a full Inflate implementation
-/// supporting all three DEFLATE block types, and an Adler-32 checksum with SIMD acceleration.
+/// supporting all three DEFLATE block types, and an Adler-32 checksum with portable SIMD acceleration.
 /// </summary>
 internal static class PngZlib
 {
@@ -16,12 +15,6 @@ internal static class PngZlib
 
     /// <summary>Maximum number of bytes to accumulate before reducing mod 65521 (prevents uint32 overflow).</summary>
     private const int AdlerNMax = 5552;
-
-    /// <summary>Weight vector for SIMD Adler-32: weights 16,15,...,9 for bytes 0-7.</summary>
-    private static ReadOnlySpan<short> WeightLo => [16, 15, 14, 13, 12, 11, 10, 9];
-
-    /// <summary>Weight vector for SIMD Adler-32: weights 8,7,...,1 for bytes 8-15.</summary>
-    private static ReadOnlySpan<short> WeightHi => [8, 7, 6, 5, 4, 3, 2, 1];
 
     /// <summary>DEFLATE length code base values for codes 257-285.</summary>
     private static ReadOnlySpan<ushort> LengthBase =>
@@ -121,10 +114,10 @@ internal static class PngZlib
         int outputPos = 0;
 
         // Build fixed Huffman tables (reused across all fixed blocks)
-        int[] fixedLitSymbols = new int[1 << 9];
-        int[] fixedLitLengths = new int[1 << 9];
-        int[] fixedDistSymbols = new int[1 << 5];
-        int[] fixedDistLengths = new int[1 << 5];
+        Span<int> fixedLitSymbols = stackalloc int[1 << 9];
+        Span<int> fixedLitLengths = stackalloc int[1 << 9];
+        Span<int> fixedDistSymbols = stackalloc int[1 << 5];
+        Span<int> fixedDistLengths = stackalloc int[1 << 5];
 
         bool fixedTablesBuilt = false;
 
@@ -172,7 +165,7 @@ internal static class PngZlib
 
     /// <summary>
     /// Compute the Adler-32 checksum of the given data.
-    /// Uses SIMD (SSE2/AVX2) acceleration when available for large inputs.
+    /// Uses portable SIMD acceleration (Vector256/Vector128) when available for large inputs.
     /// </summary>
     /// <param name="data">Input data to checksum.</param>
     /// <returns>The Adler-32 checksum value.</returns>
@@ -184,10 +177,14 @@ internal static class PngZlib
         uint a = 1;
         uint b = 0;
 
-        // Use SIMD path for large inputs
-        if (Sse2.IsSupported && data.Length >= 32)
+        // Use SIMD path for large inputs when hardware-accelerated vectors are available
+        if (Vector256.IsHardwareAccelerated && data.Length >= Vector256<byte>.Count)
         {
-            Adler32Simd(data, ref a, ref b);
+            Adler32Simd256(data, ref a, ref b);
+        }
+        else if (Vector128.IsHardwareAccelerated && data.Length >= Vector128<byte>.Count)
+        {
+            Adler32Simd128(data, ref a, ref b);
         }
         else
         {
@@ -223,8 +220,8 @@ internal static class PngZlib
         ref BitReader reader,
         Span<byte> output,
         ref int outputPos,
-        int[] litSymbols, int[] litLengths, int litTableBits,
-        int[] distSymbols, int[] distLengths, int distTableBits)
+        scoped ReadOnlySpan<int> litSymbols, scoped ReadOnlySpan<int> litLengths, int litTableBits,
+        scoped ReadOnlySpan<int> distSymbols, scoped ReadOnlySpan<int> distLengths, int distTableBits)
     {
         // We need to pass individual ref fields to DecodeSymbol because BitReader is a ref struct
         // and cannot be captured by lambda or passed by ref-through-ref-struct.
@@ -392,8 +389,8 @@ internal static class PngZlib
         // Build literal/length Huffman table from first hlit code lengths
         const int LitTableBits = 15;
         int litTableSize = 1 << LitTableBits;
-        int[] litSymbols = new int[litTableSize];
-        int[] litLengths = new int[litTableSize];
+        Span<int> litSymbols = stackalloc int[litTableSize];
+        Span<int> litLengths = stackalloc int[litTableSize];
 
         if (!PngHuffman.BuildHuffmanTable(allCodeLengths, 0, hlit, LitTableBits, litSymbols, litLengths))
             throw new ImageDecodeException("Failed to build dynamic literal/length Huffman table.");
@@ -401,8 +398,8 @@ internal static class PngZlib
         // Build distance Huffman table from last hdist code lengths
         const int DistTableBits = 15;
         int distTableSize = 1 << DistTableBits;
-        int[] distSymbols = new int[distTableSize];
-        int[] distLengths = new int[distTableSize];
+        Span<int> distSymbols = stackalloc int[distTableSize];
+        Span<int> distLengths = stackalloc int[distTableSize];
 
         if (!PngHuffman.BuildHuffmanTable(allCodeLengths, hlit, hdist, DistTableBits, distSymbols, distLengths))
             throw new ImageDecodeException("Failed to build dynamic distance Huffman table.");
@@ -440,24 +437,22 @@ internal static class PngZlib
     }
 
     /// <summary>
-    /// SIMD-accelerated Adler-32 computation using SSE2.
-    /// Processes 16 bytes at a time, computing both the byte sum and weighted sum efficiently.
-    /// The formula for a group of 16 bytes is: b += 16*a + weighted_sum where
-    /// weighted_sum = 16*byte[0] + 15*byte[1] + ... + 1*byte[15].
+    /// SIMD-accelerated Adler-32 computation using portable Vector256 (32 bytes at a time).
+    /// Processes 32 bytes per iteration: zero-extends bytes to uints, accumulates partial sums
+    /// for 'a' (byte sum) and 'b' (weighted sum), and reduces to scalar every NMAX bytes.
     /// </summary>
-    private static void Adler32Simd(ReadOnlySpan<byte> data, ref uint a, ref uint b)
+    private static unsafe void Adler32Simd256(ReadOnlySpan<byte> data, ref uint a, ref uint b)
     {
         int offset = 0;
         int remaining = data.Length;
+        const int vectorSize = 32; // Vector256<byte>.Count
 
-        // Weight vectors for computing weighted sum:
-        // wLo multiplies bytes 0-7 with weights 16,15,...,9
-        // wHi multiplies bytes 8-15 with weights 8,7,...,1
-        Vector128<short> wLo = Unsafe.ReadUnaligned<Vector128<short>>(
-            ref Unsafe.As<short, byte>(ref Unsafe.AsRef(in WeightLo[0])));
-        Vector128<short> wHi = Unsafe.ReadUnaligned<Vector128<short>>(
-            ref Unsafe.As<short, byte>(ref Unsafe.AsRef(in WeightHi[0])));
-        Vector128<short> ones = Vector128.Create((short)1);
+        // Weight vectors for the 4 uint sub-vectors produced by widening 32 bytes.
+        // After widening: lo=bytes 0-7, hi1=bytes 8-15, lo2=bytes 16-23, hi2=bytes 24-31.
+        Vector256<uint> w0 = Vector256.Create(32u, 31u, 30u, 29u, 28u, 27u, 26u, 25u);
+        Vector256<uint> w1 = Vector256.Create(24u, 23u, 22u, 21u, 20u, 19u, 18u, 17u);
+        Vector256<uint> w2 = Vector256.Create(16u, 15u, 14u, 13u, 12u, 11u, 10u, 9u);
+        Vector256<uint> w3 = Vector256.Create(8u, 7u, 6u, 5u, 4u, 3u, 2u, 1u);
 
         while (remaining > 0)
         {
@@ -465,34 +460,35 @@ internal static class PngZlib
             int remainingInBatch = batch;
 
             int i = 0;
-            int simdLimit = remainingInBatch - 15;
+            int simdLimit = remainingInBatch - (vectorSize - 1);
 
             while (i < simdLimit)
             {
-                // Load 16 bytes
-                Vector128<byte> chunk = Unsafe.ReadUnaligned<Vector128<byte>>(
+                // Load 32 bytes
+                Vector256<byte> chunk = Unsafe.ReadUnaligned<Vector256<byte>>(
                     ref Unsafe.AsRef(in data[offset + i]));
 
-                // Widen bytes to two 8-element uint16 vectors
-                Vector128<ushort> lo = Sse2.UnpackLow(chunk, Vector128<byte>.Zero).AsUInt16();
-                Vector128<ushort> hi = Sse2.UnpackHigh(chunk, Vector128<byte>.Zero).AsUInt16();
+                // Zero-extend bytes to uints via two-stage widening
+                Vector256<ushort> asUshortLo = Vector256.WidenLower(chunk);
+                Vector256<uint> lo = Vector256.WidenLower(asUshortLo);   // bytes 0-7
+                Vector256<uint> hi1 = Vector256.WidenUpper(asUshortLo);  // bytes 8-15
 
-                // Compute plain sum of all 16 bytes (for updating a)
-                Vector128<int> sumLo = Sse2.MultiplyAddAdjacent(lo.AsInt16(), ones);
-                Vector128<int> sumHi = Sse2.MultiplyAddAdjacent(hi.AsInt16(), ones);
-                int chunkSum = (int)HorizontalSum(Sse2.Add(sumLo, sumHi));
+                Vector256<ushort> asUshortHi = Vector256.WidenUpper(chunk);
+                Vector256<uint> lo2 = Vector256.WidenLower(asUshortHi);  // bytes 16-23
+                Vector256<uint> hi2 = Vector256.WidenUpper(asUshortHi);  // bytes 24-31
 
-                // Compute weighted sum (for updating b):
-                // Multiply each widened byte by its weight and sum
-                Vector128<int> weightedLo = Sse2.MultiplyAddAdjacent(lo.AsInt16(), wLo);
-                Vector128<int> weightedHi = Sse2.MultiplyAddAdjacent(hi.AsInt16(), wHi);
-                int weightedSum = (int)HorizontalSum(Sse2.Add(weightedLo, weightedHi));
+                // Compute plain sum of all 32 bytes (for updating a)
+                uint chunkSum = HorizontalSum256(lo + hi1 + lo2 + hi2);
 
-                // Update: b += 16*a + weighted_sum, a += plain_sum
-                b += (uint)(16 * (int)a + weightedSum);
-                a += (uint)chunkSum;
+                // Compute weighted sum: each byte * its positional weight, then sum all
+                uint weightedSum = HorizontalSum256(
+                    (lo * w0) + (hi1 * w1) + (lo2 * w2) + (hi2 * w3));
 
-                i += 16;
+                // Update: b += 32*a + weighted_sum, a += plain_sum
+                b += 32 * a + weightedSum;
+                a += chunkSum;
+
+                i += vectorSize;
             }
 
             a %= AdlerMod;
@@ -514,15 +510,98 @@ internal static class PngZlib
     }
 
     /// <summary>
-    /// Horizontal sum of a 128-bit vector of 4 int32 values.
+    /// SIMD-accelerated Adler-32 computation using portable Vector128 (16 bytes at a time).
+    /// Fallback when Vector256 is not available but Vector128 is hardware-accelerated.
     /// </summary>
-    private static uint HorizontalSum(Vector128<int> v)
+    private static unsafe void Adler32Simd128(ReadOnlySpan<byte> data, ref uint a, ref uint b)
     {
-        Vector128<int> shuffled = Sse2.Shuffle(v, 0x0E); // _MM_SHUFFLE(0,0,3,2)
-        Vector128<int> summed = Sse2.Add(v, shuffled);
-        Vector128<int> shuffled2 = Sse2.Shuffle(summed, 0x01); // _MM_SHUFFLE(0,0,0,1)
-        Vector128<int> result = Sse2.Add(summed, shuffled2);
-        return (uint)result.GetElement(0);
+        int offset = 0;
+        int remaining = data.Length;
+        const int vectorSize = 16; // Vector128<byte>.Count
+
+        // Weight vectors for the 4 uint sub-vectors produced by widening 16 bytes.
+        // After widening: lo=bytes 0-3, hi1=bytes 4-7, lo2=bytes 8-11, hi2=bytes 12-15.
+        Vector128<uint> w0 = Vector128.Create(16u, 15u, 14u, 13u);
+        Vector128<uint> w1 = Vector128.Create(12u, 11u, 10u, 9u);
+        Vector128<uint> w2 = Vector128.Create(8u, 7u, 6u, 5u);
+        Vector128<uint> w3 = Vector128.Create(4u, 3u, 2u, 1u);
+
+        while (remaining > 0)
+        {
+            int batch = Math.Min(remaining, AdlerNMax);
+            int remainingInBatch = batch;
+
+            int i = 0;
+            int simdLimit = remainingInBatch - (vectorSize - 1);
+
+            while (i < simdLimit)
+            {
+                // Load 16 bytes
+                Vector128<byte> chunk = Unsafe.ReadUnaligned<Vector128<byte>>(
+                    ref Unsafe.AsRef(in data[offset + i]));
+
+                // Zero-extend bytes to uints via two-stage widening
+                Vector128<ushort> asUshortLo = Vector128.WidenLower(chunk);
+                Vector128<uint> lo = Vector128.WidenLower(asUshortLo);   // bytes 0-3
+                Vector128<uint> hi1 = Vector128.WidenUpper(asUshortLo);  // bytes 4-7
+
+                Vector128<ushort> asUshortHi = Vector128.WidenUpper(chunk);
+                Vector128<uint> lo2 = Vector128.WidenLower(asUshortHi);  // bytes 8-11
+                Vector128<uint> hi2 = Vector128.WidenUpper(asUshortHi);  // bytes 12-15
+
+                // Compute plain sum of all 16 bytes (for updating a)
+                uint chunkSum = HorizontalSum128(lo + hi1 + lo2 + hi2);
+
+                // Compute weighted sum: each byte * its positional weight, then sum all
+                uint weightedSum = HorizontalSum128(
+                    (lo * w0) + (hi1 * w1) + (lo2 * w2) + (hi2 * w3));
+
+                // Update: b += 16*a + weighted_sum, a += plain_sum
+                b += 16 * a + weightedSum;
+                a += chunkSum;
+
+                i += vectorSize;
+            }
+
+            a %= AdlerMod;
+            b %= AdlerMod;
+
+            // Process remaining bytes with scalar loop
+            for (; i < remainingInBatch; i++)
+            {
+                a += data[offset + i];
+                b += a;
+            }
+
+            a %= AdlerMod;
+            b %= AdlerMod;
+
+            offset += batch;
+            remaining -= batch;
+        }
+    }
+
+    /// <summary>
+    /// Horizontal sum of a 256-bit vector of 8 uint32 values.
+    /// Uses portable Vector256 operations to sum all elements into a single scalar.
+    /// </summary>
+    private static uint HorizontalSum256(Vector256<uint> v)
+    {
+        // Sum the high and low halves
+        Vector128<uint> lo = v.GetLower();
+        Vector128<uint> hi = v.GetUpper();
+        Vector128<uint> sum = lo + hi;
+
+        return HorizontalSum128(sum);
+    }
+
+    /// <summary>
+    /// Horizontal sum of a 128-bit vector of 4 uint32 values.
+    /// Uses portable Vector128 element extraction to sum all elements into a single scalar.
+    /// </summary>
+    private static uint HorizontalSum128(Vector128<uint> v)
+    {
+        return v.GetElement(0) + v.GetElement(1) + v.GetElement(2) + v.GetElement(3);
     }
 
     /// <summary>
