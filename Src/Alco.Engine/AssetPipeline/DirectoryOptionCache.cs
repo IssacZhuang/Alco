@@ -8,63 +8,68 @@ using Alco.IO;
 namespace Alco.Engine;
 
 /// <summary>
-/// Lazily discovers, merges, and caches directory-level option files.
-/// Thread-safe. O(1) lookup after first population.
+/// Abstract base for lazily discovering, merging, and caching directory-level option files.
+/// Thread-safe. O(1) lookup after first computation per directory.
 /// </summary>
 /// <typeparam name="TOption">The option model type.</typeparam>
-public class DirectoryOptionCache<TOption> where TOption : class, new()
+public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
 {
     private readonly AssetSystem _assetSystem;
-    private readonly string _optionFileName;
-    private readonly JsonSerializerOptions _jsonOptions;
-    private readonly Func<TOption, TOption, TOption> _mergeFunc;
-
-    private Dictionary<string, TOption>? _rawOptions;
     private readonly ConcurrentDictionary<string, TOption> _mergedCache = new();
+    private Dictionary<string, TOption>? _rawOptions;
 
     /// <summary>
-    /// Creates a new directory option cache.
+    /// The option file name to scan for (e.g., ".texture-option.meta").
+    /// </summary>
+    protected abstract string OptionFileName { get; }
+
+    /// <summary>
+    /// Merges a parent option with a child option, where child non-null fields override parent.
+    /// </summary>
+    protected abstract TOption MergeOptions(TOption parent, TOption child);
+
+    /// <summary>
+    /// Creates the <see cref="JsonSerializerOptions"/> used for deserializing option files.
+    /// </summary>
+    protected abstract JsonSerializerOptions CreateJsonOptions();
+
+    /// <summary>
+    /// Initializes a new instance with the given <see cref="AssetSystem"/>.
     /// </summary>
     /// <param name="assetSystem">The asset system used for file discovery and loading.</param>
-    /// <param name="optionFileName">The exact file name to look for (e.g., ".texture-option.meta").</param>
-    /// <param name="jsonConverters">JSON converters to use for deserialization.</param>
-    /// <param name="mergeFunc">Function that merges child option over parent option, returning the merged result.</param>
-    public DirectoryOptionCache(
-        AssetSystem assetSystem,
-        string optionFileName,
-        IEnumerable<JsonConverter> jsonConverters,
-        Func<TOption, TOption, TOption> mergeFunc)
+    protected DirectoryOptionCache(AssetSystem assetSystem)
     {
         _assetSystem = assetSystem;
-        _optionFileName = optionFileName;
-        _mergeFunc = mergeFunc;
-
-        _jsonOptions = new JsonSerializerOptions
-        {
-            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
-            AllowTrailingCommas = true,
-        };
-        foreach (var converter in jsonConverters)
-        {
-            _jsonOptions.Converters.Add(converter);
-        }
-        _jsonOptions.MakeReadOnly();
     }
 
     /// <summary>
-    /// Gets the merged option for the given directory path.
+    /// Attempts to get the cascade-merged option for a directory.
+    /// Returns false if no option files exist in this directory's ancestry.
     /// </summary>
-    /// <param name="directory">Directory path with forward slashes, no trailing slash.</param>
-    /// <param name="option">The merged option if found.</param>
-    /// <returns>True if a merged option exists for this directory.</returns>
+    /// <param name="directory">The directory path to look up.</param>
+    /// <param name="option">The merged option, if found.</param>
+    /// <returns>True if an option was found; otherwise, false.</returns>
     public bool TryGetOption(string directory, [NotNullWhen(true)] out TOption? option)
     {
-        EnsureInitialized();
-        return _mergedCache.TryGetValue(NormalizeDirectory(directory), out option);
+        EnsureRawOptionsLoaded();
+        string normalizedDir = NormalizeDirectory(directory);
+
+        if (_mergedCache.TryGetValue(normalizedDir, out option))
+            return true;
+
+        TOption? merged = BuildMergedOption(normalizedDir);
+        if (merged == null)
+        {
+            option = null;
+            return false;
+        }
+
+        option = _mergedCache.GetOrAdd(normalizedDir, merged);
+        return true;
     }
 
     /// <summary>
-    /// Clears the merged cache, forcing re-scan on next access.
+    /// Clears cached data, forcing re-discovery on next access.
     /// </summary>
     public void Invalidate()
     {
@@ -72,7 +77,12 @@ public class DirectoryOptionCache<TOption> where TOption : class, new()
         _mergedCache.Clear();
     }
 
-    private void EnsureInitialized()
+    /// <summary>
+    /// Gets the <see cref="AssetSystem"/> for subclass use (e.g., loading per-file meta).
+    /// </summary>
+    protected AssetSystem AssetSystem => _assetSystem;
+
+    private void EnsureRawOptionsLoaded()
     {
         if (_rawOptions != null)
             return;
@@ -83,20 +93,19 @@ public class DirectoryOptionCache<TOption> where TOption : class, new()
                 return;
 
             var raw = new Dictionary<string, TOption>();
+            JsonSerializerOptions jsonOptions = CreateJsonOptions();
 
-            // Discover all option files
             foreach (string filename in _assetSystem.AllAssetNames)
             {
-                if (!filename.EndsWith(_optionFileName, StringComparison.OrdinalIgnoreCase))
+                if (!filename.EndsWith(OptionFileName, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                // Load raw bytes and deserialize
                 if (_assetSystem.TryLoadRaw(filename, out var data))
                 {
                     try
                     {
                         string json = System.Text.Encoding.UTF8.GetString(data.AsReadOnlySpan());
-                        if (JsonSerializer.Deserialize<TOption>(json, _jsonOptions) is TOption opt)
+                        if (JsonSerializer.Deserialize<TOption>(json, jsonOptions) is TOption opt)
                         {
                             string dir = NormalizeDirectory(Path.GetDirectoryName(filename));
                             raw[dir] = opt;
@@ -114,32 +123,11 @@ public class DirectoryOptionCache<TOption> where TOption : class, new()
             }
 
             _rawOptions = raw;
-
-            // Pre-compute merged options for every directory that contains textures
-            var directories = new HashSet<string>(raw.Keys);
-            foreach (string filename in _assetSystem.AllAssetNames)
-            {
-                string? ext = Path.GetExtension(filename);
-                if (ext is not (".png" or ".jpg" or ".bmp" or ".tga" or ".hdr" or ".gif"))
-                    continue;
-                directories.Add(NormalizeDirectory(Path.GetDirectoryName(filename)));
-            }
-
-            foreach (string dir in directories)
-            {
-                var merged = BuildMergedOption(dir);
-                if (merged != null)
-                    _mergedCache[dir] = merged;
-            }
         }
     }
 
-    /// <summary>
-    /// Builds the cascade-merged option for a directory by walking from root to leaf.
-    /// </summary>
     private TOption? BuildMergedOption(string directory)
     {
-        // Collect path segments from root to target directory
         var segments = new List<string>();
         string current = directory;
         while (!string.IsNullOrEmpty(current))
@@ -152,7 +140,6 @@ public class DirectoryOptionCache<TOption> where TOption : class, new()
         }
         segments.Reverse();
 
-        // Merge from root to leaf
         TOption? result = null;
         foreach (string seg in segments)
         {
@@ -161,7 +148,7 @@ public class DirectoryOptionCache<TOption> where TOption : class, new()
                 if (result == null)
                     result = raw;
                 else
-                    result = _mergeFunc(result, raw);
+                    result = MergeOptions(result, raw);
             }
         }
 
