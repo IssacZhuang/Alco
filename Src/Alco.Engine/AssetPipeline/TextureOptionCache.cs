@@ -26,12 +26,9 @@ public class TextureOptionCache : DirectoryOptionCache<Texture2DMeta>
     /// <inheritdoc/>
     protected override Texture2DMeta MergeOptions(Texture2DMeta parent, Texture2DMeta child)
     {
-        return new Texture2DMeta
-        {
-            FilterMode = child.FilterMode ?? parent.FilterMode,
-            AddressMode = child.AddressMode ?? parent.AddressMode,
-            SlicePadding = child.SlicePadding ?? parent.SlicePadding,
-        };
+        // Sprites is intentionally excluded from cascade merging — sprites remain
+        // per-texture and are defined only in individual .meta files.
+        return ApplyOverrides(parent, child);
     }
 
     /// <inheritdoc/>
@@ -63,7 +60,7 @@ public class TextureOptionCache : DirectoryOptionCache<Texture2DMeta>
     public (Texture2DMeta? Option, Texture2DMeta? Meta) Resolve(string filename)
     {
         // 1. Directory cascade option
-        string directory = GetDirectory(filename);
+        string directory = NormalizeDirectory(Path.GetDirectoryName(filename));
         Texture2DMeta? dirOption = null;
         if (TryGetOption(directory, out var cached))
             dirOption = cached;
@@ -79,23 +76,23 @@ public class TextureOptionCache : DirectoryOptionCache<Texture2DMeta>
 
         Texture2DMeta result = dirOption ?? new Texture2DMeta();
         if (meta != null)
-        {
-            result = new Texture2DMeta
-            {
-                FilterMode = meta.FilterMode ?? result.FilterMode,
-                AddressMode = meta.AddressMode ?? result.AddressMode,
-                SlicePadding = meta.SlicePadding ?? result.SlicePadding,
-            };
-        }
+            result = ApplyOverrides(result, meta);
 
         return (result, meta);
     }
 
-    private static string GetDirectory(string filename)
+    /// <summary>
+    /// Creates a new <see cref="Texture2DMeta"/> where non-null fields from
+    /// <paramref name="overrides"/> take precedence over <paramref name="baseMeta"/>.
+    /// Sprites is not carried over — it is handled separately in per-file resolution.
+    /// </summary>
+    private static Texture2DMeta ApplyOverrides(Texture2DMeta baseMeta, Texture2DMeta overrides)
     {
-        string? dir = Path.GetDirectoryName(filename);
-        if (string.IsNullOrEmpty(dir))
-            return string.Empty;
-        return dir.Replace('\\', '/').TrimEnd('/');
+        return new Texture2DMeta
+        {
+            FilterMode = overrides.FilterMode ?? baseMeta.FilterMode,
+            AddressMode = overrides.AddressMode ?? baseMeta.AddressMode,
+            SlicePadding = overrides.SlicePadding ?? baseMeta.SlicePadding,
+        };
     }
 }

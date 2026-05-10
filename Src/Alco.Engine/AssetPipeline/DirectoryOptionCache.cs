@@ -155,7 +155,7 @@ public abstract class DirectoryOptionCache<TOption> where TOption : class, new()
         return result;
     }
 
-    private static string NormalizeDirectory(string? path)
+    protected static string NormalizeDirectory(string? path)
     {
         if (string.IsNullOrEmpty(path))
             return string.Empty;

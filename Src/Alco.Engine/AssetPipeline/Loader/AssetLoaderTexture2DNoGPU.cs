@@ -26,11 +26,21 @@ public class AssetLoaderTexture2DNoGPU : IAssetLoader
     /// <inheritdoc/>
     public IReadOnlyList<string> FileExtensions => Extensions;
 
+    /// <summary>
+    /// Initializes a new instance without option caching.
+    /// Texture import options will use engine defaults only.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system used to create textures.</param>
     public AssetLoaderTexture2DNoGPU(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
     }
 
+    /// <summary>
+    /// Initializes a new instance with directory cascade and per-file option caching.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system used to create textures.</param>
+    /// <param name="assetSystem">The asset system used for option file discovery and loading.</param>
     public AssetLoaderTexture2DNoGPU(RenderingSystem renderingSystem, AssetSystem assetSystem)
     {
         _renderingSystem = renderingSystem;
