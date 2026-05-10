@@ -476,8 +476,13 @@ public sealed class Shader : AutoDisposable
         }
     }
 
-    //visible in Alco.Engine.Test
-    internal void TestAllDefines(Action<string, string[], Exception> onError, Action<string, string[]> onSuccess)
+    /// <summary>
+    /// Tests all combinations of preprocessor defines found in the shader source
+    /// by compiling each combination and creating GPU pipelines.
+    /// </summary>
+    /// <param name="onError">Callback invoked when a combination fails to compile.</param>
+    /// <param name="onSuccess">Callback invoked when a combination compiles successfully.</param>
+    public void TestAllDefines(Action<string, string[], Exception> onError, Action<string, string[]> onSuccess)
     {
         //get defines from the shader text
         //like #if defined(TEST)

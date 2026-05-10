@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Alco.Engine;
 
@@ -7,9 +8,13 @@ namespace Alco.Engine;
 /// JSON converter for Alco.int3 type.
 /// Serializes int3 as a JSON object of three integer values in the format {"x": 1, "y": 2, "z": 3}.
 /// </summary>
-public unsafe class JsonConverterInt3 : BaseJsonConverterIntVector<int3>
+public unsafe class JsonConverterInt3 : BaseJsonConverterIntVector<int3>, IJsonSchemaProvider
 {
     private static readonly string[] ComponentNames = { "x", "y", "z" };
+    private static readonly JsonNode Schema = CreateVectorSchema(ComponentNames);
+
+    /// <inheritdoc/>
+    public JsonNode GetSchema() => Schema;
 
     /// <summary>
     /// Reads a JSON object and converts it to an int3.

@@ -360,6 +360,11 @@ public class UIText : UISelectable
         }
     }
 
+    /// <summary>
+    /// The height of the text content based on the current line breaks, font size, and line spacing.
+    /// </summary>
+    public float ContentHeight => _lines.Count * _fontSize * LineSpacing;
+
     protected Span<char> ResizeText(int length)
     {
         _text.SetSize(length);

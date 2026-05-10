@@ -26,7 +26,10 @@ internal sealed class WebGPUTextureView : WebGPUTextureViewBase
 
     protected override void Dispose(bool disposing)
     {
-        wgpuTextureViewRelease(_native);
+        if (_native != WGPUTextureView.Null)
+        {
+            wgpuTextureViewRelease(_native);
+        }
     }
 
     #endregion

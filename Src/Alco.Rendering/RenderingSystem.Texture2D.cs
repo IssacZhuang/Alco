@@ -1,5 +1,7 @@
-using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using StbImageSharp;
 using StbImageWriteSharp;
 using Alco.Graphics;
@@ -23,8 +25,12 @@ public partial class RenderingSystem
         ImageLoadOption? option = null
     )
     {
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
         using ImageResultBuffer image = ImageResultBuffer.FromStream(stream, targetComponents);
+
+        if (optionReal.PremultiplyAlpha)
+            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
 
         return CreateTexture2D(
             image.UnsafePointer,
@@ -46,8 +52,12 @@ public partial class RenderingSystem
         ImageLoadOption? option = null
     )
     {
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
+
+        if (optionReal.PremultiplyAlpha)
+            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
 
         return CreateTexture2D(
             image.UnsafePointer,
@@ -315,8 +325,12 @@ public partial class RenderingSystem
     /// <param name="option">Image load options.</param>
     public unsafe void UnsafeHotReloadTexture2DByFile(Texture2D texture2D, ReadOnlySpan<byte> fileBytes, ImageLoadOption? option = null)
     {
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
+
+        if (optionReal.PremultiplyAlpha)
+            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
 
         // Check if dimensions match the existing texture
         if (image.Width == texture2D.Width && image.Height == texture2D.Height)
@@ -370,6 +384,135 @@ public partial class RenderingSystem
         finally
         {
             NativeMemory.Free(data);
+        }
+    }
+
+    /// <summary>
+    /// Converts RGBA8 pixel data from straight alpha to premultiplied alpha in-place.
+    /// Each pixel [R, G, B, A] becomes [R*A/255, G*A/255, B*A/255, A].
+    /// Uses AVX2 (8 pixels/cycle), SSSE3+SSE2 (4 pixels/cycle), or scalar fallback.
+    /// </summary>
+    internal static unsafe void PremultiplyAlpha(byte* data, int pixelCount)
+    {
+        int offset = 0;
+
+        // AVX2: 8 RGBA pixels (32 bytes) per iteration
+        if (Avx2.IsSupported)
+        {
+            Vector256<byte> alphaShuffle = Vector256.Create(
+                (byte)3, (byte)3, (byte)3, (byte)3, (byte)7, (byte)7, (byte)7, (byte)7,
+                (byte)11, (byte)11, (byte)11, (byte)11, (byte)15, (byte)15, (byte)15, (byte)15,
+                (byte)3, (byte)3, (byte)3, (byte)3, (byte)7, (byte)7, (byte)7, (byte)7,
+                (byte)11, (byte)11, (byte)11, (byte)11, (byte)15, (byte)15, (byte)15, (byte)15
+            );
+            Vector256<byte> zero = Vector256<byte>.Zero;
+            Vector256<ushort> one16 = Vector256<ushort>.One;
+            Vector256<byte> rgbMask = Vector256.Create(
+                byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0, byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0,
+                byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0, byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0,
+                byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0, byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0,
+                byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0, byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0
+            );
+            Vector256<byte> alphaMask = Vector256.Create(
+                (byte)0, (byte)0, (byte)0, byte.MaxValue, (byte)0, (byte)0, (byte)0, byte.MaxValue,
+                (byte)0, (byte)0, (byte)0, byte.MaxValue, (byte)0, (byte)0, (byte)0, byte.MaxValue,
+                (byte)0, (byte)0, (byte)0, byte.MaxValue, (byte)0, (byte)0, (byte)0, byte.MaxValue,
+                (byte)0, (byte)0, (byte)0, byte.MaxValue, (byte)0, (byte)0, (byte)0, byte.MaxValue
+            );
+
+            int avxEnd = pixelCount & ~7;
+            for (; offset < avxEnd; offset += 8)
+            {
+                byte* p = data + offset * 4;
+                Vector256<byte> src = Vector256.LoadUnsafe(ref *p);
+                Vector256<byte> alpha = Avx2.Shuffle(src, alphaShuffle);
+
+                Vector256<ushort> srcLo = Avx2.UnpackLow(src, zero).AsUInt16();
+                Vector256<ushort> srcHi = Avx2.UnpackHigh(src, zero).AsUInt16();
+                Vector256<ushort> aLo = Avx2.UnpackLow(alpha, zero).AsUInt16();
+                Vector256<ushort> aHi = Avx2.UnpackHigh(alpha, zero).AsUInt16();
+
+                Vector256<ushort> mulLo = Avx2.MultiplyLow(srcLo, aLo);
+                Vector256<ushort> mulHi = Avx2.MultiplyLow(srcHi, aHi);
+
+                // Exact division by 255 for values 0-65025: (x + 1 + (x >> 8)) >> 8
+                Vector256<ushort> divLo = Avx2.ShiftRightLogical(
+                    Avx2.Add(Avx2.Add(mulLo, one16), Avx2.ShiftRightLogical(mulLo, 8)), 8);
+                Vector256<ushort> divHi = Avx2.ShiftRightLogical(
+                    Avx2.Add(Avx2.Add(mulHi, one16), Avx2.ShiftRightLogical(mulHi, 8)), 8);
+
+                // Pack 16-bit back to 8-bit with lane-crossing fix
+                Vector128<byte> pack01 = Sse2.PackUnsignedSaturate(
+                    divLo.GetLower().AsInt16(), divHi.GetLower().AsInt16());
+                Vector128<byte> pack45 = Sse2.PackUnsignedSaturate(
+                    divLo.GetUpper().AsInt16(), divHi.GetUpper().AsInt16());
+                Vector256<byte> premul = Vector256.Create(pack01, pack45);
+
+                // Restore original alpha channel
+                Vector256<byte> result = Avx2.Or(
+                    Avx2.And(premul, rgbMask),
+                    Avx2.And(src, alphaMask));
+
+                result.StoreUnsafe(ref *p);
+            }
+        }
+
+        // SSSE3 + SSE2: 4 RGBA pixels (16 bytes) per iteration
+        if (Sse2.IsSupported && Ssse3.IsSupported)
+        {
+            Vector128<byte> alphaShuffle = Vector128.Create(
+                (byte)3, (byte)3, (byte)3, (byte)3, (byte)7, (byte)7, (byte)7, (byte)7,
+                (byte)11, (byte)11, (byte)11, (byte)11, (byte)15, (byte)15, (byte)15, (byte)15
+            );
+            Vector128<byte> zero = Vector128<byte>.Zero;
+            Vector128<ushort> one16 = Vector128<ushort>.One;
+            Vector128<byte> rgbMask = Vector128.Create(
+                byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0, byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0,
+                byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0, byte.MaxValue, byte.MaxValue, byte.MaxValue, (byte)0
+            );
+            Vector128<byte> alphaMask = Vector128.Create(
+                (byte)0, (byte)0, (byte)0, byte.MaxValue, (byte)0, (byte)0, (byte)0, byte.MaxValue,
+                (byte)0, (byte)0, (byte)0, byte.MaxValue, (byte)0, (byte)0, (byte)0, byte.MaxValue
+            );
+
+            int sseEnd = pixelCount & ~3;
+            for (; offset < sseEnd; offset += 4)
+            {
+                byte* p = data + offset * 4;
+                Vector128<byte> src = Vector128.LoadUnsafe(ref *p);
+                Vector128<byte> alpha = Ssse3.Shuffle(src, alphaShuffle);
+
+                Vector128<ushort> srcLo = Sse2.UnpackLow(src, zero).AsUInt16();
+                Vector128<ushort> srcHi = Sse2.UnpackHigh(src, zero).AsUInt16();
+                Vector128<ushort> aLo = Sse2.UnpackLow(alpha, zero).AsUInt16();
+                Vector128<ushort> aHi = Sse2.UnpackHigh(alpha, zero).AsUInt16();
+
+                Vector128<ushort> mulLo = Sse2.MultiplyLow(srcLo, aLo);
+                Vector128<ushort> mulHi = Sse2.MultiplyLow(srcHi, aHi);
+
+                Vector128<ushort> divLo = Sse2.ShiftRightLogical(
+                    Sse2.Add(Sse2.Add(mulLo, one16), Sse2.ShiftRightLogical(mulLo, 8)), 8);
+                Vector128<ushort> divHi = Sse2.ShiftRightLogical(
+                    Sse2.Add(Sse2.Add(mulHi, one16), Sse2.ShiftRightLogical(mulHi, 8)), 8);
+
+                Vector128<byte> premul = Sse2.PackUnsignedSaturate(divLo.AsInt16(), divHi.AsInt16());
+
+                Vector128<byte> result = Sse2.Or(
+                    Sse2.And(premul, rgbMask),
+                    Sse2.And(src, alphaMask));
+
+                result.StoreUnsafe(ref *p);
+            }
+        }
+
+        // Scalar fallback for remaining pixels
+        for (; offset < pixelCount; offset++)
+        {
+            byte* p = data + offset * 4;
+            int a = p[3];
+            p[0] = (byte)((p[0] * a + 128) / 255);
+            p[1] = (byte)((p[1] * a + 128) / 255);
+            p[2] = (byte)((p[2] * a + 128) / 255);
         }
     }
 }

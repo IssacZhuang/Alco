@@ -1,8 +1,7 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Alco.Rendering;
 using Alco.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace Alco.Engine;
 
@@ -10,20 +9,24 @@ public partial class GameEngine
 {
     public virtual IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
+        // Create JSON converters (shared between meta loader and option cache)
+        var jsonConverters = CreateDefaultJsonConverters();
+        var jsonConvertersList = jsonConverters.ToList();
+
         // shader
         yield return new AssetLoaderShaderHLSLInclude();
         yield return new AssetLoaderShaderHLSL(RenderingSystem);
 
-        // texture
+        // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
             yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
-            yield return new AssetLoaderTexture2D(RenderingSystem);
+            yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem);
         }
         else
         {
             yield return new AssetLoaderFontTTFNoGPU(RenderingSystem);
-            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem);
+            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem);
         }
 
         // audio
@@ -32,7 +35,7 @@ public partial class GameEngine
         yield return new AssetLoaderAudioFlac(AudioDevice);
 
         //meta
-        yield return new AssetLoaderMeta(CreateDefaultJsonConverters());
+        yield return new AssetLoaderMeta(jsonConvertersList);
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()

@@ -19,6 +19,7 @@ public struct ImageLoadOption
         FilterMode = FilterMode.Linear,
         AddressMode = AddressMode.Repeat,
         SlicePadding = Padding.Zero,
+        PremultiplyAlpha = false,
         Name = "unnamed_texture"
     };
 
@@ -85,4 +86,9 @@ public struct ImageLoadOption
     /// The name of the texture for debugging purposes.
     /// </summary>
     public string Name { get; init; } = "unnamed_texture";
+
+    /// <summary>
+    /// Whether to convert the image from straight alpha to premultiplied alpha during loading.
+    /// </summary>
+    public bool PremultiplyAlpha { get; init; } = true;
 }

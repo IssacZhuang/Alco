@@ -23,7 +23,10 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
     protected override void Dispose(bool disposing)
     {
         InteropUtility.Free(_nativeName);
-        wgpuRenderPipelineRelease(_graphicsipeline);
+        if (_graphicsipeline != WGPURenderPipeline.Null)
+        {
+            wgpuRenderPipelineRelease(_graphicsipeline);
+        }
     }
 
     #endregion

@@ -83,6 +83,9 @@ public partial class Canvas : AutoDisposable
     }
 
     private UINode? _holded;
+    private Vector2 _pressPosition;
+
+    public float DragClickThreshold { get; set; } = 10.0f;
     private UINode? _hovered;
     private UINode? _selected;
     private ITextInput? _textInput;
@@ -170,7 +173,13 @@ public partial class Canvas : AutoDisposable
             return;
         }
 
+        var oldHovered = _hovered;
         _hovered = node;
+
+        if (oldHovered != null)
+        {
+            DispatchBubble(oldHovered, "OnUnhover", n => n.OnUnhover(this, CursorPosition));
+        }
 
         if (node != null)
         {
@@ -178,14 +187,7 @@ public partial class Canvas : AutoDisposable
             {
                 SoundPlayer?.PlayOnHoverSound();
             }
-            try
-            {
-                node.OnHover(this, CursorPosition);
-            }
-            catch (Exception e)
-            {
-                HandleError(e, "OnHover", node);
-            }
+            DispatchBubble(node, "OnHover", n => n.OnHover(this, CursorPosition));
         }
     }
 
@@ -203,6 +205,7 @@ public partial class Canvas : AutoDisposable
     {
         if (_hovered == node)
         {
+            DispatchBubble(node, "OnUnhover", n => n.OnUnhover(this, CursorPosition));
             _hovered = null;
         }
         if (_holded == node)
@@ -258,7 +261,7 @@ public partial class Canvas : AutoDisposable
 
         _spriteMaterial = defaultSpriteMaterial.CreateInstance();
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
-        _spriteMaterial.SetDefines("REPEATED"); // Enable texture repeating for tiled mode
+        _spriteMaterial.SetDefines([.. _spriteMaterial.Defines, "REPEATED"]);
         _spriteMaterial.DepthStencilState = DepthStencilState.Default with
         {
             FrontFace = StencilFaceState.CompareEqual,
@@ -455,39 +458,19 @@ public partial class Canvas : AutoDisposable
         }
 
         _holded = node;
-        try
-        {
-            node.OnPressDown(this, cursorPosition);
-        }
-        catch (Exception e)
-        {
-            HandleError(e, "OnPressDown", node);
-        }
+        _pressPosition = cursorPosition;
+        DispatchBubble(node, "OnPressDown", n => n.OnPressDown(this, cursorPosition));
 
         if (checkMask)
         {
             if (_selected != null && _selected != node)
             {
-                try
-                {
-                    _selected.OnDeselect(this, cursorPosition);
-                }
-                catch (Exception e)
-                {
-                    HandleError(e, "OnDeselect", _selected);
-                }
+                DispatchBubble(_selected, "OnDeselect", n => n.OnDeselect(this, cursorPosition));
             }
             _selected = node;
             if (_selected != null)
             {
-                try
-                {
-                    _selected.OnSelect(this, cursorPosition);
-                }
-                catch (Exception e)
-                {
-                    HandleError(e, "OnSelect", _selected);
-                }
+                DispatchBubble(_selected, "OnSelect", n => n.OnSelect(this, cursorPosition));
             }
 
             if (node is not ITextInput)
@@ -505,25 +488,11 @@ public partial class Canvas : AutoDisposable
         }
 
         UINode holded = _holded;
-        try
-        {
-            holded.OnPressUp(this, cursorPosition);
-        }
-        catch (Exception e)
-        {
-            HandleError(e, "OnPressUp", holded);
-        }
+        DispatchBubble(holded, "OnPressUp", n => n.OnPressUp(this, cursorPosition));
 
-        if (holded == node)
+        if (holded == node && Vector2.Distance(cursorPosition, _pressPosition) < DragClickThreshold)
         {
-            try
-            {
-                holded.OnClick(this, cursorPosition);
-            }
-            catch (Exception e)
-            {
-                HandleError(e, "OnClick", holded);
-            }
+            DispatchBubble(holded, "OnClick", n => n.OnClick(this, cursorPosition));
             if ((holded.SoundType & UISoundType.Click) != 0)
             {
                 SoundPlayer?.PlayOnClickSound();
@@ -562,6 +531,7 @@ public partial class Canvas : AutoDisposable
         CursorPosition = mouseWorldPosition;
 
         UINode? selectable = null;
+        UINode? oldHovered = null;
         bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved;
         if (shouldUpdateHover)
         {
@@ -588,15 +558,18 @@ public partial class Canvas : AutoDisposable
                 }
             }
 
+            oldHovered = _hovered;
             _hovered = selectable;
         }
         else
         {
             selectable = _hovered;
+            oldHovered = _hovered;
 
             // Clear stale hover reference if the node or any ancestor is disabled
             if (selectable != null && !IsEnabledInHierarchy(selectable))
             {
+                DispatchBubble(selectable, "OnUnhover", n => n.OnUnhover(this, mouseWorldPosition));
                 _hovered = null;
                 selectable = null;
             }
@@ -617,28 +590,18 @@ public partial class Canvas : AutoDisposable
         {
             if (selectable != null)
             {
-                try
-                {
-                    selectable.OnPressing(this, mouseWorldPosition);
-                }
-                catch (Exception e)
-                {
-                    HandleError(e, "OnPressing", selectable);
-                }
+                DispatchBubble(selectable, "OnPressing", n => n.OnPressing(this, mouseWorldPosition));
             }
         }
         else if (shouldUpdateHover)
         {
+            if (oldHovered != null && oldHovered != selectable)
+            {
+                DispatchBubble(oldHovered, "OnUnhover", n => n.OnUnhover(this, mouseWorldPosition));
+            }
             if (selectable != null)
             {
-                try
-                {
-                    selectable.OnHover(this, mouseWorldPosition);
-                }
-                catch (Exception e)
-                {
-                    HandleError(e, "OnHover", selectable);
-                }
+                DispatchBubble(selectable, "OnHover", n => n.OnHover(this, mouseWorldPosition));
             }
         }
 
@@ -654,27 +617,13 @@ public partial class Canvas : AutoDisposable
         {
             if (selectable != null)
             {
-                try
-                {
-                    selectable.OnPressing(this, mouseWorldPosition);
-                }
-                catch (Exception e)
-                {
-                    HandleError(e, "OnPressing", selectable);
-                }
+                DispatchBubble(selectable, "OnPressing", n => n.OnPressing(this, mouseWorldPosition));
             }
         }
 
         if (_holded != null)
         {
-            try
-            {
-                _holded.OnDrag(this, mouseWorldPosition);
-            }
-            catch (Exception e)
-            {
-                HandleError(e, "OnDrag", _holded);
-            }
+            DispatchBubble(_holded, "OnDrag", n => n.OnDrag(this, mouseWorldPosition));
         }
 
         // update key states (pressing => edge detection here)
@@ -825,14 +774,7 @@ public partial class Canvas : AutoDisposable
         {
             if (_hovered != null)
             {
-                try
-                {
-                    _hovered.OnScroll(this, scrollDelta);
-                }
-                catch (Exception e)
-                {
-                    HandleError(e, "OnScroll", _hovered);
-                }
+                DispatchBubble(_hovered, "OnScroll", n => n.OnScroll(this, scrollDelta));
             }
         }
     }
@@ -974,6 +916,32 @@ public partial class Canvas : AutoDisposable
             parent = parent.Parent;
         }
         return true;
+    }
+
+    /// <summary>
+    /// Dispatches an event to <paramref name="target"/> and bubbles up through
+    /// its ancestor chain. Each node's invocation is individually wrapped in
+    /// try/catch so an exception in one node does not prevent others from
+    /// receiving the event. Bubbling stops after a node with
+    /// <see cref="UINode.BubbleEvent"/> == false.
+    /// </summary>
+    private void DispatchBubble(UINode? target, string operation, Action<UINode> action)
+    {
+        UINode? current = target;
+        while (current != null)
+        {
+            try
+            {
+                action(current);
+            }
+            catch (Exception e)
+            {
+                HandleError(e, operation, current);
+            }
+
+            if (!current.BubbleEvent) break;
+            current = current.Parent;
+        }
     }
 
     public void HandleError(Exception exception, string operation, UINode? node)

@@ -2,7 +2,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace DirectXShaderCompiler.NET;
+namespace Alco.ShaderCompiler;
 
 
 internal static class NativeStringUtility
