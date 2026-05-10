@@ -56,22 +56,17 @@ public unsafe class TestImageDecodeUtility
         finally { NativeMemory.Free(pixels); }
     }
 
-    /// <remarks>
-    /// The custom JPEG decoder does not yet support all JPEG variants (fails on Huffman table
-    /// class=1 id=1). This test validates that the facade dispatches to the JPEG decoder correctly;
-    /// the underlying decode failure is tracked separately.
-    /// </remarks>
     [Test]
-    public void DecodeAuto_JPEG_DispatchesToJpegDecoder()
+    public void DecodeAuto_JPEG_DecodesCorrectly()
     {
         byte[] data = LoadTestFile("Jpeg", "test.jpg");
-        // JPEG full decode is known to fail on this test file due to a pre-existing
-        // limitation in the custom JpegDecoder (Huffman table class=1 id=1).
-        // Verify that DecodeAuto correctly detects JPEG header and dispatches to the
-        // JPEG decoder (which throws ImageDecodeException, not "unrecognized format").
-        var ex = Assert.Throws<ImageDecodeException>(() =>
-            ImageDecodeUtility.DecodeAuto(data, out _, out _));
-        Assert.That(ex.Message, Does.Not.Contain("Unrecognized image format"));
+        byte* pixels = ImageDecodeUtility.DecodeAuto(data, out int w, out int h);
+        try
+        {
+            Assert.That(w, Is.GreaterThan(0));
+            Assert.That(h, Is.GreaterThan(0));
+        }
+        finally { NativeMemory.Free(pixels); }
     }
 
     [Test]
