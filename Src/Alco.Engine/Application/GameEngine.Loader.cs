@@ -1,42 +1,32 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Alco.Rendering;
 using Alco.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace Alco.Engine;
 
 public partial class GameEngine
 {
-    private DirectoryOptionCache<Texture2DImportOption>? _textureOptionCache;
-
     public virtual IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         // Create JSON converters (shared between meta loader and option cache)
         var jsonConverters = CreateDefaultJsonConverters();
         var jsonConvertersList = jsonConverters.ToList();
 
-        // Create texture directory option cache
-        _textureOptionCache = new DirectoryOptionCache<Texture2DImportOption>(
-            AssetSystem,
-            ".texture-option.meta",
-            jsonConvertersList,
-            Texture2DImportOptionMerge);
-
         // shader
         yield return new AssetLoaderShaderHLSLInclude();
         yield return new AssetLoaderShaderHLSL(RenderingSystem);
 
-        // texture
+        // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
             yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
-            yield return new AssetLoaderTexture2D(RenderingSystem, _textureOptionCache);
+            yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem);
         }
         else
         {
             yield return new AssetLoaderFontTTFNoGPU(RenderingSystem);
-            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, _textureOptionCache);
+            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem);
         }
 
         // audio
@@ -46,20 +36,6 @@ public partial class GameEngine
 
         //meta
         yield return new AssetLoaderMeta(jsonConvertersList);
-    }
-
-    /// <summary>
-    /// Merges two <see cref="Texture2DImportOption"/> instances.
-    /// Child values override parent values when non-null.
-    /// </summary>
-    private static Texture2DImportOption Texture2DImportOptionMerge(Texture2DImportOption parent, Texture2DImportOption child)
-    {
-        return new Texture2DImportOption
-        {
-            FilterMode = child.FilterMode ?? parent.FilterMode,
-            AddressMode = child.AddressMode ?? parent.AddressMode,
-            SlicePadding = child.SlicePadding ?? parent.SlicePadding,
-        };
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
