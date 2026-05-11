@@ -76,15 +76,80 @@ internal static unsafe class PngDefilter
 
     /// <summary>
     /// Filter Sub (1): raw[i] += raw[i - bpp].
-    /// This is a prefix sum where each byte adds the byte bpp positions to its left.
-    /// Processed scalarly due to the sequential left-to-right dependency.
+    /// Uses SIMD pixel-at-a-time prefix sum for bpp=3 (RGB) and bpp=4 (RGBA).
+    /// The running accumulator carries forward across pixels; byte-width add
+    /// wraps mod 256 which is correct for PNG reconstruction.
     /// </summary>
     private static void DefilterSub(Span<byte> row, int stride, int bpp)
     {
-        for (int i = bpp; i < stride; i++)
+        if (bpp == 4 && Vector128.IsHardwareAccelerated && stride >= 4)
+            DefilterSub4(row, stride);
+        else if (bpp == 3 && Vector128.IsHardwareAccelerated && stride >= 3)
+            DefilterSub3(row, stride);
+        else
+            DefilterSubScalar(row, stride, bpp);
+    }
+
+    /// <summary>
+    /// SIMD Sub filter for RGBA (bpp=4).
+    /// Processes one pixel (4 bytes) per iteration using Vector128 as a 4-byte accumulator.
+    /// _mm_add_epi8 wraps mod 256 automatically — no masking needed.
+    /// </summary>
+    private static void DefilterSub4(Span<byte> row, int stride)
+    {
+        ref byte r = ref row[0];
+        Vector128<byte> d = Vector128<byte>.Zero; // running prefix sum accumulator
+
+        int i = 0;
+        while (i <= stride - 4)
         {
-            row[i] += row[i - bpp];
+            Vector128<byte> a = d;
+            d = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref r, i));
+            d += a; // prefix sum: d = current_raw + previous_reconstructed
+            Unsafe.WriteUnaligned(ref Unsafe.Add(ref r, i), d);
+            i += 4;
         }
+
+        // Scalar tail
+        for (; i < stride; i++)
+            Unsafe.Add(ref r, i) += Unsafe.Add(ref r, i - 4);
+    }
+
+    /// <summary>
+    /// SIMD Sub filter for RGB (bpp=3).
+    /// Loads 4 bytes, writes 3 per iteration. The 4th byte is harmless leftover
+    /// that gets overwritten by the next iteration's load.
+    /// </summary>
+    private static void DefilterSub3(Span<byte> row, int stride)
+    {
+        ref byte r = ref row[0];
+        Vector128<byte> d = Vector128<byte>.Zero;
+
+        int i = 0;
+        // Process 4-byte blocks (writing 3 bytes of useful data each)
+        // Stop when remaining is too small for a 4-byte load
+        while (i + 3 < stride)
+        {
+            Vector128<byte> a = d;
+            d = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref r, i));
+            d += a;
+
+            // Write 3 bytes of the reconstructed pixel
+            Unsafe.Add(ref r, i) = d.GetElement(0);
+            Unsafe.Add(ref r, i + 1) = d.GetElement(1);
+            Unsafe.Add(ref r, i + 2) = d.GetElement(2);
+            i += 3;
+        }
+
+        // Scalar tail for remaining bytes
+        for (; i < stride; i++)
+            Unsafe.Add(ref r, i) += Unsafe.Add(ref r, i - 3);
+    }
+
+    private static void DefilterSubScalar(Span<byte> row, int stride, int bpp)
+    {
+        for (int i = bpp; i < stride; i++)
+            row[i] += row[i - bpp];
     }
 
     #endregion

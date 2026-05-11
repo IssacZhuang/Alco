@@ -411,10 +411,9 @@ internal static unsafe class PngDecoder
         {
             case 0: // None — already copied
                 break;
-            case 1: // Sub
+            case 1: // Sub — SIMD pixel-at-a-time prefix sum
             case 4: // Paeth with b=c=0 reduces to Sub
-                for (int i = bpp; i < stride; i++)
-                    dst[i] += dst[i - bpp];
+                DefilterSubPointer4(dst, stride);
                 break;
             case 3: // Average with b=c=0 — a/2
                 for (int i = bpp; i < stride; i++)
@@ -434,11 +433,10 @@ internal static unsafe class PngDecoder
         {
             case 0: // None
                 break;
-            case 1: // Sub
-                for (int i = bpp; i < stride; i++)
-                    dst[i] += dst[i - bpp];
+            case 1: // Sub — SIMD pixel-at-a-time prefix sum
+                DefilterSubPointer4(dst, stride);
                 break;
-            case 2: // Up — SIMD-accelerated, matches PngDefilter.DefilterUp
+            case 2: // Up — SIMD-accelerated
                 DefilterUpPointer(dst, prev, stride);
                 break;
             case 3: // Average
@@ -498,6 +496,37 @@ internal static unsafe class PngDecoder
         {
             for (int i = 0; i < stride; i++)
                 dst[i] += prev[i];
+        }
+    }
+
+    /// <summary>
+    /// Pointer-based SIMD Sub defilter for RGBA (bpp=4) in the fast path.
+    /// Uses Vector128 as a 4-byte running accumulator for the prefix sum.
+    /// Byte-width add wraps mod 256 automatically.
+    /// </summary>
+    private static void DefilterSubPointer4(byte* dst, int stride)
+    {
+        if (Vector128.IsHardwareAccelerated && stride >= 4)
+        {
+            Vector128<byte> d = Vector128<byte>.Zero;
+            int i = 0;
+
+            while (i <= stride - 4)
+            {
+                Vector128<byte> a = d;
+                d = Unsafe.ReadUnaligned<Vector128<byte>>(dst + i);
+                d += a;
+                Unsafe.WriteUnaligned(dst + i, d);
+                i += 4;
+            }
+
+            for (; i < stride; i++)
+                dst[i] += dst[i - 4];
+        }
+        else
+        {
+            for (int i = 4; i < stride; i++)
+                dst[i] += dst[i - 4];
         }
     }
 
