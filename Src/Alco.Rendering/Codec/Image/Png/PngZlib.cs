@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
 namespace Alco.Rendering.Codec.Image;
@@ -300,7 +301,7 @@ internal static class PngZlib
     /// Inflate a dynamic Huffman DEFLATE block.
     /// Reads the table definitions from the stream, builds Huffman tables, then decodes.
     /// </summary>
-    private static void InflateDynamicHuffmanBlock(ref BitReader reader, Span<byte> output, ref int outputPos)
+    private static unsafe void InflateDynamicHuffmanBlock(ref BitReader reader, Span<byte> output, ref int outputPos)
     {
         // Read table parameters
         int hlit = reader.ReadBits(5) + 257;   // number of literal/length codes (257-286)
@@ -389,25 +390,43 @@ internal static class PngZlib
         // Build literal/length Huffman table from first hlit code lengths
         const int LitTableBits = 15;
         int litTableSize = 1 << LitTableBits;
-        Span<int> litSymbols = stackalloc int[litTableSize];
-        Span<int> litLengths = stackalloc int[litTableSize];
-
-        if (!PngHuffman.BuildHuffmanTable(allCodeLengths, 0, hlit, LitTableBits, litSymbols, litLengths))
-            throw new ImageDecodeException("Failed to build dynamic literal/length Huffman table.");
+        nuint litTableBytes = (nuint)litTableSize * sizeof(int);
+        int* litSymbolsPtr = (int*)NativeMemory.Alloc(litTableBytes);
+        int* litLengthsPtr = (int*)NativeMemory.Alloc(litTableBytes);
 
         // Build distance Huffman table from last hdist code lengths
         const int DistTableBits = 15;
         int distTableSize = 1 << DistTableBits;
-        Span<int> distSymbols = stackalloc int[distTableSize];
-        Span<int> distLengths = stackalloc int[distTableSize];
+        nuint distTableBytes = (nuint)distTableSize * sizeof(int);
+        int* distSymbolsPtr = (int*)NativeMemory.Alloc(distTableBytes);
+        int* distLengthsPtr = (int*)NativeMemory.Alloc(distTableBytes);
 
-        if (!PngHuffman.BuildHuffmanTable(allCodeLengths, hlit, hdist, DistTableBits, distSymbols, distLengths))
-            throw new ImageDecodeException("Failed to build dynamic distance Huffman table.");
+        try
+        {
+            Span<int> litSymbols = new(litSymbolsPtr, litTableSize);
+            Span<int> litLengths = new(litLengthsPtr, litTableSize);
 
-        // Decode data using the dynamic tables
-        InflateHuffmanBlock(ref reader, output, ref outputPos,
-            litSymbols, litLengths, LitTableBits,
-            distSymbols, distLengths, DistTableBits);
+            if (!PngHuffman.BuildHuffmanTable(allCodeLengths, 0, hlit, LitTableBits, litSymbols, litLengths))
+                throw new ImageDecodeException("Failed to build dynamic literal/length Huffman table.");
+
+            Span<int> distSymbols = new(distSymbolsPtr, distTableSize);
+            Span<int> distLengths = new(distLengthsPtr, distTableSize);
+
+            if (!PngHuffman.BuildHuffmanTable(allCodeLengths, hlit, hdist, DistTableBits, distSymbols, distLengths))
+                throw new ImageDecodeException("Failed to build dynamic distance Huffman table.");
+
+            // Decode data using the dynamic tables
+            InflateHuffmanBlock(ref reader, output, ref outputPos,
+                litSymbols, litLengths, LitTableBits,
+                distSymbols, distLengths, DistTableBits);
+        }
+        finally
+        {
+            NativeMemory.Free(litSymbolsPtr);
+            NativeMemory.Free(litLengthsPtr);
+            NativeMemory.Free(distSymbolsPtr);
+            NativeMemory.Free(distLengthsPtr);
+        }
     }
 
     /// <summary>

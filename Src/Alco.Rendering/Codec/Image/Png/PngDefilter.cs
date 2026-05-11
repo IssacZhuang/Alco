@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
 namespace Alco.Rendering.Codec.Image;
@@ -22,11 +23,13 @@ internal static unsafe class PngDefilter
     {
         int rowSize = 1 + stride;
 
-        // Allocate a buffer for the previous row's defiltered pixel data.
-        // Initialize to all zeros (the virtual row above the first row).
-        byte[] prevRowArray = GC.AllocateUninitializedArray<byte>(stride);
-        Span<byte> prevRow = prevRowArray.AsSpan();
-        prevRow.Clear();
+        // Allocate prevRow on the native heap to avoid GC pressure.
+        byte* prevRowPtr = (byte*)NativeMemory.Alloc((nuint)stride);
+        NativeMemory.Fill(prevRowPtr, (nuint)stride, 0);
+        Span<byte> prevRow = new(prevRowPtr, stride);
+
+        try
+        {
 
         for (int y = 0; y < height; y++)
         {
@@ -54,6 +57,11 @@ internal static unsafe class PngDefilter
 
             // Copy current row to prevRow for next iteration
             row.CopyTo(prevRow);
+        }
+        }
+        finally
+        {
+            NativeMemory.Free(prevRowPtr);
         }
     }
 

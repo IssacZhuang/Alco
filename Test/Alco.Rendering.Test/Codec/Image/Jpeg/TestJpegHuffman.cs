@@ -9,8 +9,6 @@ public class TestJpegHuffman
 {
     /// <summary>
     /// Standard JPEG DC luminance Huffman table (JPEG spec Annex K, Table K.3).
-    /// BITS: counts of codes of each length 1-16.
-    /// HUFFVAL: symbol values.
     /// </summary>
     private static readonly byte[] StandardDCLuminanceBits =
         [0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0];
@@ -58,30 +56,29 @@ public class TestJpegHuffman
 
         Assert.That(result, Is.True);
 
-        // The DC luminance table has 12 symbols total (sum of bits array = 12)
+        // 12 symbols total
         int totalSymbols = 0;
         for (int i = 0; i < 16; i++)
             totalSymbols += StandardDCLuminanceBits[i];
         Assert.That(totalSymbols, Is.EqualTo(12));
 
-        // Length 1 has 0 codes, length 2 has 1 code, length 3 has 5 codes, length 4 has 1 code, etc.
-        // Code generation: nextCode[1]=0, nextCode[2]=0, nextCode[3]=2, nextCode[4]=14
-        // Length 2: symbol 0 gets code 00
-        Assert.That(table.MinCode[2], Is.EqualTo(0));
-        Assert.That(table.MaxCode[2], Is.EqualTo(0));
-        Assert.That(table.ValPtr[2], Is.EqualTo(0));
-        Assert.That(table.Values[0], Is.EqualTo(0));
+        // Max code length is 9 (length 9 has 1 code), so TableBits should be 9
+        Assert.That(table.TableBits, Is.EqualTo(9));
+        Assert.That(table.Table.Length, Is.EqualTo(1 << 9));
 
-        // Length 3: 5 codes starting at code 2 (binary 010), values 1,2,3,4,5
-        Assert.That(table.MinCode[3], Is.EqualTo(2));
-        Assert.That(table.MaxCode[3], Is.EqualTo(6));
-        Assert.That(table.ValPtr[3], Is.EqualTo(1));
-        Assert.That(table.Values[1], Is.EqualTo(1));
-        Assert.That(table.Values[5], Is.EqualTo(5));
+        // Length 2: symbol 0 gets code 00 (2-bit), fills 2^(9-2)=128 entries starting at index 0
+        Assert.That(table.Table[0].Symbol, Is.EqualTo(0));
+        Assert.That(table.Table[0].Length, Is.EqualTo(2));
+        Assert.That(table.Table[127].Symbol, Is.EqualTo(0));
+        Assert.That(table.Table[127].Length, Is.EqualTo(2));
 
-        // Verify unused lengths have MinCode = -1
-        Assert.That(table.MinCode[1], Is.EqualTo(-1));
-        Assert.That(table.MinCode[10], Is.EqualTo(-1));
+        // Length 3: symbol 1 gets code 010, fills 2^(9-3)=64 entries starting at index 128
+        Assert.That(table.Table[128].Symbol, Is.EqualTo(1));
+        Assert.That(table.Table[128].Length, Is.EqualTo(3));
+
+        // Symbol 5 gets code 110, fills entries starting at index 384
+        Assert.That(table.Table[384].Symbol, Is.EqualTo(5));
+        Assert.That(table.Table[384].Length, Is.EqualTo(3));
     }
 
     [Test]
@@ -93,35 +90,29 @@ public class TestJpegHuffman
 
         Assert.That(result, Is.True);
 
-        // The AC luminance table has 162 symbols total
+        // 162 symbols total
         int totalSymbols = 0;
         for (int i = 0; i < 16; i++)
             totalSymbols += StandardACLuminanceBits[i];
         Assert.That(totalSymbols, Is.EqualTo(162));
 
-        // Verify first few values
-        Assert.That(table.Values[0], Is.EqualTo(0x01));
-        Assert.That(table.Values[1], Is.EqualTo(0x02));
-        Assert.That(table.Values[2], Is.EqualTo(0x03));
+        // Max code length is 16, so TableBits should be 16
+        Assert.That(table.TableBits, Is.EqualTo(16));
 
-        // Length 1 has 0 codes, length 2 has 2 codes
-        Assert.That(table.MinCode[2], Is.EqualTo(0));
-        Assert.That(table.MaxCode[2], Is.EqualTo(1));
-        Assert.That(table.Values[table.ValPtr[2]], Is.EqualTo(0x01));
-        Assert.That(table.Values[table.ValPtr[2] + 1], Is.EqualTo(0x02));
+        // Length 2: 2 codes, symbols 0x01 and 0x02
+        // Code 00 -> symbol 0x01 (fills 2^(16-2)=16384 entries starting at 0)
+        Assert.That(table.Table[0].Symbol, Is.EqualTo(0x01));
+        Assert.That(table.Table[0].Length, Is.EqualTo(2));
 
-        // Length 16 has 0x7D = 125 codes
-        Assert.That(table.MinCode[16], Is.Not.EqualTo(-1));
-        Assert.That(table.MaxCode[16] - table.MinCode[16] + 1, Is.EqualTo(125));
+        // Code 01 -> symbol 0x02 (fills entries starting at 16384)
+        Assert.That(table.Table[16384].Symbol, Is.EqualTo(0x02));
+        Assert.That(table.Table[16384].Length, Is.EqualTo(2));
     }
 
     [Test]
     public void DecodeSymbol_KnownPattern()
     {
         // Build a simple table: 3 symbols
-        // Length 1: 0 codes
-        // Length 2: 2 codes (symbols 0 and 1)
-        // Length 3: 1 code  (symbol 2)
         byte[] bits = [0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         byte[] values = [0, 1, 2];
 
@@ -132,13 +123,9 @@ public class TestJpegHuffman
         // The Huffman codes generated:
         // Length 2: symbol 0 -> code 00, symbol 1 -> code 01
         // Length 3: symbol 2 -> code 100
-        // (nextCode[2]=0 -> symbols 0,1 get codes 0b00,0b01;
-        //  nextCode[3]=4 -> symbol 2 gets code 0b100)
 
         // Encode the bit sequence: symbol 0 (00), symbol 2 (100), symbol 1 (01)
         // Bits MSB-first: 00 100 01 -> 0010001 = 7 bits
-        // As a byte: bit7=0, bit6=0, bit5=1, bit4=0, bit3=0, bit2=0, bit1=1, bit0=x
-        // 0b0010_0010 = 0x22 (with padding zero in bit 0)
         byte[] data = [0x22, 0x00];
 
         ulong bitBuffer = 0;
@@ -158,19 +145,11 @@ public class TestJpegHuffman
     [Test]
     public void DecodeSymbol_StandardDCLuminance_KnownCodes()
     {
-        // Standard DC luminance table:
-        // Length 2: symbol 0 -> code 00
-        // Length 3: symbol 1 -> code 010, symbol 2 -> code 011, symbol 3 -> code 100, symbol 4 -> code 101, symbol 5 -> code 110
-        // Length 4: symbol 6 -> code 1110
-        // Length 5: symbol 7 -> code 11110
-        // ... etc.
-
         var table = new JpegHuffman.HuffmanTable();
         JpegHuffman.BuildTable(StandardDCLuminanceBits, StandardDCLuminanceValues, ref table);
 
         // Encode: symbol 0 (code=00), symbol 6 (code=1110)
         // Bits: 00 1110 -> 6 bits = 0b001110xx
-        // As byte: 0b0011_1000 = 0x38 (with padding zeros)
         byte[] data = [0x38, 0x00];
 
         ulong bitBuffer = 0;
@@ -184,8 +163,6 @@ public class TestJpegHuffman
     [Test]
     public void ReceiveExtend_PositiveValue()
     {
-        // bits=4, value=8 (binary 1000, MSB is set) -> positive, returns 8
-        // Encoded as 4 bits: 1000 = 8, placed MSB-first in a byte: 0b1000_0000 = 0x80
         byte[] data = [0x80];
 
         ulong bitBuffer = 0;
@@ -193,15 +170,12 @@ public class TestJpegHuffman
         int dataPos = 0;
 
         int result = JpegHuffman.ReceiveExtend(4, ref bitBuffer, ref bitsAvailable, data, ref dataPos);
-
         Assert.That(result, Is.EqualTo(8));
     }
 
     [Test]
     public void ReceiveExtend_NegativeValue()
     {
-        // bits=4, value=3 (binary 0011, MSB is not set) -> negative: 3 - (1<<4) + 1 = 3 - 15 = -12
-        // Encoded as 4 bits: 0011, placed MSB-first in a byte: 0b0011_0000 = 0x30
         byte[] data = [0x30];
 
         ulong bitBuffer = 0;
@@ -209,7 +183,6 @@ public class TestJpegHuffman
         int dataPos = 0;
 
         int result = JpegHuffman.ReceiveExtend(4, ref bitBuffer, ref bitsAvailable, data, ref dataPos);
-
         Assert.That(result, Is.EqualTo(-12));
     }
 
@@ -225,7 +198,6 @@ public class TestJpegHuffman
         int result = JpegHuffman.ReceiveExtend(0, ref bitBuffer, ref bitsAvailable, data, ref dataPos);
 
         Assert.That(result, Is.EqualTo(0));
-        // Should not consume any bits
         Assert.That(bitsAvailable, Is.EqualTo(0));
         Assert.That(dataPos, Is.EqualTo(0));
     }
@@ -233,8 +205,6 @@ public class TestJpegHuffman
     [Test]
     public void ReceiveExtend_OneBit_Zero()
     {
-        // bits=1, value=0 -> negative: 0 - (1<<1) + 1 = -1
-        // Encoded as 1 bit: 0, placed MSB-first: 0b0000_0000 = 0x00
         byte[] data = [0x00];
 
         ulong bitBuffer = 0;
@@ -242,15 +212,12 @@ public class TestJpegHuffman
         int dataPos = 0;
 
         int result = JpegHuffman.ReceiveExtend(1, ref bitBuffer, ref bitsAvailable, data, ref dataPos);
-
         Assert.That(result, Is.EqualTo(-1));
     }
 
     [Test]
     public void ReceiveExtend_OneBit_One()
     {
-        // bits=1, value=1 -> MSB set, positive: returns 1
-        // Encoded as 1 bit: 1, placed MSB-first: 0b1000_0000 = 0x80
         byte[] data = [0x80];
 
         ulong bitBuffer = 0;
@@ -258,7 +225,6 @@ public class TestJpegHuffman
         int dataPos = 0;
 
         int result = JpegHuffman.ReceiveExtend(1, ref bitBuffer, ref bitsAvailable, data, ref dataPos);
-
         Assert.That(result, Is.EqualTo(1));
     }
 
@@ -294,12 +260,8 @@ public class TestJpegHuffman
         bool result = JpegHuffman.BuildTable(bits, values, ref table);
 
         Assert.That(result, Is.True);
-        // All MinCode/MaxCode should be -1
-        for (int i = 0; i <= 16; i++)
-        {
-            Assert.That(table.MinCode[i], Is.EqualTo(-1));
-            Assert.That(table.MaxCode[i], Is.EqualTo(-1));
-        }
+        // Empty table should have TableBits=0
+        Assert.That(table.TableBits, Is.EqualTo(0));
     }
 
     [Test]
@@ -323,9 +285,7 @@ public class TestJpegHuffman
     [Test]
     public void ReceiveExtend_AllPositiveValues_4Bits()
     {
-        // For 4 bits, values 8-15 are positive (MSB set), values 0-7 are negative
-        // value=15 (binary 1111) -> returns 15
-        byte[] data = [0xF0]; // 1111 followed by zeros
+        byte[] data = [0xF0];
 
         ulong bitBuffer = 0;
         int bitsAvailable = 0;
@@ -338,7 +298,6 @@ public class TestJpegHuffman
     [Test]
     public void ReceiveExtend_AllNegativeValues_4Bits()
     {
-        // value=0 (binary 0000) -> 0 - 15 = -15
         byte[] data = [0x00];
 
         ulong bitBuffer = 0;
@@ -352,16 +311,11 @@ public class TestJpegHuffman
     [Test]
     public void DecodeAndExtend_IntegrationTest()
     {
-        // DC coefficient decoding: first decode the category (Huffman), then read that many bits.
-        // Build the standard DC luminance table.
         var table = new JpegHuffman.HuffmanTable();
         JpegHuffman.BuildTable(StandardDCLuminanceBits, StandardDCLuminanceValues, ref table);
 
         // Symbol 3 is at length 3, code value 4 (binary 100).
         // Encode: category 3 (code=100, 3 bits) followed by value +5 (binary 101, 3 bits)
-        // Bits MSB-first: 100 101 -> 100101 = 6 bits
-        // Byte: bit7=1, bit6=0, bit5=0, bit4=1, bit3=0, bit2=1, bit1=x, bit0=x
-        // 0b1001_0100 = 0x94 with padding zeros
         byte[] data = [0x94, 0x00];
 
         ulong bitBuffer = 0;

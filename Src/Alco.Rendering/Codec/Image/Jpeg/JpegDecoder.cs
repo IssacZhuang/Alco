@@ -386,17 +386,6 @@ internal static unsafe class JpegDecoder
 
             ref var table = ref (tableClass == 0 ? ref dcTables[tableId] : ref acTables[tableId]);
 
-            // Ensure arrays are allocated and large enough for the current symbol count.
-            // A DHT may redefine a table with a different number of symbols than before.
-            int minValues = Math.Max(totalSymbols, 1);
-            if (table.Values == null || table.Values.Length < minValues)
-                table.Values = new ushort[minValues];
-            if (table.CodeSizes == null || table.CodeSizes.Length < minValues)
-                table.CodeSizes = new byte[minValues];
-            table.MinCode ??= new int[17];
-            table.MaxCode ??= new int[17];
-            table.ValPtr ??= new int[17];
-
             if (!JpegHuffman.BuildTable(codeLengths, values, ref table))
                 throw new ImageDecodeException($"Failed to build Huffman table (class={tableClass}, id={tableId}).");
 
@@ -637,11 +626,8 @@ internal static unsafe class JpegDecoder
         {
             ref readonly var src = ref tables[i];
             ref var dst = ref snapshot[i];
-            dst.Values = src.Values != null ? (ushort[])src.Values.Clone() : null;
-            dst.CodeSizes = src.CodeSizes != null ? (byte[])src.CodeSizes.Clone() : null;
-            dst.MinCode = src.MinCode != null ? (int[])src.MinCode.Clone() : null;
-            dst.MaxCode = src.MaxCode != null ? (int[])src.MaxCode.Clone() : null;
-            dst.ValPtr = src.ValPtr != null ? (int[])src.ValPtr.Clone() : null;
+            dst.Table = src.Table != null ? (JpegHuffman.LookupEntry[])src.Table.Clone() : null!;
+            dst.TableBits = src.TableBits;
         }
         return snapshot;
     }
