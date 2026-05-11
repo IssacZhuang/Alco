@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace Alco.Rendering.Codec.Image;
 
@@ -437,9 +438,8 @@ internal static unsafe class PngDecoder
                 for (int i = bpp; i < stride; i++)
                     dst[i] += dst[i - bpp];
                 break;
-            case 2: // Up
-                for (int i = 0; i < stride; i++)
-                    dst[i] += prev[i];
+            case 2: // Up — SIMD-accelerated, matches PngDefilter.DefilterUp
+                DefilterUpPointer(dst, prev, stride);
                 break;
             case 3: // Average
                 for (int i = 0; i < bpp && i < stride; i++)
@@ -453,6 +453,51 @@ internal static unsafe class PngDecoder
                 for (int i = bpp; i < stride; i++)
                     dst[i] += PaethPredictor(dst[i - bpp], prev[i], prev[i - bpp]);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Pointer-based SIMD Up defilter for the RGBA8 fast path.
+    /// dst[i] += prev[i], using AVX2 (32 bytes) or SSE2 (16 bytes) per iteration.
+    /// </summary>
+    private static void DefilterUpPointer(byte* dst, byte* prev, int stride)
+    {
+        if (Vector256.IsHardwareAccelerated && stride >= Vector256<byte>.Count)
+        {
+            int i = 0;
+            int simdLimit = stride - (stride % Vector256<byte>.Count);
+
+            while (i < simdLimit)
+            {
+                Vector256<byte> current = Unsafe.ReadUnaligned<Vector256<byte>>(dst + i);
+                Vector256<byte> prevVec = Unsafe.ReadUnaligned<Vector256<byte>>(prev + i);
+                Unsafe.WriteUnaligned(dst + i, current + prevVec);
+                i += Vector256<byte>.Count;
+            }
+
+            for (; i < stride; i++)
+                dst[i] += prev[i];
+        }
+        else if (Vector128.IsHardwareAccelerated && stride >= Vector128<byte>.Count)
+        {
+            int i = 0;
+            int simdLimit = stride - (stride % Vector128<byte>.Count);
+
+            while (i < simdLimit)
+            {
+                Vector128<byte> current = Unsafe.ReadUnaligned<Vector128<byte>>(dst + i);
+                Vector128<byte> prevVec = Unsafe.ReadUnaligned<Vector128<byte>>(prev + i);
+                Unsafe.WriteUnaligned(dst + i, current + prevVec);
+                i += Vector128<byte>.Count;
+            }
+
+            for (; i < stride; i++)
+                dst[i] += prev[i];
+        }
+        else
+        {
+            for (int i = 0; i < stride; i++)
+                dst[i] += prev[i];
         }
     }
 

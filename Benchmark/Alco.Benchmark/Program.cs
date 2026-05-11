@@ -12,6 +12,12 @@ if (args.Contains("--profile"))
     return;
 }
 
+if (args.Contains("--quick-jpeg"))
+{
+    QuickJpegBenchmark.Run();
+    return;
+}
+
 IConfig config = new DefaultBenchmarkConfig();
 
 Runner.Run(typeof(Program).Assembly, config, args);
