@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace Alco.Rendering.Codec.Image;
 
@@ -462,12 +463,13 @@ internal static class JpegColorConvert
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static unsafe Vector256<float> LoadByte8AsFloat(byte* ptr, int offset)
     {
-        return Vector256.Create(
-            (float)ptr[offset], (float)ptr[offset + 1],
-            (float)ptr[offset + 2], (float)ptr[offset + 3],
-            (float)ptr[offset + 4], (float)ptr[offset + 5],
-            (float)ptr[offset + 6], (float)ptr[offset + 7]
-        );
+        var bytes = Unsafe.ReadUnaligned<Vector128<byte>>(ptr + offset);
+        var u16 = Vector128.WidenLower(bytes);           // 8 bytes -> 8 ushort
+        var u32Lo = Vector128.WidenLower(u16);           // lower 4 ushort -> 4 uint
+        var u32Hi = Vector128.WidenUpper(u16);           // upper 4 ushort -> 4 uint
+        var f32Lo = Vector128.ConvertToSingle(u32Lo);    // 4 uint -> 4 float
+        var f32Hi = Vector128.ConvertToSingle(u32Hi);    // 4 uint -> 4 float
+        return Vector256.Create(f32Lo, f32Hi);
     }
 
     /// <summary>
@@ -489,11 +491,11 @@ internal static class JpegColorConvert
         }
 
         // Generic fallback for other subsampling ratios.
-        var result = new float[8];
+        Span<float> tmp = stackalloc float[8];
         for (int i = 0; i < 8; i++)
-            result[i] = ptr[srcOffset + i / hSub];
-        return Vector256.Create(result[0], result[1], result[2], result[3],
-                                result[4], result[5], result[6], result[7]);
+            tmp[i] = ptr[srcOffset + i / hSub];
+        return Vector256.Create(tmp[0], tmp[1], tmp[2], tmp[3],
+                                tmp[4], tmp[5], tmp[6], tmp[7]);
     }
 
     /// <summary>
@@ -502,10 +504,10 @@ internal static class JpegColorConvert
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static unsafe Vector128<float> LoadByte4AsFloat(byte* ptr, int offset)
     {
-        return Vector128.Create(
-            (float)ptr[offset], (float)ptr[offset + 1],
-            (float)ptr[offset + 2], (float)ptr[offset + 3]
-        );
+        var bytes = Unsafe.ReadUnaligned<Vector128<byte>>(ptr + offset);
+        var u16 = Vector128.WidenLower(bytes);
+        var u32 = Vector128.WidenLower(u16);
+        return Vector128.ConvertToSingle(u32);
     }
 
     /// <summary>
@@ -551,20 +553,43 @@ internal static class JpegColorConvert
 
     /// <summary>
     /// Store 8 RGBA pixels from R/G/B float vectors (alpha is 255).
+    /// Uses vectorized pack+interleave to avoid per-element extraction.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static unsafe void StoreRgba8(
         Vector256<float> r, Vector256<float> g, Vector256<float> b,
         byte* output, int offset)
     {
-        for (int i = 0; i < 8; i++)
-        {
-            int off = (offset + i) * 4;
-            output[off] = (byte)r[i];
-            output[off + 1] = (byte)g[i];
-            output[off + 2] = (byte)b[i];
-            output[off + 3] = 255;
-        }
+        var ri = Vector256.ConvertToInt32(r);
+        var gi = Vector256.ConvertToInt32(g);
+        var bi = Vector256.ConvertToInt32(b);
+
+        // Narrow int32 -> int16 using portable Vector128.Narrow
+        var r16 = Vector128.Narrow(ri.GetLower(), ri.GetUpper());
+        var g16 = Vector128.Narrow(gi.GetLower(), gi.GetUpper());
+        var b16 = Vector128.Narrow(bi.GetLower(), bi.GetUpper());
+        var a16 = Vector128.Create((short)255);
+
+        // Interleave R,G and B,A as short pairs using SSE2 UnpackLow/High (word-level)
+        var rgLo = Sse2.UnpackLow(r16, g16);
+        var rgHi = Sse2.UnpackHigh(r16, g16);
+        var baLo = Sse2.UnpackLow(b16, a16);
+        var baHi = Sse2.UnpackHigh(b16, a16);
+
+        // Interleave RG and BA pairs at dword level for correct RGBA ordering
+        var rgba0 = Sse2.UnpackLow(rgLo.AsInt32(), baLo.AsInt32());
+        var rgba1 = Sse2.UnpackHigh(rgLo.AsInt32(), baLo.AsInt32());
+        var rgba2 = Sse2.UnpackLow(rgHi.AsInt32(), baHi.AsInt32());
+        var rgba3 = Sse2.UnpackHigh(rgHi.AsInt32(), baHi.AsInt32());
+
+        // Narrow short -> byte with unsigned saturation
+        var bytes01 = Vector128.NarrowWithSaturation(
+            rgba0.AsUInt16(), rgba1.AsUInt16());
+        var bytes23 = Vector128.NarrowWithSaturation(
+            rgba2.AsUInt16(), rgba3.AsUInt16());
+
+        Unsafe.WriteUnaligned(output + offset * 4, bytes01);
+        Unsafe.WriteUnaligned(output + offset * 4 + 16, bytes23);
     }
 
     /// <summary>
