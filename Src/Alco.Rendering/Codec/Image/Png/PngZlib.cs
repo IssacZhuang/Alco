@@ -284,10 +284,22 @@ internal static class PngZlib
                 if (outputPos + length > output.Length)
                     throw new ImageDecodeException("Output buffer overflow during length/distance copy.");
 
-                // Copy from back-reference, handling overlapping copies (distance < length)
-                int srcPos = outputPos - distance;
-                for (int i = 0; i < length; i++)
-                    output[outputPos++] = output[srcPos++];
+                // Copy from back-reference
+                if (distance >= length)
+                {
+                    // Non-overlapping: bulk copy
+                    ref byte dst = ref output[outputPos];
+                    ref byte src = ref output[outputPos - distance];
+                    Unsafe.CopyBlockUnaligned(ref dst, ref src, (uint)length);
+                    outputPos += length;
+                }
+                else
+                {
+                    // Overlapping: byte-by-byte (handles RLE-like patterns)
+                    for (int i = 0; i < length; i++)
+                        output[outputPos + i] = output[outputPos + i - distance];
+                    outputPos += length;
+                }
             }
         }
 
