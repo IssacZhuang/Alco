@@ -11,6 +11,7 @@ public unsafe class BenchmarkImageDecode
 {
     private byte[] _pngSmall = null!;
     private byte[] _pngLarge = null!;
+    private byte[] _pngWall = null!;
     private byte[] _jpegReal = null!;
 
     [GlobalSetup]
@@ -18,6 +19,7 @@ public unsafe class BenchmarkImageDecode
     {
         _pngSmall = File.ReadAllBytes("Files/Image/png-small.png");
         _pngLarge = File.ReadAllBytes("Files/Image/png-large.png");
+        _pngWall = File.ReadAllBytes("Files/Image/wall.png");
         _jpegReal = File.ReadAllBytes("Files/Image/jpeg-real.jpg");
     }
 
@@ -44,6 +46,19 @@ public unsafe class BenchmarkImageDecode
     public void PngLarge_New()
     {
         byte* ptr = ImageDecodeUtility.DecodePng(_pngLarge, out int w, out int h);
+        NativeMemory.Free(ptr);
+    }
+
+    [Benchmark(Description = "PNG Wall (STB)")]
+    public void PngWall_Stb()
+    {
+        using ImageResultBuffer image = ImageResultBuffer.FromMemory(_pngWall, ColorComponents.RedGreenBlueAlpha);
+    }
+
+    [Benchmark(Description = "PNG Wall (new)")]
+    public void PngWall_New()
+    {
+        byte* ptr = ImageDecodeUtility.DecodePng(_pngWall, out int w, out int h);
         NativeMemory.Free(ptr);
     }
 
