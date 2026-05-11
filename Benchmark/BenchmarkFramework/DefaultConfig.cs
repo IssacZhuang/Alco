@@ -11,9 +11,9 @@ public class DefaultBenchmarkConfig : ManualConfig
     public DefaultBenchmarkConfig()
     {
         AddJob(Job.Default
-            .WithWarmupCount(1)
-            .WithIterationCount(8)
-            .WithInvocationCount(128))
+            .WithWarmupCount(3)
+            .WithIterationCount(15)
+            .WithInvocationCount(256))
             .AddLogger(ConsoleLogger.Default)
             .AddColumnProvider(DefaultColumnProviders.Instance);
     }

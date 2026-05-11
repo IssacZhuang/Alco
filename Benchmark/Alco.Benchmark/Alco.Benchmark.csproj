@@ -16,5 +16,6 @@
     <Content Include="Files\**">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="libpng16.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
