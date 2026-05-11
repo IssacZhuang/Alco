@@ -747,7 +747,7 @@ internal static unsafe class JpegDecoder
         int mcusSinceRestart = 0;
         int restartMarkerIndex = 0;
 
-        Span<float> coeffs = stackalloc float[64];
+        Span<short> coeffs = stackalloc short[64];
         Span<byte> blockOutput = stackalloc byte[64];
 
         for (int mcuY = 0; mcuY < mcuCountY; mcuY++)
@@ -809,7 +809,7 @@ internal static unsafe class JpegDecoder
                                 entropyData, ref dataPos);
 
                             dcPredictors[compIdx] += dcDiff;
-                            coeffs[0] = dcPredictors[compIdx];
+                            coeffs[0] = (short)dcPredictors[compIdx];
 
                             // Decode AC
                             int acPos = 1; // zigzag position
@@ -849,7 +849,7 @@ internal static unsafe class JpegDecoder
                                         bits, ref bitBuffer, ref bitsAvailable,
                                         entropyData, ref dataPos);
 
-                                    coeffs[acPos] = acValue;
+                                    coeffs[acPos] = (short)acValue;
                                 }
 
                                 acPos++;
@@ -857,7 +857,7 @@ internal static unsafe class JpegDecoder
 
                             // Dequantize
                             for (int i = 0; i < 64; i++)
-                                coeffs[i] *= quantTable[i];
+                                coeffs[i] = (short)(coeffs[i] * (int)quantTable[i]);
 
                             // IDCT
                             JpegIdct.Transform(coeffs, blockOutput, 8);
@@ -958,7 +958,7 @@ internal static unsafe class JpegDecoder
             }
 
             // Dequantize + IDCT + place into component planes
-            Span<float> dequantCoeffs = stackalloc float[64];
+            Span<short> dequantCoeffs = stackalloc short[64];
             Span<byte> blockOutput = stackalloc byte[64];
 
             for (int compIdx = 0; compIdx < numComponents; compIdx++)
@@ -982,7 +982,7 @@ internal static unsafe class JpegDecoder
 
                         // Dequantize
                         for (int i = 0; i < 64; i++)
-                            dequantCoeffs[i] = blockCoeffs[i] * (float)quantTable[i];
+                            dequantCoeffs[i] = (short)(blockCoeffs[i] * (int)quantTable[i]);
 
                         // IDCT
                         JpegIdct.Transform(dequantCoeffs, blockOutput, 8);
