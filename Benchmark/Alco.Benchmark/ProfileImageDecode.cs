@@ -24,12 +24,13 @@ public static unsafe class ProfileImageDecode
         Console.WriteLine($"Image Decode Profiling Harness — {iterations:N0} iterations per workload");
         Console.WriteLine();
 
+        string baseDir = AppContext.BaseDirectory;
         var workloads = new (string Name, string File, bool IsJpeg)[]
         {
-            ("PNG Small", "Files/Image/png-small.png", false),
-            ("PNG Large", "Files/Image/png-large.png", false),
-            ("PNG Wall",  "Files/Image/wall.png", false),
-            ("JPEG",      "Files/Image/jpeg-real.jpg", true),
+            ("PNG Small", Path.Combine(baseDir, "Files/Image/png-small.png"), false),
+            ("PNG Large", Path.Combine(baseDir, "Files/Image/png-large.png"), false),
+            ("PNG Wall",  Path.Combine(baseDir, "Files/Image/wall.png"), false),
+            ("JPEG",      Path.Combine(baseDir, "Files/Image/jpeg-real.jpg"), true),
         };
 
         foreach (var (name, file, isJpeg) in workloads)
