@@ -305,6 +305,8 @@ internal static class PngZlib
             if (symbol < 256)
             {
                 // Literal byte — fast path
+                if (outputPos >= outputLen)
+                    throw new ImageDecodeException("DEFLATE output exceeds expected buffer size.");
                 Unsafe.Add(ref outputRef, outputPos) = (byte)symbol;
                 outputPos++;
             }
@@ -361,61 +363,28 @@ internal static class PngZlib
                     bitsAvailable -= distExtra;
                 }
 
-                // ── Back-reference copy ──
-                ref byte dst = ref Unsafe.Add(ref outputRef, outputPos);
-                ref byte src = ref Unsafe.Add(ref outputRef, outputPos - distance);
+                // ── Bounds check ──
+                if (outputPos + length > outputLen)
+                    throw new ImageDecodeException("DEFLATE output exceeds expected buffer size.");
 
+                // ── Back-reference copy ──
                 if (distance >= length)
                 {
                     // Non-overlapping: bulk copy
-                    Unsafe.CopyBlockUnaligned(ref dst, ref src, (uint)length);
+                    Unsafe.CopyBlockUnaligned(
+                        ref Unsafe.Add(ref outputRef, outputPos),
+                        ref Unsafe.Add(ref outputRef, outputPos - distance),
+                        (uint)length);
                 }
                 else
                 {
-                    // Overlapping (RLE-like): copy with rolling 8-byte chunks
-                    // This is faster than byte-by-byte for short distances
-                    int i = 0;
-                    // First, copy the source pattern once (distance bytes)
-                    // Then replicate it
-                    if (distance >= 8)
-                    {
-                        // Source pattern is at least 8 bytes — copy in chunks
-                        while (i + distance <= length)
-                        {
-                            Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, i), ref Unsafe.Add(ref src, i), (uint)distance);
-                            i += distance;
-                        }
-                        // Remaining bytes
-                        for (; i < length; i++)
-                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref dst, i - distance);
-                    }
-                    else if (distance >= 4)
-                    {
-                        // 4-7 byte pattern: copy first 4+ bytes, then replicate
-                        while (i + 4 <= length)
-                        {
-                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref src, i);
-                            Unsafe.Add(ref dst, i + 1) = Unsafe.Add(ref src, i + 1);
-                            Unsafe.Add(ref dst, i + 2) = Unsafe.Add(ref src, i + 2);
-                            Unsafe.Add(ref dst, i + 3) = Unsafe.Add(ref src, i + 3);
-                            i += 4;
-                            // After first copy, src comes from already-written output
-                            src = ref dst;
-                        }
-                        for (; i < length; i++)
-                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref dst, i - distance);
-                    }
-                    else if (distance == 1)
-                    {
-                        // RLE: fill with single byte
-                        byte val = src;
-                        Unsafe.InitBlockUnaligned(ref dst, val, (uint)length);
-                    }
-                    else // distance == 2 or 3
-                    {
-                        for (; i < length; i++)
-                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref dst, i - distance);
-                    }
+                    // Overlapping (RLE-like): must copy byte-by-byte since each byte
+                    // may depend on a previously-written byte from this same copy.
+                    // The byte-by-byte pattern dst[i] = dst[i - distance] correctly
+                    // handles all overlapping cases (distance 1, 2, 3, ..., length-1).
+                    for (int i = 0; i < length; i++)
+                        Unsafe.Add(ref outputRef, outputPos + i) =
+                            Unsafe.Add(ref outputRef, outputPos + i - distance);
                 }
                 outputPos += length;
             }

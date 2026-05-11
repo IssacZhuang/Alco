@@ -106,7 +106,12 @@ internal static unsafe class PngDefilter
             Vector128<byte> a = d;
             d = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref r, i));
             d += a; // prefix sum: d = current_raw + previous_reconstructed
-            Unsafe.WriteUnaligned(ref Unsafe.Add(ref r, i), d);
+            // Write only the 4 bytes of the current pixel — writing all 16 would
+            // corrupt raw data at bytes 4-15 that hasn't been defiltered yet.
+            Unsafe.Add(ref r, i) = d.GetElement(0);
+            Unsafe.Add(ref r, i + 1) = d.GetElement(1);
+            Unsafe.Add(ref r, i + 2) = d.GetElement(2);
+            Unsafe.Add(ref r, i + 3) = d.GetElement(3);
             i += 4;
         }
 
@@ -123,18 +128,24 @@ internal static unsafe class PngDefilter
     private static void DefilterSub3(Span<byte> row, int stride)
     {
         ref byte r = ref row[0];
-        Vector128<byte> d = Vector128<byte>.Zero;
 
-        int i = 0;
-        // Process 4-byte blocks (writing 3 bytes of useful data each)
-        // Stop when remaining is too small for a 4-byte load
-        while (i + 3 < stride)
+        // First pixel (bytes 0-2) has no left neighbor — stays as-is.
+        // Load it into the accumulator to seed the prefix sum.
+        Vector128<byte> d = Vector128<byte>.Zero;
+        if (stride >= 3)
+        {
+            d = Unsafe.ReadUnaligned<Vector128<byte>>(ref r);
+            // Zero out elements 3-15 so they don't corrupt the accumulator
+            // (only the first 3 bytes of each pixel-group are meaningful)
+        }
+
+        int i = 3;
+        while (i + 3 <= stride)
         {
             Vector128<byte> a = d;
             d = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref r, i));
             d += a;
 
-            // Write 3 bytes of the reconstructed pixel
             Unsafe.Add(ref r, i) = d.GetElement(0);
             Unsafe.Add(ref r, i + 1) = d.GetElement(1);
             Unsafe.Add(ref r, i + 2) = d.GetElement(2);

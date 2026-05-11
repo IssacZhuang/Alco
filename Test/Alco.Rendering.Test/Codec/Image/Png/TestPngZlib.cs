@@ -132,6 +132,45 @@ public class TestPngZlib
         Assert.That(output[..bytesWritten].ToArray(), Is.EqualTo(input));
     }
 
+    [Test]
+    public void TestInflate_OverlappingBackreference()
+    {
+        // Test that overlapping back-references (distance < length) produce correct output.
+        // This specifically exercises the byte-by-byte copy path for distance 1-7.
+        // We test a variety of inputs that force short-distance back-references.
+        byte[][] testInputs =
+        [
+            // Short repeated pattern (forces back-reference with distance 4)
+            System.Text.Encoding.ASCII.GetBytes("ABCDABCDABCDABCDABCD"),
+            // Single byte repeated (distance 1, RLE)
+            System.Text.Encoding.ASCII.GetBytes("AAAAAAAAAAAAAAAAAAAA"),
+            // 2-byte repeated pattern (distance 2)
+            System.Text.Encoding.ASCII.GetBytes("ABABABABABABABABABAB"),
+            // 3-byte repeated pattern (distance 3)
+            System.Text.Encoding.ASCII.GetBytes("ABCABCABCABCABCABCAB"),
+            // 5-byte repeated pattern (distance 5)
+            System.Text.Encoding.ASCII.GetBytes("ABCDEABCDEABCDEABCDE"),
+            // 6-byte repeated pattern (distance 6)
+            System.Text.Encoding.ASCII.GetBytes("ABCDEFABCDEFABCDEFAB"),
+            // 7-byte repeated pattern (distance 7)
+            System.Text.Encoding.ASCII.GetBytes("ABCDEFGABCDEFGABCDEF"),
+            // Longer data with mixed patterns
+            System.Text.Encoding.ASCII.GetBytes("HelloHelloHelloHelloXXXYYYXXXYYYZZZZZZ"),
+        ];
+
+        foreach (byte[] input in testInputs)
+        {
+            byte[] compressed = CompressRawDeflate(input);
+            byte[] output = new byte[input.Length + 256];
+            int bytesWritten = PngZlib.Inflate(compressed, output);
+
+            Assert.That(bytesWritten, Is.EqualTo(input.Length),
+                $"Length mismatch for input '{System.Text.Encoding.ASCII.GetString(input)}'");
+            Assert.That(output[..bytesWritten].ToArray(), Is.EqualTo(input),
+                $"Data mismatch for input '{System.Text.Encoding.ASCII.GetString(input)}'");
+        }
+    }
+
     #endregion
 
     #region DecompressZlib Tests

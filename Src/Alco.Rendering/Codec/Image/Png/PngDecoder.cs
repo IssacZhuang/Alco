@@ -516,7 +516,11 @@ internal static unsafe class PngDecoder
                 Vector128<byte> a = d;
                 d = Unsafe.ReadUnaligned<Vector128<byte>>(dst + i);
                 d += a;
-                Unsafe.WriteUnaligned(dst + i, d);
+                // Write only 4 bytes — writing all 16 would corrupt raw data beyond this pixel
+                dst[i] = d.GetElement(0);
+                dst[i + 1] = d.GetElement(1);
+                dst[i + 2] = d.GetElement(2);
+                dst[i + 3] = d.GetElement(3);
                 i += 4;
             }
 
