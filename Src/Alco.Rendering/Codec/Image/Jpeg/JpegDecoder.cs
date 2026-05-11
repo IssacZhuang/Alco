@@ -276,7 +276,7 @@ internal static unsafe class JpegDecoder
                     int entropyEnd;
                     scan.EntropyData = ExtractCleanEntropyData(data, entropyStart, out entropyEnd);
                     // Snapshot current Huffman tables — later DHT markers may redefine them.
-                    // Deep-copy arrays since BuildTable overwrites them in-place.
+                    // BuildTable replaces lookup arrays, so previous scans keep their tables.
                     scan.DcTables = SnapshotTables(dcTables);
                     scan.AcTables = SnapshotTables(acTables);
                     scans.Add(scan);
@@ -616,20 +616,17 @@ internal static unsafe class JpegDecoder
     }
 
     /// <summary>
-    /// Deep-copy a Huffman table array so that later BuildTable calls
-    /// do not mutate arrays shared with earlier scan snapshots.
+    /// Snapshot a Huffman table array so later DHT markers can redefine table slots.
     /// </summary>
-    private static JpegHuffman.HuffmanTable[] SnapshotTables(JpegHuffman.HuffmanTable[] tables)
+    private static HuffmanTableSnapshot SnapshotTables(JpegHuffman.HuffmanTable[] tables)
     {
-        var snapshot = new JpegHuffman.HuffmanTable[tables.Length];
-        for (int i = 0; i < tables.Length; i++)
+        return new HuffmanTableSnapshot
         {
-            ref readonly var src = ref tables[i];
-            ref var dst = ref snapshot[i];
-            dst.Table = src.Table != null ? (JpegHuffman.LookupEntry[])src.Table.Clone() : null!;
-            dst.TableBits = src.TableBits;
-        }
-        return snapshot;
+            Table0 = tables[0],
+            Table1 = tables[1],
+            Table2 = tables[2],
+            Table3 = tables[3],
+        };
     }
 
     #endregion
@@ -799,7 +796,7 @@ internal static unsafe class JpegDecoder
                             coeffs.Clear();
                             int dcCategory = JpegHuffman.DecodeSymbol(
                                 ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                in scan.DcTables[dcTableIdx]);
+                                scan.DcTables[dcTableIdx]);
 
                             if (dcCategory < 0)
                                 throw new ImageDecodeException("Invalid DC Huffman code.");
@@ -817,7 +814,7 @@ internal static unsafe class JpegDecoder
                             {
                                 int acSymbol = JpegHuffman.DecodeSymbol(
                                     ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                    in scan.AcTables[acTableIdx]);
+                                    scan.AcTables[acTableIdx]);
 
                                 if (acSymbol < 0)
                                     throw new ImageDecodeException("Invalid AC Huffman code.");
@@ -882,8 +879,9 @@ internal static unsafe class JpegDecoder
                                     int dstOffset = (pixelY + row) * planeStride + pixelX;
                                     int srcOffset = row * 8;
 
-                                    for (int col = 0; col < copyCols; col++)
-                                        plane[dstOffset + col] = blockOutput[srcOffset + col];
+                                    ref byte src = ref blockOutput[srcOffset];
+                                    ref byte dst = ref plane[dstOffset];
+                                    Unsafe.CopyBlockUnaligned(ref dst, ref src, (uint)copyCols);
                                 }
                             }
                         }
@@ -946,7 +944,7 @@ internal static unsafe class JpegDecoder
                 try
                 {
                     DecodeProgressiveScan(scan, coeffBuffer, numComponents, components,
-                        scan.DcTables, scan.AcTables, mcuCountX, mcuCountY, restartInterval);
+                        in scan.DcTables, in scan.AcTables, mcuCountX, mcuCountY, restartInterval);
                 }
                 catch (Exception ex)
                 {
@@ -1002,8 +1000,9 @@ internal static unsafe class JpegDecoder
                                 int dstOffset = (pixelY + row) * planeStride + pixelX;
                                 int srcOffset = row * 8;
 
-                                for (int col = 0; col < copyCols; col++)
-                                    plane[dstOffset + col] = blockOutput[srcOffset + col];
+                                ref byte src = ref blockOutput[srcOffset];
+                                ref byte dst = ref plane[dstOffset];
+                                Unsafe.CopyBlockUnaligned(ref dst, ref src, (uint)copyCols);
                             }
                         }
                     }
@@ -1022,7 +1021,7 @@ internal static unsafe class JpegDecoder
     private static void DecodeProgressiveScan(
         in ScanInfo scan, short* coeffBuffer, int numComponents,
         ComponentInfo[] components,
-        JpegHuffman.HuffmanTable[] dcTables, JpegHuffman.HuffmanTable[] acTables,
+        in HuffmanTableSnapshot dcTables, in HuffmanTableSnapshot acTables,
         int mcuCountX, int mcuCountY, int restartInterval)
     {
         bool isDC = scan.Ss == 0;
@@ -1093,7 +1092,7 @@ internal static unsafe class JpegDecoder
                                     // Progressive DC first scan: decode Huffman symbol + magnitude
                                     int dcCategory = JpegHuffman.DecodeSymbol(
                                         ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                        in dcTables[scanComp.DcTable]);
+                                        dcTables[scanComp.DcTable]);
 
                                     if (dcCategory < 0)
                                         throw new ImageDecodeException("Invalid progressive DC Huffman code.");
@@ -1148,7 +1147,7 @@ internal static unsafe class JpegDecoder
                                         {
                                             int acSymbol = JpegHuffman.DecodeSymbol(
                                                 ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                                in acTables[scanComp.AcTable]);
+                                                acTables[scanComp.AcTable]);
 
                                             if (acSymbol < 0)
                                                 throw new ImageDecodeException("Invalid progressive AC Huffman code.");
@@ -1232,7 +1231,7 @@ internal static unsafe class JpegDecoder
                                         {
                                             int acSymbol = JpegHuffman.DecodeSymbol(
                                                 ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
-                                                in acTables[scanComp.AcTable]);
+                                                acTables[scanComp.AcTable]);
 
                                             if (acSymbol < 0)
                                                 throw new ImageDecodeException(
@@ -1456,8 +1455,32 @@ internal static unsafe class JpegDecoder
         public int Ah;            // Successive approximation high
         public int Al;            // Successive approximation low (point transform)
         public byte[] EntropyData; // Clean entropy data (RST markers stripped)
-        public JpegHuffman.HuffmanTable[] DcTables; // Snapshot of DC tables at SOS time
-        public JpegHuffman.HuffmanTable[] AcTables; // Snapshot of AC tables at SOS time
+        public HuffmanTableSnapshot DcTables; // Snapshot of DC tables at SOS time
+        public HuffmanTableSnapshot AcTables; // Snapshot of AC tables at SOS time
+    }
+
+    private struct HuffmanTableSnapshot
+    {
+        public JpegHuffman.HuffmanTable Table0;
+        public JpegHuffman.HuffmanTable Table1;
+        public JpegHuffman.HuffmanTable Table2;
+        public JpegHuffman.HuffmanTable Table3;
+
+        public readonly JpegHuffman.HuffmanTable this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return index switch
+                {
+                    0 => Table0,
+                    1 => Table1,
+                    2 => Table2,
+                    3 => Table3,
+                    _ => throw new ImageDecodeException($"Invalid Huffman table index: {index}.")
+                };
+            }
+        }
     }
 
     #endregion

@@ -72,11 +72,7 @@ internal static class JpegHuffman
         }
 
         int tableSize = 1 << maxBits;
-        table.Table ??= new LookupEntry[tableSize];
-        if (table.Table.Length < tableSize)
-            table.Table = new LookupEntry[tableSize];
-
-        table.Table.AsSpan().Clear();
+        table.Table = new LookupEntry[tableSize];
         table.TableBits = maxBits;
 
         // Compute Huffman codes per length (JPEG spec Annex C, Figure C.1)

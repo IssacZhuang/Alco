@@ -23,19 +23,19 @@ internal static unsafe class PngDefilter
     {
         int rowSize = 1 + stride;
 
-        // Allocate prevRow on the native heap to avoid GC pressure.
-        byte* prevRowPtr = (byte*)NativeMemory.Alloc((nuint)stride);
-        NativeMemory.Fill(prevRowPtr, (nuint)stride, 0);
-        Span<byte> prevRow = new(prevRowPtr, stride);
-
-        try
-        {
-
         for (int y = 0; y < height; y++)
         {
             int rowOffset = y * rowSize;
             byte filterType = scanlines[rowOffset];
             Span<byte> row = scanlines.Slice(rowOffset + 1, stride);
+
+            if (y == 0)
+            {
+                DefilterFirstRow(row, stride, bytesPerPixel, filterType);
+                continue;
+            }
+
+            ReadOnlySpan<byte> prevRow = scanlines.Slice(rowOffset - rowSize + 1, stride);
 
             switch (filterType)
             {
@@ -54,14 +54,21 @@ internal static unsafe class PngDefilter
                     DefilterPaeth(row, prevRow, stride, bytesPerPixel);
                     break;
             }
+        }
+    }
 
-            // Copy current row to prevRow for next iteration
-            row.CopyTo(prevRow);
-        }
-        }
-        finally
+    private static void DefilterFirstRow(Span<byte> row, int stride, int bpp, byte filterType)
+    {
+        switch (filterType)
         {
-            NativeMemory.Free(prevRowPtr);
+            case 1: // Sub
+            case 4: // Paeth with b=c=0 reduces to Sub
+                DefilterSub(row, stride, bpp);
+                break;
+
+            case 3: // Average with b=c=0 predicts a/2 after the first pixel group
+                DefilterAverageFirstRow(row, stride, bpp);
+                break;
         }
     }
 
@@ -175,6 +182,14 @@ internal static unsafe class PngDefilter
         }
     }
 
+    private static void DefilterAverageFirstRow(Span<byte> row, int stride, int bpp)
+    {
+        for (int i = bpp; i < stride; i++)
+        {
+            row[i] += (byte)(row[i - bpp] >> 1);
+        }
+    }
+
     #endregion
 
     #region Paeth filter
@@ -208,16 +223,22 @@ internal static unsafe class PngDefilter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static byte PaethPredictor(byte a, byte b, byte c)
     {
-        int p = a + b - c;
-        int pa = Math.Abs(p - a);
-        int pb = Math.Abs(p - b);
-        int pc = Math.Abs(p - c);
+        int pa = Abs(b - c);
+        int pb = Abs(a - c);
+        int pc = Abs(a + b - (c << 1));
 
         if (pa <= pb && pa <= pc)
             return a;
         if (pb <= pc)
             return b;
         return c;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int Abs(int value)
+    {
+        int mask = value >> 31;
+        return (value ^ mask) - mask;
     }
 
     #endregion

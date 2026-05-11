@@ -31,13 +31,16 @@ internal static unsafe class PngDecoder
         int interlace = 0;
         byte[]? palette = null;
         byte[]? transparency = null;
-        byte[]? combinedIdat = null;
         int idatLength = 0;
+        int idatChunkCount = 0;
+        int firstIdatOffset = -1;
+        int firstIdatLength = 0;
         bool ihdrSeen = false;
+        bool idatSeen = false;
 
         int pos = 8; // skip signature
 
-        // Parse chunks
+        // Parse chunks and total IDAT size first, then copy all IDAT data once.
         while (pos < data.Length)
         {
             if (pos + 8 > data.Length)
@@ -45,6 +48,8 @@ internal static unsafe class PngDecoder
 
             int chunkLength = ReadBigEndianInt32(data.Slice(pos, 4));
             pos += 4;
+            if (chunkLength < 0)
+                throw new ImageDecodeException($"Invalid chunk length: {chunkLength}.");
 
             uint chunkType = ReadBigEndianUInt32(data.Slice(pos, 4));
             pos += 4;
@@ -87,17 +92,14 @@ internal static unsafe class PngDecoder
                     if (!ihdrSeen)
                         throw new ImageDecodeException("IDAT chunk before IHDR.");
 
-                    if (combinedIdat == null)
+                    idatLength = checked(idatLength + chunkLength);
+                    if (idatChunkCount == 0)
                     {
-                        combinedIdat = chunkData.ToArray();
-                        idatLength = chunkLength;
+                        firstIdatOffset = pos - chunkLength - 4;
+                        firstIdatLength = chunkLength;
                     }
-                    else
-                    {
-                        Array.Resize(ref combinedIdat, idatLength + chunkLength);
-                        chunkData.CopyTo(combinedIdat.AsSpan(idatLength));
-                        idatLength += chunkLength;
-                    }
+                    idatChunkCount++;
+                    idatSeen = true;
                     break;
 
                 case 0x49454E44u: // IEND
@@ -114,7 +116,7 @@ internal static unsafe class PngDecoder
         if (!ihdrSeen)
             throw new ImageDecodeException("No IHDR chunk found.");
 
-        if (combinedIdat == null)
+        if (!idatSeen)
             throw new ImageDecodeException("No IDAT chunk found.");
 
         if (colorType == 3 && palette == null)
@@ -136,19 +138,24 @@ internal static unsafe class PngDecoder
 
         try
         {
+            byte[]? combinedIdat = null;
+            ReadOnlySpan<byte> idatData = idatChunkCount == 1
+                ? data.Slice(firstIdatOffset, firstIdatLength)
+                : (combinedIdat = CopyIdatData(data, idatLength));
+
             // Calculate bytes-per-pixel and stride for the source format
             int bytesPerPixel = GetBytesPerPixel(bitDepth, colorType);
             int stride = GetStride(width, bitDepth, colorType);
 
             if (interlace == 0)
             {
-                DecodeNonInterlaced(combinedIdat.AsSpan(0, idatLength), output,
+                DecodeNonInterlaced(idatData, output,
                     width, height, bitDepth, colorType, bytesPerPixel, stride,
                     palette, transparency);
             }
             else
             {
-                DecodeInterlaced(combinedIdat.AsSpan(0, idatLength), output,
+                DecodeInterlaced(idatData, output,
                     width, height, bitDepth, colorType, bytesPerPixel, stride,
                     palette, transparency);
             }
@@ -251,6 +258,36 @@ internal static unsafe class PngDecoder
     private static uint ReadBigEndianUInt32(ReadOnlySpan<byte> bytes)
     {
         return ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
+    }
+
+    private static byte[] CopyIdatData(ReadOnlySpan<byte> data, int idatLength)
+    {
+        byte[] combinedIdat = new byte[idatLength];
+        Span<byte> destination = combinedIdat;
+        int writeOffset = 0;
+        int pos = 8;
+
+        while (pos < data.Length)
+        {
+            int chunkLength = ReadBigEndianInt32(data.Slice(pos, 4));
+            pos += 4;
+
+            uint chunkType = ReadBigEndianUInt32(data.Slice(pos, 4));
+            pos += 4;
+
+            if (chunkType == 0x49444154u) // IDAT
+            {
+                data.Slice(pos, chunkLength).CopyTo(destination.Slice(writeOffset));
+                writeOffset += chunkLength;
+            }
+
+            pos += chunkLength + 4; // data + CRC
+
+            if (chunkType == 0x49454E44u) // IEND
+                break;
+        }
+
+        return combinedIdat;
     }
 
     #endregion
