@@ -368,23 +368,54 @@ internal static class PngZlib
                     throw new ImageDecodeException("DEFLATE output exceeds expected buffer size.");
 
                 // ── Back-reference copy ──
+                ref byte copyDst = ref Unsafe.Add(ref outputRef, outputPos);
+                ref byte copySrc = ref Unsafe.Add(ref outputRef, outputPos - distance);
+
                 if (distance >= length)
                 {
                     // Non-overlapping: bulk copy
-                    Unsafe.CopyBlockUnaligned(
-                        ref Unsafe.Add(ref outputRef, outputPos),
-                        ref Unsafe.Add(ref outputRef, outputPos - distance),
-                        (uint)length);
+                    Unsafe.CopyBlockUnaligned(ref copyDst, ref copySrc, (uint)length);
+                }
+                else if (distance == 1)
+                {
+                    // RLE: fill with single byte
+                    Unsafe.InitBlockUnaligned(ref copyDst, copySrc, (uint)length);
                 }
                 else
                 {
-                    // Overlapping (RLE-like): must copy byte-by-byte since each byte
-                    // may depend on a previously-written byte from this same copy.
-                    // The byte-by-byte pattern dst[i] = dst[i - distance] correctly
-                    // handles all overlapping cases (distance 1, 2, 3, ..., length-1).
-                    for (int i = 0; i < length; i++)
-                        Unsafe.Add(ref outputRef, outputPos + i) =
-                            Unsafe.Add(ref outputRef, outputPos + i - distance);
+                    // Overlapping copy: replicate source pattern in distance-sized chunks.
+                    // After each chunk is written, the next chunk reads from the just-written output.
+                    int copied = 0;
+
+                    // First chunk: copy source pattern
+                    Unsafe.CopyBlockUnaligned(ref copyDst, ref copySrc, (uint)distance);
+                    copied += distance;
+
+                    // Subsequent chunks: copy from already-written output in doubling strides
+                    // This is faster than byte-by-byte for longer copies.
+                    int chunkSize = distance;
+                    while (copied + chunkSize <= length)
+                    {
+                        Unsafe.CopyBlockUnaligned(
+                            ref Unsafe.Add(ref copyDst, copied),
+                            ref copyDst,
+                            (uint)chunkSize);
+                        copied += chunkSize;
+                        chunkSize *= 2;
+                    }
+
+                    // If we've copied at least 'distance' bytes (which we have after first chunk),
+                    // we can copy from any offset within [0, copied) to fill remaining bytes.
+                    while (copied < length)
+                    {
+                        int remaining = length - copied;
+                        int copyLen = Math.Min(remaining, copied);
+                        Unsafe.CopyBlockUnaligned(
+                            ref Unsafe.Add(ref copyDst, copied),
+                            ref copyDst,
+                            (uint)copyLen);
+                        copied += copyLen;
+                    }
                 }
                 outputPos += length;
             }
