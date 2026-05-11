@@ -260,6 +260,8 @@ internal static class PngZlib
 
     /// <summary>
     /// Inflate a Huffman-coded DEFLATE block (used for both fixed and dynamic tables).
+    /// Fully inlined — no method calls in the hot loop. All Huffman decode, bit refill,
+    /// and extra-bit extraction happen directly on local variables for maximum throughput.
     /// </summary>
     private static void InflateHuffmanBlock(
         ref BitReader reader,
@@ -268,29 +270,43 @@ internal static class PngZlib
         scoped ReadOnlySpan<int> litSymbols, scoped ReadOnlySpan<int> litLengths, int litTableBits,
         scoped ReadOnlySpan<int> distSymbols, scoped ReadOnlySpan<int> distLengths, int distTableBits)
     {
-        // We need to pass individual ref fields to DecodeSymbol because BitReader is a ref struct
-        // and cannot be captured by lambda or passed by ref-through-ref-struct.
-        // Instead, we extract the fields and work with them directly.
+        // Extract bit reader fields into locals — these stay in registers throughout the loop
         ulong bitBuffer = reader._bitBuffer;
         int bitsAvailable = reader._bitsAvailable;
         ReadOnlySpan<byte> data = reader._data;
         int dataPos = reader._dataPos;
 
+        // Pre-compute masks for table lookups
+        ulong litMask = (1UL << litTableBits) - 1;
+        ulong distMask = (1UL << distTableBits) - 1;
+
+        // Pin output span for direct pointer access
+        ref byte outputRef = ref output[0];
+        int outputLen = output.Length;
+
         while (true)
         {
-            int symbol = PngHuffman.DecodeSymbol(
-                ref bitBuffer, ref bitsAvailable, data, ref dataPos,
-                litSymbols, litLengths, litTableBits);
+            // ── Inline Huffman decode: literal/length symbol ──
+            // Refill bit buffer to ensure we have enough bits
+            while (bitsAvailable < litTableBits && dataPos < data.Length)
+            {
+                bitBuffer |= (ulong)data[dataPos++] << bitsAvailable;
+                bitsAvailable += 8;
+            }
 
-            if (symbol < 0)
-                throw new ImageDecodeException("Failed to decode literal/length symbol.");
+            int litIndex = (int)(bitBuffer & litMask);
+            int len = litLengths[litIndex];
+            int symbol = litSymbols[litIndex];
+
+            // Consume bits
+            bitBuffer >>= len;
+            bitsAvailable -= len;
 
             if (symbol < 256)
             {
-                // Literal byte
-                if (outputPos >= output.Length)
-                    throw new ImageDecodeException("Output buffer overflow during literal decode.");
-                output[outputPos++] = (byte)symbol;
+                // Literal byte — fast path
+                Unsafe.Add(ref outputRef, outputPos) = (byte)symbol;
+                outputPos++;
             }
             else if (symbol == 256)
             {
@@ -299,51 +315,109 @@ internal static class PngZlib
             }
             else
             {
-                // Length/distance pair
+                // ── Length code ──
                 int lengthCode = symbol - 257;
-                if (lengthCode >= LengthBase.Length)
-                    throw new ImageDecodeException($"Invalid length code: {symbol}.");
-
                 int length = LengthBase[lengthCode];
                 int extraBits = LengthExtra[lengthCode];
                 if (extraBits > 0)
-                    length += reader.ReadBitsFromFields(ref bitBuffer, ref bitsAvailable, data, ref dataPos, extraBits);
+                {
+                    // Inline ReadBits for extra bits
+                    while (bitsAvailable < extraBits && dataPos < data.Length)
+                    {
+                        bitBuffer |= (ulong)data[dataPos++] << bitsAvailable;
+                        bitsAvailable += 8;
+                    }
+                    length += (int)(bitBuffer & ((1UL << extraBits) - 1));
+                    bitBuffer >>= extraBits;
+                    bitsAvailable -= extraBits;
+                }
 
-                // Decode distance
-                int distCode = PngHuffman.DecodeSymbol(
-                    ref bitBuffer, ref bitsAvailable, data, ref dataPos,
-                    distSymbols, distLengths, distTableBits);
+                // ── Inline Huffman decode: distance symbol ──
+                while (bitsAvailable < distTableBits && dataPos < data.Length)
+                {
+                    bitBuffer |= (ulong)data[dataPos++] << bitsAvailable;
+                    bitsAvailable += 8;
+                }
 
-                if (distCode < 0 || distCode >= DistanceBase.Length)
-                    throw new ImageDecodeException($"Invalid distance code: {distCode}.");
+                int distIndex = (int)(bitBuffer & distMask);
+                int dlen = distLengths[distIndex];
+                int distCode = distSymbols[distIndex];
 
+                bitBuffer >>= dlen;
+                bitsAvailable -= dlen;
+
+                // ── Distance extra bits ──
                 int distance = DistanceBase[distCode];
                 int distExtra = DistanceExtra[distCode];
                 if (distExtra > 0)
-                    distance += reader.ReadBitsFromFields(ref bitBuffer, ref bitsAvailable, data, ref dataPos, distExtra);
+                {
+                    while (bitsAvailable < distExtra && dataPos < data.Length)
+                    {
+                        bitBuffer |= (ulong)data[dataPos++] << bitsAvailable;
+                        bitsAvailable += 8;
+                    }
+                    distance += (int)(bitBuffer & ((1UL << distExtra) - 1));
+                    bitBuffer >>= distExtra;
+                    bitsAvailable -= distExtra;
+                }
 
-                if (distance > outputPos)
-                    throw new ImageDecodeException($"Distance {distance} exceeds available output ({outputPos} bytes).");
+                // ── Back-reference copy ──
+                ref byte dst = ref Unsafe.Add(ref outputRef, outputPos);
+                ref byte src = ref Unsafe.Add(ref outputRef, outputPos - distance);
 
-                if (outputPos + length > output.Length)
-                    throw new ImageDecodeException("Output buffer overflow during length/distance copy.");
-
-                // Copy from back-reference
                 if (distance >= length)
                 {
                     // Non-overlapping: bulk copy
-                    ref byte dst = ref output[outputPos];
-                    ref byte src = ref output[outputPos - distance];
                     Unsafe.CopyBlockUnaligned(ref dst, ref src, (uint)length);
-                    outputPos += length;
                 }
                 else
                 {
-                    // Overlapping: byte-by-byte (handles RLE-like patterns)
-                    for (int i = 0; i < length; i++)
-                        output[outputPos + i] = output[outputPos + i - distance];
-                    outputPos += length;
+                    // Overlapping (RLE-like): copy with rolling 8-byte chunks
+                    // This is faster than byte-by-byte for short distances
+                    int i = 0;
+                    // First, copy the source pattern once (distance bytes)
+                    // Then replicate it
+                    if (distance >= 8)
+                    {
+                        // Source pattern is at least 8 bytes — copy in chunks
+                        while (i + distance <= length)
+                        {
+                            Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, i), ref Unsafe.Add(ref src, i), (uint)distance);
+                            i += distance;
+                        }
+                        // Remaining bytes
+                        for (; i < length; i++)
+                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref dst, i - distance);
+                    }
+                    else if (distance >= 4)
+                    {
+                        // 4-7 byte pattern: copy first 4+ bytes, then replicate
+                        while (i + 4 <= length)
+                        {
+                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref src, i);
+                            Unsafe.Add(ref dst, i + 1) = Unsafe.Add(ref src, i + 1);
+                            Unsafe.Add(ref dst, i + 2) = Unsafe.Add(ref src, i + 2);
+                            Unsafe.Add(ref dst, i + 3) = Unsafe.Add(ref src, i + 3);
+                            i += 4;
+                            // After first copy, src comes from already-written output
+                            src = ref dst;
+                        }
+                        for (; i < length; i++)
+                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref dst, i - distance);
+                    }
+                    else if (distance == 1)
+                    {
+                        // RLE: fill with single byte
+                        byte val = src;
+                        Unsafe.InitBlockUnaligned(ref dst, val, (uint)length);
+                    }
+                    else // distance == 2 or 3
+                    {
+                        for (; i < length; i++)
+                            Unsafe.Add(ref dst, i) = Unsafe.Add(ref dst, i - distance);
+                    }
                 }
+                outputPos += length;
             }
         }
 
