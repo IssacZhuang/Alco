@@ -229,100 +229,8 @@ internal static unsafe class PngDefilter
 
     /// <summary>
     /// Filter Average (3): raw[i] += (prev[i] + raw[i - bpp]) / 2 (truncating).
-    /// Uses SIMD pixel-at-a-time processing for bpp=3 and bpp=4, with the
-    /// XOR-based truncating average trick from libpng SSE2:
-    ///   avg(a,b) = (a+b+1)/2 - ((a^b) &amp; 1)
-    /// This converts hardware rounding average to truncating average.
     /// </summary>
     private static void DefilterAverage(Span<byte> row, ReadOnlySpan<byte> prevRow, int stride, int bpp)
-    {
-        if (bpp == 4 && Vector128.IsHardwareAccelerated && stride >= 4)
-            DefilterAverage4(row, prevRow, stride);
-        else if (bpp == 3 && Vector128.IsHardwareAccelerated && stride >= 3)
-            DefilterAverage3(row, prevRow, stride);
-        else
-            DefilterAverageScalar(row, prevRow, stride, bpp);
-    }
-
-    /// <summary>
-    /// SIMD Average filter for RGBA (bpp=4).
-    /// Uses Vector128 as a 4-byte accumulator. The truncating average of a and b is:
-    ///   rounding_avg = (a + b + 1) / 2  (hardware avg)
-    ///   trunc_avg = rounding_avg - ((a ^ b) &amp; 1)
-    /// This avoids widening to 16-bit or doing division.
-    /// </summary>
-    private static void DefilterAverage4(Span<byte> row, ReadOnlySpan<byte> prevRow, int stride)
-    {
-        ref byte r = ref row[0];
-        ref byte pr = ref Unsafe.AsRef(in prevRow[0]);
-        Vector128<byte> d = Vector128<byte>.Zero; // running accumulator (left pixel)
-
-        // First pixel: a=0, predictor = prev/2 = prev >> 1
-        Vector128<byte> b0 = Unsafe.ReadUnaligned<Vector128<byte>>(ref pr);
-        Vector128<byte> raw0 = Unsafe.ReadUnaligned<Vector128<byte>>(ref r);
-        d = raw0 + (b0 >> 1); // truncating divide by 2 via shift
-        Unsafe.WriteUnaligned(ref r, d);
-
-        int i = 4;
-        while (i <= stride - 4)
-        {
-            Vector128<byte> a = d; // left pixel (already defiltered)
-            Vector128<byte> b = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref pr, i));
-            Vector128<byte> raw = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref r, i));
-
-            // Truncating average: (a+b)/2 = (a>>1) + (b>>1) + ((a&b)&1)
-            // Works entirely in 8-bit — no widening needed.
-            Vector128<byte> avg = (a >> 1) + (b >> 1) + ((a & b) & Vector128.Create((byte)1));
-
-            d = raw + avg;
-            Unsafe.WriteUnaligned(ref Unsafe.Add(ref r, i), d);
-            i += 4;
-        }
-
-        // Scalar tail
-        for (; i < stride; i++)
-            Unsafe.Add(ref r, i) += (byte)((Unsafe.Add(ref pr, i) + Unsafe.Add(ref r, i - 4)) >> 1);
-    }
-
-    /// <summary>
-    /// SIMD Average filter for RGB (bpp=3).
-    /// Same as bpp=4 but with 3-byte stores via element extraction.
-    /// </summary>
-    private static void DefilterAverage3(Span<byte> row, ReadOnlySpan<byte> prevRow, int stride)
-    {
-        ref byte r = ref row[0];
-        ref byte pr = ref Unsafe.AsRef(in prevRow[0]);
-        Vector128<byte> d = Vector128<byte>.Zero;
-
-        // First pixel: a=0
-        Vector128<byte> b0 = Unsafe.ReadUnaligned<Vector128<byte>>(ref pr);
-        Vector128<byte> raw0 = Unsafe.ReadUnaligned<Vector128<byte>>(ref r);
-        d = raw0 + (b0 >> 1);
-        Unsafe.Add(ref r, 0) = d.GetElement(0);
-        Unsafe.Add(ref r, 1) = d.GetElement(1);
-        Unsafe.Add(ref r, 2) = d.GetElement(2);
-
-        int i = 3;
-        while (i + 3 <= stride)
-        {
-            Vector128<byte> a = d;
-            Vector128<byte> b = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref pr, i));
-            Vector128<byte> raw = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref r, i));
-
-            Vector128<byte> avg = (a >> 1) + (b >> 1) + ((a & b) & Vector128.Create((byte)1));
-
-            d = raw + avg;
-            Unsafe.Add(ref r, i) = d.GetElement(0);
-            Unsafe.Add(ref r, i + 1) = d.GetElement(1);
-            Unsafe.Add(ref r, i + 2) = d.GetElement(2);
-            i += 3;
-        }
-
-        for (; i < stride; i++)
-            Unsafe.Add(ref r, i) += (byte)((Unsafe.Add(ref pr, i) + Unsafe.Add(ref r, i - 3)) >> 1);
-    }
-
-    private static void DefilterAverageScalar(Span<byte> row, ReadOnlySpan<byte> prevRow, int stride, int bpp)
     {
         for (int i = 0; i < bpp && i < stride; i++)
             row[i] += (byte)(prevRow[i] >> 1);
@@ -332,39 +240,8 @@ internal static unsafe class PngDefilter
 
     private static void DefilterAverageFirstRow(Span<byte> row, int stride, int bpp)
     {
-        if (bpp == 4 && Vector128.IsHardwareAccelerated && stride >= 4)
-        {
-            DefilterAverageFirstRow4(row, stride);
-        }
-        else
-        {
-            for (int i = bpp; i < stride; i++)
-                row[i] += (byte)(row[i - bpp] >> 1);
-        }
-    }
-
-    private static void DefilterAverageFirstRow4(Span<byte> row, int stride)
-    {
-        ref byte r = ref row[0];
-        Vector128<byte> d = Vector128<byte>.Zero;
-
-        // First pixel: no prev, no left → raw stays as-is (predictor = 0)
-        d = Unsafe.ReadUnaligned<Vector128<byte>>(ref r);
-        Unsafe.WriteUnaligned(ref r, d);
-
-        int i = 4;
-        while (i <= stride - 4)
-        {
-            Vector128<byte> a = d; // left pixel
-            Vector128<byte> raw = Unsafe.ReadUnaligned<Vector128<byte>>(ref Unsafe.Add(ref r, i));
-            // Truncating average of (a, 0) = a >> 1
-            d = raw + (a >> 1);
-            Unsafe.WriteUnaligned(ref Unsafe.Add(ref r, i), d);
-            i += 4;
-        }
-
-        for (; i < stride; i++)
-            Unsafe.Add(ref r, i) += (byte)(Unsafe.Add(ref r, i - 4) >> 1);
+        for (int i = bpp; i < stride; i++)
+            row[i] += (byte)(row[i - bpp] >> 1);
     }
 
     #endregion
@@ -393,34 +270,29 @@ internal static unsafe class PngDefilter
     }
 
     /// <summary>
-    /// Compute the Paeth predictor — branch-free using algebraic simplification.
-    /// p = a + b - c; pa = |p-a| = |b-c|, pb = |p-b| = |a-c|, pc = |p-c| = pa + pb.
+    /// Compute the Paeth predictor for a single pixel triplet (a, b, c).
+    /// p = a + b - c; pa = |p-a|, pb = |p-b|, pc = |p-c|
     /// Returns a if pa &lt;= pb and pa &lt;= pc, b if pb &lt;= pc, else c.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static byte PaethPredictor(byte a, byte b, byte c)
     {
-        int pa = (b - c) << 24 >> 24;   // sign-extended byte diff → |b-c|
-        pa = (pa ^ (pa >> 31)) - (pa >> 31);
+        int pa = Abs(b - c);
+        int pb = Abs(a - c);
+        int pc = Abs(a + b - (c << 1));
 
-        int pb = (a - c) << 24 >> 24;   // sign-extended byte diff → |a-c|
-        pb = (pb ^ (pb >> 31)) - (pb >> 31);
+        if (pa <= pb && pa <= pc)
+            return a;
+        if (pb <= pc)
+            return b;
+        return c;
+    }
 
-        int pc = pa + pb;               // |p-c| = |b-c| + |a-c|
-
-        // Branch-free selection with Paeth tie-breaking (a > b > c on ties)
-        // Start with c, conditionally replace with b, then with a
-        int result = c;
-
-        // If pb <= pc, select b over c
-        int maskB = ~(pb - pc) >> 31;   // all-ones if pb <= pc
-        result = (result & ~maskB) | (b & maskB);
-
-        // If pa <= pb and pa <= pc, select a
-        int maskA = ~((pa - pb) | (pa - pc)) >> 31;  // all-ones if pa <= both
-        result = (result & ~maskA) | (a & maskA);
-
-        return (byte)result;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int Abs(int value)
+    {
+        int mask = value >> 31;
+        return (value ^ mask) - mask;
     }
 
     #endregion

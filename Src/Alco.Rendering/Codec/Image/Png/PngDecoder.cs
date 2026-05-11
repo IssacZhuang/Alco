@@ -1061,27 +1061,25 @@ internal static unsafe class PngDecoder
 
     #region Paeth Predictor
 
-    /// <summary>
-    /// Branch-free Paeth predictor — same implementation as PngDefilter.PaethPredictor.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static byte PaethPredictor(byte a, byte b, byte c)
     {
-        int pa = (b - c) << 24 >> 24;
-        pa = (pa ^ (pa >> 31)) - (pa >> 31);
+        int pa = Abs(b - c);
+        int pb = Abs(a - c);
+        int pc = Abs(a + b - (c << 1));
 
-        int pb = (a - c) << 24 >> 24;
-        pb = (pb ^ (pb >> 31)) - (pb >> 31);
+        if (pa <= pb && pa <= pc)
+            return a;
+        if (pb <= pc)
+            return b;
+        return c;
+    }
 
-        int pc = pa + pb;
-
-        int result = c;
-        int maskB = ~(pb - pc) >> 31;
-        result = (result & ~maskB) | (b & maskB);
-        int maskA = ~((pa - pb) | (pa - pc)) >> 31;
-        result = (result & ~maskA) | (a & maskA);
-
-        return (byte)result;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int Abs(int value)
+    {
+        int mask = value >> 31;
+        return (value ^ mask) - mask;
     }
 
     #endregion
