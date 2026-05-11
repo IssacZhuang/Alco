@@ -216,29 +216,34 @@ internal static unsafe class PngDefilter
     }
 
     /// <summary>
-    /// Compute the Paeth predictor for a single pixel triplet (a, b, c).
-    /// p = a + b - c; pa = |p-a|, pb = |p-b|, pc = |p-c|
+    /// Compute the Paeth predictor — branch-free using algebraic simplification.
+    /// p = a + b - c; pa = |p-a| = |b-c|, pb = |p-b| = |a-c|, pc = |p-c| = pa + pb.
     /// Returns a if pa &lt;= pb and pa &lt;= pc, b if pb &lt;= pc, else c.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static byte PaethPredictor(byte a, byte b, byte c)
     {
-        int pa = Abs(b - c);
-        int pb = Abs(a - c);
-        int pc = Abs(a + b - (c << 1));
+        int pa = (b - c) << 24 >> 24;   // sign-extended byte diff → |b-c|
+        pa = (pa ^ (pa >> 31)) - (pa >> 31);
 
-        if (pa <= pb && pa <= pc)
-            return a;
-        if (pb <= pc)
-            return b;
-        return c;
-    }
+        int pb = (a - c) << 24 >> 24;   // sign-extended byte diff → |a-c|
+        pb = (pb ^ (pb >> 31)) - (pb >> 31);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int Abs(int value)
-    {
-        int mask = value >> 31;
-        return (value ^ mask) - mask;
+        int pc = pa + pb;               // |p-c| = |b-c| + |a-c|
+
+        // Branch-free selection with Paeth tie-breaking (a > b > c on ties)
+        // Start with c, conditionally replace with b, then with a
+        int result = c;
+
+        // If pb <= pc, select b over c
+        int maskB = ~(pb - pc) >> 31;   // all-ones if pb <= pc
+        result = (result & ~maskB) | (b & maskB);
+
+        // If pa <= pb and pa <= pc, select a
+        int maskA = ~((pa - pb) | (pa - pc)) >> 31;  // all-ones if pa <= both
+        result = (result & ~maskA) | (a & maskA);
+
+        return (byte)result;
     }
 
     #endregion
