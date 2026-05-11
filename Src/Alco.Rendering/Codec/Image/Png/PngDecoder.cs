@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Alco.Rendering.Codec.Image;
@@ -345,19 +346,113 @@ internal static unsafe class PngDecoder
         try
         {
             Span<byte> decompressedSpan = new(decompressed, decompressedSize);
-            PngZlib.DecompressZlib(idatData, decompressedSpan);
+            PngZlib.DecompressZlib(idatData, decompressedSpan, skipChecksum: true);
 
-            // Defilter in-place (pass actual stride, not width * bytesPerPixel)
-            PngDefilter.Defilter(decompressedSpan, width, height, bytesPerPixel, stride);
-
-            // Convert source format to RGBA8.
-            // Decompressed data layout: [filter_byte][pixel_data] per row, stride is 1+stride.
-            ConvertToRGBA8(output, decompressed, width, height, stride,
-                bitDepth, colorType, palette, transparency, hasFilterBytes: true);
+            // Fast path: RGBA 8-bit — defilter directly into output buffer (single pass).
+            // Skips the separate ConvertToRGBA8 step by combining defilter + copy.
+            if (colorType == 6 && bitDepth == 8)
+            {
+                DefilterAndCopyRgba8(decompressed, output, width, height, stride);
+            }
+            else
+            {
+                // General path: defilter in-place, then convert to RGBA8
+                PngDefilter.Defilter(decompressedSpan, width, height, bytesPerPixel, stride);
+                ConvertToRGBA8(output, decompressed, width, height, stride,
+                    bitDepth, colorType, palette, transparency, hasFilterBytes: true);
+            }
         }
         finally
         {
             NativeMemory.Free(decompressed);
+        }
+    }
+
+    /// <summary>
+    /// Defilter RGBA 8-bit scanlines and copy directly into the output buffer in one pass.
+    /// Eliminates the separate ConvertToRGBA8 step for the most common PNG format.
+    /// </summary>
+    private static unsafe void DefilterAndCopyRgba8(
+        byte* decompressed, byte* output, int width, int height, int stride)
+    {
+        int bpp = 4; // RGBA 8-bit
+        int rowSize = 1 + stride; // filter byte + pixel data
+
+        // Previous row pointer for defiltering (starts null for first row)
+        byte* prevRow = null;
+
+        for (int y = 0; y < height; y++)
+        {
+            int rowOffset = y * rowSize;
+            byte filterType = decompressed[rowOffset];
+            byte* srcRow = decompressed + rowOffset + 1;
+            byte* dstRow = output + y * stride;
+
+            if (y == 0)
+            {
+                DefilterFirstRowCopyRgba8(srcRow, dstRow, stride, bpp, filterType);
+            }
+            else
+            {
+                DefilterRowCopyRgba8(srcRow, dstRow, prevRow, stride, bpp, filterType);
+            }
+
+            prevRow = dstRow;
+        }
+    }
+
+    private static void DefilterFirstRowCopyRgba8(byte* src, byte* dst, int stride, int bpp, byte filterType)
+    {
+        // Copy source to destination first, then defilter in-place in dst
+        Buffer.MemoryCopy(src, dst, stride, stride);
+
+        switch (filterType)
+        {
+            case 0: // None — already copied
+                break;
+            case 1: // Sub
+            case 4: // Paeth with b=c=0 reduces to Sub
+                for (int i = bpp; i < stride; i++)
+                    dst[i] += dst[i - bpp];
+                break;
+            case 3: // Average with b=c=0 — a/2
+                for (int i = bpp; i < stride; i++)
+                    dst[i] += (byte)(dst[i - bpp] >> 1);
+                break;
+            case 2: // Up with no prev row — no change needed
+                break;
+        }
+    }
+
+    private static void DefilterRowCopyRgba8(byte* src, byte* dst, byte* prev, int stride, int bpp, byte filterType)
+    {
+        // Copy source to destination first, then apply filter correction in dst
+        Buffer.MemoryCopy(src, dst, stride, stride);
+
+        switch (filterType)
+        {
+            case 0: // None
+                break;
+            case 1: // Sub
+                for (int i = bpp; i < stride; i++)
+                    dst[i] += dst[i - bpp];
+                break;
+            case 2: // Up
+                for (int i = 0; i < stride; i++)
+                    dst[i] += prev[i];
+                break;
+            case 3: // Average
+                for (int i = 0; i < bpp && i < stride; i++)
+                    dst[i] += (byte)(prev[i] >> 1);
+                for (int i = bpp; i < stride; i++)
+                    dst[i] += (byte)((prev[i] + dst[i - bpp]) >> 1);
+                break;
+            case 4: // Paeth
+                for (int i = 0; i < bpp && i < stride; i++)
+                    dst[i] += prev[i];
+                for (int i = bpp; i < stride; i++)
+                    dst[i] += PaethPredictor(dst[i - bpp], prev[i], prev[i - bpp]);
+                break;
         }
     }
 
@@ -401,7 +496,7 @@ internal static unsafe class PngDecoder
         try
         {
             Span<byte> decompressedSpan = new(decompressed, totalSize);
-            PngZlib.DecompressZlib(idatData, decompressedSpan);
+            PngZlib.DecompressZlib(idatData, decompressedSpan, skipChecksum: true);
 
             // For sub-byte depths (1, 2, 4 bit), we cannot merge into a source-format buffer
             // because pixels are packed at bit boundaries. Instead, convert each pass directly
@@ -886,6 +981,31 @@ internal static unsafe class PngDecoder
             4 => (byte)(sample * 17),            // 0->0, 15->255
             _ => (byte)sample
         };
+    }
+
+    #endregion
+
+    #region Paeth Predictor
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte PaethPredictor(byte a, byte b, byte c)
+    {
+        int pa = Abs(b - c);
+        int pb = Abs(a - c);
+        int pc = Abs(a + b - (c << 1));
+
+        if (pa <= pb && pa <= pc)
+            return a;
+        if (pb <= pc)
+            return b;
+        return c;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int Abs(int value)
+    {
+        int mask = value >> 31;
+        return (value ^ mask) - mask;
     }
 
     #endregion

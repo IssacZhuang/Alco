@@ -61,9 +61,10 @@ internal static class PngZlib
     /// </summary>
     /// <param name="data">Zlib-compressed data (header + compressed stream + checksum).</param>
     /// <param name="output">Destination buffer for decompressed data.</param>
+    /// <param name="skipChecksum">When true, skip Adler-32 verification (trusted data optimization).</param>
     /// <returns>Number of bytes written to <paramref name="output"/>.</returns>
     /// <exception cref="ImageDecodeException">Thrown on invalid zlib header, corrupt data, or checksum mismatch.</exception>
-    public static int DecompressZlib(ReadOnlySpan<byte> data, Span<byte> output)
+    public static int DecompressZlib(ReadOnlySpan<byte> data, Span<byte> output, bool skipChecksum = false)
     {
         if (data.Length < 6)
             throw new ImageDecodeException("Zlib data too short for header and checksum.");
@@ -91,15 +92,18 @@ internal static class PngZlib
         ReadOnlySpan<byte> compressedData = data.Slice(2, data.Length - 6);
         int bytesWritten = Inflate(compressedData, output);
 
-        // Read and verify Adler-32 checksum (big-endian, last 4 bytes)
-        uint expectedChecksum = (uint)((data[data.Length - 4] << 24) |
-                                       (data[data.Length - 3] << 16) |
-                                       (data[data.Length - 2] << 8) |
-                                       data[data.Length - 1]);
-        uint actualChecksum = Adler32(output.Slice(0, bytesWritten));
+        if (!skipChecksum)
+        {
+            // Read and verify Adler-32 checksum (big-endian, last 4 bytes)
+            uint expectedChecksum = (uint)((data[data.Length - 4] << 24) |
+                                           (data[data.Length - 3] << 16) |
+                                           (data[data.Length - 2] << 8) |
+                                           data[data.Length - 1]);
+            uint actualChecksum = Adler32(output.Slice(0, bytesWritten));
 
-        if (actualChecksum != expectedChecksum)
-            throw new ImageDecodeException($"Adler-32 checksum mismatch: expected 0x{expectedChecksum:X8}, got 0x{actualChecksum:X8}.");
+            if (actualChecksum != expectedChecksum)
+                throw new ImageDecodeException($"Adler-32 checksum mismatch: expected 0x{expectedChecksum:X8}, got 0x{actualChecksum:X8}.");
+        }
 
         return bytesWritten;
     }
@@ -117,13 +121,11 @@ internal static class PngZlib
         var reader = new BitReader(compressed);
         int outputPos = 0;
 
-        // Build fixed Huffman tables (reused across all fixed blocks)
-        Span<int> fixedLitSymbols = stackalloc int[1 << 9];
-        Span<int> fixedLitLengths = stackalloc int[1 << 9];
-        Span<int> fixedDistSymbols = stackalloc int[1 << 5];
-        Span<int> fixedDistLengths = stackalloc int[1 << 5];
-
-        bool fixedTablesBuilt = false;
+        // Use pre-built fixed Huffman tables (computed once in PngHuffman static ctor)
+        ReadOnlySpan<int> fixedLitSymbols = PngHuffman.FixedLiteralSymbols;
+        ReadOnlySpan<int> fixedLitLengths = PngHuffman.FixedLiteralLengths;
+        ReadOnlySpan<int> fixedDistSymbols = PngHuffman.FixedDistanceSymbols;
+        ReadOnlySpan<int> fixedDistLengths = PngHuffman.FixedDistanceLengths;
 
         int* dynamicWorkspacePtr = null;
 
@@ -142,15 +144,7 @@ internal static class PngZlib
                         InflateStoredBlock(ref reader, output, ref outputPos);
                         break;
 
-                    case 1: // Fixed Huffman
-                        if (!fixedTablesBuilt)
-                        {
-                            if (!PngHuffman.BuildFixedLiteralTable(fixedLitSymbols, fixedLitLengths))
-                                throw new ImageDecodeException("Failed to build fixed literal Huffman table.");
-                            if (!PngHuffman.BuildFixedDistanceTable(fixedDistSymbols, fixedDistLengths))
-                                throw new ImageDecodeException("Failed to build fixed distance Huffman table.");
-                            fixedTablesBuilt = true;
-                        }
+                    case 1: // Fixed Huffman — use pre-built static tables directly
                         InflateHuffmanBlock(ref reader, output, ref outputPos,
                             fixedLitSymbols, fixedLitLengths, 9,
                             fixedDistSymbols, fixedDistLengths, 5);
@@ -238,8 +232,30 @@ internal static class PngZlib
         if (outputPos + len > output.Length)
             throw new ImageDecodeException("Stored block exceeds output buffer.");
 
-        for (int i = 0; i < len; i++)
-            output[outputPos++] = (byte)reader.ReadBits(8);
+        // After AlignToByte(), bitsAvailable is a multiple of 8.
+        // Drain whole bytes remaining in the bit buffer first, then bulk-copy the rest.
+        int drained = 0;
+        while (drained < len && reader._bitsAvailable >= 8)
+        {
+            output[outputPos + drained] = (byte)reader._bitBuffer;
+            reader._bitBuffer >>= 8;
+            reader._bitsAvailable -= 8;
+            drained++;
+        }
+
+        int remaining = len - drained;
+
+        // Bulk-copy remaining bytes directly from the source data
+        if (remaining > 0)
+        {
+            if (reader._dataPos + remaining > reader._data.Length)
+                throw new ImageDecodeException("Stored block exceeds compressed data.");
+
+            reader._data.Slice(reader._dataPos, remaining).CopyTo(output.Slice(outputPos + drained, remaining));
+            reader._dataPos += remaining;
+        }
+
+        outputPos += len;
     }
 
     /// <summary>

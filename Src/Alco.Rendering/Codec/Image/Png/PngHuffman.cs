@@ -22,6 +22,23 @@ internal static class PngHuffman
     /// </summary>
     public const int DistanceSymbolCount = 32;
 
+    // Pre-built fixed Huffman tables (computed once in static constructor).
+    private static readonly int[] s_fixedLitSymbols = new int[1 << 9];
+    private static readonly int[] s_fixedLitLengths = new int[1 << 9];
+    private static readonly int[] s_fixedDistSymbols = new int[1 << 5];
+    private static readonly int[] s_fixedDistLengths = new int[1 << 5];
+
+    static PngHuffman()
+    {
+        BuildFixedLiteralTable(s_fixedLitSymbols, s_fixedLitLengths);
+        BuildFixedDistanceTable(s_fixedDistSymbols, s_fixedDistLengths);
+    }
+
+    public static ReadOnlySpan<int> FixedLiteralSymbols => s_fixedLitSymbols;
+    public static ReadOnlySpan<int> FixedLiteralLengths => s_fixedLitLengths;
+    public static ReadOnlySpan<int> FixedDistanceSymbols => s_fixedDistSymbols;
+    public static ReadOnlySpan<int> FixedDistanceLengths => s_fixedDistLengths;
+
     /// <summary>
     /// Build a Huffman decode table from an array of code lengths (DEFLATE DHT format).
     /// The caller allocates <paramref name="symbols"/> and <paramref name="lengths"/> arrays,
