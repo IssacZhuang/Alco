@@ -692,7 +692,10 @@ internal static unsafe class PngDecoder
                     case 3: // Indexed
                         {
                             int index = sample;
-                            r = palette![index * 3 + 0];
+                            int maxIndex = palette!.Length / 3 - 1;
+                            if (index > maxIndex)
+                                index = maxIndex;
+                            r = palette[index * 3 + 0];
                             g = palette[index * 3 + 1];
                             b = palette[index * 3 + 2];
                             a = (transparency != null && index < transparency.Length)
@@ -939,6 +942,9 @@ internal static unsafe class PngDecoder
             {
                 int shift = 8 - bitDepth - bitPos;
                 int index = (srcRow[byteIdx] >> shift) & mask;
+                int maxIndex = palette.Length / 3 - 1;
+                if (index > maxIndex)
+                    index = maxIndex;
 
                 byte r = palette[index * 3 + 0];
                 byte g = palette[index * 3 + 1];
