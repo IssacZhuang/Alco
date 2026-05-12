@@ -84,16 +84,37 @@ internal static class JpegIdct
     };
 
     /// <summary>
+    /// Pre-multiply a raw quantization table (zigzag order) with AAN scaling factors.
+    /// The result is a zigzag-order table where preQ[i] = rawQ[i] * aanScales[ZigzagOrder[i]] >> 12.
+    /// This allows the dequantize step to also apply AAN scaling in a single multiply,
+    /// eliminating the separate AAN scale loop in the IDCT.
+    /// </summary>
+    public static short[] PremultiplyQuantTable(ushort[] rawQuant)
+    {
+        var result = new short[64];
+        var aanScales = AanScales;
+        var zigzag = ZigzagOrder;
+
+        for (int i = 0; i < 64; i++)
+            result[i] = (short)((rawQuant[i] * (int)aanScales[zigzag[i]]) >> AanScaleDescale);
+
+        return result;
+    }
+
+    /// <summary>
     /// Perform IDCT on a dequantized 8x8 block and output as 8-bit samples.
-    /// Coefficients are in zigzag order.
+    /// Coefficients are in zigzag order, with AAN scaling already applied via
+    /// pre-multiplied quantization table (see <see cref="PremultiplyQuantTable"/>).
     /// </summary>
     public static void Transform(ReadOnlySpan<short> coeffs, Span<byte> output, int outputStride)
     {
-        // Zero-row skip: if all AC coefficients are zero, just broadcast DC.
+        // Zero-row skip: broadcast DC pixel to all 8x8 positions
         if (HasOnlyDc(coeffs))
         {
-            int aanDc = (int)coeffs[0] << 2;
-            byte pixel = (byte)(((aanDc + 16) >> 5) + 128);
+            // With AAN pre-multiplied into quant table, coeffs[0] = raw_dc * rawQ[0] * aanScales[0] >> 12
+            // = raw_dc * rawQ[0] * 4. The butterfly output is (val + bias) >> 5 + 128.
+            int val = coeffs[0] + 16;
+            byte pixel = (byte)((val >> 5) + 128);
             for (int i = 0; i < 64; i++)
                 output[i] = pixel;
             return;
@@ -105,11 +126,6 @@ internal static class JpegIdct
         for (int i = 0; i < 64; i++)
             block[zigzag[i]] = coeffs[i];
 
-        // Apply AAN scaling factors to the de-zigzagged block.
-        var aanScales = AanScales;
-        for (int i = 0; i < 64; i++)
-            block[i] = (short)((block[i] * (int)aanScales[i]) >> AanScaleDescale);
-
         TransformScalar(block, output, outputStride);
     }
 
@@ -118,14 +134,15 @@ internal static class JpegIdct
     /// Output is written at (outputPtr + row * outputStride) for each of the 8 rows.
     /// This avoids an intermediate block→plane copy.
     /// The caller guarantees that outputPtr has room for 8 rows of outputStride bytes each.
+    /// Coefficients are in zigzag order, with AAN scaling already applied.
     /// </summary>
     public static unsafe void Transform(ReadOnlySpan<short> coeffs, byte* outputPtr, int outputStride)
     {
         // Zero-row skip: broadcast DC pixel to all 8x8 positions
         if (HasOnlyDc(coeffs))
         {
-            int aanDc = (int)coeffs[0] << 2;
-            byte pixel = (byte)(((aanDc + 16) >> 5) + 128);
+            int val = coeffs[0] + 16;
+            byte pixel = (byte)((val >> 5) + 128);
             for (int row = 0; row < 8; row++)
             {
                 byte* rowPtr = outputPtr + row * outputStride;
@@ -140,11 +157,6 @@ internal static class JpegIdct
         var zigzag = ZigzagOrder;
         for (int i = 0; i < 64; i++)
             block[zigzag[i]] = coeffs[i];
-
-        // Apply AAN scaling factors to the de-zigzagged block.
-        var aanScales = AanScales;
-        for (int i = 0; i < 64; i++)
-            block[i] = (short)((block[i] * (int)aanScales[i]) >> AanScaleDescale);
 
         TransformScalarPtr(block, outputPtr, outputStride);
     }

@@ -45,7 +45,7 @@ internal static unsafe class JpegDecoder
         bool sofSeen = false;
 
         var components = new ComponentInfo[4];
-        ushort[][] quantTables = [null!, null!, null!, null!]; // 64 values each (zigzag order)
+        short[][] quantTables = [null!, null!, null!, null!]; // pre-multiplied with AAN scales
         var dcTables = new JpegHuffman.HuffmanTable[4];
         var acTables = new JpegHuffman.HuffmanTable[4];
         int restartInterval = 0;
@@ -195,7 +195,7 @@ internal static unsafe class JpegDecoder
         ReadOnlySpan<byte> data, ref int pos,
         ref int width, ref int height, ref int precision, ref int numComponents,
         ref bool progressive, ref bool sofSeen,
-        ComponentInfo[] components, ushort[][] quantTables,
+        ComponentInfo[] components, short[][] quantTables,
         JpegHuffman.HuffmanTable[] dcTables, JpegHuffman.HuffmanTable[] acTables,
         ref int restartInterval, ref bool hasAdobeApp14, ref byte adobeColorTransform,
         List<ScanInfo> scans)
@@ -396,7 +396,7 @@ internal static unsafe class JpegDecoder
     /// <summary>
     /// Parse DQT marker — can contain multiple quantization tables.
     /// </summary>
-    private static void ParseDQT(ReadOnlySpan<byte> markerData, ushort[][] quantTables)
+    private static void ParseDQT(ReadOnlySpan<byte> markerData, short[][] quantTables)
     {
         int offset = 0;
 
@@ -418,20 +418,23 @@ internal static unsafe class JpegDecoder
             if (offset + 1 + tableSize > markerData.Length)
                 throw new ImageDecodeException("Truncated DQT table data.");
 
-            quantTables[tableId] = new ushort[64];
-
+            // Read raw quantization values (zigzag order) into temporary buffer
+            ushort[] rawQuant = new ushort[64];
             for (int i = 0; i < 64; i++)
             {
                 if (precision == 0)
                 {
-                    quantTables[tableId][i] = markerData[offset + 1 + i];
+                    rawQuant[i] = markerData[offset + 1 + i];
                 }
                 else
                 {
                     int idx = offset + 1 + i * 2;
-                    quantTables[tableId][i] = (ushort)((markerData[idx] << 8) | markerData[idx + 1]);
+                    rawQuant[i] = (ushort)((markerData[idx] << 8) | markerData[idx + 1]);
                 }
             }
+
+            // Pre-multiply with AAN scaling factors for combined dequantize + AAN in one step
+            quantTables[tableId] = JpegIdct.PremultiplyQuantTable(rawQuant);
 
             offset += 1 + tableSize;
         }
@@ -714,7 +717,7 @@ internal static unsafe class JpegDecoder
     /// </summary>
     private static void DecodeBaseline(
         ReadOnlySpan<byte> data, int width, int height, int numComponents,
-        ComponentInfo[] components, ushort[][] quantTables,
+        ComponentInfo[] components, short[][] quantTables,
         int restartInterval, List<ScanInfo> scans,
         byte** componentPlanes, int* componentStrides)
     {
@@ -783,7 +786,7 @@ internal static unsafe class JpegDecoder
                         }
                     }
 
-                    ushort[] quantTable = quantTables[comp.QuantTableIndex];
+                    short[] quantTable = quantTables[comp.QuantTableIndex];
                     if (quantTable == null)
                         throw new ImageDecodeException($"Missing quantization table {comp.QuantTableIndex}.");
 
@@ -883,7 +886,7 @@ internal static unsafe class JpegDecoder
     /// </summary>
     private static void DecodeProgressive(
         ReadOnlySpan<byte> data, int width, int height, int numComponents,
-        ComponentInfo[] components, ushort[][] quantTables,
+        ComponentInfo[] components, short[][] quantTables,
         int restartInterval, List<ScanInfo> scans,
         byte** componentPlanes, int* componentStrides)
     {
@@ -940,7 +943,7 @@ internal static unsafe class JpegDecoder
             for (int compIdx = 0; compIdx < numComponents; compIdx++)
             {
                 ref var comp = ref components[compIdx];
-                ushort[] quantTable = quantTables[comp.QuantTableIndex];
+                short[] quantTable = quantTables[comp.QuantTableIndex];
 
                 if (quantTable == null)
                     throw new ImageDecodeException($"Missing quantization table {comp.QuantTableIndex}.");
