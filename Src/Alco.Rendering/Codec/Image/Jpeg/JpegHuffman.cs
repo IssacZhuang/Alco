@@ -149,8 +149,15 @@ internal static class JpegHuffman
 
         for (int i = 0; i < 512; i++)
         {
-            // Map the 9-bit index to the actual table entry
-            int tableIdx = i >> (9 - tableBits);
+            // Map the 9-bit index to the actual table entry.
+            // When tableBits <= 9: multiple 9-bit peeks map to one table entry (right shift).
+            // When tableBits > 9: one 9-bit peek maps to a range of table entries (left shift).
+            int tableIdx;
+            if (tableBits <= 9)
+                tableIdx = i >> (9 - tableBits);
+            else
+                tableIdx = i << (tableBits - 9);
+
             if (tableIdx > tableMask)
                 continue;
 
@@ -289,8 +296,8 @@ internal static class JpegHuffman
 
     /// <summary>
     /// Fill the bit buffer with more data from the source span.
-    /// Reads bytes one at a time, handling JPEG byte stuffing (0xFF 0x00 -> 0xFF).
-    /// New bytes are shifted into the bottom of the buffer, maintaining left-alignment.
+    /// Reads bytes one at a time into the 64-bit left-aligned buffer.
+    /// Expects pre-processed entropy data (byte stuffing and restart markers already stripped).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void FillBuffer(ref ulong bitBuffer, ref int bitsAvailable, ReadOnlySpan<byte> data, ref int dataPos)
@@ -298,13 +305,6 @@ internal static class JpegHuffman
         while (bitsAvailable <= 56 && dataPos < data.Length)
         {
             byte b = data[dataPos++];
-
-            if (b == 0xFF)
-            {
-                if (dataPos < data.Length && data[dataPos] == 0x00)
-                    dataPos++;
-            }
-
             bitBuffer |= (ulong)b << (56 - bitsAvailable);
             bitsAvailable += 8;
         }

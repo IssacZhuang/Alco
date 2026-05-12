@@ -522,8 +522,8 @@ internal static unsafe class JpegDecoder
 
     /// <summary>
     /// Extract the entropy-coded segment starting at <paramref name="startPos"/>.
-    /// Returns the raw bytes including byte stuffing (FF 00), with only restart markers (FF D0-D7) stripped.
-    /// The Huffman bit reader handles byte stuffing inline during decoding.
+    /// Strips byte stuffing (FF 00 → FF) and restart markers (FF D0-D7).
+    /// Returns clean data with no 0xFF bytes (except the literal 0xFF from un-stuffing).
     /// </summary>
     private static byte[] ExtractCleanEntropyData(ReadOnlySpan<byte> data, int startPos, out int endPos)
     {
@@ -542,8 +542,8 @@ internal static unsafe class JpegDecoder
 
                 if (next == 0x00)
                 {
-                    // Byte stuffing: keep both FF and 00
-                    outputSize += 2;
+                    // Byte stuffing: keep only the FF (remove the 00 stuffing byte)
+                    outputSize += 1;
                     scan += 2;
                     continue;
                 }
@@ -582,7 +582,6 @@ internal static unsafe class JpegDecoder
                 if (next == 0x00)
                 {
                     result[writePos++] = 0xFF;
-                    result[writePos++] = 0x00;
                     scan += 2;
                     continue;
                 }
@@ -804,7 +803,11 @@ internal static unsafe class JpegDecoder
                                 scan.DcTables[dcTableIdx]);
 
                             if (dcCategory < 0)
-                                throw new ImageDecodeException("Invalid DC Huffman code.");
+                            {
+                                throw new ImageDecodeException(
+                                    $"Invalid DC Huffman code at MCU({mcuX},{mcuY}) comp={compIdx} block({h},{v}) " +
+                                    $"dataPos={dataPos}/{entropyData.Length} bitsAvail={bitsAvailable}.");
+                            }
 
                             int dcDiff = JpegHuffman.ReceiveExtend(
                                 dcCategory, ref bitBuffer, ref bitsAvailable,
@@ -1327,13 +1330,6 @@ internal static unsafe class JpegDecoder
         while (bitsAvailable <= 56 && dataPos < data.Length)
         {
             byte b = data[dataPos++];
-
-            if (b == 0xFF)
-            {
-                if (dataPos < data.Length && data[dataPos] == 0x00)
-                    dataPos++; // skip stuffing byte
-            }
-
             bitBuffer |= (ulong)b << (56 - bitsAvailable);
             bitsAvailable += 8;
         }
