@@ -156,10 +156,7 @@ internal static class JpegIdct
         for (int i = 0; i < 64; i++)
             block[zigzag[i]] = coeffs[i];
 
-        if (IsSimdSupported)
-            TransformSimdPtr(block, outputPtr, outputStride);
-        else
-            TransformScalarPtr(block, outputPtr, outputStride);
+        TransformScalarPtr(block, outputPtr, outputStride);
     }
 
     /// <summary>
