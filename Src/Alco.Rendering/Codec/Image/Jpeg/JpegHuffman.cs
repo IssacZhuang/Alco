@@ -28,6 +28,14 @@ internal static class JpegHuffman
 
         /// <summary>Number of bits to peek for table lookup (= max code length in this table).</summary>
         public int TableBits;
+
+        /// <summary>
+        /// Fast AC lookup table (512 entries) for combined Huffman + magnitude decode.
+        /// Only populated for AC Huffman tables. Zero entries mean "not fast" (fall back to normal decode).
+        /// Non-zero encoding: bits [15:8] = sign-extended coefficient value,
+        /// bits [7:4] = run length (0-15), bits [3:0] = total bits to consume (huffman + magnitude).
+        /// </summary>
+        public short[] FastAc;
     }
 
     /// <summary>
@@ -116,7 +124,66 @@ internal static class JpegHuffman
             }
         }
 
+        // Build fast AC lookup table for combined Huffman + magnitude decode
+        BuildFastAc(ref table);
+
         return true;
+    }
+
+    /// <summary>
+    /// Build a fast AC lookup table that combines Huffman decode + magnitude extraction
+    /// into a single table lookup. For each 9-bit peek value where the Huffman code length
+    /// plus magnitude bits total ≤ 9, pre-compute the sign-extended value, run, and total
+    /// consume bits. This avoids a separate Huffman decode + ReceiveExtend in the AC hot loop.
+    /// </summary>
+    private static void BuildFastAc(ref HuffmanTable table)
+    {
+        table.FastAc = new short[512];
+
+        int tableBits = table.TableBits;
+        if (tableBits == 0)
+            return;
+
+        int tableMask = (1 << tableBits) - 1;
+        var lookupTable = table.Table;
+
+        for (int i = 0; i < 512; i++)
+        {
+            // Map the 9-bit index to the actual table entry
+            int tableIdx = i >> (9 - tableBits);
+            if (tableIdx > tableMask)
+                continue;
+
+            ref readonly var entry = ref lookupTable[tableIdx];
+
+            // For fast AC, the peek must find a valid symbol
+            if (entry.Length == 0)
+                continue;
+
+            byte symbol = (byte)entry.Symbol;
+            int run = (symbol >> 4) & 0x0F;
+            int magBits = symbol & 0x0F;
+            int codeLen = entry.Length;
+
+            // Only beneficial when code length + magnitude bits ≤ 9
+            if (magBits == 0 || codeLen + magBits > 9)
+                continue;
+
+            // Extract the magnitude bits from the 9-bit peek value
+            int k = ((i << codeLen) & ((1 << 9) - 1)) >> (9 - magBits);
+
+            // Sign-extend
+            int m = 1 << (magBits - 1);
+            if (k < m)
+                k += -(1 << magBits);
+
+            // Only encode if value fits in a byte (value stored in bits [15:8])
+            if (k is >= -128 and <= 127)
+            {
+                // Encoding: bits[15:8] = sign-extended value, bits[7:4] = run, bits[3:0] = total consume bits
+                table.FastAc[i] = (short)(k * 256 + run * 16 + codeLen + magBits);
+            }
+        }
     }
 
     /// <summary>

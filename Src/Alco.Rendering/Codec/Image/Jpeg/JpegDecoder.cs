@@ -815,8 +815,37 @@ internal static unsafe class JpegDecoder
 
                             // Decode AC
                             int acPos = 1; // zigzag position
+                            var fastAc = scan.AcTables[acTableIdx].FastAc;
+
                             while (acPos < 64)
                             {
+                                // Try fast AC path: peek 9 bits and check pre-computed table
+                                JpegHuffman.FillBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
+
+                                if (bitsAvailable >= 9 && fastAc != null)
+                                {
+                                    int peek9 = (int)(bitBuffer >> 55); // top 9 bits
+                                    short fast = fastAc[peek9];
+
+                                    if (fast != 0)
+                                    {
+                                        // Fast path: extract run, value, consume bits from single lookup
+                                        int fastRun = (fast >> 4) & 0x0F;
+                                        int totalBits = fast & 0x0F;
+                                        int fastValue = fast >> 8; // sign-extended coefficient
+
+                                        acPos += fastRun;
+                                        if (acPos < 64)
+                                            coeffs[acPos] = (short)fastValue;
+                                        acPos++;
+
+                                        bitBuffer <<= totalBits;
+                                        bitsAvailable -= totalBits;
+                                        continue;
+                                    }
+                                }
+
+                                // Slow path: normal Huffman decode + ReceiveExtend
                                 int acSymbol = JpegHuffman.DecodeSymbol(
                                     ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos,
                                     scan.AcTables[acTableIdx]);
