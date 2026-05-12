@@ -1117,9 +1117,9 @@ internal static unsafe class JpegDecoder
                                     if (bitsAvailable <= 0)
                                         throw new ImageDecodeException("Unexpected end of data in DC refinement scan.");
 
-                                    int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
+                                    int bit = (int)(bitBuffer >> 63);
                                     bitsAvailable--;
-                                    bitBuffer &= (1UL << bitsAvailable) - 1;
+                                    bitBuffer <<= 1;
 
                                     if (bit != 0)
                                         blockCoeffs[0] += (short)(1 << scan.Al);
@@ -1210,9 +1210,9 @@ internal static unsafe class JpegDecoder
                                                 FillBitBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
                                                 if (bitsAvailable > 0)
                                                 {
-                                                    int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
+                                                    int bit = (int)(bitBuffer >> 63);
                                                     bitsAvailable--;
-                                                    bitBuffer &= (1UL << bitsAvailable) - 1;
+                                                    bitBuffer <<= 1;
                                                     if (bit != 0 && (blockCoeffs[k] & refinementBit) == 0)
                                                     {
                                                         if (blockCoeffs[k] > 0)
@@ -1269,9 +1269,9 @@ internal static unsafe class JpegDecoder
                                                 int signBit = 0;
                                                 if (bitsAvailable > 0)
                                                 {
-                                                    signBit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
+                                                    signBit = (int)(bitBuffer >> 63);
                                                     bitsAvailable--;
-                                                    bitBuffer &= (1UL << bitsAvailable) - 1;
+                                                    bitBuffer <<= 1;
                                                 }
                                                 sz = signBit != 0 ? refinementBit : -refinementBit;
                                             }
@@ -1286,9 +1286,9 @@ internal static unsafe class JpegDecoder
                                                     FillBitBuffer(ref bitBuffer, ref bitsAvailable, entropyData, ref dataPos);
                                                     if (bitsAvailable > 0)
                                                     {
-                                                        int bit = (int)((bitBuffer >> (bitsAvailable - 1)) & 1);
+                                                        int bit = (int)(bitBuffer >> 63);
                                                         bitsAvailable--;
-                                                        bitBuffer &= (1UL << bitsAvailable) - 1;
+                                                        bitBuffer <<= 1;
                                                         if (bit != 0 && (blockCoeffs[acPos] & refinementBit) == 0)
                                                         {
                                                             if (blockCoeffs[acPos] > 0)
@@ -1327,6 +1327,7 @@ internal static unsafe class JpegDecoder
     /// <summary>
     /// Fill the bit buffer from the entropy data stream.
     /// Handles byte stuffing (FF 00 -> FF).
+    /// Left-aligned: new bytes are shifted into the bottom of the buffer.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void FillBitBuffer(ref ulong bitBuffer, ref int bitsAvailable,
@@ -1342,7 +1343,7 @@ internal static unsafe class JpegDecoder
                     dataPos++; // skip stuffing byte
             }
 
-            bitBuffer = (bitBuffer << 8) | b;
+            bitBuffer |= (ulong)b << (56 - bitsAvailable);
             bitsAvailable += 8;
         }
     }

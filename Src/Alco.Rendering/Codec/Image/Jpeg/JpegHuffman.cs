@@ -5,7 +5,8 @@ namespace Alco.Rendering.Codec.Image;
 /// <summary>
 /// Huffman decoding for JPEG entropy-coded data.
 /// Uses a flat lookup table for O(1) symbol decoding: peek N bits, index into table, get symbol + code length.
-/// Bits are read MSB-first as required by the JPEG bit stream.
+/// Bits are stored left-aligned in a 64-bit buffer (MSB-first), matching the JPEG bit stream order.
+/// Consumption is done via left-shift, which is a single instruction on x86.
 /// </summary>
 internal static class JpegHuffman
 {
@@ -120,7 +121,8 @@ internal static class JpegHuffman
 
     /// <summary>
     /// Decode one symbol from the JPEG bit stream using flat table lookup.
-    /// Peeks TableBits bits, indexes into the flat table, and consumes the actual code length.
+    /// Peeks TableBits bits from the top of the buffer, indexes into the flat table,
+    /// and consumes the actual code length via left-shift.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int DecodeSymbol(
@@ -136,20 +138,28 @@ internal static class JpegHuffman
             return -1;
 
         int tableBits = table.TableBits;
-        int tableSize = 1 << tableBits;
 
-        // Peek tableBits bits (MSB-first)
-        int peekBits = bitsAvailable >= tableBits
-            ? (int)((bitBuffer >> (bitsAvailable - tableBits)) & (ulong)(tableSize - 1))
-            : (int)((bitBuffer << (tableBits - bitsAvailable)) & (ulong)(tableSize - 1));
+        // Peek tableBits bits from the top of the buffer (MSB-first, left-aligned)
+        int peekBits;
+        if (bitsAvailable >= tableBits)
+        {
+            peekBits = (int)(bitBuffer >> (64 - tableBits));
+        }
+        else
+        {
+            // Not enough bits: shift what we have to the top positions
+            peekBits = (int)((bitBuffer >> (64 - bitsAvailable)) << (tableBits - bitsAvailable));
+            peekBits &= (1 << tableBits) - 1;
+        }
 
         ref readonly var entry = ref table.Table[peekBits];
 
         if (entry.Length == 0)
             return -1;
 
+        // Consume bits via left-shift (single instruction)
+        bitBuffer <<= entry.Length;
         bitsAvailable -= entry.Length;
-        bitBuffer &= (1UL << bitsAvailable) - 1;
         return entry.Symbol;
     }
 
@@ -173,8 +183,9 @@ internal static class JpegHuffman
         if (bitsAvailable < bits)
             return 0;
 
-        int value = (int)((bitBuffer >> (bitsAvailable - bits)) & ((1UL << bits) - 1));
-        bitBuffer &= (1UL << (bitsAvailable - bits)) - 1;
+        // Extract value from top of buffer
+        int value = (int)(bitBuffer >> (64 - bits));
+        bitBuffer <<= bits;
         bitsAvailable -= bits;
 
         if (value < (1 << (bits - 1)))
@@ -202,8 +213,8 @@ internal static class JpegHuffman
         if (bitsAvailable < bits)
             return 0;
 
-        int value = (int)((bitBuffer >> (bitsAvailable - bits)) & ((1UL << bits) - 1));
-        bitBuffer &= (1UL << (bitsAvailable - bits)) - 1;
+        int value = (int)(bitBuffer >> (64 - bits));
+        bitBuffer <<= bits;
         bitsAvailable -= bits;
 
         return value;
@@ -212,6 +223,7 @@ internal static class JpegHuffman
     /// <summary>
     /// Fill the bit buffer with more data from the source span.
     /// Reads bytes one at a time, handling JPEG byte stuffing (0xFF 0x00 -> 0xFF).
+    /// New bytes are shifted into the bottom of the buffer, maintaining left-alignment.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void FillBuffer(ref ulong bitBuffer, ref int bitsAvailable, ReadOnlySpan<byte> data, ref int dataPos)
@@ -226,7 +238,7 @@ internal static class JpegHuffman
                     dataPos++;
             }
 
-            bitBuffer = (bitBuffer << 8) | b;
+            bitBuffer |= (ulong)b << (56 - bitsAvailable);
             bitsAvailable += 8;
         }
     }
