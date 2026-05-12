@@ -111,8 +111,6 @@ internal static class JpegIdct
         // Zero-row skip: broadcast DC pixel to all 8x8 positions
         if (HasOnlyDc(coeffs))
         {
-            // With AAN pre-multiplied into quant table, coeffs[0] = raw_dc * rawQ[0] * aanScales[0] >> 12
-            // = raw_dc * rawQ[0] * 4. The butterfly output is (val + bias) >> 5 + 128.
             int val = coeffs[0] + 16;
             byte pixel = (byte)((val >> 5) + 128);
             for (int i = 0; i < 64; i++)
@@ -158,7 +156,10 @@ internal static class JpegIdct
         for (int i = 0; i < 64; i++)
             block[zigzag[i]] = coeffs[i];
 
-        TransformScalarPtr(block, outputPtr, outputStride);
+        if (IsSimdSupported)
+            TransformSimdPtr(block, outputPtr, outputStride);
+        else
+            TransformScalarPtr(block, outputPtr, outputStride);
     }
 
     /// <summary>
@@ -174,6 +175,11 @@ internal static class JpegIdct
         }
         return true;
     }
+
+    /// <summary>
+    /// Check if SSE2 is available for SIMD IDCT.
+    /// </summary>
+    private static bool IsSimdSupported => Sse2.IsSupported;
 
     /// <summary>
     /// AAN fast IDCT using SSE2 SIMD intrinsics.
@@ -223,6 +229,38 @@ internal static class JpegIdct
         StoreRow(Sse2.PackUnsignedSaturate(b5, zero), ref outputRef, 5 * outputStride);
         StoreRow(Sse2.PackUnsignedSaturate(b6, zero), ref outputRef, 6 * outputStride);
         StoreRow(Sse2.PackUnsignedSaturate(b7, zero), ref outputRef, 7 * outputStride);
+    }
+
+    /// <summary>
+    /// AAN fast IDCT using SSE2, writing directly to a pointer with arbitrary stride.
+    /// </summary>
+    private static unsafe void TransformSimdPtr(ReadOnlySpan<short> block, byte* outputPtr, int outputStride)
+    {
+        ref short blockRef = ref MemoryMarshal.GetReference(block);
+        var r0 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 0)));
+        var r1 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 8)));
+        var r2 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 16)));
+        var r3 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 24)));
+        var r4 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 32)));
+        var r5 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 40)));
+        var r6 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 48)));
+        var r7 = Unsafe.ReadUnaligned<Vector128<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref blockRef, 56)));
+
+        AanButterflySimdPass1(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
+        TransposeSimd(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
+        AanButterflySimdPass2(ref r0, ref r1, ref r2, ref r3, ref r4, ref r5, ref r6, ref r7);
+
+        var bias = Vector128.Create((short)128);
+        var zero = Vector128<short>.Zero;
+
+        Unsafe.WriteUnaligned(outputPtr + 0 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r0, bias), zero).AsUInt64().GetElement(0));
+        Unsafe.WriteUnaligned(outputPtr + 1 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r1, bias), zero).AsUInt64().GetElement(0));
+        Unsafe.WriteUnaligned(outputPtr + 2 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r2, bias), zero).AsUInt64().GetElement(0));
+        Unsafe.WriteUnaligned(outputPtr + 3 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r3, bias), zero).AsUInt64().GetElement(0));
+        Unsafe.WriteUnaligned(outputPtr + 4 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r4, bias), zero).AsUInt64().GetElement(0));
+        Unsafe.WriteUnaligned(outputPtr + 5 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r5, bias), zero).AsUInt64().GetElement(0));
+        Unsafe.WriteUnaligned(outputPtr + 6 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r6, bias), zero).AsUInt64().GetElement(0));
+        Unsafe.WriteUnaligned(outputPtr + 7 * outputStride, Sse2.PackUnsignedSaturate(Sse2.Add(r7, bias), zero).AsUInt64().GetElement(0));
     }
 
     /// <summary>
