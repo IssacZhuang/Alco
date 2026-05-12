@@ -90,8 +90,6 @@ internal static class JpegIdct
     public static void Transform(ReadOnlySpan<short> coeffs, Span<byte> output, int outputStride)
     {
         // Zero-row skip: if all AC coefficients are zero, just broadcast DC.
-        // With AAN scaling, DC * aanscales[0] >> 12 = DC * 4. Then the butterfly
-        // output for DC-only is (DC*4 + bias) >> 5 + 128 = ((dcVal << 2) + 16) >> 5 + 128.
         if (HasOnlyDc(coeffs))
         {
             int aanDc = (int)coeffs[0] << 2;
@@ -108,16 +106,47 @@ internal static class JpegIdct
             block[zigzag[i]] = coeffs[i];
 
         // Apply AAN scaling factors to the de-zigzagged block.
-        // This folds the AAN normalization constants into the coefficients,
-        // equivalent to what libjpeg does when building the ifast quant table.
         var aanScales = AanScales;
         for (int i = 0; i < 64; i++)
             block[i] = (short)((block[i] * (int)aanScales[i]) >> AanScaleDescale);
 
-        // Scalar AAN fast IDCT path.
-        // SIMD path with SSE2 short arithmetic has intermediate overflow issues;
-        // will be addressed with 32-bit intermediate arithmetic in a follow-up.
         TransformScalar(block, output, outputStride);
+    }
+
+    /// <summary>
+    /// Perform IDCT on a dequantized 8x8 block, writing directly to a component plane.
+    /// Output is written at (outputPtr + row * outputStride) for each of the 8 rows.
+    /// This avoids an intermediate block→plane copy.
+    /// The caller guarantees that outputPtr has room for 8 rows of outputStride bytes each.
+    /// </summary>
+    public static unsafe void Transform(ReadOnlySpan<short> coeffs, byte* outputPtr, int outputStride)
+    {
+        // Zero-row skip: broadcast DC pixel to all 8x8 positions
+        if (HasOnlyDc(coeffs))
+        {
+            int aanDc = (int)coeffs[0] << 2;
+            byte pixel = (byte)(((aanDc + 16) >> 5) + 128);
+            for (int row = 0; row < 8; row++)
+            {
+                byte* rowPtr = outputPtr + row * outputStride;
+                for (int col = 0; col < 8; col++)
+                    rowPtr[col] = pixel;
+            }
+            return;
+        }
+
+        // De-zigzag into 8x8 block (row-major natural order)
+        Span<short> block = stackalloc short[64];
+        var zigzag = ZigzagOrder;
+        for (int i = 0; i < 64; i++)
+            block[zigzag[i]] = coeffs[i];
+
+        // Apply AAN scaling factors to the de-zigzagged block.
+        var aanScales = AanScales;
+        for (int i = 0; i < 64; i++)
+            block[i] = (short)((block[i] * (int)aanScales[i]) >> AanScaleDescale);
+
+        TransformScalarPtr(block, outputPtr, outputStride);
     }
 
     /// <summary>
@@ -377,6 +406,41 @@ internal static class JpegIdct
             {
                 int val = col[row] + 128;
                 output[row * outputStride + colIdx] = (byte)Math.Clamp(val, 0, 255);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scalar AAN fast IDCT writing directly to a pointer with arbitrary stride.
+    /// </summary>
+    private static unsafe void TransformScalarPtr(ReadOnlySpan<short> block, byte* outputPtr, int outputStride)
+    {
+        // Process rows (pass 1: no scaling, raw integer sums)
+        Span<short> workspace = stackalloc short[64];
+        for (int row = 0; row < 8; row++)
+        {
+            int baseIdx = row * 8;
+            AanButterflyScalarPass1(
+                block[baseIdx + 0], block[baseIdx + 1], block[baseIdx + 2], block[baseIdx + 3],
+                block[baseIdx + 4], block[baseIdx + 5], block[baseIdx + 6], block[baseIdx + 7],
+                workspace, baseIdx);
+        }
+
+        // Process columns (pass 2: with final descale >> (Pass1Bits + 3))
+        Span<short> col = stackalloc short[8];
+        for (int colIdx = 0; colIdx < 8; colIdx++)
+        {
+            AanButterflyScalarPass2(
+                workspace[0 * 8 + colIdx], workspace[1 * 8 + colIdx],
+                workspace[2 * 8 + colIdx], workspace[3 * 8 + colIdx],
+                workspace[4 * 8 + colIdx], workspace[5 * 8 + colIdx],
+                workspace[6 * 8 + colIdx], workspace[7 * 8 + colIdx],
+                col, 0);
+
+            for (int row = 0; row < 8; row++)
+            {
+                int val = col[row] + 128;
+                outputPtr[row * outputStride + colIdx] = (byte)Math.Clamp(val, 0, 255);
             }
         }
     }

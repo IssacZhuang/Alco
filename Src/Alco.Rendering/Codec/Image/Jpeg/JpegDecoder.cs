@@ -745,7 +745,6 @@ internal static unsafe class JpegDecoder
         int restartMarkerIndex = 0;
 
         Span<short> coeffs = stackalloc short[64];
-        Span<byte> blockOutput = stackalloc byte[64];
 
         for (int mcuY = 0; mcuY < mcuCountY; mcuY++)
         {
@@ -787,6 +786,9 @@ internal static unsafe class JpegDecoder
                     ushort[] quantTable = quantTables[comp.QuantTableIndex];
                     if (quantTable == null)
                         throw new ImageDecodeException($"Missing quantization table {comp.QuantTableIndex}.");
+
+                    int planeStride = componentStrides[compIdx];
+                    byte* plane = componentPlanes[compIdx];
 
                     for (int v = 0; v < comp.V; v++)
                     {
@@ -856,34 +858,11 @@ internal static unsafe class JpegDecoder
                             for (int i = 0; i < 64; i++)
                                 coeffs[i] = (short)(coeffs[i] * (int)quantTable[i]);
 
-                            // IDCT
-                            JpegIdct.Transform(coeffs, blockOutput, 8);
-
-                            // Place block into component plane
+                            // IDCT — write directly into the component plane
                             int blockX = mcuX * comp.H + h;
                             int blockY = mcuY * comp.V + v;
-                            int pixelX = blockX * 8;
-                            int pixelY = blockY * 8;
-                            int planeStride = componentStrides[compIdx];
-
-                            // Clip to plane dimensions
-                            int copyRows = Math.Min(8, comp.PlaneHeight - pixelY);
-                            int copyCols = Math.Min(8, comp.PlaneWidth - pixelX);
-
-                            if (copyRows > 0 && copyCols > 0)
-                            {
-                                byte* plane = componentPlanes[compIdx];
-
-                                for (int row = 0; row < copyRows; row++)
-                                {
-                                    int dstOffset = (pixelY + row) * planeStride + pixelX;
-                                    int srcOffset = row * 8;
-
-                                    ref byte src = ref blockOutput[srcOffset];
-                                    ref byte dst = ref plane[dstOffset];
-                                    Unsafe.CopyBlockUnaligned(ref dst, ref src, (uint)copyCols);
-                                }
-                            }
+                            byte* blockDst = plane + (blockY * 8) * planeStride + blockX * 8;
+                            JpegIdct.Transform(coeffs, blockDst, planeStride);
                         }
                     }
                 }
@@ -957,7 +936,6 @@ internal static unsafe class JpegDecoder
 
             // Dequantize + IDCT + place into component planes
             Span<short> dequantCoeffs = stackalloc short[64];
-            Span<byte> blockOutput = stackalloc byte[64];
 
             for (int compIdx = 0; compIdx < numComponents; compIdx++)
             {
@@ -970,6 +948,7 @@ internal static unsafe class JpegDecoder
                 int blocksX = mcuCountX * comp.H;
                 int blocksY = mcuCountY * comp.V;
                 int planeStride = componentStrides[compIdx];
+                byte* plane = componentPlanes[compIdx];
 
                 for (int blockY = 0; blockY < blocksY; blockY++)
                 {
@@ -982,29 +961,9 @@ internal static unsafe class JpegDecoder
                         for (int i = 0; i < 64; i++)
                             dequantCoeffs[i] = (short)(blockCoeffs[i] * (int)quantTable[i]);
 
-                        // IDCT
-                        JpegIdct.Transform(dequantCoeffs, blockOutput, 8);
-
-                        // Place into plane
-                        int pixelX = blockX * 8;
-                        int pixelY = blockY * 8;
-                        int copyRows = Math.Min(8, comp.PlaneHeight - pixelY);
-                        int copyCols = Math.Min(8, comp.PlaneWidth - pixelX);
-
-                        if (copyRows > 0 && copyCols > 0)
-                        {
-                            byte* plane = componentPlanes[compIdx];
-
-                            for (int row = 0; row < copyRows; row++)
-                            {
-                                int dstOffset = (pixelY + row) * planeStride + pixelX;
-                                int srcOffset = row * 8;
-
-                                ref byte src = ref blockOutput[srcOffset];
-                                ref byte dst = ref plane[dstOffset];
-                                Unsafe.CopyBlockUnaligned(ref dst, ref src, (uint)copyCols);
-                            }
-                        }
+                        // IDCT — write directly into the component plane
+                        byte* blockDst = plane + (blockY * 8) * planeStride + blockX * 8;
+                        JpegIdct.Transform(dequantCoeffs, blockDst, planeStride);
                     }
                 }
             }
