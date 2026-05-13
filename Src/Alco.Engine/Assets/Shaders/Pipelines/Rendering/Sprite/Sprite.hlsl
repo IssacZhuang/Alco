@@ -38,15 +38,7 @@ float4 MainPS(V2F input) : SV_TARGET {
 #else
   float2 uv = input.uv;
 #endif
-#if defined(PREMULTIPLIED)
-  float4 texColor = _texture.Sample(_textureSampler, uv);
-  // Texture data is premultiplied (rgb already has alpha baked in).
-  // Multiply by tint and further premultiply by tint alpha for correct blending.
-  float4 color = float4(texColor.rgb * constants.color.rgb * constants.color.a,
-                         texColor.a * constants.color.a);
-#else
   float4 color = _texture.Sample(_textureSampler, uv) * constants.color;
-#endif
 #if defined(ALPHA_TEST)
   if (color.a < 0.01f)
   {
