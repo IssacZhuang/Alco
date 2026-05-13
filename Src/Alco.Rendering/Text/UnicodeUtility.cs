@@ -140,6 +140,12 @@ public static class UnicodeUtility
     /// </summary>
     public static readonly int2 RangeHangulSyllables = new int2(0xAC00, 0xD7AF);
 
+    /// <summary>
+    /// Miscellaneous Symbols containing symbols like ★ (Black Star), ☆ (White Star),
+    /// ♠♣♥♦, ☺☻, arrows, and other common symbols used in games.
+    /// </summary>
+    public static readonly int2 RangeMiscellaneousSymbols = new int2(0x2600, 0x26FF);
+
     public static IEnumerable<int2> GetUnicodeRanges(FontLanguage language)
     {
         if (language.HasFlag(FontLanguage.Basic))

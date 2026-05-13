@@ -56,6 +56,8 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
                 //korean
                 UnicodeUtility.RangeHangulSyllables,
                 UnicodeUtility.RangeHangulCompatibilityJamo,
+                //symbols
+                UnicodeUtility.RangeMiscellaneousSymbols,
             });
 
         // Step 2: Get atlas data
