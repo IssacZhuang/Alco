@@ -333,6 +333,16 @@ IDisposable
 
     }
 
+    /// <summary>
+    /// Called after scene rendering and scene post-processing, before combined post-processing.
+    /// Use this for rendering UI elements that should not be affected by scene-only effects.
+    /// </summary>
+    /// <param name="delta">The time since the last frame</param>
+    protected virtual void OnUpdateUI(float delta)
+    {
+
+    }
+
 
     /// <summary>
     /// Called when player exit the game
@@ -387,6 +397,18 @@ IDisposable
         catch (Exception e)
         {
             Log.Error("[Update Error]", e);
+            TryErrorStop();
+        }
+
+        OnSystemPostSceneUpdate(delta);
+
+        try
+        {
+            OnUpdateUI(delta);
+        }
+        catch (Exception e)
+        {
+            Log.Error("[UpdateUI Error]", e);
             TryErrorStop();
         }
 
@@ -579,6 +601,23 @@ IDisposable
             catch (Exception e)
             {
                 Log.Error($"Error when post update system {_systems[i].GetType().Name}: ");
+                Log.Error(e);
+                TryErrorStop();
+            }
+        }
+    }
+
+    private void OnSystemPostSceneUpdate(float delta)
+    {
+        for (int i = 0; i < _systems.Count; i++)
+        {
+            try
+            {
+                _systems[i].OnPostSceneUpdate(delta);
+            }
+            catch (Exception e)
+            {
+                Log.Error($"Error when post scene update system {_systems[i].GetType().Name}: ");
                 Log.Error(e);
                 TryErrorStop();
             }

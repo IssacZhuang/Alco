@@ -34,6 +34,12 @@ public interface IEngineSystem:IDisposable
     /// <param name="delta">The time since the last frame</param>
     void OnPostUpdate(float delta);
     /// <summary>
+    /// Called after scene rendering but before UI rendering.
+    /// Use this for scene-only post-processing effects.
+    /// </summary>
+    /// <param name="delta">The time since the last frame</param>
+    void OnPostSceneUpdate(float delta);
+    /// <summary>
     /// Called before rendering the update
     /// </summary>
     void OnBeginFrame(float deltaTime);

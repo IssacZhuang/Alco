@@ -38,6 +38,11 @@ public abstract class BaseEngineSystem : IEngineSystem
 
     }
 
+    public virtual void OnPostSceneUpdate(float delta)
+    {
+
+    }
+
     public virtual void OnBeginFrame(float deltaTime)
     {
 
