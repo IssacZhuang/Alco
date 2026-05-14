@@ -21,6 +21,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_TextSDF = "Shaders/Pipelines/Compute/TextSDF.hlsl";
 
+   public const string Shader_ColorGrading = "Shaders/Pipelines/PostProcess/ColorGrading.hlsl";
+
    public const string Shader_FXAA = "Shaders/Pipelines/PostProcess/FXAA.hlsl";
 
    public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
