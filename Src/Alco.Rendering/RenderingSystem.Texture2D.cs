@@ -27,30 +27,32 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        using ImageResultBuffer image = ImageResultBuffer.FromStream(stream, targetComponents);
 
-        if (optionReal.PremultiplyAlpha)
-            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
+        long length = stream.Length;
+        byte* nativeBuffer = (byte*)NativeMemory.Alloc((nuint)length);
+        try
+        {
+            stream.ReadExactly(new Span<byte>(nativeBuffer, (int)length));
 
-        return CreateTexture2D(
-            image.UnsafePointer,
-            (uint)image.Data.Length,
-            (uint)image.Width,
-            (uint)image.Height,
-            option);
+            byte* pixels = ImageDecodeUtility.DecodeAuto(
+                new ReadOnlySpan<byte>(nativeBuffer, (int)length),
+                out int w, out int h);
+            try
+            {
+                if (optionReal.PremultiplyAlpha)
+                    PremultiplyAlpha(pixels, w * h);
 
-        // New decoder (not yet production-ready, kept for future use):
-        // byte[] bytes = new byte[stream.Length];
-        // stream.ReadExactly(bytes);
-        // byte* pixels = ImageDecodeUtility.DecodeAuto(bytes, out int w, out int h);
-        // try
-        // {
-        //     if (optionReal.PremultiplyAlpha)
-        //         PremultiplyAlpha(pixels, w * h);
-        //     return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
-        // }
-        // finally { NativeMemory.Free(pixels); }
+                return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
+            }
+            finally
+            {
+                NativeMemory.Free(pixels);
+            }
+        }
+        finally
+        {
+            NativeMemory.Free(nativeBuffer);
+        }
     }
 
     /// <summary>
@@ -65,28 +67,19 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
 
-        if (optionReal.PremultiplyAlpha)
-            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
+        byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
+        try
+        {
+            if (optionReal.PremultiplyAlpha)
+                PremultiplyAlpha(pixels, w * h);
 
-        return CreateTexture2D(
-            image.UnsafePointer,
-            (uint)image.Data.Length,
-            (uint)image.Width,
-            (uint)image.Height,
-            option);
-
-        // New decoder (not yet production-ready, kept for future use):
-        // byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
-        // try
-        // {
-        //     if (optionReal.PremultiplyAlpha)
-        //         PremultiplyAlpha(pixels, w * h);
-        //     return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
-        // }
-        // finally { NativeMemory.Free(pixels); }
+            return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
+        }
+        finally
+        {
+            NativeMemory.Free(pixels);
+        }
     }
 
     /// <summary>
@@ -347,30 +340,32 @@ public partial class RenderingSystem
     public unsafe void UnsafeHotReloadTexture2DByFile(Texture2D texture2D, ReadOnlySpan<byte> fileBytes, ImageLoadOption? option = null)
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        ColorComponents targetComponents = ColorComponents.RedGreenBlueAlpha;
-        using ImageResultBuffer image = ImageResultBuffer.FromMemory(fileBytes, targetComponents);
 
-        if (optionReal.PremultiplyAlpha)
-            PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
-
-        // Check if dimensions match the existing texture
-        if (image.Width == texture2D.Width && image.Height == texture2D.Height)
+        byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
+        try
         {
-            // Dimensions match - just update the texture data directly using already decoded data
-            _device.WriteTexture(texture2D.NativeTexture, image.UnsafePointer, (uint)image.Data.Length);
+            if (optionReal.PremultiplyAlpha)
+                PremultiplyAlpha(pixels, w * h);
+
+            if (w == texture2D.Width && h == texture2D.Height)
+            {
+                _device.WriteTexture(texture2D.NativeTexture, pixels, (uint)(w * h * 4));
+            }
+            else
+            {
+                CreateTextureCore(
+                    (uint)w,
+                    (uint)h,
+                    option ?? ImageLoadOption.Default,
+                    out GPUTexture texture, out GPUTextureView textureView);
+
+                _device.WriteTexture(texture, pixels, (uint)(w * h * 4));
+                texture2D.UnsafeHotReload(texture, textureView);
+            }
         }
-        else
+        finally
         {
-            // Dimensions don't match - create new GPU resources
-            CreateTextureCore(
-                (uint)image.Width,
-                (uint)image.Height,
-                option ?? ImageLoadOption.Default,
-                out GPUTexture texture, out GPUTextureView textureView);
-
-            // Use already decoded data instead of re-decoding
-            _device.WriteTexture(texture, image.UnsafePointer, (uint)image.Data.Length);
-            texture2D.UnsafeHotReload(texture, textureView);
+            NativeMemory.Free(pixels);
         }
     }
 
