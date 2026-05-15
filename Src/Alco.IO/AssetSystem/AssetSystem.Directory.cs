@@ -90,6 +90,7 @@ public sealed partial class AssetSystem
         ArgumentNullException.ThrowIfNull(fileSource);
         _fileSources.Add(fileSource);
         _isEntryDirty = true;
+        _version++;
     }
 
     /// <summary>
@@ -101,6 +102,7 @@ public sealed partial class AssetSystem
         ArgumentNullException.ThrowIfNull(fileSource);
         _fileSources.Remove(fileSource);
         _isEntryDirty = true;
+        _version++;
     }
 
     /// <summary>
@@ -110,6 +112,7 @@ public sealed partial class AssetSystem
     {
         _fileSources.Clear();
         _isEntryDirty = true;
+        _version++;
     }
 
     /// <summary>
@@ -139,6 +142,7 @@ public sealed partial class AssetSystem
     public void MarkEntriesDirty()
     {
         _isEntryDirty = true;
+        _version++;
     }
 
     /// <summary>

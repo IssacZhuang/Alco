@@ -26,6 +26,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_TextSDF => GetShader("Shaders/Pipelines/Compute/TextSDF.hlsl");
 
+    public Shader Shader_ColorGrading => GetShader("Shaders/Pipelines/PostProcess/ColorGrading.hlsl");
+
     public Shader Shader_FXAA => GetShader("Shaders/Pipelines/PostProcess/FXAA.hlsl");
 
     public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");

@@ -6,11 +6,12 @@ using Alco.Rendering;
 using Alco.IO;
 using Alco;
 
-
 namespace Alco.Engine;
 
 /// <summary>
 /// Represents an asset loader for Texture2D assets.
+/// Creates and owns a <see cref="TextureOptionCache"/> internally for directory-level
+/// and per-file import option resolution.
 /// </summary>
 public class AssetLoaderTexture2D : IAssetLoader
 {
@@ -21,19 +22,39 @@ public class AssetLoaderTexture2D : IAssetLoader
         FileExt.ImageTGA,
         FileExt.ImageGIF,
         FileExt.ImageHDR
-        };
+    };
 
     private readonly RenderingSystem _renderingSystem;
+    private readonly TextureOptionCache? _cache;
 
+    /// <inheritdoc/>
     public string Name => "AssetLoader.Texture2D";
 
+    /// <inheritdoc/>
     public IReadOnlyList<string> FileExtensions => Extensions;
 
+    /// <summary>
+    /// Initializes a new instance without option caching.
+    /// Texture import options will use engine defaults only.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system used to create textures.</param>
     public AssetLoaderTexture2D(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;
     }
 
+    /// <summary>
+    /// Initializes a new instance with directory cascade and per-file option caching.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system used to create textures.</param>
+    /// <param name="assetSystem">The asset system used for option file discovery and loading.</param>
+    public AssetLoaderTexture2D(RenderingSystem renderingSystem, AssetSystem assetSystem)
+    {
+        _renderingSystem = renderingSystem;
+        _cache = new TextureOptionCache(assetSystem);
+    }
+
+    /// <inheritdoc/>
     public bool CanHandleType(Type type)
     {
         return type == typeof(Texture2D);
@@ -42,34 +63,37 @@ public class AssetLoaderTexture2D : IAssetLoader
     /// <inheritdoc/>
     public object CreateAsset(in AssetLoadContext context)
     {
-        ImageLoadOption option = ImageLoadOption.Default with
-        {
-            Name = context.Filename,
-            //PremultiplyAlpha = true
-        };
+        // 1. Engine defaults
+        ImageLoadOption option = ImageLoadOption.Default with { Name = context.Filename };
 
+        // 2. Resolve import options (directory cascade + .meta)
         Texture2DMeta? metaData = null;
-        if (context.AssetSystem.TryLoad<Texture2DMeta>(context.Filename + ".meta", out var meta, out string? failedReason))
+        if (_cache != null)
         {
-            option = option with
+            var (importOption, meta) = _cache.Resolve(context.Filename);
+            if (importOption != null)
             {
-                FilterMode = meta.FilterMode,
-                AddressMode = meta.AddressMode,
-                SlicePadding = meta.SlicePadding
-            };
-
+                if (importOption.FilterMode.HasValue)
+                    option = option with { FilterMode = importOption.FilterMode.Value };
+                if (importOption.AddressMode.HasValue)
+                    option = option with { AddressMode = importOption.AddressMode.Value };
+                if (importOption.SlicePadding.HasValue)
+                    option = option with { SlicePadding = importOption.SlicePadding.Value };
+                if (importOption.PremultiplyAlpha.HasValue)
+                    option = option with { PremultiplyAlpha = importOption.PremultiplyAlpha.Value };
+            }
             metaData = meta;
         }
 
+        // 3. Create texture
         Texture2D texture = _renderingSystem.CreateTexture2DFromFile(context.Data, option);
 
-        // Populate sprites from meta if available
+        // 4. Sprites (only from .meta)
         if (metaData != null && metaData.Sprites != null && metaData.Sprites.Count > 0)
         {
             texture.ClearSprites();
             foreach (var kvp in metaData.Sprites)
             {
-                // Texture2DMeta.Rect -> RectInt (implicit), then normalize to Rect UVs
                 RectInt pixelRect = kvp.Value;
                 Rect uvRect = pixelRect.Normalize(texture.Width, texture.Height);
                 texture.SetSprite(kvp.Key, uvRect);

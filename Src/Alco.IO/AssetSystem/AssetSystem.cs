@@ -29,10 +29,17 @@ namespace Alco.IO
 
         private volatile bool _isEntryDirty = false;
         private volatile bool _isRecongizedExtensionsDirty = false;
+        private volatile int _version;
 
         private readonly IAssetSystemHost _host;
 
         public bool IsProfileEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Monotonically increasing version counter. Increments whenever file sources change
+        /// or entries are marked dirty. Consumers can compare stored versions to detect staleness.
+        /// </summary>
+        public int Version => _version;
 
         public IReadOnlyList<IFileSource> AllFileSources => _fileSources;
 

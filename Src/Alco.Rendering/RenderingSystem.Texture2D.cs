@@ -5,6 +5,7 @@ using System.Runtime.Intrinsics.X86;
 using StbImageSharp;
 using StbImageWriteSharp;
 using Alco.Graphics;
+using Alco.Rendering.Codec.Image;
 
 using static Alco.MemoryUtility;
 
@@ -37,8 +38,19 @@ public partial class RenderingSystem
             (uint)image.Data.Length,
             (uint)image.Width,
             (uint)image.Height,
-            option
-        );
+            option);
+
+        // New decoder (not yet production-ready, kept for future use):
+        // byte[] bytes = new byte[stream.Length];
+        // stream.ReadExactly(bytes);
+        // byte* pixels = ImageDecodeUtility.DecodeAuto(bytes, out int w, out int h);
+        // try
+        // {
+        //     if (optionReal.PremultiplyAlpha)
+        //         PremultiplyAlpha(pixels, w * h);
+        //     return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
+        // }
+        // finally { NativeMemory.Free(pixels); }
     }
 
     /// <summary>
@@ -64,8 +76,17 @@ public partial class RenderingSystem
             (uint)image.Data.Length,
             (uint)image.Width,
             (uint)image.Height,
-            option
-        );
+            option);
+
+        // New decoder (not yet production-ready, kept for future use):
+        // byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
+        // try
+        // {
+        //     if (optionReal.PremultiplyAlpha)
+        //         PremultiplyAlpha(pixels, w * h);
+        //     return CreateTexture2D(pixels, (uint)(w * h * 4), (uint)w, (uint)h, option);
+        // }
+        // finally { NativeMemory.Free(pixels); }
     }
 
     /// <summary>

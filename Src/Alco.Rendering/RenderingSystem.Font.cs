@@ -27,6 +27,8 @@ public partial class RenderingSystem
             //korean
             UnicodeUtility.RangeHangulSyllables,
             UnicodeUtility.RangeHangulCompatibilityJamo,
+            //symbols
+            UnicodeUtility.RangeMiscellaneousSymbols,
         });
 
         return CreateFont(packer.Bitmap, packer.Width, packer.Height, packer.Glyphs, name);

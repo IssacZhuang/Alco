@@ -23,13 +23,20 @@ public class Texture2DMeta : Meta
         }
     }
 
-    public FilterMode FilterMode { get; set; } = FilterMode.Linear;
-    public AddressMode AddressMode { get; set; } = AddressMode.ClampToEdge;
+    public FilterMode? FilterMode { get; set; }
+    public AddressMode? AddressMode { get; set; }
 
     /// <summary>
     /// The slice padding for 9-slice textures. Defines the padding for left, top, right, and bottom edges.
+    /// Null means inherit from directory option or engine default.
     /// </summary>
-    public Padding SlicePadding { get; set; } = Padding.Zero;
+    public Padding? SlicePadding { get; set; }
+
+    /// <summary>
+    /// Whether to convert the image from straight alpha to premultiplied alpha during loading.
+    /// Null means inherit from directory option or engine default.
+    /// </summary>
+    public bool? PremultiplyAlpha { get; set; }
 
     public Dictionary<string, Rect> Sprites { get; set; } = new();
 

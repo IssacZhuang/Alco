@@ -1,11 +1,22 @@
-﻿using BenchmarkDotNet.Analysers;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Loggers;
+using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using Alco.Benchmark;
-using BenchmarkDotNet.Reports;
 using BenchmarkFramework;
+
+if (args.Contains("--profile"))
+{
+    ProfileImageDecode.Run(args);
+    return;
+}
+
+if (args.Contains("--quick-jpeg"))
+{
+    QuickJpegBenchmark.Run();
+    return;
+}
 
 IConfig config = new DefaultBenchmarkConfig();
 
