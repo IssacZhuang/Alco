@@ -13,7 +13,7 @@ public sealed class PluginGamepadCursor : BaseEnginePlugin
 
     private sealed class GamepadCursorSystem : BaseEngineSystem
     {
-        public const float VelocityMultiplier = 800f;
+        public const float VelocityMultiplier = 1600f;
         public const float ScreenHeightMultiplier = 1 / 1080f;
 
         private readonly Input _input;
