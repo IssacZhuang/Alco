@@ -27,7 +27,11 @@ public class ReferenceContext
     /// </summary>
     public void SetReference(uint id, object obj)
     {
+        if (id == 0)
+            return;
+
         _idToObject[id] = obj;
+        _objectToId[obj] = id;
     }
 
     /// <summary>
