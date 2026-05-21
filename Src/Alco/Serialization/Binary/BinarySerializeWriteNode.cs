@@ -32,7 +32,8 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             BinarySerializeWriteNode node = new BinarySerializeWriteNode(_referenceContext, OnError);
             _referenceContext?.TryWriteReferenceId(node, value);
             value.OnSerialize(node, SerializeMode.Save);
-            _content.Add(key, node._content);
+            if (node._content.Count > 0)
+                _content.Add(key, node._content);
         }
         catch (Exception ex)
         {
