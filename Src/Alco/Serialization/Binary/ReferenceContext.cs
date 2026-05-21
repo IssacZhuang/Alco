@@ -64,26 +64,9 @@ public class ReferenceContext
         return Interlocked.Increment(ref _nextId);
     }
 
-    // --- Two-pass selective reference stamping hooks ---
-
-    /// <summary>
-    /// Records that an <see cref="IReferenceable"/> object has been serialized
-    /// into the given <see cref="BinaryTable"/> content. Subclasses use this
-    /// to build a mapping for deferred <c>$id</c> stamping.
-    /// </summary>
-    public virtual void TrackNode(object obj, BinaryTable content) { }
-
     /// <summary>
     /// Records that an object is the target of a <c>BindReference</c> call.
-    /// Only tracked objects will receive a <c>$id</c> stamp during
-    /// <see cref="StampReferencedIds"/>.
+    /// Subclasses use this to track which objects should have their IDs persisted.
     /// </summary>
     public virtual void TrackReferenced(object obj) { }
-
-    /// <summary>
-    /// Stamps <c>$id</c> on all tracked content whose objects have been referenced.
-    /// Override to implement the deferred stamping logic.
-    /// Safe to call multiple times — implementations must handle duplicate calls.
-    /// </summary>
-    public virtual void StampReferencedIds() { }
 }
