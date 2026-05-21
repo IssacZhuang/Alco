@@ -280,8 +280,8 @@ public class BinarySerializeWriteNode : SerializeWriteNode
             return;
         }
 
-        _referenceContext.TrackReferenced(referenceable);
         uint id = _referenceContext.GetId(referenceable);
+        _referenceContext.TrackReferenced(referenceable);
         _content.Add(key, id);
     }
 
