@@ -9,7 +9,7 @@ public class ReferenceContext
 {
     public const string SerializeKey = "$id";
 
-    private uint _nextId = 1;
+    protected uint _nextId = 1;
     private readonly ConcurrentDictionary<object, uint> _objectToId = new();
     private readonly ConcurrentDictionary<uint, object> _idToObject = new();
 
