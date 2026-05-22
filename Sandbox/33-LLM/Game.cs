@@ -328,6 +328,7 @@ public class Game : GameEngine
     [Description("Hello form")]
     public string HelloForm([Description("The name of the person")] string name)
     {
+        Thread.Sleep(2000);
         return $"Hello {name} from Form";
     }
 }
