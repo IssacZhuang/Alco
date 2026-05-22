@@ -79,7 +79,7 @@ public sealed class ToolRegistry
 
         var args = DeserializeArguments(descriptor, jsonArgs);
 
-        if (!descriptor.IsAsync)
+        if (descriptor.IsAsync)
         {
             return InvokeDirect(descriptor, args);
         }
