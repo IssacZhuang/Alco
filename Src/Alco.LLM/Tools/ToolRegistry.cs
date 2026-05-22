@@ -229,14 +229,7 @@ public sealed class ToolRegistry
 
     private static object? InvokeDirect(ToolDescriptor descriptor, object?[] args)
     {
-        var result = descriptor.Method.Invoke(descriptor.Target, args);
-        if (result is Task task)
-        {
-            task.Wait();
-            var resultProperty = task.GetType().GetProperty("Result");
-            return resultProperty?.GetValue(task);
-        }
-        return result;
+        return descriptor.Method.Invoke(descriptor.Target, args);
     }
 
     private Task<object?> InvokeOnMainThread(ToolDescriptor descriptor, object?[] args)
