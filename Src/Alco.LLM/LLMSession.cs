@@ -1,7 +1,8 @@
-using System.Text;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using Microsoft.Extensions.AI;
 
 namespace Alco.LLM;
 
@@ -21,91 +22,194 @@ public class LLMSessionConfig
     public double Temperature { get; set; } = 0.7;
 
     /// <summary>
-    /// Controls whether to automatically invoke kernel functions (tools).
+    /// Controls whether to automatically invoke tool functions.
     /// </summary>
-    public bool AutoInvokeKernelFunctions { get; set; } = true;
+    public bool AutoInvokeTools { get; set; } = true;
 }
 
 /// <summary>
-/// Represents the session for LLM operations, wrapping the Semantic Kernel and ChatHistory.
+/// Represents the session for LLM operations, wrapping <see cref="IChatClient"/> and message history.
+/// Implements the auto tool call loop for automatic function invocation.
 /// </summary>
 public sealed class LLMSession
 {
-    private readonly IChatCompletionService _chatCompletionService;
-    private readonly ChatHistory _chatHistory;
-    private readonly OpenAIPromptExecutionSettings _promptExecutionSettings;
-    private readonly Kernel _kernel;
+    private const int MaxAutoInvokeIterations = 128;
+
+    private readonly IChatClient _chatClient;
+    private readonly ToolRegistry _registry;
+    private readonly IList<AITool> _tools;
+    private readonly List<ChatMessage> _chatHistory;
+    private readonly ChatOptions _chatOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMSession"/> class.
     /// </summary>
-    /// <param name="kernel">The Semantic Kernel instance to use.</param>
+    /// <param name="chatClient">The chat client to use for LLM communication.</param>
+    /// <param name="registry">The tool registry for tool invocation.</param>
+    /// <param name="tools">The AI tools to register with the LLM.</param>
     /// <param name="config">Optional configuration for the session.</param>
-    public LLMSession(Kernel kernel, LLMSessionConfig? config = null)
+    public LLMSession(IChatClient chatClient, ToolRegistry registry, IList<AITool> tools, LLMSessionConfig? config = null)
     {
-        _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
-        _chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
-        
+        _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _tools = tools ?? throw new ArgumentNullException(nameof(tools));
+
         config ??= new LLMSessionConfig();
 
-        _promptExecutionSettings = new OpenAIPromptExecutionSettings()
+        _chatOptions = new ChatOptions
         {
-            ToolCallBehavior = config.AutoInvokeKernelFunctions ? ToolCallBehavior.AutoInvokeKernelFunctions : null,
-            Temperature = config.Temperature,
+            Temperature = (float)config.Temperature,
+            Tools = tools,
         };
 
-        _chatHistory = new ChatHistory();
+        _chatHistory = new List<ChatMessage>();
         if (!string.IsNullOrEmpty(config.SystemPrompt))
         {
-            _chatHistory.AddSystemMessage(config.SystemPrompt);
+            _chatHistory.Add(new ChatMessage(ChatRole.System, config.SystemPrompt));
         }
     }
 
-    public async Task<string> ChatAsync(string message)
+    /// <summary>
+    /// Sends a message and returns the full response, with automatic tool invocation.
+    /// </summary>
+    /// <param name="message">The user message to send.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <returns>The assistant's text response.</returns>
+    public async Task<string> ChatAsync(string message, CancellationToken cancellationToken = default)
     {
-        _chatHistory.AddUserMessage(message);
-        var result = await _chatCompletionService.GetChatMessageContentAsync(_chatHistory, _promptExecutionSettings, _kernel);
-        return result.ToString();
-    }
+        _chatHistory.Add(new ChatMessage(ChatRole.User, message));
 
-    public async IAsyncEnumerable<string> ChatStreamingAsync(string message)
-    {
-        _chatHistory.AddUserMessage(message);
-        var stream = _chatCompletionService.GetStreamingChatMessageContentsAsync(_chatHistory, _promptExecutionSettings, _kernel);
-
-
-        var fullContent = new StringBuilder();
-
-        await foreach (var content in stream)
+        for (int i = 0; i < MaxAutoInvokeIterations; i++)
         {
-            // Handle regular text content
-            if (!string.IsNullOrEmpty(content.Content))
+            var response = await _chatClient.GetResponseAsync(_chatHistory, _chatOptions, cancellationToken);
+            var assistantMessage = response.Messages.LastOrDefault();
+
+            if (assistantMessage == null)
             {
-                fullContent.Append(content.Content);
-                yield return content.Content;
+                return string.Empty;
             }
 
-            // Handle tool calls in streaming
-            foreach (var item in content.Items)
+            var functionCalls = assistantMessage.Contents.OfType<FunctionCallContent>().ToList();
+            if (functionCalls.Count == 0)
             {
-                if (item is StreamingFunctionCallUpdateContent functionCall)
+                _chatHistory.Add(assistantMessage);
+                return assistantMessage.Text;
+            }
+
+            _chatHistory.Add(assistantMessage);
+            await InvokeToolCallsAsync(functionCalls, cancellationToken);
+        }
+
+        // Max iterations reached, make one final request without tools
+        var finalOptions = new ChatOptions { Temperature = _chatOptions.Temperature };
+        var finalResponse = await _chatClient.GetResponseAsync(_chatHistory, finalOptions, cancellationToken);
+        var finalMessage = finalResponse.Messages.LastOrDefault();
+
+        if (finalMessage != null)
+        {
+            _chatHistory.Add(finalMessage);
+        }
+
+        return finalMessage?.Text ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Sends a message and yields streaming response chunks, with automatic tool invocation.
+    /// Tool call notifications are yielded inline as text fragments.
+    /// </summary>
+    /// <param name="message">The user message to send.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <returns>An async enumerable of text chunks.</returns>
+    public async IAsyncEnumerable<string> ChatStreamingAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _chatHistory.Add(new ChatMessage(ChatRole.User, message));
+
+        for (int i = 0; i < MaxAutoInvokeIterations; i++)
+        {
+            var updates = new List<ChatResponseUpdate>();
+
+            await foreach (var update in _chatClient.GetStreamingResponseAsync(_chatHistory, _chatOptions, cancellationToken))
+            {
+                updates.Add(update);
+
+                // Yield text content
+                if (!string.IsNullOrEmpty(update.Text))
                 {
-                    if (!string.IsNullOrEmpty(functionCall.Name))
+                    yield return update.Text;
+                }
+
+                // Yield tool call notifications inline
+                foreach (var fc in update.Contents.OfType<FunctionCallContent>())
+                {
+                    if (fc.Name != null)
                     {
-                        string toolNotification = $"{functionCall.Name}]";
-                        fullContent.Append(toolNotification);
-                        yield return toolNotification;
+                        yield return $"{fc.Name}]";
                     }
 
-                    if (!string.IsNullOrEmpty(functionCall.Arguments))
+                    if (fc.Arguments != null)
                     {
-                        string toolNotification = $"{functionCall.Arguments}";
-                        fullContent.Append(toolNotification);
-                        yield return toolNotification;
+                        yield return JsonSerializer.Serialize(fc.Arguments);
                     }
                 }
             }
+
+            // Collect function calls from all updates
+            var functionCalls = updates.SelectMany(u => u.Contents.OfType<FunctionCallContent>()).ToList();
+
+            // Reconstruct full assistant message from updates (preserves reasoning_content, etc.)
+            _chatHistory.AddMessages(updates);
+
+            if (functionCalls.Count == 0)
+            {
+                yield break;
+            }
+
+            // Invoke tools and add results
+            await InvokeToolCallsAsync(functionCalls, cancellationToken);
         }
-        _chatHistory.AddAssistantMessage(fullContent.ToString());
+
+        // Max iterations reached, make one final streaming request without tools
+        var finalOptions = new ChatOptions { Temperature = _chatOptions.Temperature };
+        var finalUpdates = new List<ChatResponseUpdate>();
+
+        await foreach (var update in _chatClient.GetStreamingResponseAsync(_chatHistory, finalOptions, cancellationToken))
+        {
+            finalUpdates.Add(update);
+
+            if (!string.IsNullOrEmpty(update.Text))
+            {
+                yield return update.Text;
+            }
+        }
+
+        _chatHistory.AddMessages(finalUpdates);
+    }
+
+    private async Task InvokeToolCallsAsync(List<FunctionCallContent> functionCalls, CancellationToken cancellationToken)
+    {
+        foreach (var fc in functionCalls)
+        {
+            object? result = null;
+            Exception? error = null;
+
+            try
+            {
+                var jsonArgs = fc.Arguments != null
+                    ? JsonSerializer.SerializeToElement(fc.Arguments)
+                    : JsonDocument.Parse("{}").RootElement;
+
+                result = await _registry.InvokeToolAsync(fc.Name!, jsonArgs);
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+
+            var resultContent = error != null
+                ? new FunctionResultContent(fc.CallId, error.Message)
+                : new FunctionResultContent(fc.CallId, result);
+
+            _chatHistory.Add(new ChatMessage(ChatRole.Tool, [resultContent]));
+        }
     }
 }

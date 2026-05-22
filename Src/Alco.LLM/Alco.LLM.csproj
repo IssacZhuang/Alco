@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.71.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.5.1" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 </Project>

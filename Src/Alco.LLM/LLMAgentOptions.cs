@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using Microsoft.SemanticKernel;
-
 namespace Alco.LLM;
 
 /// <summary>
@@ -35,9 +31,4 @@ public record LLMAgentOptions
     /// marked with <see cref="ToolFunctionAttribute"/> are registered with the agent.
     /// </summary>
     public IList<object>? ToolInstances { get; init; }
-
-    /// <summary>
-    /// Gets or initializes the optional function invocation filter.
-    /// </summary>
-    public IFunctionInvocationFilter? FunctionInvocationFilter { get; init; }
 }
