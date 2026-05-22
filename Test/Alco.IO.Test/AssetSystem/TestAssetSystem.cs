@@ -444,7 +444,7 @@ public class TestAssetSystem
 
         public object CreateAsset(in AssetLoadContext context)
         {
-            return Encoding.UTF8.GetString(context.Data);
+            return Encoding.UTF8.GetString(context.GetData());
         }
     }
 

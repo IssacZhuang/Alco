@@ -47,7 +47,7 @@ public class AssetLoaderShaderHLSL : IAssetLoader
     private string GetShaderText(in AssetLoadContext context)
     {
         IncludeHelper includeHelper = new IncludeHelper();
-        string shaderText = Encoding.UTF8.GetString(context.Data);
+        string shaderText = Encoding.UTF8.GetString(context.GetData());
         if (_includeResolver != null)
         {
             shaderText = includeHelper.ProcessInclude(shaderText, context.Filename, _includeResolver);

@@ -22,6 +22,6 @@ public class AssetLoaderAudioWave : BaseAssetLoader<AudioClip>
 
     public override object CreateAsset(in AssetLoadContext context)
     {
-        return _device.CreateAudioClipFromWave(context.Data, context.Filename);
+        return _device.CreateAudioClipFromWave(context.GetData(), context.Filename);
     }
 }

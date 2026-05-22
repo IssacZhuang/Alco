@@ -37,7 +37,7 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
             padding: padding
         );
 
-        packer.Add(context.Data, 32, new int2[]{
+        packer.Add(context.GetData(), 32, new int2[]{
                 UnicodeUtility.RangeBasicLatin,
                 UnicodeUtility.RangeLatin1Supplement,
                 UnicodeUtility.RangeLatinExtendedA,

@@ -69,7 +69,7 @@ public class AssetLoaderMeta : IAssetLoader
 
     private Meta CreateMeta(in AssetLoadContext context)
     {
-        string jsonText = Encoding.UTF8.GetString(context.Data);
+        string jsonText = Encoding.UTF8.GetString(context.GetData());
         if (JsonSerializer.Deserialize(jsonText, context.AssetType, _jsonSerializerOptions) is not Meta meta)
         {
             throw new InvalidOperationException($"Failed to deserialize meta from {context.Filename}");
@@ -79,6 +79,6 @@ public class AssetLoaderMeta : IAssetLoader
 
     private string CreateString(in AssetLoadContext context)
     {
-        return Encoding.UTF8.GetString(context.Data);
+        return Encoding.UTF8.GetString(context.GetData());
     }
 }

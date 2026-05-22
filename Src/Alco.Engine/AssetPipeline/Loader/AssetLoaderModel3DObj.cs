@@ -34,7 +34,7 @@ public class AssetLoaderModel3DObj : BaseAssetLoader<Model3D>
     /// <inheritdoc/>
     public override object CreateAsset(in AssetLoadContext context)
     {
-        var result = _parser.Parse(context.Data);
+        var result = _parser.Parse(context.GetData());
 
         if (result.Vertices.Length == 0 || result.Indices.Length == 0)
             throw new InvalidOperationException($"OBJ file '{context.Filename}' contains no valid geometry.");
