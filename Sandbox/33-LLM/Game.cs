@@ -298,14 +298,14 @@ public class Game : GameEngine
         }
     }
 
-    [ToolFunction]
+    [AgentFunction(IsAsync = true)]
     [Description("Get the list of cubes")]
     public string ListCube()
     {
         return string.Join(", ", _entities.Keys);
     }
 
-    [ToolFunction]
+    [AgentFunction(IsAsync = true)]
     [Description("Set the color of a cube")]
     public string SetCubeColor(
         [Description("The name of the cube to set the color of")] string cubeName,
@@ -324,7 +324,7 @@ public class Game : GameEngine
         return $"Cube {cubeName} color set to {color}";
     }
 
-    [ToolFunction(AsyncSafe = true)]
+    [AgentFunction]
     [Description("Asynchronously hello form")]
     public async Task<string> HelloFormAsync([Description("The name of the person")] string name)
     {
