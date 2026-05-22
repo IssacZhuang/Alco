@@ -49,7 +49,7 @@ public static class ToolRegistryHttpAdapter
                     name = descriptor.Name,
                     description = descriptor.Description,
                     parameters = descriptor.ParameterSchema,
-                    isAsyncSafe = descriptor.IsAsyncSafe,
+                    isAsync = descriptor.IsAsync,
                 });
             }
             return Results.Ok(tools);

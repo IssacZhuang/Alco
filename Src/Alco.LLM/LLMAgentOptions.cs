@@ -21,14 +21,14 @@ public record LLMAgentOptions
     public required string ModelId { get; init; }
 
     /// <summary>
-    /// Gets or initializes the list of tool types marked with <see cref="GameToolAttribute"/>
+    /// Gets or initializes the list of tool types marked with <see cref="AgentToolsAttribute"/>
     /// to register with the agent. These types' static methods are discovered.
     /// </summary>
     public IList<Type>? ToolTypes { get; init; }
 
     /// <summary>
     /// Gets or initializes the list of tool instances whose instance and static methods
-    /// marked with <see cref="ToolFunctionAttribute"/> are registered with the agent.
+    /// marked with <see cref="AgentFunctionAttribute"/> are registered with the agent.
     /// </summary>
     public IList<object>? ToolInstances { get; init; }
 }

@@ -7,9 +7,9 @@ using System.Text.Json.Schema;
 namespace Alco.LLM;
 
 /// <summary>
-/// Describes a single tool function discovered from a <see cref="GameToolAttribute"/> type.
+/// Describes a single tool function discovered from a <see cref="AgentToolsAttribute"/> type.
 /// Contains all metadata needed to invoke the function, generate JSON schemas,
-/// and register it with both Semantic Kernel and HTTP API adapters.
+/// and register it with HTTP API adapters.
 /// </summary>
 public sealed class ToolDescriptor
 {
@@ -34,9 +34,11 @@ public sealed class ToolDescriptor
     public Type ReturnType { get; }
 
     /// <summary>
-    /// Gets whether this tool is safe to invoke on any thread without marshaling to the main thread.
+    /// Gets whether this tool requires main-thread marshaling.
+    /// When <c>false</c>, the tool is thread-safe and invoked directly.
+    /// When <c>true</c>, the tool is marshaled to the main thread for invocation.
     /// </summary>
-    public bool IsAsyncSafe { get; }
+    public bool IsAsync { get; }
 
     /// <summary>
     /// Gets the reflected method info for invocation.
@@ -61,7 +63,7 @@ public sealed class ToolDescriptor
         string description,
         JsonElement parameterSchema,
         Type returnType,
-        bool isAsyncSafe,
+        bool isAsync,
         MethodInfo method,
         object? target,
         JsonSerializerOptions jsonOptions)
@@ -70,7 +72,7 @@ public sealed class ToolDescriptor
         Description = description;
         ParameterSchema = parameterSchema;
         ReturnType = returnType;
-        IsAsyncSafe = isAsyncSafe;
+        IsAsync = isAsync;
         Method = method;
         Target = target;
         JsonOptions = jsonOptions;

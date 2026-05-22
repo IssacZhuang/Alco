@@ -12,9 +12,9 @@ using Alco.Engine;
 namespace Alco.LLM;
 
 /// <summary>
-/// Central registry for game tool functions. Discovers <see cref="ToolFunctionAttribute"/> methods
-/// from <see cref="GameToolAttribute"/> types and instances. Provides unified invocation with
-/// automatic thread marshaling for non-async-safe tools.
+/// Central registry for agent tool functions. Discovers <see cref="AgentFunctionAttribute"/> methods
+/// from <see cref="AgentToolsAttribute"/> types and instances. Provides unified invocation with
+/// automatic thread marshaling for async tools.
 /// </summary>
 public sealed class ToolRegistry
 {
@@ -30,8 +30,8 @@ public sealed class ToolRegistry
     /// Initializes a new instance of the <see cref="ToolRegistry"/> class.
     /// Discovers tool functions from the provided types and instances.
     /// </summary>
-    /// <param name="toolTypes">Types whose static methods marked with <see cref="ToolFunctionAttribute"/> are discovered.</param>
-    /// <param name="toolInstances">Instances whose instance and static methods marked with <see cref="ToolFunctionAttribute"/> are discovered.</param>
+    /// <param name="toolTypes">Types whose static methods marked with <see cref="AgentFunctionAttribute"/> are discovered.</param>
+    /// <param name="toolInstances">Instances whose instance and static methods marked with <see cref="AgentFunctionAttribute"/> are discovered.</param>
     /// <param name="jsonOptions">The JSON serializer options for parameter deserialization.</param>
     public ToolRegistry(
         IList<Type> toolTypes,
@@ -79,7 +79,7 @@ public sealed class ToolRegistry
 
         var args = DeserializeArguments(descriptor, jsonArgs);
 
-        if (descriptor.IsAsyncSafe)
+        if (!descriptor.IsAsync)
         {
             return InvokeDirect(descriptor, args);
         }
@@ -105,12 +105,12 @@ public sealed class ToolRegistry
             : BindingFlags.Public | BindingFlags.Static;
 
         var methods = type.GetMethods(bindingFlags)
-            .Where(m => m.GetCustomAttribute<ToolFunctionAttribute>() != null);
+            .Where(m => m.GetCustomAttribute<AgentFunctionAttribute>() != null);
 
         foreach (var method in methods)
         {
             var description = method.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty;
-            var attr = method.GetCustomAttribute<ToolFunctionAttribute>()!;
+            var attr = method.GetCustomAttribute<AgentFunctionAttribute>()!;
             var parameterSchema = BuildParameterSchema(method, jsonOptions);
 
             var descriptor = new ToolDescriptor(
@@ -118,7 +118,7 @@ public sealed class ToolRegistry
                 description: description,
                 parameterSchema: parameterSchema,
                 returnType: method.ReturnType,
-                isAsyncSafe: attr.AsyncSafe,
+                isAsync: attr.IsAsync,
                 method: method,
                 target: target,
                 jsonOptions: jsonOptions);

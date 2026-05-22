@@ -4,27 +4,27 @@ namespace Alco.LLM.Test;
 
 /// <summary>
 /// Static tool functions for testing tool discovery and invocation.
-/// All methods are marked AsyncSafe so they execute directly in unit tests
+/// All methods are marked as thread-safe so they execute directly in unit tests
 /// without needing main-thread marshaling.
 /// </summary>
-[GameTool]
+[AgentTools]
 public static class FakeToolFunctions
 {
-    [ToolFunction(AsyncSafe = true)]
+    [AgentFunction]
     [Description("Adds two numbers")]
     public static int Add(int a, int b)
     {
         return a + b;
     }
 
-    [ToolFunction(AsyncSafe = true)]
+    [AgentFunction]
     [Description("Echoes the message back")]
     public static string Echo(string message)
     {
         return message;
     }
 
-    [ToolFunction(AsyncSafe = true)]
+    [AgentFunction]
     [Description("Always throws an error")]
     public static string ThrowError()
     {
