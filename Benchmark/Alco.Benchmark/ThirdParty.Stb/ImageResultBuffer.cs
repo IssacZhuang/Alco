@@ -4,11 +4,7 @@ using Alco;
 
 namespace StbImageSharp
 {
-#if !STBSHARP_INTERNAL
-    public
-#else
 	internal
-#endif
     /// <summary>
     /// Use unmanged memory to store the image result, less GC but requires manual disposal.
     /// </summary>
