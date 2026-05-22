@@ -325,10 +325,9 @@ public class Game : GameEngine
     }
 
     [AgentFunction(IsAsync = true)]
-    [Description("Asynchronously hello form")]
-    public async Task<string> HelloFormAsync([Description("The name of the person")] string name)
+    [Description("Hello form")]
+    public string HelloForm([Description("The name of the person")] string name)
     {
-        await Task.Delay(200);
-        return $"Hello {name} from Async Form";
+        return $"Hello {name} from Form";
     }
 }
