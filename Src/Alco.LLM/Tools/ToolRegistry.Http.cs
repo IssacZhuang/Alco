@@ -99,27 +99,27 @@ public static class ToolRegistryHttpAdapter
                 jsonArgs = default;
             }
 
-            var sw = Stopwatch.StartNew();
+            var start = Stopwatch.GetTimestamp();
             try
             {
                 var result = await registry.InvokeToolAsync(toolName, jsonArgs);
-                sw.Stop();
+                var elapsed = Stopwatch.GetElapsedTime(start);
                 return Results.Ok(new
                 {
                     success = true,
                     data = result,
-                    executionTimeMs = sw.ElapsedMilliseconds,
+                    executionTimeMs = elapsed.TotalMilliseconds,
                 });
             }
             catch (Exception ex)
             {
-                sw.Stop();
+                var elapsed = Stopwatch.GetElapsedTime(start);
                 return Results.Ok(new
                 {
                     success = false,
                     error = ex.Message,
                     errorType = ex.GetType().Name,
-                    executionTimeMs = sw.ElapsedMilliseconds,
+                    executionTimeMs = elapsed.TotalMilliseconds,
                 });
             }
         });
