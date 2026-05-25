@@ -18,6 +18,7 @@ public class LLMAgent
     private readonly ToolRegistry _registry;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IList<AITool> _tools;
+    private readonly string? _systemPrompt;
 
     /// <summary>
     /// Gets the tool registry containing all discovered tool functions.
@@ -34,12 +35,13 @@ public class LLMAgent
     /// </summary>
     public IList<AITool> Tools => _tools;
 
-    private LLMAgent(IChatClient chatClient, ToolRegistry registry, JsonSerializerOptions jsonOptions, IList<AITool> tools)
+    private LLMAgent(IChatClient chatClient, ToolRegistry registry, JsonSerializerOptions jsonOptions, IList<AITool> tools, string? systemPrompt)
     {
         _chatClient = chatClient;
         _registry = registry;
         _jsonOptions = jsonOptions;
         _tools = tools;
+        _systemPrompt = systemPrompt;
     }
 
     /// <summary>
@@ -70,7 +72,7 @@ public class LLMAgent
 
         var tools = registry.ToAITools();
 
-        return new LLMAgent(chatClient, registry, jsonOptions, tools);
+        return new LLMAgent(chatClient, registry, jsonOptions, tools, options.SystemPrompt);
     }
 
     /// <summary>
@@ -80,6 +82,8 @@ public class LLMAgent
     /// <returns>A new LLMSession instance.</returns>
     public LLMSession CreateSession(LLMSessionConfig? config = null)
     {
+        config ??= new LLMSessionConfig();
+        config.SystemPrompt ??= _systemPrompt;
         return new LLMSession(_chatClient, _registry, _tools, config);
     }
 }
