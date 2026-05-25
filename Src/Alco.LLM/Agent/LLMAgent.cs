@@ -1,7 +1,9 @@
 using System;
+using System.Net.Http;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using OpenAI;
+using System.ClientModel.Primitives;
 
 namespace Alco.LLM;
 
@@ -49,7 +51,15 @@ public class LLMAgent
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public static LLMAgent Create(LLMAgentOptions options, JsonSerializerOptions jsonOptions)
     {
-        var clientOptions = new OpenAIClientOptions { Endpoint = options.Endpoint };
+        var handler = new DeepSeekReasoningHandler();
+        var httpClient = new HttpClient(handler);
+        var transport = new HttpClientPipelineTransport(httpClient);
+
+        var clientOptions = new OpenAIClientOptions
+        {
+            Endpoint = options.Endpoint,
+            Transport = transport,
+        };
         var openAIClient = new OpenAIClient(new System.ClientModel.ApiKeyCredential(options.ApiKey), clientOptions);
         var chatClient = openAIClient.GetChatClient(options.ModelId).AsIChatClient();
 

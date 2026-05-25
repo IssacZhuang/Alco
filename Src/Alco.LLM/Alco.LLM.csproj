@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
-    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.5.1" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.6.0" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 </Project>
