@@ -4,6 +4,8 @@ using System.Text.Json;
 using Microsoft.Extensions.AI;
 using OpenAI;
 using System.ClientModel.Primitives;
+using Anthropic;
+using GenerativeAI.Microsoft;
 
 namespace Alco.LLM;
 
@@ -19,6 +21,7 @@ public class LLMAgent
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IList<AITool> _tools;
     private readonly string? _systemPrompt;
+    private readonly LLMProvider _provider;
 
     /// <summary>
     /// Gets the tool registry containing all discovered tool functions.
@@ -35,13 +38,14 @@ public class LLMAgent
     /// </summary>
     public IList<AITool> Tools => _tools;
 
-    private LLMAgent(IChatClient chatClient, ToolRegistry registry, JsonSerializerOptions jsonOptions, IList<AITool> tools, string? systemPrompt)
+    private LLMAgent(IChatClient chatClient, ToolRegistry registry, JsonSerializerOptions jsonOptions, IList<AITool> tools, string? systemPrompt, LLMProvider provider)
     {
         _chatClient = chatClient;
         _registry = registry;
         _jsonOptions = jsonOptions;
         _tools = tools;
         _systemPrompt = systemPrompt;
+        _provider = provider;
     }
 
     /// <summary>
@@ -53,6 +57,29 @@ public class LLMAgent
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public static LLMAgent Create(LLMAgentOptions options, JsonSerializerOptions jsonOptions)
     {
+        IChatClient chatClient = options.Provider switch
+        {
+            LLMProvider.OpenAI => CreateOpenAIChatClient(options),
+            LLMProvider.Anthropic => CreateAnthropicChatClient(options),
+            LLMProvider.Gemini => CreateGeminiChatClient(options),
+            _ => throw new ArgumentException($"Unsupported LLM provider: {options.Provider}"),
+        };
+
+        var registry = new ToolRegistry(
+            options.ToolTypes ?? Array.Empty<Type>(),
+            options.ToolInstances,
+            jsonOptions);
+
+        var tools = registry.ToAITools();
+
+        return new LLMAgent(chatClient, registry, jsonOptions, tools, options.SystemPrompt, options.Provider);
+    }
+
+    private static IChatClient CreateOpenAIChatClient(LLMAgentOptions options)
+    {
+        if (options.Endpoint == null)
+            throw new ArgumentException("Endpoint is required for OpenAI provider.");
+
         var handler = new ReasoningContentHandler();
         var httpClient = new HttpClient(handler);
         var transport = new HttpClientPipelineTransport(httpClient);
@@ -63,16 +90,21 @@ public class LLMAgent
             Transport = transport,
         };
         var openAIClient = new OpenAIClient(new System.ClientModel.ApiKeyCredential(options.ApiKey), clientOptions);
-        var chatClient = openAIClient.GetChatClient(options.ModelId).AsIChatClient();
+        return openAIClient.GetChatClient(options.ModelId).AsIChatClient();
+    }
 
-        var registry = new ToolRegistry(
-            options.ToolTypes ?? Array.Empty<Type>(),
-            options.ToolInstances,
-            jsonOptions);
+    private static IChatClient CreateAnthropicChatClient(LLMAgentOptions options)
+    {
+        var client = options.Endpoint != null
+            ? new AnthropicClient() { ApiKey = options.ApiKey, BaseUrl = options.Endpoint.ToString() }
+            : new AnthropicClient() { ApiKey = options.ApiKey };
+        return client.AsIChatClient(options.ModelId);
+    }
 
-        var tools = registry.ToAITools();
-
-        return new LLMAgent(chatClient, registry, jsonOptions, tools, options.SystemPrompt);
+    private static IChatClient CreateGeminiChatClient(LLMAgentOptions options)
+    {
+        var chatClient = new GenerativeAIChatClient(options.ApiKey, options.ModelId, false);
+        return chatClient;
     }
 
     /// <summary>
@@ -84,6 +116,7 @@ public class LLMAgent
     {
         config ??= new LLMSessionConfig();
         config.SystemPrompt ??= _systemPrompt;
+        config.Provider = _provider;
         return new LLMSession(_chatClient, _registry, _tools, config);
     }
 }

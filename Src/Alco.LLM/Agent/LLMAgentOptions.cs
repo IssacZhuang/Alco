@@ -6,9 +6,15 @@ namespace Alco.LLM;
 public record LLMAgentOptions
 {
     /// <summary>
-    /// Gets or initializes the endpoint URI for the LLM service.
+    /// Gets or initializes the LLM service provider type.
     /// </summary>
-    public required Uri Endpoint { get; init; }
+    public LLMProvider Provider { get; init; } = LLMProvider.OpenAI;
+
+    /// <summary>
+    /// Gets or initializes the endpoint URI for the LLM service.
+    /// Required for OpenAI, optional for Anthropic/Gemini (uses default endpoint if null).
+    /// </summary>
+    public Uri? Endpoint { get; init; }
 
     /// <summary>
     /// Gets or initializes the API key for authentication.

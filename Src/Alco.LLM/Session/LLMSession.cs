@@ -25,6 +25,13 @@ public class LLMSessionConfig
     /// Controls whether to automatically invoke tool functions.
     /// </summary>
     public bool AutoInvokeTools { get; set; } = true;
+
+    /// <summary>
+    /// The LLM provider type, used to format tool results correctly per API protocol.
+    /// OpenAI expects tool results in <see cref="ChatRole.Tool"/> messages,
+    /// while Anthropic and Gemini expect them in <see cref="ChatRole.User"/> messages.
+    /// </summary>
+    public LLMProvider Provider { get; set; } = LLMProvider.OpenAI;
 }
 
 /// <summary>
@@ -40,6 +47,7 @@ public sealed class LLMSession
     private readonly IList<AITool> _tools;
     private readonly List<ChatMessage> _chatHistory;
     private readonly ChatOptions _chatOptions;
+    private readonly LLMProvider _provider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMSession"/> class.
@@ -55,6 +63,7 @@ public sealed class LLMSession
         _tools = tools ?? throw new ArgumentNullException(nameof(tools));
 
         config ??= new LLMSessionConfig();
+        _provider = config.Provider;
 
         _chatOptions = new ChatOptions
         {
@@ -143,7 +152,7 @@ public sealed class LLMSession
                 {
                     if (fc.Name != null)
                     {
-                        yield return $"{fc.Name}]";
+                        yield return $"[{fc.Name}]";
                     }
 
                     if (fc.Arguments != null)
@@ -187,6 +196,7 @@ public sealed class LLMSession
 
     private async Task InvokeToolCallsAsync(List<FunctionCallContent> functionCalls, CancellationToken cancellationToken)
     {
+        var results = new List<AIContent>(functionCalls.Count);
         foreach (var fc in functionCalls)
         {
             object? result = null;
@@ -205,11 +215,14 @@ public sealed class LLMSession
                 error = ex;
             }
 
-            var resultContent = error != null
+            results.Add(error != null
                 ? new FunctionResultContent(fc.CallId, error.Message)
-                : new FunctionResultContent(fc.CallId, result);
-
-            _chatHistory.Add(new ChatMessage(ChatRole.Tool, [resultContent]));
+                : new FunctionResultContent(fc.CallId, result));
         }
+
+        // OpenAI expects ChatRole.Tool for tool results;
+        // Anthropic/Gemini expect ChatRole.User with tool_result blocks.
+        var toolRole = _provider == LLMProvider.OpenAI ? ChatRole.Tool : ChatRole.User;
+        _chatHistory.Add(new ChatMessage(toolRole, results));
     }
 }
