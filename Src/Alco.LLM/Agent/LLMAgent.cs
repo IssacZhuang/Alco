@@ -51,7 +51,7 @@ public class LLMAgent
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public static LLMAgent Create(LLMAgentOptions options, JsonSerializerOptions jsonOptions)
     {
-        var handler = new DeepSeekReasoningHandler();
+        var handler = new ReasoningContentHandler();
         var httpClient = new HttpClient(handler);
         var transport = new HttpClientPipelineTransport(httpClient);
 

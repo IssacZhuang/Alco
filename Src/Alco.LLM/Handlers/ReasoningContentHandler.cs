@@ -20,12 +20,12 @@ namespace Alco.LLM;
 /// abstraction, because the OpenAI SDK v2.10.0 does not expose a
 /// <c>ReasoningContent</c> property on <c>AssistantChatMessage</c>.
 /// </remarks>
-public class DeepSeekReasoningHandler : DelegatingHandler
+public class ReasoningContentHandler : DelegatingHandler
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="DeepSeekReasoningHandler"/> class.
+    /// Initializes a new instance of the <see cref="ReasoningContentHandler"/> class.
     /// </summary>
-    public DeepSeekReasoningHandler()
+    public ReasoningContentHandler()
         : base(new HttpClientHandler())
     {
     }
