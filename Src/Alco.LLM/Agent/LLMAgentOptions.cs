@@ -31,4 +31,10 @@ public record LLMAgentOptions
     /// marked with <see cref="AgentFunctionAttribute"/> are registered with the agent.
     /// </summary>
     public IList<object>? ToolInstances { get; init; }
+
+    /// <summary>
+    /// Gets or initializes the default system prompt for sessions created by this agent.
+    /// Can be overridden per-session via <see cref="LLMSessionConfig.SystemPrompt"/>.
+    /// </summary>
+    public string? SystemPrompt { get; init; } = "You are a game development assistant. Use tools to interact with game entities and help the developer build, debug, and test game features. Be concise and direct. When invoking tools, explain what you are doing briefly.";
 }
