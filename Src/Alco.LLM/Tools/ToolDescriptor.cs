@@ -34,9 +34,9 @@ public sealed class ToolDescriptor
     public Type ReturnType { get; }
 
     /// <summary>
-    /// Gets whether this tool requires main-thread marshaling.
-    /// When <c>false</c>, the tool is thread-safe and invoked directly.
-    /// When <c>true</c>, the tool is marshaled to the main thread for invocation.
+    /// Gets whether this tool is async-safe and can be invoked directly on the calling thread.
+    /// When <c>true</c>, the tool is invoked directly. When <c>false</c>, the tool is
+    /// marshaled to the engine main thread before invocation.
     /// </summary>
     public bool IsAsync { get; }
 

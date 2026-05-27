@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
@@ -14,7 +15,7 @@ namespace Alco.LLM;
 /// <summary>
 /// Central registry for agent tool functions. Discovers <see cref="AgentFunctionAttribute"/> methods
 /// from <see cref="AgentToolsAttribute"/> types and instances. Provides unified invocation with
-/// automatic thread marshaling for async tools.
+/// automatic thread marshaling for tools that require the engine main thread.
 /// </summary>
 public sealed class ToolRegistry
 {
@@ -81,10 +82,10 @@ public sealed class ToolRegistry
 
         if (descriptor.IsAsync)
         {
-            return InvokeDirect(descriptor, args);
+            return await InvokeDirectAsync(descriptor, args);
         }
 
-        return await InvokeOnMainThread(descriptor, args);
+        return await InvokeOnMainThreadAsync(descriptor, args);
     }
 
     /// <summary>
@@ -227,26 +228,58 @@ public sealed class ToolRegistry
         return args;
     }
 
-    private static object? InvokeDirect(ToolDescriptor descriptor, object?[] args)
+    private static async Task<object?> InvokeDirectAsync(ToolDescriptor descriptor, object?[] args)
     {
-        return descriptor.Method.Invoke(descriptor.Target, args);
+        try
+        {
+            object? result = descriptor.Method.Invoke(descriptor.Target, args);
+            return await UnwrapInvocationResultAsync(result, descriptor.ReturnType);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
     }
 
-    private Task<object?> InvokeOnMainThread(ToolDescriptor descriptor, object?[] args)
+    private Task<object?> InvokeOnMainThreadAsync(ToolDescriptor descriptor, object?[] args)
     {
-        var tcs = new TaskCompletionSource<object?>();
-        _mainThreadQueue.Enqueue(() =>
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mainThreadQueue.Enqueue(async () =>
         {
             try
             {
-                var result = InvokeDirect(descriptor, args);
-                tcs.SetResult(result);
+                var result = await InvokeDirectAsync(descriptor, args);
+                tcs.TrySetResult(result);
             }
             catch (Exception ex)
             {
-                tcs.SetException(ex);
+                tcs.TrySetException(ex);
             }
         });
         return tcs.Task;
+    }
+
+    private static async Task<object?> UnwrapInvocationResultAsync(object? result, Type declaredReturnType)
+    {
+        if (result is not Task task)
+        {
+            return result;
+        }
+
+        await task;
+
+        if (declaredReturnType == typeof(Task))
+        {
+            return null;
+        }
+
+        var resultProperty = task.GetType().GetProperty(nameof(Task<object>.Result));
+        if (resultProperty != null)
+        {
+            return resultProperty.GetValue(task);
+        }
+
+        return null;
     }
 }

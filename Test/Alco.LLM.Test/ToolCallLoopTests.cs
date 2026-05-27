@@ -19,6 +19,11 @@ public class ToolCallLoopTests
         return new ToolRegistry([typeof(FakeToolFunctions)], null, JsonOptions);
     }
 
+    private static ToolRegistry CreateAdvancedRegistry()
+    {
+        return new ToolRegistry([typeof(FakeAdvancedToolFunctions)], null, JsonOptions);
+    }
+
     private static ChatResponse CreateTextResponse(string text)
     {
         return new ChatResponse([new ChatMessage(ChatRole.Assistant, text)]);
@@ -33,6 +38,25 @@ public class ToolCallLoopTests
         }
 
         return new ChatResponse([new ChatMessage(ChatRole.Assistant, contents)]);
+    }
+
+    private static List<FunctionResultContent> GetFunctionResults(IReadOnlyList<ChatMessage> messages)
+    {
+        return messages
+            .SelectMany(m => m.Contents.OfType<FunctionResultContent>())
+            .ToList();
+    }
+
+    private static IReadOnlyDictionary<string, object?> GetFailureResult(FunctionResultContent content)
+    {
+        Assert.That(content.Result, Is.TypeOf<Dictionary<string, object?>>());
+        return (Dictionary<string, object?>)content.Result!;
+    }
+
+    [SetUp]
+    public void SetUp()
+    {
+        FakeAdvancedToolFunctions.Reset();
     }
 
     #region ChatAsync
@@ -98,8 +122,8 @@ public class ToolCallLoopTests
         Assert.That(result, Is.EqualTo("Done."));
         // History for second call should have both tool results
         var secondCallMessages = client.ReceivedMessagesHistory[1];
-        var toolMessages = secondCallMessages.Where(m => m.Role == ChatRole.Tool).ToList();
-        Assert.That(toolMessages.Count, Is.EqualTo(2));
+        var toolResults = GetFunctionResults(secondCallMessages);
+        Assert.That(toolResults.Count, Is.EqualTo(2));
     }
 
     [Test]
@@ -118,8 +142,10 @@ public class ToolCallLoopTests
         Assert.That(result, Is.EqualTo("OK"));
         // Second call history should have a tool message with error
         var secondCallMessages = client.ReceivedMessagesHistory[1];
-        var toolMessage = secondCallMessages.FirstOrDefault(m => m.Role == ChatRole.Tool);
-        Assert.That(toolMessage, Is.Not.Null);
+        var toolResult = GetFunctionResults(secondCallMessages).Single();
+        var failure = GetFailureResult(toolResult);
+        Assert.That(failure["success"], Is.False);
+        Assert.That(failure["errorType"], Is.EqualTo(nameof(KeyNotFoundException)));
     }
 
     [Test]
@@ -136,6 +162,89 @@ public class ToolCallLoopTests
         var result = await session.ChatAsync("Trigger error");
 
         Assert.That(result, Is.EqualTo("Handled error."));
+        var toolResult = GetFunctionResults(client.ReceivedMessagesHistory[1]).Single();
+        var failure = GetFailureResult(toolResult);
+        Assert.That(failure["success"], Is.False);
+        Assert.That(failure["errorType"], Is.EqualTo(nameof(InvalidOperationException)));
+    }
+
+    [Test]
+    public async Task ChatAsync_AsyncToolThrowsException_ReturnsStructuredErrorResult()
+    {
+        var client = new FakeChatClient();
+        client.SetupResponse(CreateToolCallResponse(("call1", "ThrowAsync", new Dictionary<string, object?>())));
+        client.SetupResponse(CreateTextResponse("Handled async error."));
+
+        var registry = CreateAdvancedRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools);
+
+        var result = await session.ChatAsync("Trigger async error");
+
+        Assert.That(result, Is.EqualTo("Handled async error."));
+        var toolResult = GetFunctionResults(client.ReceivedMessagesHistory[1]).Single();
+        var failure = GetFailureResult(toolResult);
+        Assert.That(failure["success"], Is.False);
+        Assert.That(failure["errorType"], Is.EqualTo(nameof(InvalidOperationException)));
+    }
+
+    [Test]
+    public async Task ChatAsync_AutoInvokeToolsFalse_DoesNotInvokeToolOrContinueLoop()
+    {
+        var client = new FakeChatClient();
+        client.SetupResponse(CreateToolCallResponse(("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })));
+
+        var registry = CreateAdvancedRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools, new LLMSessionConfig
+        {
+            AutoInvokeTools = false,
+        });
+
+        var result = await session.ChatAsync("Add without invoking");
+
+        Assert.That(result, Is.EqualTo(string.Empty));
+        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(0));
+        Assert.That(client.GetResponseCallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ChatAsync_ToolTimeout_ReturnsStructuredErrorResultAndContinues()
+    {
+        var client = new FakeChatClient();
+        client.SetupResponse(CreateToolCallResponse(("call1", "SlowAsync", new Dictionary<string, object?> { ["milliseconds"] = 500 })));
+        client.SetupResponse(CreateTextResponse("Timeout handled."));
+
+        var registry = CreateAdvancedRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools, new LLMSessionConfig
+        {
+            ToolTimeout = TimeSpan.FromMilliseconds(1),
+        });
+
+        var result = await session.ChatAsync("Trigger timeout");
+
+        Assert.That(result, Is.EqualTo("Timeout handled."));
+        var toolResult = GetFunctionResults(client.ReceivedMessagesHistory[1]).Single();
+        var failure = GetFailureResult(toolResult);
+        Assert.That(failure["success"], Is.False);
+        Assert.That(failure["errorType"], Is.EqualTo(nameof(TimeoutException)));
+    }
+
+    [Test]
+    public void ChatAsync_ExternalCancellation_CancelsRequest()
+    {
+        var client = new FakeChatClient();
+        client.SetupResponse(CreateTextResponse("unused"));
+
+        var registry = CreateRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.ThrowsAsync<OperationCanceledException>(async () => await session.ChatAsync("Cancel", cts.Token));
     }
 
     [Test]
@@ -282,6 +391,38 @@ public class ToolCallLoopTests
 
         // First chunk should be the tool name with ] suffix
         Assert.That(chunks[0], Does.Contain("Echo]"));
+    }
+
+    [Test]
+    public async Task ChatStreamingAsync_AutoInvokeToolsFalse_YieldsNotificationWithoutContinuingLoop()
+    {
+        var client = new FakeChatClient();
+        client.SetupStreamingResponse(ToolCallStream());
+
+        async IAsyncEnumerable<ChatResponseUpdate> ToolCallStream()
+        {
+            yield return new ChatResponseUpdate
+            {
+                Contents = [new FunctionCallContent("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
+            };
+        }
+
+        var registry = CreateAdvancedRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools, new LLMSessionConfig
+        {
+            AutoInvokeTools = false,
+        });
+
+        var chunks = new List<string>();
+        await foreach (var chunk in session.ChatStreamingAsync("Add"))
+        {
+            chunks.Add(chunk);
+        }
+
+        Assert.That(chunks[0], Does.Contain("AddAsync]"));
+        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(0));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
     #endregion

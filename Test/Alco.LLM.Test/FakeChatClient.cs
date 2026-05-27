@@ -27,6 +27,7 @@ internal sealed class FakeChatClient : IChatClient
 
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         GetResponseCallCount++;
         ReceivedMessagesHistory.Add(messages.ToList());
 
@@ -40,6 +41,7 @@ internal sealed class FakeChatClient : IChatClient
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         GetStreamingResponseCallCount++;
         ReceivedMessagesHistory.Add(messages.ToList());
 

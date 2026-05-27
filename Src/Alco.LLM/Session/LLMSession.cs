@@ -27,6 +27,12 @@ public class LLMSessionConfig
     public bool AutoInvokeTools { get; set; } = true;
 
     /// <summary>
+    /// Controls the timeout for a single tool invocation. Values less than or equal to
+    /// <see cref="TimeSpan.Zero"/> disable tool invocation timeout.
+    /// </summary>
+    public TimeSpan ToolTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// The LLM provider type, used to format tool results correctly per API protocol.
     /// OpenAI expects tool results in <see cref="ChatRole.Tool"/> messages,
     /// while Anthropic and Gemini expect them in <see cref="ChatRole.User"/> messages.
@@ -48,6 +54,8 @@ public sealed class LLMSession
     private readonly List<ChatMessage> _chatHistory;
     private readonly ChatOptions _chatOptions;
     private readonly LLMProvider _provider;
+    private readonly bool _autoInvokeTools;
+    private readonly TimeSpan _toolTimeout;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMSession"/> class.
@@ -64,6 +72,8 @@ public sealed class LLMSession
 
         config ??= new LLMSessionConfig();
         _provider = config.Provider;
+        _autoInvokeTools = config.AutoInvokeTools;
+        _toolTimeout = config.ToolTimeout;
 
         _chatOptions = new ChatOptions
         {
@@ -100,6 +110,12 @@ public sealed class LLMSession
 
             var functionCalls = assistantMessage.Contents.OfType<FunctionCallContent>().ToList();
             if (functionCalls.Count == 0)
+            {
+                _chatHistory.Add(assistantMessage);
+                return assistantMessage.Text;
+            }
+
+            if (!_autoInvokeTools)
             {
                 _chatHistory.Add(assistantMessage);
                 return assistantMessage.Text;
@@ -173,6 +189,11 @@ public sealed class LLMSession
                 yield break;
             }
 
+            if (!_autoInvokeTools)
+            {
+                yield break;
+            }
+
             // Invoke tools and add results
             await InvokeToolCallsAsync(functionCalls, cancellationToken);
         }
@@ -208,7 +229,11 @@ public sealed class LLMSession
                     ? JsonSerializer.SerializeToElement(fc.Arguments)
                     : JsonDocument.Parse("{}").RootElement;
 
-                result = await _registry.InvokeToolAsync(fc.Name!, jsonArgs);
+                result = await InvokeToolWithTimeoutAsync(fc, jsonArgs, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -216,7 +241,7 @@ public sealed class LLMSession
             }
 
             results.Add(error != null
-                ? new FunctionResultContent(fc.CallId, error.Message)
+                ? new FunctionResultContent(fc.CallId, CreateToolFailureResult(error))
                 : new FunctionResultContent(fc.CallId, result));
         }
 
@@ -224,5 +249,62 @@ public sealed class LLMSession
         // Anthropic/Gemini expect ChatRole.User with tool_result blocks.
         var toolRole = _provider == LLMProvider.OpenAI ? ChatRole.Tool : ChatRole.User;
         _chatHistory.Add(new ChatMessage(toolRole, results));
+    }
+
+    private async Task<object?> InvokeToolWithTimeoutAsync(FunctionCallContent functionCall, JsonElement jsonArgs, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(functionCall.Name))
+        {
+            throw new InvalidOperationException("Tool call name is missing.");
+        }
+
+        Task<object?> invokeTask = _registry.InvokeToolAsync(functionCall.Name, jsonArgs);
+
+        if (_toolTimeout <= TimeSpan.Zero)
+        {
+            return await invokeTask.WaitAsync(cancellationToken);
+        }
+
+        using var timeoutCts = new CancellationTokenSource(_toolTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        try
+        {
+            return await invokeTask.WaitAsync(linkedCts.Token);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            throw new TimeoutException($"Tool '{functionCall.Name}' timed out after {_toolTimeout.TotalMilliseconds:F0}ms.");
+        }
+    }
+
+    private static Dictionary<string, object?> CreateToolFailureResult(Exception error)
+    {
+        Exception displayError = UnwrapException(error);
+        return new Dictionary<string, object?>
+        {
+            ["success"] = false,
+            ["error"] = displayError.Message,
+            ["errorType"] = displayError.GetType().Name,
+        };
+    }
+
+    private static Exception UnwrapException(Exception error)
+    {
+        if (error is System.Reflection.TargetInvocationException { InnerException: not null } targetInvocationException)
+        {
+            return targetInvocationException.InnerException!;
+        }
+
+        if (error is AggregateException { InnerExceptions.Count: 1 } aggregateException)
+        {
+            return aggregateException.InnerExceptions[0];
+        }
+
+        return error;
     }
 }
