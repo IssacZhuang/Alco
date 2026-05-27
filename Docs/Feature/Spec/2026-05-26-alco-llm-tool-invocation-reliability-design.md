@@ -6,6 +6,8 @@
 ## 设计意图
 当前 Agent 已经能调用工具，但工具执行链路仍偏原型：反射调用不会处理 `Task` / `Task<T>` 返回值，`AutoInvokeTools` 配置没有实际控制行为，工具调用没有 timeout，错误返回也不够结构化。阶段 1 不让 Agent 更聪明，也不改 UI，而是先把“模型调用工具”这条基础链路做成可预测、可测试、失败可恢复。
 
+本 spec 已完成实现。对同级 `claude-code-rev-main` 的只读逆向进一步确认：阶段 1 是必要底座，但不是完整 agent runtime。成熟 code agent 会把工具执行拆成工具声明、权限、执行、进度、结果映射、错误恢复和 tool result pairing；本阶段只覆盖其中的执行可靠性，后续不应继续把所有能力塞进 `ToolRegistry.InvokeToolAsync`，而应在结构化 session event 和更高层工具定义中扩展。
+
 核心原则：
 
 - 工具调用失败不能直接破坏 session。
@@ -203,6 +205,16 @@ new
 | 构建 | `Alco.LLM` 编译通过。 | `dotnet build Alco/Src/Alco.LLM/Alco.LLM.csproj` |
 | 测试 | `Alco.LLM.Test` 全部通过。 | `dotnet test Alco/Test/Alco.LLM.Test/Alco.LLM.Test.csproj` |
 
+## 实现后结论
+
+阶段 1 的代码改动已经把 `Alco.LLM` 从“能调工具”推进到“工具调用失败可恢复”。基于逆向参考，后续实现应遵守以下边界：
+
+- `ToolRegistry` 继续负责发现、参数反序列化、线程路由和调用，不承担 UI、权限、上下文压缩或 transcript 责任。
+- `LLMSession` 可以继续负责 agent loop，但下一阶段应输出 typed event，而不是继续把工具通知拼成字符串 chunk。
+- 工具失败结果已经结构化，但成功结果暂不强制包装，避免改变模型可见的现有成功数据形态。
+- 更复杂的权限、并发安全、destructive 标记、tool result pairing 和 observability 应进入后续 spec，而不是回填到阶段 1。
+- 如果未来支持 resume/import/streaming fallback，应新增 pairing validator，保证每个 tool call 都有对应 result，避免坏历史污染后续请求。
+
 ## 范围外
 
 - 不实现结构化事件流。
@@ -223,3 +235,4 @@ new
 - `Docs/Feature/Spec/2026-05-22-remove-semantic-kernel-dependency-design.md`：现有 LLM 测试策略和 fake client 背景。
 - `Docs/Feature/Spec/2026-05-22-isasync-semantic-fix-design.md`：当前 `IsAsync` 语义背景。
 - `Alco/CLAUDE.md`：Alco 代码标准；修改 C# 后需要 build/test。
+- `D:/Zhuang/claude-code-rev-main`：只读逆向参考。该仓库是恢复版源码，仅用于验证后续工具生命周期和事件流方向。
