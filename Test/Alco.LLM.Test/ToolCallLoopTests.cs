@@ -293,6 +293,226 @@ public class ToolCallLoopTests
 
     #endregion
 
+    #region ChatEventsAsync
+
+    [Test]
+    public async Task ChatEventsAsync_TextOnly_YieldsStructuredRequestAndTextEvents()
+    {
+        var client = new FakeChatClient();
+        client.SetupStreamingResponse(AsyncEnumerable());
+
+        async IAsyncEnumerable<ChatResponseUpdate> AsyncEnumerable()
+        {
+            yield return new ChatResponseUpdate { Contents = [new TextContent("Hello")] };
+            yield return new ChatResponseUpdate { Contents = [new TextContent(" World")] };
+        }
+
+        var registry = CreateRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools);
+
+        var events = new List<LLMSessionEvent>();
+        await foreach (var sessionEvent in session.ChatEventsAsync("Hi"))
+        {
+            events.Add(sessionEvent);
+        }
+
+        Assert.That(events.Select(e => e.GetType()), Is.EqualTo(new[]
+        {
+            typeof(RequestStartedEvent),
+            typeof(TextDeltaEvent),
+            typeof(TextDeltaEvent),
+            typeof(RequestCompletedEvent),
+        }));
+        Assert.That(((RequestStartedEvent)events[0]).RequestIndex, Is.EqualTo(0));
+        Assert.That(((TextDeltaEvent)events[1]).Text, Is.EqualTo("Hello"));
+        Assert.That(((TextDeltaEvent)events[2]).Text, Is.EqualTo(" World"));
+        Assert.That(((RequestCompletedEvent)events[3]).RequestIndex, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task ChatEventsAsync_ToolCall_YieldsStartedAndCompletedEvents()
+    {
+        var client = new FakeChatClient();
+        client.SetupStreamingResponse(ToolCallStream());
+        client.SetupStreamingResponse(TextStream());
+
+        async IAsyncEnumerable<ChatResponseUpdate> ToolCallStream()
+        {
+            yield return new ChatResponseUpdate
+            {
+                Contents = [new FunctionCallContent("call1", "Add", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
+            };
+        }
+
+        async IAsyncEnumerable<ChatResponseUpdate> TextStream()
+        {
+            yield return new ChatResponseUpdate { Contents = [new TextContent("Done.")] };
+        }
+
+        var registry = CreateRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools);
+
+        var events = new List<LLMSessionEvent>();
+        await foreach (var sessionEvent in session.ChatEventsAsync("Add"))
+        {
+            events.Add(sessionEvent);
+        }
+
+        var started = events.OfType<ToolCallStartedEvent>().Single();
+        var completed = events.OfType<ToolCallCompletedEvent>().Single();
+
+        Assert.That(started.CallId, Is.EqualTo("call1"));
+        Assert.That(started.ToolName, Is.EqualTo("Add"));
+        Assert.That(started.Arguments, Is.Not.Null);
+        Assert.That(started.Arguments!["a"], Is.EqualTo(2));
+        Assert.That(completed.CallId, Is.EqualTo("call1"));
+        Assert.That(completed.ToolName, Is.EqualTo("Add"));
+        Assert.That(completed.Result, Is.EqualTo(5));
+        Assert.That(completed.Duration, Is.GreaterThanOrEqualTo(TimeSpan.Zero));
+        Assert.That(events.OfType<TextDeltaEvent>().Single().Text, Is.EqualTo("Done."));
+        Assert.That(events.OfType<RequestStartedEvent>().Select(e => e.RequestIndex), Is.EqualTo(new[] { 0, 1 }));
+        Assert.That(events.OfType<RequestCompletedEvent>().Select(e => e.RequestIndex), Is.EqualTo(new[] { 0, 1 }));
+    }
+
+    [Test]
+    public async Task ChatEventsAsync_ToolFailure_YieldsFailedEvent()
+    {
+        var client = new FakeChatClient();
+        client.SetupStreamingResponse(ToolCallStream());
+        client.SetupStreamingResponse(TextStream());
+
+        async IAsyncEnumerable<ChatResponseUpdate> ToolCallStream()
+        {
+            yield return new ChatResponseUpdate
+            {
+                Contents = [new FunctionCallContent("call1", "NonExistent", new Dictionary<string, object?>())]
+            };
+        }
+
+        async IAsyncEnumerable<ChatResponseUpdate> TextStream()
+        {
+            yield return new ChatResponseUpdate { Contents = [new TextContent("Handled.")] };
+        }
+
+        var registry = CreateRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools);
+
+        var events = new List<LLMSessionEvent>();
+        await foreach (var sessionEvent in session.ChatEventsAsync("Call unknown"))
+        {
+            events.Add(sessionEvent);
+        }
+
+        var failed = events.OfType<ToolCallFailedEvent>().Single();
+        Assert.That(failed.CallId, Is.EqualTo("call1"));
+        Assert.That(failed.ToolName, Is.EqualTo("NonExistent"));
+        Assert.That(failed.ErrorType, Is.EqualTo(nameof(KeyNotFoundException)));
+        Assert.That(failed.Error, Does.Contain("NonExistent"));
+        Assert.That(events.OfType<TextDeltaEvent>().Single().Text, Is.EqualTo("Handled."));
+    }
+
+    [Test]
+    public async Task ChatEventsAsync_ToolTimeout_YieldsFailedEvent()
+    {
+        var client = new FakeChatClient();
+        client.SetupStreamingResponse(ToolCallStream());
+        client.SetupStreamingResponse(TextStream());
+
+        async IAsyncEnumerable<ChatResponseUpdate> ToolCallStream()
+        {
+            yield return new ChatResponseUpdate
+            {
+                Contents = [new FunctionCallContent("call1", "SlowAsync", new Dictionary<string, object?> { ["milliseconds"] = 500 })]
+            };
+        }
+
+        async IAsyncEnumerable<ChatResponseUpdate> TextStream()
+        {
+            yield return new ChatResponseUpdate { Contents = [new TextContent("Timeout handled.")] };
+        }
+
+        var registry = CreateAdvancedRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools, new LLMSessionConfig
+        {
+            ToolTimeout = TimeSpan.FromMilliseconds(1),
+        });
+
+        var events = new List<LLMSessionEvent>();
+        await foreach (var sessionEvent in session.ChatEventsAsync("Trigger timeout"))
+        {
+            events.Add(sessionEvent);
+        }
+
+        var failed = events.OfType<ToolCallFailedEvent>().Single();
+        Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
+    }
+
+    [Test]
+    public async Task ChatEventsAsync_AutoInvokeToolsFalse_YieldsStartedOnly()
+    {
+        var client = new FakeChatClient();
+        client.SetupStreamingResponse(ToolCallStream());
+
+        async IAsyncEnumerable<ChatResponseUpdate> ToolCallStream()
+        {
+            yield return new ChatResponseUpdate
+            {
+                Contents = [new FunctionCallContent("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
+            };
+        }
+
+        var registry = CreateAdvancedRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools, new LLMSessionConfig
+        {
+            AutoInvokeTools = false,
+        });
+
+        var events = new List<LLMSessionEvent>();
+        await foreach (var sessionEvent in session.ChatEventsAsync("Add"))
+        {
+            events.Add(sessionEvent);
+        }
+
+        Assert.That(events.OfType<ToolCallStartedEvent>().Count(), Is.EqualTo(1));
+        Assert.That(events.OfType<ToolCallCompletedEvent>().Count(), Is.EqualTo(0));
+        Assert.That(events.OfType<ToolCallFailedEvent>().Count(), Is.EqualTo(0));
+        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(0));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void ChatEventsAsync_ExternalCancellation_CancelsRequest()
+    {
+        var client = new FakeChatClient();
+        client.SetupStreamingResponse(AsyncEnumerable());
+
+        async IAsyncEnumerable<ChatResponseUpdate> AsyncEnumerable()
+        {
+            yield return new ChatResponseUpdate { Contents = [new TextContent("unused")] };
+        }
+
+        var registry = CreateRegistry();
+        var tools = registry.ToAITools();
+        var session = new LLMSession(client, registry, tools);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var _ in session.ChatEventsAsync("Cancel", cts.Token))
+            {
+            }
+        });
+    }
+
+    #endregion
+
     #region ChatStreamingAsync
 
     [Test]

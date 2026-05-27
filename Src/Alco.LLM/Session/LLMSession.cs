@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
@@ -140,67 +142,104 @@ public sealed class LLMSession
 
     /// <summary>
     /// Sends a message and yields streaming response chunks, with automatic tool invocation.
-    /// Tool call notifications are yielded inline as text fragments.
+    /// Tool call notifications are yielded inline as text fragments for backward compatibility.
     /// </summary>
     /// <param name="message">The user message to send.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <returns>An async enumerable of text chunks.</returns>
-    public async IAsyncEnumerable<string> ChatStreamingAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<string> ChatStreamingAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var sessionEvent in ChatEventsAsync(message, cancellationToken))
+        {
+            switch (sessionEvent)
+            {
+                case TextDeltaEvent textDelta:
+                    yield return textDelta.Text;
+                    break;
+                case ToolCallStartedEvent toolCallStarted:
+                    if (!string.IsNullOrEmpty(toolCallStarted.ToolName))
+                    {
+                        yield return $"[{toolCallStarted.ToolName}]";
+                    }
+
+                    if (toolCallStarted.Arguments != null)
+                    {
+                        yield return JsonSerializer.Serialize(toolCallStarted.Arguments);
+                    }
+
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sends a message and yields structured, real-time session events.
+    /// Events are not persisted by the session; callers may collect them if needed.
+    /// </summary>
+    /// <param name="message">The user message to send.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <returns>An async enumerable of structured session events.</returns>
+    public async IAsyncEnumerable<LLMSessionEvent> ChatEventsAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         _chatHistory.Add(new ChatMessage(ChatRole.User, message));
+        int requestIndex = 0;
 
         for (int i = 0; i < MaxAutoInvokeIterations; i++)
         {
             var updates = new List<ChatResponseUpdate>();
+            yield return new RequestStartedEvent(DateTimeOffset.UtcNow, requestIndex);
 
             await foreach (var update in _chatClient.GetStreamingResponseAsync(_chatHistory, _chatOptions, cancellationToken))
             {
                 updates.Add(update);
 
-                // Yield text content
                 if (!string.IsNullOrEmpty(update.Text))
                 {
-                    yield return update.Text;
+                    yield return new TextDeltaEvent(DateTimeOffset.UtcNow, update.Text);
                 }
 
-                // Yield tool call notifications inline
                 foreach (var fc in update.Contents.OfType<FunctionCallContent>())
                 {
-                    if (fc.Name != null)
-                    {
-                        yield return $"[{fc.Name}]";
-                    }
-
-                    if (fc.Arguments != null)
-                    {
-                        yield return JsonSerializer.Serialize(fc.Arguments);
-                    }
+                    yield return new ToolCallStartedEvent(
+                        DateTimeOffset.UtcNow,
+                        fc.CallId ?? string.Empty,
+                        fc.Name ?? string.Empty,
+                        CopyArguments(fc));
                 }
             }
 
-            // Collect function calls from all updates
             var functionCalls = updates.SelectMany(u => u.Contents.OfType<FunctionCallContent>()).ToList();
 
-            // Reconstruct full assistant message from updates (preserves reasoning_content, etc.)
             _chatHistory.AddMessages(updates);
 
             if (functionCalls.Count == 0)
             {
+                yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
                 yield break;
             }
 
             if (!_autoInvokeTools)
             {
+                yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
                 yield break;
             }
 
-            // Invoke tools and add results
-            await InvokeToolCallsAsync(functionCalls, cancellationToken);
+            var results = new List<AIContent>(functionCalls.Count);
+            foreach (var functionCall in functionCalls)
+            {
+                var invocation = await InvokeToolCallAsync(functionCall, cancellationToken);
+                results.Add(invocation.ResultContent);
+                yield return invocation.Event;
+            }
+
+            AddToolResultsToHistory(results);
+            yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
+            requestIndex++;
         }
 
-        // Max iterations reached, make one final streaming request without tools
         var finalOptions = new ChatOptions { Temperature = _chatOptions.Temperature };
         var finalUpdates = new List<ChatResponseUpdate>();
+        yield return new RequestStartedEvent(DateTimeOffset.UtcNow, requestIndex);
 
         await foreach (var update in _chatClient.GetStreamingResponseAsync(_chatHistory, finalOptions, cancellationToken))
         {
@@ -208,11 +247,12 @@ public sealed class LLMSession
 
             if (!string.IsNullOrEmpty(update.Text))
             {
-                yield return update.Text;
+                yield return new TextDeltaEvent(DateTimeOffset.UtcNow, update.Text);
             }
         }
 
         _chatHistory.AddMessages(finalUpdates);
+        yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
     }
 
     private async Task InvokeToolCallsAsync(List<FunctionCallContent> functionCalls, CancellationToken cancellationToken)
@@ -220,33 +260,68 @@ public sealed class LLMSession
         var results = new List<AIContent>(functionCalls.Count);
         foreach (var fc in functionCalls)
         {
-            object? result = null;
-            Exception? error = null;
-
-            try
-            {
-                var jsonArgs = fc.Arguments != null
-                    ? JsonSerializer.SerializeToElement(fc.Arguments)
-                    : JsonDocument.Parse("{}").RootElement;
-
-                result = await InvokeToolWithTimeoutAsync(fc, jsonArgs, cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-
-            results.Add(error != null
-                ? new FunctionResultContent(fc.CallId, CreateToolFailureResult(error))
-                : new FunctionResultContent(fc.CallId, result));
+            var invocation = await InvokeToolCallAsync(fc, cancellationToken);
+            results.Add(invocation.ResultContent);
         }
 
-        // OpenAI expects ChatRole.Tool for tool results;
-        // Anthropic/Gemini expect ChatRole.User with tool_result blocks.
+        AddToolResultsToHistory(results);
+    }
+
+    private async Task<ToolInvocationEventResult> InvokeToolCallAsync(FunctionCallContent functionCall, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        object? result = null;
+        Exception? error = null;
+
+        try
+        {
+            var jsonArgs = functionCall.Arguments != null
+                ? JsonSerializer.SerializeToElement(functionCall.Arguments)
+                : JsonDocument.Parse("{}").RootElement;
+
+            result = await InvokeToolWithTimeoutAsync(functionCall, jsonArgs, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            error = ex;
+        }
+        finally
+        {
+            stopwatch.Stop();
+        }
+
+        var callId = functionCall.CallId ?? string.Empty;
+        var toolName = functionCall.Name ?? string.Empty;
+        if (error != null)
+        {
+            var displayError = UnwrapException(error);
+            return new ToolInvocationEventResult(
+                new FunctionResultContent(callId, CreateToolFailureResult(displayError)),
+                new ToolCallFailedEvent(
+                    DateTimeOffset.UtcNow,
+                    callId,
+                    toolName,
+                    displayError.Message,
+                    displayError.GetType().Name,
+                    stopwatch.Elapsed));
+        }
+
+        return new ToolInvocationEventResult(
+            new FunctionResultContent(callId, result),
+            new ToolCallCompletedEvent(
+                DateTimeOffset.UtcNow,
+                callId,
+                toolName,
+                result,
+                stopwatch.Elapsed));
+    }
+
+    private void AddToolResultsToHistory(List<AIContent> results)
+    {
         var toolRole = _provider == LLMProvider.OpenAI ? ChatRole.Tool : ChatRole.User;
         _chatHistory.Add(new ChatMessage(toolRole, results));
     }
@@ -307,4 +382,13 @@ public sealed class LLMSession
 
         return error;
     }
+
+    private static IReadOnlyDictionary<string, object?>? CopyArguments(FunctionCallContent functionCall)
+    {
+        return functionCall.Arguments != null
+            ? new Dictionary<string, object?>(functionCall.Arguments)
+            : null;
+    }
+
+    private sealed record ToolInvocationEventResult(FunctionResultContent ResultContent, LLMSessionEvent Event);
 }
