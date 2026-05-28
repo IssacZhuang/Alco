@@ -541,7 +541,7 @@ public class ToolCallLoopTests
     }
 
     [Test]
-    public async Task ChatStreamingAsync_ToolCallYieldsNotificationThenText()
+    public async Task ChatStreamingAsync_ToolCallYieldsTextOnlyAfterToolLoop()
     {
         var client = new FakeChatClient();
 
@@ -573,14 +573,12 @@ public class ToolCallLoopTests
             chunks.Add(chunk);
         }
 
-        // Should have: tool name notification, args notification, then text
-        Assert.That(chunks.Count, Is.GreaterThanOrEqualTo(2));
-        Assert.That(chunks.Last(), Is.EqualTo("Done."));
+        Assert.That(chunks, Is.EqualTo(new[] { "Done." }));
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(2));
     }
 
     [Test]
-    public async Task ChatStreamingAsync_NotificationFormatMatchesExpected()
+    public async Task ChatStreamingAsync_DoesNotEmitToolNotificationStrings()
     {
         var client = new FakeChatClient();
         client.SetupStreamingResponse(ToolCallStream());
@@ -609,12 +607,12 @@ public class ToolCallLoopTests
             chunks.Add(chunk);
         }
 
-        // First chunk should be the tool name with ] suffix
-        Assert.That(chunks[0], Does.Contain("Echo]"));
+        Assert.That(chunks, Is.Empty);
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(2));
     }
 
     [Test]
-    public async Task ChatStreamingAsync_AutoInvokeToolsFalse_YieldsNotificationWithoutContinuingLoop()
+    public async Task ChatStreamingAsync_AutoInvokeToolsFalse_YieldsNoToolNotificationAndDoesNotContinueLoop()
     {
         var client = new FakeChatClient();
         client.SetupStreamingResponse(ToolCallStream());
@@ -640,7 +638,7 @@ public class ToolCallLoopTests
             chunks.Add(chunk);
         }
 
-        Assert.That(chunks[0], Does.Contain("AddAsync]"));
+        Assert.That(chunks, Is.Empty);
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(0));
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }

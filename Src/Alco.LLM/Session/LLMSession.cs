@@ -141,8 +141,8 @@ public sealed class LLMSession
     }
 
     /// <summary>
-    /// Sends a message and yields streaming response chunks, with automatic tool invocation.
-    /// Tool call notifications are yielded inline as text fragments for backward compatibility.
+    /// Sends a message and yields assistant text chunks only.
+    /// Use <see cref="ChatEventsAsync"/> to observe tool calls and runtime events.
     /// </summary>
     /// <param name="message">The user message to send.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
@@ -155,18 +155,6 @@ public sealed class LLMSession
             {
                 case TextDeltaEvent textDelta:
                     yield return textDelta.Text;
-                    break;
-                case ToolCallStartedEvent toolCallStarted:
-                    if (!string.IsNullOrEmpty(toolCallStarted.ToolName))
-                    {
-                        yield return $"[{toolCallStarted.ToolName}]";
-                    }
-
-                    if (toolCallStarted.Arguments != null)
-                    {
-                        yield return JsonSerializer.Serialize(toolCallStarted.Arguments);
-                    }
-
                     break;
             }
         }

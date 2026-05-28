@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Numerics;
+using System.Text.Json;
 using Alco;
 using Alco.Engine;
 using Alco.Graphics;
@@ -35,6 +36,7 @@ public class Game : GameEngine
 
     private string _chatInput = "";
     private List<(string Role, string Content)> _chatHistory = new List<(string Role, string Content)>();
+    private readonly Dictionary<string, int> _toolMessageIndexByCallId = new();
     private bool _isWaitingForResponse = false;
 
     // Rendering fields
@@ -211,14 +213,22 @@ public class Game : GameEngine
 
         foreach (var (role, content) in _chatHistory)
         {
-            if (role == "User")
+            switch (role)
             {
-                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1.0f, 1.0f), "[User]:");
+                case "User":
+                    ImGui.TextColored(new Vector4(0.6f, 0.8f, 1.0f, 1.0f), "[User]:");
+                    break;
+                case "Tool":
+                    ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.45f, 1.0f), "[Tool]:");
+                    break;
+                case "System":
+                    ImGui.TextColored(new Vector4(1.0f, 0.55f, 0.55f, 1.0f), "[System]:");
+                    break;
+                default:
+                    ImGui.TextColored(new Vector4(0.6f, 1.0f, 0.6f, 1.0f), "[LLM]:");
+                    break;
             }
-            else
-            {
-                ImGui.TextColored(new Vector4(0.6f, 1.0f, 0.6f, 1.0f), "[LLM]:");
-            }
+
             ImGui.TextWrapped(content);
             ImGui.Spacing();
         }
@@ -274,18 +284,32 @@ public class Game : GameEngine
         string userMessage = _chatInput;
         _chatInput = "";
         _chatHistory.Add(("User", userMessage));
+        _toolMessageIndexByCallId.Clear();
         _isWaitingForResponse = true;
-
-        // Prepare a placeholder for the LLM response
-        int llmMessageIndex = _chatHistory.Count;
-        _chatHistory.Add(("LLM", ""));
 
         try
         {
-            await foreach (var chunk in _llmSession!.ChatStreamingAsync(userMessage))
+            int? llmMessageIndex = null;
+            await foreach (var sessionEvent in _llmSession!.ChatEventsAsync(userMessage))
             {
-                var currentContent = _chatHistory[llmMessageIndex].Content + chunk;
-                _chatHistory[llmMessageIndex] = ("LLM", currentContent);
+                switch (sessionEvent)
+                {
+                    case TextDeltaEvent textDelta:
+                        AppendAssistantText(ref llmMessageIndex, textDelta.Text);
+                        break;
+                    case ToolCallStartedEvent toolStarted:
+                        AddToolStarted(toolStarted);
+                        llmMessageIndex = null;
+                        break;
+                    case ToolCallCompletedEvent toolCompleted:
+                        CompleteTool(toolCompleted);
+                        llmMessageIndex = null;
+                        break;
+                    case ToolCallFailedEvent toolFailed:
+                        FailTool(toolFailed);
+                        llmMessageIndex = null;
+                        break;
+                }
             }
         }
         catch (Exception ex)
@@ -295,6 +319,80 @@ public class Game : GameEngine
         finally
         {
             _isWaitingForResponse = false;
+        }
+    }
+
+    private void AppendAssistantText(ref int? llmMessageIndex, string text)
+    {
+        if (llmMessageIndex == null)
+        {
+            llmMessageIndex = _chatHistory.Count;
+            _chatHistory.Add(("LLM", ""));
+        }
+
+        var currentContent = _chatHistory[llmMessageIndex.Value].Content + text;
+        _chatHistory[llmMessageIndex.Value] = ("LLM", currentContent);
+    }
+
+    private void AddToolStarted(ToolCallStartedEvent toolStarted)
+    {
+        var content = $"Tool: {toolStarted.ToolName}\nArgs: {FormatDisplayValue(toolStarted.Arguments)}";
+        int index = _chatHistory.Count;
+        _chatHistory.Add(("Tool", content));
+
+        if (!string.IsNullOrEmpty(toolStarted.CallId))
+        {
+            _toolMessageIndexByCallId[toolStarted.CallId] = index;
+        }
+    }
+
+    private void CompleteTool(ToolCallCompletedEvent toolCompleted)
+    {
+        string status = $"Status: completed in {toolCompleted.Duration.TotalMilliseconds:F0}ms\nResult: {FormatDisplayValue(toolCompleted.Result)}";
+        UpdateToolLine(toolCompleted.CallId, toolCompleted.ToolName, status);
+    }
+
+    private void FailTool(ToolCallFailedEvent toolFailed)
+    {
+        string status = $"Status: failed in {toolFailed.Duration.TotalMilliseconds:F0}ms\nError: {toolFailed.ErrorType}: {toolFailed.Error}";
+        UpdateToolLine(toolFailed.CallId, toolFailed.ToolName, status);
+    }
+
+    private void UpdateToolLine(string callId, string toolName, string status)
+    {
+        if (!string.IsNullOrEmpty(callId)
+            && _toolMessageIndexByCallId.TryGetValue(callId, out int index)
+            && index >= 0
+            && index < _chatHistory.Count)
+        {
+            var current = _chatHistory[index];
+            _chatHistory[index] = ("Tool", $"{current.Content}\n{status}");
+            _toolMessageIndexByCallId.Remove(callId);
+            return;
+        }
+
+        _chatHistory.Add(("Tool", $"Tool: {toolName}\n{status}"));
+    }
+
+    private static string FormatDisplayValue(object? value)
+    {
+        if (value == null)
+        {
+            return "null";
+        }
+
+        if (value is string text)
+        {
+            return text;
+        }
+
+        try
+        {
+            return JsonSerializer.Serialize(value);
+        }
+        catch
+        {
+            return value.ToString() ?? string.Empty;
         }
     }
 
