@@ -186,14 +186,6 @@ public sealed class LLMSession
                     yield return new TextDeltaEvent(DateTimeOffset.UtcNow, update.Text);
                 }
 
-                foreach (var fc in update.Contents.OfType<FunctionCallContent>())
-                {
-                    yield return new ToolCallStartedEvent(
-                        DateTimeOffset.UtcNow,
-                        fc.CallId ?? string.Empty,
-                        fc.Name ?? string.Empty,
-                        CopyArguments(fc));
-                }
             }
 
             var functionCalls = updates.SelectMany(u => u.Contents.OfType<FunctionCallContent>()).ToList();
@@ -204,6 +196,15 @@ public sealed class LLMSession
             {
                 yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
                 yield break;
+            }
+
+            foreach (var functionCall in functionCalls)
+            {
+                yield return new ToolCallStartedEvent(
+                    DateTimeOffset.UtcNow,
+                    functionCall.CallId ?? string.Empty,
+                    functionCall.Name ?? string.Empty,
+                    CopyArguments(functionCall));
             }
 
             if (!_autoInvokeTools)

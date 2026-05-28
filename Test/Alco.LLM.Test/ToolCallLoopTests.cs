@@ -363,6 +363,16 @@ public class ToolCallLoopTests
         var started = events.OfType<ToolCallStartedEvent>().Single();
         var completed = events.OfType<ToolCallCompletedEvent>().Single();
 
+        Assert.That(events.Select(e => e.GetType()), Is.EqualTo(new[]
+        {
+            typeof(RequestStartedEvent),
+            typeof(ToolCallStartedEvent),
+            typeof(ToolCallCompletedEvent),
+            typeof(RequestCompletedEvent),
+            typeof(RequestStartedEvent),
+            typeof(TextDeltaEvent),
+            typeof(RequestCompletedEvent),
+        }));
         Assert.That(started.CallId, Is.EqualTo("call1"));
         Assert.That(started.ToolName, Is.EqualTo("Add"));
         Assert.That(started.Arguments, Is.Not.Null);
