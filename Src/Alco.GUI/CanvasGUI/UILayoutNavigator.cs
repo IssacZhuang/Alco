@@ -125,27 +125,60 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
 
         // Determine navigation direction based on layout type
         bool navigated = false;
+        bool navigationRequested = false;
         switch (LayoutType)
         {
             case LayoutType.Vertical:
-                if (upEdge) navigated = NavigatePrevious();
-                else if (downEdge) navigated = NavigateNext();
+                if (upEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigatePrevious();
+                }
+                else if (downEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigateNext();
+                }
                 break;
 
             case LayoutType.Horizontal:
-                if (leftEdge) navigated = NavigatePrevious();
-                else if (rightEdge) navigated = NavigateNext();
+                if (leftEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigatePrevious();
+                }
+                else if (rightEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigateNext();
+                }
                 break;
 
             case LayoutType.Grid:
-                if (upEdge) navigated = NavigateGrid(0, -1);
-                else if (downEdge) navigated = NavigateGrid(0, 1);
-                else if (leftEdge) navigated = NavigateGrid(-1, 0);
-                else if (rightEdge) navigated = NavigateGrid(1, 0);
+                if (upEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigateGrid(0, -1);
+                }
+                else if (downEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigateGrid(0, 1);
+                }
+                else if (leftEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigateGrid(-1, 0);
+                }
+                else if (rightEdge)
+                {
+                    navigationRequested = true;
+                    navigated = NavigateGrid(1, 0);
+                }
                 break;
         }
 
-        if (navigated)
+        if (navigated || (navigationRequested && ShouldRestoreFocusedHover(canvas)))
         {
             ApplyHover(canvas);
         }
@@ -269,6 +302,26 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
         {
             canvas.SetHovered(focused);
         }
+    }
+
+    private bool ShouldRestoreFocusedHover(Canvas canvas)
+    {
+        UINode? focused = FocusedNode;
+        return focused != null && IsNavigable(focused) && !IsHoveredWithin(canvas.Hovered, focused);
+    }
+
+    private static bool IsHoveredWithin(UINode? hovered, UINode focused)
+    {
+        UINode? node = hovered;
+        while (node != null)
+        {
+            if (ReferenceEquals(node, focused))
+            {
+                return true;
+            }
+            node = node.Parent;
+        }
+        return false;
     }
 
     /// <summary>
