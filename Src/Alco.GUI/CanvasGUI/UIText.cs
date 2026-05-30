@@ -377,6 +377,28 @@ public class UIText : UISelectable
     }
 
     /// <summary>
+    /// Refreshes pending text writes, line breaks, and fit-content size immediately.
+    /// Use when a parent needs current <see cref="ContentWidth"/> before the next UIText update.
+    /// </summary>
+    public void EnsureContentLayout()
+    {
+        if (Font == null)
+        {
+            return;
+        }
+
+        if (_isTmpStrWriteDirty)
+        {
+            SetText(_tmpStr);
+        }
+
+        if (_isLineBreakDirty)
+        {
+            TryRefreshTextLineBreak();
+        }
+    }
+
+    /// <summary>
     /// The height of the text content based on the current line breaks, font size, and line spacing.
     /// </summary>
     public float ContentHeight => _lines.Count * _fontSize * LineSpacing;
