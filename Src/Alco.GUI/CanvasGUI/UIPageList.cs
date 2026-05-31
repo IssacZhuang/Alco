@@ -455,23 +455,52 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         _prevRight = right;
 
         bool navigated = false;
+        bool navigationRequested = false;
         int newFocusIndex = _focusedIndex;
         if (_columnsPerRow <= 1)
         {
-            if (upEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
-            else if (downEdge) navigated = NavigateByOffset(1, out newFocusIndex);
+            if (upEdge)
+            {
+                navigationRequested = true;
+                navigated = NavigateByOffset(-1, out newFocusIndex);
+            }
+            else if (downEdge)
+            {
+                navigationRequested = true;
+                navigated = NavigateByOffset(1, out newFocusIndex);
+            }
         }
         else
         {
-            if (upEdge) navigated = NavigateByOffset(-_columnsPerRow, out newFocusIndex);
-            else if (downEdge) navigated = NavigateByOffset(_columnsPerRow, out newFocusIndex);
-            else if (leftEdge) navigated = NavigateByOffset(-1, out newFocusIndex);
-            else if (rightEdge) navigated = NavigateByOffset(1, out newFocusIndex);
+            if (upEdge)
+            {
+                navigationRequested = true;
+                navigated = NavigateByOffset(-_columnsPerRow, out newFocusIndex);
+            }
+            else if (downEdge)
+            {
+                navigationRequested = true;
+                navigated = NavigateByOffset(_columnsPerRow, out newFocusIndex);
+            }
+            else if (leftEdge)
+            {
+                navigationRequested = true;
+                navigated = NavigateByOffset(-1, out newFocusIndex);
+            }
+            else if (rightEdge)
+            {
+                navigationRequested = true;
+                navigated = NavigateByOffset(1, out newFocusIndex);
+            }
         }
 
         if (navigated)
         {
             OnNavigated(canvas, newFocusIndex);
+        }
+        else if (navigationRequested && ShouldRestoreFocusedHover(canvas))
+        {
+            ApplyFocusedHover(canvas);
         }
     }
 
@@ -491,6 +520,35 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         {
             canvas.SetHovered(node);
         }
+    }
+
+    private void ApplyFocusedHover(Canvas canvas)
+    {
+        UINode? node = FindActiveNode(_focusedIndex);
+        if (node != null)
+        {
+            canvas.SetHovered(node);
+        }
+    }
+
+    private bool ShouldRestoreFocusedHover(Canvas canvas)
+    {
+        UINode? focused = FindActiveNode(_focusedIndex);
+        return focused != null && focused.IsEnable && !IsHoveredWithin(canvas.Hovered, focused);
+    }
+
+    private static bool IsHoveredWithin(UINode? hovered, UINode focused)
+    {
+        UINode? node = hovered;
+        while (node != null)
+        {
+            if (ReferenceEquals(node, focused))
+            {
+                return true;
+            }
+            node = node.Parent;
+        }
+        return false;
     }
 
     private void SyncEdgeState(IUIInputTracker inputTracker)

@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Numerics;
+using System.Threading;
 using SDL3;
 using static SDL3.SDL3;
 
@@ -29,7 +30,8 @@ public unsafe class Sdl3Input : Input
     private Vector2 _mouseWheelDelta;
     private Vector2 _warpDelta;
 
-    private readonly List<Sdl3Gamepad> _gamepads = new();
+    private List<Sdl3Gamepad> _gamepadsRead = new();
+    private List<Sdl3Gamepad> _gamepadsWrite = new();
     private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
     private readonly List<SDL_JoystickID> _toRemove = new();
     private bool _isGamepadInputting;
@@ -156,7 +158,7 @@ public unsafe class Sdl3Input : Input
         }
         _toRemove.Clear();
 
-        _gamepads.Clear();
+        _gamepadsWrite.Clear();
         ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
 
         for (int i = 0; i < gamepads.Length; i++)
@@ -164,17 +166,20 @@ public unsafe class Sdl3Input : Input
             SDL_JoystickID id = gamepads[i];
             if (_gamepadMap.TryGetValue(id, out Sdl3Gamepad? g))
             {
-                _gamepads.Add(g);
+                _gamepadsWrite.Add(g);
             }
             else
             {
                 SDL_Gamepad gamepad = SDL_OpenGamepad(id);
                 g = new Sdl3Gamepad(gamepad);
                 _gamepadMap[id] = g;
-                _gamepads.Add(g);
+                _gamepadsWrite.Add(g);
                 DoGamepadConnected(g);
             }
         }
+
+        var oldRead = Interlocked.Exchange(ref _gamepadsRead, _gamepadsWrite);
+        _gamepadsWrite = oldRead;
     }
 
     public override bool IsKeyDown(KeyCode key)
@@ -464,7 +469,7 @@ public unsafe class Sdl3Input : Input
 
     public override IReadOnlyList<Gamepad> GetGamepads()
     {
-        return _gamepads;
+        return _gamepadsRead;
     }
 }
 

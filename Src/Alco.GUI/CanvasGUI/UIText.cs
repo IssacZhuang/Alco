@@ -45,7 +45,7 @@ public class UIText : UISelectable
         set
         {
             _fontSize = value;
-            if (_overflowHorizontal == OverflowModeHorizontal.NextLine)
+            if (_overflowHorizontal == OverflowModeHorizontal.NextLine || _fitContentMode != FitContentMode.None)
             {
                 TryRefreshTextLineBreak();
             }
@@ -59,23 +59,28 @@ public class UIText : UISelectable
     public float LineSpacing { get; set; } = 1f;
 
     /// <summary>
-    /// Whether to fit the content size.
-    /// If true, the height of the text node will be adjusted to the content height.
-    /// Only works when OverflowHorizontal is NextLine.
+    /// Controls which axis auto-adjusts to match the text content size.
+    /// <list type="bullet">
+    ///   <item><see cref="FitContentMode.None"/>: no auto-sizing (default).</item>
+    ///   <item><see cref="FitContentMode.Width"/>: Size.X tracks the pixel width of the widest line.
+    ///         Ignored when <see cref="OverflowHorizontal"/> is NextLine.</item>
+    ///   <item><see cref="FitContentMode.Height"/>: Size.Y tracks the content height.
+    ///         Works best with OverflowHorizontal.NextLine for multi-line wrapping.</item>
+    /// </list>
     /// </summary>
-    public bool FitContentSize
+    public FitContentMode FitContentMode
     {
-        get => _fitContentSize;
+        get => _fitContentMode;
         set
         {
-            _fitContentSize = value;
-            if (_fitContentSize)
+            _fitContentMode = value;
+            if (_fitContentMode != FitContentMode.None)
             {
                 SetLineBreakDirty();
             }
         }
     }
-    private bool _fitContentSize = false;
+    private FitContentMode _fitContentMode = FitContentMode.None;
 
 
     /// <summary>
@@ -350,7 +355,18 @@ public class UIText : UISelectable
             width = currentLineWidth
         });
 
-        if (_fitContentSize && _overflowHorizontal == OverflowModeHorizontal.NextLine)
+        if (_fitContentMode == FitContentMode.Width && _overflowHorizontal != OverflowModeHorizontal.NextLine)
+        {
+            float maxW = 0;
+            for (int i = 0; i < _lines.Count; i++)
+                maxW = MathF.Max(maxW, _lines[i].width);
+            float width = maxW * _fontSize;
+            if (MathF.Abs(Size.X - width) > 0.001f)
+            {
+                Size = new Vector2(width, Size.Y);
+            }
+        }
+        else if (_fitContentMode == FitContentMode.Height)
         {
             float height = _lines.Count * _fontSize * LineSpacing;
             if (Math.Abs(Size.Y - height) > 0.001f)
@@ -361,9 +377,46 @@ public class UIText : UISelectable
     }
 
     /// <summary>
+    /// Refreshes pending text writes, line breaks, and fit-content size immediately.
+    /// Use when a parent needs current <see cref="ContentWidth"/> before the next UIText update.
+    /// </summary>
+    public void EnsureContentLayout()
+    {
+        if (Font == null)
+        {
+            return;
+        }
+
+        if (_isTmpStrWriteDirty)
+        {
+            SetText(_tmpStr);
+        }
+
+        if (_isLineBreakDirty)
+        {
+            TryRefreshTextLineBreak();
+        }
+    }
+
+    /// <summary>
     /// The height of the text content based on the current line breaks, font size, and line spacing.
     /// </summary>
     public float ContentHeight => _lines.Count * _fontSize * LineSpacing;
+
+    /// <summary>
+    /// The width of the widest line in pixels, based on the current line breaks and font size.
+    /// For single-line text, this is the full text width.
+    /// </summary>
+    public float ContentWidth
+    {
+        get
+        {
+            float maxW = 0;
+            for (int i = 0; i < _lines.Count; i++)
+                maxW = MathF.Max(maxW, _lines[i].width);
+            return maxW * _fontSize;
+        }
+    }
 
     protected Span<char> ResizeText(int length)
     {

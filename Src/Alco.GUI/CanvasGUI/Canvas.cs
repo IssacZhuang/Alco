@@ -178,7 +178,7 @@ public partial class Canvas : AutoDisposable
 
         if (oldHovered != null)
         {
-            DispatchBubble(oldHovered, "OnUnhover", n => n.OnUnhover(this, CursorPosition));
+            DispatchBubble(oldHovered, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), CursorPosition);
         }
 
         if (node != null)
@@ -187,7 +187,7 @@ public partial class Canvas : AutoDisposable
             {
                 SoundPlayer?.PlayOnHoverSound();
             }
-            DispatchBubble(node, "OnHover", n => n.OnHover(this, CursorPosition));
+            DispatchBubble(node, "OnHover", static (node, canvas, position) => node.OnHover(canvas, position), CursorPosition);
         }
     }
 
@@ -205,7 +205,7 @@ public partial class Canvas : AutoDisposable
     {
         if (_hovered == node)
         {
-            DispatchBubble(node, "OnUnhover", n => n.OnUnhover(this, CursorPosition));
+            DispatchBubble(node, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), CursorPosition);
             _hovered = null;
         }
         if (_holded == node)
@@ -459,18 +459,18 @@ public partial class Canvas : AutoDisposable
 
         _holded = node;
         _pressPosition = cursorPosition;
-        DispatchBubble(node, "OnPressDown", n => n.OnPressDown(this, cursorPosition));
+        DispatchBubble(node, "OnPressDown", static (node, canvas, position) => node.OnPressDown(canvas, position), cursorPosition);
 
         if (checkMask)
         {
             if (_selected != null && _selected != node)
             {
-                DispatchBubble(_selected, "OnDeselect", n => n.OnDeselect(this, cursorPosition));
+                DispatchBubble(_selected, "OnDeselect", static (node, canvas, position) => node.OnDeselect(canvas, position), cursorPosition);
             }
             _selected = node;
             if (_selected != null)
             {
-                DispatchBubble(_selected, "OnSelect", n => n.OnSelect(this, cursorPosition));
+                DispatchBubble(_selected, "OnSelect", static (node, canvas, position) => node.OnSelect(canvas, position), cursorPosition);
             }
 
             if (node is not ITextInput)
@@ -488,11 +488,11 @@ public partial class Canvas : AutoDisposable
         }
 
         UINode holded = _holded;
-        DispatchBubble(holded, "OnPressUp", n => n.OnPressUp(this, cursorPosition));
+        DispatchBubble(holded, "OnPressUp", static (node, canvas, position) => node.OnPressUp(canvas, position), cursorPosition);
 
         if (holded == node && Vector2.Distance(cursorPosition, _pressPosition) < DragClickThreshold)
         {
-            DispatchBubble(holded, "OnClick", n => n.OnClick(this, cursorPosition));
+            DispatchBubble(holded, "OnClick", static (node, canvas, position) => node.OnClick(canvas, position), cursorPosition);
             if ((holded.SoundType & UISoundType.Click) != 0)
             {
                 SoundPlayer?.PlayOnClickSound();
@@ -569,7 +569,7 @@ public partial class Canvas : AutoDisposable
             // Clear stale hover reference if the node or any ancestor is disabled
             if (selectable != null && !IsEnabledInHierarchy(selectable))
             {
-                DispatchBubble(selectable, "OnUnhover", n => n.OnUnhover(this, mouseWorldPosition));
+                DispatchBubble(selectable, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), mouseWorldPosition);
                 _hovered = null;
                 selectable = null;
             }
@@ -590,18 +590,18 @@ public partial class Canvas : AutoDisposable
         {
             if (selectable != null)
             {
-                DispatchBubble(selectable, "OnPressing", n => n.OnPressing(this, mouseWorldPosition));
+                DispatchBubble(selectable, "OnPressing", static (node, canvas, position) => node.OnPressing(canvas, position), mouseWorldPosition);
             }
         }
         else if (shouldUpdateHover)
         {
             if (oldHovered != null && oldHovered != selectable)
             {
-                DispatchBubble(oldHovered, "OnUnhover", n => n.OnUnhover(this, mouseWorldPosition));
+                DispatchBubble(oldHovered, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), mouseWorldPosition);
             }
             if (selectable != null)
             {
-                DispatchBubble(selectable, "OnHover", n => n.OnHover(this, mouseWorldPosition));
+                DispatchBubble(selectable, "OnHover", static (node, canvas, position) => node.OnHover(canvas, position), mouseWorldPosition);
             }
         }
 
@@ -617,13 +617,13 @@ public partial class Canvas : AutoDisposable
         {
             if (selectable != null)
             {
-                DispatchBubble(selectable, "OnPressing", n => n.OnPressing(this, mouseWorldPosition));
+                DispatchBubble(selectable, "OnPressing", static (node, canvas, position) => node.OnPressing(canvas, position), mouseWorldPosition);
             }
         }
 
         if (_holded != null)
         {
-            DispatchBubble(_holded, "OnDrag", n => n.OnDrag(this, mouseWorldPosition));
+            DispatchBubble(_holded, "OnDrag", static (node, canvas, position) => node.OnDrag(canvas, position), mouseWorldPosition);
         }
 
         // update key states (pressing => edge detection here)
@@ -774,7 +774,7 @@ public partial class Canvas : AutoDisposable
         {
             if (_hovered != null)
             {
-                DispatchBubble(_hovered, "OnScroll", n => n.OnScroll(this, scrollDelta));
+                DispatchBubble(_hovered, "OnScroll", static (node, canvas, scrollDelta) => node.OnScroll(canvas, scrollDelta), scrollDelta);
             }
         }
     }
@@ -925,14 +925,14 @@ public partial class Canvas : AutoDisposable
     /// receiving the event. Bubbling stops after a node with
     /// <see cref="UINode.BubbleEvent"/> == false.
     /// </summary>
-    private void DispatchBubble(UINode? target, string operation, Action<UINode> action)
+    private void DispatchBubble(UINode? target, string operation, Action<UINode, Canvas, Vector2> action, Vector2 position)
     {
         UINode? current = target;
         while (current != null)
         {
             try
             {
-                action(current);
+                action(current, this, position);
             }
             catch (Exception e)
             {

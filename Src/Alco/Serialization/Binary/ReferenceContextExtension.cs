@@ -4,9 +4,10 @@ public static class ReferenceContextExtension
 {
     public static void TryReadReferenceId(this ReferenceContext context, BinarySerializeReadNode node, ISerializable value)
     {
-        if (value is IReferenceable referenceable)
+        if (value is IReferenceable referenceable
+            && node.Content.TryGetValue(ReferenceContext.SerializeKey, out uint id)
+            && id != 0)
         {
-            uint id = node.GetValue<uint>(ReferenceContext.SerializeKey);
             context.SetReference(id, referenceable);
         }
     }

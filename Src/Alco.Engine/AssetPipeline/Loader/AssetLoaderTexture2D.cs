@@ -86,7 +86,7 @@ public class AssetLoaderTexture2D : IAssetLoader
         }
 
         // 3. Create texture
-        Texture2D texture = _renderingSystem.CreateTexture2DFromFile(context.Data, option);
+        Texture2D texture = _renderingSystem.CreateTexture2DFromFile(context.GetData(), option);
 
         // 4. Sprites (only from .meta)
         if (metaData != null && metaData.Sprites != null && metaData.Sprites.Count > 0)

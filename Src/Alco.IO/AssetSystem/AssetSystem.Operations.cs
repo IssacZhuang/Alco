@@ -269,7 +269,7 @@ public sealed partial class AssetSystem
 
 
 
-    private bool TryLoadDataFromSource(string filename, out SafeMemoryHandle data)
+    internal bool TryLoadDataFromSource(string filename, out SafeMemoryHandle data)
     {
         if (_fileEntries.TryGetValue(filename, out IFileSource? fileSource))
         {
@@ -299,20 +299,11 @@ public sealed partial class AssetSystem
         // profile
         using var profileScope = StartProfile(filename, type);
 
-        // IO
-        if (!TryLoadDataFromSource(filename, out SafeMemoryHandle data))
-        {
-            failedReason = $"Trying to get asset {filename} but the file does not exist";
-            asset = null;
-            profileScope?.Fail();
-            return false;
-        }
-
         try
         {
-            var context = new AssetLoadContext(this, filename, data.AsReadOnlySpan(), type);
+            var context = new AssetLoadContext(this, filename, type);
             asset = loader.CreateAsset(in context);
-            data.Dispose();
+            context.DisposeLoadedData();
         }
         catch (Exception ex)
         {

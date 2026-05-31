@@ -63,6 +63,7 @@
   </Folder>
   <Folder Name="/Test/">
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
+    <Project Path="Test/Alco.LLM.Test/Alco.LLM.Test.csproj" />
     <Project Path="Test/Alco.IO.Test/Alco.IO.Test.csproj" />
     <Project Path="Test/Alco.Rendering.Test/Alco.Rendering.Test.csproj" />
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
