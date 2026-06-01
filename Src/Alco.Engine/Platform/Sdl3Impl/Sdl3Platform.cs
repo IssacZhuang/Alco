@@ -19,6 +19,7 @@ public unsafe class Sdl3Platform : Platform
     private EngineTimer _timer;
     private bool _isStopped = false;
     private bool _shouldCapture = false;
+    private bool _isDrainingInitialEvents = false;
     private uint _captureId = 0;
 
     public Sdl3Platform()
@@ -69,6 +70,7 @@ public unsafe class Sdl3Platform : Platform
         _timer.Start();
 
         _input.Init();
+        _isDrainingInitialEvents = true;
         while (!_isStopped)
         {
             VisualStudioProfiler? profiler = null;
@@ -96,6 +98,7 @@ public unsafe class Sdl3Platform : Platform
                     HandleEvent(_events[i]);
                 }
             } while (eventRead > 0);
+            _isDrainingInitialEvents = false;
 
             DoUpdate(updateDeltaTime);
 
@@ -197,7 +200,7 @@ public unsafe class Sdl3Platform : Platform
                 _input.OnSdlGamepadAxisMotion(e.gaxis.which, (SDL_GamepadAxis)e.gaxis.axis, e.gaxis.value);
                 break;
             case SDL_EventType.AudioDeviceAdded:
-                if (!e.adevice.recording)
+                if (!e.adevice.recording && !_isDrainingInitialEvents)
                     DoAudioDefaultDeviceChanged();
                 break;
             case SDL_EventType.AudioDeviceRemoved:
