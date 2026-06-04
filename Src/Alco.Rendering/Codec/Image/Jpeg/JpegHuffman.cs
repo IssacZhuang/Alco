@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace Alco.Rendering.Codec.Image;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Huffman decoding for JPEG entropy-coded data.

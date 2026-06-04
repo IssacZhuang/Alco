@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Numerics;
 
-namespace Alco.Rendering.Utils;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Parser for Wavefront OBJ mesh files.

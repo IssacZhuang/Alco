@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
-namespace Alco.Rendering.Codec.Image;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Decodes PNG image data to RGBA8 pixel buffer.

@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
-namespace Alco.Rendering.Codec.Image;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Color space conversion for JPEG: YCbCr, Grayscale, CMYK, YCCK to RGBA8.

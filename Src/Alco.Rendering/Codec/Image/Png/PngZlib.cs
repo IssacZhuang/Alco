@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
-namespace Alco.Rendering.Codec.Image;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Decompresses zlib-wrapped DEFLATE streams as used in PNG IDAT chunks.

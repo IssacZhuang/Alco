@@ -1,4 +1,4 @@
-namespace Alco.Rendering.Codec.Image;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Builds DEFLATE Huffman decode tables from code lengths and decodes symbols from a bit stream.
