@@ -6,29 +6,26 @@ namespace Alco.Engine;
 
 /// <summary>
 /// Asset loader for Wavefront OBJ model files.
-/// Creates a <see cref="Model3D"/> with mesh and material data.
+/// Creates a <see cref="Mesh"/> from the OBJ geometry data.
 /// </summary>
-public class AssetLoaderModel3DObj : BaseAssetLoader<Model3D>
+public class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
 {
     private readonly RenderingSystem _renderingSystem;
-    private readonly Shader _defaultShader;
     private readonly ObjParser _parser = new();
 
     /// <inheritdoc/>
-    public override string Name => "AssetLoader.Model3D.OBJ";
+    public override string Name => "AssetLoader.Mesh.OBJ";
 
     /// <inheritdoc/>
     public override IReadOnlyList<string> FileExtensions { get; } = [FileExt.ModelOBJ];
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AssetLoaderModel3DObj"/> class.
+    /// Initializes a new instance of the <see cref="AssetLoaderMeshObj"/> class.
     /// </summary>
-    /// <param name="renderingSystem">The rendering system used to create meshes and materials.</param>
-    /// <param name="defaultShader">The default shader used for the material when no MTL file is available.</param>
-    public AssetLoaderModel3DObj(RenderingSystem renderingSystem, Shader defaultShader)
+    /// <param name="renderingSystem">The rendering system used to create meshes.</param>
+    public AssetLoaderMeshObj(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem ?? throw new ArgumentNullException(nameof(renderingSystem));
-        _defaultShader = defaultShader ?? throw new ArgumentNullException(nameof(defaultShader));
     }
 
     /// <inheritdoc/>
@@ -39,13 +36,9 @@ public class AssetLoaderModel3DObj : BaseAssetLoader<Model3D>
         if (result.Vertices.Length == 0 || result.Indices.Length == 0)
             throw new InvalidOperationException($"OBJ file '{context.Filename}' contains no valid geometry.");
 
-        var mesh = _renderingSystem.CreatePrimitiveMesh(
+        return _renderingSystem.CreatePrimitiveMesh(
             result.Vertices,
             result.Indices,
             context.Filename);
-
-        var material = _renderingSystem.CreateMaterial(_defaultShader, $"{context.Filename}_material");
-
-        return new Model3D(mesh, material);
     }
 }
