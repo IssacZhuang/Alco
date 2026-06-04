@@ -9,7 +9,7 @@
 
 namespace WebGPU;
 
-public static partial class WebGPU
+internal static partial class WebGPU
 {
 	/// <unmanaged>WGPU_ARRAY_LAYER_COUNT_UNDEFINED</unmanaged>
 	public const uint WGPU_ARRAY_LAYER_COUNT_UNDEFINED = 0xffffffffu;

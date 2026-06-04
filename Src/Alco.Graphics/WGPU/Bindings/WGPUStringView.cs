@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace WebGPU;
 
-public unsafe partial struct WGPUStringView : IEquatable<WGPUStringView>
+internal unsafe partial struct WGPUStringView : IEquatable<WGPUStringView>
 {
     /// <summary>
     /// An <see cref="WGPUStringView"/> with empty string data.

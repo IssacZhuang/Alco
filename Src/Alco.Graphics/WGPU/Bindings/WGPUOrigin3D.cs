@@ -1,6 +1,6 @@
 namespace WebGPU;
 
-public partial struct WGPUOrigin3D : IEquatable<WGPUOrigin3D>
+internal partial struct WGPUOrigin3D : IEquatable<WGPUOrigin3D>
 {
     /// <summary>
     /// An <see cref="WGPUOrigin3D"/> with all of its components set to zero.

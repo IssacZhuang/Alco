@@ -7,7 +7,7 @@ namespace WebGPU;
 /// A boolean value stored on 4 bytes (instead of 1 in .NET).
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Size = 4)]
-public readonly struct WGPUBool : IEquatable<WGPUBool>
+internal readonly struct WGPUBool : IEquatable<WGPUBool>
 {
     public static WGPUBool True => new(true);
     public static WGPUBool False => new(false);

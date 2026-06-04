@@ -3,11 +3,11 @@ using System.Runtime.InteropServices;
 
 namespace WebGPU;
 
-public delegate void WGPULogCallback(WGPULogLevel level, string message, nint userdata = 0);
+internal delegate void WGPULogCallback(WGPULogLevel level, string message, nint userdata = 0);
 
-public delegate void WGPUErrorCallback(WGPUErrorType type, string message);
+internal delegate void WGPUErrorCallback(WGPUErrorType type, string message);
 
-public static unsafe partial class WebGPU
+internal static unsafe partial class WebGPU
 {
     private const string LibraryName = "wgpu_native";
 

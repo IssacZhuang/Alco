@@ -1,6 +1,6 @@
 namespace WebGPU;
 
-public interface IChainType
+internal interface IChainType
 {
     WGPUChainedStruct chain { get; }
 }

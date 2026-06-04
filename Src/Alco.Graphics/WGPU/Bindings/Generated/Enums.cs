@@ -77,7 +77,7 @@ public enum WGPUInstanceFlag : ulong
 	DiscardHalLabels = 4,
 	Force32 = 2147483647,
 }
-public enum WGPUAdapterType
+internal enum WGPUAdapterType
 {
 	None = 0,
 	DiscreteGPU = 0x00000001,
@@ -86,7 +86,7 @@ public enum WGPUAdapterType
 	Unknown = 0x00000004,
 }
 
-public enum WGPUAddressMode
+internal enum WGPUAddressMode
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -95,7 +95,7 @@ public enum WGPUAddressMode
 	MirrorRepeat = 0x00000003,
 }
 
-public enum WGPUBackendType
+internal enum WGPUBackendType
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -109,7 +109,7 @@ public enum WGPUBackendType
 	OpenGLES = 0x00000008,
 }
 
-public enum WGPUBlendFactor
+internal enum WGPUBlendFactor
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -132,7 +132,7 @@ public enum WGPUBlendFactor
 	OneMinusSrc1Alpha = 0x00000011,
 }
 
-public enum WGPUBlendOperation
+internal enum WGPUBlendOperation
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -143,7 +143,7 @@ public enum WGPUBlendOperation
 	Max = 0x00000005,
 }
 
-public enum WGPUBufferBindingType
+internal enum WGPUBufferBindingType
 {
 	None = 0,
 	BindingNotUsed = 0x00000000,
@@ -153,7 +153,7 @@ public enum WGPUBufferBindingType
 	ReadOnlyStorage = 0x00000004,
 }
 
-public enum WGPUBufferMapState
+internal enum WGPUBufferMapState
 {
 	None = 0,
 	Unmapped = 0x00000001,
@@ -161,7 +161,7 @@ public enum WGPUBufferMapState
 	Mapped = 0x00000003,
 }
 
-public enum WGPUCallbackMode
+internal enum WGPUCallbackMode
 {
 	None = 0,
 	WaitAnyOnly = 0x00000001,
@@ -169,7 +169,7 @@ public enum WGPUCallbackMode
 	AllowSpontaneous = 0x00000003,
 }
 
-public enum WGPUCompareFunction
+internal enum WGPUCompareFunction
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -183,7 +183,7 @@ public enum WGPUCompareFunction
 	Always = 0x00000008,
 }
 
-public enum WGPUCompilationInfoRequestStatus
+internal enum WGPUCompilationInfoRequestStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -192,7 +192,7 @@ public enum WGPUCompilationInfoRequestStatus
 	Unknown = 0x00000004,
 }
 
-public enum WGPUCompilationMessageType
+internal enum WGPUCompilationMessageType
 {
 	None = 0,
 	Error = 0x00000001,
@@ -200,7 +200,7 @@ public enum WGPUCompilationMessageType
 	Info = 0x00000003,
 }
 
-public enum WGPUCompositeAlphaMode
+internal enum WGPUCompositeAlphaMode
 {
 	None = 0,
 	Auto = 0x00000000,
@@ -210,7 +210,7 @@ public enum WGPUCompositeAlphaMode
 	Inherit = 0x00000004,
 }
 
-public enum WGPUCreatePipelineAsyncStatus
+internal enum WGPUCreatePipelineAsyncStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -220,7 +220,7 @@ public enum WGPUCreatePipelineAsyncStatus
 	Unknown = 0x00000005,
 }
 
-public enum WGPUCullMode
+internal enum WGPUCullMode
 {
 	Undefined = 0x00000000,
 	None = 0x00000001,
@@ -228,7 +228,7 @@ public enum WGPUCullMode
 	Back = 0x00000003,
 }
 
-public enum WGPUDeviceLostReason
+internal enum WGPUDeviceLostReason
 {
 	None = 0,
 	Unknown = 0x00000001,
@@ -237,7 +237,7 @@ public enum WGPUDeviceLostReason
 	FailedCreation = 0x00000004,
 }
 
-public enum WGPUErrorFilter
+internal enum WGPUErrorFilter
 {
 	None = 0,
 	Validation = 0x00000001,
@@ -245,7 +245,7 @@ public enum WGPUErrorFilter
 	Internal = 0x00000003,
 }
 
-public enum WGPUErrorType
+internal enum WGPUErrorType
 {
 	None = 0,
 	NoError = 0x00000001,
@@ -255,14 +255,14 @@ public enum WGPUErrorType
 	Unknown = 0x00000005,
 }
 
-public enum WGPUFeatureLevel
+internal enum WGPUFeatureLevel
 {
 	None = 0,
 	Compatibility = 0x00000001,
 	Core = 0x00000002,
 }
 
-public enum WGPUFeatureName
+internal enum WGPUFeatureName
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -284,7 +284,7 @@ public enum WGPUFeatureName
 	DualSourceBlending = 0x00000010,
 }
 
-public enum WGPUFilterMode
+internal enum WGPUFilterMode
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -292,7 +292,7 @@ public enum WGPUFilterMode
 	Linear = 0x00000002,
 }
 
-public enum WGPUFrontFace
+internal enum WGPUFrontFace
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -300,7 +300,7 @@ public enum WGPUFrontFace
 	CW = 0x00000002,
 }
 
-public enum WGPUIndexFormat
+internal enum WGPUIndexFormat
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -308,7 +308,7 @@ public enum WGPUIndexFormat
 	Uint32 = 0x00000002,
 }
 
-public enum WGPULoadOp
+internal enum WGPULoadOp
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -316,7 +316,7 @@ public enum WGPULoadOp
 	Clear = 0x00000002,
 }
 
-public enum WGPUMapAsyncStatus
+internal enum WGPUMapAsyncStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -326,7 +326,7 @@ public enum WGPUMapAsyncStatus
 	Unknown = 0x00000005,
 }
 
-public enum WGPUMipmapFilterMode
+internal enum WGPUMipmapFilterMode
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -334,7 +334,7 @@ public enum WGPUMipmapFilterMode
 	Linear = 0x00000002,
 }
 
-public enum WGPUOptionalBool
+internal enum WGPUOptionalBool
 {
 	None = 0,
 	False = 0x00000000,
@@ -342,7 +342,7 @@ public enum WGPUOptionalBool
 	Undefined = 0x00000002,
 }
 
-public enum WGPUPopErrorScopeStatus
+internal enum WGPUPopErrorScopeStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -350,7 +350,7 @@ public enum WGPUPopErrorScopeStatus
 	EmptyStack = 0x00000003,
 }
 
-public enum WGPUPowerPreference
+internal enum WGPUPowerPreference
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -358,7 +358,7 @@ public enum WGPUPowerPreference
 	HighPerformance = 0x00000002,
 }
 
-public enum WGPUPresentMode
+internal enum WGPUPresentMode
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -368,7 +368,7 @@ public enum WGPUPresentMode
 	Mailbox = 0x00000004,
 }
 
-public enum WGPUPrimitiveTopology
+internal enum WGPUPrimitiveTopology
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -379,14 +379,14 @@ public enum WGPUPrimitiveTopology
 	TriangleStrip = 0x00000005,
 }
 
-public enum WGPUQueryType
+internal enum WGPUQueryType
 {
 	None = 0,
 	Occlusion = 0x00000001,
 	Timestamp = 0x00000002,
 }
 
-public enum WGPUQueueWorkDoneStatus
+internal enum WGPUQueueWorkDoneStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -395,7 +395,7 @@ public enum WGPUQueueWorkDoneStatus
 	Unknown = 0x00000004,
 }
 
-public enum WGPURequestAdapterStatus
+internal enum WGPURequestAdapterStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -405,7 +405,7 @@ public enum WGPURequestAdapterStatus
 	Unknown = 0x00000005,
 }
 
-public enum WGPURequestDeviceStatus
+internal enum WGPURequestDeviceStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -414,7 +414,7 @@ public enum WGPURequestDeviceStatus
 	Unknown = 0x00000004,
 }
 
-public enum WGPUSType
+internal enum WGPUSType
 {
 	None = 0,
 	ShaderSourceSPIRV = 0x00000001,
@@ -428,7 +428,7 @@ public enum WGPUSType
 	SurfaceSourceXCBWindow = 0x00000009,
 }
 
-public enum WGPUSamplerBindingType
+internal enum WGPUSamplerBindingType
 {
 	None = 0,
 	BindingNotUsed = 0x00000000,
@@ -438,14 +438,14 @@ public enum WGPUSamplerBindingType
 	Comparison = 0x00000004,
 }
 
-public enum WGPUStatus
+internal enum WGPUStatus
 {
 	None = 0,
 	Success = 0x00000001,
 	Error = 0x00000002,
 }
 
-public enum WGPUStencilOperation
+internal enum WGPUStencilOperation
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -459,7 +459,7 @@ public enum WGPUStencilOperation
 	DecrementWrap = 0x00000008,
 }
 
-public enum WGPUStorageTextureAccess
+internal enum WGPUStorageTextureAccess
 {
 	None = 0,
 	BindingNotUsed = 0x00000000,
@@ -469,7 +469,7 @@ public enum WGPUStorageTextureAccess
 	ReadWrite = 0x00000004,
 }
 
-public enum WGPUStoreOp
+internal enum WGPUStoreOp
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -477,7 +477,7 @@ public enum WGPUStoreOp
 	Discard = 0x00000002,
 }
 
-public enum WGPUSurfaceGetCurrentTextureStatus
+internal enum WGPUSurfaceGetCurrentTextureStatus
 {
 	None = 0,
 	SuccessOptimal = 0x00000001,
@@ -490,7 +490,7 @@ public enum WGPUSurfaceGetCurrentTextureStatus
 	Error = 0x00000008,
 }
 
-public enum WGPUTextureAspect
+internal enum WGPUTextureAspect
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -499,7 +499,7 @@ public enum WGPUTextureAspect
 	DepthOnly = 0x00000003,
 }
 
-public enum WGPUTextureDimension
+internal enum WGPUTextureDimension
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -508,7 +508,7 @@ public enum WGPUTextureDimension
 	_3D = 0x00000003,
 }
 
-public enum WGPUTextureFormat
+internal enum WGPUTextureFormat
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -609,7 +609,7 @@ public enum WGPUTextureFormat
 	ASTC12x12UnormSrgb = 0x0000005F,
 }
 
-public enum WGPUTextureSampleType
+internal enum WGPUTextureSampleType
 {
 	None = 0,
 	BindingNotUsed = 0x00000000,
@@ -621,7 +621,7 @@ public enum WGPUTextureSampleType
 	Uint = 0x00000006,
 }
 
-public enum WGPUTextureViewDimension
+internal enum WGPUTextureViewDimension
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -633,7 +633,7 @@ public enum WGPUTextureViewDimension
 	_3D = 0x00000006,
 }
 
-public enum WGPUVertexFormat
+internal enum WGPUVertexFormat
 {
 	None = 0,
 	Uint8 = 0x00000001,
@@ -679,7 +679,7 @@ public enum WGPUVertexFormat
 	Unorm8x4BGRA = 0x00000029,
 }
 
-public enum WGPUVertexStepMode
+internal enum WGPUVertexStepMode
 {
 	None = 0,
 	VertexBufferNotUsed = 0x00000000,
@@ -688,7 +688,7 @@ public enum WGPUVertexStepMode
 	Instance = 0x00000003,
 }
 
-public enum WGPUWGSLLanguageFeatureName
+internal enum WGPUWGSLLanguageFeatureName
 {
 	None = 0,
 	ReadonlyAndReadwriteStorageTextures = 0x00000001,
@@ -697,7 +697,7 @@ public enum WGPUWGSLLanguageFeatureName
 	PointerCompositeAccess = 0x00000004,
 }
 
-public enum WGPUWaitStatus
+internal enum WGPUWaitStatus
 {
 	None = 0,
 	Success = 0x00000001,
@@ -707,7 +707,7 @@ public enum WGPUWaitStatus
 	UnsupportedMixedSources = 0x00000005,
 }
 
-public enum WGPUNativeSType
+internal enum WGPUNativeSType
 {
 	None = 0,
 	DeviceExtras = 0x00030001,
@@ -723,7 +723,7 @@ public enum WGPUNativeSType
 	PrimitiveStateExtras = 0x0003000C,
 }
 
-public enum WGPUNativeFeature
+internal enum WGPUNativeFeature
 {
 	None = 0,
 	PushConstants = 0x00030001,
@@ -759,7 +759,7 @@ public enum WGPUNativeFeature
 	ShaderInt64 = 0x00030026,
 }
 
-public enum WGPULogLevel
+internal enum WGPULogLevel
 {
 	None = 0,
 	Off = 0x00000000,
@@ -770,7 +770,7 @@ public enum WGPULogLevel
 	Trace = 0x00000005,
 }
 
-public enum WGPUDx12Compiler
+internal enum WGPUDx12Compiler
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -778,7 +778,7 @@ public enum WGPUDx12Compiler
 	Dxc = 0x00000002,
 }
 
-public enum WGPUGles3MinorVersion
+internal enum WGPUGles3MinorVersion
 {
 	None = 0,
 	Automatic = 0x00000000,
@@ -787,7 +787,7 @@ public enum WGPUGles3MinorVersion
 	Version2 = 0x00000003,
 }
 
-public enum WGPUPipelineStatisticName
+internal enum WGPUPipelineStatisticName
 {
 	None = 0,
 	VertexShaderInvocations = 0x00000000,
@@ -797,13 +797,13 @@ public enum WGPUPipelineStatisticName
 	ComputeShaderInvocations = 0x00000004,
 }
 
-public enum WGPUNativeQueryType
+internal enum WGPUNativeQueryType
 {
 	None = 0,
 	PipelineStatistics = 0x00030000,
 }
 
-public enum WGPUDxcMaxShaderModel
+internal enum WGPUDxcMaxShaderModel
 {
 	None = 0,
 	V60 = 0x00000000,
@@ -816,14 +816,14 @@ public enum WGPUDxcMaxShaderModel
 	V67 = 0x00000007,
 }
 
-public enum WGPUGLFenceBehaviour
+internal enum WGPUGLFenceBehaviour
 {
 	None = 0,
 	Normal = 0x00000000,
 	AutoFinish = 0x00000001,
 }
 
-public enum WGPUDx12SwapchainKind
+internal enum WGPUDx12SwapchainKind
 {
 	None = 0,
 	Undefined = 0x00000000,
@@ -831,7 +831,7 @@ public enum WGPUDx12SwapchainKind
 	DxgiFromVisual = 0x00000002,
 }
 
-public enum WGPUPolygonMode
+internal enum WGPUPolygonMode
 {
 	None = 0,
 	Fill = 0,
@@ -839,7 +839,7 @@ public enum WGPUPolygonMode
 	Point = 2,
 }
 
-public enum WGPUNativeTextureFormat
+internal enum WGPUNativeTextureFormat
 {
 	None = 0,
 	R16Unorm = 0x00030001,

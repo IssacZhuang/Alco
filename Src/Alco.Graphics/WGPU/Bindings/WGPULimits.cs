@@ -1,6 +1,6 @@
 namespace WebGPU;
 
-partial struct WGPULimits
+internal partial struct WGPULimits
 {
     public static WGPULimits Default => new()
     {

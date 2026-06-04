@@ -1,6 +1,6 @@
 namespace WebGPU;
 
-public partial struct WGPUVertexAttribute : IEquatable<WGPUVertexAttribute>
+internal partial struct WGPUVertexAttribute : IEquatable<WGPUVertexAttribute>
 {
     /// <summary>
     /// Initializes a new instance of <see cref="WGPUVertexAttribute"/> structure.

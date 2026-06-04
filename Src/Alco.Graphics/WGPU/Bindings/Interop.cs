@@ -5,7 +5,7 @@ using System.Text;
 
 namespace WebGPU;
 
-public static unsafe class Interop
+internal static unsafe class Interop
 {
 #pragma warning disable CS8500
     /// <inheritdoc cref="Unsafe.SizeOf{T}" />

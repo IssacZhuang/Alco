@@ -3,7 +3,7 @@ namespace WebGPU;
 /// <summary>
 /// Structure specifying a three-dimensional extent.
 /// </summary>
-public partial struct WGPUExtent3D : IEquatable<WGPUExtent3D>
+internal partial struct WGPUExtent3D : IEquatable<WGPUExtent3D>
 {
     /// <summary>
     /// An <see cref="WGPUExtent3D"/> with all of its components set to zero.

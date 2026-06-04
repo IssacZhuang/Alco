@@ -14,7 +14,7 @@ using System.Diagnostics;
 namespace WebGPU;
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUAdapter : IEquatable<WGPUAdapter>
+internal readonly partial struct WGPUAdapter : IEquatable<WGPUAdapter>
 {
 	public WGPUAdapter(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -35,7 +35,7 @@ public readonly partial struct WGPUAdapter : IEquatable<WGPUAdapter>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUBindGroup : IEquatable<WGPUBindGroup>
+internal readonly partial struct WGPUBindGroup : IEquatable<WGPUBindGroup>
 {
 	public WGPUBindGroup(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -56,7 +56,7 @@ public readonly partial struct WGPUBindGroup : IEquatable<WGPUBindGroup>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUBindGroupLayout : IEquatable<WGPUBindGroupLayout>
+internal readonly partial struct WGPUBindGroupLayout : IEquatable<WGPUBindGroupLayout>
 {
 	public WGPUBindGroupLayout(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -77,7 +77,7 @@ public readonly partial struct WGPUBindGroupLayout : IEquatable<WGPUBindGroupLay
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUBuffer : IEquatable<WGPUBuffer>
+internal readonly partial struct WGPUBuffer : IEquatable<WGPUBuffer>
 {
 	public WGPUBuffer(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -98,7 +98,7 @@ public readonly partial struct WGPUBuffer : IEquatable<WGPUBuffer>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUCommandBuffer : IEquatable<WGPUCommandBuffer>
+internal readonly partial struct WGPUCommandBuffer : IEquatable<WGPUCommandBuffer>
 {
 	public WGPUCommandBuffer(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -119,7 +119,7 @@ public readonly partial struct WGPUCommandBuffer : IEquatable<WGPUCommandBuffer>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUCommandEncoder : IEquatable<WGPUCommandEncoder>
+internal readonly partial struct WGPUCommandEncoder : IEquatable<WGPUCommandEncoder>
 {
 	public WGPUCommandEncoder(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -140,7 +140,7 @@ public readonly partial struct WGPUCommandEncoder : IEquatable<WGPUCommandEncode
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUComputePassEncoder : IEquatable<WGPUComputePassEncoder>
+internal readonly partial struct WGPUComputePassEncoder : IEquatable<WGPUComputePassEncoder>
 {
 	public WGPUComputePassEncoder(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -161,7 +161,7 @@ public readonly partial struct WGPUComputePassEncoder : IEquatable<WGPUComputePa
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUComputePipeline : IEquatable<WGPUComputePipeline>
+internal readonly partial struct WGPUComputePipeline : IEquatable<WGPUComputePipeline>
 {
 	public WGPUComputePipeline(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -182,7 +182,7 @@ public readonly partial struct WGPUComputePipeline : IEquatable<WGPUComputePipel
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUDevice : IEquatable<WGPUDevice>
+internal readonly partial struct WGPUDevice : IEquatable<WGPUDevice>
 {
 	public WGPUDevice(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -203,7 +203,7 @@ public readonly partial struct WGPUDevice : IEquatable<WGPUDevice>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUInstance : IEquatable<WGPUInstance>
+internal readonly partial struct WGPUInstance : IEquatable<WGPUInstance>
 {
 	public WGPUInstance(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -224,7 +224,7 @@ public readonly partial struct WGPUInstance : IEquatable<WGPUInstance>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUPipelineLayout : IEquatable<WGPUPipelineLayout>
+internal readonly partial struct WGPUPipelineLayout : IEquatable<WGPUPipelineLayout>
 {
 	public WGPUPipelineLayout(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -245,7 +245,7 @@ public readonly partial struct WGPUPipelineLayout : IEquatable<WGPUPipelineLayou
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUQuerySet : IEquatable<WGPUQuerySet>
+internal readonly partial struct WGPUQuerySet : IEquatable<WGPUQuerySet>
 {
 	public WGPUQuerySet(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -266,7 +266,7 @@ public readonly partial struct WGPUQuerySet : IEquatable<WGPUQuerySet>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUQueue : IEquatable<WGPUQueue>
+internal readonly partial struct WGPUQueue : IEquatable<WGPUQueue>
 {
 	public WGPUQueue(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -287,7 +287,7 @@ public readonly partial struct WGPUQueue : IEquatable<WGPUQueue>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPURenderBundle : IEquatable<WGPURenderBundle>
+internal readonly partial struct WGPURenderBundle : IEquatable<WGPURenderBundle>
 {
 	public WGPURenderBundle(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -308,7 +308,7 @@ public readonly partial struct WGPURenderBundle : IEquatable<WGPURenderBundle>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPURenderBundleEncoder : IEquatable<WGPURenderBundleEncoder>
+internal readonly partial struct WGPURenderBundleEncoder : IEquatable<WGPURenderBundleEncoder>
 {
 	public WGPURenderBundleEncoder(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -329,7 +329,7 @@ public readonly partial struct WGPURenderBundleEncoder : IEquatable<WGPURenderBu
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPURenderPassEncoder : IEquatable<WGPURenderPassEncoder>
+internal readonly partial struct WGPURenderPassEncoder : IEquatable<WGPURenderPassEncoder>
 {
 	public WGPURenderPassEncoder(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -350,7 +350,7 @@ public readonly partial struct WGPURenderPassEncoder : IEquatable<WGPURenderPass
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPURenderPipeline : IEquatable<WGPURenderPipeline>
+internal readonly partial struct WGPURenderPipeline : IEquatable<WGPURenderPipeline>
 {
 	public WGPURenderPipeline(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -371,7 +371,7 @@ public readonly partial struct WGPURenderPipeline : IEquatable<WGPURenderPipelin
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUSampler : IEquatable<WGPUSampler>
+internal readonly partial struct WGPUSampler : IEquatable<WGPUSampler>
 {
 	public WGPUSampler(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -392,7 +392,7 @@ public readonly partial struct WGPUSampler : IEquatable<WGPUSampler>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUShaderModule : IEquatable<WGPUShaderModule>
+internal readonly partial struct WGPUShaderModule : IEquatable<WGPUShaderModule>
 {
 	public WGPUShaderModule(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -413,7 +413,7 @@ public readonly partial struct WGPUShaderModule : IEquatable<WGPUShaderModule>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUSurface : IEquatable<WGPUSurface>
+internal readonly partial struct WGPUSurface : IEquatable<WGPUSurface>
 {
 	public WGPUSurface(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -434,7 +434,7 @@ public readonly partial struct WGPUSurface : IEquatable<WGPUSurface>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUTexture : IEquatable<WGPUTexture>
+internal readonly partial struct WGPUTexture : IEquatable<WGPUTexture>
 {
 	public WGPUTexture(nint handle) { Handle = handle; }
 	public nint Handle { get; }
@@ -455,7 +455,7 @@ public readonly partial struct WGPUTexture : IEquatable<WGPUTexture>
 }
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly partial struct WGPUTextureView : IEquatable<WGPUTextureView>
+internal readonly partial struct WGPUTextureView : IEquatable<WGPUTextureView>
 {
 	public WGPUTextureView(nint handle) { Handle = handle; }
 	public nint Handle { get; }

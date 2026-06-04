@@ -1,6 +1,6 @@
 namespace WebGPU;
 
-public partial struct WGPUColor : IEquatable<WGPUColor>
+internal partial struct WGPUColor : IEquatable<WGPUColor>
 {
     /// <summary>
     /// Initializes a new instance of <see cref="WGPUOrigin3D"/> structure.

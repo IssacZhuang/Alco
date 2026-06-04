@@ -37,7 +37,7 @@ public class WebGPUBindingGenerator : BaseGenerator
             OutputPath = outputPath,
             ClassName = "WebGPU",
             Namespace = "WebGPU",
-            PublicVisiblity = true,
+            PublicVisiblity = false,
         };
 
         var generator = new CsCodeGenerator(generateOptions);
