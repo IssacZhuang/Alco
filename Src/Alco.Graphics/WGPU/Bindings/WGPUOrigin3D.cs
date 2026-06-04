@@ -1,4 +1,4 @@
-namespace Alco.Graphics.WebGPU.Bindings;
+namespace WebGPU;
 
 public partial struct WGPUOrigin3D : IEquatable<WGPUOrigin3D>
 {

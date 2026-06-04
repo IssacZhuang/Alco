@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Alco.Graphics.WebGPU.Bindings;
+namespace WebGPU;
 
 public unsafe partial struct WGPUStringView : IEquatable<WGPUStringView>
 {

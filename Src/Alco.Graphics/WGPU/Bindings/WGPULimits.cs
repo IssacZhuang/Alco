@@ -1,4 +1,4 @@
-namespace Alco.Graphics.WebGPU.Bindings;
+namespace WebGPU;
 
 partial struct WGPULimits
 {

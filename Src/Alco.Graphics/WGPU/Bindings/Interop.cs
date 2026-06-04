@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Alco.Graphics.WebGPU.Bindings;
+namespace WebGPU;
 
 public static unsafe class Interop
 {

@@ -12,7 +12,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Alco.Graphics.WebGPU.Bindings;
+namespace WebGPU;
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 public unsafe delegate void WGPUBufferMapCallback(WGPUMapAsyncStatus status, WGPUStringView message, void* userdata1, void* userdata2);
@@ -92,7 +92,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuBindGroupSetLabel(bindGroup, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuBindGroupSetLabel(bindGroup, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -114,7 +114,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuBindGroupLayoutSetLabel(bindGroupLayout, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuBindGroupLayoutSetLabel(bindGroupLayout, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -157,7 +157,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuBufferSetLabel(buffer, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuBufferSetLabel(buffer, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -182,7 +182,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuCommandBufferSetLabel(commandBuffer, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuCommandBufferSetLabel(commandBuffer, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -228,7 +228,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pMarkerLabel = markerLabel)
 		{
-			wgpuCommandEncoderInsertDebugMarker(commandEncoder, new WGPUStringView(pMarkerLabel, (nuint)markerLabel.Length));
+			wgpuCommandEncoderInsertDebugMarker(commandEncoder, new WGPUStringView(pMarkerLabel, markerLabel.Length));
 		}
 	}
 
@@ -247,7 +247,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pGroupLabel = groupLabel)
 		{
-			wgpuCommandEncoderPushDebugGroup(commandEncoder, new WGPUStringView(pGroupLabel, (nuint)groupLabel.Length));
+			wgpuCommandEncoderPushDebugGroup(commandEncoder, new WGPUStringView(pGroupLabel, groupLabel.Length));
 		}
 	}
 
@@ -266,7 +266,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuCommandEncoderSetLabel(commandEncoder, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuCommandEncoderSetLabel(commandEncoder, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -300,7 +300,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pMarkerLabel = markerLabel)
 		{
-			wgpuComputePassEncoderInsertDebugMarker(computePassEncoder, new WGPUStringView(pMarkerLabel, (nuint)markerLabel.Length));
+			wgpuComputePassEncoderInsertDebugMarker(computePassEncoder, new WGPUStringView(pMarkerLabel, markerLabel.Length));
 		}
 	}
 
@@ -319,7 +319,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pGroupLabel = groupLabel)
 		{
-			wgpuComputePassEncoderPushDebugGroup(computePassEncoder, new WGPUStringView(pGroupLabel, (nuint)groupLabel.Length));
+			wgpuComputePassEncoderPushDebugGroup(computePassEncoder, new WGPUStringView(pGroupLabel, groupLabel.Length));
 		}
 	}
 
@@ -338,7 +338,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuComputePassEncoderSetLabel(computePassEncoder, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuComputePassEncoderSetLabel(computePassEncoder, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -366,7 +366,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuComputePipelineSetLabel(computePipeline, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuComputePipelineSetLabel(computePipeline, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -460,7 +460,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuDeviceSetLabel(device, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuDeviceSetLabel(device, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -506,7 +506,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuPipelineLayoutSetLabel(pipelineLayout, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuPipelineLayoutSetLabel(pipelineLayout, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -537,7 +537,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuQuerySetSetLabel(querySet, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuQuerySetSetLabel(querySet, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -562,7 +562,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuQueueSetLabel(queue, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuQueueSetLabel(queue, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -593,7 +593,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuRenderBundleSetLabel(renderBundle, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuRenderBundleSetLabel(renderBundle, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -630,7 +630,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pMarkerLabel = markerLabel)
 		{
-			wgpuRenderBundleEncoderInsertDebugMarker(renderBundleEncoder, new WGPUStringView(pMarkerLabel, (nuint)markerLabel.Length));
+			wgpuRenderBundleEncoderInsertDebugMarker(renderBundleEncoder, new WGPUStringView(pMarkerLabel, markerLabel.Length));
 		}
 	}
 
@@ -649,7 +649,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pGroupLabel = groupLabel)
 		{
-			wgpuRenderBundleEncoderPushDebugGroup(renderBundleEncoder, new WGPUStringView(pGroupLabel, (nuint)groupLabel.Length));
+			wgpuRenderBundleEncoderPushDebugGroup(renderBundleEncoder, new WGPUStringView(pGroupLabel, groupLabel.Length));
 		}
 	}
 
@@ -671,7 +671,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuRenderBundleEncoderSetLabel(renderBundleEncoder, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuRenderBundleEncoderSetLabel(renderBundleEncoder, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -723,7 +723,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pMarkerLabel = markerLabel)
 		{
-			wgpuRenderPassEncoderInsertDebugMarker(renderPassEncoder, new WGPUStringView(pMarkerLabel, (nuint)markerLabel.Length));
+			wgpuRenderPassEncoderInsertDebugMarker(renderPassEncoder, new WGPUStringView(pMarkerLabel, markerLabel.Length));
 		}
 	}
 
@@ -742,7 +742,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pGroupLabel = groupLabel)
 		{
-			wgpuRenderPassEncoderPushDebugGroup(renderPassEncoder, new WGPUStringView(pGroupLabel, (nuint)groupLabel.Length));
+			wgpuRenderPassEncoderPushDebugGroup(renderPassEncoder, new WGPUStringView(pGroupLabel, groupLabel.Length));
 		}
 	}
 
@@ -767,7 +767,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuRenderPassEncoderSetLabel(renderPassEncoder, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuRenderPassEncoderSetLabel(renderPassEncoder, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -807,7 +807,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuRenderPipelineSetLabel(renderPipeline, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuRenderPipelineSetLabel(renderPipeline, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -829,7 +829,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuSamplerSetLabel(sampler, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuSamplerSetLabel(sampler, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -854,7 +854,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuShaderModuleSetLabel(shaderModule, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuShaderModuleSetLabel(shaderModule, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -900,7 +900,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuSurfaceSetLabel(surface, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuSurfaceSetLabel(surface, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -958,7 +958,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuTextureSetLabel(texture, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuTextureSetLabel(texture, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 
@@ -980,7 +980,7 @@ public unsafe partial class WebGPU
 	{
 		fixed (byte* pLabel = label)
 		{
-			wgpuTextureViewSetLabel(textureView, new WGPUStringView(pLabel, (nuint)label.Length));
+			wgpuTextureViewSetLabel(textureView, new WGPUStringView(pLabel, label.Length));
 		}
 	}
 

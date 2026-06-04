@@ -1,7 +1,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace Alco.Graphics.WebGPU.Bindings;
+namespace WebGPU;
 
 public delegate void WGPULogCallback(WGPULogLevel level, string message, nint userdata = 0);
 

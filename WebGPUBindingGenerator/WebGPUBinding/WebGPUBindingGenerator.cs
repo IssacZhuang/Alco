@@ -11,7 +11,7 @@ public class WebGPUBindingGenerator : BaseGenerator
         string outputPath = Path.Combine(SolutionFolder, OutputFolder);
         Directory.CreateDirectory(outputPath);
 
-        string headersDir = Path.Combine(SolutionFolder, "Generator", "headers");
+        string headersDir = Path.Combine(SolutionFolder, "WebGPUBindingGenerator", "headers");
         string webgpuHeader = Path.Combine(headersDir, "webgpu.h");
         string wgpuHeader = Path.Combine(headersDir, "wgpu.h");
 
@@ -36,7 +36,7 @@ public class WebGPUBindingGenerator : BaseGenerator
         {
             OutputPath = outputPath,
             ClassName = "WebGPU",
-            Namespace = "Alco.Graphics.WebGPU.Bindings",
+            Namespace = "WebGPU",
             PublicVisiblity = true,
         };
 

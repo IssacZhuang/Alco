@@ -11,7 +11,7 @@
 
 using System.Diagnostics;
 
-namespace Alco.Graphics.WebGPU.Bindings;
+namespace WebGPU;
 
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public readonly partial struct WGPUAdapter : IEquatable<WGPUAdapter>
