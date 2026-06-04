@@ -1,8 +1,8 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
-using WebGPU;
-using static WebGPU.WebGPU;
+using Alco.Graphics.WebGPU.Bindings;
+using static Alco.Graphics.WebGPU.Bindings.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 

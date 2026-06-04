@@ -48,7 +48,7 @@ You can also include it as a git submodule if preferred.
 ## Third-Party Libraries
 
 - [Silk.NET](https://github.com/dotnet/Silk.NET): OpenAL audio and SPIR-V reflection
-- [Alimer.Bindings.WebGPU](https://github.com/amerkoleci/Alimer.Bindings.WebGPU): WebGPU API bindings
+- [Alimer.Bindings.WebGPU](https://github.com/amerkoleci/Alimer.Bindings.WebGPU): WebGPU API bindings (embedded as source code and modified)
 - [wgpu-native](https://github.com/gfx-rs/wgpu-native): WebGPU native implementation
 - [DirectX Compiler](https://github.com/microsoft/DirectXShaderCompiler): HLSL shader compilation
 - [System.IO.Hashing](https://www.nuget.org/packages/System.IO.Hashing): High-performance hashing

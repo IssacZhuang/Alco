@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using WebGPU;
+using Alco.Graphics.WebGPU.Bindings;
 
-using static WebGPU.WebGPU;
+using static Alco.Graphics.WebGPU.Bindings.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
@@ -177,7 +177,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size,
             new WGPUBufferMapCallbackInfo()
             {
-                mode = WGPUCallbackMode.None,
+                mode = (WGPUCallbackMode)0,
                 callback = &BufferMapCallback,
                 userdata1 = null,
                 userdata2 = null,
@@ -274,7 +274,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, dataSize,
             new WGPUBufferMapCallbackInfo()
             {
-                mode = WGPUCallbackMode.None,
+                mode = (WGPUCallbackMode)0,
                 callback = &BufferMapCallback,
                 userdata1 = null,
                 userdata2 = null,

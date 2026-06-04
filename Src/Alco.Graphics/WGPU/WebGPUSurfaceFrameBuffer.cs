@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using WebGPU;
-using static WebGPU.WebGPU;
+using Alco.Graphics.WebGPU.Bindings;
+using static Alco.Graphics.WebGPU.Bindings.WebGPU;
 using static Alco.Graphics.InteropUtility;
 using System.Runtime.InteropServices;
 

@@ -1,4 +1,4 @@
-using WebGPU;
+using Alco.Graphics.WebGPU.Bindings;
 
 namespace Alco.Graphics;
 

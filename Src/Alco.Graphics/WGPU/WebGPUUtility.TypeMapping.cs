@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using WebGPU;
-using static WebGPU.WebGPU;
+using Alco.Graphics.WebGPU.Bindings;
+using static Alco.Graphics.WebGPU.Bindings.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
@@ -241,7 +241,7 @@ internal static partial class WebGPUUtility
 
     private static readonly Tuple<VertexFormat, WGPUVertexFormat>[] VertexFormatCast = new Tuple<VertexFormat, WGPUVertexFormat>[]
     {
-        new(VertexFormat.Undefined, WGPUVertexFormat.None),
+        new(VertexFormat.Undefined, (WGPUVertexFormat)0),
         new(VertexFormat.Uint8x2, WGPUVertexFormat.Uint8x2),
         new(VertexFormat.Uint8x4, WGPUVertexFormat.Uint8x4),
         new(VertexFormat.Sint8x2, WGPUVertexFormat.Sint8x2),
@@ -344,7 +344,7 @@ internal static partial class WebGPUUtility
 
     private static readonly Tuple<FilterMode, WGPUFilterMode>[] FilterModeCast = new Tuple<FilterMode, WGPUFilterMode>[]
     {
-        new(FilterMode.None, WGPUFilterMode.None),
+        new(FilterMode.None, WGPUFilterMode.Undefined),
         new(FilterMode.Nearest, WGPUFilterMode.Nearest),
         new(FilterMode.Linear, WGPUFilterMode.Linear),
     };
@@ -354,7 +354,7 @@ internal static partial class WebGPUUtility
 
     private static readonly Tuple<FilterMode, WGPUMipmapFilterMode>[] MipmapFilterModeCast = new Tuple<FilterMode, WGPUMipmapFilterMode>[]
     {
-        new(FilterMode.None, WGPUMipmapFilterMode.None),
+        new(FilterMode.None, WGPUMipmapFilterMode.Undefined),
         new(FilterMode.Nearest, WGPUMipmapFilterMode.Nearest),
         new(FilterMode.Linear, WGPUMipmapFilterMode.Linear),
     };
@@ -364,7 +364,7 @@ internal static partial class WebGPUUtility
 
     private static readonly Tuple<TextureAspect, WGPUTextureAspect>[] TextureAspectCast = new Tuple<TextureAspect, WGPUTextureAspect>[]
     {
-        new(TextureAspect.None, WGPUTextureAspect.None),
+        new(TextureAspect.None, WGPUTextureAspect.Undefined),
         new(TextureAspect.All, WGPUTextureAspect.All),
         new(TextureAspect.StencilOnly, WGPUTextureAspect.StencilOnly),
         new(TextureAspect.DepthOnly, WGPUTextureAspect.DepthOnly),
@@ -376,7 +376,7 @@ internal static partial class WebGPUUtility
 
     private static readonly Tuple<TextureSampleType, WGPUTextureSampleType>[] TextureSampleTypeCast = new Tuple<TextureSampleType, WGPUTextureSampleType>[]
     {
-        new(TextureSampleType.None, WGPUTextureSampleType.None),
+        new(TextureSampleType.None, WGPUTextureSampleType.Undefined),
         new(TextureSampleType.Float, WGPUTextureSampleType.Float),
         new(TextureSampleType.UnfilterableFloat, WGPUTextureSampleType.UnfilterableFloat),
         new(TextureSampleType.Depth, WGPUTextureSampleType.Depth),

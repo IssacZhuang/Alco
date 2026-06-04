@@ -1,7 +1,7 @@
-using WebGPU;
+using Alco.Graphics.WebGPU.Bindings;
 using System.Runtime.CompilerServices;
 
-using static WebGPU.WebGPU;
+using static Alco.Graphics.WebGPU.Bindings.WebGPU;
 
 namespace Alco.Graphics.WebGPU;
 
