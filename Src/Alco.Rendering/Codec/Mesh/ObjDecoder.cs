@@ -1,38 +1,38 @@
 using System.Buffers;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Alco.Rendering;
 
 /// <summary>
-/// Parser for Wavefront OBJ mesh files.
+/// Decoder for Wavefront OBJ mesh files.
 /// Converts OBJ geometry data into vertex and index buffers suitable for GPU rendering.
+/// All returned pointers are caller-owned and must be freed via <c>NativeMemory.Free</c>.
 /// </summary>
-public sealed class ObjParser
+internal static unsafe class ObjDecoder
 {
     private static ReadOnlySpan<byte> KeywordV => "v"u8;
     private static ReadOnlySpan<byte> KeywordVt => "vt"u8;
     private static ReadOnlySpan<byte> KeywordVn => "vn"u8;
     private static ReadOnlySpan<byte> KeywordF => "f"u8;
 
-    private readonly List<Vector3> _positions = [];
-    private readonly List<Vector2> _uvs = [];
-    private readonly List<Vector3> _normals = [];
-    private readonly List<VertexPositionNormalTexture> _vertices = [];
-    private readonly List<uint> _indices = [];
-    private readonly Dictionary<VertexKey, int> _vertexMap = [];
-
-    private int[]? _tempFaceVertices;
-    private int[]? _tempFaceUVs;
-    private int[]? _tempFaceNormals;
-
     /// <summary>
-    /// Parses the OBJ file data and returns the resulting mesh data.
+    /// Decode OBJ data into vertex and index buffers.
     /// </summary>
-    /// <param name="data">The raw OBJ file data as a byte span.</param>
-    /// <returns>The parsed mesh data containing vertices and indices.</returns>
-    public ObjParseResult Parse(ReadOnlySpan<byte> data)
+    /// <param name="data">Raw OBJ file bytes.</param>
+    /// <param name="vertexCount">Number of decoded vertices.</param>
+    /// <param name="indices">Pointer to decoded index data. Caller must free via <c>NativeMemory.Free</c>.</param>
+    /// <param name="indexCount">Number of decoded indices.</param>
+    /// <returns>Pointer to vertex data. Caller must free via <c>NativeMemory.Free</c>.</returns>
+    /// <exception cref="MeshDecodeException">Invalid or unsupported OBJ data.</exception>
+    public static VertexPositionNormalTexture* Decode(ReadOnlySpan<byte> data, out int vertexCount, out uint* indices, out int indexCount)
     {
-        Reset();
+        var positions = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var normals = new List<Vector3>();
+        var vertices = new List<VertexPositionNormalTexture>();
+        var indexList = new List<uint>();
+        var vertexMap = new Dictionary<VertexKey, int>();
 
         var reader = new ObjLineReader(data);
 
@@ -44,28 +44,50 @@ public sealed class ObjParser
             var keyword = ReadKeyword(ref line);
 
             if (keyword.SequenceEqual(KeywordV))
-                ParsePosition(line);
+                ParsePosition(line, positions);
             else if (keyword.SequenceEqual(KeywordVt))
-                ParseUV(line);
+                ParseUV(line, uvs);
             else if (keyword.SequenceEqual(KeywordVn))
-                ParseNormal(line);
+                ParseNormal(line, normals);
             else if (keyword.SequenceEqual(KeywordF))
-                ParseFace(line);
+                ParseFace(line, positions, uvs, normals, vertices, indexList, vertexMap);
         }
 
-        return new ObjParseResult(
-            _vertices.ToArray(),
-            _indices.ToArray());
-    }
+        vertexCount = vertices.Count;
+        indexCount = indexList.Count;
 
-    private void Reset()
-    {
-        _positions.Clear();
-        _uvs.Clear();
-        _normals.Clear();
-        _vertices.Clear();
-        _indices.Clear();
-        _vertexMap.Clear();
+        // Allocate native memory for vertices
+        int vertexSize = vertexCount * sizeof(VertexPositionNormalTexture);
+        VertexPositionNormalTexture* vertexPtr = (VertexPositionNormalTexture*)NativeMemory.Alloc((nuint)vertexSize);
+
+        try
+        {
+            // Copy vertices to native memory
+            var vertexSpan = new Span<VertexPositionNormalTexture>(vertexPtr, vertexCount);
+            CollectionsMarshal.AsSpan(vertices).CopyTo(vertexSpan);
+
+            // Allocate native memory for indices
+            int indexSize = indexCount * sizeof(uint);
+            indices = (uint*)NativeMemory.Alloc((nuint)indexSize);
+
+            try
+            {
+                var indexSpan = new Span<uint>(indices, indexCount);
+                CollectionsMarshal.AsSpan(indexList).CopyTo(indexSpan);
+            }
+            catch
+            {
+                NativeMemory.Free(indices);
+                throw;
+            }
+        }
+        catch
+        {
+            NativeMemory.Free(vertexPtr);
+            throw;
+        }
+
+        return vertexPtr;
     }
 
     private static ReadOnlySpan<byte> ReadKeyword(ref ReadOnlySpan<byte> line)
@@ -83,28 +105,28 @@ public sealed class ObjParser
         return result;
     }
 
-    private void ParsePosition(ReadOnlySpan<byte> line)
+    private static void ParsePosition(ReadOnlySpan<byte> line, List<Vector3> positions)
     {
         var values = ParseFloats(line, 3);
         float x = values[0];
         float y = values[1];
         float z = -values[2];
-        _positions.Add(new Vector3(x, y, z));
+        positions.Add(new Vector3(x, y, z));
     }
 
-    private void ParseUV(ReadOnlySpan<byte> line)
+    private static void ParseUV(ReadOnlySpan<byte> line, List<Vector2> uvs)
     {
         var values = ParseFloats(line, 2);
-        _uvs.Add(new Vector2(values[0], values[1]));
+        uvs.Add(new Vector2(values[0], values[1]));
     }
 
-    private void ParseNormal(ReadOnlySpan<byte> line)
+    private static void ParseNormal(ReadOnlySpan<byte> line, List<Vector3> normals)
     {
         var values = ParseFloats(line, 3);
         float x = values[0];
         float y = values[1];
         float z = -values[2];
-        _normals.Add(new Vector3(x, y, z));
+        normals.Add(new Vector3(x, y, z));
     }
 
     private static float[] ParseFloats(ReadOnlySpan<byte> line, int count)
@@ -205,12 +227,23 @@ public sealed class ObjParser
         return negative ? -result : result;
     }
 
-    private void ParseFace(ReadOnlySpan<byte> line)
+    private static void ParseFace(
+        ReadOnlySpan<byte> line,
+        List<Vector3> positions,
+        List<Vector2> uvs,
+        List<Vector3> normals,
+        List<VertexPositionNormalTexture> vertices,
+        List<uint> indexList,
+        Dictionary<VertexKey, int> vertexMap)
     {
         int faceVertexCount = 0;
         int[]? rentedVertices = null;
         int[]? rentedUVs = null;
         int[]? rentedNormals = null;
+
+        int[]? tempFaceVertices = null;
+        int[]? tempFaceUVs = null;
+        int[]? tempFaceNormals = null;
 
         try
         {
@@ -229,15 +262,15 @@ public sealed class ObjParser
 
                 if (end > start)
                 {
-                    EnsureCapacity(ref rentedVertices, ref _tempFaceVertices, faceVertexCount + 1);
-                    EnsureCapacity(ref rentedUVs, ref _tempFaceUVs, faceVertexCount + 1);
-                    EnsureCapacity(ref rentedNormals, ref _tempFaceNormals, faceVertexCount + 1);
+                    EnsureCapacity(ref rentedVertices, ref tempFaceVertices, faceVertexCount + 1);
+                    EnsureCapacity(ref rentedUVs, ref tempFaceUVs, faceVertexCount + 1);
+                    EnsureCapacity(ref rentedNormals, ref tempFaceNormals, faceVertexCount + 1);
 
                     ParseFaceVertex(
                         line[start..end],
-                        out _tempFaceVertices![faceVertexCount],
-                        out _tempFaceUVs![faceVertexCount],
-                        out _tempFaceNormals![faceVertexCount]);
+                        out tempFaceVertices![faceVertexCount],
+                        out tempFaceUVs![faceVertexCount],
+                        out tempFaceNormals![faceVertexCount]);
 
                     faceVertexCount++;
                 }
@@ -250,9 +283,9 @@ public sealed class ObjParser
 
             for (int i = 1; i < faceVertexCount - 1; i++)
             {
-                AddVertex(_tempFaceVertices![0], _tempFaceUVs![0], _tempFaceNormals![0]);
-                AddVertex(_tempFaceVertices![i], _tempFaceUVs![i], _tempFaceNormals![i]);
-                AddVertex(_tempFaceVertices![i + 1], _tempFaceUVs![i + 1], _tempFaceNormals![i + 1]);
+                AddVertex(tempFaceVertices![0], tempFaceUVs![0], tempFaceNormals![0], positions, uvs, normals, vertices, indexList, vertexMap);
+                AddVertex(tempFaceVertices![i], tempFaceUVs![i], tempFaceNormals![i], positions, uvs, normals, vertices, indexList, vertexMap);
+                AddVertex(tempFaceVertices![i + 1], tempFaceUVs![i + 1], tempFaceNormals![i + 1], positions, uvs, normals, vertices, indexList, vertexMap);
             }
         }
         finally
@@ -266,7 +299,7 @@ public sealed class ObjParser
         }
     }
 
-    private void EnsureCapacity(ref int[]? rented, ref int[]? tempField, int needed)
+    private static void EnsureCapacity(ref int[]? rented, ref int[]? tempField, int needed)
     {
         if (tempField != null && tempField.Length >= needed)
             return;
@@ -278,7 +311,7 @@ public sealed class ObjParser
         tempField = rented;
     }
 
-    private void ParseFaceVertex(ReadOnlySpan<byte> span, out int vertexIndex, out int uvIndex, out int normalIndex)
+    private static void ParseFaceVertex(ReadOnlySpan<byte> span, out int vertexIndex, out int uvIndex, out int normalIndex)
     {
         vertexIndex = -1;
         uvIndex = -1;
@@ -335,36 +368,43 @@ public sealed class ObjParser
         return negative ? -result : result;
     }
 
-    private void AddVertex(int positionIdx, int uvIdx, int normalIdx)
+    private static void AddVertex(
+        int positionIdx, int uvIdx, int normalIdx,
+        List<Vector3> positions,
+        List<Vector2> uvs,
+        List<Vector3> normals,
+        List<VertexPositionNormalTexture> vertices,
+        List<uint> indexList,
+        Dictionary<VertexKey, int> vertexMap)
     {
-        int posIndex = NormalizeIndex(positionIdx, _positions.Count);
-        int uvIndex = NormalizeIndex(uvIdx, _uvs.Count);
-        int normIndex = NormalizeIndex(normalIdx, _normals.Count);
+        int posIndex = NormalizeIndex(positionIdx, positions.Count);
+        int uvIndex = NormalizeIndex(uvIdx, uvs.Count);
+        int normIndex = NormalizeIndex(normalIdx, normals.Count);
 
         var key = new VertexKey(posIndex, uvIndex, normIndex);
 
-        if (_vertexMap.TryGetValue(key, out int existingIndex))
+        if (vertexMap.TryGetValue(key, out int existingIndex))
         {
-            _indices.Add((uint)existingIndex);
+            indexList.Add((uint)existingIndex);
             return;
         }
 
-        Vector3 position = posIndex >= 0 && posIndex < _positions.Count
-            ? _positions[posIndex]
+        Vector3 position = posIndex >= 0 && posIndex < positions.Count
+            ? positions[posIndex]
             : Vector3.Zero;
 
-        Vector2 uv = uvIndex >= 0 && uvIndex < _uvs.Count
-            ? _uvs[uvIndex]
+        Vector2 uv = uvIndex >= 0 && uvIndex < uvs.Count
+            ? uvs[uvIndex]
             : Vector2.Zero;
 
-        Vector3 normal = normIndex >= 0 && normIndex < _normals.Count
-            ? _normals[normIndex]
+        Vector3 normal = normIndex >= 0 && normIndex < normals.Count
+            ? normals[normIndex]
             : Vector3.UnitZ;
 
-        int newIndex = _vertices.Count;
-        _vertices.Add(new VertexPositionNormalTexture(position, normal, uv));
-        _vertexMap[key] = newIndex;
-        _indices.Add((uint)newIndex);
+        int newIndex = vertices.Count;
+        vertices.Add(new VertexPositionNormalTexture(position, normal, uv));
+        vertexMap[key] = newIndex;
+        indexList.Add((uint)newIndex);
     }
 
     private static int NormalizeIndex(int index, int count)
@@ -389,24 +429,6 @@ public sealed class ObjParser
 
         public override bool Equals(object? obj) => obj is VertexKey other && Equals(other);
     }
-}
-
-/// <summary>
-/// Represents the result of parsing an OBJ file.
-/// </summary>
-/// <param name="Vertices">The array of vertices parsed from the OBJ file.</param>
-/// <param name="Indices">The array of indices parsed from the OBJ file.</param>
-public readonly struct ObjParseResult(VertexPositionNormalTexture[] vertices, uint[] indices)
-{
-    /// <summary>
-    /// The array of vertices parsed from the OBJ file.
-    /// </summary>
-    public readonly VertexPositionNormalTexture[] Vertices = vertices;
-
-    /// <summary>
-    /// The array of indices parsed from the OBJ file.
-    /// </summary>
-    public readonly uint[] Indices = indices;
 }
 
 file ref struct ObjLineReader(ReadOnlySpan<byte> data)

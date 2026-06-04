@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Alco.IO;
 using Alco.Rendering;
 
@@ -7,10 +8,9 @@ namespace Alco.Engine;
 /// Asset loader for Wavefront OBJ model files.
 /// Creates a <see cref="Mesh"/> from the OBJ geometry data.
 /// </summary>
-public class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
+public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
 {
     private readonly RenderingSystem _renderingSystem;
-    private readonly ObjParser _parser = new();
 
     /// <inheritdoc/>
     public override string Name => "AssetLoader.Mesh.OBJ";
@@ -30,14 +30,29 @@ public class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
     /// <inheritdoc/>
     public override object CreateAsset(in AssetLoadContext context)
     {
-        var result = _parser.Parse(context.GetData());
+        var data = context.GetData();
 
-        if (result.Vertices.Length == 0 || result.Indices.Length == 0)
-            throw new InvalidOperationException($"OBJ file '{context.Filename}' contains no valid geometry.");
+        VertexPositionNormalTexture* vertices = null;
+        uint* indices = null;
 
-        return _renderingSystem.CreatePrimitiveMesh(
-            result.Vertices,
-            result.Indices,
-            context.Filename);
+        try
+        {
+            vertices = MeshDecodeUtility.DecodeObj(data, out int vertexCount, out indices, out int indexCount);
+
+            if (vertexCount == 0 || indexCount == 0)
+                throw new InvalidOperationException($"OBJ file '{context.Filename}' contains no valid geometry.");
+
+            var vertexSpan = new ReadOnlySpan<VertexPositionNormalTexture>(vertices, vertexCount);
+            var indexSpan = new ReadOnlySpan<uint>(indices, indexCount);
+
+            return _renderingSystem.CreatePrimitiveMesh(vertexSpan, indexSpan, context.Filename);
+        }
+        finally
+        {
+            if (vertices != null)
+                NativeMemory.Free(vertices);
+            if (indices != null)
+                NativeMemory.Free(indices);
+        }
     }
 }
