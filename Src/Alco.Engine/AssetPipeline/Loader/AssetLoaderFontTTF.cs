@@ -58,6 +58,7 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
                 UnicodeUtility.RangeHangulCompatibilityJamo,
                 //symbols
                 UnicodeUtility.RangeMiscellaneousSymbols,
+                UnicodeUtility.RangeGeneralPunctuation,
             });
 
         // Step 2: Get atlas data
