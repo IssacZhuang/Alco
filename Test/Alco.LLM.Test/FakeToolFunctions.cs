@@ -10,21 +10,21 @@ namespace Alco.LLM.Test;
 [AgentTools]
 public static class FakeToolFunctions
 {
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Adds two numbers")]
     public static int Add(int a, int b)
     {
         return a + b;
     }
 
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Echoes the message back")]
     public static string Echo(string message)
     {
         return message;
     }
 
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Always throws an error")]
     public static string ThrowError()
     {

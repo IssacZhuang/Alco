@@ -422,7 +422,7 @@ public class Game : GameEngine
         return $"Cube {cubeName} color set to {color}";
     }
 
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Hello form")]
     public string HelloForm([Description("The name of the person")] string name)
     {

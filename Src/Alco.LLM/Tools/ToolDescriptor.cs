@@ -34,11 +34,11 @@ public sealed class ToolDescriptor
     public Type ReturnType { get; }
 
     /// <summary>
-    /// Gets whether this tool is async-safe and can be invoked directly on the calling thread.
-    /// When <c>true</c>, the tool is invoked directly. When <c>false</c>, the tool is
-    /// marshaled to the engine main thread before invocation.
+    /// Gets whether this tool runs on the agent thread (background thread).
+    /// When <c>true</c>, the tool is invoked directly on the calling thread.
+    /// When <c>false</c>, the tool is marshaled to the engine main thread before invocation.
     /// </summary>
-    public bool IsAsync { get; }
+    public bool IsOnAgentThread { get; }
 
     /// <summary>
     /// Gets the reflected method info for invocation.
@@ -63,7 +63,7 @@ public sealed class ToolDescriptor
         string description,
         JsonElement parameterSchema,
         Type returnType,
-        bool isAsync,
+        bool isOnAgentThread,
         MethodInfo method,
         object? target,
         JsonSerializerOptions jsonOptions)
@@ -72,7 +72,7 @@ public sealed class ToolDescriptor
         Description = description;
         ParameterSchema = parameterSchema;
         ReturnType = returnType;
-        IsAsync = isAsync;
+        IsOnAgentThread = isOnAgentThread;
         Method = method;
         Target = target;
         JsonOptions = jsonOptions;

@@ -80,7 +80,7 @@ public sealed class ToolRegistry
 
         var args = DeserializeArguments(descriptor, jsonArgs);
 
-        if (descriptor.IsAsync)
+        if (descriptor.IsOnAgentThread)
         {
             return await InvokeDirectAsync(descriptor, args);
         }
@@ -119,7 +119,7 @@ public sealed class ToolRegistry
                 description: description,
                 parameterSchema: parameterSchema,
                 returnType: method.ReturnType,
-                isAsync: attr.IsAsync,
+                isOnAgentThread: attr.IsOnAgentThread,
                 method: method,
                 target: target,
                 jsonOptions: jsonOptions);

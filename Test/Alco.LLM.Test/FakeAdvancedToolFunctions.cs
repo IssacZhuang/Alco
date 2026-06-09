@@ -15,7 +15,7 @@ public static class FakeAdvancedToolFunctions
         CallCount = 0;
     }
 
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Adds two numbers asynchronously")]
     public static async Task<int> AddAsync(int a, int b)
     {
@@ -24,7 +24,7 @@ public static class FakeAdvancedToolFunctions
         return a + b;
     }
 
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Completes an async task without returning a value")]
     public static async Task CompleteAsync()
     {
@@ -32,7 +32,7 @@ public static class FakeAdvancedToolFunctions
         CallCount++;
     }
 
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Throws asynchronously")]
     public static async Task<string> ThrowAsync()
     {
@@ -40,7 +40,7 @@ public static class FakeAdvancedToolFunctions
         throw new InvalidOperationException("Async test error");
     }
 
-    [AgentFunction(IsAsync = true)]
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Waits before returning")]
     public static async Task<string> SlowAsync(int milliseconds)
     {
