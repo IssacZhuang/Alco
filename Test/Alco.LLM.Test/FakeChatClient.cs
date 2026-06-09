@@ -45,15 +45,26 @@ internal sealed class FakeChatClient : IChatClient
         GetStreamingResponseCallCount++;
         ReceivedMessagesHistory.Add(messages.ToList());
 
-        if (_streamingResponses.Count == 0)
+        if (_streamingResponses.Count > 0)
         {
+            var stream = _streamingResponses.Dequeue();
+            await foreach (var update in stream.WithCancellation(cancellationToken))
+            {
+                yield return update;
+            }
             yield break;
         }
 
-        var stream = _streamingResponses.Dequeue();
-        await foreach (var update in stream.WithCancellation(cancellationToken))
+        if (_responses.Count > 0)
         {
-            yield return update;
+            var response = _responses.Dequeue();
+            foreach (var message in response.Messages)
+            {
+                foreach (var content in message.Contents)
+                {
+                    yield return new ChatResponseUpdate { Contents = [content] };
+                }
+            }
         }
     }
 

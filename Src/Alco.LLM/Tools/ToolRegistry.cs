@@ -67,7 +67,7 @@ public sealed class ToolRegistry
 
     /// <summary>
     /// Invokes a tool by name with the provided JSON arguments.
-    /// Handles thread marshaling for non-async-safe tools.
+    /// Handles thread marshaling for tools that require main thread execution.
     /// </summary>
     /// <param name="name">The tool name.</param>
     /// <param name="jsonArgs">The JSON element containing arguments.</param>
@@ -80,12 +80,46 @@ public sealed class ToolRegistry
 
         var args = DeserializeArguments(descriptor, jsonArgs);
 
+        object? rawResult;
         if (descriptor.IsOnAgentThread)
         {
-            return await InvokeDirectAsync(descriptor, args);
+            try
+            {
+                rawResult = descriptor.Method.Invoke(descriptor.Target, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+        }
+        else
+        {
+            var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _mainThreadQueue.Enqueue(() =>
+            {
+                try
+                {
+                    tcs.TrySetResult(descriptor.Method.Invoke(descriptor.Target, args));
+                }
+                catch (TargetInvocationException ex)
+                {
+                    tcs.TrySetException(ex.InnerException!);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            });
+            rawResult = await tcs.Task;
         }
 
-        return await InvokeOnMainThreadAsync(descriptor, args);
+        if (rawResult is Task task)
+        {
+            await task;
+            return descriptor.ReturnType == typeof(Task) ? null : await (dynamic)task;
+        }
+        return rawResult;
     }
 
     /// <summary>
@@ -184,7 +218,7 @@ public sealed class ToolRegistry
             schema["required"] = required;
         }
 
-        return JsonSerializer.Deserialize<JsonElement>(schema.ToJsonString());
+        return JsonSerializer.SerializeToElement(schema, jsonOptions);
     }
 
     private static object?[] DeserializeArguments(ToolDescriptor descriptor, JsonElement jsonArgs)
@@ -192,94 +226,25 @@ public sealed class ToolRegistry
         var parameters = descriptor.Method.GetParameters();
         var args = new object?[parameters.Length];
 
-        if (jsonArgs.ValueKind == JsonValueKind.Object)
+        for (int i = 0; i < parameters.Length; i++)
         {
-            for (int i = 0; i < parameters.Length; i++)
+            var param = parameters[i];
+            if (jsonArgs.ValueKind == JsonValueKind.Object
+                && jsonArgs.TryGetProperty(param.Name!, out var propValue))
             {
-                var param = parameters[i];
-                if (jsonArgs.TryGetProperty(param.Name!, out var propValue))
-                {
-                    args[i] = JsonSerializer.Deserialize(propValue, param.ParameterType!, descriptor.JsonOptions);
-                }
-                else if (param.HasDefaultValue)
-                {
-                    args[i] = param.DefaultValue;
-                }
-                else
-                {
-                    args[i] = param.ParameterType!.IsValueType
-                        ? Activator.CreateInstance(param.ParameterType)
-                        : null;
-                }
+                args[i] = JsonSerializer.Deserialize(propValue, param.ParameterType!, descriptor.JsonOptions);
             }
-        }
-        else if (jsonArgs.ValueKind == JsonValueKind.Undefined || jsonArgs.ValueKind == JsonValueKind.Null)
-        {
-            for (int i = 0; i < parameters.Length; i++)
+            else if (param.HasDefaultValue)
             {
-                args[i] = parameters[i].HasDefaultValue
-                    ? parameters[i].DefaultValue
-                    : parameters[i].ParameterType!.IsValueType
-                        ? Activator.CreateInstance(parameters[i].ParameterType!)
-                        : null;
+                args[i] = param.DefaultValue;
+            }
+            else if (param.ParameterType!.IsValueType)
+            {
+                args[i] = Activator.CreateInstance(param.ParameterType);
             }
         }
 
         return args;
     }
 
-    private static async Task<object?> InvokeDirectAsync(ToolDescriptor descriptor, object?[] args)
-    {
-        try
-        {
-            object? result = descriptor.Method.Invoke(descriptor.Target, args);
-            return await UnwrapInvocationResultAsync(result, descriptor.ReturnType);
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException != null)
-        {
-            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-            throw;
-        }
-    }
-
-    private Task<object?> InvokeOnMainThreadAsync(ToolDescriptor descriptor, object?[] args)
-    {
-        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _mainThreadQueue.Enqueue(async () =>
-        {
-            try
-            {
-                var result = await InvokeDirectAsync(descriptor, args);
-                tcs.TrySetResult(result);
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetException(ex);
-            }
-        });
-        return tcs.Task;
-    }
-
-    private static async Task<object?> UnwrapInvocationResultAsync(object? result, Type declaredReturnType)
-    {
-        if (result is not Task task)
-        {
-            return result;
-        }
-
-        await task;
-
-        if (declaredReturnType == typeof(Task))
-        {
-            return null;
-        }
-
-        var resultProperty = task.GetType().GetProperty(nameof(Task<object>.Result));
-        if (resultProperty != null)
-        {
-            return resultProperty.GetValue(task);
-        }
-
-        return null;
-    }
 }
