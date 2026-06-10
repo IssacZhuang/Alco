@@ -74,7 +74,7 @@ public class ToolCallLoopTests
         var result = await session.ChatAsync("Hi");
 
         Assert.That(result, Is.EqualTo("Hello!"));
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(1));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
     [Test]
@@ -93,7 +93,7 @@ public class ToolCallLoopTests
         var result = await session.ChatAsync("Add 3 and 5");
 
         Assert.That(result, Is.EqualTo("The result is 8."));
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(2));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(2));
 
         // Verify history: user -> assistant(tool_call) -> tool(result) -> assistant(text)
         var history = client.ReceivedMessagesHistory;
@@ -205,7 +205,7 @@ public class ToolCallLoopTests
 
         Assert.That(result, Is.EqualTo(string.Empty));
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(0));
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(1));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
     [Test]
@@ -268,7 +268,7 @@ public class ToolCallLoopTests
 
         Assert.That(result, Is.EqualTo("Stopped."));
         // 128 iterations with tools + 1 final without = 129 calls
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(129));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(129));
     }
 
     [Test]
