@@ -19,6 +19,8 @@ namespace Alco.LLM;
 /// </summary>
 public sealed class ToolRegistry
 {
+    private static readonly Func<Task, Task<object?>> AwaitVoidTaskResult = AwaitVoidTaskResultImpl;
+
     private readonly Dictionary<string, ToolDescriptor> _tools = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
 
@@ -116,8 +118,13 @@ public sealed class ToolRegistry
 
         if (rawResult is Task task)
         {
-            await task;
-            return descriptor.ReturnType == typeof(Task) ? null : await (dynamic)task;
+            if (descriptor.AwaitTaskResult == null)
+            {
+                await task.ConfigureAwait(false);
+                return null;
+            }
+
+            return await descriptor.AwaitTaskResult(task).ConfigureAwait(false);
         }
         return rawResult;
     }
@@ -156,10 +163,44 @@ public sealed class ToolRegistry
                 isOnAgentThread: attr.IsOnAgentThread,
                 method: method,
                 target: target,
-                jsonOptions: jsonOptions);
+                jsonOptions: jsonOptions,
+                awaitTaskResult: CreateAwaitTaskResultFunc(method.ReturnType));
 
             _tools[method.Name] = descriptor;
         }
+    }
+
+    private static Func<Task, Task<object?>>? CreateAwaitTaskResultFunc(Type returnType)
+    {
+        if (returnType == typeof(Task))
+        {
+            return AwaitVoidTaskResult;
+        }
+
+        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+        {
+            Type resultType = returnType.GetGenericArguments()[0];
+            MethodInfo awaitMethod = typeof(ToolRegistry).GetMethod(
+                nameof(AwaitTaskResultImpl),
+                BindingFlags.Static | BindingFlags.NonPublic)!;
+            MethodInfo genericAwaitMethod = awaitMethod.MakeGenericMethod(resultType);
+            return (Func<Task, Task<object?>>)Delegate.CreateDelegate(
+                typeof(Func<Task, Task<object?>>),
+                genericAwaitMethod);
+        }
+
+        return null;
+    }
+
+    private static async Task<object?> AwaitVoidTaskResultImpl(Task task)
+    {
+        await task.ConfigureAwait(false);
+        return null;
+    }
+
+    private static async Task<object?> AwaitTaskResultImpl<T>(Task task)
+    {
+        return await ((Task<T>)task).ConfigureAwait(false);
     }
 
     private static JsonElement BuildParameterSchema(MethodInfo method, JsonSerializerOptions jsonOptions)

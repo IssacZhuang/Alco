@@ -56,6 +56,12 @@ public sealed class ToolDescriptor
     public JsonSerializerOptions JsonOptions { get; }
 
     /// <summary>
+    /// Gets the awaiter used to unwrap <see cref="Task"/> / <see cref="Task{TResult}"/> return values.
+    /// <c>null</c> when the tool method returns a synchronous result type.
+    /// </summary>
+    public Func<Task, Task<object?>>? AwaitTaskResult { get; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ToolDescriptor"/> class.
     /// </summary>
     public ToolDescriptor(
@@ -66,7 +72,8 @@ public sealed class ToolDescriptor
         bool isOnAgentThread,
         MethodInfo method,
         object? target,
-        JsonSerializerOptions jsonOptions)
+        JsonSerializerOptions jsonOptions,
+        Func<Task, Task<object?>>? awaitTaskResult)
     {
         Name = name;
         Description = description;
@@ -76,5 +83,6 @@ public sealed class ToolDescriptor
         Method = method;
         Target = target;
         JsonOptions = jsonOptions;
+        AwaitTaskResult = awaitTaskResult;
     }
 }
