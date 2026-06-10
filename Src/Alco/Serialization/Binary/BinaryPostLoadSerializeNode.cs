@@ -280,7 +280,7 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         }
         else if (id > 0)
         {
-            AddError($"Failed to resolve reference '{key}': {id}");
+            AddError($"Failed to resolve reference '{key}': {id}\n{Environment.StackTrace}");
         }
     }
 
