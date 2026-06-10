@@ -170,6 +170,24 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         return DrawTextCore(font, slices, str, matrix, pivot, ColorFloat.White, lineSpacing);
     }
 
+    /// <summary>
+    /// Draws text with a default color and per-range color slices.
+    /// Characters not covered by any slice use the default color.
+    /// </summary>
+    /// <param name="font">The font to render with.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="matrix">The transformation matrix.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="color">The default color for characters not covered by any slice.</param>
+    /// <param name="slices">The color slices. Later slices override earlier ones.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
+    {
+        return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing);
+    }
+
     #endregion
 
     private unsafe float DrawTextCore(Font font, ReadOnlySpan<TextSlice> slices, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)

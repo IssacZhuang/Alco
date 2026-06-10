@@ -112,17 +112,14 @@ public struct ColorFloat
         {
             hex = hex.Slice(1);
         }
-        if (hex.Length == 6)
+        if (hex.Length == 6 && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgb))
         {
-            uint uintColor = uint.Parse(hex, NumberStyles.HexNumber);
-            uintColor = (uintColor << 8) | 0xFF;
-            color = (ColorFloat)uintColor;
+            color = (ColorFloat)((rgb << 8) | 0xFF);
             return true;
         }
-        if (hex.Length == 8)
+        if (hex.Length == 8 && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgba))
         {
-            uint uintColor = uint.Parse(hex, NumberStyles.HexNumber);
-            color = (ColorFloat)uintColor;
+            color = (ColorFloat)rgba;
             return true;
         }
         color = default;

@@ -58,6 +58,26 @@ public partial class Canvas : AutoDisposable
         return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing);
     }
 
+    /// <summary>
+    /// Draws characters with a default color and per-range color slices.
+    /// Characters not covered by any slice use the default color.
+    /// </summary>
+    /// <param name="font">The font to render with. If null, the default font is used.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="matrix">The transformation matrix.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="color">The default color for characters not covered by any slice.</param>
+    /// <param name="slices">The color slices. Later slices override earlier ones.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing)
+    {
+        font ??= DefaultFont;
+        _renderContext.SetStencilReference(_mask);
+        return _textRenderer.DrawText(font, str, matrix, pivot, color, slices, lineSpacing);
+    }
+
     protected void IncreaceStencil(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
     {
         SpriteConstant constant = new SpriteConstant

@@ -28,6 +28,12 @@ public class UIText : UISelectable
     private Pivot _textPivot = Pivot.Center; // the pivot of the text relative to the container
     private OverflowModeHorizontal _overflowHorizontal = OverflowModeHorizontal.None;
     private OverflowModeVertical _overflowVertical = OverflowModeVertical.None;
+    private bool _isRichText;
+    // rich text buffers, lazily created when IsRichText is first enabled
+    private ArrayBuffer<char>? _richText;
+    private int _richTextLength;
+    private List<TextSlice>? _richSlices;
+    private ArrayBuffer<TextSlice>? _lineSlices;
 
     /// <summary>
     /// The font for rendering text. The text will not display if the font is null.
@@ -120,6 +126,33 @@ public class UIText : UISelectable
     }
 
     /// <summary>
+    /// Enables rich text parsing.
+    /// When enabled, &lt;color=#RRGGBB&gt; / &lt;color=#RRGGBBAA&gt; and &lt;/color&gt; tags are stripped from
+    /// the rendered text and the enclosed characters are tinted with the tag color multiplied by the node color.
+    /// Tags may be nested; malformed or unmatched tags are rendered as plain text.
+    /// <see cref="Text"/> and <see cref="TextSpan"/> still return the raw text including tags.
+    /// </summary>
+    public bool IsRichText
+    {
+        get => _isRichText;
+        set
+        {
+            if (_isRichText == value)
+            {
+                return;
+            }
+            _isRichText = value;
+            if (value)
+            {
+                _richText ??= new ArrayBuffer<char>();
+                _richSlices ??= new List<TextSlice>();
+                _lineSlices ??= new ArrayBuffer<TextSlice>();
+            }
+            SetLineBreakDirty();
+        }
+    }
+
+    /// <summary>
     /// The text pivot relative to the self container.
     /// </summary>
     /// <value></value>
@@ -189,7 +222,8 @@ public class UIText : UISelectable
             TryRefreshTextLineBreak();
         }
 
-        if (_textLength == 0)
+        Span<char> renderText = RenderTextSpan;
+        if (renderText.Length == 0)
         {
             return;
         }
@@ -206,8 +240,7 @@ public class UIText : UISelectable
 
         for (int i = 0; i < _lines.Count; i++)
         {
-            //renderer.DrawChars(Font, _text.Slice(_lines[i].start, _lines[i].count), transform.Matrix, _textPivot, Color, 1f, mask);
-            DrawLine(canvas, i, _text.AsSpan(_lines[i].start, _lines[i].count), transform);
+            DrawLine(canvas, i, renderText.Slice(_lines[i].start, _lines[i].count), transform);
             transform.Position.Y -= lineHeight;
         }
     }
@@ -250,7 +283,136 @@ public class UIText : UISelectable
 
     protected virtual void DrawLine(Canvas canvas, int line, ReadOnlySpan<char> chars, Transform2D textLineTransform)
     {
+        if (_isRichText && _richSlices!.Count > 0)
+        {
+            canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, GetLineSlices(line), 1f);
+            return;
+        }
         canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, 1f);
+    }
+
+    /// <summary>
+    /// The characters that are actually rendered: the rich-text-stripped text when
+    /// <see cref="IsRichText"/> is enabled, otherwise the raw text.
+    /// <see cref="_lines"/> indices refer to this span.
+    /// </summary>
+    protected Span<char> RenderTextSpan
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _isRichText ? _richText!.AsSpan(0, _richTextLength) : _text.AsSpan(0, _textLength);
+    }
+
+    // clips the parsed color slices to the given line and rebases them to line-local indices
+    private ReadOnlySpan<TextSlice> GetLineSlices(int line)
+    {
+        Line textLine = _lines[line];
+        int lineStart = textLine.start;
+        int lineEnd = lineStart + textLine.count;
+        ColorFloat renderColor = RenderColor;
+
+        List<TextSlice> slices = _richSlices!;
+        ArrayBuffer<TextSlice> lineSlices = _lineSlices!;
+        lineSlices.SetSizeWithoutCopy(slices.Count);
+
+        int count = 0;
+        for (int i = 0; i < slices.Count; i++)
+        {
+            TextSlice slice = slices[i];
+            int sliceEnd = slice.Start + slice.Length;
+            if (sliceEnd <= lineStart)
+            {
+                continue;
+            }
+            if (slice.Start >= lineEnd)
+            {
+                break; // slices are sorted by start
+            }
+            int clippedStart = Math.Max(slice.Start, lineStart);
+            int clippedEnd = Math.Min(sliceEnd, lineEnd);
+            lineSlices[count++] = new TextSlice
+            {
+                Color = slice.Color * renderColor,
+                Start = clippedStart - lineStart,
+                Length = clippedEnd - clippedStart
+            };
+        }
+        return lineSlices.AsSpan(0, count);
+    }
+
+    private const string RichTextColorOpenPrefix = "<color=";
+    private const string RichTextColorCloseTag = "</color>";
+    private const int MaxRichTextColorDepth = 16;
+
+    // strips <color> tags from the raw text into _richText and records color runs in _richSlices
+    private void ParseRichText()
+    {
+        ReadOnlySpan<char> input = TextSpan;
+        _richText!.SetSizeWithoutCopy(input.Length);
+        _richSlices!.Clear();
+
+        Span<ColorFloat> colorStack = stackalloc ColorFloat[MaxRichTextColorDepth];
+        int depth = 0;
+        int outLength = 0;
+        int runStart = 0;
+
+        for (int i = 0; i < input.Length; i++)
+        {
+            char c = input[i];
+            if (c == '<')
+            {
+                if (depth < MaxRichTextColorDepth && TryParseColorOpenTag(input.Slice(i), out int tagLength, out ColorFloat tagColor))
+                {
+                    FlushColorRun(colorStack, depth, runStart, outLength);
+                    colorStack[depth++] = tagColor;
+                    runStart = outLength;
+                    i += tagLength - 1;
+                    continue;
+                }
+                if (depth > 0 && input.Slice(i).StartsWith(RichTextColorCloseTag))
+                {
+                    FlushColorRun(colorStack, depth, runStart, outLength);
+                    depth--;
+                    runStart = outLength;
+                    i += RichTextColorCloseTag.Length - 1;
+                    continue;
+                }
+            }
+            _richText[outLength++] = c;
+        }
+        FlushColorRun(colorStack, depth, runStart, outLength);
+        _richTextLength = outLength;
+    }
+
+    private void FlushColorRun(ReadOnlySpan<ColorFloat> colorStack, int depth, int runStart, int outLength)
+    {
+        if (depth <= 0 || outLength <= runStart)
+        {
+            return;
+        }
+        _richSlices!.Add(new TextSlice
+        {
+            Color = colorStack[depth - 1],
+            Start = runStart,
+            Length = outLength - runStart
+        });
+    }
+
+    private static bool TryParseColorOpenTag(ReadOnlySpan<char> input, out int tagLength, out ColorFloat color)
+    {
+        tagLength = 0;
+        color = default;
+        if (!input.StartsWith(RichTextColorOpenPrefix))
+        {
+            return false;
+        }
+        ReadOnlySpan<char> value = input.Slice(RichTextColorOpenPrefix.Length);
+        int closeIndex = value.IndexOf('>');
+        if (closeIndex <= 0 || !ColorFloat.TryParse(value.Slice(0, closeIndex), out color))
+        {
+            return false;
+        }
+        tagLength = RichTextColorOpenPrefix.Length + closeIndex + 1;
+        return true;
     }
 
     protected void SetLineBreakDirty()
@@ -265,10 +427,14 @@ public class UIText : UISelectable
             return;
         }
         _isLineBreakDirty = false;
-        Span<char> text = TextSpan;
+        if (_isRichText)
+        {
+            ParseRichText();
+        }
+        Span<char> text = RenderTextSpan;
         _lines.Clear();
 
-        if (_textLength == 0)
+        if (text.Length == 0)
         {
             return;
         }
