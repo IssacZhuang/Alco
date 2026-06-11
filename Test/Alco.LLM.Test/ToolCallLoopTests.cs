@@ -169,30 +169,10 @@ public class ToolCallLoopTests
     }
 
     [Test]
-    public async Task ChatAsync_AsyncToolThrowsException_ReturnsStructuredErrorResult()
-    {
-        var client = new FakeChatClient();
-        client.SetupResponse(CreateToolCallResponse(("call1", "ThrowAsync", new Dictionary<string, object?>())));
-        client.SetupResponse(CreateTextResponse("Handled async error."));
-
-        var registry = CreateAdvancedRegistry();
-        var tools = registry.ToAITools();
-        var session = new LLMSession(client, registry, tools);
-
-        var result = await session.ChatAsync("Trigger async error");
-
-        Assert.That(result, Is.EqualTo("Handled async error."));
-        var toolResult = GetFunctionResults(client.ReceivedMessagesHistory[1]).Single();
-        var failure = GetFailureResult(toolResult);
-        Assert.That(failure["success"], Is.False);
-        Assert.That(failure["errorType"], Is.EqualTo(nameof(InvalidOperationException)));
-    }
-
-    [Test]
     public async Task ChatAsync_AutoInvokeToolsFalse_DoesNotInvokeToolOrContinueLoop()
     {
         var client = new FakeChatClient();
-        client.SetupResponse(CreateToolCallResponse(("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })));
+        client.SetupResponse(CreateToolCallResponse(("call1", "Add", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })));
 
         var registry = CreateAdvancedRegistry();
         var tools = registry.ToAITools();
@@ -212,7 +192,7 @@ public class ToolCallLoopTests
     public async Task ChatAsync_ToolTimeout_ReturnsStructuredErrorResultAndContinues()
     {
         var client = new FakeChatClient();
-        client.SetupResponse(CreateToolCallResponse(("call1", "SlowAsync", new Dictionary<string, object?> { ["milliseconds"] = 500 })));
+        client.SetupResponse(CreateToolCallResponse(("call1", "Slow", new Dictionary<string, object?> { ["milliseconds"] = 500 })));
         client.SetupResponse(CreateTextResponse("Timeout handled."));
 
         var registry = CreateAdvancedRegistry();
@@ -435,7 +415,7 @@ public class ToolCallLoopTests
         {
             yield return new ChatResponseUpdate
             {
-                Contents = [new FunctionCallContent("call1", "SlowAsync", new Dictionary<string, object?> { ["milliseconds"] = 500 })]
+                Contents = [new FunctionCallContent("call1", "Slow", new Dictionary<string, object?> { ["milliseconds"] = 500 })]
             };
         }
 
@@ -471,7 +451,7 @@ public class ToolCallLoopTests
         {
             yield return new ChatResponseUpdate
             {
-                Contents = [new FunctionCallContent("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
+                Contents = [new FunctionCallContent("call1", "Add", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
             };
         }
 
@@ -631,7 +611,7 @@ public class ToolCallLoopTests
         {
             yield return new ChatResponseUpdate
             {
-                Contents = [new FunctionCallContent("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
+                Contents = [new FunctionCallContent("call1", "Add", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
             };
         }
 

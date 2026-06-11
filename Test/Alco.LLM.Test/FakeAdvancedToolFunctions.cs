@@ -16,36 +16,34 @@ public static class FakeAdvancedToolFunctions
     }
 
     [AgentFunction(IsOnAgentThread = true)]
-    [Description("Adds two numbers asynchronously")]
-    public static async Task<int> AddAsync(int a, int b)
+    [Description("Adds two numbers")]
+    public static int Add(int a, int b)
     {
-        await Task.Yield();
         CallCount++;
         return a + b;
     }
 
     [AgentFunction(IsOnAgentThread = true)]
-    [Description("Completes an async task without returning a value")]
-    public static async Task CompleteAsync()
+    [Description("Completes without returning a value")]
+    public static string Complete()
     {
-        await Task.Yield();
         CallCount++;
+        return "done";
     }
 
     [AgentFunction(IsOnAgentThread = true)]
-    [Description("Throws asynchronously")]
-    public static async Task<string> ThrowAsync()
+    [Description("Always throws an error")]
+    public static string Throw()
     {
-        await Task.Yield();
-        throw new InvalidOperationException("Async test error");
+        throw new InvalidOperationException("Test error");
     }
 
-    [AgentFunction(IsOnAgentThread = true)]
+    [AgentFunction]
     [Description("Waits before returning")]
-    public static async Task<string> SlowAsync(int milliseconds)
+    public static string Slow(int milliseconds)
     {
         CallCount++;
-        await Task.Delay(milliseconds);
+        Thread.Sleep(milliseconds);
         return "done";
     }
 
@@ -53,15 +51,6 @@ public static class FakeAdvancedToolFunctions
     [Description("Adds two numbers on the main thread")]
     public static int MainThreadAdd(int a, int b)
     {
-        CallCount++;
-        return a + b;
-    }
-
-    [AgentFunction]
-    [Description("Adds two numbers asynchronously on the main thread")]
-    public static async Task<int> MainThreadAddAsync(int a, int b)
-    {
-        await Task.Yield();
         CallCount++;
         return a + b;
     }

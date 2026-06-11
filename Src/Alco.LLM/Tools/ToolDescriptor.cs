@@ -1,8 +1,6 @@
 using System;
 using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Schema;
 
 namespace Alco.LLM;
 
@@ -29,11 +27,6 @@ public sealed class ToolDescriptor
     public JsonElement ParameterSchema { get; }
 
     /// <summary>
-    /// Gets the return type of the tool method.
-    /// </summary>
-    public Type ReturnType { get; }
-
-    /// <summary>
     /// Gets whether this tool runs on the agent thread (background thread).
     /// When <c>true</c>, the tool is invoked directly on the calling thread.
     /// When <c>false</c>, the tool is marshaled to the engine main thread before invocation.
@@ -56,33 +49,23 @@ public sealed class ToolDescriptor
     public JsonSerializerOptions JsonOptions { get; }
 
     /// <summary>
-    /// Gets the awaiter used to unwrap <see cref="Task"/> / <see cref="Task{TResult}"/> return values.
-    /// <c>null</c> when the tool method returns a synchronous result type.
-    /// </summary>
-    public Func<Task, Task<object?>>? AwaitTaskResult { get; }
-
-    /// <summary>
     /// Initializes a new instance of the <see cref="ToolDescriptor"/> class.
     /// </summary>
     public ToolDescriptor(
         string name,
         string description,
         JsonElement parameterSchema,
-        Type returnType,
         bool isOnAgentThread,
         MethodInfo method,
         object? target,
-        JsonSerializerOptions jsonOptions,
-        Func<Task, Task<object?>>? awaitTaskResult)
+        JsonSerializerOptions jsonOptions)
     {
         Name = name;
         Description = description;
         ParameterSchema = parameterSchema;
-        ReturnType = returnType;
         IsOnAgentThread = isOnAgentThread;
         Method = method;
         Target = target;
         JsonOptions = jsonOptions;
-        AwaitTaskResult = awaitTaskResult;
     }
 }
