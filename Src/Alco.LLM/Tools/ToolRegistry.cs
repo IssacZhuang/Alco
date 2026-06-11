@@ -67,7 +67,9 @@ public sealed class ToolRegistry
 
     /// <summary>
     /// Invokes a tool by name with the provided JSON arguments.
-    /// Handles thread marshaling for tools that require main thread execution.
+    /// Agent-thread tools execute on the thread pool via <see cref="Task.Run(Action)"/> so the
+    /// returned task is pending and callers can race it against timeouts or run multiple tools
+    /// concurrently. Tools requiring the main thread are marshaled via the main thread queue.
     /// </summary>
     /// <param name="name">The tool name.</param>
     /// <param name="jsonArgs">The JSON element containing arguments.</param>
@@ -82,15 +84,18 @@ public sealed class ToolRegistry
 
         if (descriptor.IsOnAgentThread)
         {
-            try
+            return await Task.Run(() =>
             {
-                return descriptor.Method.Invoke(descriptor.Target, args);
-            }
-            catch (TargetInvocationException ex) when (ex.InnerException != null)
-            {
-                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                throw;
-            }
+                try
+                {
+                    return descriptor.Method.Invoke(descriptor.Target, args);
+                }
+                catch (TargetInvocationException ex) when (ex.InnerException != null)
+                {
+                    ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                    throw;
+                }
+            });
         }
 
         var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
