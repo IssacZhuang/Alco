@@ -49,6 +49,14 @@ public sealed class ToolDescriptor
     public JsonSerializerOptions JsonOptions { get; }
 
     /// <summary>
+    /// Gets the compiled delegate that takes the raw invocation result and returns
+    /// a <see cref="Task{T}"/> producing the boxed final result (or null).
+    /// Built at discovery time to avoid per-invocation reflection.
+    /// </summary>
+    public Func<object?, Task<object?>> AwaitResultAsync { get; }
+
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ToolDescriptor"/> class.
     /// </summary>
     public ToolDescriptor(
@@ -58,7 +66,8 @@ public sealed class ToolDescriptor
         bool isOnAgentThread,
         MethodInfo method,
         object? target,
-        JsonSerializerOptions jsonOptions)
+        JsonSerializerOptions jsonOptions,
+        Func<object?, Task<object?>> awaitResultAsync)
     {
         Name = name;
         Description = description;
@@ -67,5 +76,6 @@ public sealed class ToolDescriptor
         Method = method;
         Target = target;
         JsonOptions = jsonOptions;
+        AwaitResultAsync = awaitResultAsync;
     }
 }

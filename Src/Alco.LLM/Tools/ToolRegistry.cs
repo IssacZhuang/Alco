@@ -141,7 +141,8 @@ public sealed class ToolRegistry
                 isOnAgentThread: attr.IsOnAgentThread,
                 method: method,
                 target: target,
-                jsonOptions: jsonOptions);
+                jsonOptions: jsonOptions,
+                awaitResultAsync: BuildResultExtractor(method.ReturnType));
 
             _tools[method.Name] = descriptor;
         }
@@ -160,60 +161,74 @@ public sealed class ToolRegistry
             throw;
         }
 
-        return await AwaitInvocationResultAsync(result, descriptor.Method.ReturnType).ConfigureAwait(false);
+        return await descriptor.AwaitResultAsync(result).ConfigureAwait(false);
     }
 
-    private static async Task<object?> AwaitInvocationResultAsync(object? result, Type returnType)
+    private static Func<object?, Task<object?>> BuildResultExtractor(Type returnType)
     {
-        if (result is null)
+        if (returnType == typeof(void))
         {
-            return null;
+            return static _ => Task.FromResult((object?)null);
         }
 
-        if (result is Task task)
+        if (returnType == typeof(Task))
         {
+            return static async r =>
+            {
+                await ((Task)r!).ConfigureAwait(false);
+                return null;
+            };
+        }
+
+        if (returnType.IsGenericType)
+        {
+            var genericDef = returnType.GetGenericTypeDefinition();
+
+            if (genericDef == typeof(Task<>))
+            {
+                return (Func<object?, Task<object?>>)Delegate.CreateDelegate(
+                    typeof(Func<object?, Task<object?>>),
+                    typeof(GenericHelpers<>)
+                        .MakeGenericType(returnType.GetGenericArguments()[0])
+                        .GetMethod(nameof(GenericHelpers<int>.AwaitTaskResultAsync))!);
+            }
+
+            if (genericDef == typeof(ValueTask<>))
+            {
+                return (Func<object?, Task<object?>>)Delegate.CreateDelegate(
+                    typeof(Func<object?, Task<object?>>),
+                    typeof(GenericHelpers<>)
+                        .MakeGenericType(returnType.GetGenericArguments()[0])
+                        .GetMethod(nameof(GenericHelpers<int>.AwaitValueTaskResultAsync))!);
+            }
+        }
+
+        if (returnType == typeof(ValueTask))
+        {
+            return static async r =>
+            {
+                await ((ValueTask)r!).ConfigureAwait(false);
+                return null;
+            };
+        }
+
+        // Synchronous non-void return
+        return r => Task.FromResult(r);
+    }
+
+    private static class GenericHelpers<T>
+    {
+        public static async Task<object?> AwaitTaskResultAsync(object? raw)
+        {
+            var task = (Task<T>)raw!;
             await task.ConfigureAwait(false);
-            return IsGenericTask(returnType) ? GetTaskResult(task) : null;
+            return task.Result;
         }
 
-        if (result is ValueTask valueTask)
+        public static async Task<object?> AwaitValueTaskResultAsync(object? raw)
         {
-            await valueTask.ConfigureAwait(false);
-            return null;
+            return await ((ValueTask<T>)raw!).ConfigureAwait(false);
         }
-
-        if (IsGenericValueTask(returnType))
-        {
-            return await AwaitGenericValueTaskAsync((dynamic)result).ConfigureAwait(false);
-        }
-
-        return result;
-    }
-
-    private static object? GetTaskResult(Task task)
-    {
-        Type taskType = task.GetType();
-        if (!taskType.IsGenericType)
-        {
-            return null;
-        }
-
-        return taskType.GetProperty(nameof(Task<object>.Result))?.GetValue(task);
-    }
-
-    private static bool IsGenericTask(Type type)
-    {
-        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>);
-    }
-
-    private static bool IsGenericValueTask(Type type)
-    {
-        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ValueTask<>);
-    }
-
-    private static async Task<object?> AwaitGenericValueTaskAsync<T>(ValueTask<T> valueTask)
-    {
-        return await valueTask.ConfigureAwait(false);
     }
 
     private static JsonElement BuildParameterSchema(MethodInfo method, JsonSerializerOptions jsonOptions)
