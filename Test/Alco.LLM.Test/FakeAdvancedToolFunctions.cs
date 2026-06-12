@@ -32,6 +32,40 @@ public static class FakeAdvancedToolFunctions
     }
 
     [AgentFunction(IsOnAgentThread = true)]
+    [Description("Adds two numbers asynchronously")]
+    public static async Task<int> AddAsync(int a, int b)
+    {
+        await Task.Yield();
+        CallCount++;
+        return a + b;
+    }
+
+    [AgentFunction(IsOnAgentThread = true)]
+    [Description("Completes asynchronously without a value")]
+    public static async Task CompleteTaskAsync()
+    {
+        await Task.Yield();
+        CallCount++;
+    }
+
+    [AgentFunction(IsOnAgentThread = true)]
+    [Description("Adds two numbers asynchronously using ValueTask")]
+    public static async ValueTask<int> AddValueTaskAsync(int a, int b)
+    {
+        await Task.Yield();
+        CallCount++;
+        return a + b;
+    }
+
+    [AgentFunction(IsOnAgentThread = true)]
+    [Description("Completes asynchronously using ValueTask")]
+    public static async ValueTask CompleteValueTaskAsync()
+    {
+        await Task.Yield();
+        CallCount++;
+    }
+
+    [AgentFunction(IsOnAgentThread = true)]
     [Description("Always throws an error")]
     public static string Throw()
     {
@@ -51,6 +85,15 @@ public static class FakeAdvancedToolFunctions
     [Description("Adds two numbers on the main thread")]
     public static int MainThreadAdd(int a, int b)
     {
+        CallCount++;
+        return a + b;
+    }
+
+    [AgentFunction]
+    [Description("Adds two numbers asynchronously on the main thread")]
+    public static async Task<int> MainThreadAddAsync(int a, int b)
+    {
+        await Task.Yield();
         CallCount++;
         return a + b;
     }

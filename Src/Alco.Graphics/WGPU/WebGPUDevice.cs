@@ -230,9 +230,39 @@ internal sealed partial class WebGPUDevice : GPUDevice
     {
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
 
+        WGPUTexelCopyBufferLayout textureDataLayout;
+        ulong stagingDataSize = dataSize;
+        uint tightBytesPerRow = 0;
+        uint alignedBytesPerRow = 0;
+        ulong expectedDataSize = dataSize;
+
+        if (PixelFormatUtility.TryGetPixelSize(texture.PixelFormat, out uint pixelSize))
+        {
+            tightBytesPerRow = checked(texture.Width * pixelSize);
+            alignedBytesPerRow = AlignTextureBytesPerRow(tightBytesPerRow);
+            expectedDataSize = (ulong)tightBytesPerRow * texture.Height * texture.Depth;
+            if (dataSize < expectedDataSize)
+            {
+                throw new GraphicsException(
+                    $"The destination buffer is too small for texture readback. Required: {expectedDataSize}, provided: {dataSize}.");
+            }
+
+            textureDataLayout = new WGPUTexelCopyBufferLayout
+            {
+                offset = 0,
+                bytesPerRow = alignedBytesPerRow,
+                rowsPerImage = texture.Height,
+            };
+            stagingDataSize = (ulong)alignedBytesPerRow * texture.Height * texture.Depth;
+        }
+        else
+        {
+            textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height);
+        }
+
         WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
         {
-            size = dataSize,
+            size = stagingDataSize,
             usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
             mappedAtCreation = false,
         };
@@ -255,7 +285,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         WGPUTexelCopyBufferInfo destBuffer = new WGPUTexelCopyBufferInfo
         {
             buffer = tmpBuffer,
-            layout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height),
+            layout = textureDataLayout,
         };
 
         WGPUExtent3D copySize = new WGPUExtent3D
@@ -271,7 +301,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
         wgpuQueueSubmit(Queue, 1, &commandBuffer);
 
-        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, dataSize,
+        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)stagingDataSize,
             new WGPUBufferMapCallbackInfo()
             {
                 mode = (WGPUCallbackMode)0,
@@ -281,14 +311,55 @@ internal sealed partial class WebGPUDevice : GPUDevice
             });
         wgpuDevicePoll(Device, WGPUBool.True, null);
 
-        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, dataSize);
-        Unsafe.CopyBlock(dest, pointer, dataSize);
+        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, (nuint)stagingDataSize);
+        if (tightBytesPerRow != 0)
+        {
+            CopyTextureReadbackData(dest, (byte*)pointer, tightBytesPerRow, alignedBytesPerRow, texture.Height, texture.Depth);
+        }
+        else
+        {
+            Unsafe.CopyBlock(dest, pointer, dataSize);
+        }
         wgpuBufferUnmap(tmpBuffer);
 
         wgpuCommandEncoderRelease(encoder);
         wgpuCommandBufferRelease(commandBuffer);
         wgpuBufferDestroy(tmpBuffer);
         wgpuBufferRelease(tmpBuffer);
+    }
+
+    private static uint AlignTextureBytesPerRow(uint bytesPerRow)
+    {
+        const uint TextureCopyBytesPerRowAlignment = 256;
+        return checked((bytesPerRow + TextureCopyBytesPerRowAlignment - 1) & ~(TextureCopyBytesPerRowAlignment - 1));
+    }
+
+    private static unsafe void CopyTextureReadbackData(
+        byte* destination,
+        byte* source,
+        uint tightBytesPerRow,
+        uint alignedBytesPerRow,
+        uint height,
+        uint depth)
+    {
+        if (tightBytesPerRow == alignedBytesPerRow)
+        {
+            Unsafe.CopyBlock(destination, source, checked(tightBytesPerRow * height * depth));
+            return;
+        }
+
+        for (uint layer = 0; layer < depth; layer++)
+        {
+            ulong sourceLayerOffset = (ulong)layer * height * alignedBytesPerRow;
+            ulong destinationLayerOffset = (ulong)layer * height * tightBytesPerRow;
+
+            for (uint row = 0; row < height; row++)
+            {
+                byte* sourceRow = source + (nint)(sourceLayerOffset + (ulong)row * alignedBytesPerRow);
+                byte* destinationRow = destination + (nint)(destinationLayerOffset + (ulong)row * tightBytesPerRow);
+                Unsafe.CopyBlock(destinationRow, sourceRow, tightBytesPerRow);
+            }
+        }
     }
 
     protected unsafe override void OnEndFrameCore()

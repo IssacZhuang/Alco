@@ -8,6 +8,7 @@ using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
+using System.Threading.Tasks;
 using Alco.Engine;
 
 namespace Alco.LLM;
@@ -84,26 +85,16 @@ public sealed class ToolRegistry
 
         if (descriptor.IsOnAgentThread)
         {
-            return await Task.Run(() =>
-            {
-                try
-                {
-                    return descriptor.Method.Invoke(descriptor.Target, args);
-                }
-                catch (TargetInvocationException ex) when (ex.InnerException != null)
-                {
-                    ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                    throw;
-                }
-            });
+            return await Task.Run(() => InvokeDescriptorAsync(descriptor, args));
         }
 
         var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _mainThreadQueue.Enqueue(() =>
+        _mainThreadQueue.Enqueue(async () =>
         {
             try
             {
-                tcs.TrySetResult(descriptor.Method.Invoke(descriptor.Target, args));
+                object? result = await InvokeDescriptorAsync(descriptor, args);
+                tcs.TrySetResult(result);
             }
             catch (TargetInvocationException ex)
             {
@@ -154,6 +145,75 @@ public sealed class ToolRegistry
 
             _tools[method.Name] = descriptor;
         }
+    }
+
+    private static async Task<object?> InvokeDescriptorAsync(ToolDescriptor descriptor, object?[] args)
+    {
+        object? result;
+        try
+        {
+            result = descriptor.Method.Invoke(descriptor.Target, args);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
+
+        return await AwaitInvocationResultAsync(result, descriptor.Method.ReturnType).ConfigureAwait(false);
+    }
+
+    private static async Task<object?> AwaitInvocationResultAsync(object? result, Type returnType)
+    {
+        if (result is null)
+        {
+            return null;
+        }
+
+        if (result is Task task)
+        {
+            await task.ConfigureAwait(false);
+            return IsGenericTask(returnType) ? GetTaskResult(task) : null;
+        }
+
+        if (result is ValueTask valueTask)
+        {
+            await valueTask.ConfigureAwait(false);
+            return null;
+        }
+
+        if (IsGenericValueTask(returnType))
+        {
+            return await AwaitGenericValueTaskAsync((dynamic)result).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    private static object? GetTaskResult(Task task)
+    {
+        Type taskType = task.GetType();
+        if (!taskType.IsGenericType)
+        {
+            return null;
+        }
+
+        return taskType.GetProperty(nameof(Task<object>.Result))?.GetValue(task);
+    }
+
+    private static bool IsGenericTask(Type type)
+    {
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>);
+    }
+
+    private static bool IsGenericValueTask(Type type)
+    {
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ValueTask<>);
+    }
+
+    private static async Task<object?> AwaitGenericValueTaskAsync<T>(ValueTask<T> valueTask)
+    {
+        return await valueTask.ConfigureAwait(false);
     }
 
     private static JsonElement BuildParameterSchema(MethodInfo method, JsonSerializerOptions jsonOptions)
