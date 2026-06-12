@@ -244,6 +244,16 @@ internal class NoDevice : GPUDevice
         
     }
 
+    protected override unsafe void BeginReadTextureCore(
+        GPUTexture texture,
+        byte* dest,
+        uint dataSize,
+        GPUTextureReadbackRequest request,
+        uint mipLevel = 0)
+    {
+        request.Complete();
+    }
+
     protected override void OnEndFrameCore()
     {
         

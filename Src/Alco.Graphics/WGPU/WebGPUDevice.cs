@@ -18,7 +18,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
+    private const int MaxPendingTextureReadbacks = 16;
+
     private readonly DeviceDescriptor _descriptor;
+    private readonly List<PendingTextureReadback> _pendingTextureReadbacks = new(capacity: 4);
+    private unsafe TextureReadbackCallbackState* _textureReadbackCallbackStates;
 
     // supported details
     private readonly PixelFormat _preferredSurfaceFormat;
@@ -27,6 +31,39 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public bool IsDebug { get; }
 
     #endregion
+
+    private unsafe struct PendingTextureReadback
+    {
+        public GPUTextureReadbackRequest Request;
+        public WGPUBuffer Buffer;
+        public ulong StagingDataSize;
+        public uint DataSize;
+        public uint TightBytesPerRow;
+        public uint AlignedBytesPerRow;
+        public uint Height;
+        public uint Depth;
+        public byte* Destination;
+        public int CallbackStateIndex;
+    }
+
+    private struct TextureReadbackCallbackState
+    {
+        public int IsInUse;
+        public int IsCompleted;
+        public WGPUMapAsyncStatus Status;
+    }
+
+    private struct TextureReadbackLayout
+    {
+        public WGPUTexelCopyBufferLayout BufferLayout;
+        public WGPUExtent3D CopySize;
+        public ulong StagingDataSize;
+        public uint DataSize;
+        public uint TightBytesPerRow;
+        public uint AlignedBytesPerRow;
+        public uint Height;
+        public uint Depth;
+    }
 
     #region Abstract Implementation
 
@@ -57,8 +94,16 @@ internal sealed partial class WebGPUDevice : GPUDevice
         wgpuCommandBufferRelease(buffer);//just decrement the reference count
     }
 
-    protected override void DisposeCore()
+    protected unsafe override void DisposeCore()
     {
+        FailPendingTextureReadbacks(
+            new ObjectDisposedException(nameof(WebGPUDevice), "GPU device was disposed before texture readback completed."));
+        if (_textureReadbackCallbackStates != null)
+        {
+            NativeMemory.Free(_textureReadbackCallbackStates);
+            _textureReadbackCallbackStates = null;
+        }
+
         //dispose default resources
         SamplerNearestRepeat.Destroy();
         SamplerLinearRepeat.Destroy();
@@ -229,18 +274,213 @@ internal sealed partial class WebGPUDevice : GPUDevice
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
+        TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
+
+        WGPUBuffer tmpBuffer = WGPUBuffer.Null;
+        WGPUCommandEncoder encoder = WGPUCommandEncoder.Null;
+        WGPUCommandBuffer commandBuffer = WGPUCommandBuffer.Null;
+        bool wasMapped = false;
+
+        try
+        {
+            WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
+            {
+                size = layout.StagingDataSize,
+                usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
+                mappedAtCreation = false,
+            };
+
+            tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
+
+            WGPUTexelCopyTextureInfo source = new WGPUTexelCopyTextureInfo
+            {
+                texture = nativeTexture,
+                mipLevel = mipLevel,
+                origin = new WGPUOrigin3D
+                {
+                    x = 0,
+                    y = 0,
+                    z = 0,
+                },
+                aspect = WGPUTextureAspect.All,
+            };
+
+            WGPUTexelCopyBufferInfo destBuffer = new WGPUTexelCopyBufferInfo
+            {
+                buffer = tmpBuffer,
+                layout = layout.BufferLayout,
+            };
+
+            encoder = wgpuDeviceCreateCommandEncoder(Device, null);
+            wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &layout.CopySize);
+
+            commandBuffer = wgpuCommandEncoderFinish(encoder, null);
+            wgpuQueueSubmit(Queue, 1, &commandBuffer);
+
+            wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)layout.StagingDataSize,
+                new WGPUBufferMapCallbackInfo()
+                {
+                    mode = (WGPUCallbackMode)0,
+                    callback = &BufferMapCallback,
+                    userdata1 = null,
+                    userdata2 = null,
+            });
+            wgpuDevicePoll(Device, WGPUBool.True, null);
+
+            wasMapped = true;
+            void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, (nuint)layout.StagingDataSize);
+            CopyCompletedTextureReadback(dest, pointer, layout);
+        }
+        finally
+        {
+            if (wasMapped)
+            {
+                wgpuBufferUnmap(tmpBuffer);
+            }
+
+            if (commandBuffer.IsNotNull)
+            {
+                wgpuCommandBufferRelease(commandBuffer);
+            }
+
+            if (encoder.IsNotNull)
+            {
+                wgpuCommandEncoderRelease(encoder);
+            }
+
+            if (tmpBuffer.IsNotNull)
+            {
+                ReleaseReadbackBuffer(tmpBuffer);
+            }
+        }
+    }
+
+    protected override unsafe void BeginReadTextureCore(
+        GPUTexture texture,
+        byte* dest,
+        uint dataSize,
+        GPUTextureReadbackRequest request,
+        uint mipLevel = 0)
+    {
+        WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
+        TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
+
+        WGPUBuffer tmpBuffer = WGPUBuffer.Null;
+        WGPUCommandEncoder encoder = WGPUCommandEncoder.Null;
+        WGPUCommandBuffer commandBuffer = WGPUCommandBuffer.Null;
+        int callbackStateIndex = -1;
+
+        try
+        {
+            callbackStateIndex = AcquireTextureReadbackCallbackState();
+            TextureReadbackCallbackState* callbackState = _textureReadbackCallbackStates + callbackStateIndex;
+
+            WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
+            {
+                size = layout.StagingDataSize,
+                usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
+                mappedAtCreation = false,
+            };
+            tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
+
+            WGPUTexelCopyTextureInfo source = new WGPUTexelCopyTextureInfo
+            {
+                texture = nativeTexture,
+                mipLevel = mipLevel,
+                origin = new WGPUOrigin3D
+                {
+                    x = 0,
+                    y = 0,
+                    z = 0,
+                },
+                aspect = WGPUTextureAspect.All,
+            };
+
+            WGPUTexelCopyBufferInfo destBuffer = new WGPUTexelCopyBufferInfo
+            {
+                buffer = tmpBuffer,
+                layout = layout.BufferLayout,
+            };
+
+            encoder = wgpuDeviceCreateCommandEncoder(Device, null);
+            wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &layout.CopySize);
+
+            commandBuffer = wgpuCommandEncoderFinish(encoder, null);
+            wgpuQueueSubmit(Queue, 1, &commandBuffer);
+
+            wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)layout.StagingDataSize,
+                new WGPUBufferMapCallbackInfo()
+                {
+                    mode = WGPUCallbackMode.AllowProcessEvents,
+                    callback = &TextureReadbackMapCallback,
+                    userdata1 = callbackState,
+                    userdata2 = null,
+                });
+
+            _pendingTextureReadbacks.Add(new PendingTextureReadback
+            {
+                Request = request,
+                Buffer = tmpBuffer,
+                StagingDataSize = layout.StagingDataSize,
+                DataSize = layout.DataSize,
+                TightBytesPerRow = layout.TightBytesPerRow,
+                AlignedBytesPerRow = layout.AlignedBytesPerRow,
+                Height = layout.Height,
+                Depth = layout.Depth,
+                Destination = dest,
+                CallbackStateIndex = callbackStateIndex,
+            });
+            callbackStateIndex = -1;
+            tmpBuffer = WGPUBuffer.Null;
+        }
+        finally
+        {
+            if (commandBuffer.IsNotNull)
+            {
+                wgpuCommandBufferRelease(commandBuffer);
+            }
+
+            if (encoder.IsNotNull)
+            {
+                wgpuCommandEncoderRelease(encoder);
+            }
+
+            if (tmpBuffer.IsNotNull)
+            {
+                ReleaseReadbackBuffer(tmpBuffer);
+            }
+
+            if (callbackStateIndex >= 0)
+            {
+                ReleaseTextureReadbackCallbackState(callbackStateIndex);
+            }
+        }
+    }
+
+    private static TextureReadbackLayout GetTextureReadbackLayout(GPUTexture texture, uint dataSize, uint mipLevel)
+    {
+        if (mipLevel >= texture.MipLevelCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(mipLevel),
+                mipLevel,
+                $"Texture only has {texture.MipLevelCount} mip levels.");
+        }
+
+        uint width = texture.GetMipWidth(mipLevel);
+        uint height = texture.GetMipHeight(mipLevel);
+        uint depth = texture.GetMipDepth(mipLevel);
 
         WGPUTexelCopyBufferLayout textureDataLayout;
         ulong stagingDataSize = dataSize;
         uint tightBytesPerRow = 0;
         uint alignedBytesPerRow = 0;
-        ulong expectedDataSize = dataSize;
 
         if (PixelFormatUtility.TryGetPixelSize(texture.PixelFormat, out uint pixelSize))
         {
-            tightBytesPerRow = checked(texture.Width * pixelSize);
+            tightBytesPerRow = checked(width * pixelSize);
             alignedBytesPerRow = AlignTextureBytesPerRow(tightBytesPerRow);
-            expectedDataSize = (ulong)tightBytesPerRow * texture.Height * texture.Depth;
+            ulong expectedDataSize = (ulong)tightBytesPerRow * height * depth;
             if (dataSize < expectedDataSize)
             {
                 throw new GraphicsException(
@@ -251,81 +491,31 @@ internal sealed partial class WebGPUDevice : GPUDevice
             {
                 offset = 0,
                 bytesPerRow = alignedBytesPerRow,
-                rowsPerImage = texture.Height,
+                rowsPerImage = height,
             };
-            stagingDataSize = (ulong)alignedBytesPerRow * texture.Height * texture.Depth;
+            stagingDataSize = (ulong)alignedBytesPerRow * height * depth;
         }
         else
         {
-            textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height);
+            textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, width, height);
         }
 
-        WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
+        return new TextureReadbackLayout
         {
-            size = stagingDataSize,
-            usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
-            mappedAtCreation = false,
-        };
-
-        WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
-
-        WGPUTexelCopyTextureInfo source = new WGPUTexelCopyTextureInfo
-        {
-            texture = nativeTexture,
-            mipLevel = mipLevel,
-            origin = new WGPUOrigin3D
+            BufferLayout = textureDataLayout,
+            CopySize = new WGPUExtent3D
             {
-                x = 0,
-                y = 0,
-                z = 0,
+                width = width,
+                height = height,
+                depthOrArrayLayers = depth,
             },
-            aspect = WGPUTextureAspect.All,
+            StagingDataSize = stagingDataSize,
+            DataSize = dataSize,
+            TightBytesPerRow = tightBytesPerRow,
+            AlignedBytesPerRow = alignedBytesPerRow,
+            Height = height,
+            Depth = depth,
         };
-
-        WGPUTexelCopyBufferInfo destBuffer = new WGPUTexelCopyBufferInfo
-        {
-            buffer = tmpBuffer,
-            layout = textureDataLayout,
-        };
-
-        WGPUExtent3D copySize = new WGPUExtent3D
-        {
-            width = texture.Width,
-            height = texture.Height,
-            depthOrArrayLayers = texture.Depth,
-        };
-
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
-        wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &copySize);
-
-        WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
-        wgpuQueueSubmit(Queue, 1, &commandBuffer);
-
-        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)stagingDataSize,
-            new WGPUBufferMapCallbackInfo()
-            {
-                mode = (WGPUCallbackMode)0,
-                callback = &BufferMapCallback,
-                userdata1 = null,
-                userdata2 = null,
-            });
-        wgpuDevicePoll(Device, WGPUBool.True, null);
-
-        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, (nuint)stagingDataSize);
-        if (tightBytesPerRow != 0)
-        {
-            CopyTextureReadbackData(dest, (byte*)pointer, tightBytesPerRow, alignedBytesPerRow, texture.Height, texture.Depth);
-        }
-        else
-        {
-            Unsafe.CopyBlock(dest, pointer, dataSize);
-        }
-        wgpuBufferUnmap(tmpBuffer);
-
-        wgpuCommandEncoderRelease(encoder);
-        wgpuCommandBufferRelease(commandBuffer);
-        wgpuBufferDestroy(tmpBuffer);
-        wgpuBufferRelease(tmpBuffer);
     }
 
     private static uint AlignTextureBytesPerRow(uint bytesPerRow)
@@ -362,9 +552,157 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
     }
 
+    private static unsafe void CopyCompletedTextureReadback(byte* destination, void* mappedPointer, in TextureReadbackLayout layout)
+    {
+        if (mappedPointer == null)
+        {
+            throw new GraphicsException("WebGPU texture readback returned a null mapped range.");
+        }
+
+        if (layout.TightBytesPerRow != 0)
+        {
+            CopyTextureReadbackData(
+                destination,
+                (byte*)mappedPointer,
+                layout.TightBytesPerRow,
+                layout.AlignedBytesPerRow,
+                layout.Height,
+                layout.Depth);
+            return;
+        }
+
+        Unsafe.CopyBlock(destination, mappedPointer, layout.DataSize);
+    }
+
+    private static unsafe void CopyCompletedTextureReadback(byte* destination, void* mappedPointer, in PendingTextureReadback readback)
+    {
+        if (mappedPointer == null)
+        {
+            throw new GraphicsException("WebGPU texture readback returned a null mapped range.");
+        }
+
+        if (readback.TightBytesPerRow != 0)
+        {
+            CopyTextureReadbackData(
+                destination,
+                (byte*)mappedPointer,
+                readback.TightBytesPerRow,
+                readback.AlignedBytesPerRow,
+                readback.Height,
+                readback.Depth);
+            return;
+        }
+
+        Unsafe.CopyBlock(destination, mappedPointer, readback.DataSize);
+    }
+
+    private unsafe void ProcessPendingTextureReadbacks()
+    {
+        for (int i = 0; i < _pendingTextureReadbacks.Count; i++)
+        {
+            PendingTextureReadback readback = _pendingTextureReadbacks[i];
+            TextureReadbackCallbackState* callbackState = _textureReadbackCallbackStates + readback.CallbackStateIndex;
+            if (callbackState->IsCompleted == 0)
+            {
+                continue;
+            }
+
+            bool wasMapped = false;
+            try
+            {
+                if (callbackState->Status != WGPUMapAsyncStatus.Success)
+                {
+                    throw new GraphicsException($"WebGPU texture readback map failed. Status: {callbackState->Status}.");
+                }
+
+                wasMapped = true;
+                void* pointer = wgpuBufferGetConstMappedRange(readback.Buffer, 0, (nuint)readback.StagingDataSize);
+                CopyCompletedTextureReadback(readback.Destination, pointer, readback);
+                readback.Request.Complete();
+            }
+            catch (Exception ex)
+            {
+                readback.Request.Fail(ex);
+            }
+            finally
+            {
+                if (wasMapped)
+                {
+                    wgpuBufferUnmap(readback.Buffer);
+                }
+            }
+
+            ReleaseReadbackBuffer(readback.Buffer);
+            ReleaseTextureReadbackCallbackState(readback.CallbackStateIndex);
+            _pendingTextureReadbacks.RemoveAt(i);
+            i--;
+        }
+    }
+
+    private void FailPendingTextureReadbacks(Exception error)
+    {
+        for (int i = 0; i < _pendingTextureReadbacks.Count; i++)
+        {
+            PendingTextureReadback readback = _pendingTextureReadbacks[i];
+            readback.Request.Fail(error);
+            ReleaseReadbackBuffer(readback.Buffer);
+            ReleaseTextureReadbackCallbackState(readback.CallbackStateIndex);
+        }
+
+        _pendingTextureReadbacks.Clear();
+    }
+
+    private static void ReleaseReadbackBuffer(WGPUBuffer buffer)
+    {
+        if (buffer.IsNull)
+        {
+            return;
+        }
+
+        wgpuBufferDestroy(buffer);
+        wgpuBufferRelease(buffer);
+    }
+
+    private unsafe int AcquireTextureReadbackCallbackState()
+    {
+        TextureReadbackCallbackState* states = _textureReadbackCallbackStates;
+        for (int i = 0; i < MaxPendingTextureReadbacks; i++)
+        {
+            if (states[i].IsInUse != 0)
+            {
+                continue;
+            }
+
+            states[i] = new TextureReadbackCallbackState
+            {
+                IsInUse = 1,
+                Status = WGPUMapAsyncStatus.Unknown,
+            };
+            return i;
+        }
+
+        throw new GraphicsException($"Cannot start more than {MaxPendingTextureReadbacks} pending texture readbacks.");
+    }
+
+    private unsafe void ReleaseTextureReadbackCallbackState(int index)
+    {
+        if (index < 0)
+        {
+            return;
+        }
+
+        _textureReadbackCallbackStates[index] = default;
+    }
+
     protected unsafe override void OnEndFrameCore()
     {
+        if (_pendingTextureReadbacks.Count == 0)
+        {
+            return;
+        }
 
+        wgpuInstanceProcessEvents(Instance);
+        ProcessPendingTextureReadbacks();
     }
 
     #endregion
@@ -383,6 +721,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
         IsDebug = descriptor.Debug;
 
         _descriptor = descriptor;
+        _textureReadbackCallbackStates = (TextureReadbackCallbackState*)NativeMemory.AllocZeroed(
+            MaxPendingTextureReadbacks,
+            (nuint)sizeof(TextureReadbackCallbackState));
         wgpuSetLogCallback(LogCallback, GCHandle.ToIntPtr(_thisHandle));
 
         _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
@@ -634,6 +975,19 @@ internal sealed partial class WebGPUDevice : GPUDevice
         {
             throw new GraphicsException("WebGPU buffer map failed: " + message.ToString());
         }
+    }
+
+    [UnmanagedCallersOnly]
+    private unsafe static void TextureReadbackMapCallback(WGPUMapAsyncStatus status, WGPUStringView message, void* userdata1, void* userdata2)
+    {
+        if (userdata1 == null)
+        {
+            return;
+        }
+
+        TextureReadbackCallbackState* state = (TextureReadbackCallbackState*)userdata1;
+        state->Status = status;
+        state->IsCompleted = 1;
     }
 
     [UnmanagedCallersOnly]
