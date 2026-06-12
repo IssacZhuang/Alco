@@ -466,6 +466,45 @@ public abstract class GPUDevice
         ReadTextureCore(texture, dest, dataSize, mipLevel);
     }
 
+    /// <summary>
+    /// Begins an asynchronous readback from a GPU texture into a caller-owned CPU buffer.
+    /// </summary>
+    /// <param name="texture">The source GPU texture.</param>
+    /// <param name="dest">The destination CPU buffer pointer.</param>
+    /// <param name="dataSize">The destination buffer size in bytes.</param>
+    /// <param name="request">The reusable request object that tracks completion.</param>
+    /// <param name="mipLevel">The mip level of the texture.</param>
+    public unsafe void BeginReadTexture(
+        GPUTexture texture,
+        byte* dest,
+        uint dataSize,
+        GPUTextureReadbackRequest request,
+        uint mipLevel = 0)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        GraphicsException.ThrowIfDisposed(texture);
+        if (dest == null)
+        {
+            throw new ArgumentNullException(nameof(dest));
+        }
+
+        if (dataSize == 0)
+        {
+            throw new ArgumentException("Destination buffer size must be greater than zero.", nameof(dataSize));
+        }
+
+        request.Begin();
+        try
+        {
+            BeginReadTextureCore(texture, dest, dataSize, request, mipLevel);
+        }
+        catch
+        {
+            request.CancelBegin();
+            throw;
+        }
+    }
+
 
     // polymorphism
 
@@ -654,6 +693,14 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0);
+
+    /// <exclude />
+    protected abstract unsafe void BeginReadTextureCore(
+        GPUTexture texture,
+        byte* dest,
+        uint dataSize,
+        GPUTextureReadbackRequest request,
+        uint mipLevel = 0);
 
     protected abstract void OnEndFrameCore();
     protected abstract void DisposeCore();
