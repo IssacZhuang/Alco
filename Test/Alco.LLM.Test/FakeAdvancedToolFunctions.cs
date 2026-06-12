@@ -89,6 +89,21 @@ public static class FakeAdvancedToolFunctions
         return a + b;
     }
 
+    [AgentFunction(IsOnAgentThread = true)]
+    [Description("Returns binary image data")]
+    public static BinaryToolResult GetBinaryImage()
+    {
+        CallCount++;
+        return new BinaryToolResult(
+            new byte[] { 0x89, 0x50, 0x4E, 0x47 },
+            "image/png",
+            "test.png",
+            new Dictionary<string, string>
+            {
+                ["X-Test-Width"] = "1",
+            });
+    }
+
     [AgentFunction]
     [Description("Adds two numbers asynchronously on the main thread")]
     public static async Task<int> MainThreadAddAsync(int a, int b)

@@ -125,6 +125,28 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    [Test]
+    public async Task InvokeToolAsync_BinaryToolResult_ReturnsBytesButOmitsBytesFromJson()
+    {
+        var registry = CreateRegistry();
+        var result = await registry.InvokeToolAsync(
+            "GetBinaryImage",
+            JsonSerializer.SerializeToElement(new { }));
+
+        var binary = result as BinaryToolResult;
+        Assert.That(binary, Is.Not.Null);
+        Assert.That(binary!.ContentType, Is.EqualTo("image/png"));
+        Assert.That(binary.Data, Is.EqualTo(new byte[] { 0x89, 0x50, 0x4E, 0x47 }));
+        Assert.That(binary.ByteLength, Is.EqualTo(4));
+        Assert.That(binary.Headers["X-Test-Width"], Is.EqualTo("1"));
+
+        string json = JsonSerializer.Serialize(binary, JsonOptions);
+        Assert.That(json, Does.Contain("contentType"));
+        Assert.That(json, Does.Contain("byteLength"));
+        Assert.That(json, Does.Not.Contain("data"));
+        Assert.That(json, Does.Not.Contain("iVBORw"));
+    }
+
     private static ToolRegistry CreateRegistry()
     {
         return new ToolRegistry([typeof(FakeAdvancedToolFunctions)], null, JsonOptions);

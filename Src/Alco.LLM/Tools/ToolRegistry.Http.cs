@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -104,6 +105,11 @@ public static class ToolRegistryHttpAdapter
             {
                 var result = await registry.InvokeToolAsync(toolName, jsonArgs);
                 var elapsed = Stopwatch.GetElapsedTime(start);
+                if (result is BinaryToolResult binaryResult)
+                {
+                    return CreateBinaryResponse(context, binaryResult, elapsed);
+                }
+
                 return Results.Ok(new
                 {
                     success = true,
@@ -123,5 +129,18 @@ public static class ToolRegistryHttpAdapter
                 });
             }
         });
+    }
+
+    private static IResult CreateBinaryResponse(HttpContext context, BinaryToolResult result, TimeSpan elapsed)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["X-Game-Api-Execution-Time-Ms"] = elapsed.TotalMilliseconds.ToString("F3", CultureInfo.InvariantCulture);
+
+        foreach (var (name, value) in result.Headers)
+        {
+            context.Response.Headers[name] = value;
+        }
+
+        return Results.File(result.Data, result.ContentType, result.FileDownloadName);
     }
 }
