@@ -4,8 +4,7 @@ namespace Alco.LLM.Test;
 
 /// <summary>
 /// Static tool functions for testing tool discovery and invocation.
-/// All methods are marked as thread-safe so they execute directly in unit tests
-/// without needing main-thread marshaling.
+/// All methods are thread-safe and run directly on the agent thread.
 /// </summary>
 [AgentTools]
 public static class FakeToolFunctions

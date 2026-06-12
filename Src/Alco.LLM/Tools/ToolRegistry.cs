@@ -19,8 +19,6 @@ namespace Alco.LLM;
 /// </summary>
 public sealed class ToolRegistry
 {
-    private static readonly Func<Task, Task<object?>> AwaitVoidTaskResult = AwaitVoidTaskResultImpl;
-
     private readonly Dictionary<string, ToolDescriptor> _tools = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
 
@@ -69,7 +67,9 @@ public sealed class ToolRegistry
 
     /// <summary>
     /// Invokes a tool by name with the provided JSON arguments.
-    /// Handles thread marshaling for tools that require main thread execution.
+    /// Agent-thread tools execute on the thread pool via <see cref="Task.Run(Action)"/> so the
+    /// returned task is pending and callers can race it against timeouts or run multiple tools
+    /// concurrently. Tools requiring the main thread are marshaled via the main thread queue.
     /// </summary>
     /// <param name="name">The tool name.</param>
     /// <param name="jsonArgs">The JSON element containing arguments.</param>
@@ -82,51 +82,39 @@ public sealed class ToolRegistry
 
         var args = DeserializeArguments(descriptor, jsonArgs);
 
-        object? rawResult;
         if (descriptor.IsOnAgentThread)
         {
-            try
-            {
-                rawResult = descriptor.Method.Invoke(descriptor.Target, args);
-            }
-            catch (TargetInvocationException ex) when (ex.InnerException != null)
-            {
-                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                throw;
-            }
-        }
-        else
-        {
-            var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _mainThreadQueue.Enqueue(() =>
+            return await Task.Run(() =>
             {
                 try
                 {
-                    tcs.TrySetResult(descriptor.Method.Invoke(descriptor.Target, args));
+                    return descriptor.Method.Invoke(descriptor.Target, args);
                 }
-                catch (TargetInvocationException ex)
+                catch (TargetInvocationException ex) when (ex.InnerException != null)
                 {
-                    tcs.TrySetException(ex.InnerException!);
-                }
-                catch (Exception ex)
-                {
-                    tcs.TrySetException(ex);
+                    ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                    throw;
                 }
             });
-            rawResult = await tcs.Task;
         }
 
-        if (rawResult is Task task)
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mainThreadQueue.Enqueue(() =>
         {
-            if (descriptor.AwaitTaskResult == null)
+            try
             {
-                await task.ConfigureAwait(false);
-                return null;
+                tcs.TrySetResult(descriptor.Method.Invoke(descriptor.Target, args));
             }
-
-            return await descriptor.AwaitTaskResult(task).ConfigureAwait(false);
-        }
-        return rawResult;
+            catch (TargetInvocationException ex)
+            {
+                tcs.TrySetException(ex.InnerException!);
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        });
+        return await tcs.Task;
     }
 
     /// <summary>
@@ -159,48 +147,13 @@ public sealed class ToolRegistry
                 name: method.Name,
                 description: description,
                 parameterSchema: parameterSchema,
-                returnType: method.ReturnType,
                 isOnAgentThread: attr.IsOnAgentThread,
                 method: method,
                 target: target,
-                jsonOptions: jsonOptions,
-                awaitTaskResult: CreateAwaitTaskResultFunc(method.ReturnType));
+                jsonOptions: jsonOptions);
 
             _tools[method.Name] = descriptor;
         }
-    }
-
-    private static Func<Task, Task<object?>>? CreateAwaitTaskResultFunc(Type returnType)
-    {
-        if (returnType == typeof(Task))
-        {
-            return AwaitVoidTaskResult;
-        }
-
-        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-        {
-            Type resultType = returnType.GetGenericArguments()[0];
-            MethodInfo awaitMethod = typeof(ToolRegistry).GetMethod(
-                nameof(AwaitTaskResultImpl),
-                BindingFlags.Static | BindingFlags.NonPublic)!;
-            MethodInfo genericAwaitMethod = awaitMethod.MakeGenericMethod(resultType);
-            return (Func<Task, Task<object?>>)Delegate.CreateDelegate(
-                typeof(Func<Task, Task<object?>>),
-                genericAwaitMethod);
-        }
-
-        return null;
-    }
-
-    private static async Task<object?> AwaitVoidTaskResultImpl(Task task)
-    {
-        await task.ConfigureAwait(false);
-        return null;
-    }
-
-    private static async Task<object?> AwaitTaskResultImpl<T>(Task task)
-    {
-        return await ((Task<T>)task).ConfigureAwait(false);
     }
 
     private static JsonElement BuildParameterSchema(MethodInfo method, JsonSerializerOptions jsonOptions)
@@ -287,5 +240,4 @@ public sealed class ToolRegistry
 
         return args;
     }
-
 }

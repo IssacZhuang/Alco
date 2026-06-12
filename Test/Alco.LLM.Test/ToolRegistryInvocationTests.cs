@@ -20,11 +20,11 @@ public class ToolRegistryInvocationTests
     }
 
     [Test]
-    public async Task InvokeToolAsync_TaskOfTResult_AwaitsAndReturnsValue()
+    public async Task InvokeToolAsync_ReturnsValueDirectly()
     {
         var registry = CreateRegistry();
         var result = await registry.InvokeToolAsync(
-            "AddAsync",
+            "Add",
             JsonSerializer.SerializeToElement(new { a = 2, b = 4 }));
 
         Assert.That(result, Is.EqualTo(6));
@@ -32,14 +32,14 @@ public class ToolRegistryInvocationTests
     }
 
     [Test]
-    public async Task InvokeToolAsync_TaskResult_AwaitsAndReturnsNull()
+    public async Task InvokeToolAsync_VoidResult_ReturnsValue()
     {
         var registry = CreateRegistry();
         var result = await registry.InvokeToolAsync(
-            "CompleteAsync",
+            "Complete",
             JsonSerializer.SerializeToElement(new { }));
 
-        Assert.That(result, Is.Null);
+        Assert.That(result, Is.EqualTo("done"));
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
@@ -57,23 +57,6 @@ public class ToolRegistryInvocationTests
         var result = await task;
 
         Assert.That(result, Is.EqualTo(10));
-        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
-    }
-
-    [Test]
-    public async Task InvokeToolAsync_MainThreadTaskOfTResult_AwaitsAndReturnsValue()
-    {
-        var registry = CreateRegistry();
-        var task = registry.InvokeToolAsync(
-            "MainThreadAddAsync",
-            JsonSerializer.SerializeToElement(new { a = 5, b = 8 }));
-
-        Assert.That(task.IsCompleted, Is.False);
-
-        registry.DrainMainThreadQueue();
-        var result = await task;
-
-        Assert.That(result, Is.EqualTo(13));
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
