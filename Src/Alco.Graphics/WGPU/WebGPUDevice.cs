@@ -20,9 +20,22 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     private const int MaxPendingTextureReadbacks = 16;
 
+    // Staging-buffer cache constants. See Docs/Spec/2026-06-13-gpu-readback-staging-buffer-cache-design.md.
+    private const ulong StagingCacheIdleBudget = 64UL * 1024 * 1024;
+    private const ulong StagingCacheSingleBufferMax = 64UL * 1024 * 1024;
+    private static readonly long _stagingCacheIdleExpirationTicks = (long)(10.0 * Stopwatch.Frequency); // 10 seconds
+    private const ulong StagingCacheOversizeReuseThreshold = 4UL * 1024 * 1024;
+
     private readonly DeviceDescriptor _descriptor;
     private readonly List<PendingTextureReadback> _pendingTextureReadbacks = new(capacity: 4);
     private unsafe TextureReadbackCallbackState* _textureReadbackCallbackStates;
+    // Native staging-buffer cache. The policy holds no native handles; the WGPUBuffer handle
+    // is passed as the opaque ticket. All access is under _stagingCacheLock; native wgpu calls
+    // (create/destroy/release) are made outside the lock.
+    private readonly ReadbackStagingBufferCachePolicy<WGPUBuffer> _stagingCache =
+        new(StagingCacheIdleBudget, StagingCacheSingleBufferMax, _stagingCacheIdleExpirationTicks, StagingCacheOversizeReuseThreshold);
+    private readonly Lock _stagingCacheLock = new();
+    private readonly List<WGPUBuffer> _stagingCacheEvicted = new(capacity: 4);
 
     // supported details
     private readonly PixelFormat _preferredSurfaceFormat;
@@ -103,6 +116,14 @@ internal sealed partial class WebGPUDevice : GPUDevice
             NativeMemory.Free(_textureReadbackCallbackStates);
             _textureReadbackCallbackStates = null;
         }
+
+        // Release all idle cached staging buffers. Pending buffers were destroyed above by
+        // FailPendingTextureReadbacks; idle buffers are drained here and destroyed natively.
+        lock (_stagingCacheLock)
+        {
+            _stagingCache.Drain(_stagingCacheEvicted);
+        }
+        DestroyEvicted();
 
         //dispose default resources
         SamplerNearestRepeat.Destroy();
@@ -204,41 +225,52 @@ internal sealed partial class WebGPUDevice : GPUDevice
     protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
     {
         WGPUBuffer nativeBuffer = ((WebGPUBuffer)buffer).Native;
-        WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
+        WGPUBuffer tmpBuffer = AcquireStagingBuffer(size);
+        bool succeeded = false;
+        bool wasMapped = false;
+        try
         {
-            size = size,
-            usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
-            mappedAtCreation = false,
-        };
-        WGPUBuffer tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
+            WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
+            wgpuCommandEncoderCopyBufferToBuffer(encoder, nativeBuffer, bufferOffset, tmpBuffer, 0, size);
 
-        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(Device, null);
-        wgpuCommandEncoderCopyBufferToBuffer(encoder, nativeBuffer, bufferOffset, tmpBuffer, 0, size);
+            WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
 
-        WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
-        
-        wgpuQueueSubmit(Queue, 1, &commandBuffer);
+            wgpuQueueSubmit(Queue, 1, &commandBuffer);
 
-        wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size,
-            new WGPUBufferMapCallbackInfo()
+            wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size,
+                new WGPUBufferMapCallbackInfo()
+                {
+                    mode = (WGPUCallbackMode)0,
+                    callback = &BufferMapCallback,
+                    userdata1 = null,
+                    userdata2 = null,
+                });
+            wgpuDevicePoll(Device, WGPUBool.True, null);
+            wasMapped = true;
+
+            void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
+            Unsafe.CopyBlock(dest, pointer, size);
+
+            wgpuCommandEncoderRelease(encoder);
+            wgpuCommandBufferRelease(commandBuffer);
+            succeeded = true;
+        }
+        finally
+        {
+            if (wasMapped)
             {
-                mode = (WGPUCallbackMode)0,
-                callback = &BufferMapCallback,
-                userdata1 = null,
-                userdata2 = null,
-            });
-        wgpuDevicePoll(Device, WGPUBool.True, null);
+                wgpuBufferUnmap(tmpBuffer);
+            }
 
-        void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
-
-        Unsafe.CopyBlock(dest, pointer, size);
-
-        wgpuBufferUnmap(tmpBuffer);
-
-        wgpuCommandEncoderRelease(encoder);
-        wgpuCommandBufferRelease(commandBuffer);
-        wgpuBufferDestroy(tmpBuffer);
-        wgpuBufferRelease(tmpBuffer);
+            if (succeeded)
+            {
+                ReturnStagingBuffer(tmpBuffer);
+            }
+            else
+            {
+                ReleaseReadbackBuffer(tmpBuffer);
+            }
+        }
     }
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
@@ -283,14 +315,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         try
         {
-            WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
-            {
-                size = layout.StagingDataSize,
-                usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
-                mappedAtCreation = false,
-            };
-
-            tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
+            tmpBuffer = AcquireStagingBuffer(layout.StagingDataSize);
 
             WGPUTexelCopyTextureInfo source = new WGPUTexelCopyTextureInfo
             {
@@ -331,6 +356,24 @@ internal sealed partial class WebGPUDevice : GPUDevice
             void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, (nuint)layout.StagingDataSize);
             CopyCompletedTextureReadback(dest, pointer, layout);
         }
+        catch
+        {
+            // On any failure the buffer must not be returned to the cache; unmap (if needed)
+            // and destroy it instead.
+            if (wasMapped && tmpBuffer.IsNotNull)
+            {
+                wgpuBufferUnmap(tmpBuffer);
+                wasMapped = false;
+            }
+
+            if (tmpBuffer.IsNotNull)
+            {
+                ReleaseReadbackBuffer(tmpBuffer);
+                tmpBuffer = WGPUBuffer.Null;
+            }
+
+            throw;
+        }
         finally
         {
             if (wasMapped)
@@ -350,7 +393,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
             if (tmpBuffer.IsNotNull)
             {
-                ReleaseReadbackBuffer(tmpBuffer);
+                ReturnStagingBuffer(tmpBuffer);
             }
         }
     }
@@ -375,13 +418,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             callbackStateIndex = AcquireTextureReadbackCallbackState();
             TextureReadbackCallbackState* callbackState = _textureReadbackCallbackStates + callbackStateIndex;
 
-            WGPUBufferDescriptor tmpBufferDescriptor = new WGPUBufferDescriptor
-            {
-                size = layout.StagingDataSize,
-                usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
-                mappedAtCreation = false,
-            };
-            tmpBuffer = wgpuDeviceCreateBuffer(Device, &tmpBufferDescriptor);
+            tmpBuffer = AcquireStagingBuffer(layout.StagingDataSize);
 
             WGPUTexelCopyTextureInfo source = new WGPUTexelCopyTextureInfo
             {
@@ -607,6 +644,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 continue;
             }
 
+            bool succeeded = false;
             bool wasMapped = false;
             try
             {
@@ -619,6 +657,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 void* pointer = wgpuBufferGetConstMappedRange(readback.Buffer, 0, (nuint)readback.StagingDataSize);
                 CopyCompletedTextureReadback(readback.Destination, pointer, readback);
                 readback.Request.Complete();
+                succeeded = true;
             }
             catch (Exception ex)
             {
@@ -632,7 +671,17 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 }
             }
 
-            ReleaseReadbackBuffer(readback.Buffer);
+            // A buffer may be returned to the cache only after a successful readback and unmap;
+            // failures must destroy the native resource instead.
+            if (succeeded)
+            {
+                ReturnStagingBuffer(readback.Buffer);
+            }
+            else
+            {
+                ReleaseReadbackBuffer(readback.Buffer);
+            }
+
             ReleaseTextureReadbackCallbackState(readback.CallbackStateIndex);
             _pendingTextureReadbacks.RemoveAt(i);
             i--;
@@ -661,6 +710,117 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         wgpuBufferDestroy(buffer);
         wgpuBufferRelease(buffer);
+    }
+
+    /// <summary>
+    /// Acquires a reusable staging buffer for a readback of <paramref name="requiredSize"/>
+    /// bytes, creating a new native buffer only when no suitable idle buffer is cached. The
+    /// returned buffer must later be passed to <see cref="ReturnStagingBuffer"/> or
+    /// <see cref="ReleaseReadbackBuffer"/>. Native buffer creation is performed outside the
+    /// staging-cache lock.
+    /// </summary>
+    private unsafe WGPUBuffer AcquireStagingBuffer(ulong requiredSize)
+    {
+        WGPUBuffer cached = WGPUBuffer.Null;
+        lock (_stagingCacheLock)
+        {
+            if (_stagingCache.TryAcquire(requiredSize, out cached))
+            {
+                return cached;
+            }
+        }
+
+        // Miss: create a new buffer at a reuse-friendly bucket size. Done outside the lock.
+        ulong capacity = _stagingCache.Bucketize(requiredSize);
+        WGPUBufferDescriptor descriptor = new WGPUBufferDescriptor
+        {
+            size = capacity,
+            usage = WGPUBufferUsage.MapRead | WGPUBufferUsage.CopyDst,
+            mappedAtCreation = false,
+        };
+        return wgpuDeviceCreateBuffer(Device, &descriptor);
+    }
+
+    /// <summary>
+    /// Returns a staging buffer to the cache after its mapped data has been copied and it has
+    /// been unmapped, or destroys it when it is oversized or when trimming evicts it. This is
+    /// the single return-or-destroy decision point for all readback paths. Native destroy is
+    /// performed outside the staging-cache lock.
+    /// </summary>
+    private void ReturnStagingBuffer(WGPUBuffer buffer)
+    {
+        if (buffer.IsNull)
+        {
+            return;
+        }
+
+        // Query the native size outside the lock; it is a read-only handle attribute.
+        ulong capacity = wgpuBufferGetSize(buffer);
+        bool oversized = !ShouldCacheStagingBuffer(capacity);
+
+        if (oversized)
+        {
+            wgpuBufferDestroy(buffer);
+            wgpuBufferRelease(buffer);
+            return;
+        }
+
+        lock (_stagingCacheLock)
+        {
+            _stagingCache.Return(buffer, capacity, Stopwatch.GetTimestamp(), _stagingCacheEvicted);
+        }
+
+        // Destroy any entries evicted by this return (expired or over-budget), outside the lock.
+        DestroyEvicted();
+    }
+
+    /// <summary>
+    /// Checks whether a buffer of <paramref name="capacity"/> is eligible for the idle cache
+    /// without touching the cache state. Exposed so <see cref="ReturnStagingBuffer"/> can decide
+    /// before acquiring the lock.
+    /// </summary>
+    private bool ShouldCacheStagingBuffer(ulong capacity)
+    {
+        return capacity <= StagingCacheSingleBufferMax;
+    }
+
+    /// <summary>
+    /// Destroys every buffer whose ticket is currently in <see cref="_stagingCacheEvicted"/>
+    /// and clears the list. Called outside the staging-cache lock.
+    /// </summary>
+    private void DestroyEvicted()
+    {
+        if (_stagingCacheEvicted.Count == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < _stagingCacheEvicted.Count; i++)
+        {
+            WGPUBuffer evicted = _stagingCacheEvicted[i];
+            if (evicted.IsNotNull)
+            {
+                wgpuBufferDestroy(evicted);
+                wgpuBufferRelease(evicted);
+            }
+        }
+
+        _stagingCacheEvicted.Clear();
+    }
+
+    /// <summary>
+    /// Runs idle-cache maintenance: trims expired and over-budget buffers. Called from
+    /// <see cref="OnEndFrameCore"/> so idle memory is reclaimed even after readback activity
+    /// has stopped. Native destroy of evicted buffers happens outside the lock.
+    /// </summary>
+    private void TrimStagingCache()
+    {
+        lock (_stagingCacheLock)
+        {
+            _stagingCache.Trim(Stopwatch.GetTimestamp(), _stagingCacheEvicted);
+        }
+
+        DestroyEvicted();
     }
 
     private unsafe int AcquireTextureReadbackCallbackState()
@@ -696,13 +856,25 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected unsafe override void OnEndFrameCore()
     {
-        if (_pendingTextureReadbacks.Count == 0)
+        // Drain completed async readbacks, and pump event processing only when there are any.
+        if (_pendingTextureReadbacks.Count > 0)
         {
-            return;
+            wgpuInstanceProcessEvents(Instance);
+            ProcessPendingTextureReadbacks();
         }
 
-        wgpuInstanceProcessEvents(Instance);
-        ProcessPendingTextureReadbacks();
+        // Trim the idle staging cache even when no readbacks are pending, so that the last
+        // returned buffer does not stay cached forever after readback activity stops.
+        int idleCount;
+        lock (_stagingCacheLock)
+        {
+            idleCount = _stagingCache.IdleCount;
+        }
+
+        if (idleCount > 0)
+        {
+            TrimStagingCache();
+        }
     }
 
     #endregion
