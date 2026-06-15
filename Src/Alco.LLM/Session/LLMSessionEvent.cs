@@ -51,7 +51,8 @@ public sealed record ToolCallFailedEvent(
     string ToolName,
     string Error,
     string ErrorType,
-    TimeSpan Duration) : LLMSessionEvent(Timestamp);
+    TimeSpan Duration,
+    string? ErrorCode = null) : LLMSessionEvent(Timestamp);
 
 /// <summary>
 /// Emitted after a streaming model request and its immediate tool handling complete.

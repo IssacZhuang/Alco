@@ -47,6 +47,16 @@ public class LLMSessionConfig
     /// Values less than or equal to 1 disable parallelism and execute all tool calls serially.
     /// </summary>
     public int MaxConcurrentTools { get; set; } = 10;
+
+    /// <summary>
+    /// JSON serializer options used when formatting structured tool results for LLM history.
+    /// </summary>
+    public JsonSerializerOptions? JsonOptions { get; set; }
+
+    /// <summary>
+    /// Hard cap for formatted model-facing tool result text.
+    /// </summary>
+    public int MaxToolResultLength { get; set; } = ToolResultFormatter.DefaultMaxFormattedLength;
 }
 
 /// <summary>
@@ -66,6 +76,7 @@ public sealed class LLMSession
     private readonly bool _autoInvokeTools;
     private readonly TimeSpan _toolTimeout;
     private readonly int _maxConcurrentTools;
+    private readonly ToolResultFormatter _toolResultFormatter;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMSession"/> class.
@@ -85,6 +96,7 @@ public sealed class LLMSession
         _autoInvokeTools = config.AutoInvokeTools;
         _toolTimeout = config.ToolTimeout;
         _maxConcurrentTools = config.MaxConcurrentTools;
+        _toolResultFormatter = new ToolResultFormatter(config.JsonOptions, config.MaxToolResultLength);
 
         _chatOptions = new ChatOptions
         {
@@ -340,8 +352,28 @@ public sealed class LLMSession
                     stopwatch.Elapsed));
         }
 
+        if (result is ToolError toolError)
+        {
+            return new ToolInvocationEventResult(
+                new FunctionResultContent(callId, _toolResultFormatter.Format(toolError)),
+                new ToolCallFailedEvent(
+                    DateTimeOffset.UtcNow,
+                    callId,
+                    toolName,
+                    toolError.Error,
+                    nameof(ToolError),
+                    stopwatch.Elapsed,
+                    toolError.Code));
+        }
+
+        // Format structured results into compact text for LLM history; plain values pass through.
+        // The raw result is preserved on the completion event for UI/debug consumers.
+        object? llmResult = result is AgentToolResult toolResult
+            ? _toolResultFormatter.Format(toolResult)
+            : result;
+
         return new ToolInvocationEventResult(
-            new FunctionResultContent(callId, result),
+            new FunctionResultContent(callId, llmResult),
             new ToolCallCompletedEvent(
                 DateTimeOffset.UtcNow,
                 callId,

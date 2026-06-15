@@ -117,6 +117,7 @@ public class LLMAgent
         config ??= new LLMSessionConfig();
         config.SystemPrompt ??= _systemPrompt;
         config.Provider = _provider;
+        config.JsonOptions ??= _jsonOptions;
         return new LLMSession(_chatClient, _registry, _tools, config);
     }
 }

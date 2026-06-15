@@ -400,6 +400,7 @@ public class ToolCallLoopTests
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ToolName, Is.EqualTo("NonExistent"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(KeyNotFoundException)));
+        Assert.That(failed.ErrorCode, Is.Null);
         Assert.That(failed.Error, Does.Contain("NonExistent"));
         Assert.That(events.OfType<TextDeltaEvent>().Single().Text, Is.EqualTo("Handled."));
     }
@@ -439,6 +440,7 @@ public class ToolCallLoopTests
 
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
+        Assert.That(failed.ErrorCode, Is.Null);
     }
 
     [Test]
