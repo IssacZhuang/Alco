@@ -166,6 +166,63 @@ public static class GridUtility
         }
     }
 
+    /// <summary>
+    /// Computes grid cells along a straight line between two points using Bresenham's algorithm,
+    /// invoking <paramref name="action"/> once per cell (inclusive of both endpoints).
+    /// </summary>
+    /// <param name="start">The start grid coordinate (inclusive).</param>
+    /// <param name="end">The end grid coordinate (inclusive).</param>
+    /// <param name="action">Invoked once for each cell on the line.</param>
+    public static void GetBresenhamLine(int2 start, int2 end, Action<int2> action)
+    {
+        int startX = start.X;
+        int startY = start.Y;
+        int endX = end.X;
+        int endY = end.Y;
+
+        int deltaX = Math.Abs(endX - startX);
+        int deltaY = Math.Abs(endY - startY);
+        int signX = (startX < endX) ? 1 : -1;
+        int signY = (startY < endY) ? 1 : -1;
+
+        int negativeDeltaY = -deltaY;
+        int error = deltaX + negativeDeltaY;
+
+        int maxSteps = Math.Max(deltaX, deltaY) + 1;
+        while (true)
+        {
+            action(new int2(startX, startY));
+            if (startX == endX && startY == endY)
+            {
+                break;
+            }
+            int doubleError = 2 * error;
+            if (doubleError >= negativeDeltaY)
+            {
+                error += negativeDeltaY;
+                startX += signX;
+            }
+            if (doubleError <= deltaX)
+            {
+                error += deltaX;
+                startY += signY;
+            }
+            maxSteps--;
+            if (maxSteps <= 0)
+            {
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Computes grid cells along a straight line between two points using Bresenham's algorithm,
+    /// writing them into the supplied span. Returns the number of cells written.
+    /// </summary>
+    /// <param name="output">Destination span for grid coordinates on the line. Not cleared.</param>
+    /// <param name="start">The start grid coordinate (inclusive).</param>
+    /// <param name="end">The end grid coordinate (inclusive).</param>
+    /// <returns>The number of cells written to <paramref name="output"/>.</returns>
     public static int GetBresenhamLine(Span<int2> output, int2 start, int2 end)
     {
         int startX = start.X;
