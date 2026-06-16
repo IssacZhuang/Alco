@@ -109,8 +109,10 @@ public class Game : GameEngine
 
         if (ImGui.Button("stream Song.ogg"))
         {
-            byte[] bytes = LoadFile("Song.ogg");
-            var provider = new VorbisStreamProvider(bytes);
+            // Stream-based construction: the OGG is loaded on a background thread and decoded off the
+            // main thread, so this click returns immediately and audio starts as soon as the load lands.
+            Stream fileStream = new FileStream(Path.Combine("Assets", "Song.ogg"), FileMode.Open, FileAccess.Read, FileShare.Read);
+            var provider = new VorbisStreamProvider(fileStream);
             _stream?.Dispose();
             _stream = AudioDevice.CreateAudioStream(provider);
             _stream.IsSpatial = false;

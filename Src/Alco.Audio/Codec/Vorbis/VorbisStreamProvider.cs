@@ -1,4 +1,3 @@
-using System.Threading;
 using Alco;
 using static StbVorbisSharp.StbVorbis;
 
@@ -6,7 +5,9 @@ namespace Alco.Audio;
 
 /// <summary>
 /// An <see cref="IAudioStreamDataProvider"/> that incrementally decodes Vorbis (OGG) data into
-/// interleaved float32 PCM using StbVorbisSharp. Auto-disposable (GC-managed via finalizer).
+/// interleaved float32 PCM using StbVorbisSharp. Inherits lazy background loading and off-thread
+/// prefetch decoding from <see cref="AudioStreamDataProvider"/>. Auto-disposable (GC-managed via
+/// finalizer).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,31 +18,44 @@ namespace Alco.Audio;
 /// matches the existing <see cref="MemoryUtility"/> usage in the codec layer.
 /// </para>
 /// <para>
-/// The returned frame count from <see cref="ReadSamples"/> follows StbVorbisSharp semantics
-/// (frames = samples per channel), so the caller must multiply by <see cref="Channel"/> to get
-/// the number of floats actually written.
+/// Because <see cref="AudioStreamDataProvider"/> drives decoding on a pool thread, the subclass
+/// only implements three synchronous methods (<see cref="OpenCore"/>, <see cref="ReadCore"/>,
+/// <see cref="ResetCore"/>) and writes no threading code.
+/// </para>
+/// <para>
+/// The returned frame count follows StbVorbisSharp semantics (frames = samples per channel), so
+/// the caller multiplies by <see cref="AudioStreamDataProvider.Channel"/> to get the float count.
 /// </para>
 /// </remarks>
-public sealed unsafe class VorbisStreamProvider : IAudioStreamDataProvider
+public sealed unsafe class VorbisStreamProvider : AudioStreamDataProvider
 {
-    private readonly byte* _nativeData;
-    private readonly int _dataLength;
-    private readonly stb_vorbis_info _info;
+    // Source bytes owned by this provider, freed on dispose. Null after dispose.
+    private byte* _nativeData;
+    private int _dataLength;
+
+    // Owned by this provider; null after dispose. Touched only on the pool thread (open/read/reset).
     private stb_vorbis? _vorbis;
-    private volatile int _disposed;
-
-    /// <summary>Number of channels (1 = mono, 2 = stereo).</summary>
-    public int Channel => _info.channels;
-
-    /// <summary>Sample rate in Hz.</summary>
-    public int SampleRate => (int)_info.sample_rate;
+    private stb_vorbis_info _info;
+    private Stream? _sourceStream;
 
     /// <summary>
-    /// Initializes a new instance from a span of raw OGG bytes. The bytes are copied into a
-    /// native buffer owned by this provider.
+    /// Initializes a new instance that loads the OGG data from <paramref name="stream"/> in the
+    /// background. The provider takes ownership of <paramref name="stream"/> and disposes it.
+    /// Construction returns immediately; call <see cref="WaitForOpen"/> before reading
+    /// <see cref="AudioStreamDataProvider.Channel"/>/<see cref="AudioStreamDataProvider.SampleRate"/>.
+    /// </summary>
+    /// <param name="stream">A readable stream containing the raw OGG bytes.</param>
+    public VorbisStreamProvider(Stream stream)
+    {
+        _sourceStream = stream;
+    }
+
+    /// <summary>
+    /// Initializes a new instance from a span of raw OGG bytes, copying them into a native buffer.
+    /// The bytes are loaded in the background like the <see cref="VorbisStreamProvider(Stream)"/>
+    /// constructor.
     /// </summary>
     /// <param name="oggData">Raw OGG file bytes.</param>
-    /// <exception cref="AudioException">Thrown if the data cannot be opened as Vorbis.</exception>
     public VorbisStreamProvider(ReadOnlySpan<byte> oggData)
     {
         _dataLength = oggData.Length;
@@ -50,42 +64,82 @@ public sealed unsafe class VorbisStreamProvider : IAudioStreamDataProvider
         {
             MemoryUtility.MemCopy(src, _nativeData, oggData.Length);
         }
+    }
+
+    /// <inheritdoc/>
+    /// <exception cref="AudioException">
+    /// Thrown if the stream is unreadable or the data cannot be opened as Vorbis.
+    /// </exception>
+    protected override void OpenCore()
+    {
+        if (_nativeData == null)
+        {
+            // Stream-backed: read it fully into a native buffer now.
+            Stream? stream = _sourceStream;
+            if (stream == null || !stream.CanRead)
+            {
+                throw new AudioException("Vorbis source stream is null or not readable.");
+            }
+
+            _dataLength = (int)stream.Length;
+            _nativeData = (byte*)MemoryUtility.Alloc(_dataLength);
+
+            int read = 0;
+            while (read < _dataLength)
+            {
+                int n = stream.Read(new Span<byte>(_nativeData + read, _dataLength - read));
+                if (n <= 0)
+                {
+                    break;
+                }
+
+                read += n;
+            }
+
+            if (read != _dataLength)
+            {
+                MemoryUtility.Free(_nativeData);
+                _nativeData = null;
+                throw new AudioException("Vorbis source stream ended before the declared length.");
+            }
+
+            stream.Dispose();
+            _sourceStream = null;
+        }
 
         int error = 0;
-        _vorbis = stb_vorbis_open_memory(_nativeData, _dataLength, &error);
-        if (_vorbis == null)
+        stb_vorbis vorbis = stb_vorbis_open_memory(_nativeData, _dataLength, &error);
+        if (vorbis == null)
         {
             MemoryUtility.Free(_nativeData);
+            _nativeData = null;
             throw new AudioException($"Failed to open Vorbis stream (stb_vorbis error {error}).");
         }
 
-        _info = stb_vorbis_get_info(_vorbis);
+        _vorbis = vorbis;
+        _info = stb_vorbis_get_info(vorbis);
+        Channel = _info.channels;
+        SampleRate = (int)_info.sample_rate;
     }
 
-    /// <summary>
-    /// Reads up to <paramref name="buffer"/>.Length interleaved float samples into <paramref name="buffer"/>.
-    /// </summary>
-    /// <param name="buffer">Destination span, written as interleaved float samples in the range [-1, 1].</param>
-    /// <returns>Number of FRAMES decoded (samples per channel). 0 when the stream is exhausted.</returns>
-    public int ReadSamples(Span<float> buffer)
+    /// <inheritdoc/>
+    protected override int ReadCore(Span<float> buffer)
     {
         stb_vorbis? vorbis = _vorbis;
-        if (vorbis == null) return 0;
+        if (vorbis == null)
+        {
+            return 0;
+        }
 
         fixed (float* ptr = buffer)
         {
             int frames = stb_vorbis_get_samples_float_interleaved(vorbis, _info.channels, ptr, buffer.Length);
-            if (frames < 0)
-            {
-                return 0;
-            }
-
-            return frames;
+            return frames < 0 ? 0 : frames;
         }
     }
 
-    /// <summary>Rewinds the stream to its beginning (used for seamless looping).</summary>
-    public void Reset()
+    /// <inheritdoc/>
+    protected override void ResetCore()
     {
         if (_vorbis != null)
         {
@@ -93,19 +147,8 @@ public sealed unsafe class VorbisStreamProvider : IAudioStreamDataProvider
         }
     }
 
-    /// <summary>
-    /// Releases the Vorbis decoder and the native OGG buffer. Safe to call multiple times.
-    /// </summary>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) == 0)
-        {
-            DisposeCore();
-            GC.SuppressFinalize(this);
-        }
-    }
-
-    private void DisposeCore()
+    /// <inheritdoc/>
+    protected override void Release()
     {
         stb_vorbis? vorbis = _vorbis;
         _vorbis = null;
@@ -117,14 +160,10 @@ public sealed unsafe class VorbisStreamProvider : IAudioStreamDataProvider
         if (_nativeData != null)
         {
             MemoryUtility.Free(_nativeData);
+            _nativeData = null;
         }
-    }
 
-    ~VorbisStreamProvider()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) == 0)
-        {
-            DisposeCore();
-        }
+        _sourceStream?.Dispose();
+        _sourceStream = null;
     }
 }

@@ -22,9 +22,12 @@ internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
 
     private readonly OpenALDevice _device;
 
-    // ~1 second of audio per buffer (frames per channel * channels).
-    private readonly int _samplesPerBuffer;
-    private readonly float* _fillBuffer;
+    // Lazily allocated on first Play (the provider may load asynchronously, so Channel/SampleRate
+    // are unknown at construction time). See EnsureProviderReady.
+    private int _samplesPerBuffer;
+    private float* _fillBuffer;
+    private BufferFormat _format;
+    private bool _providerReady;
 
     // Streaming buffer ring, allocated lazily on first Play.
     private readonly uint[] _buffers = new uint[BufferCount];
@@ -40,19 +43,19 @@ internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
     private Vector3 _position = Vector3.Zero;
     private bool _isLooping = true;
 
-    private readonly BufferFormat _format;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="OpenALAudioStream"/> class.
     /// </summary>
     /// <param name="device">The owning OpenAL device and source pool provider.</param>
     /// <param name="provider">The data provider that supplies PCM to this stream.</param>
+    /// <remarks>
+    /// Performs no allocation and reads no provider fields: the provider may still be loading
+    /// asynchronously. Hardware-facing fields (<c>_samplesPerBuffer</c>/<c>_fillBuffer</c>/<c>_format</c>)
+    /// are resolved on first <see cref="PlayCore"/> via <see cref="EnsureProviderReady"/>.
+    /// </remarks>
     public OpenALAudioStream(OpenALDevice device, IAudioStreamDataProvider provider) : base(provider)
     {
         _device = device;
-        _samplesPerBuffer = provider.Channel * provider.SampleRate;
-        _fillBuffer = MemoryUtility.Alloc<float>(_samplesPerBuffer);
-        _format = OpenALUtility.GetBufferFormat(provider.Channel);
     }
 
     /// <inheritdoc/>
@@ -230,6 +233,7 @@ internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
 
     private void PrimeBuffers()
     {
+        EnsureProviderReady();
         EnsureBuffersCreated();
         for (int i = 0; i < BufferCount; i++)
         {
@@ -239,6 +243,25 @@ internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves provider-derived hardware fields on first use. The provider may load asynchronously
+    /// (e.g. <see cref="VorbisStreamProvider(Stream)"/>), so this blocks on its load task exactly once,
+    /// on the main thread, only when playback is first requested. Idempotent thereafter.
+    /// </summary>
+    private void EnsureProviderReady()
+    {
+        if (_providerReady) return;
+
+        // Wait for the provider to finish opening (no-op for synchronous providers). This is the
+        // only readiness check; the backend is deliberately provider-agnostic.
+        Provider.WaitForOpen();
+
+        _samplesPerBuffer = Provider.Channel * Provider.SampleRate;
+        _fillBuffer = MemoryUtility.Alloc<float>(_samplesPerBuffer);
+        _format = OpenALUtility.GetBufferFormat(Provider.Channel);
+        _providerReady = true;
     }
 
     private bool TryFillAndQueue(uint buffer)
@@ -369,6 +392,7 @@ internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
         if (_fillBuffer != null)
         {
             MemoryUtility.Free(_fillBuffer);
+            _fillBuffer = null;
         }
 
         Provider.Dispose();
