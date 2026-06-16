@@ -32,7 +32,7 @@ public class UILayout : UINode
 {
     private LayoutType _layoutType = LayoutType.Vertical;
     private bool _isFixedSize;
-    private bool _alwaysUpdate; // if true, the layout will update every frame
+    private bool _alwaysUpdate = true;
     private bool _fitContentSize;
     private bool _skipDisabledItem = true;
     private Padding _padding;
@@ -90,13 +90,15 @@ public class UILayout : UINode
     }
 
 
+    /// <summary>
+    /// Gets or sets whether the layout is recalculated every frame.
+    /// Defaults to <c>true</c> because child add/remove, enable changes, and size changes do not mark the layout dirty.
+    /// Set to <c>false</c> only for layouts that are fully static after construction.
+    /// </summary>
     public bool AlwaysUpdate
     {
         get => _alwaysUpdate;
-        set
-        {
-            _alwaysUpdate = value;
-        }
+        set => _alwaysUpdate = value;
     }
 
     /// <summary>
