@@ -10,7 +10,7 @@ namespace Alco.Audio.OpenAL;
 /// ring of streaming buffers queued with <c>alSourceQueueBuffers</c>; the device refills processed
 /// buffers each frame via <see cref="Refill"/>.
 /// </summary>
-internal sealed unsafe class OpenALAudioStream : AudioStream
+internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
 {
     private const int BufferCount = 3;
 
@@ -140,7 +140,7 @@ internal sealed unsafe class OpenALAudioStream : AudioStream
     {
         if (_sourceId == 0)
         {
-            _sourceId = AL.GenSource();
+            _sourceId = _device.AllocateSource(this);
         }
 
         if (_sourceId == 0) return;
@@ -167,17 +167,40 @@ internal sealed unsafe class OpenALAudioStream : AudioStream
 
     protected override void StopCore()
     {
+        ReleaseSource();
+        _primed = false;
+        State = AudioStreamState.Stopped;
+        Provider.Reset();
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>Called by the <c>SourcePool</c> when this stream's borrowed source is reclaimed.</remarks>
+    void IOpenALSourceOwner.OnSourceReclaimed()
+    {
+        // The pool has handed our source id to another borrower. Forget it and stop logically;
+        // the next Play() will borrow a fresh source.
         if (_sourceId != 0)
         {
             AL.SourceStop(_sourceId);
-            DrainQueuedBuffers();
-            AL.DeleteSource(_sourceId);
             _sourceId = 0;
         }
 
         _primed = false;
         State = AudioStreamState.Stopped;
-        Provider.Reset();
+    }
+
+    /// <summary>
+    /// Stops and returns the borrowed source to the pool, clearing the queue. Does not reset state
+    /// or the provider (callers do that as appropriate).
+    /// </summary>
+    private void ReleaseSource()
+    {
+        if (_sourceId == 0) return;
+
+        AL.SourceStop(_sourceId);
+        DrainQueuedBuffers();
+        _device.FreeSource(this, _sourceId);
+        _sourceId = 0;
     }
 
     /// <summary>
@@ -272,9 +295,7 @@ internal sealed unsafe class OpenALAudioStream : AudioStream
 
     private void FinishPlayback()
     {
-        AL.SourceStop(_sourceId);
-        AL.DeleteSource(_sourceId);
-        _sourceId = 0;
+        ReleaseSource();
         _primed = false;
         State = AudioStreamState.Stopped;
         Provider.Reset();
@@ -333,13 +354,7 @@ internal sealed unsafe class OpenALAudioStream : AudioStream
 
     protected override void Dispose(bool disposing)
     {
-        if (_sourceId != 0)
-        {
-            AL.SourceStop(_sourceId);
-            DrainQueuedBuffers();
-            AL.DeleteSource(_sourceId);
-            _sourceId = 0;
-        }
+        ReleaseSource();
 
         if (_buffersCreated)
         {

@@ -4,7 +4,7 @@ using Silk.NET.OpenAL;
 
 namespace Alco.Audio.OpenAL;
 
-internal class OpenALSource : AudioSource
+internal class OpenALSource : AudioSource, IOpenALSourceOwner
 {
     private const string AL_SOFT_direct_channels = "AL_SOFT_direct_channels";
     private const string AL_SOFT_source_spatialize = "AL_SOFT_source_spatialize";
@@ -230,6 +230,10 @@ internal class OpenALSource : AudioSource
         AL.SetSourceProperty(_sourceId, SourceInteger.Buffer, 0);
         _sourceId = 0;
     }
+
+    /// <inheritdoc/>
+    /// <remarks>Called by the <c>SourcePool</c> when this source is reclaimed by another borrower.</remarks>
+    void IOpenALSourceOwner.OnSourceReclaimed() => DetachSource();
 
     private unsafe void TryBufferClip()
     {

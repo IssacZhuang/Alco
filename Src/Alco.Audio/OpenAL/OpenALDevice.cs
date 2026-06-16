@@ -16,7 +16,7 @@ internal unsafe class OpenALDevice : AudioDevice
         private readonly Lock _lock = new Lock();
         private readonly Stack<uint> _freeSources = new Stack<uint>();
         private readonly UnorderedList<uint> _activeSources = new UnorderedList<uint>();
-        private readonly Dictionary<uint, WeakReference> _lookup = new Dictionary<uint, WeakReference>();
+        private readonly Dictionary<uint, WeakReference<IOpenALSourceOwner>> _lookup = new();
 
         public int Count => _freeSources.Count;
 
@@ -29,7 +29,7 @@ internal unsafe class OpenALDevice : AudioDevice
                 if (AL.GetError() == AudioError.NoError && id != 0)
                 {
                     _freeSources.Push(id);
-                    _lookup.Add(id, new WeakReference(null));
+                    _lookup.Add(id, new WeakReference<IOpenALSourceOwner>(null!));
                 }
                 else
                 {
@@ -38,10 +38,10 @@ internal unsafe class OpenALDevice : AudioDevice
             }
         }
 
-        private void SetActive(uint id, OpenALSource source)
+        private void SetActive(uint id, IOpenALSourceOwner owner)
         {
             _activeSources.Add(id);
-            _lookup[id] = new WeakReference(source);
+            _lookup[id] = new WeakReference<IOpenALSourceOwner>(owner);
         }
 
         private void SetFree(uint id)
@@ -49,25 +49,11 @@ internal unsafe class OpenALDevice : AudioDevice
             if (_activeSources.Remove(id))
             {
                 _freeSources.Push(id);
-                _lookup[id].Target = null;
+                _lookup[id].SetTarget(null!);
             }
         }
 
-        private bool TryGetSource(uint id, out WeakReference weakReference, [NotNullWhen(true)] out OpenALSource? source)
-        {
-            WeakReference weakRef = _lookup[id];
-            if (weakRef.IsAlive && weakRef.Target != null)
-            {
-                source = (OpenALSource)weakRef.Target;
-                weakReference = weakRef;
-                return true;
-            }
-            source = null;
-            weakReference = weakRef;
-            return false;
-        }
-
-        public uint AllocateSource(OpenALSource owner)
+        public uint AllocateSource(IOpenALSourceOwner owner)
         {
             lock (_lock)
             {
@@ -81,19 +67,20 @@ internal unsafe class OpenALDevice : AudioDevice
                 for (int i = 0; i < _activeSources.Count; i++)
                 {
                     uint id = _activeSources[i];
-                    if (!TryGetSource(id, out WeakReference weakReference, out OpenALSource? activeOwner))
+                    WeakReference<IOpenALSourceOwner> weak = _lookup[id];
+                    if (!weak.TryGetTarget(out IOpenALSourceOwner? activeOwner))
                     {
-                        //already recycle byGC
-                        weakReference.Target = owner;
+                        // Already recycled by GC.
+                        weak.SetTarget(owner);
                         return id;
                     }
 
                     AL.GetSourceProperty(id, GetSourceInteger.SourceState, out int state);
                     if (state != (int)SourceState.Playing && state != (int)SourceState.Paused)
                     {
-                        // Source is stopped, we can reclaim it
-                        activeOwner.DetachSource();
-                        weakReference.Target = owner;
+                        // Source is stopped, we can reclaim it.
+                        activeOwner.OnSourceReclaimed();
+                        weak.SetTarget(owner);
                         return id;
                     }
                 }
@@ -104,12 +91,12 @@ internal unsafe class OpenALDevice : AudioDevice
             }
         }
 
-        public void FreeSource(OpenALSource expectedOwner, uint sourceId)
+        public void FreeSource(IOpenALSourceOwner expectedOwner, uint sourceId)
         {
             lock (_lock)
             {
-                // Only free if the source is still owned by the requester
-                if (_lookup[sourceId].Target == expectedOwner)
+                // Only free if the source is still owned by the requester.
+                if (_lookup[sourceId].TryGetTarget(out IOpenALSourceOwner? current) && current == expectedOwner)
                 {
                     SetFree(sourceId);
                 }
@@ -123,7 +110,7 @@ internal unsafe class OpenALDevice : AudioDevice
                 for (int i = 0; i < _activeSources.Count; i++)
                 {
                     uint id = _activeSources[i];
-                    if (TryGetSource(id, out _, out OpenALSource? source) && source.IsLooping)
+                    if (_lookup[id].TryGetTarget(out IOpenALSourceOwner? owner) && owner is OpenALSource source && source.IsLooping)
                     {
                         AL.SourcePlay(id);
                         _host.LogInfo($"Recovered looping source {id}");
@@ -441,12 +428,12 @@ internal unsafe class OpenALDevice : AudioDevice
         return stream;
     }
 
-    internal uint AllocateSource(OpenALSource owner)
+    internal uint AllocateSource(IOpenALSourceOwner owner)
     {
         return _sourcePool.AllocateSource(owner);
     }
 
-    internal void FreeSource(OpenALSource owner, uint sourceId)
+    internal void FreeSource(IOpenALSourceOwner owner, uint sourceId)
     {
         _sourcePool.FreeSource(owner, sourceId);
     }
