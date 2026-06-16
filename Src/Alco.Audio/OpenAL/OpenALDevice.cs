@@ -153,6 +153,10 @@ internal unsafe class OpenALDevice : AudioDevice
     private const int MaxSources = 256;
     private readonly SourcePool _sourcePool;
 
+    // Weak references to live audio streams so the device can refill them each frame without
+    // preventing their GC collection (mirrors the SourcePool WeakReference scheme).
+    private readonly List<WeakReference<OpenALAudioStream>> _streams = new();
+
     public bool SupportsSpatialize { get; }
     public bool SupportsDirectChannels { get; }
 
@@ -292,6 +296,9 @@ internal unsafe class OpenALDevice : AudioDevice
 
     public override void Poll(float delta)
     {
+        // Refill streaming buffers every frame (unlike the device check, this cannot be throttled).
+        UpdateStreams();
+
         _deviceCheckTimer += delta;
         if (_deviceCheckTimer < DeviceCheckInterval) return;
         _deviceCheckTimer = 0f;
@@ -308,6 +315,31 @@ internal unsafe class OpenALDevice : AudioDevice
         else if (_disconnected)
         {
             _disconnected = false;
+        }
+    }
+
+    /// <summary>
+    /// Refills the buffer queue of every live streaming source. Dead weak references (streams
+    /// that have been GC-collected) are pruned so the device never retains a strong reference.
+    /// </summary>
+    private void UpdateStreams()
+    {
+        if (_streams.Count == 0) return;
+
+        lock (_lock)
+        {
+            for (int i = _streams.Count - 1; i >= 0; i--)
+            {
+                WeakReference<OpenALAudioStream> weak = _streams[i];
+                if (!weak.TryGetTarget(out OpenALAudioStream? stream))
+                {
+                    // Stream was collected (or disposed); drop the dead reference.
+                    _streams.RemoveAt(i);
+                    continue;
+                }
+
+                stream.Refill();
+            }
         }
     }
 
@@ -396,9 +428,17 @@ internal unsafe class OpenALDevice : AudioDevice
                 MemoryUtility.Free(ptrMono);
             }
         }
+    }
 
-
-
+    protected override AudioStream CreateAudioStreamCore(IAudioStreamDataProvider provider)
+    {
+        OpenALAudioStream stream;
+        lock (_lock)
+        {
+            stream = new OpenALAudioStream(this, provider);
+            _streams.Add(new WeakReference<OpenALAudioStream>(stream));
+        }
+        return stream;
     }
 
     internal uint AllocateSource(OpenALSource owner)
