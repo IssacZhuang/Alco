@@ -55,15 +55,17 @@ V2F MainVS(Vertex input) {
 float4 MainPS(V2F input) : SV_TARGET {
   TextData data = _textBuffer[input.instanceId];
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
-  // float r = _font.Sample(_fontSampler, uv).r;
   float r = SAMPLE_TEX2D(_font, uv).r;
-  // Apply gamma correction (sRGB to linear)
-  //r = pow(r, 1/2.2);
 #if defined(ALPHA_TEST)
   if (r < 0.01f)
   {
     discard;
   }
 #endif
-  return float4(r, r, r, r) * data.color;
+  // Emit premultiplied alpha for BlendState.PremultipliedAlpha (src=One, dst=OneMinusSrcAlpha).
+  // Glyph coverage (r) is the geometric alpha; multiplying it with data.color.a gives the final
+  // alpha, then RGB is premultiplied by that alpha. This zeroes both RGB and A when the parent
+  // opacity is 0 (e.g. XP notification fade-out), instead of leaking RGB through a zero alpha.
+  float a = r * data.color.a;
+  return float4(data.color.rgb * a, a);
 }
