@@ -58,7 +58,7 @@ float4 MainPS(V2F input) : SV_TARGET {
   // float r = _font.Sample(_fontSampler, uv).r;
   float r = SAMPLE_TEX2D(_font, uv).r;
   // Apply gamma correction (sRGB to linear)
-  r = pow(r, 1/2.2);
+  //r = pow(r, 1/2.2);
 #if defined(ALPHA_TEST)
   if (r < 0.01f)
   {
