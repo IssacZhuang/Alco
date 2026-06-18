@@ -11,7 +11,7 @@ public class WebGPUBindingGenerator : BaseGenerator
         string outputPath = Path.Combine(SolutionFolder, OutputFolder);
         Directory.CreateDirectory(outputPath);
 
-        string headersDir = Path.Combine(SolutionFolder, "WebGPUBindingGenerator", "headers");
+        string headersDir = Path.Combine(SolutionFolder, "Generator", "WebGPUBindingGenerator", "headers");
         string webgpuHeader = Path.Combine(headersDir, "webgpu.h");
         string wgpuHeader = Path.Combine(headersDir, "wgpu.h");
 

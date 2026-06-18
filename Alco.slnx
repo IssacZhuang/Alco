@@ -10,8 +10,8 @@
     <Project Path="Benchmark/BenchmarkFramework/BenchmarkFramework.csproj" />
   </Folder>
   <Folder Name="/Generator/">
-    <Project Path="Generator/Generator.csproj" />
-    <Project Path="WebGPUBindingGenerator/WebGPUBindingGenerator.csproj" />
+    <Project Path="Generator/AlcoGenerator/AlcoGenerator.csproj" />
+    <Project Path="Generator/WebGPUBindingGenerator/WebGPUBindingGenerator.csproj" />
   </Folder>
   <Folder Name="/Sandbox/">
     <Project Path="Sandbox/0-BasicWindow/0-BasicWindow.csproj" />
