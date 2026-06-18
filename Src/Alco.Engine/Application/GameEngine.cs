@@ -651,7 +651,7 @@ IDisposable
             }
             catch (Exception e)
             {
-                Log.Error($"Error when pre swap frame system {_systems[i].GetType().Name}: ");
+                Log.Error($"Error when post swap frame system {_systems[i].GetType().Name}: ");
                 Log.Error(e);
                 TryErrorStop();
             }
