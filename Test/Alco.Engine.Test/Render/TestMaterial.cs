@@ -9,7 +9,7 @@ public class TestMaterial
     [Test]
     public void TestMaterialInheritance()
     {
-        GameEngine engine = new GameEngine(GameEngineSetting.CreateNoGPU());
+        GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
         GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");

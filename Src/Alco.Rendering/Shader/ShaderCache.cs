@@ -27,16 +27,29 @@ public unsafe class ShaderCache : IShaderCache
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+                string? directory = Path.GetDirectoryName(cachePath);
+                if (directory != null)
+                {
+                    Directory.CreateDirectory(directory);
+                }
 
-                using FileStream stream = File.Create(cachePath);
-                using BinaryWriter writer = new(stream);
+                // Write to a temp file then atomically move into place. NUnit runs
+                // tests in parallel, so several engine instances may try to populate
+                // the same cache entry at once; writing directly with File.Create
+                // (truncating) would corrupt the file under concurrent writers.
+                string tempPath = cachePath + ".tmp";
 
-                ulong hash = GetHash(shaderText);
-                writer.Write(hash);
+                using (FileStream stream = File.Create(tempPath))
+                using (BinaryWriter writer = new(stream))
+                {
+                    ulong hash = GetHash(shaderText);
+                    writer.Write(hash);
 
-                ReadOnlyMemory<byte> bytes = ShaderUtility.EncodeShaderModulesInfo(modulesInfo);
-                writer.Write(bytes.Span);
+                    ReadOnlyMemory<byte> bytes = ShaderUtility.EncodeShaderModulesInfo(modulesInfo);
+                    writer.Write(bytes.Span);
+                }
+
+                File.Move(tempPath, cachePath, overwrite: true);
 
                 Log.Info("Shader save to cache: ", cachePath);
             }
