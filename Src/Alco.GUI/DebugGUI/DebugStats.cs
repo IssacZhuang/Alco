@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
@@ -33,7 +33,7 @@ public static partial class DebugStats
         _isSameLine = true;
     }
 
-    private static Vector2 ProcessPostion()
+    private static Vector2 ProcessPosition()
     {
         if (_isSameLine)
         {

@@ -7,7 +7,7 @@ using Alco;
 namespace Alco.Benchmark;
 
 /// <summary>
-/// Benchmark comparing Parallel.For, ParallelScheduler, and ReuseableParallelTask performance
+/// Benchmark comparing Parallel.For, ParallelScheduler, and ReusableParallelTask performance
 /// across different workload types and scales.
 /// </summary>
 [MemoryDiagnoser]
@@ -54,7 +54,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for CPU-intensive work (calculating square roots and trigonometric functions)
     /// </summary>
-    private class CpuIntensiveTask : ReuseableBatchTask
+    private class CpuIntensiveTask : ReusableBatchTask
     {
         private int[] _data;
         private double[] _results;
@@ -101,11 +101,11 @@ public class BenchmarkParallel
         return results;
     }
 
-    [Benchmark(Description = "CPU Intensive - ReuseableParallelTask")]
+    [Benchmark(Description = "CPU Intensive - ReusableParallelTask")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
     [Arguments(LargeWorkload)]
-    public double[] CpuIntensive_ReuseableParallelTask(int size)
+    public double[] CpuIntensive_ReusableParallelTask(int size)
     {
         var results = new double[size];
         _cpuTask.SetData(_array, results);
@@ -120,7 +120,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for memory-intensive work (array operations and memory access patterns)
     /// </summary>
-    private class MemoryIntensiveTask : ReuseableBatchTask
+    private class MemoryIntensiveTask : ReusableBatchTask
     {
         private int[] _source;
         private int[] _destination;
@@ -170,11 +170,11 @@ public class BenchmarkParallel
     }
 
 
-    [Benchmark(Description = "Memory Intensive - ReuseableParallelTask")]
+    [Benchmark(Description = "Memory Intensive - ReusableParallelTask")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
     [Arguments(LargeWorkload)]
-    public int[] MemoryIntensive_ReuseableParallelTask(int size)
+    public int[] MemoryIntensive_ReusableParallelTask(int size)
     {
         var results = new int[size];
         _memoryTask.SetData(_array, results);
@@ -189,7 +189,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for lightweight work (simple arithmetic operations)
     /// </summary>
-    private class LightweightTask : ReuseableBatchTask
+    private class LightweightTask : ReusableBatchTask
     {
         private int[] _source;
         private int[] _destination;
@@ -227,11 +227,11 @@ public class BenchmarkParallel
     }
 
 
-    [Benchmark(Description = "Lightweight - ReuseableParallelTask")]
+    [Benchmark(Description = "Lightweight - ReusableParallelTask")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
     [Arguments(LargeWorkload)]
-    public int[] Lightweight_ReuseableParallelTask(int size)
+    public int[] Lightweight_ReusableParallelTask(int size)
     {
         var results = new int[size];
         _lightweightTask.SetData(_array, results);
@@ -246,7 +246,7 @@ public class BenchmarkParallel
     /// <summary>
     /// Reusable parallel task for empty work (no operations) to test pure scheduling overhead
     /// </summary>
-    private class EmptyTask : ReuseableBatchTask
+    private class EmptyTask : ReusableBatchTask
     {
         protected override void ExecuteCore(int index)
         {
@@ -275,11 +275,11 @@ public class BenchmarkParallel
     }
 
     /// <summary>
-    /// Test scheduling performance with empty tasks using ReuseableParallelTask repeated execution
+    /// Test scheduling performance with empty tasks using ReusableParallelTask repeated execution
     /// </summary>
-    [Benchmark(Description = "Scheduling Performance - ReuseableParallelTask (Repeated)")]
+    [Benchmark(Description = "Scheduling Performance - ReusableParallelTask (Repeated)")]
     [Arguments(100)]
-    public void SchedulingPerformance_ReuseableParallelTask_Repeated(int taskCount)
+    public void SchedulingPerformance_ReusableParallelTask_Repeated(int taskCount)
     {
         for (int iteration = 0; iteration < SchedulingIterations; iteration++)
         {
@@ -307,7 +307,7 @@ public class BenchmarkParallel
         return count;
     }
 
-    private class OverheadTask : ReuseableBatchTask
+    private class OverheadTask : ReusableBatchTask
     {
         private int _count;
 
@@ -332,8 +332,8 @@ public class BenchmarkParallel
 
     private readonly OverheadTask _overheadTask = new OverheadTask();
 
-    [Benchmark(Description = "Overhead - ReuseableParallelTask")]
-    public int Overhead_ReuseableParallelTask()
+    [Benchmark(Description = "Overhead - ReusableParallelTask")]
+    public int Overhead_ReusableParallelTask()
     {
         _overheadTask.Reset();
         _overheadTask.RunParallel(100);

@@ -237,7 +237,7 @@ IDisposable
 
         //main view
         _mainView = CreateView(_setting.View);
-        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PrefferedSDRPass, shaderBlit.Result);
+        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PreferredSDRPass, shaderBlit.Result);
         AddSystem(_mainRenderTarget);
 
 

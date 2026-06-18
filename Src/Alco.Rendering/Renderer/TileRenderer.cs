@@ -256,7 +256,7 @@ public sealed class TileRenderer : AutoDisposable
     /// <summary>
     /// Parallel task for updating multiple tile batches.
     /// </summary>
-    private sealed class BatchUpdateTask : ReuseableBatchTask
+    private sealed class BatchUpdateTask : ReusableBatchTask
     {
         public readonly List<TileBatch> Batches = new List<TileBatch>();
         public int[] TileMap = null!;

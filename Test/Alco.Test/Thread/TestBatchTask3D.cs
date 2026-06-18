@@ -6,8 +6,8 @@ namespace Alco.Test;
 
 public class TestBatchTask3D
 {
-    // Test classes for ReuseableBatchTask3D
-    private class Test3DCounterTask : ReuseableBatchTask3D
+    // Test classes for ReusableBatchTask3D
+    private class Test3DCounterTask : ReusableBatchTask3D
     {
         private int _counter;
         private readonly object _lock = new object();
@@ -31,7 +31,7 @@ public class TestBatchTask3D
         }
     }
 
-    private class Test3DArrayTask : ReuseableBatchTask3D
+    private class Test3DArrayTask : ReusableBatchTask3D
     {
         private readonly int[,,] _array;
 
@@ -48,7 +48,7 @@ public class TestBatchTask3D
         }
     }
 
-    private class Test3DExceptionTask : ReuseableBatchTask3D
+    private class Test3DExceptionTask : ReusableBatchTask3D
     {
         private readonly int _errorX;
         private readonly int _errorY;
@@ -73,7 +73,7 @@ public class TestBatchTask3D
 
 
     [Test(Description = "Test 3D Batch Task Basic Functionality")]
-    public void TestReuseableBatchTask3DBasic()
+    public void TestReusableBatchTask3DBasic()
     {
         using var task = new Test3DCounterTask();
 
@@ -114,7 +114,7 @@ public class TestBatchTask3D
     }
 
     [Test(Description = "Test 3D Batch Task Array Processing")]
-    public void TestReuseableBatchTask3DArray()
+    public void TestReusableBatchTask3DArray()
     {
         const int width = 6;
         const int height = 4;
@@ -139,7 +139,7 @@ public class TestBatchTask3D
     }
 
     [Test(Description = "Test 3D Batch Task with Different Batch Sizes")]
-    public void TestReuseableBatchTask3DBatchSizes()
+    public void TestReusableBatchTask3DBatchSizes()
     {
         const int width = 6;
         const int height = 4;
@@ -168,7 +168,7 @@ public class TestBatchTask3D
     }
 
     [Test(Description = "Test 3D Batch Task Exception Handling")]
-    public void TestReuseableBatchTask3DExceptions()
+    public void TestReusableBatchTask3DExceptions()
     {
         using var task = new Test3DExceptionTask(1, 2, 1);
 
@@ -180,7 +180,7 @@ public class TestBatchTask3D
     }
 
     [Test(Description = "Test 3D Batch Task Disposal")]
-    public void TestReuseableBatchTask3DDisposal()
+    public void TestReusableBatchTask3DDisposal()
     {
         var task = new Test3DCounterTask();
 
@@ -197,7 +197,7 @@ public class TestBatchTask3D
 
 
     [Test(Description = "Test 3D Batch Task Large Volume Processing")]
-    public void TestReuseableBatchTask3DLargeVolume()
+    public void TestReusableBatchTask3DLargeVolume()
     {
         const int size = 20; // 20x20x20 = 8000 elements
         using var task = new Test3DCounterTask();
@@ -207,7 +207,7 @@ public class TestBatchTask3D
     }
 
     [Test(Description = "Test 3D Batch Task with Different Volume Shapes")]
-    public void TestReuseableBatchTask3DDifferentShapes()
+    public void TestReusableBatchTask3DDifferentShapes()
     {
         using var task = new Test3DCounterTask();
 

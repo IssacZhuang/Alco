@@ -74,11 +74,11 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
 
             // Generate SDF using compute shader
             var inputTexture = _renderingSystem.CreateRenderTexture(
-                _renderingSystem.PrefferedRTexturePass, (uint)width, (uint)height, "font_atlas_input"
+                _renderingSystem.PreferredRTexturePass, (uint)width, (uint)height, "font_atlas_input"
             );
 
             var outputTexture = _renderingSystem.CreateRenderTexture(
-                _renderingSystem.PrefferedRTexturePass, (uint)width, (uint)height, "font_atlas_sdf_output"
+                _renderingSystem.PreferredRTexturePass, (uint)width, (uint)height, "font_atlas_sdf_output"
             );
 
             // Upload padded bitmap to input texture

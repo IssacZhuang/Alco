@@ -83,7 +83,7 @@ public sealed class TextureEncoderPNG : AutoDisposable
         _cachedWidth = width;
         _cachedHeight = height;
         _cachedRenderTexture = _renderingSystem.CreateRenderTexture(
-            _renderingSystem.PrefferedRGBATexturePass,
+            _renderingSystem.PreferredRGBATexturePass,
             width,
             height,
             "texture_encoder_png_render_texture"

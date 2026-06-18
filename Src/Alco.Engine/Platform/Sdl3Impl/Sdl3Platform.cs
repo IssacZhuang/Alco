@@ -179,8 +179,8 @@ public unsafe class Sdl3Platform : Platform
                 window2.DoMinimize();
                 break;
             case SDL_EventType.WindowRestored:
-                Sdl3Window windo3 = _windows[e.window.windowID];
-                windo3.DoRestore();
+                Sdl3Window window3 = _windows[e.window.windowID];
+                window3.DoRestore();
                 break;
             case SDL_EventType.WindowFocusGained:
                 Sdl3Window window4 = _windows[e.window.windowID];

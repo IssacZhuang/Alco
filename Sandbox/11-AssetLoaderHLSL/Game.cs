@@ -59,7 +59,7 @@ public class Game : GameEngine
 
         _shader = AssetSystem.Load<Shader>("Shader.hlsl");
         _pipelineInfo = _shader.GetGraphicsPipeline(
-            RenderingSystem.PrefferedSDRPass,
+            RenderingSystem.PreferredSDRPass,
             DepthStencilState.Default,
             BlendState.Additive
             );

@@ -199,7 +199,7 @@ public class BenchmarkBvh
         }
     }
 
-    private class CastRayTask3D : ReuseableBatchTask
+    private class CastRayTask3D : ReusableBatchTask
     {
         private NativeBvh3D _bvh;
         public NativeArrayList<Ray3D> rays;
@@ -215,7 +215,7 @@ public class BenchmarkBvh
         }
     }
 
-    private class CastRayTask : ReuseableBatchTask
+    private class CastRayTask : ReusableBatchTask
     {
         private NativeBvh2D _bvh;
         public NativeArrayList<Ray2D> rays;

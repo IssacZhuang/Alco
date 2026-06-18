@@ -69,7 +69,7 @@ public static partial class DebugStats
     public static void Text(ReadOnlySpan<char> str, ColorFloat color)
     {
         CheckBegin();
-        Vector2 drawPos = ProcessPostion();
+        Vector2 drawPos = ProcessPosition();
         drawPos.Y = -drawPos.Y;
 
         float normalizedTextLength = _renderer.DrawText(str, drawPos, _style.Font, _style.FontSize, color, Pivot.LeftCenter);

@@ -66,7 +66,7 @@ public class LightingManager : AutoDisposable
 
         // Create Gaussian blur
         ComputeMaterial gaussianBlurMaterial = rendering.CreateComputeMaterial(builtInAssets.Shader_GaussianBlurRGBA16F);
-        _blurTexture = rendering.CreateRenderTexture(rendering.PrefferedLightMapPass, (uint)width, (uint)height);
+        _blurTexture = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, (uint)width, (uint)height);
 
         // Initialize with default kernel values
         float blurCenter = 4f;

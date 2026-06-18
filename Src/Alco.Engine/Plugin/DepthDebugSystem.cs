@@ -57,7 +57,7 @@ public class DepthDebugSystem : BaseEngineSystem
         _renderer = _rendering.CreateRenderContext("blit_depth_buffer");
 
         _tmpTexture = _rendering.CreateRenderTexture(
-            _rendering.PrefferedSDRPassWithoutDepth, 
+            _rendering.PreferredSDRPassWithoutDepth, 
             renderTarget.RenderTexture.Width,
             renderTarget.RenderTexture.Height,
             "tmp_depth_texture"
@@ -141,7 +141,7 @@ public class DepthDebugSystem : BaseEngineSystem
     {
         _tmpTexture.Dispose();
         _tmpTexture = _rendering.CreateRenderTexture(
-            _rendering.PrefferedSDRPassWithoutDepth,
+            _rendering.PreferredSDRPassWithoutDepth,
             _renderTarget.RenderTexture.Width,
             _renderTarget.RenderTexture.Height,
             "tmp_depth_texture"
