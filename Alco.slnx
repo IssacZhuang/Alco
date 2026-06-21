@@ -1,5 +1,6 @@
 <Solution>
   <Configurations>
+    <BuildType Name="Profile" />
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
     <Platform Name="x86" />
@@ -58,11 +59,15 @@
     <Project Path="Src/Alco.ImGUI/Alco.ImGUI.csproj" />
     <Project Path="Src/Alco.IO/Alco.IO.csproj" />
     <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
+    <Project Path="Src/Alco.Profiler/Alco.Profiler.csproj" />
     <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
     <Project Path="Src/Alco.ShaderCompiler/Alco.ShaderCompiler.csproj" />
     <Project Path="Src/Alco/Alco.csproj" />
   </Folder>
   <Folder Name="/Test/">
+    <Project Path="Test/Alco.Profiler.Test/Alco.Profiler.Test.csproj" />
+    <Project Path="Test/Alco.Profiler.Weaver.Fixture/Alco.Profiler.Weaver.Fixture.csproj" />
+    <Project Path="Test/Alco.Profiler.Weaver.Test/Alco.Profiler.Weaver.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
     <Project Path="Test/Alco.Graphics.Test/Alco.Graphics.Test.csproj" />
     <Project Path="Test/Alco.LLM.Test/Alco.LLM.Test.csproj" />
@@ -73,6 +78,7 @@
     <Project Path="Test/Alco.ShaderCompiler.Test/Alco.ShaderCompiler.Test.csproj" />
   </Folder>
   <Folder Name="/Tool/">
+    <Project Path="Tool/Alco.Profiler.Weaver/Alco.Profiler.Weaver.csproj" />
     <Project Path="Tool/MsdfFontGenerator.Desktop/MsdfFontGenerator.Desktop.csproj" />
     <Project Path="Tool/MsdfFontGenerator/MsdfFontGenerator.csproj" />
   </Folder>

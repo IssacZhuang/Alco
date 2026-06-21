@@ -41,6 +41,16 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Profile'">
+    <DebugType>portable</DebugType>
+    <Optimize>true</Optimize>
+    <EnableMethodProfiler>true</EnableMethodProfiler>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(EnableMethodProfiler)' == 'true'">
+    <DefineConstants>$(DefineConstants);METHOD_PROFILER</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>

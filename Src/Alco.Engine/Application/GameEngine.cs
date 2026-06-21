@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Runtime;
+using Alco.Profiler;
 
 
 namespace Alco.Engine;
@@ -168,6 +169,11 @@ IDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _profiler.FrameTime;
     }
+
+    /// <summary>
+    /// Gets the process-wide method profiler used by Profile builds.
+    /// </summary>
+    public MethodProfilerRuntime MethodProfiler => MethodProfilerRuntime.Instance;
 
     /// <summary>
     /// Check if the engine is disposed
@@ -354,17 +360,29 @@ IDisposable
 
     private void InternalTick(float delta)
     {
-        OnSystemTick(delta);
+#if METHOD_PROFILER
+        MethodProfilerTickToken profilerTick = MethodProfiler.BeginTick();
         try
         {
-            OnTick(delta);
+#endif
+            OnSystemTick(delta);
+            try
+            {
+                OnTick(delta);
+            }
+            catch (Exception e)
+            {
+                Log.Error("[Tick Error]", e);
+                TryErrorStop();
+            }
+            OnSystemPostTick(delta);
+#if METHOD_PROFILER
         }
-        catch (Exception e)
+        finally
         {
-            Log.Error("[Tick Error]", e);
-            TryErrorStop();
+            MethodProfiler.EndTick(profilerTick);
         }
-        OnSystemPostTick(delta);
+#endif
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
