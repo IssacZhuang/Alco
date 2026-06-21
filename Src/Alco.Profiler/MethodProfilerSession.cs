@@ -5,9 +5,9 @@ namespace Alco.Profiler;
 /// </summary>
 public sealed class MethodProfilerSession : IDisposable
 {
-    private Action<long>? _release;
+    private Func<long, bool>? _release;
 
-    internal MethodProfilerSession(Action<long> release, long generation, string ownerName)
+    internal MethodProfilerSession(Func<long, bool> release, long generation, string ownerName)
     {
         _release = release;
         Generation = generation;
@@ -29,7 +29,7 @@ public sealed class MethodProfilerSession : IDisposable
     /// </summary>
     public void Dispose()
     {
-        Action<long>? release = Interlocked.Exchange(ref _release, null);
+        Func<long, bool>? release = Interlocked.Exchange(ref _release, null);
         release?.Invoke(Generation);
     }
 }

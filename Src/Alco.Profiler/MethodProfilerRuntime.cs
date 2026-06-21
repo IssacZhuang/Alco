@@ -204,7 +204,7 @@ public sealed class MethodProfilerRuntime
                 EnabledMethodIds = enabledMethodIds,
             };
             Volatile.Write(ref _activeSession, state);
-            session = new MethodProfilerSession(ReleaseSession, generation, ownerName);
+            session = new MethodProfilerSession(TryReleaseSession, generation, ownerName);
             currentOwner = null;
             return true;
         }
@@ -473,17 +473,23 @@ public sealed class MethodProfilerRuntime
         state.ContextSamples[key] = contextSample;
     }
 
-    private void ReleaseSession(long generation)
+    /// <summary>
+    /// Attempts to release the active session when its generation matches the caller's lease.
+    /// </summary>
+    /// <param name="generation">Session generation returned by acquisition.</param>
+    /// <returns>True when the matching session was released.</returns>
+    public bool TryReleaseSession(long generation)
     {
         lock (_gate)
         {
             if (_activeSession?.Generation != generation)
             {
-                return;
+                return false;
             }
 
             Volatile.Write(ref _activeTick, null);
             Volatile.Write(ref _activeSession, null);
+            return true;
         }
     }
 

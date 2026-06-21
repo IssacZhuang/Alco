@@ -1,6 +1,8 @@
 <Solution>
   <Configurations>
+    <BuildType Name="Debug" />
     <BuildType Name="Profile" />
+    <BuildType Name="Release" />
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
     <Platform Name="x86" />
