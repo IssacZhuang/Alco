@@ -1,22 +1,22 @@
 namespace Alco.Profiler;
 
 /// <summary>
-/// Marks an assembly whose method bodies were rewritten by the method-profiler Weaver.
+/// Marks an assembly whose method bodies were instrumented by the profiler build tool.
 /// </summary>
 [AttributeUsage(AttributeTargets.Assembly)]
-public sealed class MethodProfilerWovenAttribute : Attribute
+public sealed class MethodProfilerInstrumentedAttribute : Attribute
 {
     /// <summary>
-    /// Initializes the marker with the Weaver format version.
+    /// Initializes the marker with the instrumentation format version.
     /// </summary>
-    /// <param name="version">Weaver format version.</param>
-    public MethodProfilerWovenAttribute(string version)
+    /// <param name="version">Instrumentation format version.</param>
+    public MethodProfilerInstrumentedAttribute(string version)
     {
         Version = version;
     }
 
     /// <summary>
-    /// Gets the Weaver format version.
+    /// Gets the instrumentation format version.
     /// </summary>
     public string Version { get; }
 }
@@ -44,7 +44,7 @@ public enum MethodProfileTag
 }
 
 /// <summary>
-/// Describes one method registered by a woven module.
+/// Describes one method registered by an instrumented module.
 /// </summary>
 /// <param name="Id">Deterministic method identifier.</param>
 /// <param name="AssemblyName">Assembly containing the method body.</param>
@@ -90,7 +90,7 @@ public sealed class MethodProfileFilter
     }
 
     /// <summary>
-    /// Creates a filter that selects every woven method.
+    /// Creates a filter that selects every instrumented method.
     /// </summary>
     /// <returns>A filter accepting every method.</returns>
     public static MethodProfileFilter All()

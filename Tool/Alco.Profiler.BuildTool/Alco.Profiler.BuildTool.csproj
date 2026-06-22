@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Alco.Profiler.Weaver</RootNamespace>
-    <AssemblyName>Alco.Profiler.Weaver</AssemblyName>
+    <RootNamespace>Alco.Profiler.BuildTool</RootNamespace>
+    <AssemblyName>Alco.Profiler.BuildTool</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <MethodProfilerInfrastructureProject>true</MethodProfilerInfrastructureProject>

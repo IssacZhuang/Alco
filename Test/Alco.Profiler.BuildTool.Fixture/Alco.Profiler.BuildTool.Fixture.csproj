@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Alco.Profiler.Weaver.Fixture</RootNamespace>
-    <AssemblyName>Alco.Profiler.Weaver.Fixture</AssemblyName>
+    <RootNamespace>Alco.Profiler.BuildTool.Fixture</RootNamespace>
+    <AssemblyName>Alco.Profiler.BuildTool.Fixture</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DebugType>portable</DebugType>

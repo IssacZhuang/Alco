@@ -3,14 +3,14 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 
-namespace Alco.Profiler.Weaver;
+namespace Alco.Profiler.BuildTool;
 
 /// <summary>
 /// Rewrites selected managed methods with exception-safe profiler hooks.
 /// </summary>
-public sealed class MethodProfilerWeaver
+public sealed class MethodProfilerAssemblyInstrumenter
 {
-    private const string WeaverVersion = "1";
+    private const string BuildToolVersion = "1";
 
     private sealed class InstrumentationPlan
     {
@@ -36,10 +36,10 @@ public sealed class MethodProfilerWeaver
     private readonly IReadOnlyList<IMethodProfileRule> _rules;
 
     /// <summary>
-    /// Initializes a Weaver with rules in deterministic evaluation order.
+    /// Initializes an assembly instrumenter with rules in deterministic evaluation order.
     /// </summary>
     /// <param name="rules">Engine rules followed by game rules.</param>
-    public MethodProfilerWeaver(IReadOnlyList<IMethodProfileRule> rules)
+    public MethodProfilerAssemblyInstrumenter(IReadOnlyList<IMethodProfileRule> rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
         _rules = rules;
@@ -52,7 +52,7 @@ public sealed class MethodProfilerWeaver
     /// <param name="pdbPath">Optional Portable PDB path.</param>
     /// <param name="reportPath">Report output path.</param>
     /// <param name="searchDirectories">Additional directories used to resolve referenced metadata.</param>
-    public void Weave(
+    public void Instrument(
         string assemblyPath,
         string? pdbPath,
         string reportPath,
@@ -62,7 +62,7 @@ public sealed class MethodProfilerWeaver
         string fullAssemblyPath = Path.GetFullPath(assemblyPath);
         byte[] lockIdentity = System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(fullAssemblyPath.ToUpperInvariant()));
-        string mutexName = "AlcoMethodProfilerWeaver_" + Convert.ToHexString(lockIdentity);
+        string mutexName = "AlcoMethodProfilerBuildTool_" + Convert.ToHexString(lockIdentity);
         using var mutex = new Mutex(false, mutexName);
         bool lockTaken = false;
         try
@@ -77,10 +77,10 @@ public sealed class MethodProfilerWeaver
             }
             if (!lockTaken)
             {
-                throw new TimeoutException($"Timed out waiting to weave {fullAssemblyPath}.");
+                throw new TimeoutException($"Timed out waiting to instrument {fullAssemblyPath}.");
             }
 
-            WeaveCore(fullAssemblyPath, pdbPath, reportPath, searchDirectories);
+            InstrumentCore(fullAssemblyPath, pdbPath, reportPath, searchDirectories);
         }
         finally
         {
@@ -91,7 +91,7 @@ public sealed class MethodProfilerWeaver
         }
     }
 
-    private void WeaveCore(
+    private void InstrumentCore(
         string assemblyPath,
         string? pdbPath,
         string reportPath,
@@ -159,12 +159,12 @@ public sealed class MethodProfilerWeaver
             }
 
             InjectRegistrations(assembly.MainModule, plans);
-            System.Reflection.ConstructorInfo markerConstructor = typeof(MethodProfilerWovenAttribute)
+            System.Reflection.ConstructorInfo markerConstructor = typeof(MethodProfilerInstrumentedAttribute)
                 .GetConstructor([typeof(string)])!;
             var marker = new CustomAttribute(assembly.MainModule.ImportReference(markerConstructor));
             marker.ConstructorArguments.Add(new CustomAttributeArgument(
                 assembly.MainModule.TypeSystem.String,
-                WeaverVersion));
+                BuildToolVersion));
             assembly.CustomAttributes.Add(marker);
 
             var writerParameters = new WriterParameters
@@ -177,7 +177,7 @@ public sealed class MethodProfilerWeaver
 
         using (AssemblyDefinition validation = AssemblyDefinition.ReadAssembly(tempAssemblyPath))
         {
-            if (!HasWovenMarker(validation))
+            if (!HasInstrumentationMarker(validation))
             {
                 throw new InvalidOperationException("Post-write validation did not find the profiler marker.");
             }
@@ -732,13 +732,13 @@ public sealed class MethodProfilerWeaver
         string backupAssemblyPath,
         string? backupPdbPath)
     {
-        bool isWoven;
+        bool isInstrumented;
         using (AssemblyDefinition assembly = AssemblyDefinition.ReadAssembly(assemblyPath))
         {
-            isWoven = HasWovenMarker(assembly);
+            isInstrumented = HasInstrumentationMarker(assembly);
         }
 
-        if (!isWoven)
+        if (!isInstrumented)
         {
             File.Copy(assemblyPath, backupAssemblyPath, true);
             if (pdbPath != null && backupPdbPath != null && File.Exists(pdbPath))
@@ -755,14 +755,14 @@ public sealed class MethodProfilerWeaver
         if (!File.Exists(backupAssemblyPath))
         {
             throw new InvalidOperationException(
-                $"Assembly {assemblyPath} is already woven but its pristine backup is missing. Rebuild the project.");
+                $"Assembly {assemblyPath} is already instrumented but its pristine backup is missing. Rebuild the project.");
         }
     }
 
-    private static bool HasWovenMarker(AssemblyDefinition assembly)
+    private static bool HasInstrumentationMarker(AssemblyDefinition assembly)
     {
         return assembly.CustomAttributes.Any(static attribute =>
-            attribute.AttributeType.FullName == typeof(MethodProfilerWovenAttribute).FullName);
+            attribute.AttributeType.FullName == typeof(MethodProfilerInstrumentedAttribute).FullName);
     }
 
     private static void RestorePristine(
@@ -785,7 +785,7 @@ public sealed class MethodProfilerWeaver
         var output = new List<string>
         {
             $"Assembly: {assemblyName}",
-            $"WeaverVersion: {WeaverVersion}",
+            $"BuildToolVersion: {BuildToolVersion}",
             $"Included: {includedCount}",
         };
         output.AddRange(lines.Order(StringComparer.Ordinal));

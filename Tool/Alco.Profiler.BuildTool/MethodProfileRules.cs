@@ -1,4 +1,4 @@
-namespace Alco.Profiler.Weaver;
+namespace Alco.Profiler.BuildTool;
 
 /// <summary>
 /// Controls whether a coverage rule changes the current instrumentation decision.
@@ -22,7 +22,7 @@ public enum MethodProfileDecision
 }
 
 /// <summary>
-/// Controls whether woven IL passes the instance to the profiler.
+/// Controls whether instrumented IL passes the instance to the profiler.
 /// </summary>
 public enum MethodProfileContextCapture
 {
@@ -103,7 +103,7 @@ public sealed class MethodProfileDescriptor
     public required bool IsCompilerGenerated { get; init; }
 
     /// <summary>
-    /// Gets whether the Weaver can safely transform this method.
+    /// Gets whether the build tool can safely transform this method.
     /// </summary>
     public required bool IsSupported { get; init; }
 

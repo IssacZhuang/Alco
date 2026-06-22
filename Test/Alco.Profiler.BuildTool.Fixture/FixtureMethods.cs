@@ -1,7 +1,7 @@
-namespace Alco.Profiler.Weaver.Fixture;
+namespace Alco.Profiler.BuildTool.Fixture;
 
 /// <summary>
-/// Supplies representative IL shapes for Weaver integration tests.
+/// Supplies representative IL shapes for build-tool integration tests.
 /// </summary>
 public static class FixtureMethods
 {

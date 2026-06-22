@@ -7,8 +7,8 @@
     <MethodProfilerInfrastructureProject>true</MethodProfilerInfrastructureProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Tool\Alco.Profiler.Weaver\Alco.Profiler.Weaver.csproj" />
-    <ProjectReference Include="..\Alco.Profiler.Weaver.Fixture\Alco.Profiler.Weaver.Fixture.csproj" />
+    <ProjectReference Include="..\..\Tool\Alco.Profiler.BuildTool\Alco.Profiler.BuildTool.csproj" />
+    <ProjectReference Include="..\Alco.Profiler.BuildTool.Fixture\Alco.Profiler.BuildTool.Fixture.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
     <PackageReference Include="NUnit" Version="3.13.3" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />

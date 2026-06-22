@@ -3,12 +3,12 @@ using System.Runtime.CompilerServices;
 namespace Alco.Profiler;
 
 /// <summary>
-/// Provides the non-throwing entry points injected into woven method bodies.
+/// Provides the non-throwing entry points injected into instrumented method bodies.
 /// </summary>
 public static class ProfilerHooks
 {
     /// <summary>
-    /// Registers method metadata emitted by a woven module.
+    /// Registers method metadata emitted by an instrumented module.
     /// </summary>
     /// <param name="id">Deterministic method identifier.</param>
     /// <param name="assemblyName">Assembly containing the method.</param>

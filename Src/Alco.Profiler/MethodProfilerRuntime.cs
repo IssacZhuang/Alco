@@ -109,7 +109,7 @@ public sealed class MethodProfilerRuntime
     private long _nextTickId;
 
     /// <summary>
-    /// Gets the process-wide profiler runtime used by woven hooks.
+    /// Gets the process-wide profiler runtime used by instrumented hooks.
     /// </summary>
     public static MethodProfilerRuntime Instance { get; } = new();
 
@@ -134,7 +134,7 @@ public sealed class MethodProfilerRuntime
     }
 
     /// <summary>
-    /// Gets whether at least one woven method is registered and registration is healthy.
+    /// Gets whether at least one instrumented method is registered and registration is healthy.
     /// </summary>
     public bool IsInstrumentationAvailable => !_metadata.IsEmpty && Volatile.Read(ref _instrumentationDiagnostic) == null;
 
@@ -340,7 +340,7 @@ public sealed class MethodProfilerRuntime
     }
 
     /// <summary>
-    /// Registers metadata emitted by a woven module.
+    /// Registers metadata emitted by an instrumented module.
     /// </summary>
     /// <param name="metadata">Method metadata.</param>
     public void RegisterMethod(MethodProfileMetadata metadata)

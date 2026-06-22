@@ -4,9 +4,9 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using NUnit.Framework;
 
-namespace Alco.Profiler.Weaver.Test;
+namespace Alco.Profiler.BuildTool.Test;
 
-public sealed class MethodProfilerWeaverTest
+public sealed class MethodProfilerAssemblyInstrumenterTest
 {
     private sealed class IncludeFixtureRule : IMethodProfileRule
     {
@@ -21,22 +21,22 @@ public sealed class MethodProfilerWeaverTest
     }
 
     [Test]
-    public async Task WeaveProducesReadableExecutableAssemblyAndPreservesPdb()
+    public async Task InstrumentProducesReadableExecutableAssemblyAndPreservesPdb()
     {
         string sourceDirectory = TestContext.CurrentContext.TestDirectory;
         string temporaryDirectory = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
-            "method-profiler-weaver-" + Guid.NewGuid().ToString("N"));
+            "method-profiler-build-tool-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporaryDirectory);
-        string assemblyPath = Path.Combine(temporaryDirectory, "Alco.Profiler.Weaver.Fixture.dll");
+        string assemblyPath = Path.Combine(temporaryDirectory, "Alco.Profiler.BuildTool.Fixture.dll");
         string pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
         string reportPath = Path.Combine(temporaryDirectory, "report.txt");
-        File.Copy(Path.Combine(sourceDirectory, "Alco.Profiler.Weaver.Fixture.dll"), assemblyPath);
-        File.Copy(Path.Combine(sourceDirectory, "Alco.Profiler.Weaver.Fixture.pdb"), pdbPath);
+        File.Copy(Path.Combine(sourceDirectory, "Alco.Profiler.BuildTool.Fixture.dll"), assemblyPath);
+        File.Copy(Path.Combine(sourceDirectory, "Alco.Profiler.BuildTool.Fixture.pdb"), pdbPath);
 
-        var weaver = new MethodProfilerWeaver([new IncludeFixtureRule()]);
-        weaver.Weave(assemblyPath, pdbPath, reportPath, [sourceDirectory]);
-        weaver.Weave(assemblyPath, pdbPath, reportPath, [sourceDirectory]);
+        var instrumenter = new MethodProfilerAssemblyInstrumenter([new IncludeFixtureRule()]);
+        instrumenter.Instrument(assemblyPath, pdbPath, reportPath, [sourceDirectory]);
+        instrumenter.Instrument(assemblyPath, pdbPath, reportPath, [sourceDirectory]);
 
         Assert.That(File.Exists(pdbPath), Is.True);
         Assert.That(File.ReadAllText(reportPath), Does.Contain("YieldAsync"));
@@ -47,7 +47,7 @@ public sealed class MethodProfilerWeaverTest
         }))
         {
             Assert.That(rewritten.CustomAttributes.Any(attribute =>
-                attribute.AttributeType.FullName == typeof(MethodProfilerWovenAttribute).FullName), Is.True);
+                attribute.AttributeType.FullName == typeof(MethodProfilerInstrumentedAttribute).FullName), Is.True);
             MethodDefinition add = rewritten.MainModule.Types
                 .SelectMany(static type => type.Methods)
                 .Single(static method => method.Name == "Add");
@@ -59,9 +59,9 @@ public sealed class MethodProfilerWeaverTest
                 handler.HandlerType == ExceptionHandlerType.Finally), Is.True);
         }
 
-        var loadContext = new AssemblyLoadContext("ProfilerWeaverTest", true);
+        var loadContext = new AssemblyLoadContext("ProfilerBuildToolTest", true);
         Assembly loaded = loadContext.LoadFromAssemblyPath(assemblyPath);
-        Type fixture = loaded.GetType("Alco.Profiler.Weaver.Fixture.FixtureMethods", true)!;
+        Type fixture = loaded.GetType("Alco.Profiler.BuildTool.Fixture.FixtureMethods", true)!;
         MethodInfo addMethod = fixture.GetMethod("Add", BindingFlags.Public | BindingFlags.Static)!;
         MethodInfo throwMethod = fixture.GetMethod("Throw", BindingFlags.Public | BindingFlags.Static)!;
         MethodInfo coalescedReturn = fixture.GetMethod("CoalescedReturn", BindingFlags.Public | BindingFlags.Static)!;
