@@ -171,7 +171,7 @@ IDisposable
     }
 
     /// <summary>
-    /// Gets the process-wide method profiler used by Profile builds.
+    /// Gets the process-wide method profiler used by instrumented builds.
     /// </summary>
     public MethodProfilerRuntime MethodProfiler => MethodProfilerRuntime.Instance;
 
@@ -360,29 +360,43 @@ IDisposable
 
     private void InternalTick(float delta)
     {
-#if METHOD_PROFILER
+        if (!_setting.EnableMethodProfiling)
+        {
+            ExecuteTickBody(delta);
+            return;
+        }
+
         MethodProfilerTickToken profilerTick = MethodProfiler.BeginTick();
+        if (!profilerTick.IsValid)
+        {
+            ExecuteTickBody(delta);
+            return;
+        }
+
         try
         {
-#endif
-            OnSystemTick(delta);
-            try
-            {
-                OnTick(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error("[Tick Error]", e);
-                TryErrorStop();
-            }
-            OnSystemPostTick(delta);
-#if METHOD_PROFILER
+            ExecuteTickBody(delta);
         }
         finally
         {
             MethodProfiler.EndTick(profilerTick);
         }
-#endif
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecuteTickBody(float delta)
+    {
+        OnSystemTick(delta);
+        try
+        {
+            OnTick(delta);
+        }
+        catch (Exception e)
+        {
+            Log.Error("[Tick Error]", e);
+            TryErrorStop();
+        }
+        OnSystemPostTick(delta);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

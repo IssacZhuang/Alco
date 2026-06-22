@@ -44,11 +44,7 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Profile'">
     <DebugType>portable</DebugType>
     <Optimize>true</Optimize>
-    <EnableMethodProfiler>true</EnableMethodProfiler>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(EnableMethodProfiler)' == 'true'">
-    <DefineConstants>$(DefineConstants);METHOD_PROFILER</DefineConstants>
+    <EnableMethodProfilerInstrumentation>true</EnableMethodProfilerInstrumentation>
   </PropertyGroup>
 
   <PropertyGroup>

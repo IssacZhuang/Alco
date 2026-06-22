@@ -174,7 +174,8 @@ public sealed class EngineDefaultMethodProfileRule : IMethodProfileRule
     {
         if (!method.AssemblyName.StartsWith("Alco.", StringComparison.Ordinal) ||
             method.AssemblyName.StartsWith("Alco.Profiler", StringComparison.Ordinal) ||
-            (method.DeclaringTypeName == "Alco.Engine.GameEngine" && method.MethodName == "InternalTick") ||
+            (method.DeclaringTypeName == "Alco.Engine.GameEngine" &&
+                method.MethodName is "InternalTick" or "ExecuteTickBody") ||
             method.IsAccessor || method.IsCompilerGenerated || !method.IsSupported)
         {
             return default;
