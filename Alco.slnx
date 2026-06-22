@@ -81,7 +81,5 @@
   </Folder>
   <Folder Name="/Tool/">
     <Project Path="Tool/Alco.Profiler.BuildTool/Alco.Profiler.BuildTool.csproj" />
-    <Project Path="Tool/MsdfFontGenerator.Desktop/MsdfFontGenerator.Desktop.csproj" />
-    <Project Path="Tool/MsdfFontGenerator/MsdfFontGenerator.csproj" />
   </Folder>
 </Solution>
