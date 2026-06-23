@@ -184,4 +184,80 @@ public class TestStructuredFileBase
 
         Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(data));
     }
+
+    [Test]
+    public void TestCompose_WithExtra_AppendsExtraSegment()
+    {
+        var meta = new TestStructuredFileMeta("extra", 5);
+        byte[] content = { 0x01, 0x02 };
+        byte[] extra = { 0xDE, 0xAD, 0xBE, 0xEF };
+
+        byte[] data = StructuredFileUtility.Compose(meta, content, extra);
+
+        using var ms = new MemoryStream(data);
+        using var reader = new BinaryReader(ms);
+
+        // magic
+        Assert.That(Encoding.ASCII.GetString(reader.ReadBytes(4)), Is.EqualTo("test"));
+
+        // meta
+        int metaLength = reader.ReadInt32();
+        Assert.That(metaLength, Is.GreaterThan(0));
+        reader.ReadBytes(metaLength);
+
+        // content
+        int contentLength = reader.ReadInt32();
+        Assert.That(contentLength, Is.EqualTo(2));
+        reader.ReadBytes(contentLength);
+
+        // trailing extra segment: [extraLen][extra]
+        int extraLength = reader.ReadInt32();
+        Assert.That(extraLength, Is.EqualTo(4));
+        Assert.That(reader.ReadBytes(extraLength), Is.EqualTo(extra));
+    }
+
+    [Test]
+    public void TestCompose_WithEmptyExtra_MatchesTwoSegmentLayout()
+    {
+        var meta = new TestStructuredFileMeta("noextra", 5);
+        byte[] content = { 0x01, 0x02 };
+
+        byte[] twoSegment = StructuredFileUtility.Compose(meta, content);
+        byte[] withEmptyExtra = StructuredFileUtility.Compose(meta, content, ReadOnlySpan<byte>.Empty);
+
+        Assert.That(withEmptyExtra, Is.EqualTo(twoSegment));
+    }
+
+    [Test]
+    public void TestRead_WithExtra_ReturnsExtraSegment()
+    {
+        var meta = new TestStructuredFileMeta("r", 9);
+        byte[] content = { 0xAA };
+        byte[] extra = { 0x11, 0x22, 0x33 };
+
+        byte[] data = StructuredFileUtility.Compose(meta, content, extra);
+
+        var (readMeta, readContent) = StructuredFileUtility.Read<TestStructuredFileMeta>(data, out ReadOnlyMemory<byte> readExtra);
+
+        Assert.That(readMeta.Name, Is.EqualTo("r"));
+        Assert.That(readMeta.Value, Is.EqualTo(9));
+        Assert.That(readContent.ToArray(), Is.EqualTo(content));
+        Assert.That(readExtra.ToArray(), Is.EqualTo(extra));
+    }
+
+    [Test]
+    public void TestRead_WithExtra_PlainTwoSegmentFileYieldsEmptyExtra()
+    {
+        // A file produced by the 2-segment Compose (no extra segment) must read back with empty
+        // extra — backward compatibility for Scenelet/older saves.
+        var meta = new TestStructuredFileMeta("legacy", 1);
+        byte[] content = { 0x01, 0x02, 0x03 };
+        byte[] data = StructuredFileUtility.Compose(meta, content);
+
+        var (readMeta, readContent) = StructuredFileUtility.Read<TestStructuredFileMeta>(data, out ReadOnlyMemory<byte> readExtra);
+
+        Assert.That(readMeta.Name, Is.EqualTo("legacy"));
+        Assert.That(readContent.ToArray(), Is.EqualTo(content));
+        Assert.That(readExtra.IsEmpty, Is.True);
+    }
 }
