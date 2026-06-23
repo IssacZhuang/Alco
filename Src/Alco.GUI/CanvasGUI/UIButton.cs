@@ -247,6 +247,44 @@ public class UIButton : UISelectable
         }
     }
 
+    /// <summary>
+    /// Immediately applies the transition visuals (color/transform/sprite/node) for the
+    /// current selectable state, skipping the fade tween. Call this after modifying
+    /// state-dependent properties (e.g. <see cref="ColorNormal"/>) outside of a state
+    /// change so the displayed target stays in sync with the new values.
+    /// </summary>
+    protected void ReapplyTransitionState()
+    {
+        if ((_transitionMode & TransitionMode.ColorTint) != 0 && _transitionTarget != null)
+        {
+            ColorFloat color = GetColorFromState(_selectableState);
+            _colorTweenStart = color;
+            _colorTweenEnd = color;
+            _transitionTarget.Color = color;
+        }
+
+        if ((_transitionMode & TransitionMode.Transform) != 0 && _transitionTarget != null)
+        {
+            Transform2D transform = GetTransformFromState(_selectableState);
+            _transformTweenStart = transform;
+            _transformTweenEnd = transform;
+            _transitionTarget.LocalTransform = transform;
+        }
+
+        if ((_transitionMode & TransitionMode.SpriteSwap) != 0)
+        {
+            RefreshSpriteSwap();
+        }
+
+        if ((_transitionMode & TransitionMode.NodeSwap) != 0)
+        {
+            RefreshNodeSwap();
+        }
+
+        _tTransition = 1;
+        _inTransition = false;
+    }
+
     private void OnTransitionStateChanged()
     {
         //use flag
