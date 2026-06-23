@@ -8,9 +8,10 @@ namespace Alco.IO;
 
 /// <summary>
 /// A file source backed by an Alco package file.
-/// Uses PackageReader for concurrent, position-based reads.
+/// Uses <see cref="PackageReader{TMeta}"/> for concurrent, position-based reads.
 /// </summary>
-public sealed class PackageFileSource : AutoDisposable, IFileSource
+/// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
+public sealed class PackageFileSource<TMeta> : AutoDisposable, IFileSource where TMeta : PackageMetaBase, IPackageMeta, new()
 {
     /// <summary>
     /// A stream for reading package entries.
@@ -18,11 +19,11 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
     /// </summary>
     private sealed class PackageEntryStream : Stream
     {
-        private readonly PackageReader _reader;
+        private readonly PackageReader<TMeta> _reader;
         private readonly PackageEntry _entry;
         private long _position;
 
-        public PackageEntryStream(PackageReader reader, PackageEntry entry)
+        public PackageEntryStream(PackageReader<TMeta> reader, PackageEntry entry)
         {
             _reader = reader;
             _entry = entry;
@@ -87,7 +88,7 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
-    private readonly PackageReader _reader;
+    private readonly PackageReader<TMeta> _reader;
 
     public string Name { get; }
 
@@ -103,7 +104,7 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
         Name = packagePath;
         try
         {
-            _reader = PackageReader.OpenFile(packagePath);
+            _reader = PackageReader<TMeta>.OpenFile(packagePath);
         }
         catch (Exception ex)
         {
@@ -122,7 +123,7 @@ public sealed class PackageFileSource : AutoDisposable, IFileSource
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
             byte[] bytes = ms.ToArray();
-            _reader = PackageReader.OpenMemory(bytes);
+            _reader = PackageReader<TMeta>.OpenMemory(bytes);
         }
         catch (Exception ex)
         {

@@ -16,13 +16,13 @@ public sealed class TestPackage
     [Test]
     public void BuildAndRead_SingleFile()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         byte[] content = Encoding.UTF8.GetBytes("hello");
         builder.AddOrUpdateFile("a.txt", content);
 
         byte[] package = builder.Build();
 
-        using var reader = PackageReader.OpenMemory(package);
+        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.That(reader.TryGetEntry("a.txt", out var entry), Is.True);
         Assert.That(entry!.Size, Is.EqualTo(content.Length));
 
@@ -37,13 +37,13 @@ public sealed class TestPackage
     [Test]
     public void ConcurrentRead_SameFile()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         byte[] data = new byte[256 * 1024];
         for (int i = 0; i < data.Length; i++) data[i] = (byte)(i & 0xFF);
         builder.AddOrUpdateFile("same.bin", data);
 
         byte[] package = builder.Build();
-        using var reader = PackageReader.OpenMemory(package);
+        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.That(reader.TryGetEntry("same.bin", out var entry), Is.True);
 
         Parallel.For(0, 64, _ =>
@@ -60,7 +60,7 @@ public sealed class TestPackage
     [Test]
     public void ConcurrentRead_DifferentFiles()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         var names = new List<string>();
         var original = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         for (int i = 0; i < 16; i++)
@@ -74,7 +74,7 @@ public sealed class TestPackage
         }
 
         byte[] package = builder.Build();
-        using var reader = PackageReader.OpenMemory(package);
+        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
 
         // Pre-resolve entries to avoid lookup cost inside the parallel loop
         var entries = new List<PackageEntry>();
@@ -98,7 +98,7 @@ public sealed class TestPackage
     [Test]
     public void BuildAndRead_MultipleFiles()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         byte[] a = Encoding.ASCII.GetBytes("AAA");
         byte[] b = Encoding.ASCII.GetBytes("BBBB");
         byte[] c = Encoding.ASCII.GetBytes("CC");
@@ -109,7 +109,7 @@ public sealed class TestPackage
 
         byte[] package = builder.Build();
 
-        using var reader = PackageReader.OpenMemory(package);
+        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
 
         Assert.That(reader.TryGetEntry("a.bin", out var ea), Is.True);
         Assert.That(reader.TryGetEntry("b.bin", out var eb), Is.True);
@@ -133,12 +133,12 @@ public sealed class TestPackage
     [Test]
     public void UpdateFile_OverridesContentAndSize()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         builder.AddOrUpdateFile("x.dat", new byte[] { 1, 2, 3 });
         builder.AddOrUpdateFile("x.dat", new byte[] { 9, 9 });
 
         byte[] package = builder.Build();
-        using var reader = PackageReader.OpenMemory(package);
+        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.That(reader.TryGetEntry("x.dat", out var e), Is.True);
         Assert.That(e!.Size, Is.EqualTo(2));
 
@@ -153,13 +153,13 @@ public sealed class TestPackage
     [Test]
     public void RemoveAndClear_Behavior()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         builder.AddOrUpdateFile("a", new byte[] { 1 });
         builder.AddOrUpdateFile("b", new byte[] { 2 });
         builder.RemoveFile("a");
 
         byte[] package = builder.Build();
-        using var reader = PackageReader.OpenMemory(package);
+        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.That(reader.TryGetEntry("a", out _), Is.False);
         Assert.That(reader.TryGetEntry("b", out var eb), Is.True);
         var bb = new byte[1];
@@ -168,7 +168,7 @@ public sealed class TestPackage
 
         builder.Clear();
         byte[] emptyPackage = builder.Build();
-        using var reader2 = PackageReader.OpenMemory(emptyPackage);
+        using var reader2 = PackageReader<PackageMeta>.OpenMemory(emptyPackage);
         Assert.That(reader2.TryGetEntry("b", out _), Is.False);
     }
 
@@ -178,11 +178,11 @@ public sealed class TestPackage
     [Test]
     public void ReadByEntry_BufferSizeMustMatch()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         builder.AddOrUpdateFile("f", new byte[] { 1, 2, 3, 4 });
         byte[] package = builder.Build();
 
-        using var reader = PackageReader.OpenMemory(package);
+        using var reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.That(reader.TryGetEntry("f", out var e), Is.True);
 
         // smaller buffer than entry size
@@ -195,13 +195,13 @@ public sealed class TestPackage
     [Test]
     public void PackageFileSource_TryGetStream()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         byte[] originalData = Encoding.UTF8.GetBytes("Hello, World! This is a test file.");
         builder.AddOrUpdateFile("test.txt", originalData);
 
         byte[] package = builder.Build();
 
-        using var source = new PackageFileSource(new MemoryStream(package), "test_package");
+        using var source = new PackageFileSource<PackageMeta>(new MemoryStream(package), "test_package");
 
         // Test successful stream creation
         Assert.That(source.TryGetStream("test.txt", out var stream, out var failureReason), Is.True);
@@ -254,14 +254,14 @@ public sealed class TestPackage
     [Test]
     public void PackageFileSource_StreamConcurrency()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         byte[] data = new byte[1024];
         for (int i = 0; i < data.Length; i++) data[i] = (byte)i;
         builder.AddOrUpdateFile("data.bin", data);
 
         byte[] package = builder.Build();
 
-        using var source = new PackageFileSource(new MemoryStream(package), "test_package");
+        using var source = new PackageFileSource<PackageMeta>(new MemoryStream(package), "test_package");
 
         // Test multiple concurrent streams
         Parallel.For(0, 8, i =>
@@ -294,7 +294,7 @@ public sealed class TestPackage
     [Test]
     public void InvalidMagic_Rejected()
     {
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<PackageMeta>();
         builder.AddOrUpdateFile("test.txt", Encoding.UTF8.GetBytes("test"));
 
         byte[] package = builder.Build();
@@ -305,7 +305,7 @@ public sealed class TestPackage
         package[2] = (byte)'x';
         package[3] = (byte)'x';
 
-        Assert.Throws<InvalidDataException>(() => PackageReader.OpenMemory(package));
+        Assert.Throws<InvalidDataException>(() => PackageReader<PackageMeta>.OpenMemory(package));
     }
 }
 

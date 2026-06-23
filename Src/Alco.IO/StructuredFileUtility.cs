@@ -36,45 +36,6 @@ public static class StructuredFileUtility
     }
 
     /// <summary>
-    /// Composes the full file bytes from metadata, content, and one optional trailing
-    /// <paramref name="extra"/> segment (e.g. an embedded thumbnail). Layout:
-    /// <c>[magic][metaLen][meta][contentLen][content][extraLen][extra]</c>. Pass an empty
-    /// <paramref name="extra"/> to omit the segment; this then produces bytes identical to
-    /// <see cref="Compose{TMeta}(TMeta, ReadOnlySpan{byte})"/>.
-    /// </summary>
-    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
-    /// <param name="meta">The metadata to encode via BinaryParser.</param>
-    /// <param name="content">The raw content bytes.</param>
-    /// <param name="extra">The raw trailing-segment bytes, or empty to omit.</param>
-    /// <returns>The complete file as a byte array.</returns>
-    public static byte[] Compose<TMeta>(TMeta meta, ReadOnlySpan<byte> content, ReadOnlySpan<byte> extra)
-        where TMeta : IStructuredFileMeta, new()
-    {
-        ReadOnlyMemory<byte> metaBytes = BinaryParser.Encode(meta);
-        int metaLength = metaBytes.Length;
-        int contentLength = content.Length;
-        int extraLength = extra.Length;
-
-        byte[] data = new byte[4 + 4 + metaLength + 4 + contentLength + (extraLength == 0 ? 0 : 4 + extraLength)];
-        TMeta.Magic.CopyTo(data.AsSpan(0, 4));
-        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(4, 4), metaLength);
-        metaBytes.Span.CopyTo(data.AsSpan(8, metaLength));
-        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(8 + metaLength, 4), contentLength);
-        content.CopyTo(data.AsSpan(12 + metaLength, contentLength));
-
-        if (extraLength == 0)
-        {
-            return data;
-        }
-
-        int extraHeaderOffset = 12 + metaLength + contentLength;
-        BinaryPrimitives.WriteInt32LittleEndian(data.AsSpan(extraHeaderOffset, 4), extraLength);
-        extra.CopyTo(data.AsSpan(extraHeaderOffset + 4, extraLength));
-
-        return data;
-    }
-
-    /// <summary>
     /// Writes the structured file to a stream.
     /// </summary>
     /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
@@ -115,56 +76,6 @@ public static class StructuredFileUtility
         if (span.Length < 12 + metaLength + contentLength)
         {
             throw new InvalidDataException("Invalid file length.");
-        }
-
-        return (meta, data.Slice(12 + metaLength, contentLength));
-    }
-
-    /// <summary>
-    /// Reads metadata, content, and the optional trailing <c>[extraLen][extra]</c> segment from
-    /// memory data. A file written without the extra segment (e.g. a plain 2-segment file, or any
-    /// older/foreign file whose content is followed by fewer than 4 bytes) yields
-    /// <paramref name="extra"/> = <see cref="ReadOnlyMemory{byte}.Empty"/> — reading is therefore
-    /// backward-compatible with every file produced by <see cref="Compose{TMeta}(TMeta, ReadOnlySpan{byte})"/>.
-    /// </summary>
-    /// <typeparam name="TMeta">The metadata type implementing <see cref="IStructuredFileMeta"/>.</typeparam>
-    /// <param name="data">The full file data.</param>
-    /// <param name="extra">The trailing-segment bytes on success, or empty when absent.</param>
-    /// <returns>A tuple containing the deserialized metadata and the content bytes.</returns>
-    public static (TMeta Meta, ReadOnlyMemory<byte> Content) Read<TMeta>(ReadOnlyMemory<byte> data, out ReadOnlyMemory<byte> extra)
-        where TMeta : IStructuredFileMeta, new()
-    {
-        ReadOnlySpan<byte> span = data.Span;
-        TMeta meta = ValidateMagicAndReadMeta<TMeta>(span, TMeta.Magic, out int metaLength);
-
-        if (span.Length < 12 + metaLength)
-        {
-            throw new InvalidDataException("Invalid file length.");
-        }
-
-        int contentLength = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(8 + metaLength, 4));
-        if (contentLength < 0)
-        {
-            throw new InvalidDataException("Invalid content length.");
-        }
-
-        int contentEnd = 12 + metaLength + contentLength;
-        if (span.Length < contentEnd)
-        {
-            throw new InvalidDataException("Invalid file length.");
-        }
-
-        // Trailing segment: [extraLen:int32 LE][extra]. Absent when fewer than 4 bytes remain or
-        // the length is non-positive. A present-but-empty extra (extraLen == 0) is treated as absent.
-        extra = ReadOnlyMemory<byte>.Empty;
-        int trailing = span.Length - contentEnd;
-        if (trailing >= 4)
-        {
-            int extraLength = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(contentEnd, 4));
-            if (extraLength > 0 && contentEnd + 4 + extraLength <= span.Length)
-            {
-                extra = data.Slice(contentEnd + 4, extraLength);
-            }
         }
 
         return (meta, data.Slice(12 + metaLength, contentLength));
