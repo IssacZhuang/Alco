@@ -9,7 +9,14 @@ namespace Alco.Engine;
 /// </summary>
 public sealed class PluginGamepadCursor : BaseEnginePlugin
 {
-    
+    /// <summary>
+    /// When <see langword="true"/>, the gamepad cursor system suspends its free-cursor
+    /// accumulation so the game layer can drive the cursor position directly (e.g. snap
+    /// to a fixed offset from the player for fast turning). Set by the game layer each
+    /// frame; the engine layer only reads it.
+    /// </summary>
+    public static bool IsSnapMode;
+
 
     private sealed class GamepadCursorSystem : BaseEngineSystem
     {
@@ -39,6 +46,13 @@ public sealed class PluginGamepadCursor : BaseEnginePlugin
         /// </summary>
         public override void OnUpdate(float delta)
         {
+            // Game layer is driving the cursor this frame (fixed-distance snap). Skip
+            // free-cursor accumulation entirely so it does not fight the snap position.
+            if (PluginGamepadCursor.IsSnapMode)
+            {
+                return;
+            }
+
             Gamepad? gamepad = _input.PrimaryGamepad;
             if (gamepad == null || !gamepad.IsConnected)
             {
