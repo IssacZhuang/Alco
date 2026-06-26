@@ -60,6 +60,11 @@ public partial class Canvas : AutoDisposable, INavigationContext
 
     private INavigationFocusable? _navigationFocus;
 
+    // Set when a layout change shifts nodes beneath a stationary gamepad cursor
+    // (e.g. a tree node expanding). The next HandleInput re-hit-tests the cursor
+    // even though the cursor did not move, so hover follows the node now under it.
+    private bool _hoverDirty;
+
     public Font DefaultFont { get; }
 
     /// <summary>
@@ -194,61 +199,11 @@ public partial class Canvas : AutoDisposable, INavigationContext
     /// <inheritdoc/>
     public void RecomputeHoverFromCursor()
     {
-        if (_inputTracker == null)
-        {
-            return;
-        }
-
-        Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(
-            _inputTracker.CursorPosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
-        CursorPosition = mouseWorldPosition;
-        UpdateHoverFromHitTest(mouseWorldPosition);
-    }
-
-    /// <summary>
-    /// Hit-tests the current cursor position and updates <see cref="_hovered"/>,
-    /// dispatching OnUnhover/OnHover as needed. Used by <see cref="HandleInput"/>
-    /// on cursor move and by <see cref="RecomputeHoverFromCursor"/> after layout changes.
-    /// </summary>
-    /// <param name="mouseWorldPosition">The cursor position in world space.</param>
-    private void UpdateHoverFromHitTest(Vector2 mouseWorldPosition)
-    {
-        UINode? selectable = null;
-
-        _hitNodes.Clear();
-        _collisionWorld.BuildTree();
-        var collector = new NodeCollector(_hitNodes);
-        _collisionWorld.CastPoint(ref collector, mouseWorldPosition);
-
-        for (int i = 0; i < _hitNodes.Count; i++)
-        {
-            UINode node = _hitNodes[i];
-            if (CheckMask(node, mouseWorldPosition))
-            {
-                selectable = node;
-                break;
-            }
-        }
-
-        if (selectable != _hovered && selectable != null)
-        {
-            if ((selectable.SoundType & UISoundType.Hover) != 0)
-            {
-                SoundPlayer?.PlayOnHoverSound();
-            }
-        }
-
-        UINode? oldHovered = _hovered;
-        _hovered = selectable;
-
-        if (oldHovered != null && oldHovered != selectable)
-        {
-            DispatchBubble(oldHovered, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), mouseWorldPosition);
-        }
-        if (selectable != null)
-        {
-            DispatchBubble(selectable, "OnHover", static (node, canvas, position) => node.OnHover(canvas, position), mouseWorldPosition);
-        }
+        // Defer to the next HandleInput. Layout changes (e.g. tree expand) shift nodes
+        // beneath a stationary cursor, but the collision world still holds this tick's
+        // pre-layout shapes until the next Tick re-registers them. Flagging dirty lets
+        // the following frame's HandleInput re-hit-test against the fresh shapes.
+        _hoverDirty = true;
     }
 
     /// <summary>
@@ -592,7 +547,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
 
         UINode? selectable = null;
         UINode? oldHovered = null;
-        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved;
+        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved || _hoverDirty;
+        _hoverDirty = false;
         if (shouldUpdateHover)
         {
             _hitNodes.Clear();
