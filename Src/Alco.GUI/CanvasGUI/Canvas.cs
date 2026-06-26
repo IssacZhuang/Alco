@@ -6,7 +6,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public partial class Canvas : AutoDisposable
+public partial class Canvas : AutoDisposable, INavigationContext
 {
 
     private struct MaskContext
