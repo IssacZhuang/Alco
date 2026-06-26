@@ -393,23 +393,42 @@ public class UIScrollable : UISelectable
             return false;
         }
 
-        BoundingBox2D boundSelf = GetLocalBound(this);
-        BoundingBox2D boundContent = GetLocalBound(_content);
-
-        float selfHeight = boundSelf.Max.Y - boundSelf.Min.Y;
-        float contentHeight = boundContent.Max.Y - boundContent.Min.Y;
-        if (contentHeight <= 0f)
+        float selfHeight = Size.Y;
+        float contentHeight = _content.Size.Y;
+        if (contentHeight <= 0f || selfHeight <= 0f)
         {
             return false;
         }
 
         viewportRatio = math.clamp(selfHeight / contentHeight, 0f, 1f);
 
+        BoundingBox2D boundSelf = GetLocalBound(this);
+        BoundingBox2D boundContent = GetLocalBound(_content);
         BoundingBox2D boundPosition = new BoundingBox2D()
         {
             Min = boundSelf.Min - boundContent.Min,
             Max = boundSelf.Max - boundContent.Max,
         };
+
+        if (boundPosition.Min.X > 0)
+        {
+            boundPosition.Min.X = 0;
+        }
+
+        if (boundPosition.Min.Y > 0)
+        {
+            boundPosition.Min.Y = 0;
+        }
+
+        if (boundPosition.Max.X < 0)
+        {
+            boundPosition.Max.X = 0;
+        }
+
+        if (boundPosition.Max.Y < 0)
+        {
+            boundPosition.Max.Y = 0;
+        }
 
         Vector2 sizeDiff = boundPosition.Max - boundPosition.Min;
         Vector2 offsetByPivot = _content.Pivot * sizeDiff;
