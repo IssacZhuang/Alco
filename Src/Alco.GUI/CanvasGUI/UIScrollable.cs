@@ -375,4 +375,52 @@ public class UIScrollable : UISelectable
         _sliderVertical.Value = t;
         _suppressSliderEvent = false;
     }
+
+    /// <summary>
+    /// Gets vertical scroll metrics for display indicators.
+    /// Returns false when vertical scrolling is disabled or content is null.
+    /// </summary>
+    /// <param name="scrollNormalized">Scroll position from 0 (top) to 1 (bottom).</param>
+    /// <param name="viewportRatio">Ratio of visible height to content height, in [0, 1].</param>
+    /// <returns>True when vertical scroll metrics are available.</returns>
+    public bool TryGetVerticalScrollState(out float scrollNormalized, out float viewportRatio)
+    {
+        scrollNormalized = 0f;
+        viewportRatio = 1f;
+
+        if (_content == null || (ScrollMode & SrollMode.Vertical) == 0)
+        {
+            return false;
+        }
+
+        BoundingBox2D boundSelf = GetLocalBound(this);
+        BoundingBox2D boundContent = GetLocalBound(_content);
+
+        float selfHeight = boundSelf.Max.Y - boundSelf.Min.Y;
+        float contentHeight = boundContent.Max.Y - boundContent.Min.Y;
+        if (contentHeight <= 0f)
+        {
+            return false;
+        }
+
+        viewportRatio = math.clamp(selfHeight / contentHeight, 0f, 1f);
+
+        BoundingBox2D boundPosition = new BoundingBox2D()
+        {
+            Min = boundSelf.Min - boundContent.Min,
+            Max = boundSelf.Max - boundContent.Max,
+        };
+
+        Vector2 sizeDiff = boundPosition.Max - boundPosition.Min;
+        Vector2 offsetByPivot = _content.Pivot * sizeDiff;
+        boundPosition.Min += offsetByPivot;
+        boundPosition.Max += offsetByPivot;
+
+        float range = boundPosition.Max.Y - boundPosition.Min.Y;
+        scrollNormalized = range > 0.000001f
+            ? math.clamp((_content.Position.Y - boundPosition.Min.Y) / range, 0f, 1f)
+            : 0f;
+
+        return true;
+    }
 }
