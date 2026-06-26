@@ -31,6 +31,11 @@ public sealed class FakeNavigationContext : INavigationContext
         LastSetHovered = node;
         SetHoveredCallCount++;
     }
+
+    public void RecomputeHoverFromCursor()
+    {
+        // No-op in tests: the fake does not perform hit-testing. Hovered is set explicitly.
+    }
 }
 
 /// <summary>

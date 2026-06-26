@@ -191,10 +191,13 @@ public sealed class NavigationHoverCoordinator
             return;
         }
 
-        // Hover-seeded start: when nothing is focused yet, begin navigation from
-        // the hovered navigable child (if any) instead of the list edge.
+        // Hover-seeded start: when the cursor is over a navigable child of this list,
+        // begin navigation from it. This makes the cursor the source of truth for the
+        // "current" position, matching the user's expectation that navigation continues
+        // from where they're hovering. Falls back to the focused index when the cursor
+        // is outside the list, and to the list edge when nothing is focused.
         int fromIndex = _focusedIndex;
-        if (fromIndex < 0 && IndexOfHoveredChild != null)
+        if (IndexOfHoveredChild != null)
         {
             int? hovered = IndexOfHoveredChild(ctx.Hovered);
             if (hovered.HasValue)

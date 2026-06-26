@@ -258,16 +258,19 @@ public class NavigationHoverCoordinatorTests
     }
 
     [Test]
-    public void Tick_AlreadyFocused_DoesNotReSeedFromHover()
+    public void Tick_AlreadyFocused_ButHoveredElsewhere_StartsFromHover()
     {
         var owner = new FakeFocusable();
         var items = new List<UINode> { MakeItem("0"), MakeItem("1"), MakeItem("2"), MakeItem("3") };
         var nav = MakeVerticalList(owner, items, out _, out _);
-        bool seedCalled = false;
         nav.IndexOfHoveredChild = hovered =>
         {
-            seedCalled = true;
-            return 2;
+            if (hovered == null) return null;
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (NavigationHoverCoordinator.IsHoveredWithin(hovered, items[i])) return i;
+            }
+            return null;
         };
 
         var tracker = new FakeInputTracker();
@@ -277,12 +280,8 @@ public class NavigationHoverCoordinatorTests
         tracker.IsKeyDownPressing = true;
         nav.Tick(ctx);
 
-        // Focus already set (index 0); seeding is skipped, moves 0 -> 1 ignoring hover.
-        Assert.Multiple(() =>
-        {
-            Assert.That(nav.FocusedIndex, Is.EqualTo(1));
-            Assert.That(seedCalled, Is.False);
-        });
+        // Focus is 0, but cursor is over item 2 -> navigation starts from 2 -> 3.
+        Assert.That(nav.FocusedIndex, Is.EqualTo(3));
     }
 
     // --- Post-navigation hover application ---

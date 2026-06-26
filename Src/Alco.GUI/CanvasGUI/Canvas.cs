@@ -191,6 +191,66 @@ public partial class Canvas : AutoDisposable, INavigationContext
         }
     }
 
+    /// <inheritdoc/>
+    public void RecomputeHoverFromCursor()
+    {
+        if (_inputTracker == null)
+        {
+            return;
+        }
+
+        Vector2 mouseWorldPosition = CameraMathUtility.ScreenPointToWorld2D(
+            _inputTracker.CursorPosition, _inputTracker.WindowSize, _camera.Data.ViewProjectionMatrix);
+        CursorPosition = mouseWorldPosition;
+        UpdateHoverFromHitTest(mouseWorldPosition);
+    }
+
+    /// <summary>
+    /// Hit-tests the current cursor position and updates <see cref="_hovered"/>,
+    /// dispatching OnUnhover/OnHover as needed. Used by <see cref="HandleInput"/>
+    /// on cursor move and by <see cref="RecomputeHoverFromCursor"/> after layout changes.
+    /// </summary>
+    /// <param name="mouseWorldPosition">The cursor position in world space.</param>
+    private void UpdateHoverFromHitTest(Vector2 mouseWorldPosition)
+    {
+        UINode? selectable = null;
+
+        _hitNodes.Clear();
+        _collisionWorld.BuildTree();
+        var collector = new NodeCollector(_hitNodes);
+        _collisionWorld.CastPoint(ref collector, mouseWorldPosition);
+
+        for (int i = 0; i < _hitNodes.Count; i++)
+        {
+            UINode node = _hitNodes[i];
+            if (CheckMask(node, mouseWorldPosition))
+            {
+                selectable = node;
+                break;
+            }
+        }
+
+        if (selectable != _hovered && selectable != null)
+        {
+            if ((selectable.SoundType & UISoundType.Hover) != 0)
+            {
+                SoundPlayer?.PlayOnHoverSound();
+            }
+        }
+
+        UINode? oldHovered = _hovered;
+        _hovered = selectable;
+
+        if (oldHovered != null && oldHovered != selectable)
+        {
+            DispatchBubble(oldHovered, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), mouseWorldPosition);
+        }
+        if (selectable != null)
+        {
+            DispatchBubble(selectable, "OnHover", static (node, canvas, position) => node.OnHover(canvas, position), mouseWorldPosition);
+        }
+    }
+
     /// <summary>
     /// The sound player used to play UI sounds.
     /// </summary>

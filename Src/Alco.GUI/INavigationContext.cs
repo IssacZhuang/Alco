@@ -30,4 +30,11 @@ public interface INavigationContext
     /// </summary>
     /// <param name="node">The node to hover, or null to clear hover.</param>
     void SetHovered(UINode? node);
+
+    /// <summary>
+    /// Re-evaluates which node is under the cursor from the current cursor position,
+    /// even when the cursor has not moved (e.g. after a layout change shifted nodes
+    /// beneath a stationary gamepad cursor). Updates <see cref="Hovered"/> accordingly.
+    /// </summary>
+    void RecomputeHoverFromCursor();
 }
