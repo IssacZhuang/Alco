@@ -382,15 +382,22 @@ public class UIScrollable : UISelectable
     /// </summary>
     /// <param name="scrollNormalized">Scroll position from 0 (top) to 1 (bottom).</param>
     /// <param name="viewportRatio">Ratio of visible height to content height, in [0, 1].</param>
+    /// <param name="hasOverflow">True when the content exceeds the viewport and can scroll vertically.</param>
     /// <returns>True when vertical scroll metrics are available.</returns>
-    public bool TryGetVerticalScrollState(out float scrollNormalized, out float viewportRatio)
+    public bool TryGetVerticalScrollState(out float scrollNormalized, out float viewportRatio, out bool hasOverflow)
     {
         scrollNormalized = 0f;
         viewportRatio = 1f;
+        hasOverflow = false;
 
         if (_content == null || (ScrollMode & SrollMode.Vertical) == 0)
         {
             return false;
+        }
+
+        if (_content is UILayout layout && layout.FitContentSize)
+        {
+            layout.UpdateLayout();
         }
 
         float selfHeight = Size.Y;
@@ -399,8 +406,6 @@ public class UIScrollable : UISelectable
         {
             return false;
         }
-
-        viewportRatio = math.clamp(selfHeight / contentHeight, 0f, 1f);
 
         BoundingBox2D boundSelf = GetLocalBound(this);
         BoundingBox2D boundContent = GetLocalBound(_content);
@@ -436,7 +441,9 @@ public class UIScrollable : UISelectable
         boundPosition.Max += offsetByPivot;
 
         float range = boundPosition.Max.Y - boundPosition.Min.Y;
-        scrollNormalized = range > 0.000001f
+        hasOverflow = range > 0.000001f;
+        viewportRatio = math.clamp(selfHeight / contentHeight, 0f, 1f);
+        scrollNormalized = hasOverflow
             ? math.clamp((_content.Position.Y - boundPosition.Min.Y) / range, 0f, 1f)
             : 0f;
 
