@@ -222,10 +222,12 @@ public partial class Canvas : AutoDisposable, INavigationContext
         {
             DispatchBubble(node, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), CursorPosition);
             _hovered = null;
+            _hoverDirty = true;
         }
         if (_holded == node)
         {
             _holded = null;
+            _hoverDirty = true;
         }
         if (_selected == node)
         {
