@@ -158,7 +158,10 @@ public sealed class NavigationHoverCoordinator
         if (_focusChanged)
         {
             _focusChanged = false;
-            ApplyHover(ctx);
+            if (!IsHoverOnNavigableChild(ctx.Hovered))
+            {
+                ApplyHover(ctx);
+            }
         }
 
         if (ctx.NavigationFocus != _owner)
@@ -270,6 +273,11 @@ public sealed class NavigationHoverCoordinator
         {
             ctx.SetHovered(focused);
         }
+    }
+
+    private bool IsHoverOnNavigableChild(UINode? hovered)
+    {
+        return IndexOfHoveredChild?.Invoke(hovered).HasValue ?? false;
     }
 
     private bool ShouldRestoreFocusedHover(INavigationContext ctx)

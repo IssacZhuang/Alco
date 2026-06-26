@@ -305,4 +305,68 @@ public class NavigationHoverCoordinatorTests
             Assert.That(nav.FocusedIndex, Is.EqualTo(1));
         });
     }
+
+    [Test]
+    public void Tick_FocusChanged_HoverOnNavigableChild_DoesNotOverrideHover()
+    {
+        var owner = new FakeFocusable();
+        var items = new List<UINode> { MakeItem("0"), MakeItem("1") };
+        var nav = MakeVerticalList(owner, items, out _, out _);
+        nav.IndexOfHoveredChild = hovered =>
+        {
+            if (hovered == null) return null;
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (NavigationHoverCoordinator.IsHoveredWithin(hovered, items[i])) return i;
+            }
+            return null;
+        };
+        var tracker = new FakeInputTracker();
+        var ctx = new FakeNavigationContext(tracker)
+        {
+            NavigationFocus = owner,
+            Hovered = items[1],
+        };
+
+        nav.SetFocus(0);
+        nav.Tick(ctx);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ctx.SetHoveredCallCount, Is.EqualTo(0));
+            Assert.That(nav.FocusedIndex, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public void Tick_FocusChanged_HoverOutsideList_AppliesFocusedHover()
+    {
+        var owner = new FakeFocusable();
+        var items = new List<UINode> { MakeItem("0"), MakeItem("1") };
+        var nav = MakeVerticalList(owner, items, out _, out _);
+        nav.IndexOfHoveredChild = hovered =>
+        {
+            if (hovered == null) return null;
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (NavigationHoverCoordinator.IsHoveredWithin(hovered, items[i])) return i;
+            }
+            return null;
+        };
+        var tracker = new FakeInputTracker();
+        var ctx = new FakeNavigationContext(tracker)
+        {
+            NavigationFocus = owner,
+            Hovered = MakeItem("outside"),
+        };
+
+        nav.SetFocus(0);
+        nav.Tick(ctx);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ctx.LastSetHovered, Is.SameAs(items[0]));
+            Assert.That(nav.FocusedIndex, Is.EqualTo(0));
+        });
+    }
 }
