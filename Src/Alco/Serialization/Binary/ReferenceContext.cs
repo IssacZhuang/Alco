@@ -43,22 +43,6 @@ public class ReferenceContext
         return _idToObject.TryGetValue(id, out obj);
     }
 
-    /// <summary>
-    /// Checks if an object already has an assigned ID, without creating one.
-    /// </summary>
-    protected bool TryGetExistingId(object obj, out uint id)
-    {
-        return _objectToId.TryGetValue(obj, out id);
-    }
-
-    /// <summary>
-    /// Caches an ID for an object without incrementing the local counter.
-    /// </summary>
-    protected void CacheId(object obj, uint id)
-    {
-        _objectToId[obj] = id;
-    }
-
     private uint AddReference(object obj)
     {
         return Interlocked.Increment(ref _nextId);
