@@ -86,6 +86,11 @@ internal class NoAudioDevice : AudioDevice
         return new NoAudioClip(name);
     }
 
+    protected override AudioStream CreateAudioStreamCore(IAudioStreamDataProvider provider)
+    {
+        return new NoAudioStream(provider);
+    }
+
     protected override void Dispose(bool disposing)
     {
     }

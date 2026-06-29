@@ -24,7 +24,7 @@ public class BenchmarkRenderer
         _engine = new GameEngine(GameEngineSetting.CreateGPUWithoutView());
         RenderingSystem renderingSystem = _engine.RenderingSystem;
         _texture = renderingSystem.TextureWhite;
-        _target = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedHDRPass, 1920, 1080);
+        _target = renderingSystem.CreateRenderTexture(renderingSystem.PreferredHDRPass, 1920, 1080);
     }
 
     [GlobalSetup]

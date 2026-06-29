@@ -149,10 +149,30 @@ public struct ColorFloat
         );
     }
 
-    // convet hex color in 6 digit to ColorFloat (rgb with a = 1)
+    /// <summary>
+    /// Converts an integer hex color to <see cref="ColorFloat"/>.
+    /// </summary>
+    /// <remarks>
+    /// If <paramref name="color"/> fits in 6 hex digits (≤ 0xFFFFFF), it is treated as RGB
+    /// with alpha = 1.0. Otherwise, it is treated as an 8-digit RGBA value (AA BB GG RR).
+    /// This matches the <see cref="uint"/> overload behavior for values that happen to fit
+    /// in a signed <see cref="int"/> (e.g., <c>0x484848FF</c>).
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(int color)
     {
+        if (color > 0xFFFFFF)
+        {
+            // Treat as 8-digit RGBA — same logic as the uint overload
+            return invMaxByteVec4 * new Vector4(
+                (color & 0xFF000000) >> 24,
+                (color & 0x00FF0000) >> 16,
+                (color & 0x0000FF00) >> 8,
+                color & 0x000000FF
+            );
+        }
+
+        // Treat as 6-digit RGB with alpha = 1.0
         return invMaxByteVec4 * new Vector4(
             (color & 0xFF0000) >> 16,
             (color & 0x00FF00) >> 8,

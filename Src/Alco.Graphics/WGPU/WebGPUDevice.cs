@@ -81,7 +81,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     #region Abstract Implementation
 
 
-    public override PixelFormat PrefferedSurfaceFomat
+    public override PixelFormat PreferredSurfaceFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredSurfaceFormat;

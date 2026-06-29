@@ -375,4 +375,78 @@ public class UIScrollable : UISelectable
         _sliderVertical.Value = t;
         _suppressSliderEvent = false;
     }
+
+    /// <summary>
+    /// Gets vertical scroll metrics for display indicators.
+    /// Returns false when vertical scrolling is disabled or content is null.
+    /// </summary>
+    /// <param name="scrollNormalized">Scroll position from 0 (top) to 1 (bottom).</param>
+    /// <param name="viewportRatio">Ratio of visible height to content height, in [0, 1].</param>
+    /// <param name="hasOverflow">True when the content exceeds the viewport and can scroll vertically.</param>
+    /// <returns>True when vertical scroll metrics are available.</returns>
+    public bool TryGetVerticalScrollState(out float scrollNormalized, out float viewportRatio, out bool hasOverflow)
+    {
+        scrollNormalized = 0f;
+        viewportRatio = 1f;
+        hasOverflow = false;
+
+        if (_content == null || (ScrollMode & SrollMode.Vertical) == 0)
+        {
+            return false;
+        }
+
+        if (_content is UILayout layout && layout.FitContentSize)
+        {
+            layout.UpdateLayout();
+        }
+
+        float selfHeight = Size.Y;
+        float contentHeight = _content.Size.Y;
+        if (contentHeight <= 0f || selfHeight <= 0f)
+        {
+            return false;
+        }
+
+        BoundingBox2D boundSelf = GetLocalBound(this);
+        BoundingBox2D boundContent = GetLocalBound(_content);
+        BoundingBox2D boundPosition = new BoundingBox2D()
+        {
+            Min = boundSelf.Min - boundContent.Min,
+            Max = boundSelf.Max - boundContent.Max,
+        };
+
+        if (boundPosition.Min.X > 0)
+        {
+            boundPosition.Min.X = 0;
+        }
+
+        if (boundPosition.Min.Y > 0)
+        {
+            boundPosition.Min.Y = 0;
+        }
+
+        if (boundPosition.Max.X < 0)
+        {
+            boundPosition.Max.X = 0;
+        }
+
+        if (boundPosition.Max.Y < 0)
+        {
+            boundPosition.Max.Y = 0;
+        }
+
+        Vector2 sizeDiff = boundPosition.Max - boundPosition.Min;
+        Vector2 offsetByPivot = _content.Pivot * sizeDiff;
+        boundPosition.Min += offsetByPivot;
+        boundPosition.Max += offsetByPivot;
+
+        float range = boundPosition.Max.Y - boundPosition.Min.Y;
+        hasOverflow = range > 0.000001f;
+        viewportRatio = math.clamp(selfHeight / contentHeight, 0f, 1f);
+        scrollNormalized = hasOverflow
+            ? math.clamp((_content.Position.Y - boundPosition.Min.Y) / range, 0f, 1f)
+            : 0f;
+
+        return true;
+    }
 }

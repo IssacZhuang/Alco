@@ -6,7 +6,7 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public partial class Canvas : AutoDisposable
+public partial class Canvas : AutoDisposable, INavigationContext
 {
 
     private struct MaskContext
@@ -59,6 +59,11 @@ public partial class Canvas : AutoDisposable
     private readonly IUIInputTracker _inputTracker;
 
     private INavigationFocusable? _navigationFocus;
+
+    // Set when a layout change shifts nodes beneath a stationary gamepad cursor
+    // (e.g. a tree node expanding). The next HandleInput re-hit-tests the cursor
+    // even though the cursor did not move, so hover follows the node now under it.
+    private bool _hoverDirty;
 
     public Font DefaultFont { get; }
 
@@ -191,6 +196,16 @@ public partial class Canvas : AutoDisposable
         }
     }
 
+    /// <inheritdoc/>
+    public void RecomputeHoverFromCursor()
+    {
+        // Defer to the next HandleInput. Layout changes (e.g. tree expand) shift nodes
+        // beneath a stationary cursor, but the collision world still holds this tick's
+        // pre-layout shapes until the next Tick re-registers them. Flagging dirty lets
+        // the following frame's HandleInput re-hit-test against the fresh shapes.
+        _hoverDirty = true;
+    }
+
     /// <summary>
     /// The sound player used to play UI sounds.
     /// </summary>
@@ -207,10 +222,12 @@ public partial class Canvas : AutoDisposable
         {
             DispatchBubble(node, "OnUnhover", static (node, canvas, position) => node.OnUnhover(canvas, position), CursorPosition);
             _hovered = null;
+            _hoverDirty = true;
         }
         if (_holded == node)
         {
             _holded = null;
+            _hoverDirty = true;
         }
         if (_selected == node)
         {
@@ -532,7 +549,8 @@ public partial class Canvas : AutoDisposable
 
         UINode? selectable = null;
         UINode? oldHovered = null;
-        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved;
+        bool shouldUpdateHover = !_inputTracker.IsGamepadInputting || cursorMoved || _hoverDirty;
+        _hoverDirty = false;
         if (shouldUpdateHover)
         {
             _hitNodes.Clear();

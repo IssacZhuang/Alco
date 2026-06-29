@@ -45,6 +45,9 @@ public class UIButton : UISelectable
     private ColorFloat _colorTweenStart = new ColorFloat(1, 1, 1, 1);
     private ColorFloat _colorTweenEnd = new ColorFloat(1, 1, 1, 1);
     private ColorFloat _colorNormal = new ColorFloat(1, 1, 1, 1);
+    private ColorFloat _colorHover = new ColorFloat(1, 1, 1, 1);
+    private ColorFloat _colorPressing = new ColorFloat(1, 1, 1, 1);
+    private ColorFloat _colorDisabled = new ColorFloat(1, 1, 1, 1);
 
 
     /// <summary>
@@ -58,25 +61,51 @@ public class UIButton : UISelectable
         set
         {
             _colorNormal = value;
-            _colorTweenStart = value;
-            _colorTweenEnd = value;
+            ReapplyTransitionState();
         }
     }
     /// <summary>
     /// The color of the button in hover state
     /// </summary>
     /// <returns></returns>
-    public ColorFloat ColorHover { get; set; } = new ColorFloat(1, 1, 1, 1);
+    public ColorFloat ColorHover
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorHover;
+        set
+        {
+            _colorHover = value;
+            ReapplyTransitionState();
+        }
+    }
     /// <summary>
     /// The color of the button in pressing state
     /// </summary>
     /// <returns></returns>
-    public ColorFloat ColorPressing { get; set; } = new ColorFloat(1, 1, 1, 1);
+    public ColorFloat ColorPressing
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorPressing;
+        set
+        {
+            _colorPressing = value;
+            ReapplyTransitionState();
+        }
+    }
     /// <summary>
     /// The color of the button in disabled state
     /// </summary>
     /// <returns></returns>
-    public ColorFloat ColorDisabled { get; set; } = new ColorFloat(1, 1, 1, 1);
+    public ColorFloat ColorDisabled
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _colorDisabled;
+        set
+        {
+            _colorDisabled = value;
+            ReapplyTransitionState();
+        }
+    }
 
     //for TransitionMode.Transform, use TransitionTarget not used, transform will be applied to self
     private Transform2D _transformTweenStart = Transform2D.Identity;
@@ -245,6 +274,44 @@ public class UIButton : UISelectable
             _selectableState = state;
             OnTransitionStateChanged();
         }
+    }
+
+    /// <summary>
+    /// Immediately applies the transition visuals (color/transform/sprite/node) for the
+    /// current selectable state, skipping the fade tween. Invoked automatically when a
+    /// state-dependent property (e.g. <see cref="ColorNormal"/>) changes, keeping the
+    /// displayed target in sync outside of an interactive state change.
+    /// </summary>
+    private void ReapplyTransitionState()
+    {
+        if ((_transitionMode & TransitionMode.ColorTint) != 0 && _transitionTarget != null)
+        {
+            ColorFloat color = GetColorFromState(_selectableState);
+            _colorTweenStart = color;
+            _colorTweenEnd = color;
+            _transitionTarget.Color = color;
+        }
+
+        if ((_transitionMode & TransitionMode.Transform) != 0 && _transitionTarget != null)
+        {
+            Transform2D transform = GetTransformFromState(_selectableState);
+            _transformTweenStart = transform;
+            _transformTweenEnd = transform;
+            _transitionTarget.LocalTransform = transform;
+        }
+
+        if ((_transitionMode & TransitionMode.SpriteSwap) != 0)
+        {
+            RefreshSpriteSwap();
+        }
+
+        if ((_transitionMode & TransitionMode.NodeSwap) != 0)
+        {
+            RefreshNodeSwap();
+        }
+
+        _tTransition = 1;
+        _inTransition = false;
     }
 
     private void OnTransitionStateChanged()

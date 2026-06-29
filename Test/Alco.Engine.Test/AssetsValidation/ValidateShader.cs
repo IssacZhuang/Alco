@@ -6,7 +6,8 @@ namespace Alco.Engine.Test;
 
 public class ValidateShader
 {
-    //used to check engine built-in shader
+    // Uses the plain NoGPU setting (shader cache disabled): this test must exercise
+    // real DXC compilation, so a cached hit would defeat its purpose.
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine
@@ -57,7 +58,8 @@ public class ValidateShader
 
     public static void OnTestPipleineSuccess(string name, string[] defines)
     {
-        TestContext.WriteLine($"Successfully compiled shader: ({name}) with defines: [{string.Join(", ", defines)}]");
+        // Intentionally not logged: the success path fires once per define
+        // combination and would dump hundreds of lines into the test output.
     }
 
 }

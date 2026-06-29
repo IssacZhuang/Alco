@@ -54,6 +54,11 @@ namespace Alco.Engine
         public bool RunOnce;
 
         /// <summary>
+        /// Gets or sets whether instrumented methods may be collected by the method profiler.
+        /// </summary>
+        public bool EnableMethodProfiling { get; set; }
+
+        /// <summary>
         /// The view setting
         /// </summary>
         public ViewSetting View;

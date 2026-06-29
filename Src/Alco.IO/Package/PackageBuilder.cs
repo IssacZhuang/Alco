@@ -7,17 +7,22 @@ namespace Alco.IO;
 
 /// <summary>
 /// Builds an Alco package in-memory following the documented format:
-/// [magic "alco"][Int64 LE meta length][meta payload via BinaryParser][content payload].
+/// [magic][Int64 LE meta length][meta payload via BinaryParser][content payload].
+/// The meta type <typeparamref name="TMeta"/> supplies the magic number and may carry type-specific
+/// fields beyond the inherited entry directory.
 /// </summary>
-public sealed class PackageBuilder
+/// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
+public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackageMeta, new()
 {
-    /// <summary>
-    /// The magic number that identifies Alco package files.
-    /// </summary>
-    private static readonly byte[] Magic = "alco"u8.ToArray();
-
     private readonly Dictionary<string, byte[]> _nameToBytes = new(StringComparer.Ordinal);
     private readonly List<string> _order = new();
+
+    /// <summary>
+    /// The metadata to encode into the package. When <see langword="null"/>, <see cref="Build"/>
+    /// uses a default-constructed <typeparamref name="TMeta"/> (entry directory only). Set this to
+    /// carry type-specific fields (e.g. a save's player name and timestamp).
+    /// </summary>
+    public TMeta? Meta { get; set; }
 
     /// <summary>
     /// Adds a new entry or updates an existing entry's content.
@@ -64,14 +69,15 @@ public sealed class PackageBuilder
     }
 
     /// <summary>
-    /// Builds the package bytes: [magic "alco"][meta length (Int64 LE)][meta payload][content payload].
+    /// Builds the package bytes:
+    /// [<see cref="IPackageMeta.Magic"/>][meta length (Int64 LE)][meta payload][content payload].
     /// </summary>
     /// <returns>Package bytes</returns>
     public byte[] Build()
     {
         // Build meta with running offsets relative to the start of the content section
         long runningOffset = 0;
-        PackageMeta meta = new PackageMeta();
+        TMeta meta = Meta ?? new TMeta();
 
         long totalContentLength = 0;
         foreach (string name in _order)
@@ -102,7 +108,7 @@ public sealed class PackageBuilder
         byte[] package = new byte[finalLength];
 
         // Write magic number
-        Magic.CopyTo(package.AsSpan(0, 4));
+        TMeta.Magic.CopyTo(package.AsSpan(0, 4));
 
         // Write meta length (Int64 LE)
         BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4, 8), metaLength);
@@ -126,6 +132,10 @@ public sealed class PackageBuilder
         return package;
     }
 
+    /// <summary>
+    /// Packs every file under <paramref name="directory"/> (recursively, entry names relative to
+    /// the directory with <c>/</c> separators) into a package at <paramref name="packagePath"/>.
+    /// </summary>
     public static void PackDirectory(string directory, string packagePath)
     {
         if (string.IsNullOrEmpty(directory))
@@ -145,7 +155,7 @@ public sealed class PackageBuilder
         string[] files = Directory.GetFiles(directory, "*", SearchOption.AllDirectories);
         Array.Sort(files, StringComparer.Ordinal);
 
-        var builder = new PackageBuilder();
+        var builder = new PackageBuilder<TMeta>();
         foreach (string file in files)
         {
             // Compute entry name relative to root and normalize separators to '/'
@@ -166,4 +176,3 @@ public sealed class PackageBuilder
         File.WriteAllBytes(packagePath, package);
     }
 }
-

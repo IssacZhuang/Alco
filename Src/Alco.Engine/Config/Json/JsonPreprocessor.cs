@@ -239,6 +239,36 @@ public class JsonPreprocessor
     }
 
     /// <summary>
+    /// Tries to get the fully merged JSON document for the specified config id.
+    /// Non-abstract configs return the processed document from the internal index.
+    /// Abstract configs build a transient merged view by applying the inheritance chain.
+    /// </summary>
+    /// <param name="id">The config id.</param>
+    /// <param name="document">The merged document when found.</param>
+    /// <param name="isTransient">True when the caller must dispose the returned document.</param>
+    /// <returns>True if a document could be resolved for the id; otherwise false.</returns>
+    public bool TryGetMergedJsonDocument(string id, [NotNullWhen(true)] out JsonDocument? document, out bool isTransient)
+    {
+        if (_jsonItems.TryGetValue(id, out var jsonItem))
+        {
+            document = jsonItem.Document;
+            isTransient = false;
+            return true;
+        }
+
+        if (_abstractJsonItems.TryGetValue(id, out var abstractItem))
+        {
+            document = ProcessJsonItem(abstractItem.Document, new HashSet<string>(), id);
+            isTransient = document != abstractItem.Document;
+            return true;
+        }
+
+        document = null;
+        isTransient = false;
+        return false;
+    }
+
+    /// <summary>
     /// Loads all JSON files from registered sources then processes items (e.g., inheritance/merge).
     /// Raises <see cref="BeforeProcessJsonDocument"/> before processing.
     /// </summary>

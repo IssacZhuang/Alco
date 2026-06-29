@@ -8,7 +8,7 @@ public class TestSynchronizationContext
 {
     private class TestEngine : GameEngine
     {
-        public TestEngine() : base(GameEngineSetting.CreateNoGPU())
+        public TestEngine() : base(TestEngineSettings.CreateNoGPUWithShaderCache())
         {
             //the GameSynchronizationContext will be installed after engine start
             Assert.That(SynchronizationContext.Current is GameSynchronizationContext, Is.False);

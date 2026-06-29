@@ -71,7 +71,7 @@ public class CubeSystem : IDisposable
         _collisionTask.RunParallel(_activeList.Count, 16);
     }
 
-    private class PerformCollisionTask : ReuseableBatchTask
+    private class PerformCollisionTask : ReusableBatchTask
     {
         public List<Cube>? activeList;
         public CollisionWorld2D? collisionWorld;

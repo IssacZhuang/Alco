@@ -124,7 +124,7 @@ public class FXAA : PostProcess
 
         // Initialize blit pipeline context
         _blitPipelineInfo = GraphicsPipelineContext.Default;
-        _blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, renderingSystem.PrefferedSDRPass);
+        _blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, renderingSystem.PreferredSDRPass);
         _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
 
         // Create shader data buffer with default values
@@ -155,7 +155,7 @@ public class FXAA : PostProcess
 
         // Create intermediate texture with same size as input
         _intermediateTexture = _renderingSystem.CreateRenderTexture(
-            _renderingSystem.PrefferedSDRPass,
+            _renderingSystem.PreferredSDRPass,
             input.Width,
             input.Height,
             "fxaa_intermediate"
@@ -226,7 +226,7 @@ public class FXAA : PostProcess
         _currentDefines = new[] { qualityDefine };
 
         // Get a new pipeline with the specified defines
-        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PrefferedSDRPass, _currentDefines);
+        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PreferredSDRPass, _currentDefines);
 
         // Update resource IDs after pipeline recreation
         _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);

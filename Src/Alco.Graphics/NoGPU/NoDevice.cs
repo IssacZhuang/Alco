@@ -54,7 +54,7 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTexture2DStorage {get;}
 
-    public override PixelFormat PrefferedSurfaceFomat {get;}
+    public override PixelFormat PreferredSurfaceFormat {get;}
 
     public override bool TextureCompressBC3Supported => false;
 

@@ -515,7 +515,7 @@ public sealed class Shader : AutoDisposable
         }
 
         //default attachment layout
-        GPUAttachmentLayout attachmentLayout = _renderingSystem.PrefferedHDRPass;
+        GPUAttachmentLayout attachmentLayout = _renderingSystem.PreferredHDRPass;
 
         // Generate and test all non-empty combinations
         for (int length = 1; length <= definesArray.Length; length++)

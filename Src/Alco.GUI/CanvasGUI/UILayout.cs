@@ -32,7 +32,7 @@ public class UILayout : UINode
 {
     private LayoutType _layoutType = LayoutType.Vertical;
     private bool _isFixedSize;
-    private bool _alwaysUpdate; // if true, the layout will update every frame
+    private bool _alwaysUpdate = true;
     private bool _fitContentSize;
     private bool _skipDisabledItem = true;
     private Padding _padding;
@@ -40,6 +40,9 @@ public class UILayout : UINode
     private float _fixedWidth; // only used if _isFixedSize is true
     private float _fixedHeight; // only used if _isFixedSize is true
     private bool _isDirty;
+
+    // Reusable buffer for grid layout so UpdateGridLayout allocates nothing per frame.
+    private readonly List<UINode> _gridChildren = new();
 
 
 
@@ -90,13 +93,15 @@ public class UILayout : UINode
     }
 
 
+    /// <summary>
+    /// Gets or sets whether the layout is recalculated every frame.
+    /// Defaults to <c>true</c> because child add/remove, enable changes, and size changes do not mark the layout dirty.
+    /// Set to <c>false</c> only for layouts that are fully static after construction.
+    /// </summary>
     public bool AlwaysUpdate
     {
         get => _alwaysUpdate;
-        set
-        {
-            _alwaysUpdate = value;
-        }
+        set => _alwaysUpdate = value;
     }
 
     /// <summary>
@@ -371,16 +376,16 @@ public class UILayout : UINode
 
     private void UpdateGridLayout()
     {
-        var affectedChildren = new List<UINode>();
+        _gridChildren.Clear();
         for (int i = 0; i < Children.Count; i++)
         {
             if (ShouldIncludeInLayout(Children[i]))
             {
-                affectedChildren.Add(Children[i]);
+                _gridChildren.Add(Children[i]);
             }
         }
 
-        if (affectedChildren.Count == 0)
+        if (_gridChildren.Count == 0)
             return;
 
         // Calculate item size
@@ -393,16 +398,16 @@ public class UILayout : UINode
         else
         {
             // Use the first child's size as reference for all items
-            itemWidth = affectedChildren[0].RenderSize.X;
-            itemHeight = affectedChildren[0].RenderSize.Y;
+            itemWidth = _gridChildren[0].RenderSize.X;
+            itemHeight = _gridChildren[0].RenderSize.Y;
         }
 
         // Calculate how many columns can fit based on available width
         float availableWidth = Size.X - _padding.Horizontal;
         int columnsPerRow = Math.Max(1, (int)((availableWidth + _spacing.X) / (itemWidth + _spacing.X)));
-        
+
         // Calculate number of rows needed
-        int totalRows = (int)Math.Ceiling((float)affectedChildren.Count / columnsPerRow);
+        int totalRows = (int)Math.Ceiling((float)_gridChildren.Count / columnsPerRow);
 
         // Auto-fit content size if enabled (fit height only, keep width unchanged)
         if (_fitContentSize)
@@ -415,9 +420,9 @@ public class UILayout : UINode
         float startX = -Size.X * 0.5f + _padding.Left;
         float startY = Size.Y * 0.5f - _padding.Top;
 
-        for (int i = 0; i < affectedChildren.Count; i++)
+        for (int i = 0; i < _gridChildren.Count; i++)
         {
-            UINode child = affectedChildren[i];
+            UINode child = _gridChildren[i];
 
             if (!ShouldIncludeInLayout(child))
             {

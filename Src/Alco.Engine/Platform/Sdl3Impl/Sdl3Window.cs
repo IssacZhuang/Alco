@@ -149,7 +149,7 @@ public unsafe partial class Sdl3Window : View
             SurfaceSource = GetSurfaceSource(_window, setting.LinuxUseWayland),
             Width = Size.X,
             Height = Size.Y,
-            ColorFormat = device.PrefferedSurfaceFomat,
+            ColorFormat = device.PreferredSurfaceFormat,
             IsVSyncEnabled = setting.VSync,
         };
 

@@ -29,18 +29,13 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     private readonly UIMask _mask;
     private readonly UINode _container;
 
+    private readonly NavigationHoverCoordinator _nav;
+
     private Vector2 _itemSize = new(100f, 50f);
     private Vector2 _spacing = Vector2.Zero;
     private int _columnsPerRow = 1;
     private int _currentPage = 0;
     private bool _isLayoutDirty = true;
-
-    private int _focusedIndex = -1;
-    private bool _canNavigate;
-    private bool _prevUp;
-    private bool _prevDown;
-    private bool _prevLeft;
-    private bool _prevRight;
 
     /// <summary>
     /// Gets or sets the fixed size of each item in the grid.
@@ -129,15 +124,15 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     /// </summary>
     public bool CanNavigate
     {
-        get => _canNavigate;
-        set => _canNavigate = value;
+        get => _nav.CanNavigate;
+        set => _nav.CanNavigate = value;
     }
 
     /// <summary>
     /// Gets the current focused data index within the current page.
     /// Returns -1 if no item is focused.
     /// </summary>
-    public int FocusedIndex => _focusedIndex;
+    public int FocusedIndex => _nav.FocusedIndex;
 
     /// <summary>
     /// Gets the internal container that holds the page items.
@@ -146,6 +141,14 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
 
     protected UIPageList()
     {
+        _nav = new NavigationHoverCoordinator(this)
+        {
+            ResolveNode = FindActiveNode,
+            TryNavigate = TryNavigateByDirection,
+            IndexOfHoveredChild = IndexOfHoveredChild,
+            OnNavigated = (ctx, idx) => OnNavigated((Canvas)ctx, idx),
+        };
+
         _itemPool = new Pool<UINode>(32, CreateItem);
 
         _mask = new UIMask
@@ -182,7 +185,7 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         }
 
         _currentPage = 0;
-        _focusedIndex = -1;
+        _nav.ClearFocus();
         RefreshPage();
     }
 
@@ -198,7 +201,7 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         }
 
         _currentPage = 0;
-        _focusedIndex = -1;
+        _nav.ClearFocus();
         RefreshPage();
     }
 
@@ -210,7 +213,7 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     {
         if (!HasPreviousPage) return false;
         _currentPage--;
-        _focusedIndex = -1;
+        _nav.ClearFocus();
         RefreshPage();
         return true;
     }
@@ -223,7 +226,7 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     {
         if (!HasNextPage) return false;
         _currentPage++;
-        _focusedIndex = -1;
+        _nav.ClearFocus();
         RefreshPage();
         return true;
     }
@@ -240,7 +243,7 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         if (page == _currentPage) return true;
 
         _currentPage = page;
-        _focusedIndex = -1;
+        _nav.ClearFocus();
         RefreshPage();
         return true;
     }
@@ -268,14 +271,14 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     {
         if (index < 0)
         {
-            _focusedIndex = -1;
+            _nav.ClearFocus();
             return;
         }
 
         int itemsPerPage = GetItemsPerPage();
         if (itemsPerPage <= 0)
         {
-            _focusedIndex = -1;
+            _nav.ClearFocus();
             return;
         }
 
@@ -284,11 +287,11 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
 
         if (index < startIndex || index > endIndex)
         {
-            _focusedIndex = -1;
+            _nav.ClearFocus();
             return;
         }
 
-        _focusedIndex = index;
+        _nav.SetFocus(index);
     }
 
     /// <summary>
@@ -296,7 +299,7 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     /// </summary>
     public void ClearFocus()
     {
-        _focusedIndex = -1;
+        _nav.ClearFocus();
     }
 
     public void SetLayoutDirty()
@@ -428,144 +431,58 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
     protected override void OnTick(Canvas canvas, float delta)
     {
         base.OnTick(canvas, delta);
-
-        if (!_canNavigate) return;
-
-        if (canvas.NavigationFocus != this)
-        {
-            SyncEdgeState(canvas.InputTracker);
-            return;
-        }
-
-        IUIInputTracker inputTracker = canvas.InputTracker;
-
-        bool up = inputTracker.IsKeyUpPressing;
-        bool down = inputTracker.IsKeyDownPressing;
-        bool left = inputTracker.IsKeyLeftPressing;
-        bool right = inputTracker.IsKeyRightPressing;
-
-        bool upEdge = up && !_prevUp;
-        bool downEdge = down && !_prevDown;
-        bool leftEdge = left && !_prevLeft;
-        bool rightEdge = right && !_prevRight;
-
-        _prevUp = up;
-        _prevDown = down;
-        _prevLeft = left;
-        _prevRight = right;
-
-        bool navigated = false;
-        bool navigationRequested = false;
-        int newFocusIndex = _focusedIndex;
-        if (_columnsPerRow <= 1)
-        {
-            if (upEdge)
-            {
-                navigationRequested = true;
-                navigated = NavigateByOffset(-1, out newFocusIndex);
-            }
-            else if (downEdge)
-            {
-                navigationRequested = true;
-                navigated = NavigateByOffset(1, out newFocusIndex);
-            }
-        }
-        else
-        {
-            if (upEdge)
-            {
-                navigationRequested = true;
-                navigated = NavigateByOffset(-_columnsPerRow, out newFocusIndex);
-            }
-            else if (downEdge)
-            {
-                navigationRequested = true;
-                navigated = NavigateByOffset(_columnsPerRow, out newFocusIndex);
-            }
-            else if (leftEdge)
-            {
-                navigationRequested = true;
-                navigated = NavigateByOffset(-1, out newFocusIndex);
-            }
-            else if (rightEdge)
-            {
-                navigationRequested = true;
-                navigated = NavigateByOffset(1, out newFocusIndex);
-            }
-        }
-
-        if (navigated)
-        {
-            OnNavigated(canvas, newFocusIndex);
-        }
-        else if (navigationRequested && ShouldRestoreFocusedHover(canvas))
-        {
-            ApplyFocusedHover(canvas);
-        }
+        _nav.Orientation = _columnsPerRow <= 1 ? NavOrientation.Vertical : NavOrientation.Grid;
+        _nav.Tick(canvas);
     }
 
     /// <summary>
     /// Called after a successful keyboard navigation.
-    /// The default implementation sets the focused index and applies hover to the focused item.
+    /// The default implementation applies hover to the focused item.
     /// Override to customize post-navigation behavior (e.g. update selection).
     /// </summary>
     /// <param name="canvas">The current canvas.</param>
     /// <param name="focusIndex">The new focused data index.</param>
     protected virtual void OnNavigated(Canvas canvas, int focusIndex)
     {
-        _focusedIndex = focusIndex;
-
-        UINode? node = FindActiveNode(_focusedIndex);
+        UINode? node = FindActiveNode(focusIndex);
         if (node != null)
         {
             canvas.SetHovered(node);
         }
     }
 
-    private void ApplyFocusedHover(Canvas canvas)
+    /// <summary>
+    /// Navigation callback: moves the focus index one step in <paramref name="direction"/>
+    /// from <paramref name="fromIndex"/>, honoring single-column vs grid layout and page bounds.
+    /// </summary>
+    /// <param name="direction">The navigation direction.</param>
+    /// <param name="fromIndex">The index to move from (-1 when nothing is focused).</param>
+    /// <returns>The new focused index, or null when the move is blocked.</returns>
+    private int? TryNavigateByDirection(NavDirection direction, int fromIndex)
     {
-        UINode? node = FindActiveNode(_focusedIndex);
-        if (node != null)
+        int offset = direction switch
         {
-            canvas.SetHovered(node);
-        }
+            NavDirection.Up => _columnsPerRow <= 1 ? -1 : -_columnsPerRow,
+            NavDirection.Down => _columnsPerRow <= 1 ? 1 : _columnsPerRow,
+            NavDirection.Left => -1,
+            NavDirection.Right => 1,
+            _ => 0,
+        };
+        return NavigateByOffset(fromIndex, offset);
     }
 
-    private bool ShouldRestoreFocusedHover(Canvas canvas)
-    {
-        UINode? focused = FindActiveNode(_focusedIndex);
-        return focused != null && focused.IsEnable && !IsHoveredWithin(canvas.Hovered, focused);
-    }
-
-    private static bool IsHoveredWithin(UINode? hovered, UINode focused)
-    {
-        UINode? node = hovered;
-        while (node != null)
-        {
-            if (ReferenceEquals(node, focused))
-            {
-                return true;
-            }
-            node = node.Parent;
-        }
-        return false;
-    }
-
-    private void SyncEdgeState(IUIInputTracker inputTracker)
-    {
-        _prevUp = inputTracker.IsKeyUpPressing;
-        _prevDown = inputTracker.IsKeyDownPressing;
-        _prevLeft = inputTracker.IsKeyLeftPressing;
-        _prevRight = inputTracker.IsKeyRightPressing;
-    }
-
-    private bool NavigateByOffset(int offset, out int newFocusIndex)
+    /// <summary>
+    /// Moves the focus index by the given offset, clamping to the current page range.
+    /// </summary>
+    /// <param name="fromIndex">The index to move from (-1 when nothing is focused).</param>
+    /// <param name="offset">The offset to apply (e.g. +1, -1, +columnsPerRow).</param>
+    /// <returns>The new focused index, or null when focus did not change.</returns>
+    private int? NavigateByOffset(int fromIndex, int offset)
     {
         int itemsPerPage = GetItemsPerPage();
         if (itemsPerPage <= 0)
         {
-            newFocusIndex = _focusedIndex;
-            return false;
+            return null;
         }
 
         int startIndex = _currentPage * itemsPerPage;
@@ -574,27 +491,40 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
 
         if (pageItemCount <= 0)
         {
-            newFocusIndex = _focusedIndex;
-            return false;
+            return null;
         }
 
-        if (_focusedIndex < 0)
+        if (fromIndex < 0)
         {
-            newFocusIndex = offset > 0 ? startIndex : endIndex;
-            return true;
+            return offset > 0 ? startIndex : endIndex;
         }
 
-        int newIndex = _focusedIndex + offset;
-        newIndex = Math.Clamp(newIndex, startIndex, endIndex);
+        int newIndex = Math.Clamp(fromIndex + offset, startIndex, endIndex);
+        return newIndex == fromIndex ? null : newIndex;
+    }
 
-        if (newIndex == _focusedIndex)
+    /// <summary>
+    /// When nothing is focused, resolves the hovered active item's data index to
+    /// start navigation from. Walks the parent chain so hovering a child of an
+    /// item still counts.
+    /// </summary>
+    /// <param name="hovered">The currently hovered node.</param>
+    /// <returns>The data index of the hovered item, or null.</returns>
+    private int? IndexOfHoveredChild(UINode? hovered)
+    {
+        if (hovered == null)
         {
-            newFocusIndex = _focusedIndex;
-            return false;
+            return null;
         }
 
-        newFocusIndex = newIndex;
-        return true;
+        foreach (var activeItem in _activeItems)
+        {
+            if (NavigationHoverCoordinator.IsHoveredWithin(hovered, activeItem.Node))
+            {
+                return activeItem.Index;
+            }
+        }
+        return null;
     }
 
     private UINode? FindActiveNode(int dataIndex)

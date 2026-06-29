@@ -5,48 +5,44 @@ namespace Alco.GUI;
 /// <summary>
 /// A <see cref="UILayout"/> with built-in D-Pad / arrow-key navigation.
 /// Tracks a focused index and programmatically sets the hovered node on the canvas,
-/// enabling gamepad-style menu navigation.
-/// Input is read from the canvas <see cref="IUIInputTracker"/> automatically.
+/// enabling gamepad-style menu navigation. Hover/focus coordination and edge
+/// detection are delegated to a <see cref="NavigationHoverCoordinator"/>.
 /// </summary>
 public class UILayoutNavigator : UILayout, INavigationFocusable
 {
-    private int _focusedIndex = -1;
-    private bool _canNavigate = true;
-    private bool _focusChanged;
+    private readonly NavigationHoverCoordinator _nav;
 
-    private bool _prevUp;
-    private bool _prevDown;
-    private bool _prevLeft;
-    private bool _prevRight;
-
-/// <summary>
+    /// <summary>
     /// Gets or sets whether this navigator can process navigation input.
     /// </summary>
     public bool CanNavigate
     {
-        get => _canNavigate;
-        set => _canNavigate = value;
+        get => _nav.CanNavigate;
+        set => _nav.CanNavigate = value;
     }
 
     /// <summary>
     /// Gets the current focused index within the layout's children.
     /// Returns -1 if no child is focused.
     /// </summary>
-    public int FocusedIndex => _focusedIndex;
+    public int FocusedIndex => _nav.FocusedIndex;
 
     /// <summary>
     /// Gets the currently focused node, or null if none is focused.
     /// </summary>
-    public UINode? FocusedNode =>
-        _focusedIndex >= 0 && _focusedIndex < Children.Count
-            ? Children[_focusedIndex]
-            : null;
+    public UINode? FocusedNode => _nav.FocusedNode;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UILayoutNavigator"/> class.
     /// </summary>
     public UILayoutNavigator()
     {
+        _nav = new NavigationHoverCoordinator(this)
+        {
+            ResolveNode = ResolveChild,
+            TryNavigate = Navigate,
+            IndexOfHoveredChild = IndexOfHoveredChild,
+        };
     }
 
     /// <summary>
@@ -56,21 +52,7 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
     /// <param name="index">The index of the child to focus, or -1 to clear.</param>
     public void SetFocus(int index)
     {
-        if (index < 0)
-        {
-            _focusedIndex = -1;
-            return;
-        }
-
-        int count = Children.Count;
-        if (count == 0)
-        {
-            _focusedIndex = -1;
-            return;
-        }
-
-        _focusedIndex = Math.Clamp(index, 0, count - 1);
-        _focusChanged = true;
+        _nav.SetFocus(index);
     }
 
     /// <summary>
@@ -78,193 +60,121 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
     /// </summary>
     public void ClearFocus()
     {
-        _focusedIndex = -1;
+        _nav.ClearFocus();
     }
 
     /// <inheritdoc/>
     protected override void OnTick(Canvas canvas, float delta)
     {
         base.OnTick(canvas, delta);
-
-        if (!_canNavigate)
-        {
-            return;
-        }
-
-        if (_focusChanged)
-        {
-            _focusChanged = false;
-            ApplyHover(canvas);
-        }
-
-        if (canvas.NavigationFocus != this)
-        {
-            SyncEdgeState(canvas.InputTracker);
-            _focusedIndex = -1;
-            return;
-        }
-
-        IUIInputTracker inputTracker = canvas.InputTracker;
-
-        // Read raw directional input
-        bool up = inputTracker.IsKeyUpPressing;
-        bool down = inputTracker.IsKeyDownPressing;
-        bool left = inputTracker.IsKeyLeftPressing;
-        bool right = inputTracker.IsKeyRightPressing;
-
-        // Edge detection: trigger only on rising edge
-        bool upEdge = up && !_prevUp;
-        bool downEdge = down && !_prevDown;
-        bool leftEdge = left && !_prevLeft;
-        bool rightEdge = right && !_prevRight;
-
-        _prevUp = up;
-        _prevDown = down;
-        _prevLeft = left;
-        _prevRight = right;
-
-        // Determine navigation direction based on layout type
-        bool navigated = false;
-        bool navigationRequested = false;
-        switch (LayoutType)
-        {
-            case LayoutType.Vertical:
-                if (upEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigatePrevious();
-                }
-                else if (downEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigateNext();
-                }
-                break;
-
-            case LayoutType.Horizontal:
-                if (leftEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigatePrevious();
-                }
-                else if (rightEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigateNext();
-                }
-                break;
-
-            case LayoutType.Grid:
-                if (upEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigateGrid(0, -1);
-                }
-                else if (downEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigateGrid(0, 1);
-                }
-                else if (leftEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigateGrid(-1, 0);
-                }
-                else if (rightEdge)
-                {
-                    navigationRequested = true;
-                    navigated = NavigateGrid(1, 0);
-                }
-                break;
-        }
-
-        if (navigated || (navigationRequested && ShouldRestoreFocusedHover(canvas)))
-        {
-            ApplyHover(canvas);
-        }
+        _nav.Orientation = ToNavOrientation(LayoutType);
+        _nav.Tick(canvas);
     }
 
-    /// <summary>
-    /// Navigates to the previous navigable child.
-    /// </summary>
-    /// <returns>True if focus changed.</returns>
-    private bool NavigatePrevious()
+    private static NavOrientation ToNavOrientation(LayoutType layoutType)
+    {
+        return layoutType switch
+        {
+            LayoutType.Vertical => NavOrientation.Vertical,
+            LayoutType.Horizontal => NavOrientation.Horizontal,
+            LayoutType.Grid => NavOrientation.Grid,
+            _ => NavOrientation.Vertical,
+        };
+    }
+
+    private UINode? ResolveChild(int index)
+    {
+        return index >= 0 && index < Children.Count ? Children[index] : null;
+    }
+
+    private int? Navigate(NavDirection direction, int fromIndex)
     {
         int childCount = Children.Count;
-        if (childCount == 0) return false;
-
-        // If nothing focused, focus the last navigable item
-        if (_focusedIndex < 0)
+        if (childCount == 0)
         {
-            return TryFocusFrom(childCount - 1, -1);
+            return null;
         }
 
-        return TryFocusFrom(_focusedIndex - 1, -1);
-    }
-
-    /// <summary>
-    /// Navigates to the next navigable child.
-    /// </summary>
-    /// <returns>True if focus changed.</returns>
-    private bool NavigateNext()
-    {
-        int childCount = Children.Count;
-        if (childCount == 0) return false;
-
-        // If nothing focused, focus the first navigable item
-        if (_focusedIndex < 0)
+        if (LayoutType == LayoutType.Grid)
         {
-            return TryFocusFrom(0, 1);
+            return NavigateGrid(direction, fromIndex);
         }
 
-        return TryFocusFrom(_focusedIndex + 1, 1);
+        int step = direction == NavDirection.Up || direction == NavDirection.Left ? -1 : 1;
+
+        if (fromIndex < 0)
+        {
+            // Nothing focused: jump to the list edge in the requested direction.
+            return TryFocusFrom(step < 0 ? childCount - 1 : 0, step);
+        }
+
+        return TryFocusFrom(fromIndex + step, step);
     }
 
-    /// <summary>
-    /// Navigates within a grid layout by column/row offset.
-    /// </summary>
-    /// <param name="colDelta">Column offset (-1 for left, +1 for right, 0 for none).</param>
-    /// <param name="rowDelta">Row offset (-1 for up, +1 for down, 0 for none).</param>
-    /// <returns>True if focus changed.</returns>
-    private bool NavigateGrid(int colDelta, int rowDelta)
+    private int? NavigateGrid(NavDirection direction, int fromIndex)
     {
         int count = GetNavigableCount();
-        if (count == 0) return false;
+        if (count == 0)
+        {
+            return null;
+        }
 
-        // If nothing focused, focus first navigable item
-        if (_focusedIndex < 0)
+        if (fromIndex < 0)
         {
             return TryFocusFrom(0, 1);
         }
 
         int columnsPerRow = CalculateGridColumns();
-        if (columnsPerRow <= 0) columnsPerRow = 1;
+        if (columnsPerRow <= 0)
+        {
+            columnsPerRow = 1;
+        }
 
-        // Convert current focused index to navigable-space index
-        int navigableIndex = GetNavigableIndex(_focusedIndex);
-        if (navigableIndex < 0) return TryFocusFrom(0, 1);
+        int navigableIndex = GetNavigableIndex(fromIndex);
+        if (navigableIndex < 0)
+        {
+            return TryFocusFrom(0, 1);
+        }
 
         int col = navigableIndex % columnsPerRow;
         int row = navigableIndex / columnsPerRow;
 
-        int newCol = col + colDelta;
-        int newRow = row + rowDelta;
+        int newCol = col;
+        int newRow = row;
+        switch (direction)
+        {
+            case NavDirection.Left:
+                newCol = col - 1;
+                break;
+            case NavDirection.Right:
+                newCol = col + 1;
+                break;
+            case NavDirection.Up:
+                newRow = row - 1;
+                break;
+            case NavDirection.Down:
+                newRow = row + 1;
+                break;
+        }
 
-        // Clamp column
-        if (newCol < 0 || newCol >= columnsPerRow) return false;
+        if (newCol < 0 || newCol >= columnsPerRow)
+        {
+            return null;
+        }
 
         int totalRows = (count + columnsPerRow - 1) / columnsPerRow;
-        if (newRow < 0 || newRow >= totalRows) return false;
+        if (newRow < 0 || newRow >= totalRows)
+        {
+            return null;
+        }
 
         int newNavigableIndex = newRow * columnsPerRow + newCol;
-        if (newNavigableIndex >= count) return false;
+        if (newNavigableIndex >= count)
+        {
+            return null;
+        }
 
-        // Convert navigable-space index back to children index
-        int childIndex = GetChildIndexFromNavigable(newNavigableIndex);
-        if (childIndex < 0) return false;
-
-        _focusedIndex = childIndex;
-        return true;
+        return GetChildIndexFromNavigable(newNavigableIndex);
     }
 
     /// <summary>
@@ -273,8 +183,8 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
     /// </summary>
     /// <param name="startIndex">The index to start searching from.</param>
     /// <param name="direction">Search direction: +1 forward, -1 backward.</param>
-    /// <returns>True if a navigable child was found and focused.</returns>
-    private bool TryFocusFrom(int startIndex, int direction)
+    /// <returns>The focused index, or null if none found.</returns>
+    private int? TryFocusFrom(int startIndex, int direction)
     {
         int childCount = Children.Count;
         int i = startIndex;
@@ -283,58 +193,42 @@ public class UILayoutNavigator : UILayout, INavigationFocusable
         {
             if (IsNavigable(Children[i]))
             {
-                _focusedIndex = i;
-                return true;
+                return i;
             }
             i += direction;
         }
 
-        return false;
+        return null;
     }
 
     /// <summary>
-    /// Applies the current focus to the canvas hover system.
+    /// When nothing is focused, resolves the hovered navigable child to focus from.
+    /// Walks the parent chain so hovering a child of a row still counts.
     /// </summary>
-    private void ApplyHover(Canvas canvas)
+    /// <param name="hovered">The currently hovered node.</param>
+    /// <returns>The child index of the hovered navigable node, or null.</returns>
+    private int? IndexOfHoveredChild(UINode? hovered)
     {
-        UINode? focused = FocusedNode;
-        if (focused != null && IsNavigable(focused))
+        if (hovered == null)
         {
-            canvas.SetHovered(focused);
+            return null;
         }
-    }
 
-    private bool ShouldRestoreFocusedHover(Canvas canvas)
-    {
-        UINode? focused = FocusedNode;
-        return focused != null && IsNavigable(focused) && !IsHoveredWithin(canvas.Hovered, focused);
-    }
-
-    private static bool IsHoveredWithin(UINode? hovered, UINode focused)
-    {
-        UINode? node = hovered;
-        while (node != null)
+        UINode? node = hovered.FirstAncestorWhere(n =>
+            n.Parent == this && IsNavigable(n));
+        if (node == null)
         {
-            if (ReferenceEquals(node, focused))
+            return null;
+        }
+
+        for (int i = 0; i < Children.Count; i++)
+        {
+            if (ReferenceEquals(Children[i], node))
             {
-                return true;
+                return i;
             }
-            node = node.Parent;
         }
-        return false;
-    }
-
-    /// <summary>
-    /// Updates edge-detection state without triggering navigation.
-    /// Called when this navigator is not the active one, to prevent
-    /// stale-edge bursts when it becomes active on a later frame.
-    /// </summary>
-    private void SyncEdgeState(IUIInputTracker inputTracker)
-    {
-        _prevUp = inputTracker.IsKeyUpPressing;
-        _prevDown = inputTracker.IsKeyDownPressing;
-        _prevLeft = inputTracker.IsKeyLeftPressing;
-        _prevRight = inputTracker.IsKeyRightPressing;
+        return null;
     }
 
     /// <summary>

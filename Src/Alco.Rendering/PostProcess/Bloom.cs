@@ -106,7 +106,7 @@ public class Bloom : PostProcess
         _renderingSystem = _system;
         _targetDownSampleHeight = targetDownSampleHeight;
 
-        _backBufferPass = _system.PrefferedHDRPassWithoutDepth;
+        _backBufferPass = _system.PreferredHDRPassWithoutDepth;
 
         _blitShader = blitShader;
         _blitPipelineInfo = GraphicsPipelineContext.Default with

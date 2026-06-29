@@ -13,10 +13,14 @@ public class Game : GameEngine
     private float _gain = 1f;
     private float _pitch = 1f;
 
+    private AudioStream? _stream;
+    private float _streamGain = 1f;
+    private float _streamPitch = 1f;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
 
-        
+
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
     }
@@ -81,7 +85,7 @@ public class Game : GameEngine
         {
             _source.IsSpatial = isSpatial;
         }
-        
+
         float posX = _source.Position.X;
         if (ImGui.SliderFloat("Position X", ref posX, -100, 100))
         {
@@ -99,6 +103,63 @@ public class Game : GameEngine
         {
             _source.Position = new Vector3(_source.Position.X, _source.Position.Y, posZ);
         }
+
+        ImGui.Separator();
+        ImGui.Text("Streaming BGM");
+
+        if (ImGui.Button("stream Song.ogg"))
+        {
+            // Stream-based construction: the OGG is loaded on a background thread and decoded off the
+            // main thread, so this click returns immediately and audio starts as soon as the load lands.
+            Stream fileStream = new FileStream(Path.Combine("Assets", "Song.ogg"), FileMode.Open, FileAccess.Read, FileShare.Read);
+            var provider = new VorbisStreamProvider(fileStream);
+            _stream?.Dispose();
+            _stream = AudioDevice.CreateAudioStream(provider);
+            _stream.IsSpatial = false;
+            _stream.IsLooping = true;
+            _stream.Gain = _streamGain;
+            _stream.Pitch = _streamPitch;
+            _stream.Play();
+        }
+
+        if (ImGui.Button("stream Play"))
+        {
+            _stream?.Play();
+        }
+
+        if (ImGui.Button("stream Pause"))
+        {
+            _stream?.Pause();
+        }
+
+        if (ImGui.Button("stream Stop"))
+        {
+            _stream?.Stop();
+        }
+
+        if (ImGui.SliderFloat("stream Gain", ref _streamGain, 0, 2))
+        {
+            if (_stream != null) _stream.Gain = _streamGain;
+        }
+
+        if (ImGui.SliderFloat("stream Pitch", ref _streamPitch, 0, 2))
+        {
+            if (_stream != null) _stream.Pitch = _streamPitch;
+        }
+
+        bool streamLooping = _stream?.IsLooping ?? true;
+        if (ImGui.Checkbox("stream Is Looping", ref streamLooping))
+        {
+            if (_stream != null) _stream.IsLooping = streamLooping;
+        }
+
+        bool streamSpatial = _stream?.IsSpatial ?? false;
+        if (ImGui.Checkbox("stream Is Spatial", ref streamSpatial))
+        {
+            if (_stream != null) _stream.IsSpatial = streamSpatial;
+        }
+
+        ImGui.Text(_stream == null ? "stream: none" : $"stream: {_stream.State}");
 
         if (ImGui.Button("GC"))
         {

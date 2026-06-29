@@ -26,7 +26,7 @@ public class Game : GameEngine
         }
     }
 
-    private class TestParallelTask : ReuseableBatchTask
+    private class TestParallelTask : ReusableBatchTask
     {
         protected override void ExecuteCore(int index)
         {
@@ -142,7 +142,7 @@ public class Game : GameEngine
         //load asset without cache
         //AssetSystem.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
         RenderingSystem.CreateGraphicsArrayBuffer<Vector3>(1000);
-        RenderingSystem.CreateRenderTexture(RenderingSystem.PrefferedSDRPass, 1280, 720);
+        RenderingSystem.CreateRenderTexture(RenderingSystem.PreferredSDRPass, 1280, 720);
     }
 
     private void ParallelCallback(int index)

@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Runtime;
+using Alco.Profiler;
 
 
 namespace Alco.Engine;
@@ -170,6 +171,11 @@ IDisposable
     }
 
     /// <summary>
+    /// Gets the process-wide method profiler used by instrumented builds.
+    /// </summary>
+    public MethodProfilerRuntime MethodProfiler => MethodProfilerRuntime.Instance;
+
+    /// <summary>
     /// Check if the engine is disposed
     /// </summary>
     public bool IsDisposed => _disposed != 0;
@@ -237,7 +243,7 @@ IDisposable
 
         //main view
         _mainView = CreateView(_setting.View);
-        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PrefferedSDRPass, shaderBlit.Result);
+        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PreferredSDRPass, shaderBlit.Result);
         AddSystem(_mainRenderTarget);
 
 
@@ -353,6 +359,32 @@ IDisposable
     }
 
     private void InternalTick(float delta)
+    {
+        if (!_setting.EnableMethodProfiling)
+        {
+            ExecuteTickBody(delta);
+            return;
+        }
+
+        MethodProfilerTickToken profilerTick = MethodProfiler.BeginTick();
+        if (!profilerTick.IsValid)
+        {
+            ExecuteTickBody(delta);
+            return;
+        }
+
+        try
+        {
+            ExecuteTickBody(delta);
+        }
+        finally
+        {
+            MethodProfiler.EndTick(profilerTick);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecuteTickBody(float delta)
     {
         OnSystemTick(delta);
         try
@@ -651,7 +683,7 @@ IDisposable
             }
             catch (Exception e)
             {
-                Log.Error($"Error when pre swap frame system {_systems[i].GetType().Name}: ");
+                Log.Error($"Error when post swap frame system {_systems[i].GetType().Name}: ");
                 Log.Error(e);
                 TryErrorStop();
             }

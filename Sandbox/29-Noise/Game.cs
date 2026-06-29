@@ -29,9 +29,9 @@ public class Game : GameEngine
     private ImGUILogger _logger;
 
     /// <summary>
-    /// Parallel noise generation task that extends ReuseableBatchTask2D for optimized performance.
+    /// Parallel noise generation task that extends ReusableBatchTask2D for optimized performance.
     /// </summary>
-    private class NoiseGenerationTask : ReuseableBatchTask2D
+    private class NoiseGenerationTask : ReusableBatchTask2D
     {
         private readonly Game _game;
 

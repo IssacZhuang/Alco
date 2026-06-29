@@ -150,6 +150,21 @@ public abstract class SerializeNode
     /// <param name="data">Reference to the byte array to be serialized or deserialized.</param>
     public abstract void BindBinary(string key, ref ReadOnlyMemory<byte> data);
 
+    /// <summary>
+    /// Binds a reference to an <see cref="IReferenceable"/> object. Save writes the object's
+    /// context ID; PostLoad resolves it back. Cross-context (e.g. into an inactive map) and
+    /// object-identity concerns are handled automatically — declare the field and call this.
+    /// <para>
+    /// Two rules to remember:
+    /// <br/>1. The target must already be registered in the context — it must have been
+    /// serialized first via <c>BindSerializable</c>/<c>BindCollectionSerializable</c> in the
+    /// same traversal, otherwise PostLoad resolves it to <c>null</c> silently.
+    /// <br/>2. The field is <c>null</c> during <see cref="SerializeMode.Load"/>; references
+    /// are only resolved during <see cref="SerializeMode.PostLoad"/>, so do not read it earlier.
+    /// </para>
+    /// </summary>
+    /// <param name="key">The key identifier for the reference in the serialization format.</param>
+    /// <param name="referenceable">The referenced object, or <c>null</c>.</param>
     public abstract void BindReference<T>(string key, ref T? referenceable) where T : IReferenceable;
 
     protected void AddError(string error)

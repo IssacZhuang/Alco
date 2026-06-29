@@ -143,12 +143,12 @@ public class Game : GameEngine
         // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
 
 
-        ShaderReflectionInfo vertexReflection = ShaderRelfectionUtility.GetSpirvReflection(vertexShader.Source);
-        ShaderReflectionInfo fragmentReflection = ShaderRelfectionUtility.GetSpirvReflection(fragmentShader.Source);
+        ShaderReflectionInfo vertexReflection = ShaderReflectionUtility.GetSpirvReflection(vertexShader.Source);
+        ShaderReflectionInfo fragmentReflection = ShaderReflectionUtility.GetSpirvReflection(fragmentShader.Source);
 
         Log.Info(vertexReflection);
         Log.Info(fragmentReflection);
-        Log.Info(ShaderRelfectionUtility.MergeReflectionInfo(vertexReflection, fragmentReflection));
+        Log.Info(ShaderReflectionUtility.MergeReflectionInfo(vertexReflection, fragmentReflection));
 
         // byte[] ShaderCode = LoadFile("Shader.wgsl");
 
