@@ -449,7 +449,6 @@ public partial class Canvas : AutoDisposable, INavigationContext
             _camera.Dispose();
         }
 
-        _hitNodes.Clear();
         _hovered = null;
         _holded = null;
         _selected = null;
