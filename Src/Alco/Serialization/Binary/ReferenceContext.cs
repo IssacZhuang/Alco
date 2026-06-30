@@ -24,8 +24,10 @@ public class ReferenceContext
 
     /// <summary>
     /// Registers an object with the specified ID for later resolution.
+    /// Override to route registration through a shared registry (e.g. cross-context),
+    /// keeping the object→id table consistent with <see cref="GetId"/>'s allocation source.
     /// </summary>
-    public void SetReference(uint id, object obj)
+    public virtual void SetReference(uint id, object obj)
     {
         if (id == 0)
             return;
