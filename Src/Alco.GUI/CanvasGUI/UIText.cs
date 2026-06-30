@@ -588,6 +588,9 @@ public class UIText : UISelectable
     {
         _text.SetSize(length);
         _textLength = length;
+        // The underlying buffer changed (e.g. UIInputBox.InsertText/DeleteText), so the cached
+        // Text string is now stale and must be rebuilt on the next read.
+        _isTmpStrReadDirty = true;
         return TextSpan;
     }
 }
