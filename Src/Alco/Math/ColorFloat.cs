@@ -96,6 +96,26 @@ public struct ColorFloat
     }
 
     /// <summary>
+    /// Formats this color as a 6-digit RGB hex string (no leading <c>#</c>) suitable for
+    /// <c>&lt;color=RRGGBB&gt;</c> rich text tags. HDR values are clamped to [0,1] first.
+    /// </summary>
+    /// <returns>A hex color string such as <c>"66CC66"</c>.</returns>
+    public string ToRgbHex()
+    {
+        Color32 sdr = Clamp01().ToColor32();
+        return string.Create(6, sdr, (span, c) =>
+        {
+            const string digits = "0123456789ABCDEF";
+            span[0] = digits[c.R >> 4];
+            span[1] = digits[c.R & 0xF];
+            span[2] = digits[c.G >> 4];
+            span[3] = digits[c.G & 0xF];
+            span[4] = digits[c.B >> 4];
+            span[5] = digits[c.B & 0xF];
+        });
+    }
+
+    /// <summary>
     /// Try to parse a hex color string to a ColorFloat
     /// </summary>
     /// <param name="hex">The hex color string</param>
