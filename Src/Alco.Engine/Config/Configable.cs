@@ -8,8 +8,9 @@ namespace Alco.Engine;
 public class Configable
 {
     /// <summary>
-    /// The unique identifier of the config, it could be path or Guid
+    /// The unique identifier of the config, it could be path or Guid.
     /// </summary>
+    [JsonPropertyOrder(-2)]
     public string Id { get; set; } = string.Empty;
 }
 
