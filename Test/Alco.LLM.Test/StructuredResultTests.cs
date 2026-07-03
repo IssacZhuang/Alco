@@ -190,6 +190,22 @@ public class StructuredResultTests
         Assert.That(historyResult.Result, Is.EqualTo("I am a plain string"));
     }
 
+    [Test]
+    public void ToolError_ErrorType_NotSerialized()
+    {
+        // The ErrorType field is runtime-only (JsonIgnore) and must not appear
+        // in the model-facing formatted output.
+        var formatter = new ToolResultFormatter();
+        var toolError = new ToolError("boom", "RUNTIME_EXCEPTION", "InvalidOperationException");
+
+        string formatted = formatter.Format(toolError);
+
+        using var doc = JsonDocument.Parse(formatted);
+        Assert.That(doc.RootElement.GetProperty("error").GetString(), Is.EqualTo("boom"));
+        Assert.That(doc.RootElement.GetProperty("code").GetString(), Is.EqualTo("RUNTIME_EXCEPTION"));
+        Assert.That(doc.RootElement.TryGetProperty("errorType", out _), Is.False);
+    }
+
     private sealed class ConverterBackedDataConverter : JsonConverter<ConverterBackedData>
     {
         public override ConverterBackedData Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

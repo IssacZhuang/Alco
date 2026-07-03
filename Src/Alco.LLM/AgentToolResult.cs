@@ -54,9 +54,14 @@ public sealed record ToolData(
 
 /// <summary>
 /// Unified tool error. The model sees compact JSON <c>{"error","code"}</c>.
+/// <c>ErrorType</c> is runtime-only (the .NET exception type name) and is not serialized
+/// into model-facing history; it is preserved on <see cref="ToolCallFailedEvent"/> for
+/// UI/debug consumers.
 /// </summary>
 /// <param name="Error">Human-readable error message.</param>
-/// <param name="Code">Stable machine-readable error code, e.g. <c>"NO_GAME"</c>.</param>
+/// <param name="Code">Stable machine-readable error code, e.g. <c>"NO_GAME"</c>, <c>"TOOL_NOT_FOUND"</c>, <c>"TIMEOUT"</c>, <c>"RUNTIME_EXCEPTION"</c>.</param>
+/// <param name="ErrorType">The .NET exception type name for runtime consumers; not serialized to the model.</param>
 public sealed record ToolError(
     [property: JsonPropertyName("error")] string Error,
-    [property: JsonPropertyName("code")] string Code) : AgentToolResult;
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonIgnore] string? ErrorType = null) : AgentToolResult;

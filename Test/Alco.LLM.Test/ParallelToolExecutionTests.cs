@@ -144,7 +144,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(InvalidOperationException)));
-        Assert.That(failed.ErrorCode, Is.Null);
+        Assert.That(failed.ErrorCode, Is.EqualTo("RUNTIME_EXCEPTION"));
 
         var completed = events.OfType<ToolCallCompletedEvent>().Single();
         Assert.That(completed.CallId, Is.EqualTo("call2"));
@@ -175,7 +175,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
-        Assert.That(failed.ErrorCode, Is.Null);
+        Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
 
         var completed = events.OfType<ToolCallCompletedEvent>().Single();
         Assert.That(completed.CallId, Is.EqualTo("call2"));
@@ -297,7 +297,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
-        Assert.That(failed.ErrorCode, Is.Null);
+        Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
         Assert.That(failed.Duration, Is.LessThan(TimeSpan.FromMilliseconds(1500)));
     }
 }

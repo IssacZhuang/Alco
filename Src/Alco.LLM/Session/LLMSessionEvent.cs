@@ -17,6 +17,29 @@ public sealed record RequestStartedEvent(
     int RequestIndex) : LLMSessionEvent(Timestamp);
 
 /// <summary>
+/// Emitted when a transient LLM request failure occurs before any token is received,
+/// and the request is about to be retried. Not emitted for mid-stream failures (those
+/// cannot be retried safely) or for user cancellation.
+/// </summary>
+public sealed record RequestRetryEvent(
+    DateTimeOffset Timestamp,
+    int RequestIndex,
+    int Attempt,
+    int MaxAttempts,
+    int DelayMs,
+    string Error,
+    string ErrorType) : LLMSessionEvent(Timestamp);
+
+/// <summary>
+/// Emitted when the auto-invoke tool loop exhausts <see cref="LLMSessionConfig"/>'s
+/// <c>MaxAutoInvokeIterations</c> cap without the model producing a tool-free response.
+/// Fired before the final tool-free request that wraps up the turn.
+/// </summary>
+public sealed record MaxIterationsReachedEvent(
+    DateTimeOffset Timestamp,
+    int RequestIndex) : LLMSessionEvent(Timestamp);
+
+/// <summary>
 /// Emitted for assistant text streamed from the model.
 /// </summary>
 public sealed record TextDeltaEvent(

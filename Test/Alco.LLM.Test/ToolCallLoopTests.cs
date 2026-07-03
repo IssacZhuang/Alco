@@ -47,10 +47,11 @@ public class ToolCallLoopTests
             .ToList();
     }
 
-    private static IReadOnlyDictionary<string, object?> GetFailureResult(FunctionResultContent content)
+    private static (string Error, string Code) GetFailureResult(FunctionResultContent content)
     {
-        Assert.That(content.Result, Is.TypeOf<Dictionary<string, object?>>());
-        return (Dictionary<string, object?>)content.Result!;
+        Assert.That(content.Result, Is.TypeOf<string>());
+        using var doc = JsonDocument.Parse((string)content.Result!);
+        return (doc.RootElement.GetProperty("error").GetString()!, doc.RootElement.GetProperty("code").GetString()!);
     }
 
     [SetUp]
@@ -143,9 +144,9 @@ public class ToolCallLoopTests
         // Second call history should have a tool message with error
         var secondCallMessages = client.ReceivedMessagesHistory[1];
         var toolResult = GetFunctionResults(secondCallMessages).Single();
-        var failure = GetFailureResult(toolResult);
-        Assert.That(failure["success"], Is.False);
-        Assert.That(failure["errorType"], Is.EqualTo(nameof(KeyNotFoundException)));
+        var (error, code) = GetFailureResult(toolResult);
+        Assert.That(code, Is.EqualTo("TOOL_NOT_FOUND"));
+        Assert.That(error, Does.Contain("NonExistent"));
     }
 
     [Test]
@@ -163,9 +164,9 @@ public class ToolCallLoopTests
 
         Assert.That(result, Is.EqualTo("Handled error."));
         var toolResult = GetFunctionResults(client.ReceivedMessagesHistory[1]).Single();
-        var failure = GetFailureResult(toolResult);
-        Assert.That(failure["success"], Is.False);
-        Assert.That(failure["errorType"], Is.EqualTo(nameof(InvalidOperationException)));
+        var (error, code) = GetFailureResult(toolResult);
+        Assert.That(code, Is.EqualTo("RUNTIME_EXCEPTION"));
+        Assert.That(error, Is.EqualTo("Test error"));
     }
 
     [Test]
@@ -206,9 +207,9 @@ public class ToolCallLoopTests
 
         Assert.That(result, Is.EqualTo("Timeout handled."));
         var toolResult = GetFunctionResults(client.ReceivedMessagesHistory[1]).Single();
-        var failure = GetFailureResult(toolResult);
-        Assert.That(failure["success"], Is.False);
-        Assert.That(failure["errorType"], Is.EqualTo(nameof(TimeoutException)));
+        var (error, code) = GetFailureResult(toolResult);
+        Assert.That(code, Is.EqualTo("TIMEOUT"));
+        Assert.That(error, Does.Contain("timed out"));
     }
 
     [Test]
@@ -400,7 +401,7 @@ public class ToolCallLoopTests
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ToolName, Is.EqualTo("NonExistent"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(KeyNotFoundException)));
-        Assert.That(failed.ErrorCode, Is.Null);
+        Assert.That(failed.ErrorCode, Is.EqualTo("TOOL_NOT_FOUND"));
         Assert.That(failed.Error, Does.Contain("NonExistent"));
         Assert.That(events.OfType<TextDeltaEvent>().Single().Text, Is.EqualTo("Handled."));
     }
@@ -440,7 +441,7 @@ public class ToolCallLoopTests
 
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
-        Assert.That(failed.ErrorCode, Is.Null);
+        Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
     }
 
     [Test]
