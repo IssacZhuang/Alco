@@ -205,21 +205,10 @@ public sealed class LLMSession
             var updates = new List<ChatResponseUpdate>();
             yield return new RequestStartedEvent(DateTimeOffset.UtcNow, requestIndex);
 
-            await foreach (var item in InvokeWithRetryAsync(_chatHistory, _chatOptions, requestIndex, cancellationToken))
+            await foreach (var sessionEvent in StreamLlmRequestEventsAsync(
+                _chatHistory, _chatOptions, requestIndex, updates, cancellationToken))
             {
-                switch (item)
-                {
-                    case RetryStreamItem retryItem:
-                        yield return retryItem.Event;
-                        break;
-                    case UpdateStreamItem updateItem:
-                        updates.Add(updateItem.Update);
-                        if (!string.IsNullOrEmpty(updateItem.Update.Text))
-                        {
-                            yield return new TextDeltaEvent(DateTimeOffset.UtcNow, updateItem.Update.Text);
-                        }
-                        break;
-                }
+                yield return sessionEvent;
             }
 
             var functionCalls = updates.SelectMany(u => u.Contents.OfType<FunctionCallContent>()).ToList();
@@ -309,21 +298,10 @@ public sealed class LLMSession
         var finalUpdates = new List<ChatResponseUpdate>();
         yield return new RequestStartedEvent(DateTimeOffset.UtcNow, requestIndex);
 
-        await foreach (var item in InvokeWithRetryAsync(_chatHistory, finalOptions, requestIndex, cancellationToken))
+        await foreach (var sessionEvent in StreamLlmRequestEventsAsync(
+            _chatHistory, finalOptions, requestIndex, finalUpdates, cancellationToken))
         {
-            switch (item)
-            {
-                case RetryStreamItem retryItem:
-                    yield return retryItem.Event;
-                    break;
-                case UpdateStreamItem updateItem:
-                    finalUpdates.Add(updateItem.Update);
-                    if (!string.IsNullOrEmpty(updateItem.Update.Text))
-                    {
-                        yield return new TextDeltaEvent(DateTimeOffset.UtcNow, updateItem.Update.Text);
-                    }
-                    break;
-            }
+            yield return sessionEvent;
         }
 
         _chatHistory.AddMessages(finalUpdates);
@@ -398,31 +376,16 @@ public sealed class LLMSession
         {
             var displayError = UnwrapException(error);
             var (code, errorType) = ClassifyError(displayError);
-            var errorResult = new ToolError(displayError.Message, code, errorType);
-            return new ToolInvocationEventResult(
-                new FunctionResultContent(callId, _toolResultFormatter.Format(errorResult)),
-                new ToolCallFailedEvent(
-                    DateTimeOffset.UtcNow,
-                    callId,
-                    toolName,
-                    displayError.Message,
-                    errorType,
-                    stopwatch.Elapsed,
-                    errorResult.Code));
+            return BuildToolFailureResult(
+                callId,
+                toolName,
+                new ToolError(displayError.Message, code, errorType),
+                stopwatch.Elapsed);
         }
 
         if (result is ToolError toolError)
         {
-            return new ToolInvocationEventResult(
-                new FunctionResultContent(callId, _toolResultFormatter.Format(toolError)),
-                new ToolCallFailedEvent(
-                    DateTimeOffset.UtcNow,
-                    callId,
-                    toolName,
-                    toolError.Error,
-                    toolError.ErrorType ?? nameof(ToolError),
-                    stopwatch.Elapsed,
-                    toolError.Code));
+            return BuildToolFailureResult(callId, toolName, toolError, stopwatch.Elapsed);
         }
 
         // Format structured results into compact text for LLM history; plain values pass through.
@@ -576,7 +539,54 @@ public sealed class LLMSession
                 yield return new UpdateStreamItem(enumerator.Current);
             }
         }
-        await enumerator!.DisposeAsync();
+
+        if (enumerator != null)
+        {
+            await enumerator.DisposeAsync();
+        }
+    }
+
+    private async IAsyncEnumerable<LLMSessionEvent> StreamLlmRequestEventsAsync(
+        List<ChatMessage> messages,
+        ChatOptions options,
+        int requestIndex,
+        List<ChatResponseUpdate> updates,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var item in InvokeWithRetryAsync(messages, options, requestIndex, cancellationToken))
+        {
+            switch (item)
+            {
+                case RetryStreamItem retryItem:
+                    yield return retryItem.Event;
+                    break;
+                case UpdateStreamItem updateItem:
+                    updates.Add(updateItem.Update);
+                    if (!string.IsNullOrEmpty(updateItem.Update.Text))
+                    {
+                        yield return new TextDeltaEvent(DateTimeOffset.UtcNow, updateItem.Update.Text);
+                    }
+                    break;
+            }
+        }
+    }
+
+    private ToolInvocationEventResult BuildToolFailureResult(
+        string callId,
+        string toolName,
+        ToolError errorResult,
+        TimeSpan duration)
+    {
+        return new ToolInvocationEventResult(
+            new FunctionResultContent(callId, _toolResultFormatter.Format(errorResult)),
+            new ToolCallFailedEvent(
+                DateTimeOffset.UtcNow,
+                callId,
+                toolName,
+                errorResult.Error,
+                errorResult.ErrorType ?? nameof(ToolError),
+                duration,
+                errorResult.Code));
     }
 
     private static bool IsTransient(Exception ex)
