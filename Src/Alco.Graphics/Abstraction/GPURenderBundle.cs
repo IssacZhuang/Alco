@@ -9,8 +9,8 @@ namespace Alco.Graphics;
 public unsafe abstract class GPURenderBundle : BaseGPUObject
 {
     protected bool _isRecording = false;
-    private readonly HashSet<BaseGPUObject> _recordedResources = new();
-    private readonly HashSet<BaseGPUObject> _recordingResources = new();
+    private List<BaseGPUObject> _recordedResources = new();
+    private List<BaseGPUObject> _recordingResources = new();
 
     //API
     public abstract bool HasBuffer { get; }
@@ -42,11 +42,9 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
         // Keep the managed GPU wrappers alive so their finalizers cannot destroy resources that
         // are still referenced by the recorded bundle. Swap only after EndCore has replaced the
         // previous native bundle.
-        _recordedResources.Clear();
-        foreach (BaseGPUObject resource in _recordingResources)
-        {
-            _recordedResources.Add(resource);
-        }
+        List<BaseGPUObject> previousResources = _recordedResources;
+        _recordedResources = _recordingResources;
+        _recordingResources = previousResources;
         _recordingResources.Clear();
     }
 
