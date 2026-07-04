@@ -9,6 +9,9 @@ namespace Alco.Graphics;
 public unsafe abstract class GPURenderBundle : BaseGPUObject
 {
     protected bool _isRecording = false;
+    private readonly HashSet<BaseGPUObject> _recordedResources = new();
+    private readonly HashSet<BaseGPUObject> _recordingResources = new();
+
     //API
     public abstract bool HasBuffer { get; }
     public virtual bool IsRecording
@@ -25,6 +28,7 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
     {
         AssetUtility.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin(GPUAttachmentLayout) twice before calling GPUCommandBuffer.End()");
         _isRecording = true;
+        _recordingResources.Clear();
         BeginCore(attachmentLayout);
     }
 
@@ -33,6 +37,17 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
         _isRecording = false;
         EndCore();
+
+        // A native render bundle retains native handles, but the GC cannot see that ownership.
+        // Keep the managed GPU wrappers alive so their finalizers cannot destroy resources that
+        // are still referenced by the recorded bundle. Swap only after EndCore has replaced the
+        // previous native bundle.
+        _recordedResources.Clear();
+        foreach (BaseGPUObject resource in _recordingResources)
+        {
+            _recordedResources.Add(resource);
+        }
+        _recordingResources.Clear();
     }
 
     //graphics
@@ -40,24 +55,28 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
     public void SetGraphicsPipeline(GPUPipeline pipeline)
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while SetPipeline, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
+        _recordingResources.Add(pipeline);
         SetGraphicsPipelineCore(pipeline);
     }
 
     public void SetGraphicsResources(uint slot, GPUResourceGroup resourceGroup)
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while SetResourceGroup, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
+        _recordingResources.Add(resourceGroup);
         SetGraphicsResourcesCore(slot, resourceGroup);
     }
 
     public void SetVertexBuffer(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while SetVertexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
+        _recordingResources.Add(buffer);
         SetVertexBufferCore(slot, buffer, offset, size);
     }
 
     public void SetIndexBuffer(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while SetIndexBuffer, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
+        _recordingResources.Add(buffer);
         SetIndexBufferCore(buffer, format, offset, size);
     }
 
@@ -76,12 +95,14 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
     public void DrawIndirect(GPUBuffer indirectBuffer, uint offset)
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while DrawIndirect, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
+        _recordingResources.Add(indirectBuffer);
         DrawIndirectCore(indirectBuffer, offset);
     }
 
     public void DrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset)
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while DrawIndexedIndirect, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
+        _recordingResources.Add(indirectBuffer);
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
