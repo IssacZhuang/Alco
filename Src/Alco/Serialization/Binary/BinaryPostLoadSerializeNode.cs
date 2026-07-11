@@ -310,7 +310,7 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         if (_clearMissingReferences)
             referenceable = default;
 
-        if (!TryGetId(key, out uint id) || id == 0)
+        if (!TryGetId(key, out ulong id) || id == 0)
             return;
 
         if (_referenceContext.TryGetReference(id, out object? obj) && obj is T reference)
@@ -322,9 +322,9 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         AddError($"Failed to resolve reference '{key}': {id}\n{Environment.StackTrace}");
     }
 
-    private bool TryGetId(string key, out uint id)
+    private bool TryGetId(string key, out ulong id)
     {
-        if (_content.TryGetValue(key, out uint v))
+        if (_content.TryGetValue(key, out ulong v))
         {
             id = v;
             return true;
