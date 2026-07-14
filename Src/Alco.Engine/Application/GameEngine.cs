@@ -151,9 +151,8 @@ IDisposable
     }
 
     /// <summary>
-    /// The frame updated in a second
+    /// Gets the average main-loop frame rate measured from wall-clock frame intervals.
     /// </summary>
-    /// <value></value>
     public int FrameRate
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -161,13 +160,30 @@ IDisposable
     }
 
     /// <summary>
-    /// The total time of CPU and GPU used in a frame
+    /// Gets the one-percent-low frame rate calculated from recent wall-clock frame intervals.
     /// </summary>
-    /// <value></value>
+    public int OnePercentLowFrameRate
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _profiler.OnePercentLowFPS;
+    }
+
+    /// <summary>
+    /// Gets the average wall-clock duration between main-loop frames, in seconds.
+    /// </summary>
     public float FrameTime
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _profiler.FrameTime;
+    }
+
+    /// <summary>
+    /// Gets the 99th-percentile wall-clock frame duration from recent samples, in seconds.
+    /// </summary>
+    public float P99FrameTime
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _profiler.P99FrameTime;
     }
 
     /// <summary>
@@ -236,10 +252,11 @@ IDisposable
         Task<Shader> shaderBlit = _assetSystem.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
 
         _platform = _setting.Platform ?? new Sdl3Platform();
+        _platform.TargetFrameRate = _setting.TargetFrameRate;
         _input = _platform.Input;
         _platform.OnAudioDefaultDeviceChanged += () => _audioDevice.NotifyDefaultDeviceChanged();
 
-        _profiler = new EngineProfiler(this);
+        _profiler = new EngineProfiler();
 
         //main view
         _mainView = CreateView(_setting.View);
@@ -402,6 +419,8 @@ IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalUpdate(float delta)
     {
+        _profiler.Update(Stopwatch.GetTimestamp());
+
         // Process any callbacks queued for the main thread
         _synchronizationContext.ProcessCallbacks();
 
@@ -447,8 +466,6 @@ IDisposable
         OnSystemPostUpdate(delta);
 
         EventOnHandleAssetLoaded?.Invoke();
-        _profiler.Update(delta);
-
         try
         {
             OnEndFrame();

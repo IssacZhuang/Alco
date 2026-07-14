@@ -45,7 +45,7 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
 
         Material textMaterial = _renderingSystem.CreateMaterial(shaderText);
         textMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
-        textMaterial.BlendState = BlendState.AlphaBlend;
+        textMaterial.BlendState = BlendState.PremultipliedAlpha;
 
         _rendererContent = _renderingSystem.CreateRenderContext("debug_stats_content");
         _textRenderer = _renderingSystem.CreateTextRenderer(_rendererContent, textMaterial);

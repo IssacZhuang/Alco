@@ -3,6 +3,9 @@ using Alco.Graphics;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Provides the operating-system integration used by the engine main loop, input, and views.
+/// </summary>
 public abstract class Platform : AutoDisposable
 {
     /// <summary>
@@ -17,6 +20,11 @@ public abstract class Platform : AutoDisposable
     /// Raised when the system's default audio playback device may have changed.
     /// </summary>
     public event Action? OnAudioDefaultDeviceChanged;
+
+    /// <summary>
+    /// Gets or sets the main-loop frame-rate limit. A value less than or equal to zero disables frame limiting.
+    /// </summary>
+    public int TargetFrameRate { get; set; }
 
 
     /// <summary>
