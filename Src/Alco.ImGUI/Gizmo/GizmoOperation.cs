@@ -56,8 +56,8 @@ public enum GizmoOperation
     /// <summary>Translate along all axes.</summary>
     Translate = TranslateX | TranslateY | TranslateZ,
 
-    /// <summary>Rotate around all axes.</summary>
-    Rotate = RotateX | RotateY | RotateZ,
+    /// <summary>Rotate around all axes, including the screen-space ring (matches ImGuizmo's ROTATE).</summary>
+    Rotate = RotateX | RotateY | RotateZ | RotateScreen,
 
     /// <summary>Scale along all axes.</summary>
     Scale = ScaleX | ScaleY | ScaleZ,

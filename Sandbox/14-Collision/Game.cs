@@ -121,7 +121,7 @@ public class Game : GameEngine
 
         ImGui.End();
 
-        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, OPERATION.TRANSLATE, MODE.LOCAL, ref _entity.transform, Vector3.Zero);
+        Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, GizmoOperation.Translate, GizmoMode.Local, ref _entity.transform);
     }
 
 

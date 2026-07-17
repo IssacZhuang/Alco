@@ -27,7 +27,7 @@ public class Game : GameEngine
 
     private readonly GPUCommandBuffer _commandClearScreen;
 
-    private OPERATION _currentOperationEnum = OPERATION.TRANSLATE;
+    private GizmoOperation _currentOperationEnum = GizmoOperation.Translate;
 
     private Vector3 _rotationAngles = Vector3.Zero;
 
@@ -105,7 +105,7 @@ public class Game : GameEngine
 
         ImGui.End();
 
-        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _currentOperationEnum, MODE.LOCAL, ref _cube.transform);
+        Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _currentOperationEnum, GizmoMode.Local, ref _cube.transform);
     }
 
 
