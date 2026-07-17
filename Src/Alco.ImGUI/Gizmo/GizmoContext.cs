@@ -100,6 +100,12 @@ internal sealed class GizmoContext
     /// <summary>Set once any handle was hit this frame; prevents multiple gizmos from highlighting in the same frame.</summary>
     public bool OverGizmoHotspot;
 
+    /// <summary>
+    /// Display-only multiplier applied to the translation drag info text, for editors whose
+    /// authoring unit differs from world units (e.g. texels). Reset to 1 by <see cref="BeginFrame"/>.
+    /// </summary>
+    public float InfoUnitScale = 1f;
+
     // Per-call working set, recomputed by every Manipulate call and consumed by the draw layer.
 
     /// <summary>Whether the last Manipulate call produced a drawable/interactive gizmo (false for degenerate matrices or behind-camera origins).</summary>
@@ -245,5 +251,6 @@ internal sealed class GizmoContext
         Viewport = viewport;
         FrameHoverType = GizmoMoveType.None;
         OverGizmoHotspot = false;
+        InfoUnitScale = 1f;
     }
 }

@@ -252,11 +252,22 @@ internal static class GizmoDraw
             drawList.AddPolyline(ref circlePos[0], HalfCircleSegmentCount + 1, ctx.Style.RotationUsingBorderColor, ImDrawFlags.Closed, ctx.Style.RotationLineThickness);
 
             Vector2 destinationPosOnScreen = circlePos[1];
-            float degrees = ctx.RotationAngle / MathF.PI * 180f;
+            float displayAngle = ctx.RotationAngle * EngineRotationSign(type);
+            float degrees = displayAngle / MathF.PI * 180f;
             string text = FormattableString.Invariant(
-                $"{RotationInfoLabel[type - GizmoMoveType.RotateX]} : {degrees:F2} deg {ctx.RotationAngle:F2} rad");
+                $"{RotationInfoLabel[type - GizmoMoveType.RotateX]} : {degrees:F2} deg {displayAngle:F2} rad");
             DrawInfoText(drawList, ctx, destinationPosOnScreen, text);
         }
+    }
+
+    /// <summary>
+    /// Sign converting the raw right-handed plane angle to the engine's euler convention
+    /// (Roll X / Pitch Y are RH-negative, Yaw Z is RH-positive), so the rotation info text
+    /// matches the inspector's euler readout (<see cref="math.euler"/>).
+    /// </summary>
+    internal static float EngineRotationSign(GizmoMoveType type)
+    {
+        return type is GizmoMoveType.RotateX or GizmoMoveType.RotateY ? -1f : 1f;
     }
 
     /// <summary>Draws the translation axes, plane quads, center handle and active drag info.</summary>
@@ -341,7 +352,8 @@ internal static class GizmoDraw
                     ctx.Style.TranslationLineColor, 2f);
             }
 
-            Vector3 deltaInfo = modelPos - ctx.MatrixOrigin;
+            // Show the drag delta in the caller's authoring unit (InfoUnitScale), not raw world units.
+            Vector3 deltaInfo = (modelPos - ctx.MatrixOrigin) * ctx.InfoUnitScale;
             int maskIndex = type - GizmoMoveType.MoveX;
             int componentInfoIndex = maskIndex * 3;
             string format = TranslationInfoMask[maskIndex];

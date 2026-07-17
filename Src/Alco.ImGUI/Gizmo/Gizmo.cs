@@ -48,6 +48,17 @@ public static class Gizmo
     public static GizmoStyle Style => _context.Style;
 
     /// <summary>
+    /// Display-only multiplier applied to the translation drag info text, for editors whose
+    /// authoring unit differs from world units (e.g. the weapon attachment editor's texels).
+    /// Reset to 1 by <see cref="BeginFrame"/> every frame; set it per frame before Manipulate.
+    /// </summary>
+    public static float InfoUnitScale
+    {
+        get => _context.InfoUnitScale;
+        set => _context.InfoUnitScale = value;
+    }
+
+    /// <summary>
     /// Per-frame reset driven by the renderer: snapshots the mouse input from ImGui,
     /// sets the viewport to the full render target and clears the hover state while
     /// keeping any active drag. Called by <see cref="ImGUIRenderer.Begin"/>.
