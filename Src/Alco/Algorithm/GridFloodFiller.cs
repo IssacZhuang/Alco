@@ -5,9 +5,12 @@ using System.Runtime.CompilerServices;
 namespace Alco;
 
 /// <summary>
-/// Breadth-first flood fill helper for grid-based traversal.
+/// Breadth-first flood fill helper for grid-based traversal. Tracks visited cells in a fixed-size
+/// <see cref="byte"/>[] bitmap, so it requires a known rectangular bounds and only covers
+/// <c>[0,width)×[0,height)</c>. For unbounded or arbitrary-coordinate fills, use
+/// <see cref="HashSetFloodFiller"/>.
 /// </summary>
-public sealed class FloodFiller
+public sealed class GridFloodFiller
 {
     private readonly Deque<int2> _pending = new Deque<int2>();
     private readonly UnorderedList<int2> _result = new UnorderedList<int2>();
@@ -21,11 +24,11 @@ public sealed class FloodFiller
     public ReadOnlySpan<int2> Result => _result.AsSpan();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="FloodFiller"/> with the specified grid size.
+    /// Initializes a new instance of the <see cref="GridFloodFiller"/> with the specified grid size.
     /// </summary>
     /// <param name="width">Grid width in cells.</param>
     /// <param name="height">Grid height in cells.</param>
-    public FloodFiller(int width, int height)
+    public GridFloodFiller(int width, int height)
     {
         _width = width;
         _height = height;

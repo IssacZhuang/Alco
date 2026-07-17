@@ -5,12 +5,12 @@ using NUnit.Framework;
 namespace Alco.Test.Algorithm;
 
 [TestFixture]
-public class TestFloodFiller
+public class TestGridFloodFiller
 {
     [Test]
     public void SingleCellFill_Works()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
         var filled = filler.Fill(new int2(1, 1), cell => cell.X == 1 && cell.Y == 1);
 
         Assert.That(filled, Is.True);
@@ -22,7 +22,7 @@ public class TestFloodFiller
     [Test]
     public void FillEntireGrid_WhenAllCellsTraversable()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
         var filled = filler.Fill(new int2(0, 0), cell => true);
 
         Assert.That(filled, Is.True);
@@ -41,7 +41,7 @@ public class TestFloodFiller
     [Test]
     public void FillWithObstacles_Works()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
         // Block the center cell
         var filled = filler.Fill(new int2(0, 0), cell => !(cell.X == 1 && cell.Y == 1));
 
@@ -65,7 +65,7 @@ public class TestFloodFiller
     [Test]
     public void FillWithMaxStep_LimitsResult()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
         var filled = filler.Fill(new int2(0, 0), cell => true, maxStep: 5);
 
         Assert.That(filled, Is.False); // Should return false because maxStep was reached
@@ -76,7 +76,7 @@ public class TestFloodFiller
     [Test]
     public void FillWithMaxStepZero_ReturnsEmpty()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
         var filled = filler.Fill(new int2(0, 0), cell => true, maxStep: 0);
 
         Assert.That(filled, Is.False); // Should return false because maxStep was reached immediately
@@ -87,7 +87,7 @@ public class TestFloodFiller
     [Test]
     public void FillOutOfBounds_ReturnsEmpty()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
         var filled = filler.Fill(new int2(-1, 0), cell => true);
 
         Assert.That(filled, Is.False); // Should return false for out of bounds start
@@ -98,7 +98,7 @@ public class TestFloodFiller
     [Test]
     public void FillNonTraversableStart_ReturnsEmpty()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
         var filled = filler.Fill(new int2(1, 1), cell => false);
 
         Assert.That(filled, Is.False); // Should return false for non-traversable start
@@ -109,7 +109,7 @@ public class TestFloodFiller
     [Test]
     public void FillIsland_IslandOnly()
     {
-        var filler = new FloodFiller(5, 5);
+        var filler = new GridFloodFiller(5, 5);
         // Create an island: only cells in the bottom-right corner
         var filled = filler.Fill(new int2(3, 3), cell => cell.X >= 2 && cell.Y >= 2);
 
@@ -127,7 +127,7 @@ public class TestFloodFiller
     [Test]
     public void Resize_Works()
     {
-        var filler = new FloodFiller(2, 2);
+        var filler = new GridFloodFiller(2, 2);
         filler.Resize(3, 3);
 
         var filled = filler.Fill(new int2(0, 0), cell => true);
@@ -139,7 +139,7 @@ public class TestFloodFiller
     [Test]
     public void MultipleFills_ResetProperly()
     {
-        var filler = new FloodFiller(3, 3);
+        var filler = new GridFloodFiller(3, 3);
 
         // First fill
         var filled1 = filler.Fill(new int2(0, 0), cell => true);
@@ -163,7 +163,7 @@ public class TestFloodFiller
     [Test]
     public void FillReturnsFalse_WhenMaxStepReached()
     {
-        var filler = new FloodFiller(10, 10);
+        var filler = new GridFloodFiller(10, 10);
         // Create a large area that would need more than 50 steps to fill completely
         var filled = filler.Fill(new int2(0, 0), cell => true, maxStep: 50);
 
