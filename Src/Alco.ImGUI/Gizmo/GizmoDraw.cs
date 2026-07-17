@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Numerics;
 
 namespace Alco.ImGUI;
@@ -23,19 +22,8 @@ internal static class GizmoDraw
     /// <summary>Plane handle quad UVs (min/max extent in gizmo-sized units).</summary>
     private static readonly float[] QuadUV = { 0.5f, 0.5f, 0.5f, 0.8f, 0.8f, 0.8f, 0.8f, 0.5f };
 
-    /// <summary>Info text labels for translation drags, indexed by handle.</summary>
-    private static readonly string[] TranslationInfoMask =
-    {
-        "X : {0:F3}", "Y : {0:F3}", "Z : {0:F3}",
-        "Y : {0:F3} Z : {1:F3}", "X : {0:F3} Z : {1:F3}", "X : {0:F3} Y : {1:F3}",
-        "X : {0:F3} Y : {1:F3} Z : {2:F3}",
-    };
-
-    /// <summary>Component indices used with <see cref="TranslationInfoMask"/>.</summary>
+    /// <summary>Component indices used with the translation/scale drag info text.</summary>
     private static readonly int[] TranslationInfoIndex = { 0, 0, 0, 1, 0, 0, 2, 0, 0, 1, 2, 0, 0, 2, 0, 0, 1, 0, 0, 1, 2 };
-
-    /// <summary>Info text labels for scale drags, indexed by handle.</summary>
-    private static readonly string[] ScaleInfoMask = { "X : {0:F2}", "Y : {0:F2}", "Z : {0:F2}", "XYZ : {0:F2}" };
 
     /// <summary>Info text labels for rotation drags, indexed by handle.</summary>
     private static readonly string[] RotationInfoLabel = { "X", "Y", "Z", "Screen" };
@@ -133,12 +121,12 @@ internal static class GizmoDraw
     }
 
     /// <summary>Computes the per-handle colors for one gizmo category from hover/active state.</summary>
-    private static void ComputeColors(GizmoContext ctx, uint[] colors, GizmoMoveType type, GizmoOperation category)
+    private static void ComputeColors(GizmoContext ctx, Span<uint> colors, GizmoMoveType type, GizmoOperation category)
     {
         GizmoStyle style = ctx.Style;
         uint selectionColor = style.SelectionColor;
-        uint[] directionColors = { style.DirectionXColor, style.DirectionYColor, style.DirectionZColor };
-        uint[] planeColors = { style.PlaneXColor, style.PlaneYColor, style.PlaneZColor };
+        Span<uint> directionColors = stackalloc uint[3] { style.DirectionXColor, style.DirectionYColor, style.DirectionZColor };
+        Span<uint> planeColors = stackalloc uint[3] { style.PlaneXColor, style.PlaneYColor, style.PlaneZColor };
 
         if (category == GizmoOperation.Translate)
         {
@@ -176,7 +164,7 @@ internal static class GizmoDraw
             return;
         }
 
-        uint[] colors = new uint[7];
+        Span<uint> colors = stackalloc uint[7];
         ComputeColors(ctx, colors, type, GizmoOperation.Rotate);
 
         Vector3 modelPos = GizmoMath.Translation(ctx.Model);
@@ -253,9 +241,12 @@ internal static class GizmoDraw
 
             Vector2 destinationPosOnScreen = circlePos[1];
             float displayAngle = ctx.RotationAngle * EngineRotationSign(type);
-            float degrees = displayAngle / MathF.PI * 180f;
-            string text = FormattableString.Invariant(
-                $"{RotationInfoLabel[type - GizmoMoveType.RotateX]} : {degrees:F2} deg {displayAngle:F2} rad");
+            FixedString64 text = RotationInfoLabel[type - GizmoMoveType.RotateX];
+            text.Append(" : ");
+            text.Append(displayAngle / MathF.PI * 180f, 2);
+            text.Append(" deg ");
+            text.Append(displayAngle, 2);
+            text.Append(" rad");
             DrawInfoText(drawList, ctx, destinationPosOnScreen, text);
         }
     }
@@ -278,12 +269,12 @@ internal static class GizmoDraw
             return;
         }
 
-        uint[] colors = new uint[7];
+        Span<uint> colors = stackalloc uint[7];
         ComputeColors(ctx, colors, type, GizmoOperation.Translate);
 
         Vector3 modelPos = GizmoMath.Translation(ctx.Model);
         Vector2 origin = GizmoMath.WorldToScreen(modelPos, ctx.ViewProjection, ctx.Viewport);
-        uint[] directionColors = { ctx.Style.DirectionXColor, ctx.Style.DirectionYColor, ctx.Style.DirectionZColor };
+        Span<uint> directionColors = stackalloc uint[3] { ctx.Style.DirectionXColor, ctx.Style.DirectionYColor, ctx.Style.DirectionZColor };
         Span<Vector2> screenQuadPts = stackalloc Vector2[4];
 
         for (int i = 0; i < 3; i++)
@@ -356,11 +347,19 @@ internal static class GizmoDraw
             Vector3 deltaInfo = (modelPos - ctx.MatrixOrigin) * ctx.InfoUnitScale;
             int maskIndex = type - GizmoMoveType.MoveX;
             int componentInfoIndex = maskIndex * 3;
-            string format = TranslationInfoMask[maskIndex];
-            float c0 = GizmoMath.Component(deltaInfo, TranslationInfoIndex[componentInfoIndex]);
-            float c1 = GizmoMath.Component(deltaInfo, TranslationInfoIndex[componentInfoIndex + 1]);
-            float c2 = GizmoMath.Component(deltaInfo, TranslationInfoIndex[componentInfoIndex + 2]);
-            string text = string.Format(CultureInfo.InvariantCulture, format, c0, c1, c2);
+            int componentCount = maskIndex < 3 ? 1 : maskIndex < 6 ? 2 : 3;
+            FixedString64 text = new();
+            for (int k = 0; k < componentCount; k++)
+            {
+                if (k > 0)
+                {
+                    text.Append(' ');
+                }
+                int component = TranslationInfoIndex[componentInfoIndex + k];
+                text.Append("XYZ"[component]);
+                text.Append(" : ");
+                text.Append(GizmoMath.Component(deltaInfo, component), 3);
+            }
             DrawInfoText(drawList, ctx, destinationPosOnScreen, text);
         }
     }
@@ -373,7 +372,7 @@ internal static class GizmoDraw
             return;
         }
 
-        uint[] colors = new uint[7];
+        Span<uint> colors = stackalloc uint[7];
         ComputeColors(ctx, colors, type, GizmoOperation.Scale);
 
         Vector3 scaleDisplay = Vector3.One;
@@ -443,7 +442,17 @@ internal static class GizmoDraw
             int maskIndex = type - GizmoMoveType.ScaleX;
             int componentInfoIndex = maskIndex * 3;
             float value = GizmoMath.Component(scaleDisplay, TranslationInfoIndex[componentInfoIndex]);
-            string text = string.Format(CultureInfo.InvariantCulture, ScaleInfoMask[maskIndex], value);
+            FixedString64 text = new();
+            if (maskIndex < 3)
+            {
+                text.Append("XYZ"[maskIndex]);
+            }
+            else
+            {
+                text.Append("XYZ");
+            }
+            text.Append(" : ");
+            text.Append(value, 2);
             DrawInfoText(drawList, ctx, destinationPosOnScreen, text);
         }
     }
@@ -465,7 +474,7 @@ internal static class GizmoDraw
     }
 
     /// <summary>Draws the drag info text with a shadow offset, ImGuizmo style.</summary>
-    private static void DrawInfoText(ImDrawListPtr drawList, GizmoContext ctx, Vector2 position, string text)
+    private static void DrawInfoText(ImDrawListPtr drawList, GizmoContext ctx, Vector2 position, ReadOnlySpan<char> text)
     {
         drawList.AddText(new Vector2(position.X + 15f, position.Y + 15f), ctx.Style.TextShadowColor, text);
         drawList.AddText(new Vector2(position.X + 14f, position.Y + 14f), ctx.Style.TextColor, text);
