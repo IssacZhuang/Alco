@@ -105,6 +105,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         ImGui.NewFrame();
         ImGuizmo.BeginFrame();
+        Gizmo.BeginFrame(width, height);
         _target = target;
     }
 
