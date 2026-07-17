@@ -10,6 +10,16 @@ namespace Alco.Engine;
 public sealed class NoView : View
 {
 
+    /// <summary>
+    /// Creates a headless view sized from the given <paramref name="setting"/>.
+    /// The size drives the offscreen render texture resolution (and thus the screenshot resolution);
+    /// a zero size would collapse the render target to 1×1.
+    /// </summary>
+    public NoView(ViewSetting setting)
+    {
+        Size = new uint2(setting.Width, setting.Height);
+    }
+
     /// <inheritdoc />
     public override WindowMode WindowMode { get; set; }
 

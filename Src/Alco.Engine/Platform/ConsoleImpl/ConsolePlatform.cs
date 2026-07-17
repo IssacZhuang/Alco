@@ -30,7 +30,7 @@ public class ConsolePlatform : Platform
     /// <inheritdoc/>
     public override View CreateView(GPUDevice device, ViewSetting setting)
     {
-        return new NoView();
+        return new NoView(setting);
     }
 
     /// <inheritdoc/>

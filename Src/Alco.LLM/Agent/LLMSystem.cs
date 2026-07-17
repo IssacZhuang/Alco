@@ -56,9 +56,18 @@ public class LLMSystem : BaseEngineSystem
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public LLMAgent CreateAgent(LLMAgentOptions options)
     {
-        var agent = LLMAgent.Create(options, _jsonOptions);
-        _registry = agent.Registry;
-        return agent;
+        // Reuse the shared registry (built once by the engine) so the HTTP API and the chat agent
+        // share a single main-thread queue that this system drains each tick. Fall back to building
+        // one from the options if no shared registry was provided.
+        if (_registry == null)
+        {
+            _registry = new ToolRegistry(
+                options.ToolTypes ?? Array.Empty<Type>(),
+                options.ToolInstances,
+                _jsonOptions);
+        }
+
+        return LLMAgent.Create(options, _jsonOptions, _registry);
     }
 
     /// <inheritdoc/>

@@ -95,6 +95,19 @@ namespace Alco.Engine
         public Platform? Platform;
 
         /// <summary>
+        /// Whether the engine runs in headless mode (no window, GPU rendering to an offscreen target).
+        /// When true, the game skips window-only initialization and the HTTP API server starts
+        /// independently of any LLM agent.
+        /// </summary>
+        public bool IsHeadless;
+
+        /// <summary>
+        /// Whether to start the HTTP game API server on engine start. Defaults to <c>true</c> for
+        /// production and headless modes; tests set this to <c>false</c> to avoid binding a real port.
+        /// </summary>
+        public bool EnableGameApi = true;
+
+        /// <summary>
         /// Creates the default standard-dynamic-range engine configuration.
         /// </summary>
         /// <returns>A configured engine setting.</returns>

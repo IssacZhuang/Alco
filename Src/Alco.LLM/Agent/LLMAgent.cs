@@ -57,6 +57,25 @@ public class LLMAgent
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public static LLMAgent Create(LLMAgentOptions options, JsonSerializerOptions jsonOptions)
     {
+        var registry = new ToolRegistry(
+            options.ToolTypes ?? Array.Empty<Type>(),
+            options.ToolInstances,
+            jsonOptions);
+
+        return Create(options, jsonOptions, registry);
+    }
+
+    /// <summary>
+    /// Creates an LLMAgent that reuses an existing <see cref="ToolRegistry"/> instance.
+    /// Use this overload when the registry is shared (e.g. between the HTTP API and the chat agent)
+    /// so that a single main-thread queue is drained consistently by <see cref="LLMSystem"/>.
+    /// </summary>
+    /// <param name="options">The options for creating the agent.</param>
+    /// <param name="jsonOptions">The JSON serializer options configured with engine type converters.</param>
+    /// <param name="registry">The shared tool registry to reuse.</param>
+    /// <returns>A new instance of <see cref="LLMAgent"/> backed by <paramref name="registry"/>.</returns>
+    public static LLMAgent Create(LLMAgentOptions options, JsonSerializerOptions jsonOptions, ToolRegistry registry)
+    {
         IChatClient chatClient = options.Provider switch
         {
             LLMProvider.OpenAI => CreateOpenAIChatClient(options),
@@ -64,11 +83,6 @@ public class LLMAgent
             LLMProvider.Gemini => CreateGeminiChatClient(options),
             _ => throw new ArgumentException($"Unsupported LLM provider: {options.Provider}"),
         };
-
-        var registry = new ToolRegistry(
-            options.ToolTypes ?? Array.Empty<Type>(),
-            options.ToolInstances,
-            jsonOptions);
 
         var tools = registry.ToAITools();
 
