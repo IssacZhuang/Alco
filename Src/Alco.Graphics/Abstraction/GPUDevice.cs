@@ -38,6 +38,11 @@ public abstract class GPUDevice
     public abstract PixelFormat PreferredSurfaceFormat { get; }
     public abstract bool TextureCompressBC3Supported { get; }
 
+    /// <summary>
+    /// The maximum number of bind groups (descriptor sets / <c>@group</c>) supported by this device.
+    /// </summary>
+    public abstract int MaxBindGroups { get; }
+
     public GPUDevice(in DeviceDescriptor descriptor)
     {
         _disposeDelay = descriptor.DisposeDelay;

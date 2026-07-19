@@ -39,6 +39,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     // supported details
     private readonly PixelFormat _preferredSurfaceFormat;
+    private readonly int _maxBindGroups;
     private GCHandle _thisHandle;
 
     public bool IsDebug { get; }
@@ -98,6 +99,15 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public override GPUBindGroup BindGroupTexture2DStorage { get; }
 
     public override bool TextureCompressBC3Supported { get; }
+
+    /// <summary>
+    /// The maximum number of bind groups supported by the WebGPU adapter.
+    /// </summary>
+    public override int MaxBindGroups
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _maxBindGroups;
+    }
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
 
@@ -988,6 +998,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             {
                 throw new GraphicsException("Could not get WebGPU adapter limits");
             }
+            _maxBindGroups = (int)limits.maxBindGroups;
         
             WGPUNativeLimits nativeLimits = new WGPUNativeLimits()
             {

@@ -40,6 +40,9 @@ internal class NoDevice : GPUDevice
     }
     public static readonly NoDevice noDevice = new NoDevice();
 
+    // The representative bind-group limit reported in NoGPU mode (no real adapter is available).
+    private const int NoGpuMaxBindGroups = 8;
+
     public override GPUBindGroup BindGroupUniformBuffer {get;}
 
     public override GPUBindGroup BindGroupStorageBuffer {get;}
@@ -58,6 +61,10 @@ internal class NoDevice : GPUDevice
 
     public override bool TextureCompressBC3Supported => false;
 
+    /// <summary>
+    /// The maximum number of bind groups reported in NoGPU mode.
+    /// </summary>
+    public override int MaxBindGroups => NoGpuMaxBindGroups;
     public NoDevice(): base(new DeviceDescriptor{
         Host = new DummyLoopProvider(),
         Backend = GraphicsBackend.None,

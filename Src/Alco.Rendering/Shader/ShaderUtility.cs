@@ -20,9 +20,10 @@ public static partial class ShaderUtility
     /// <param name="shaderText">The shader text to compile.</param>
     /// <param name="filename">The filename of the shader text.</param>
     /// <param name="multiCompileDefines">The multi-compile defines to use for the shader.</param>
+    /// <param name="maxBindGroups">The maximum number of bind groups allowed by the device; the reflection is validated against this limit.</param>
     /// <param name="includeResolver">The function to resolve the include statements.</param>
     /// <returns>The compiled shader result.</returns>
-    public static ShaderModulesInfo CompileHLSL(string shaderText, string filename, ReadOnlySpan<string> defines, FileIncludeHandler? includeResolver = null)
+    public static ShaderModulesInfo CompileHLSL(string shaderText, string filename, ReadOnlySpan<string> defines, int maxBindGroups, FileIncludeHandler? includeResolver = null)
     {
         List<ShaderMacroDefine> macros = new List<ShaderMacroDefine>();
 
@@ -99,6 +100,7 @@ public static partial class ShaderUtility
                 );
 
             ShaderReflectionInfo reflectionInfo = ShaderReflectionUtility.GetSpirvReflection(vertex.Source, pixel.Source, true);
+            ValidateReflection(reflectionInfo, filename, maxBindGroups);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateGraphics(
                 filename,
                 defineArray,
@@ -123,6 +125,7 @@ public static partial class ShaderUtility
                 );
 
             ShaderReflectionInfo reflectionInfo = ShaderReflectionUtility.GetSpirvReflection(compute.Source, true);
+            ValidateReflection(reflectionInfo, filename, maxBindGroups);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateCompute(
                 filename,
                 defineArray,
@@ -282,6 +285,22 @@ public static partial class ShaderUtility
             fragmentShader,
             computeShader,
             reflectionInfo);
+    }
+
+    /// <summary>
+    /// Validates the bind group layout of the reflection against the device limit, surfacing
+    /// violations as <see cref="ShaderValidationException"/> to keep the compile API uniform.
+    /// </summary>
+    private static void ValidateReflection(ShaderReflectionInfo reflectionInfo, string filename, int maxBindGroups)
+    {
+        try
+        {
+            ShaderReflectionUtility.ValidateBindGroupLayouts(reflectionInfo, maxBindGroups, filename);
+        }
+        catch (ShaderReflectionException e)
+        {
+            throw new ShaderValidationException(e.Message);
+        }
     }
 
     private static string NoIncludeResolver(string includeName)
