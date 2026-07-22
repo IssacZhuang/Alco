@@ -58,7 +58,7 @@ namespace Alco
 
         public void Add(T item)
         {
-            //binary search and insert behind
+            // Binary search, then insert behind all existing items with the same priority.
             int index = AlgoBinarySearch.BinarySearchCeil(_innerList, item, _comparer);
             if (index == -1)
             {
@@ -66,9 +66,12 @@ namespace Alco
             }
             else
             {
+                while (index < _innerList.Count && _comparer(_innerList[index], item) == 0)
+                {
+                    index++;
+                }
                 _innerList.Insert(index, item);
             }
-
         }
 
         public bool Remove(T item)
