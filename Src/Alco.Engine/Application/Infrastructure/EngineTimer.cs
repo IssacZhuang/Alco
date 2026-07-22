@@ -146,6 +146,21 @@ public struct EngineTimer
     }
 
     /// <summary>
+    /// Updates the target frame rate without restarting the stopwatch. Safe to call mid-loop;
+    /// the next frame boundary is re-based on the current timestamp, so no single-frame hitch occurs.
+    /// </summary>
+    /// <param name="targetFrameRate">Target frame rate, or a value less than or equal to zero for unlimited frames.</param>
+    public void SetTargetFrameRate(int targetFrameRate)
+    {
+        _frameIntervalTick = targetFrameRate > 0
+            ? Math.Max(1, Frequency / targetFrameRate)
+            : 0;
+        _nextFrameDeadlineTick = _frameIntervalTick > 0
+            ? _stopwatch.ElapsedTicks + _frameIntervalTick
+            : 0;
+    }
+
+    /// <summary>
     /// Waits for the next configured frame boundary without allocating.
     /// </summary>
     internal void WaitForNextFrame()

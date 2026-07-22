@@ -97,6 +97,7 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
         _config.format = _attachmentLayout.WebGPUColorInfos[0].format;
         _config.usage = WGPUTextureUsage.RenderAttachment;
         _config.presentMode = GetPresentMode(descriptor.IsVSyncEnabled);
+        _isVSyncEnabled = descriptor.IsVSyncEnabled;
         _config.alphaMode = WGPUCompositeAlphaMode.Auto;
 
         _config.width = descriptor.Width;
@@ -119,11 +120,16 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _isVSyncEnabled;
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
+            if (_isVSyncEnabled == value)
+            {
+                return;
+            }
+
             _isVSyncEnabled = value;
             _config.presentMode = GetPresentMode(value);
+            _frameBuffer.UpdateSurfaceConfig(_config);
         }
     }
 

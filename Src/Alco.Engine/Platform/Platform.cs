@@ -21,10 +21,18 @@ public abstract class Platform : AutoDisposable
     /// </summary>
     public event Action? OnAudioDefaultDeviceChanged;
 
+    private int _targetFrameRate;
+
     /// <summary>
-    /// Gets or sets the main-loop frame-rate limit. A value less than or equal to zero disables frame limiting.
+    /// Gets or sets the main-loop frame-rate limit. A value less than or equal to zero disables
+    /// frame limiting. Derived platforms may override the setter to reconfigure their frame timer
+    /// at runtime.
     /// </summary>
-    public int TargetFrameRate { get; set; }
+    public virtual int TargetFrameRate
+    {
+        get => _targetFrameRate;
+        set => _targetFrameRate = value;
+    }
 
 
     /// <summary>

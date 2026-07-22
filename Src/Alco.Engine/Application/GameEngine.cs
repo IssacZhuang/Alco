@@ -95,6 +95,15 @@ IDisposable
     }
 
     /// <summary>
+    /// The platform integration hosting the engine main loop, input, and views.
+    /// </summary>
+    public Platform Platform
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _platform;
+    }
+
+    /// <summary>
     /// The main view singleton of the game
     /// </summary>
     public View MainView

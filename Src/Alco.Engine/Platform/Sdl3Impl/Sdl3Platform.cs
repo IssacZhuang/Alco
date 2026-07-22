@@ -42,6 +42,17 @@ public unsafe class Sdl3Platform : Platform
     }
 
     /// <inheritdoc/>
+    public override int TargetFrameRate
+    {
+        get => base.TargetFrameRate;
+        set
+        {
+            base.TargetFrameRate = value;
+            _timer.SetTargetFrameRate(value);
+        }
+    }
+
+    /// <inheritdoc/>
     public override View CreateView(GPUDevice device, ViewSetting setting)
     {
         Sdl3Window window = new Sdl3Window(device, setting);
