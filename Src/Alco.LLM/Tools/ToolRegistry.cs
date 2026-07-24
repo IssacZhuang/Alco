@@ -109,6 +109,30 @@ public sealed class ToolRegistry
     }
 
     /// <summary>
+    /// Enqueues work to run on the engine main thread (drained by <see cref="DrainMainThreadQueue"/>
+    /// on each tick) and awaits its completion. For hosts that need main-thread access outside of
+    /// tool invocation (e.g. HTTP endpoint handlers mutating engine state).
+    /// </summary>
+    /// <param name="work">The work to execute on the main thread.</param>
+    /// <returns>The work's result.</returns>
+    public Task<object?> RunOnMainThreadAsync(Func<object?> work)
+    {
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mainThreadQueue.Enqueue(() =>
+        {
+            try
+            {
+                tcs.TrySetResult(work());
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        });
+        return tcs.Task;
+    }
+
+    /// <summary>
     /// Drains the main thread queue. Must be called from the engine's main thread on each tick.
     /// </summary>
     public void DrainMainThreadQueue()

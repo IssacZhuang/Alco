@@ -45,7 +45,11 @@ public sealed class GameApiServer : IDisposable
     /// <summary>
     /// Starts the HTTP API server.
     /// </summary>
-    public void Start()
+    /// <param name="configureEndpoints">
+    /// Optional callback invoked after the tool API is mapped and before the server starts,
+    /// allowing the host to register additional endpoints on the same application.
+    /// </param>
+    public void Start(Action<WebApplication>? configureEndpoints = null)
     {
         if (_app != null) return;
 
@@ -63,6 +67,7 @@ public sealed class GameApiServer : IDisposable
 
         var app = builder.Build();
         app.MapToolApi(_registry);
+        configureEndpoints?.Invoke(app);
 
         _app = app;
         _ = app.RunAsync();

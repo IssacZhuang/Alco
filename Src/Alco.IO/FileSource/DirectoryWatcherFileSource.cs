@@ -15,6 +15,9 @@ public class DirectoryWatcherFileSource : AutoDisposable, IFileSource
     private readonly AssetSystem _assetSystem;
     private readonly FileSystemWatcher _watcher;
 
+    /// <summary>The absolute or relative path of the watched root directory.</summary>
+    public string DirectoryPath => _directoryPath;
+
     public string Name => _directoryPath;
 
     public DirectoryWatcherFileSource(string directoryPath, AssetSystem assetSystem)
