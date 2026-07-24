@@ -113,6 +113,12 @@ public partial class Canvas : AutoDisposable, INavigationContext
 
     public bool IsCapturingKeyboard => _textInput != null;
 
+    /// <summary>
+    /// When false, the canvas skips all input handling (hover, click, drag, keys) while still
+    /// rendering. Used to block clicks from passing through an overlay (e.g. ImGui) onto the canvas.
+    /// </summary>
+    public bool IsInputEnabled { get; set; } = true;
+
     public Vector2 CursorPosition {get;private set;}
 
     public BoundingBox2D Bound
@@ -534,6 +540,11 @@ public partial class Canvas : AutoDisposable, INavigationContext
     private void HandleInput()
     {
         if (_inputTracker == null)
+        {
+            return;
+        }
+
+        if (!IsInputEnabled)
         {
             return;
         }
