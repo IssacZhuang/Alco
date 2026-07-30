@@ -57,6 +57,11 @@ public partial class GameEngine
         });
 
         yield return new AssetHotReloaderTexture2D(RenderingSystem);
+
+        if (Setting.HasAudio)
+        {
+            yield return new AssetHotReloaderAudioVorbis(AudioDevice);
+        }
     }
 
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()

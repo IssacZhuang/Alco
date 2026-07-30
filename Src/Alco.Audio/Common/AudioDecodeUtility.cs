@@ -99,6 +99,29 @@ public unsafe static class AudioDecodeUtility
         }
     }
 
+    /// <summary>
+    /// Hot reload an existing audio clip with new ogg data, replacing its PCM content in-place.
+    /// </summary>
+    /// <param name="device">The audio device (unused for decode, kept for API symmetry with <see cref="CreateAudioClipFromOgg"/>).</param>
+    /// <param name="clip">The existing clip to reload.</param>
+    /// <param name="data">The new source data of ogg.</param>
+    public static void UnsafeHotReloadFromOgg(this AudioDevice device, AudioClip clip, ReadOnlySpan<byte> data)
+    {
+        float* buffer = null;
+        try
+        {
+            buffer = VorbisDecoder.DecodeToFloat32Unsafe(data, out int channel, out int sampleCount, out int sampleRate);
+            clip.UnsafeHotReload(new ReadOnlySpan<float>(buffer, sampleCount), channel, sampleRate);
+        }
+        finally
+        {
+            if (buffer != null)
+            {
+                MemoryUtility.Free(buffer);
+            }
+        }
+    }
+
     // public static AudioClip CreateAudioClipFromMpge(this AudioDevice device, ReadOnlySpan<byte> data)
     // {
     //     float[] buffer = DecodeMpge(data, out int channel, out int sampleRate);
