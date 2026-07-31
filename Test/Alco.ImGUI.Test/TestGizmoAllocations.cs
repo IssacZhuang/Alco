@@ -28,14 +28,21 @@ public class TestGizmoAllocations
         Frame(ctx, grab, true, view, projection, op, GizmoMode.World, ref model);
         Frame(ctx, grab + new Vector2(40f, 0f), true, view, projection, op, GizmoMode.World, ref model);
 
+        long allocated = MeasureTranslateDrag(ctx, grab, view, projection, ref model);
+
+        Assert.That(allocated, Is.EqualTo(0), "per-frame core path must not allocate");
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
+    private static long MeasureTranslateDrag(GizmoContext ctx, Vector2 grab, in Matrix4x4 view, in Matrix4x4 projection, ref Matrix4x4 model)
+    {
+        const GizmoOperation op = GizmoOperation.Translate;
         long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < 16; i++)
         {
             Frame(ctx, grab + new Vector2(40f + i, 0f), true, view, projection, op, GizmoMode.World, ref model);
         }
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
-
-        Assert.That(allocated, Is.EqualTo(0), "per-frame core path must not allocate");
+        return GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
     }
 
     [Test]
@@ -57,13 +64,20 @@ public class TestGizmoAllocations
         Frame(ctx, grab, true, view, projection, op, GizmoMode.World, ref model);
         Frame(ctx, grab + new Vector2(20f, 10f), true, view, projection, op, GizmoMode.World, ref model);
 
+        long allocated = MeasureRotateDrag(ctx, grab, view, projection, ref model);
+
+        Assert.That(allocated, Is.EqualTo(0), "per-frame core path must not allocate");
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
+    private static long MeasureRotateDrag(GizmoContext ctx, Vector2 grab, in Matrix4x4 view, in Matrix4x4 projection, ref Matrix4x4 model)
+    {
+        const GizmoOperation op = GizmoOperation.Rotate;
         long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < 16; i++)
         {
             Frame(ctx, grab + new Vector2(20f + i, 10f), true, view, projection, op, GizmoMode.World, ref model);
         }
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
-
-        Assert.That(allocated, Is.EqualTo(0), "per-frame core path must not allocate");
+        return GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
     }
 }
