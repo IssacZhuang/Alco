@@ -27,6 +27,7 @@ struct Constants
     float4 baseColor;
     float4 metallicRoughnessAO; // x=metallic y=roughness z=ambientOcclusion
     float4 params_;             // x=alphaCutoff (0 disables alpha testing)
+    float4 emissive;            // rgb = emissive factor
 };
 
 DEFINE_UNIFORM(0, _camera)
@@ -37,6 +38,7 @@ DEFINE_UNIFORM(0, _camera)
 DEFINE_TEX2D_SAMPLE(1, _albedoTexture);
 DEFINE_TEX2D_SAMPLE(2, _normalTexture);
 DEFINE_TEX2D_SAMPLE(3, _mrTexture);
+DEFINE_TEX2D_SAMPLE(4, _emissiveTexture);
 
 PUSH_CONSTANT Constants constants;
 
@@ -65,7 +67,8 @@ float3 EncodeSRGB(float3 color)
 void MainPS(V2F input,
     out float4 albedoRT : SV_TARGET0,
     out float4 normalRT : SV_TARGET1,
-    out float4 mrAORT : SV_TARGET2)
+    out float4 mrAORT : SV_TARGET2,
+    out float4 emissiveRT : SV_TARGET3)
 {
     float4 albedo = SAMPLE_TEX2D(_albedoTexture, input.uv);
 
@@ -98,4 +101,9 @@ void MainPS(V2F input,
         constants.metallicRoughnessAO.y * mrTex.g,
         constants.metallicRoughnessAO.z,
         1.0);
+
+    // Emissive texture (sRGB-decoded by the sampler) times the linear factor,
+    // stored linear in the RGBA16Float target; no shading applied downstream.
+    float3 emissive = SAMPLE_TEX2D(_emissiveTexture, input.uv).rgb * constants.emissive.rgb;
+    emissiveRT = float4(emissive, 1.0);
 }

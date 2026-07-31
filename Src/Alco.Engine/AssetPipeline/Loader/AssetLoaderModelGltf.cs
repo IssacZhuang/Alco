@@ -9,13 +9,13 @@ namespace Alco.Engine;
 /// <summary>
 /// Asset loader for glTF 2.0 model scenes (.gltf / .glb).
 /// Creates a <see cref="ModelScene"/>: GPU meshes, textures and a flattened draw list.
-/// <br/>Only the engine-relevant material subset is realized (base color, normal and
-/// metallic-roughness textures, factors, alpha mode); other extensions are ignored.
+/// <br/>Only the engine-relevant material subset is realized (base color, normal,
+/// metallic-roughness and emissive textures, factors, alpha mode); other extensions are ignored.
 /// <br/>Textures stream in asynchronously: the scene is returned immediately with null
 /// textures (the pipeline renders fallbacks) and each texture is decoded off-thread
 /// (rate-limited by <see cref="Environment.ProcessorCount"/>) and assigned on the main thread
 /// via the installed <see cref="SynchronizationContext"/>. <see cref="ModelScene.LoadingCompletion"/>
-/// completes when streaming finishes. Albedo textures decode as sRGB; normal and
+/// completes when streaming finishes. Albedo and emissive textures decode as sRGB; normal and
 /// metallic-roughness textures decode as linear data.
 /// </summary>
 public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
@@ -26,6 +26,7 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
         Albedo,
         Normal,
         MetallicRoughness,
+        Emissive,
     }
 
     private static readonly string[] Extensions = [FileExt.ModelGLTF, FileExt.ModelGLB];
@@ -103,6 +104,7 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                     BaseColorFactor = gltfMaterial.BaseColorFactor,
                     MetallicFactor = gltfMaterial.MetallicFactor,
                     RoughnessFactor = gltfMaterial.RoughnessFactor,
+                    EmissiveFactor = gltfMaterial.EmissiveFactor,
                     AlphaMode = gltfMaterial.AlphaMode,
                     AlphaCutoff = gltfMaterial.AlphaCutoff,
                     DoubleSided = gltfMaterial.DoubleSided,
@@ -112,6 +114,7 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                 AddTextureTarget(gltfMaterial.BaseColorImageIndex, TextureRole.Albedo, gltfMaterial.WrapS);
                 AddTextureTarget(gltfMaterial.NormalImageIndex, TextureRole.Normal, gltfMaterial.NormalWrapS);
                 AddTextureTarget(gltfMaterial.MetallicRoughnessImageIndex, TextureRole.MetallicRoughness, gltfMaterial.MetallicRoughnessWrapS);
+                AddTextureTarget(gltfMaterial.EmissiveImageIndex, TextureRole.Emissive, gltfMaterial.EmissiveWrapS);
 
                 void AddTextureTarget(int imageIndex, TextureRole role, AddressMode wrap)
                 {
@@ -279,6 +282,9 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                 case TextureRole.MetallicRoughness:
                     target.MetallicRoughnessTexture = texture;
                     break;
+                case TextureRole.Emissive:
+                    target.EmissiveTexture = texture;
+                    break;
             }
         }
     }
@@ -295,8 +301,8 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
     {
         var option = ImageLoadOption.Default with
         {
-            // Albedo is sRGB color data; normal and metallic-roughness maps are linear.
-            Format = role == TextureRole.Albedo ? PixelFormat.RGBA8UnormSrgb : PixelFormat.RGBA8Unorm,
+            // Albedo and emissive are sRGB color data; normal and metallic-roughness maps are linear.
+            Format = role is TextureRole.Albedo or TextureRole.Emissive ? PixelFormat.RGBA8UnormSrgb : PixelFormat.RGBA8Unorm,
             AddressMode = wrap,
             Name = image.Name,
         };

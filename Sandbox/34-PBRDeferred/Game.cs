@@ -11,7 +11,8 @@ using SandboxUtils;
 /// <summary>
 /// Sandbox demonstrating 3D PBR rendering with a deferred pipeline:
 /// G-buffer pass, deferred lighting (GGX BRDF), a shadow-mapped directional
-/// sun, up to four point lights and a procedural gradient skybox.
+/// sun, up to four point lights, emissive surfaces with HDR bloom and a
+/// procedural gradient skybox.
 /// <br/>Loads the Amazon Lumberyard Bistro scene (glTF) when present in
 /// Assets/Bistro; otherwise falls back to a procedural primitive scene.
 /// <br/>Controls: drag with the left mouse button to orbit the camera,
@@ -82,6 +83,12 @@ public class Game : GameEngine
     private int _selectedObject;
     private bool _animateObjects = true;
 
+    // Bloom post-processing (engine built-in) and the emissive boost feeding it.
+    // The Bistro emissive factors are all 1.0 and its emissive textures are LDR,
+    // so without a boost nothing crosses the bloom threshold next to the sun.
+    private BloomSystem? _bloom;
+    private float _emissiveBoost = 4.0f;
+
     // Screenshot mode.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
@@ -139,7 +146,8 @@ public class Game : GameEngine
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
             albedoTexture: _checkerTexture,
-            gbufferTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"));
+            gbufferTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"),
+            shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"));
 
         // The G-buffer pass needs the camera matrix; bind it explicitly like the
         // forward sandboxes do (RenderingSystem.MainCamera is not set by sandboxes).
@@ -159,6 +167,11 @@ public class Game : GameEngine
         _pointLights[1] = new PBRDeferredPipeline.PointLight(_sceneCenter + new Vector3(5, 3, lightHeight), new Vector3(0.35f, 0.5f, 1.0f), 8.0f);
         _pointLights[2] = new PBRDeferredPipeline.PointLight(Vector3.Zero, new Vector3(0.4f, 1.0f, 0.6f), 6.0f);
         _pointLights[3] = new PBRDeferredPipeline.PointLight(_sceneCenter + new Vector3(0, 6, lightHeight), new Vector3(1.0f, 1.0f, 1.0f), 0.0f);
+
+        // Bloom blits into the HDR target in OnPostUpdate, before PluginHDR's
+        // tonemapped present, so boosted emissive surfaces get a natural glow.
+        _bloom = new BloomSystem(this, MainRenderTarget) { Threshold = 2.0f, Intensity = 1.0f };
+        AddSystem(_bloom);
 
         MainView.OnResize += OnMainWindowResize;
     }
@@ -213,7 +226,14 @@ public class Game : GameEngine
             : "LMB drag: orbit | wheel: zoom | C: fly | ESC: exit");
 
         _frameCount++;
-        // With --wait-load the capture is held back until the Bistro scene's
+    }
+
+    protected override void OnEndFrame()
+    {
+        // Capture here, after OnSystemPostUpdate, so the shot includes bloom:
+        // bloom blits into the HDR target after OnUpdate, and ViewRenderTarget
+        // clears that target again at the start of the next frame. With
+        // --wait-load the capture is held back until the Bistro scene's
         // asynchronously streaming textures have all arrived.
         if (_screenshotPath != null && _frameCount >= _screenshotFrames &&
             (!_waitForStreaming || _bistro == null || _bistro.LoadingCompletion.IsCompleted))
@@ -505,7 +525,7 @@ public class Game : GameEngine
         for (int i = 0; i < drawItems.Count; i++)
         {
             ModelDrawItem item = drawItems[i];
-            _pipeline.DrawShadow(item.Mesh, item.World);
+            _pipeline.DrawShadowTangent(item.Mesh, item.World);
         }
         _pipeline.EndShadowPass();
 
@@ -526,6 +546,8 @@ public class Game : GameEngine
                 material.AlbedoTexture,
                 material.NormalTexture,
                 material.MetallicRoughnessTexture,
+                material.EmissiveTexture,
+                material.EmissiveFactor * _emissiveBoost,
                 material.DoubleSided,
                 alphaCutoff);
         }
@@ -595,6 +617,26 @@ public class Game : GameEngine
         {
             ImGui.ColorEdit3("Top", ref _skyTopColor);
             ImGui.ColorEdit3("Bottom", ref _skyBottomColor);
+        }
+
+        if (_bloom != null && ImGui.CollapsingHeader("Emissive & Bloom"))
+        {
+            ImGui.SliderFloat("Emissive Boost", ref _emissiveBoost, 0.0f, 20.0f);
+            bool bloomEnabled = _bloom.IsEnabled;
+            if (ImGui.Checkbox("Bloom", ref bloomEnabled))
+            {
+                _bloom.IsEnabled = bloomEnabled;
+            }
+            float bloomThreshold = _bloom.Threshold;
+            if (ImGui.SliderFloat("Bloom Threshold", ref bloomThreshold, 0.0f, 10.0f))
+            {
+                _bloom.Threshold = bloomThreshold;
+            }
+            float bloomIntensity = _bloom.Intensity;
+            if (ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0.0f, 4.0f))
+            {
+                _bloom.Intensity = bloomIntensity;
+            }
         }
 
         if (_bistro != null)

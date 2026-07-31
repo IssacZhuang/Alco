@@ -30,6 +30,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 MetallicRoughnessAO;
         /// <summary>x=alpha cutoff (0 disables alpha testing), yzw are unused.</summary>
         public Vector4 Params;
+        /// <summary>Linear emissive color (rgb), w is unused.</summary>
+        public Vector4 Emissive;
 
         /// <summary>
         /// Create draw constants for a PBR surface.
@@ -45,6 +47,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             BaseColor = new Vector4(baseColor, 1.0f);
             MetallicRoughnessAO = new Vector4(metallic, roughness, ambientOcclusion, 1.0f);
             Params = Vector4.Zero;
+            Emissive = Vector4.Zero;
         }
     }
 
@@ -165,9 +168,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly Shader? _gbufferTangentShader;
     private readonly GraphicsMaterial _gbufferMaterial;
     private readonly GraphicsMaterial _shadowMaterial;
+    private readonly GraphicsMaterial? _shadowTangentMaterial;
     private readonly GraphicsMaterial _lightingMaterial;
     private readonly Dictionary<(Texture2D? Texture, bool DoubleSided), GraphicsMaterial> _gbufferMaterialCache = new();
-    private readonly Dictionary<(Texture2D? Albedo, Texture2D? Normal, Texture2D? Mr, bool DoubleSided), GraphicsMaterial> _gbufferTangentMaterialCache = new();
+    private readonly Dictionary<(Texture2D? Albedo, Texture2D? Normal, Texture2D? Mr, Texture2D? Emissive, bool DoubleSided), GraphicsMaterial> _gbufferTangentMaterialCache = new();
     private Texture2D? _flatNormalTexture;
     private GraphicsBuffer? _cameraBuffer;
 
@@ -206,7 +210,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="albedoTexture">Optional albedo texture for all G-buffer draws; defaults to a white texture.</param>
-    /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling the normal-mapped <see cref="DrawGBuffer(in Mesh, in Matrix4x4, in Vector4, in Vector4, Texture2D?, Texture2D?, Texture2D?, bool, float)"/> overload.</param>
+    /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling the normal-mapped <see cref="DrawGBuffer(in Mesh, in Matrix4x4, in Vector4, in Vector4, Texture2D?, Texture2D?, Texture2D?, Texture2D?, in Vector3, bool, float)"/> overload.</param>
+    /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="DrawShadowTangent"/> for tangent-bearing meshes.</param>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
         Shader gbufferShader,
@@ -217,7 +222,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         uint width = 1280,
         uint height = 720,
         Texture2D? albedoTexture = null,
-        Shader? gbufferTangentShader = null)
+        Shader? gbufferTangentShader = null,
+        Shader? shadowTangentShader = null)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -236,6 +242,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 new ColorAttachment(PixelFormat.RGBA8Unorm),
                 new ColorAttachment(PixelFormat.RGBA16Float),
                 new ColorAttachment(PixelFormat.RGBA8Unorm),
+                // Linear emissive, HDR-capable.
+                new ColorAttachment(PixelFormat.RGBA16Float),
             ],
             new DepthAttachment(PixelFormat.Depth32Float),
             "pbr_gbuffer_pass"));
@@ -258,6 +266,13 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _shadowMaterial = rendering.CreateMaterial(shadowShader);
         _shadowMaterial.DepthStencilState = DepthStencilState.Write;
         _shadowMaterial.RasterizerState = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.Clockwise);
+
+        if (shadowTangentShader != null)
+        {
+            _shadowTangentMaterial = rendering.CreateMaterial(shadowTangentShader);
+            _shadowTangentMaterial.DepthStencilState = DepthStencilState.Write;
+            _shadowTangentMaterial.RasterizerState = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.Clockwise);
+        }
 
         // IMPORTANT: DepthStencilState.None means depthCompare=Never — with a depth
         // attachment present (the engine's HDR main target), every fragment would be
@@ -329,6 +344,26 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
+    /// Draw a tangent-bearing mesh (<see cref="VertexPositionNormalTextureTangent"/>) into
+    /// the shadow map. Must be called inside the shadow pass. Requires the tangent shadow
+    /// shader (<c>shadowTangentShader</c> constructor argument): a mesh's vertex layout must
+    /// match its shader exactly, so tangent meshes cannot go through <see cref="DrawShadow"/>.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="model">The world transform of the mesh.</param>
+    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent shadow shader.</exception>
+    public void DrawShadowTangent(in Mesh mesh, in Matrix4x4 model)
+    {
+        if (_shadowTangentMaterial == null)
+        {
+            throw new InvalidOperationException(
+                "DrawShadowTangent requires the pipeline to be created with a tangent shadow shader.");
+        }
+        _shadowContext.DrawWithConstant(mesh, _shadowTangentMaterial,
+            new ShadowDrawConstants { LightViewProjection = model * _sunViewProjection });
+    }
+
+    /// <summary>
     /// End the shadow map pass and submit its commands.
     /// </summary>
     public void EndShadowPass()
@@ -342,11 +377,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// </summary>
     public void BeginGBufferPass()
     {
-        ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[3]
+        ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[4]
         {
             new(0, Vector4.Zero),
             new(1, new Vector4(0.5f, 0.5f, 1.0f, 1.0f)),
             new(2, Vector4.Zero),
+            new(3, Vector4.Zero),
         };
         _gbufferContext.Begin(_gbufferRT.FrameBuffer, clearColors, 1.0f);
     }
@@ -395,11 +431,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Draw a mesh into the G-buffer with per-material albedo, normal and metallic-roughness
-    /// textures. Must be called inside the G-buffer pass. Requires the tangent G-buffer shader
-    /// (<c>gbufferTangentShader</c> constructor argument) and tangent-bearing meshes
-    /// (<see cref="VertexPositionNormalTextureTangent"/>). Materials are cached per
-    /// (albedo, normal, metallic-roughness, doubleSided) tuple.
+    /// Draw a mesh into the G-buffer with per-material albedo, normal, metallic-roughness
+    /// and emissive textures. Must be called inside the G-buffer pass. Requires the tangent
+    /// G-buffer shader (<c>gbufferTangentShader</c> constructor argument) and tangent-bearing
+    /// meshes (<see cref="VertexPositionNormalTextureTangent"/>). Materials are cached per
+    /// (albedo, normal, metallic-roughness, emissive, doubleSided) tuple.
     /// </summary>
     /// <param name="mesh">The mesh to draw.</param>
     /// <param name="model">The world transform of the mesh.</param>
@@ -408,18 +444,21 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
     /// <param name="normalTexture">The tangent-space normal map; null binds a flat normal texture.</param>
     /// <param name="metallicRoughnessTexture">The metallic-roughness texture (roughness in G, metallic in B); null binds the shared white texture.</param>
+    /// <param name="emissiveTexture">The emissive texture; null binds the shared black texture.</param>
+    /// <param name="emissiveFactor">The linear emissive color, multiplied with the emissive texture.</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
     /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
     /// <exception cref="InvalidOperationException">The pipeline was created without a tangent G-buffer shader.</exception>
     public void DrawGBuffer(in Mesh mesh, in Matrix4x4 model, in Vector4 baseColor, in Vector4 metallicRoughnessAO,
-        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture, bool doubleSided = false, float alphaCutoff = 0.0f)
+        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
+        Texture2D? emissiveTexture, in Vector3 emissiveFactor, bool doubleSided = false, float alphaCutoff = 0.0f)
     {
         if (_gbufferTangentShader == null)
         {
             throw new InvalidOperationException(
                 "The normal-mapped DrawGBuffer overload requires the pipeline to be created with a tangent G-buffer shader.");
         }
-        GraphicsMaterial material = GetOrCreateGBufferTangentMaterial(albedoTexture, normalTexture, metallicRoughnessTexture, doubleSided);
+        GraphicsMaterial material = GetOrCreateGBufferTangentMaterial(albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture, doubleSided);
         _gbufferContext.DrawWithConstant(mesh, material,
             new PBRDrawConstants
             {
@@ -427,6 +466,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 BaseColor = baseColor,
                 MetallicRoughnessAO = metallicRoughnessAO,
                 Params = new Vector4(alphaCutoff, 0.0f, 0.0f, 0.0f),
+                Emissive = new Vector4(emissiveFactor, 1.0f),
             });
     }
 
@@ -459,9 +499,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     private GraphicsMaterial GetOrCreateGBufferTangentMaterial(
-        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture, bool doubleSided)
+        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
+        Texture2D? emissiveTexture, bool doubleSided)
     {
-        if (_gbufferTangentMaterialCache.TryGetValue((albedoTexture, normalTexture, metallicRoughnessTexture, doubleSided), out GraphicsMaterial? cached))
+        if (_gbufferTangentMaterialCache.TryGetValue((albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture, doubleSided), out GraphicsMaterial? cached))
         {
             return cached;
         }
@@ -473,11 +514,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
         material.SetTexture("_normalTexture", normalTexture ?? GetOrCreateFlatNormalTexture());
         material.SetTexture("_mrTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
+        material.SetTexture("_emissiveTexture", emissiveTexture ?? _rendering.TextureBlack);
         if (_cameraBuffer != null)
         {
             material.SetBuffer(ShaderResourceId.Camera, _cameraBuffer);
         }
-        _gbufferTangentMaterialCache[(albedoTexture, normalTexture, metallicRoughnessTexture, doubleSided)] = material;
+        _gbufferTangentMaterialCache[(albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture, doubleSided)] = material;
         return material;
     }
 
@@ -514,7 +556,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Bind group layouts for the deferred lighting shader: uniform buffer (set 0),
-    /// three filterable texture+sampler pairs (sets 1-3), the G-buffer depth texture
+    /// four filterable texture+sampler pairs (sets 1-3 and 6), the G-buffer depth texture
     /// (set 4) and the shadow map depth texture with a comparison sampler (set 5).
     /// Must stay in sync with DeferredLighting.hlsl.
     /// </summary>
@@ -583,6 +625,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             CreateTextureSamplerGroup(3),
             CreateDepthReadGroup(4),
             CreateDepthComparisonGroup(5),
+            CreateTextureSamplerGroup(6),
         ];
     }
 
@@ -591,6 +634,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingMaterial.SetRenderTexture("_albedo", _gbufferRT, 0);
         _lightingMaterial.SetRenderTexture("_normal", _gbufferRT, 1);
         _lightingMaterial.SetRenderTexture("_mrAO", _gbufferRT, 2);
+        _lightingMaterial.SetRenderTexture("_emissive", _gbufferRT, 3);
         _lightingMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
         _lightingMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
     }
@@ -617,6 +661,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _gbufferMaterialCache.Clear();
             _flatNormalTexture?.Dispose();
             _gbufferMaterial.Dispose();
+            _shadowTangentMaterial?.Dispose();
             _shadowMaterial.Dispose();
             _gbufferRT.Dispose();
             _shadowRT.Dispose();

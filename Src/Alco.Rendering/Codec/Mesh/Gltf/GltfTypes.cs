@@ -45,6 +45,12 @@ public sealed class GltfMaterial
     /// <summary>Index into <see cref="GltfModel.Images"/> of the metallic-roughness texture, -1 when absent.</summary>
     public int MetallicRoughnessImageIndex { get; init; } = -1;
 
+    /// <summary>Index into <see cref="GltfModel.Images"/> of the emissive texture, -1 when absent.</summary>
+    public int EmissiveImageIndex { get; init; } = -1;
+
+    /// <summary>Linear emissive color factor, multiplied with the emissive texture.</summary>
+    public Vector3 EmissiveFactor { get; init; } = Vector3.Zero;
+
     /// <summary>Horizontal texture wrap mode of the base color texture sampler.</summary>
     public AddressMode WrapS { get; init; }
 
@@ -53,6 +59,9 @@ public sealed class GltfMaterial
 
     /// <summary>Horizontal texture wrap mode of the metallic-roughness texture sampler.</summary>
     public AddressMode MetallicRoughnessWrapS { get; init; }
+
+    /// <summary>Horizontal texture wrap mode of the emissive texture sampler.</summary>
+    public AddressMode EmissiveWrapS { get; init; }
 
     /// <summary>Vertical texture wrap mode of the base color texture sampler.</summary>
     public AddressMode WrapT { get; init; }

@@ -828,6 +828,18 @@ internal static unsafe class GltfDecoder
                 normalImageIndex = ResolveTextureImage(root, normalTexture, out normalWrapS, out _);
             }
 
+            Vector3 emissiveFactor = Vector3.Zero;
+            int emissiveImageIndex = -1;
+            Graphics.AddressMode emissiveWrapS = Graphics.AddressMode.Repeat;
+            if (materialElement.TryGetProperty("emissiveFactor", out JsonElement emissiveFactorElement))
+            {
+                emissiveFactor = ReadVector3(emissiveFactorElement);
+            }
+            if (materialElement.TryGetProperty("emissiveTexture", out JsonElement emissiveTexture))
+            {
+                emissiveImageIndex = ResolveTextureImage(root, emissiveTexture, out emissiveWrapS, out _);
+            }
+
             GltfAlphaMode alphaMode = GetString(materialElement, "alphaMode", "OPAQUE") switch
             {
                 "MASK" => GltfAlphaMode.Mask,
@@ -844,10 +856,13 @@ internal static unsafe class GltfDecoder
                 BaseColorImageIndex = baseColorImageIndex,
                 NormalImageIndex = normalImageIndex,
                 MetallicRoughnessImageIndex = metallicRoughnessImageIndex,
+                EmissiveImageIndex = emissiveImageIndex,
+                EmissiveFactor = emissiveFactor,
                 WrapS = wrapS,
                 WrapT = wrapT,
                 NormalWrapS = normalWrapS,
                 MetallicRoughnessWrapS = metallicRoughnessWrapS,
+                EmissiveWrapS = emissiveWrapS,
                 AlphaMode = alphaMode,
                 AlphaCutoff = GetFloat(materialElement, "alphaCutoff", 0.5f),
                 DoubleSided = GetBool(materialElement, "doubleSided", false),

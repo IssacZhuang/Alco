@@ -43,6 +43,7 @@ DEFINE_TEX2D_SAMPLE(2, _normal);
 DEFINE_TEX2D_SAMPLE(3, _mrAO);
 DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
+DEFINE_TEX2D_SAMPLE(6, _emissive);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -222,5 +223,8 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 skyDirection = lerp(skyBottomColor.rgb, skyTopColor.rgb, saturate(N.z * 0.5 + 0.5));
     float3 ambient = skyDirection * albedo * ao * (1.0 - metallic);
 
-    return float4(Lo + ambient, 1.0);
+    // Emissive is added unshaded (stored linear in the G-buffer).
+    float3 emissive = SAMPLE_TEX2D(_emissive, input.uv).rgb;
+
+    return float4(Lo + ambient + emissive, 1.0);
 }

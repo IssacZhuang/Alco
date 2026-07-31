@@ -25,6 +25,7 @@ struct Constants
     float4 baseColor;
     float4 metallicRoughnessAO; // x=metallic y=roughness z=ambientOcclusion
     float4 params_;             // x=alphaCutoff (0 disables alpha testing)
+    float4 emissive;            // rgb = emissive factor
 };
 
 DEFINE_UNIFORM(0, _camera)
@@ -60,7 +61,8 @@ float3 EncodeSRGB(float3 color)
 void MainPS(V2F input,
     out float4 albedoRT : SV_TARGET0,
     out float4 normalRT : SV_TARGET1,
-    out float4 mrAORT : SV_TARGET2)
+    out float4 mrAORT : SV_TARGET2,
+    out float4 emissiveRT : SV_TARGET3)
 {
     float4 albedo = SAMPLE_TEX2D(_albedoTexture, input.uv);
 
@@ -81,4 +83,7 @@ void MainPS(V2F input,
         constants.metallicRoughnessAO.y,
         constants.metallicRoughnessAO.z,
         1.0);
+
+    // Linear emissive (RGBA16Float target), no shading applied downstream.
+    emissiveRT = float4(constants.emissive.rgb, 1.0);
 }

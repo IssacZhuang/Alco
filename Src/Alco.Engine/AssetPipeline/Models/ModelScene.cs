@@ -39,6 +39,15 @@ public sealed class ModelMaterial
     /// </summary>
     public Texture2D? MetallicRoughnessTexture { get; set; }
 
+    /// <summary>Linear emissive color factor, multiplied with the emissive texture.</summary>
+    public Vector3 EmissiveFactor { get; init; } = Vector3.Zero;
+
+    /// <summary>
+    /// The emissive texture, null when the material has none or the texture is still
+    /// streaming in (no emission until assigned).
+    /// </summary>
+    public Texture2D? EmissiveTexture { get; set; }
+
     /// <summary>The alpha handling mode.</summary>
     public GltfAlphaMode AlphaMode { get; init; }
 
