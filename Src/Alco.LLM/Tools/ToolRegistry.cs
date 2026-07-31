@@ -8,6 +8,7 @@ using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
+using System.Threading.Tasks;
 using Alco.Engine;
 
 namespace Alco.LLM;
@@ -67,7 +68,9 @@ public sealed class ToolRegistry
 
     /// <summary>
     /// Invokes a tool by name with the provided JSON arguments.
-    /// Handles thread marshaling for non-async-safe tools.
+    /// Agent-thread tools execute on the thread pool via <see cref="Task.Run(Action)"/> so the
+    /// returned task is pending and callers can race it against timeouts or run multiple tools
+    /// concurrently. Tools requiring the main thread are marshaled via the main thread queue.
     /// </summary>
     /// <param name="name">The tool name.</param>
     /// <param name="jsonArgs">The JSON element containing arguments.</param>
@@ -80,12 +83,53 @@ public sealed class ToolRegistry
 
         var args = DeserializeArguments(descriptor, jsonArgs);
 
-        if (descriptor.IsAsync)
+        if (descriptor.IsOnAgentThread)
         {
-            return await InvokeDirectAsync(descriptor, args);
+            return await Task.Run(() => InvokeDescriptorAsync(descriptor, args));
         }
 
-        return await InvokeOnMainThreadAsync(descriptor, args);
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mainThreadQueue.Enqueue(async () =>
+        {
+            try
+            {
+                object? result = await InvokeDescriptorAsync(descriptor, args);
+                tcs.TrySetResult(result);
+            }
+            catch (TargetInvocationException ex)
+            {
+                tcs.TrySetException(ex.InnerException!);
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        });
+        return await tcs.Task;
+    }
+
+    /// <summary>
+    /// Enqueues work to run on the engine main thread (drained by <see cref="DrainMainThreadQueue"/>
+    /// on each tick) and awaits its completion. For hosts that need main-thread access outside of
+    /// tool invocation (e.g. HTTP endpoint handlers mutating engine state).
+    /// </summary>
+    /// <param name="work">The work to execute on the main thread.</param>
+    /// <returns>The work's result.</returns>
+    public Task<object?> RunOnMainThreadAsync(Func<object?> work)
+    {
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mainThreadQueue.Enqueue(() =>
+        {
+            try
+            {
+                tcs.TrySetResult(work());
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        });
+        return tcs.Task;
     }
 
     /// <summary>
@@ -118,13 +162,96 @@ public sealed class ToolRegistry
                 name: method.Name,
                 description: description,
                 parameterSchema: parameterSchema,
-                returnType: method.ReturnType,
-                isAsync: attr.IsAsync,
+                isOnAgentThread: attr.IsOnAgentThread,
                 method: method,
                 target: target,
-                jsonOptions: jsonOptions);
+                jsonOptions: jsonOptions,
+                awaitResultAsync: BuildResultExtractor(method.ReturnType));
 
             _tools[method.Name] = descriptor;
+        }
+    }
+
+    private static async Task<object?> InvokeDescriptorAsync(ToolDescriptor descriptor, object?[] args)
+    {
+        object? result;
+        try
+        {
+            result = descriptor.Method.Invoke(descriptor.Target, args);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
+
+        return await descriptor.AwaitResultAsync(result).ConfigureAwait(false);
+    }
+
+    private static Func<object?, Task<object?>> BuildResultExtractor(Type returnType)
+    {
+        if (returnType == typeof(void))
+        {
+            return static _ => Task.FromResult((object?)null);
+        }
+
+        if (returnType == typeof(Task))
+        {
+            return static async r =>
+            {
+                await ((Task)r!).ConfigureAwait(false);
+                return null;
+            };
+        }
+
+        if (returnType.IsGenericType)
+        {
+            var genericDef = returnType.GetGenericTypeDefinition();
+
+            if (genericDef == typeof(Task<>))
+            {
+                return (Func<object?, Task<object?>>)Delegate.CreateDelegate(
+                    typeof(Func<object?, Task<object?>>),
+                    typeof(GenericHelpers<>)
+                        .MakeGenericType(returnType.GetGenericArguments()[0])
+                        .GetMethod(nameof(GenericHelpers<int>.AwaitTaskResultAsync))!);
+            }
+
+            if (genericDef == typeof(ValueTask<>))
+            {
+                return (Func<object?, Task<object?>>)Delegate.CreateDelegate(
+                    typeof(Func<object?, Task<object?>>),
+                    typeof(GenericHelpers<>)
+                        .MakeGenericType(returnType.GetGenericArguments()[0])
+                        .GetMethod(nameof(GenericHelpers<int>.AwaitValueTaskResultAsync))!);
+            }
+        }
+
+        if (returnType == typeof(ValueTask))
+        {
+            return static async r =>
+            {
+                await ((ValueTask)r!).ConfigureAwait(false);
+                return null;
+            };
+        }
+
+        // Synchronous non-void return
+        return r => Task.FromResult(r);
+    }
+
+    private static class GenericHelpers<T>
+    {
+        public static async Task<object?> AwaitTaskResultAsync(object? raw)
+        {
+            var task = (Task<T>)raw!;
+            await task.ConfigureAwait(false);
+            return task.Result;
+        }
+
+        public static async Task<object?> AwaitValueTaskResultAsync(object? raw)
+        {
+            return await ((ValueTask<T>)raw!).ConfigureAwait(false);
         }
     }
 
@@ -184,7 +311,7 @@ public sealed class ToolRegistry
             schema["required"] = required;
         }
 
-        return JsonSerializer.Deserialize<JsonElement>(schema.ToJsonString());
+        return JsonSerializer.SerializeToElement(schema, jsonOptions);
     }
 
     private static object?[] DeserializeArguments(ToolDescriptor descriptor, JsonElement jsonArgs)
@@ -192,94 +319,24 @@ public sealed class ToolRegistry
         var parameters = descriptor.Method.GetParameters();
         var args = new object?[parameters.Length];
 
-        if (jsonArgs.ValueKind == JsonValueKind.Object)
+        for (int i = 0; i < parameters.Length; i++)
         {
-            for (int i = 0; i < parameters.Length; i++)
+            var param = parameters[i];
+            if (jsonArgs.ValueKind == JsonValueKind.Object
+                && jsonArgs.TryGetProperty(param.Name!, out var propValue))
             {
-                var param = parameters[i];
-                if (jsonArgs.TryGetProperty(param.Name!, out var propValue))
-                {
-                    args[i] = JsonSerializer.Deserialize(propValue, param.ParameterType!, descriptor.JsonOptions);
-                }
-                else if (param.HasDefaultValue)
-                {
-                    args[i] = param.DefaultValue;
-                }
-                else
-                {
-                    args[i] = param.ParameterType!.IsValueType
-                        ? Activator.CreateInstance(param.ParameterType)
-                        : null;
-                }
+                args[i] = JsonSerializer.Deserialize(propValue, param.ParameterType!, descriptor.JsonOptions);
             }
-        }
-        else if (jsonArgs.ValueKind == JsonValueKind.Undefined || jsonArgs.ValueKind == JsonValueKind.Null)
-        {
-            for (int i = 0; i < parameters.Length; i++)
+            else if (param.HasDefaultValue)
             {
-                args[i] = parameters[i].HasDefaultValue
-                    ? parameters[i].DefaultValue
-                    : parameters[i].ParameterType!.IsValueType
-                        ? Activator.CreateInstance(parameters[i].ParameterType!)
-                        : null;
+                args[i] = param.DefaultValue;
+            }
+            else if (param.ParameterType!.IsValueType)
+            {
+                args[i] = Activator.CreateInstance(param.ParameterType);
             }
         }
 
         return args;
-    }
-
-    private static async Task<object?> InvokeDirectAsync(ToolDescriptor descriptor, object?[] args)
-    {
-        try
-        {
-            object? result = descriptor.Method.Invoke(descriptor.Target, args);
-            return await UnwrapInvocationResultAsync(result, descriptor.ReturnType);
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException != null)
-        {
-            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-            throw;
-        }
-    }
-
-    private Task<object?> InvokeOnMainThreadAsync(ToolDescriptor descriptor, object?[] args)
-    {
-        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _mainThreadQueue.Enqueue(async () =>
-        {
-            try
-            {
-                var result = await InvokeDirectAsync(descriptor, args);
-                tcs.TrySetResult(result);
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetException(ex);
-            }
-        });
-        return tcs.Task;
-    }
-
-    private static async Task<object?> UnwrapInvocationResultAsync(object? result, Type declaredReturnType)
-    {
-        if (result is not Task task)
-        {
-            return result;
-        }
-
-        await task;
-
-        if (declaredReturnType == typeof(Task))
-        {
-            return null;
-        }
-
-        var resultProperty = task.GetType().GetProperty(nameof(Task<object>.Result));
-        if (resultProperty != null)
-        {
-            return resultProperty.GetValue(task);
-        }
-
-        return null;
     }
 }

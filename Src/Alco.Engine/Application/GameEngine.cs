@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Runtime;
+using Alco.Profiler;
 
 
 namespace Alco.Engine;
@@ -94,6 +95,15 @@ IDisposable
     }
 
     /// <summary>
+    /// The platform integration hosting the engine main loop, input, and views.
+    /// </summary>
+    public Platform Platform
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _platform;
+    }
+
+    /// <summary>
     /// The main view singleton of the game
     /// </summary>
     public View MainView
@@ -150,9 +160,8 @@ IDisposable
     }
 
     /// <summary>
-    /// The frame updated in a second
+    /// Gets the average main-loop frame rate measured from wall-clock frame intervals.
     /// </summary>
-    /// <value></value>
     public int FrameRate
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -160,14 +169,36 @@ IDisposable
     }
 
     /// <summary>
-    /// The total time of CPU and GPU used in a frame
+    /// Gets the one-percent-low frame rate calculated from recent wall-clock frame intervals.
     /// </summary>
-    /// <value></value>
+    public int OnePercentLowFrameRate
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _profiler.OnePercentLowFPS;
+    }
+
+    /// <summary>
+    /// Gets the average wall-clock duration between main-loop frames, in seconds.
+    /// </summary>
     public float FrameTime
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _profiler.FrameTime;
     }
+
+    /// <summary>
+    /// Gets the 99th-percentile wall-clock frame duration from recent samples, in seconds.
+    /// </summary>
+    public float P99FrameTime
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _profiler.P99FrameTime;
+    }
+
+    /// <summary>
+    /// Gets the process-wide method profiler used by instrumented builds.
+    /// </summary>
+    public MethodProfilerRuntime MethodProfiler => MethodProfilerRuntime.Instance;
 
     /// <summary>
     /// Check if the engine is disposed
@@ -230,14 +261,15 @@ IDisposable
         Task<Shader> shaderBlit = _assetSystem.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
 
         _platform = _setting.Platform ?? new Sdl3Platform();
+        _platform.TargetFrameRate = _setting.TargetFrameRate;
         _input = _platform.Input;
         _platform.OnAudioDefaultDeviceChanged += () => _audioDevice.NotifyDefaultDeviceChanged();
 
-        _profiler = new EngineProfiler(this);
+        _profiler = new EngineProfiler();
 
         //main view
         _mainView = CreateView(_setting.View);
-        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PrefferedSDRPass, shaderBlit.Result);
+        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PreferredSDRPass, shaderBlit.Result);
         AddSystem(_mainRenderTarget);
 
 
@@ -354,6 +386,32 @@ IDisposable
 
     private void InternalTick(float delta)
     {
+        if (!_setting.EnableMethodProfiling)
+        {
+            ExecuteTickBody(delta);
+            return;
+        }
+
+        MethodProfilerTickToken profilerTick = MethodProfiler.BeginTick();
+        if (!profilerTick.IsValid)
+        {
+            ExecuteTickBody(delta);
+            return;
+        }
+
+        try
+        {
+            ExecuteTickBody(delta);
+        }
+        finally
+        {
+            MethodProfiler.EndTick(profilerTick);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecuteTickBody(float delta)
+    {
         OnSystemTick(delta);
         try
         {
@@ -370,6 +428,8 @@ IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalUpdate(float delta)
     {
+        _profiler.Update(Stopwatch.GetTimestamp());
+
         // Process any callbacks queued for the main thread
         _synchronizationContext.ProcessCallbacks();
 
@@ -415,8 +475,6 @@ IDisposable
         OnSystemPostUpdate(delta);
 
         EventOnHandleAssetLoaded?.Invoke();
-        _profiler.Update(delta);
-
         try
         {
             OnEndFrame();
@@ -651,7 +709,7 @@ IDisposable
             }
             catch (Exception e)
             {
-                Log.Error($"Error when pre swap frame system {_systems[i].GetType().Name}: ");
+                Log.Error($"Error when post swap frame system {_systems[i].GetType().Name}: ");
                 Log.Error(e);
                 TryErrorStop();
             }

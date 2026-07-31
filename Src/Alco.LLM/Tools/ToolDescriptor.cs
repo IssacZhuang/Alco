@@ -1,8 +1,6 @@
 using System;
 using System.Reflection;
 using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Schema;
 
 namespace Alco.LLM;
 
@@ -29,16 +27,11 @@ public sealed class ToolDescriptor
     public JsonElement ParameterSchema { get; }
 
     /// <summary>
-    /// Gets the return type of the tool method.
+    /// Gets whether this tool runs on the agent thread (background thread).
+    /// When <c>true</c>, the tool is invoked directly on the calling thread.
+    /// When <c>false</c>, the tool is marshaled to the engine main thread before invocation.
     /// </summary>
-    public Type ReturnType { get; }
-
-    /// <summary>
-    /// Gets whether this tool is async-safe and can be invoked directly on the calling thread.
-    /// When <c>true</c>, the tool is invoked directly. When <c>false</c>, the tool is
-    /// marshaled to the engine main thread before invocation.
-    /// </summary>
-    public bool IsAsync { get; }
+    public bool IsOnAgentThread { get; }
 
     /// <summary>
     /// Gets the reflected method info for invocation.
@@ -56,25 +49,33 @@ public sealed class ToolDescriptor
     public JsonSerializerOptions JsonOptions { get; }
 
     /// <summary>
+    /// Gets the compiled delegate that takes the raw invocation result and returns
+    /// a <see cref="Task{T}"/> producing the boxed final result (or null).
+    /// Built at discovery time to avoid per-invocation reflection.
+    /// </summary>
+    public Func<object?, Task<object?>> AwaitResultAsync { get; }
+
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ToolDescriptor"/> class.
     /// </summary>
     public ToolDescriptor(
         string name,
         string description,
         JsonElement parameterSchema,
-        Type returnType,
-        bool isAsync,
+        bool isOnAgentThread,
         MethodInfo method,
         object? target,
-        JsonSerializerOptions jsonOptions)
+        JsonSerializerOptions jsonOptions,
+        Func<object?, Task<object?>> awaitResultAsync)
     {
         Name = name;
         Description = description;
         ParameterSchema = parameterSchema;
-        ReturnType = returnType;
-        IsAsync = isAsync;
+        IsOnAgentThread = isOnAgentThread;
         Method = method;
         Target = target;
         JsonOptions = jsonOptions;
+        AwaitResultAsync = awaitResultAsync;
     }
 }

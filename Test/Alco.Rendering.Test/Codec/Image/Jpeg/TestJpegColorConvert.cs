@@ -2,7 +2,7 @@ using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
 
-using Alco.Rendering.Codec.Image;
+using Alco.Rendering;
 
 [TestFixture]
 public unsafe class TestJpegColorConvert

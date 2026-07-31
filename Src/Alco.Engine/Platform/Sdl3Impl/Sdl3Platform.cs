@@ -8,6 +8,9 @@ using System.Runtime.InteropServices;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Hosts the engine main loop, input, and window integration on SDL 3.
+/// </summary>
 public unsafe class Sdl3Platform : Platform
 {
     public const int StackAllocationCharSizeLimit = 1024;
@@ -19,20 +22,37 @@ public unsafe class Sdl3Platform : Platform
     private EngineTimer _timer;
     private bool _isStopped = false;
     private bool _shouldCapture = false;
+    private bool _isDrainingInitialEvents = false;
     private uint _captureId = 0;
 
+    /// <summary>
+    /// Initializes a new SDL 3 platform.
+    /// </summary>
     public Sdl3Platform()
     {
         _timer = new EngineTimer();
         _events = new NativeBuffer<SDL_Event>(PeepEventsCount);
     }
 
+    /// <inheritdoc/>
     public override Input Input
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input;
     }
 
+    /// <inheritdoc/>
+    public override int TargetFrameRate
+    {
+        get => base.TargetFrameRate;
+        set
+        {
+            base.TargetFrameRate = value;
+            _timer.SetTargetFrameRate(value);
+        }
+    }
+
+    /// <inheritdoc/>
     public override View CreateView(GPUDevice device, ViewSetting setting)
     {
         Sdl3Window window = new Sdl3Window(device, setting);
@@ -40,6 +60,7 @@ public unsafe class Sdl3Platform : Platform
         return window;
     }
 
+    /// <inheritdoc/>
     public override void CloseView(View window)
     {
         if (window is Sdl3Window sdl3Window)
@@ -52,12 +73,13 @@ public unsafe class Sdl3Platform : Platform
         throw new InvalidOperationException("Invalid window type");
     }
 
+    /// <inheritdoc/>
     public override void RunMainLoop(bool runOnce)
     {
-        //init subsystem
+        // Initialize subsystems.
         SDL_Init(SDL_InitFlags.Audio | SDL_InitFlags.Joystick | SDL_InitFlags.Gamepad);
-        
-        if(runOnce)
+
+        if (runOnce)
         {
             _timer.Start();
             _timer.ProcessTime(out float updateDeltaTime, out float physicsDeltaTime, out bool canInvokePhysicsTick);
@@ -66,9 +88,9 @@ public unsafe class Sdl3Platform : Platform
             return;
         }
 
-        _timer.Start();
-
         _input.Init();
+        _timer.Start(TargetFrameRate);
+        _isDrainingInitialEvents = true;
         while (!_isStopped)
         {
             VisualStudioProfiler? profiler = null;
@@ -96,15 +118,19 @@ public unsafe class Sdl3Platform : Platform
                     HandleEvent(_events[i]);
                 }
             } while (eventRead > 0);
+            _isDrainingInitialEvents = false;
 
             DoUpdate(updateDeltaTime);
 
             _input.Update();
 
             profiler?.Dispose();
+
+            _timer.WaitForNextFrame();
         }
     }
 
+    /// <inheritdoc/>
     public override void StopMainLoop()
     {
         _isStopped = true;
@@ -176,8 +202,8 @@ public unsafe class Sdl3Platform : Platform
                 window2.DoMinimize();
                 break;
             case SDL_EventType.WindowRestored:
-                Sdl3Window windo3 = _windows[e.window.windowID];
-                windo3.DoRestore();
+                Sdl3Window window3 = _windows[e.window.windowID];
+                window3.DoRestore();
                 break;
             case SDL_EventType.WindowFocusGained:
                 Sdl3Window window4 = _windows[e.window.windowID];
@@ -197,7 +223,7 @@ public unsafe class Sdl3Platform : Platform
                 _input.OnSdlGamepadAxisMotion(e.gaxis.which, (SDL_GamepadAxis)e.gaxis.axis, e.gaxis.value);
                 break;
             case SDL_EventType.AudioDeviceAdded:
-                if (!e.adevice.recording)
+                if (!e.adevice.recording && !_isDrainingInitialEvents)
                     DoAudioDefaultDeviceChanged();
                 break;
             case SDL_EventType.AudioDeviceRemoved:

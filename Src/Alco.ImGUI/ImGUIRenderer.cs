@@ -44,7 +44,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(_imGuiContext);
-        ImGuizmo.SetImGuiContext(_imGuiContext);
         ImGuiNative.InitializeErrorHandling();
 
         _shaderId_Texture = _material.GetResourceId(ShaderResourceId.Texture);
@@ -101,10 +100,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
         io.DisplayFramebufferScale = new Vector2(1.0f, 1.0f);
         io.DeltaTime = deltaTime;
 
-        ImGuizmo.SetRect(0, 0, width, height);
-
         ImGui.NewFrame();
-        ImGuizmo.BeginFrame();
+        Gizmo.BeginFrame(width, height);
         _target = target;
     }
 
@@ -157,6 +154,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
         drawData.ScaleClipRects(ImGui.GetIO().DisplayFramebufferScale);
 
         ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(_target!.AttachmentLayout);
+        float targetWidth = _target.Width;
+        float targetHeight = _target.Height;
 
         _commandBuffer.Begin();
 
@@ -190,12 +189,25 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
                     Vector4 clipRect = cmd.ClipRect;
 
-                    renderPass.SetScissorRect(
-                        (uint)clipRect.X,
-                        (uint)clipRect.Y,
-                        (uint)(clipRect.Z - clipRect.X),
-                        (uint)(clipRect.W - clipRect.Y));
+                    // wgpu requires the scissor rect to be contained in the render target, while ImGui clip
+                    // rects may exceed it (windows partially offscreen, or overlay windows sized from the
+                    // view size when it differs from the render target). Clamp and skip fully clipped
+                    // draws, matching the official ImGui WebGPU backend.
+                    float clipMinX = MathF.Max(clipRect.X, 0f);
+                    float clipMinY = MathF.Max(clipRect.Y, 0f);
+                    float clipMaxX = MathF.Min(clipRect.Z, targetWidth);
+                    float clipMaxY = MathF.Min(clipRect.W, targetHeight);
 
+                    if (clipMaxX <= clipMinX || clipMaxY <= clipMinY)
+                    {
+                        continue;
+                    }
+
+                    renderPass.SetScissorRect(
+                        (uint)clipMinX,
+                        (uint)clipMinY,
+                        (uint)(clipMaxX - clipMinX),
+                        (uint)(clipMaxY - clipMinY));
 
                     renderPass.DrawIndexed(cmd.ElemCount, 1, cmd.IdxOffset + indexOffset, (int)(cmd.VtxOffset + vertexOffset), 0);
                 }

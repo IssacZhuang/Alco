@@ -45,13 +45,13 @@ public class FloodFillLightMap : AutoDisposable
         string name = "tile_light_map"
         )
     {
-        _lightMapFront = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
-        _lightMapBack = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedLightMapPass, (uint)width, (uint)height, "tile_light_map");
+        _lightMapFront = renderingSystem.CreateRenderTexture(renderingSystem.PreferredLightMapPass, (uint)width, (uint)height, "tile_light_map");
+        _lightMapBack = renderingSystem.CreateRenderTexture(renderingSystem.PreferredLightMapPass, (uint)width, (uint)height, "tile_light_map");
         _lightMaps = new DoubleBuffer<RenderTexture>(_lightMapFront, _lightMapBack);
         _lightMapCPU = new BitmapFloat16RGBA(width, height, new Half4(0, 0, 0, 0));
         _material = material.CreateInstance();
 
-        _opacityMap = renderingSystem.CreateRenderTexture(renderingSystem.PrefferedRGBATexturePass, (uint)width, (uint)height, "tile_opacity_map");
+        _opacityMap = renderingSystem.CreateRenderTexture(renderingSystem.PreferredRGBATexturePass, (uint)width, (uint)height, "tile_opacity_map");
         _opacityMapCPU = new BitmapUIntRGBA(width, height, Color32.White);
 
 

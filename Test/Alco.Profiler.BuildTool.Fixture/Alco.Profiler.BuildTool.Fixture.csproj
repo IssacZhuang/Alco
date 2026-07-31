@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Alco.Profiler.BuildTool.Fixture</RootNamespace>
+    <AssemblyName>Alco.Profiler.BuildTool.Fixture</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DebugType>portable</DebugType>
+    <MethodProfilerInfrastructureProject>true</MethodProfilerInfrastructureProject>
+  </PropertyGroup>
+</Project>

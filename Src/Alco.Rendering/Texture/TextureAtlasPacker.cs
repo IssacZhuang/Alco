@@ -50,7 +50,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
         if (sampler == null)
         {
             atlasTexture = _renderingSystem.CreateRenderTexture(
-            _renderingSystem.PrefferedRGBATexturePass,
+            _renderingSystem.PreferredRGBATexturePass,
             (uint)_packer.Width,
             (uint)_packer.Height,
                 "atlas_texture"
@@ -59,7 +59,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
         else
         {
             atlasTexture = _renderingSystem.CreateRenderTexture(
-                _renderingSystem.PrefferedRGBATexturePass,
+                _renderingSystem.PreferredRGBATexturePass,
                 (uint)_packer.Width,
                 (uint)_packer.Height,
                 sampler,

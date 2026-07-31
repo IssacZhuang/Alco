@@ -169,6 +169,26 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
         }
     }
 
+    /// <summary>
+    /// Draws the current render texture to another framebuffer using the same blit material used for presentation.
+    /// </summary>
+    /// <param name="frameBuffer">The destination framebuffer.</param>
+    public void BlitTo(GPUFrameBuffer frameBuffer)
+    {
+        ArgumentNullException.ThrowIfNull(frameBuffer);
+
+        _renderer.Begin(frameBuffer);
+        if (_customBlitMaterial != null)
+        {
+            _renderer.Draw(_mesh, _customBlitMaterial);
+        }
+        else
+        {
+            _renderer.Draw(_mesh, _blitMaterial);
+        }
+        _renderer.End();
+    }
+
 
     public override void Dispose()
     {

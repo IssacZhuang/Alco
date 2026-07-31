@@ -29,6 +29,7 @@ public partial class RenderingSystem
             UnicodeUtility.RangeHangulCompatibilityJamo,
             //symbols
             UnicodeUtility.RangeMiscellaneousSymbols,
+            UnicodeUtility.RangeGeneralPunctuation,
         });
 
         return CreateFont(packer.Bitmap, packer.Width, packer.Height, packer.Glyphs, name);

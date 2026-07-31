@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Alco.Profiler.BuildTool</RootNamespace>
+    <AssemblyName>Alco.Profiler.BuildTool</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <MethodProfilerInfrastructureProject>true</MethodProfilerInfrastructureProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Alco.Profiler\Alco.Profiler.csproj" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+  </ItemGroup>
+</Project>

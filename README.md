@@ -48,14 +48,14 @@ You can also include it as a git submodule if preferred.
 ## Third-Party Libraries
 
 - [Silk.NET](https://github.com/dotnet/Silk.NET): OpenAL audio and SPIR-V reflection
-- [Alimer.Bindings.WebGPU](https://github.com/amerkoleci/Alimer.Bindings.WebGPU): WebGPU API bindings
+- [Alimer.Bindings.WebGPU](https://github.com/amerkoleci/Alimer.Bindings.WebGPU): WebGPU API bindings (embedded as source code and modified)
 - [wgpu-native](https://github.com/gfx-rs/wgpu-native): WebGPU native implementation
 - [DirectX Compiler](https://github.com/microsoft/DirectXShaderCompiler): HLSL shader compilation
 - [System.IO.Hashing](https://www.nuget.org/packages/System.IO.Hashing): High-performance hashing
 - [StbSharp](https://github.com/StbSharp): Image and font processing (embedded as source code and modified)
 - [ImGui](https://github.com/ocornut/imgui): Immediate Mode Graphical User Interface
 - [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET): ImGui binding for .NET (embedded as source code and modified)
-- [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo): Gizmo manipulation widgets for ImGui
+- [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo): Algorithm reference for the built-in C# manipulation gizmo (Src/Alco.ImGUI/Gizmo, no longer a runtime dependency)
 
 All external libraries are used under their respective licenses, primarily MIT License.
 

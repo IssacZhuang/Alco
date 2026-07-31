@@ -318,6 +318,38 @@ public class TestJsonConverters
     }
 
 
+    [Test(Description = "Configable.Id is inherited from a base type; without JsonPropertyOrder it would serialize last. Verify it lands right after $type.")]
+    public void TestConfigIdSerializesAfterType()
+    {
+        var typeResolver = new PolymorphicJsonTypeResolver([typeof(Configable)]);
+        var options = new JsonSerializerOptions
+        {
+            TypeInfoResolver = typeResolver,
+            WriteIndented = true
+        };
+
+        var original = new TestConfig
+        {
+            Id = "Test_Id",
+            Name = "test",
+            Value = 42
+        };
+
+        string json = JsonSerializer.Serialize<Configable>(original, options);
+        TestContext.WriteLine($"Config JSON: {json}");
+
+        // $type is emitted by the polymorphic resolver and always first.
+        // Configable.Id uses [JsonPropertyOrder(-2)] so it precedes every declared property on derived types.
+        // Line layout: [0]=`{`, [1]=`"$type"...`, [2]=`"Id"...`, then derived properties Name/Value.
+        string[] lines = json.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.That(lines[0].Trim(), Is.EqualTo("{"));
+        Assert.That(lines[1].Trim(), Does.StartWith("\"$type\""));
+        Assert.That(lines[2].Trim(), Does.StartWith("\"Id\""));
+        Assert.That(lines[2].Trim(), Is.EqualTo("\"Id\": \"Test_Id\","));
+        Assert.That(lines[3].Trim(), Does.StartWith("\"Name\""));
+    }
+
+
     [Test(Description = "Test JsonConverterConfig basic serialization")]
     public void TestConfigConversion()
     {

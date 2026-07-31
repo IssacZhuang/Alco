@@ -61,7 +61,7 @@ internal unsafe static class VorbisDecoder
             stb_vorbis vorbis = stb_vorbis_open_memory(ptr, data.Length, &error);
             if (vorbis == null)
             {
-                throw new Exception("Error in stb vorbis open");
+                throw new Exception($"Error in stb vorbis open: {(STBVorbisError)error}");
             }
 
             stb_vorbis_info info = stb_vorbis_get_info(vorbis);

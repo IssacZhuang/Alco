@@ -20,11 +20,11 @@ public class ToolRegistryInvocationTests
     }
 
     [Test]
-    public async Task InvokeToolAsync_TaskOfTResult_AwaitsAndReturnsValue()
+    public async Task InvokeToolAsync_ReturnsValueDirectly()
     {
         var registry = CreateRegistry();
         var result = await registry.InvokeToolAsync(
-            "AddAsync",
+            "Add",
             JsonSerializer.SerializeToElement(new { a = 2, b = 4 }));
 
         Assert.That(result, Is.EqualTo(6));
@@ -32,11 +32,59 @@ public class ToolRegistryInvocationTests
     }
 
     [Test]
-    public async Task InvokeToolAsync_TaskResult_AwaitsAndReturnsNull()
+    public async Task InvokeToolAsync_VoidResult_ReturnsValue()
     {
         var registry = CreateRegistry();
         var result = await registry.InvokeToolAsync(
-            "CompleteAsync",
+            "Complete",
+            JsonSerializer.SerializeToElement(new { }));
+
+        Assert.That(result, Is.EqualTo("done"));
+        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task InvokeToolAsync_TaskResult_AwaitsAndReturnsValue()
+    {
+        var registry = CreateRegistry();
+        var result = await registry.InvokeToolAsync(
+            "AddAsync",
+            JsonSerializer.SerializeToElement(new { a = 5, b = 8 }));
+
+        Assert.That(result, Is.EqualTo(13));
+        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task InvokeToolAsync_TaskWithoutResult_AwaitsAndReturnsNull()
+    {
+        var registry = CreateRegistry();
+        var result = await registry.InvokeToolAsync(
+            "CompleteTaskAsync",
+            JsonSerializer.SerializeToElement(new { }));
+
+        Assert.That(result, Is.Null);
+        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task InvokeToolAsync_ValueTaskResult_AwaitsAndReturnsValue()
+    {
+        var registry = CreateRegistry();
+        var result = await registry.InvokeToolAsync(
+            "AddValueTaskAsync",
+            JsonSerializer.SerializeToElement(new { a = 6, b = 9 }));
+
+        Assert.That(result, Is.EqualTo(15));
+        Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task InvokeToolAsync_ValueTaskWithoutResult_AwaitsAndReturnsNull()
+    {
+        var registry = CreateRegistry();
+        var result = await registry.InvokeToolAsync(
+            "CompleteValueTaskAsync",
             JsonSerializer.SerializeToElement(new { }));
 
         Assert.That(result, Is.Null);
@@ -61,20 +109,42 @@ public class ToolRegistryInvocationTests
     }
 
     [Test]
-    public async Task InvokeToolAsync_MainThreadTaskOfTResult_AwaitsAndReturnsValue()
+    public async Task InvokeToolAsync_MainThreadTaskResult_AwaitsAfterQueueIsDrained()
     {
         var registry = CreateRegistry();
         var task = registry.InvokeToolAsync(
             "MainThreadAddAsync",
-            JsonSerializer.SerializeToElement(new { a = 5, b = 8 }));
+            JsonSerializer.SerializeToElement(new { a = 4, b = 11 }));
 
         Assert.That(task.IsCompleted, Is.False);
 
         registry.DrainMainThreadQueue();
         var result = await task;
 
-        Assert.That(result, Is.EqualTo(13));
+        Assert.That(result, Is.EqualTo(15));
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task InvokeToolAsync_BinaryToolResult_ReturnsBytesButOmitsBytesFromJson()
+    {
+        var registry = CreateRegistry();
+        var result = await registry.InvokeToolAsync(
+            "GetBinaryImage",
+            JsonSerializer.SerializeToElement(new { }));
+
+        var binary = result as BinaryToolResult;
+        Assert.That(binary, Is.Not.Null);
+        Assert.That(binary!.ContentType, Is.EqualTo("image/png"));
+        Assert.That(binary.Data, Is.EqualTo(new byte[] { 0x89, 0x50, 0x4E, 0x47 }));
+        Assert.That(binary.ByteLength, Is.EqualTo(4));
+        Assert.That(binary.Headers["X-Test-Width"], Is.EqualTo("1"));
+
+        string json = JsonSerializer.Serialize(binary, JsonOptions);
+        Assert.That(json, Does.Contain("contentType"));
+        Assert.That(json, Does.Contain("byteLength"));
+        Assert.That(json, Does.Not.Contain("data"));
+        Assert.That(json, Does.Not.Contain("iVBORw"));
     }
 
     private static ToolRegistry CreateRegistry()

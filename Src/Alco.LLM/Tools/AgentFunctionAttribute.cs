@@ -9,10 +9,11 @@ namespace Alco.LLM;
 public class AgentFunctionAttribute : Attribute
 {
     /// <summary>
-    /// Gets or initializes whether this function is async-safe and can be invoked
-    /// directly on the calling thread. Defaults to <c>false</c>, meaning the function
-    /// requires main-thread execution. Set to <c>true</c> for thread-safe functions
-    /// that can run on the request thread.
+    /// Gets or initializes whether this function runs on background thread pool threads.
+    /// Defaults to <c>false</c>, meaning the function is marshaled to the engine main thread
+    /// for execution. Set to <c>true</c> for functions that don't touch game state; such
+    /// functions may execute concurrently with other tool calls (including other invocations
+    /// of themselves), so they must not rely on shared mutable state.
     /// </summary>
-    public bool IsAsync { get; init; }
+    public bool IsOnAgentThread { get; init; }
 }

@@ -253,6 +253,6 @@ public class PluginHDR : BaseEnginePlugin
                 break;
         }
 
-        _engine.MainRenderTarget.SetAttachmentLayout(rendering.PrefferedHDRPass, _material!);
+        _engine.MainRenderTarget.SetAttachmentLayout(rendering.PreferredHDRPass, _material!);
     }
 }

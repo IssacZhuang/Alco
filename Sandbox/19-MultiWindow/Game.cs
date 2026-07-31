@@ -44,7 +44,7 @@ public class Game : GameEngine
         });
 
 
-        _windowRenderTarget = CreateViewRenderTarget(_window2, RenderingSystem.PrefferedSDRPass, BuiltInAssets.Shader_Blit);
+        _windowRenderTarget = CreateViewRenderTarget(_window2, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit);
         AddSystem(_windowRenderTarget);
 
         _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);
@@ -65,8 +65,8 @@ public class Game : GameEngine
         _toneMapDataBuffer = RenderingSystem.CreateGraphicsValueBuffer(_toneMapData, "tonemap_data_buffer");
         _toneMapMaterial.SetBuffer(ShaderResourceId.Data, _toneMapDataBuffer);
 
-        MainRenderTarget.SetAttachmentLayout(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
-        _windowRenderTarget.SetAttachmentLayout(RenderingSystem.PrefferedHDRPass, _toneMapMaterial);
+        MainRenderTarget.SetAttachmentLayout(RenderingSystem.PreferredHDRPass, _toneMapMaterial);
+        _windowRenderTarget.SetAttachmentLayout(RenderingSystem.PreferredHDRPass, _toneMapMaterial);
 
         _bloomSystem1 = new BloomSystem(this, MainRenderTarget);
         AddSystem(_bloomSystem1);

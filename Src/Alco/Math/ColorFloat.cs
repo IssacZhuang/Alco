@@ -96,6 +96,26 @@ public struct ColorFloat
     }
 
     /// <summary>
+    /// Formats this color as a 6-digit RGB hex string (no leading <c>#</c>) suitable for
+    /// <c>&lt;color=RRGGBB&gt;</c> rich text tags. HDR values are clamped to [0,1] first.
+    /// </summary>
+    /// <returns>A hex color string such as <c>"66CC66"</c>.</returns>
+    public string ToRgbHex()
+    {
+        Color32 sdr = Clamp01().ToColor32();
+        return string.Create(6, sdr, (span, c) =>
+        {
+            const string digits = "0123456789ABCDEF";
+            span[0] = digits[c.R >> 4];
+            span[1] = digits[c.R & 0xF];
+            span[2] = digits[c.G >> 4];
+            span[3] = digits[c.G & 0xF];
+            span[4] = digits[c.B >> 4];
+            span[5] = digits[c.B & 0xF];
+        });
+    }
+
+    /// <summary>
     /// Try to parse a hex color string to a ColorFloat
     /// </summary>
     /// <param name="hex">The hex color string</param>
@@ -112,17 +132,14 @@ public struct ColorFloat
         {
             hex = hex.Slice(1);
         }
-        if (hex.Length == 6)
+        if (hex.Length == 6 && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgb))
         {
-            uint uintColor = uint.Parse(hex, NumberStyles.HexNumber);
-            uintColor = (uintColor << 8) | 0xFF;
-            color = (ColorFloat)uintColor;
+            color = (ColorFloat)((rgb << 8) | 0xFF);
             return true;
         }
-        if (hex.Length == 8)
+        if (hex.Length == 8 && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgba))
         {
-            uint uintColor = uint.Parse(hex, NumberStyles.HexNumber);
-            color = (ColorFloat)uintColor;
+            color = (ColorFloat)rgba;
             return true;
         }
         color = default;
@@ -152,10 +169,30 @@ public struct ColorFloat
         );
     }
 
-    // convet hex color in 6 digit to ColorFloat (rgb with a = 1)
+    /// <summary>
+    /// Converts an integer hex color to <see cref="ColorFloat"/>.
+    /// </summary>
+    /// <remarks>
+    /// If <paramref name="color"/> fits in 6 hex digits (≤ 0xFFFFFF), it is treated as RGB
+    /// with alpha = 1.0. Otherwise, it is treated as an 8-digit RGBA value (AA BB GG RR).
+    /// This matches the <see cref="uint"/> overload behavior for values that happen to fit
+    /// in a signed <see cref="int"/> (e.g., <c>0x484848FF</c>).
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(int color)
     {
+        if (color > 0xFFFFFF)
+        {
+            // Treat as 8-digit RGBA — same logic as the uint overload
+            return invMaxByteVec4 * new Vector4(
+                (color & 0xFF000000) >> 24,
+                (color & 0x00FF0000) >> 16,
+                (color & 0x0000FF00) >> 8,
+                color & 0x000000FF
+            );
+        }
+
+        // Treat as 6-digit RGB with alpha = 1.0
         return invMaxByteVec4 * new Vector4(
             (color & 0xFF0000) >> 16,
             (color & 0x00FF00) >> 8,

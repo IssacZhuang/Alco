@@ -14,6 +14,10 @@ internal class NoAudioClip : AudioClip
         _name = name ?? string.Empty;
     }
 
+    public override void UnsafeHotReload(ReadOnlySpan<float> data, int channel, int sampleRate)
+    {
+    }
+
     protected override void Dispose(bool disposing)
     {
     }

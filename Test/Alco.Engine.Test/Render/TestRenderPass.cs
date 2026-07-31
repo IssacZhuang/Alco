@@ -9,7 +9,7 @@ public class TestAttachmentLayout
     [Test]
     public void TestAttachmentLayoutHash()
     {
-        GameEngine engine = new GameEngine(GameEngineSetting.CreateNoGPU());
+        GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         GPUDevice device = renderingSystem.GraphicsDevice;
         GPUAttachmentLayout pass1 = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(

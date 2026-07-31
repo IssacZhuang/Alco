@@ -25,7 +25,7 @@ public class Game : GameEngine
     private float _boxRotation = 0f;
     private readonly string[] operationModes = new string[] { "Translate", "Scale", "Rotate" };
     private int _operationIndex = 0;
-    private OPERATION _imGuizmoOperation = OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y;
+    private GizmoOperation _imGuizmoOperation = GizmoOperation.TranslateX | GizmoOperation.TranslateY;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -87,7 +87,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        ImGuizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _imGuizmoOperation, MODE.LOCAL, ref _particleSystem.Transform);
+        Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _imGuizmoOperation, GizmoMode.Local, ref _particleSystem.Transform);
 
         // Draw particles
         if (_subRenderContext.HasBuffer)
@@ -121,13 +121,13 @@ public class Game : GameEngine
             switch(_operationIndex)
             {
                 case 0:
-                    _imGuizmoOperation = OPERATION.TRANSLATE_X | OPERATION.TRANSLATE_Y;
+                    _imGuizmoOperation = GizmoOperation.TranslateX | GizmoOperation.TranslateY;
                     break;
                 case 1:
-                    _imGuizmoOperation = OPERATION.SCALE_X | OPERATION.SCALE_Y;
+                    _imGuizmoOperation = GizmoOperation.ScaleX | GizmoOperation.ScaleY;
                     break;
                 case 2:
-                    _imGuizmoOperation = OPERATION.ROTATE;
+                    _imGuizmoOperation = GizmoOperation.Rotate;
                     break;
             }   
         }

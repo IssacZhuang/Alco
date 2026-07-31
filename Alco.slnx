@@ -1,5 +1,8 @@
 <Solution>
   <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Profile" />
+    <BuildType Name="Release" />
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
     <Platform Name="x86" />
@@ -10,7 +13,8 @@
     <Project Path="Benchmark/BenchmarkFramework/BenchmarkFramework.csproj" />
   </Folder>
   <Folder Name="/Generator/">
-    <Project Path="Generator/Generator.csproj" />
+    <Project Path="Generator/AlcoGenerator/AlcoGenerator.csproj" />
+    <Project Path="Generator/WebGPUBindingGenerator/WebGPUBindingGenerator.csproj" />
   </Folder>
   <Folder Name="/Sandbox/">
     <Project Path="Sandbox/0-BasicWindow/0-BasicWindow.csproj" />
@@ -57,13 +61,19 @@
     <Project Path="Src/Alco.ImGUI/Alco.ImGUI.csproj" />
     <Project Path="Src/Alco.IO/Alco.IO.csproj" />
     <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
+    <Project Path="Src/Alco.Profiler/Alco.Profiler.csproj" />
     <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
     <Project Path="Src/Alco.ShaderCompiler/Alco.ShaderCompiler.csproj" />
     <Project Path="Src/Alco/Alco.csproj" />
   </Folder>
   <Folder Name="/Test/">
+    <Project Path="Test/Alco.Profiler.Test/Alco.Profiler.Test.csproj" />
+    <Project Path="Test/Alco.Profiler.BuildTool.Fixture/Alco.Profiler.BuildTool.Fixture.csproj" />
+    <Project Path="Test/Alco.Profiler.BuildTool.Test/Alco.Profiler.BuildTool.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
+    <Project Path="Test/Alco.Graphics.Test/Alco.Graphics.Test.csproj" />
     <Project Path="Test/Alco.LLM.Test/Alco.LLM.Test.csproj" />
+    <Project Path="Test/Alco.ImGUI.Test/Alco.ImGUI.Test.csproj" />
     <Project Path="Test/Alco.IO.Test/Alco.IO.Test.csproj" />
     <Project Path="Test/Alco.Rendering.Test/Alco.Rendering.Test.csproj" />
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
@@ -71,7 +81,6 @@
     <Project Path="Test/Alco.ShaderCompiler.Test/Alco.ShaderCompiler.Test.csproj" />
   </Folder>
   <Folder Name="/Tool/">
-    <Project Path="Tool/MsdfFontGenerator.Desktop/MsdfFontGenerator.Desktop.csproj" />
-    <Project Path="Tool/MsdfFontGenerator/MsdfFontGenerator.csproj" />
+    <Project Path="Tool/Alco.Profiler.BuildTool/Alco.Profiler.BuildTool.csproj" />
   </Folder>
 </Solution>

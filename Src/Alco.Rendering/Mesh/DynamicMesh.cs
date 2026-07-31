@@ -128,13 +128,30 @@ public sealed unsafe class DynamicMesh : Mesh
     {
         if (_vertexBufferCpuSize > 0)
         {
-            _device.WriteBuffer(VertexBuffer, 0, _vertexBufferCpu.UnsafePointer, _vertexBufferCpuSize);
+            WriteBufferAligned(VertexBuffer, _vertexBufferCpu.UnsafePointer, _vertexBufferCpuSize);
         }
         
         if (_indexBufferCpuSize > 0)
         {
-            _device.WriteBuffer(IndexBuffer, 0, _indexBufferCpu.UnsafePointer, _indexBufferCpuSize);
+            WriteBufferAligned(IndexBuffer, _indexBufferCpu.UnsafePointer, _indexBufferCpuSize);
         }
+    }
+
+    private void WriteBufferAligned(GPUBuffer buffer, byte* data, uint size)
+    {
+        uint alignedSize = size & ~3u;
+        if (alignedSize > 0)
+        {
+            _device.WriteBuffer(buffer, 0, data, alignedSize);
+        }
+
+        uint remainder = size - alignedSize;
+        if (remainder == 0) return;
+
+        byte* tail = stackalloc byte[4];
+        MemoryUtility.Memset(tail, 4, 0);
+        MemoryUtility.MemCopy(data + alignedSize, tail, remainder);
+        _device.WriteBuffer(buffer, alignedSize, tail, 4);
     }
 
     private unsafe SubMeshData AddSubMeshCore(byte* vertexPtr, uint verticesSize, byte* indexPtr, uint indexCount, IndexFormat indexFormat)

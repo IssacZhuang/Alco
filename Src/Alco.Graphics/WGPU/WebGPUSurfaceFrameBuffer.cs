@@ -32,6 +32,9 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     private WGPUSurfaceConfiguration _config;
     private uint _width;
     private uint _height;
+    // Set when a non-size configuration change (e.g. present mode) still needs to reach the
+    // native surface; consumed at the next safe reconfigure point in RequestSurfaceTexture.
+    private bool _isConfigDirty;
 
     #endregion
 
@@ -220,6 +223,14 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
 
     public void UpdateSurfaceConfig(WGPUSurfaceConfiguration config)
     {
+        // Size changes are reconfigured lazily through the texture-size mismatch check in
+        // RequestSurfaceTexture; any other change (e.g. present mode) must be flagged explicitly
+        // so the next safe point pushes it to the native surface.
+        if (_config.presentMode != config.presentMode)
+        {
+            _isConfigDirty = true;
+        }
+
         _config = config;
         _width = config.width;
         _height = config.height;
@@ -239,11 +250,22 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             isTextureUsable = false;
         }
 
+        // A pending non-size configuration change (e.g. present mode) also needs a native
+        // reconfigure, which is only valid while no surface texture is acquired: drop the freshly
+        // acquired texture and skip this frame. The next acquire picks up the new configuration.
+        if (isTextureUsable && !shouldResize && _isConfigDirty)
+        {
+            _colorTextures[0].Drop();
+            shouldResize = true;
+            isTextureUsable = false;
+        }
+
         if (shouldResize)
         {
             WGPUSurfaceConfiguration config = _config;
             wgpuSurfaceConfigure(_surface, &config);
             ResizeDepthTexture();
+            _isConfigDirty = false;
         }
         return isTextureUsable;
     }

@@ -78,7 +78,26 @@ public abstract class AudioDevice
         return CreateAudioSourceCore();
     }
 
+    /// <summary>
+    /// Creates a streaming <see cref="AudioStream"/> backed by the given data provider. The
+    /// stream is self-contained: it borrows a source, manages a ring of streaming buffers, and
+    /// is refilled each frame by this device.
+    /// </summary>
+    /// <param name="provider">The data provider that supplies PCM to the stream.</param>
+    /// <returns>A new audio stream owned by the device.</returns>
+    public AudioStream CreateAudioStream(IAudioStreamDataProvider provider)
+    {
+        return CreateAudioStreamCore(provider);
+    }
+
     protected abstract AudioSource CreateAudioSourceCore();
+
+    /// <summary>
+    /// Core factory for creating an <see cref="AudioStream"/>.
+    /// </summary>
+    /// <param name="provider">The data provider that supplies PCM to the stream.</param>
+    /// <returns>The created audio stream.</returns>
+    protected abstract AudioStream CreateAudioStreamCore(IAudioStreamDataProvider provider);
 
     /// <summary>
     /// Core factory for creating an <see cref="AudioClip"/>.

@@ -30,9 +30,16 @@ public partial class GameEngine
         }
 
         // audio
-        yield return new AssetLoaderAudioVorbis(AudioDevice);
-        yield return new AssetLoaderAudioWave(AudioDevice);
-        yield return new AssetLoaderAudioFlac(AudioDevice);
+        if (Setting.HasAudio)
+        {
+            yield return new AssetLoaderAudioVorbis(AudioDevice);
+            yield return new AssetLoaderAudioWave(AudioDevice);
+            yield return new AssetLoaderAudioFlac(AudioDevice);
+        }
+        else
+        {
+            yield return new AssetLoaderAudioNoLoad(AudioDevice);
+        }
 
         //meta
         yield return new AssetLoaderMeta(jsonConvertersList);
@@ -50,6 +57,11 @@ public partial class GameEngine
         });
 
         yield return new AssetHotReloaderTexture2D(RenderingSystem);
+
+        if (Setting.HasAudio)
+        {
+            yield return new AssetHotReloaderAudioVorbis(AudioDevice);
+        }
     }
 
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Alco;
@@ -376,6 +377,68 @@ public class ConfigDatabase
     private AccessTypeInfo GetAccessTypeInfo(Type type)
     {
         return _accessTypeInfos.GetOrAdd(type, static (t) => new AccessTypeInfo(t, s_memberAccessor));
+    }
+
+    /// <summary>
+    /// Copies every readable and writable instance member from <paramref name="source"/> to
+    /// <paramref name="target"/> (both must share the same runtime type) using the compiled
+    /// member accessor. <see cref="Configable.Id"/> is never copied: identity belongs to the
+    /// target. Members without a public setter (e.g. the runtime-assigned, JsonIgnore'd
+    /// <c>StatConfig.CacheIndex</c>) are not writable through the accessor and are left untouched.
+    /// </summary>
+    /// <remarks>
+    /// The accessor does not expose attribute information, so members annotated with
+    /// <see cref="JsonIgnoreAttribute"/> cannot be detected and ARE copied when they have both a
+    /// public getter and a public setter — they would be reset to the source's (freshly
+    /// deserialized) value. No config type currently declares such a member; keep it that way or
+    /// extend the accessor to expose attributes.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="source"/> and <paramref name="target"/> have different runtime types.
+    /// </exception>
+    public void CopyConfigMembers(Configable source, Configable target)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        Type type = source.GetType();
+        if (type != target.GetType())
+        {
+            throw new ArgumentException(
+                $"Source and target configs must share the same runtime type, got {type.FullName} and {target.GetType().FullName}.",
+                nameof(target));
+        }
+
+        AccessMemberInfo[] members = GetAccessTypeInfo(type).Members;
+        for (int i = 0; i < members.Length; i++)
+        {
+            AccessMemberInfo member = members[i];
+            if (!member.CanRead || !member.CanWrite || member.Name == nameof(Configable.Id))
+            {
+                continue;
+            }
+
+            object? value = member.GetValue<object?>(source);
+            if (value == null)
+            {
+                // The accessor's typed setter rejects null via its 'is T' pattern; assign through
+                // reflection instead (rare path: only members explicitly nulled by the source).
+                SetMemberToNull(type, member.Name, target);
+                continue;
+            }
+            member.SetValue<object>(target, value);
+        }
+    }
+
+    private static void SetMemberToNull(Type type, string memberName, object target)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        PropertyInfo? property = type.GetProperty(memberName, flags);
+        if (property != null)
+        {
+            property.SetValue(target, null);
+            return;
+        }
+        type.GetField(memberName, flags)?.SetValue(target, null);
     }
 
 

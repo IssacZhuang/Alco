@@ -4,7 +4,7 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkFramework;
 using StbImageSharp;
-using Alco.Rendering.Codec.Image;
+using Alco.Rendering;
 
 namespace Alco.Benchmark;
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
@@ -40,6 +41,12 @@ public class LLMSessionConfig
     /// while Anthropic and Gemini expect them in <see cref="ChatRole.User"/> messages.
     /// </summary>
     public LLMProvider Provider { get; set; } = LLMProvider.OpenAI;
+
+    /// <summary>
+    /// Maximum number of tool calls that can execute concurrently within an agent-thread batch.
+    /// Values less than or equal to 1 disable parallelism and execute all tool calls serially.
+    /// </summary>
+    public int MaxConcurrentTools { get; set; } = 10;
 }
 
 /// <summary>
@@ -58,6 +65,7 @@ public sealed class LLMSession
     private readonly LLMProvider _provider;
     private readonly bool _autoInvokeTools;
     private readonly TimeSpan _toolTimeout;
+    private readonly int _maxConcurrentTools;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMSession"/> class.
@@ -76,6 +84,7 @@ public sealed class LLMSession
         _provider = config.Provider;
         _autoInvokeTools = config.AutoInvokeTools;
         _toolTimeout = config.ToolTimeout;
+        _maxConcurrentTools = config.MaxConcurrentTools;
 
         _chatOptions = new ChatOptions
         {
@@ -98,46 +107,13 @@ public sealed class LLMSession
     /// <returns>The assistant's text response.</returns>
     public async Task<string> ChatAsync(string message, CancellationToken cancellationToken = default)
     {
-        _chatHistory.Add(new ChatMessage(ChatRole.User, message));
-
-        for (int i = 0; i < MaxAutoInvokeIterations; i++)
+        var text = new StringBuilder();
+        await foreach (var ev in ChatEventsAsync(message, cancellationToken))
         {
-            var response = await _chatClient.GetResponseAsync(_chatHistory, _chatOptions, cancellationToken);
-            var assistantMessage = response.Messages.LastOrDefault();
-
-            if (assistantMessage == null)
-            {
-                return string.Empty;
-            }
-
-            var functionCalls = assistantMessage.Contents.OfType<FunctionCallContent>().ToList();
-            if (functionCalls.Count == 0)
-            {
-                _chatHistory.Add(assistantMessage);
-                return assistantMessage.Text;
-            }
-
-            if (!_autoInvokeTools)
-            {
-                _chatHistory.Add(assistantMessage);
-                return assistantMessage.Text;
-            }
-
-            _chatHistory.Add(assistantMessage);
-            await InvokeToolCallsAsync(functionCalls, cancellationToken);
+            if (ev is TextDeltaEvent textDelta)
+                text.Append(textDelta.Text);
         }
-
-        // Max iterations reached, make one final request without tools
-        var finalOptions = new ChatOptions { Temperature = _chatOptions.Temperature };
-        var finalResponse = await _chatClient.GetResponseAsync(_chatHistory, finalOptions, cancellationToken);
-        var finalMessage = finalResponse.Messages.LastOrDefault();
-
-        if (finalMessage != null)
-        {
-            _chatHistory.Add(finalMessage);
-        }
-
-        return finalMessage?.Text ?? string.Empty;
+        return text.ToString();
     }
 
     /// <summary>
@@ -198,30 +174,72 @@ public sealed class LLMSession
                 yield break;
             }
 
-            foreach (var functionCall in functionCalls)
-            {
-                yield return new ToolCallStartedEvent(
-                    DateTimeOffset.UtcNow,
-                    functionCall.CallId ?? string.Empty,
-                    functionCall.Name ?? string.Empty,
-                    CopyArguments(functionCall));
-            }
-
             if (!_autoInvokeTools)
             {
+                foreach (var functionCall in functionCalls)
+                {
+                    yield return CreateStartedEvent(functionCall);
+                }
+
                 yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
                 yield break;
             }
 
+            // Tool calls are partitioned into batches: consecutive agent-thread tools form one
+            // batch and execute concurrently on the thread pool; each main-thread tool gets an
+            // exclusive batch. Batches execute strictly one after another.
             var results = new List<AIContent>(functionCalls.Count);
-            foreach (var functionCall in functionCalls)
+            int batchStart = 0;
+            while (batchStart < functionCalls.Count)
             {
-                var invocation = await InvokeToolCallAsync(functionCall, cancellationToken);
-                results.Add(invocation.ResultContent);
-                yield return invocation.Event;
+                bool isAgentThreadBatch = IsAgentThreadCall(functionCalls[batchStart]);
+                int batchEnd = batchStart + 1;
+                while (isAgentThreadBatch && batchEnd < functionCalls.Count && IsAgentThreadCall(functionCalls[batchEnd]))
+                {
+                    batchEnd++;
+                }
+
+                for (int callIndex = batchStart; callIndex < batchEnd; callIndex++)
+                {
+                    yield return CreateStartedEvent(functionCalls[callIndex]);
+                }
+
+                int batchCount = batchEnd - batchStart;
+                if (isAgentThreadBatch && batchCount > 1 && _maxConcurrentTools > 1)
+                {
+                    // Each task writes a distinct array slot, and Task.WhenAll provides the
+                    // happens-before guarantee for reading the slots afterwards.
+                    using var semaphore = new SemaphoreSlim(_maxConcurrentTools);
+                    var invocations = new ToolInvocationEventResult[batchCount];
+                    var tasks = new Task[batchCount];
+                    for (int slot = 0; slot < batchCount; slot++)
+                    {
+                        tasks[slot] = InvokeToolCallThrottledAsync(functionCalls[batchStart + slot], semaphore, invocations, slot, cancellationToken);
+                    }
+
+                    await Task.WhenAll(tasks);
+
+                    for (int slot = 0; slot < batchCount; slot++)
+                    {
+                        results.Add(invocations[slot].ResultContent);
+                        yield return invocations[slot].Event;
+                    }
+                }
+                else
+                {
+                    for (int callIndex = batchStart; callIndex < batchEnd; callIndex++)
+                    {
+                        var invocation = await InvokeToolCallAsync(functionCalls[callIndex], cancellationToken);
+                        results.Add(invocation.ResultContent);
+                        yield return invocation.Event;
+                    }
+                }
+
+                batchStart = batchEnd;
             }
 
-            AddToolResultsToHistory(results);
+            var toolRole = _provider == LLMProvider.OpenAI ? ChatRole.Tool : ChatRole.User;
+            _chatHistory.Add(new ChatMessage(toolRole, results));
             yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
             requestIndex++;
         }
@@ -244,16 +262,39 @@ public sealed class LLMSession
         yield return new RequestCompletedEvent(DateTimeOffset.UtcNow, requestIndex);
     }
 
-    private async Task InvokeToolCallsAsync(List<FunctionCallContent> functionCalls, CancellationToken cancellationToken)
+    private static ToolCallStartedEvent CreateStartedEvent(FunctionCallContent functionCall)
     {
-        var results = new List<AIContent>(functionCalls.Count);
-        foreach (var fc in functionCalls)
-        {
-            var invocation = await InvokeToolCallAsync(fc, cancellationToken);
-            results.Add(invocation.ResultContent);
-        }
+        return new ToolCallStartedEvent(
+            DateTimeOffset.UtcNow,
+            functionCall.CallId ?? string.Empty,
+            functionCall.Name ?? string.Empty,
+            functionCall.Arguments as IReadOnlyDictionary<string, object?>);
+    }
 
-        AddToolResultsToHistory(results);
+    private bool IsAgentThreadCall(FunctionCallContent functionCall)
+    {
+        // Unknown tools fail fast with KeyNotFoundException and never touch game state,
+        // so they are safe to schedule as part of an agent-thread batch.
+        var descriptor = string.IsNullOrEmpty(functionCall.Name) ? null : _registry.GetTool(functionCall.Name);
+        return descriptor == null || descriptor.IsOnAgentThread;
+    }
+
+    private async Task InvokeToolCallThrottledAsync(
+        FunctionCallContent functionCall,
+        SemaphoreSlim semaphore,
+        ToolInvocationEventResult[] invocations,
+        int slot,
+        CancellationToken cancellationToken)
+    {
+        await semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            invocations[slot] = await InvokeToolCallAsync(functionCall, cancellationToken);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     private async Task<ToolInvocationEventResult> InvokeToolCallAsync(FunctionCallContent functionCall, CancellationToken cancellationToken)
@@ -307,12 +348,6 @@ public sealed class LLMSession
                 toolName,
                 result,
                 stopwatch.Elapsed));
-    }
-
-    private void AddToolResultsToHistory(List<AIContent> results)
-    {
-        var toolRole = _provider == LLMProvider.OpenAI ? ChatRole.Tool : ChatRole.User;
-        _chatHistory.Add(new ChatMessage(toolRole, results));
     }
 
     private async Task<object?> InvokeToolWithTimeoutAsync(FunctionCallContent functionCall, JsonElement jsonArgs, CancellationToken cancellationToken)
@@ -370,13 +405,6 @@ public sealed class LLMSession
         }
 
         return error;
-    }
-
-    private static IReadOnlyDictionary<string, object?>? CopyArguments(FunctionCallContent functionCall)
-    {
-        return functionCall.Arguments != null
-            ? new Dictionary<string, object?>(functionCall.Arguments)
-            : null;
     }
 
     private sealed record ToolInvocationEventResult(FunctionResultContent ResultContent, LLMSessionEvent Event);

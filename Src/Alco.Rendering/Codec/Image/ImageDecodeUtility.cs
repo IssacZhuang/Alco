@@ -1,4 +1,4 @@
-namespace Alco.Rendering.Codec.Image;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Static facade for image decoding. Dispatches to format-specific decoders.

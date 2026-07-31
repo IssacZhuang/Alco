@@ -40,6 +40,9 @@ internal class NoDevice : GPUDevice
     }
     public static readonly NoDevice noDevice = new NoDevice();
 
+    // The representative bind-group limit reported in NoGPU mode (no real adapter is available).
+    private const int NoGpuMaxBindGroups = 8;
+
     public override GPUBindGroup BindGroupUniformBuffer {get;}
 
     public override GPUBindGroup BindGroupStorageBuffer {get;}
@@ -54,10 +57,14 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTexture2DStorage {get;}
 
-    public override PixelFormat PrefferedSurfaceFomat {get;}
+    public override PixelFormat PreferredSurfaceFormat {get;}
 
     public override bool TextureCompressBC3Supported => false;
 
+    /// <summary>
+    /// The maximum number of bind groups reported in NoGPU mode.
+    /// </summary>
+    public override int MaxBindGroups => NoGpuMaxBindGroups;
     public NoDevice(): base(new DeviceDescriptor{
         Host = new DummyLoopProvider(),
         Backend = GraphicsBackend.None,
@@ -242,6 +249,16 @@ internal class NoDevice : GPUDevice
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
         
+    }
+
+    protected override unsafe void BeginReadTextureCore(
+        GPUTexture texture,
+        byte* dest,
+        uint dataSize,
+        GPUTextureReadbackRequest request,
+        uint mipLevel = 0)
+    {
+        request.Complete();
     }
 
     protected override void OnEndFrameCore()

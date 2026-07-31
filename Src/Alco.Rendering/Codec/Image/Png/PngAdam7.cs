@@ -1,4 +1,4 @@
-namespace Alco.Rendering.Codec.Image;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Adam7 interlace pass layout computation and pixel merging.

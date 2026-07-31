@@ -11,6 +11,7 @@ namespace Alco;
 public class BinaryPostLoadSerializeNode : SerializeNode
 {
     private readonly ReferenceContext? _referenceContext;
+    private readonly bool _clearMissingReferences;
     protected BinaryTable _content;
     public BinaryTable Content => _content;
 
@@ -19,13 +20,23 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     /// <summary>
     /// Initializes a new instance of the <see cref="BinaryPostLoadSerializeNode"/> class.
     /// </summary>
+    /// <param name="referenceContext">The context used to resolve object references.</param>
+    /// <param name="content">The serialized content traversed during post-load.</param>
     /// <param name="onError">Optional error callback.</param>
-    public BinaryPostLoadSerializeNode(ReferenceContext? referenceContext, BinaryTable content, Action<string>? onError = null)
+    /// <param name="clearMissingReferences">
+    /// Whether a missing reference ID clears the existing destination before resolution.
+    /// Use this when populating a reused object from authoritative serialized state.
+    /// </param>
+    public BinaryPostLoadSerializeNode(
+        ReferenceContext? referenceContext,
+        BinaryTable content,
+        Action<string>? onError = null,
+        bool clearMissingReferences = false)
     {
         _referenceContext = referenceContext;
         _content = content;
         OnError = onError;
-
+        _clearMissingReferences = clearMissingReferences;
     }
 
     /// <summary>
@@ -61,7 +72,16 @@ public class BinaryPostLoadSerializeNode : SerializeNode
         {
             if (_content.TryGetTable(key, out BinaryTable? table))
             {
-                BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                    _referenceContext, table, OnError, _clearMissingReferences);
+                value.OnSerialize(node, SerializeMode.PostLoad);
+                return;
+            }
+
+            if (_clearMissingReferences)
+            {
+                BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                    _referenceContext, new BinaryTable(), OnError, clearMissingReferences: true);
                 value.OnSerialize(node, SerializeMode.PostLoad);
             }
         }
@@ -78,11 +98,19 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     {
         try
         {
-            if (_content.TryGetTable(key, out BinaryTable? table) && value is not null)
+            if (value is null)
+                return;
+
+            if (_content.TryGetTable(key, out BinaryTable? table))
             {
-                BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                    _referenceContext, table, OnError, _clearMissingReferences);
                 value.OnSerialize(node, SerializeMode.PostLoad);
+                return;
             }
+
+            if (_clearMissingReferences)
+                value = default;
         }
         catch (Exception ex)
         {
@@ -125,7 +153,8 @@ public class BinaryPostLoadSerializeNode : SerializeNode
                 {
                     if (array.TryGetTable(i, out BinaryTable? table))
                     {
-                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                            _referenceContext, table, OnError, _clearMissingReferences);
                         value[i].OnSerialize(node, SerializeMode.PostLoad);
                     }
                 }
@@ -151,7 +180,8 @@ public class BinaryPostLoadSerializeNode : SerializeNode
                 {
                     if (index < array.Count && array.TryGetTable(index, out BinaryTable? table))
                     {
-                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                            _referenceContext, table, OnError, _clearMissingReferences);
                         item.OnSerialize(node, SerializeMode.PostLoad);
                     }
                 }
@@ -178,7 +208,8 @@ public class BinaryPostLoadSerializeNode : SerializeNode
                 {
                     if (index < array.Count && array.TryGetTable(index, out BinaryTable? table))
                     {
-                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, table, OnError);
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                            _referenceContext, table, OnError, _clearMissingReferences);
                         item.OnSerialize(node, SerializeMode.PostLoad);
                     }
                 }
@@ -201,7 +232,8 @@ public class BinaryPostLoadSerializeNode : SerializeNode
                 {
                     if (table.TryGetTable(item.Key, out BinaryTable? itemTable))
                     {
-                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, itemTable, OnError);
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                            _referenceContext, itemTable, OnError, _clearMissingReferences);
                         item.Value.OnSerialize(node, SerializeMode.PostLoad);
                     }
                 }
@@ -223,7 +255,8 @@ public class BinaryPostLoadSerializeNode : SerializeNode
                 {
                     if (table.TryGetTable(item.Key, out BinaryTable? itemTable))
                     {
-                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(_referenceContext, itemTable, OnError);
+                        BinaryPostLoadSerializeNode node = new BinaryPostLoadSerializeNode(
+                            _referenceContext, itemTable, OnError, _clearMissingReferences);
                         item.Value.OnSerialize(node, SerializeMode.PostLoad);
                     }
                 }
@@ -274,19 +307,24 @@ public class BinaryPostLoadSerializeNode : SerializeNode
             return;
         }
 
-        if (TryGetId(key, out uint id) && _referenceContext.TryGetReference(id, out object? obj) && obj is T reference)
+        if (_clearMissingReferences)
+            referenceable = default;
+
+        if (!TryGetId(key, out ulong id) || id == 0)
+            return;
+
+        if (_referenceContext.TryGetReference(id, out object? obj) && obj is T reference)
         {
             referenceable = reference;
+            return;
         }
-        else if (id > 0)
-        {
-            AddError($"Failed to resolve reference '{key}': {id}");
-        }
+
+        AddError($"Failed to resolve reference '{key}': {id}\n{Environment.StackTrace}");
     }
 
-    private bool TryGetId(string key, out uint id)
+    private bool TryGetId(string key, out ulong id)
     {
-        if (_content.TryGetValue(key, out uint v))
+        if (_content.TryGetValue(key, out ulong v))
         {
             id = v;
             return true;
@@ -300,5 +338,3 @@ public class BinaryPostLoadSerializeNode : SerializeNode
 
 
 }
-
-

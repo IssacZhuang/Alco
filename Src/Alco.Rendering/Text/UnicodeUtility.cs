@@ -146,6 +146,12 @@ public static class UnicodeUtility
     /// </summary>
     public static readonly int2 RangeMiscellaneousSymbols = new int2(0x2600, 0x26FF);
 
+    /// <summary>
+    /// General Punctuation containing common typographic punctuation marks.
+    /// Includes • (bullet), … (ellipsis), — (em dash), – (en dash), « » (guillemets), and other widely-used punctuation.
+    /// </summary>
+    public static readonly int2 RangeGeneralPunctuation = new int2(0x2000, 0x206F);
+
     public static IEnumerable<int2> GetUnicodeRanges(FontLanguage language)
     {
         if (language.HasFlag(FontLanguage.Basic))

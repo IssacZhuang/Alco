@@ -77,6 +77,12 @@ public class UIInputBox : UIText, ITextInput
     public bool IsEditable { get; set; } = true;
 
     /// <summary>
+    /// When true, newlines (entered via Enter, pasted, or from IME) are stripped from the input,
+    /// keeping the field on a single line.
+    /// </summary>
+    public bool IsSingleLine { get; set; }
+
+    /// <summary>
     /// The interval of the cursor blink.
     /// </summary>
     public float CursorBlinkInterval = 0.5f;
@@ -513,6 +519,15 @@ public class UIInputBox : UIText, ITextInput
 
     public void OnTextInput(Canvas canvas, ReadOnlySpan<char> text)
     {
+        if (IsSingleLine)
+        {
+            text = StripLineBreaks(text);
+            if (text.IsEmpty)
+            {
+                return;
+            }
+        }
+
         //replace the selected text
         int selectionStart = _selectionStartPosition;
         int selectionEnd = _selectionEndPosition;
@@ -535,6 +550,34 @@ public class UIInputBox : UIText, ITextInput
         //refresh IME position
         _isInputAreaDirty = true;
         ResetBlink();
+    }
+
+    /// <summary>
+    /// Returns a copy of <paramref name="text"/> with all line-break characters removed.
+    /// When the input contains no line breaks the original span is returned without allocation.
+    /// </summary>
+    private static ReadOnlySpan<char> StripLineBreaks(ReadOnlySpan<char> text)
+    {
+        int firstBreak = text.IndexOfAny('\n', '\r');
+        if (firstBreak < 0)
+        {
+            return text;
+        }
+
+        // Build a buffer without line breaks; use the stack for small inputs to avoid allocation.
+        int length = text.Length;
+        Span<char> buffer = length <= 256 ? stackalloc char[length] : new char[length];
+        int written = 0;
+        for (int i = 0; i < length; i++)
+        {
+            char c = text[i];
+            if (c != '\n' && c != '\r')
+            {
+                buffer[written++] = c;
+            }
+        }
+
+        return buffer.Slice(0, written).ToArray();
     }
 
     public void HandleKeyDelete()

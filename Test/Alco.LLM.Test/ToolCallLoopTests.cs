@@ -74,7 +74,7 @@ public class ToolCallLoopTests
         var result = await session.ChatAsync("Hi");
 
         Assert.That(result, Is.EqualTo("Hello!"));
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(1));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
     [Test]
@@ -93,7 +93,7 @@ public class ToolCallLoopTests
         var result = await session.ChatAsync("Add 3 and 5");
 
         Assert.That(result, Is.EqualTo("The result is 8."));
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(2));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(2));
 
         // Verify history: user -> assistant(tool_call) -> tool(result) -> assistant(text)
         var history = client.ReceivedMessagesHistory;
@@ -169,30 +169,10 @@ public class ToolCallLoopTests
     }
 
     [Test]
-    public async Task ChatAsync_AsyncToolThrowsException_ReturnsStructuredErrorResult()
-    {
-        var client = new FakeChatClient();
-        client.SetupResponse(CreateToolCallResponse(("call1", "ThrowAsync", new Dictionary<string, object?>())));
-        client.SetupResponse(CreateTextResponse("Handled async error."));
-
-        var registry = CreateAdvancedRegistry();
-        var tools = registry.ToAITools();
-        var session = new LLMSession(client, registry, tools);
-
-        var result = await session.ChatAsync("Trigger async error");
-
-        Assert.That(result, Is.EqualTo("Handled async error."));
-        var toolResult = GetFunctionResults(client.ReceivedMessagesHistory[1]).Single();
-        var failure = GetFailureResult(toolResult);
-        Assert.That(failure["success"], Is.False);
-        Assert.That(failure["errorType"], Is.EqualTo(nameof(InvalidOperationException)));
-    }
-
-    [Test]
     public async Task ChatAsync_AutoInvokeToolsFalse_DoesNotInvokeToolOrContinueLoop()
     {
         var client = new FakeChatClient();
-        client.SetupResponse(CreateToolCallResponse(("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })));
+        client.SetupResponse(CreateToolCallResponse(("call1", "Add", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })));
 
         var registry = CreateAdvancedRegistry();
         var tools = registry.ToAITools();
@@ -205,14 +185,14 @@ public class ToolCallLoopTests
 
         Assert.That(result, Is.EqualTo(string.Empty));
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(0));
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(1));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
     [Test]
     public async Task ChatAsync_ToolTimeout_ReturnsStructuredErrorResultAndContinues()
     {
         var client = new FakeChatClient();
-        client.SetupResponse(CreateToolCallResponse(("call1", "SlowAsync", new Dictionary<string, object?> { ["milliseconds"] = 500 })));
+        client.SetupResponse(CreateToolCallResponse(("call1", "Slow", new Dictionary<string, object?> { ["milliseconds"] = 500 })));
         client.SetupResponse(CreateTextResponse("Timeout handled."));
 
         var registry = CreateAdvancedRegistry();
@@ -268,7 +248,7 @@ public class ToolCallLoopTests
 
         Assert.That(result, Is.EqualTo("Stopped."));
         // 128 iterations with tools + 1 final without = 129 calls
-        Assert.That(client.GetResponseCallCount, Is.EqualTo(129));
+        Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(129));
     }
 
     [Test]
@@ -435,7 +415,7 @@ public class ToolCallLoopTests
         {
             yield return new ChatResponseUpdate
             {
-                Contents = [new FunctionCallContent("call1", "SlowAsync", new Dictionary<string, object?> { ["milliseconds"] = 500 })]
+                Contents = [new FunctionCallContent("call1", "Slow", new Dictionary<string, object?> { ["milliseconds"] = 500 })]
             };
         }
 
@@ -471,7 +451,7 @@ public class ToolCallLoopTests
         {
             yield return new ChatResponseUpdate
             {
-                Contents = [new FunctionCallContent("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
+                Contents = [new FunctionCallContent("call1", "Add", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
             };
         }
 
@@ -631,7 +611,7 @@ public class ToolCallLoopTests
         {
             yield return new ChatResponseUpdate
             {
-                Contents = [new FunctionCallContent("call1", "AddAsync", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
+                Contents = [new FunctionCallContent("call1", "Add", new Dictionary<string, object?> { ["a"] = 2, ["b"] = 3 })]
             };
         }
 

@@ -35,8 +35,8 @@ public class BenchmarkTask
         }
     }
 
-    [Benchmark(Description = "Reuseable Task")]
-    public void BenchmarkReuseableTask()
+    [Benchmark(Description = "Reusable Task")]
+    public void BenchmarkReusableTask()
     {
         for (int i = 0; i < _count; i++)
         {
@@ -55,8 +55,8 @@ public class BenchmarkTask
         }
     }
 
-    [Benchmark(Description = "Reuseable Task WaitAll")]
-    public void BenchmarkReuseableTaskArray()
+    [Benchmark(Description = "Reusable Task WaitAll")]
+    public void BenchmarkReusableTaskArray()
     {
         for (int i = 0; i < _count; i++)
         {

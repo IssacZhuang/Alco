@@ -84,7 +84,12 @@ internal sealed class WebGPUTexture : WebGPUTextureBase
             sampleCount = descriptor.SampleCount,
         };
 
-        _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
+        ReadOnlySpan<byte> name = Name.GetUtf8Span();
+        fixed (byte* ptrName = name)
+        {
+            textureDescriptor.label = new WGPUStringView(ptrName, name.Length);
+            _nativeTexture = wgpuDeviceCreateTexture(nativeDevice, &textureDescriptor);
+        }
 
         PixelFormat = descriptor.Format;
     }

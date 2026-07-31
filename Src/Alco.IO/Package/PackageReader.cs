@@ -2,22 +2,26 @@ using System.Runtime.CompilerServices;
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
-using System.Collections.Immutable;
+using System.IO;
 using System.Text;
 
 
 namespace Alco.IO;
 
-public unsafe sealed class PackageReader : AutoDisposable
+/// <summary>
+/// Reads an Alco package over a file, byte array, unmanaged memory, or seekable <see cref="Stream"/>.
+/// Validates the file magic against <typeparamref name="TMeta"/>'s magic and decodes the entry
+/// directory (the <see cref="PackageMetaBase.Entries"/> inherited by <typeparamref name="TMeta"/>).
+/// Supports concurrent positional reads; each thread supplies its own destination buffer.
+/// </summary>
+/// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
+public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : PackageMetaBase, IPackageMeta, new()
 {
-    /// <summary>
-    /// The magic number that identifies Alco package files.
-    /// </summary>
-    private static readonly byte[] Magic = "alco"u8.ToArray();
-
-    //only one of the two will be used
+    // Only one of the backing stores is used.
     private readonly SafeFileHandle? _file;
     private readonly SafeMemoryHandle? _memory;
+    private readonly Stream? _stream;
+    private readonly bool _ownsStream;
     private readonly long _length;
 
     // Base offset of the content section: 12 + MetaLength
@@ -26,7 +30,11 @@ public unsafe sealed class PackageReader : AutoDisposable
     private readonly FrozenDictionary<string, PackageEntry> _entries;
     private readonly string[] _allFileNames;
 
+    /// <summary>Gets the sorted list of all entry names.</summary>
     public IReadOnlyList<string> AllFileNames => _allFileNames;
+
+    /// <summary>Gets the decoded package metadata (entry directory + any type-specific fields).</summary>
+    public TMeta Meta { get; }
 
     /// <summary>
     /// Opens a package reader from a file path.
@@ -37,7 +45,8 @@ public unsafe sealed class PackageReader : AutoDisposable
         //open with read
         _file = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.Asynchronous);
         _length = RandomAccess.GetLength(_file);
-        _entries = ReadEntries(out _contentBase);
+        Meta = ReadEntries(out _contentBase);
+        _entries = Meta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
         _allFileNames = _entries.Keys.ToArray();
         Array.Sort(_allFileNames, StringComparer.Ordinal);
     }
@@ -50,7 +59,8 @@ public unsafe sealed class PackageReader : AutoDisposable
     {
         _memory = new SafeMemoryHandle(data);
         _length = data.Length;
-        _entries = ReadEntries(out _contentBase);
+        Meta = ReadEntries(out _contentBase);
+        _entries = Meta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
         _allFileNames = _entries.Keys.ToArray();
         Array.Sort(_allFileNames, StringComparer.Ordinal);
     }
@@ -64,7 +74,30 @@ public unsafe sealed class PackageReader : AutoDisposable
     {
         _memory = new SafeMemoryHandle(data, size);
         _length = size;
-        _entries = ReadEntries(out _contentBase);
+        Meta = ReadEntries(out _contentBase);
+        _entries = Meta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
+        _allFileNames = _entries.Keys.ToArray();
+        Array.Sort(_allFileNames, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Opens a package reader over a seekable stream. The stream is not disposed by the reader when
+    /// <paramref name="ownsStream"/> is <see langword="false"/> (the caller owns its lifetime).
+    /// </summary>
+    /// <param name="stream">Seekable read stream positioned at the package start (offset 0).</param>
+    /// <param name="ownsStream">When <see langword="true"/>, the reader disposes the stream.</param>
+    internal PackageReader(Stream stream, bool ownsStream)
+    {
+        if (!stream.CanRead || !stream.CanSeek)
+        {
+            throw new ArgumentException("Stream must be readable and seekable.", nameof(stream));
+        }
+
+        _stream = stream;
+        _ownsStream = ownsStream;
+        _length = stream.Length;
+        Meta = ReadEntries(out _contentBase);
+        _entries = Meta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
         _allFileNames = _entries.Keys.ToArray();
         Array.Sort(_allFileNames, StringComparer.Ordinal);
     }
@@ -146,9 +179,24 @@ public unsafe sealed class PackageReader : AutoDisposable
             memory.Slice(offsetInt, buffer.Length).CopyTo(buffer);
             return buffer.Length;
         }
+        else if (_stream != null)
+        {
+            _stream.Position = offset;
+            int totalRead = 0;
+            while (totalRead < buffer.Length)
+            {
+                int read = _stream.Read(buffer[totalRead..]);
+                if (read <= 0)
+                {
+                    throw new EndOfStreamException($"Unexpected end of stream at offset {offset + totalRead}.");
+                }
+                totalRead += read;
+            }
+            return totalRead;
+        }
         else
         {
-            throw new InvalidOperationException("No file or memory handle is available");
+            throw new InvalidOperationException("No file, memory, or stream backing is available");
         }
     }
 
@@ -166,9 +214,13 @@ public unsafe sealed class PackageReader : AutoDisposable
             memory.Slice(offsetInt, size).CopyTo(new Span<byte>(buffer, size));
             return size;
         }
+        else if (_stream != null)
+        {
+            return Read(new Span<byte>(buffer, size), offset);
+        }
         else
         {
-            throw new InvalidOperationException("No file or memory handle is available");
+            throw new InvalidOperationException("No file, memory, or stream backing is available");
         }
     }
 
@@ -189,14 +241,16 @@ public unsafe sealed class PackageReader : AutoDisposable
         }
     }
 
-    private FrozenDictionary<string, PackageEntry> ReadEntries(out long contentBase)
+    private TMeta ReadEntries(out long contentBase)
     {
+        ReadOnlySpan<byte> expectedMagic = TMeta.Magic;
+
         // Verify magic number
         Span<byte> magicBuffer = stackalloc byte[4];
         Read(magicBuffer, 0);
-        if (!magicBuffer.SequenceEqual(Magic))
+        if (!magicBuffer.SequenceEqual(expectedMagic))
         {
-            throw new InvalidDataException($"Invalid package magic. Expected '{Encoding.ASCII.GetString(Magic)}'.");
+            throw new InvalidDataException($"Invalid package magic. Expected '{Encoding.ASCII.GetString(expectedMagic)}'.");
         }
 
         long metaLength = ReadValue<long>(4);
@@ -216,37 +270,54 @@ public unsafe sealed class PackageReader : AutoDisposable
         int metaLengthInt = (int)metaLength;
         byte[] meta = new byte[metaLengthInt];
         Read(meta, 12L);
-        PackageMeta packageMeta = Alco.BinaryParser.Decode<PackageMeta>(meta);
+        TMeta packageMeta = Alco.BinaryParser.Decode<TMeta>(meta);
         contentBase = 12L + metaLength;
-        return packageMeta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
+        return packageMeta;
     }
 
     protected override void Dispose(bool disposing)
     {
-        _file?.Dispose();
+        if (disposing)
+        {
+            _file?.Dispose();
+            if (_ownsStream)
+            {
+                _stream?.Dispose();
+            }
+        }
     }
 
     /// <summary>
     /// Opens a package reader from a file path.
     /// </summary>
-    public static PackageReader OpenFile(string path)
+    public static PackageReader<TMeta> OpenFile(string path)
     {
-        return new PackageReader(path);
+        return new PackageReader<TMeta>(path);
     }
 
     /// <summary>
     /// Opens a package reader over a managed byte array.
     /// </summary>
-    public static PackageReader OpenMemory(byte[] data)
+    public static PackageReader<TMeta> OpenMemory(byte[] data)
     {
-        return new PackageReader(data);
+        return new PackageReader<TMeta>(data);
     }
 
     /// <summary>
     /// Opens a package reader over an unmanaged memory region.
     /// </summary>
-    public static PackageReader OpenUnsafeMemory(byte* data, int size)
+    public static PackageReader<TMeta> OpenUnsafeMemory(byte* data, int size)
     {
-        return new PackageReader(data, size);
+        return new PackageReader<TMeta>(data, size);
+    }
+
+    /// <summary>
+    /// Opens a package reader over a seekable stream. The reader does not dispose the stream; the
+    /// caller is responsible for its lifetime (e.g. via a <see langword="using"/> block).
+    /// </summary>
+    /// <param name="stream">Seekable read stream positioned at the package start (offset 0).</param>
+    public static PackageReader<TMeta> OpenStream(Stream stream)
+    {
+        return new PackageReader<TMeta>(stream, ownsStream: false);
     }
 }

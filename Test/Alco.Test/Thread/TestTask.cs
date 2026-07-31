@@ -33,8 +33,8 @@ public class TestTask
         }
     }
 
-    // Test classes for ReuseableParallelTask
-    private class TestParallelCounterTask : ReuseableBatchTask
+    // Test classes for ReusableParallelTask
+    private class TestParallelCounterTask : ReusableBatchTask
     {
         private int _counter;
         private readonly object _lock = new object();
@@ -58,7 +58,7 @@ public class TestTask
         }
     }
 
-    private class TestParallelArrayTask : ReuseableBatchTask
+    private class TestParallelArrayTask : ReusableBatchTask
     {
         private readonly int[] _array;
 
@@ -75,7 +75,7 @@ public class TestTask
         }
     }
 
-    private class TestParallelExceptionTask : ReuseableBatchTask
+    private class TestParallelExceptionTask : ReusableBatchTask
     {
         private readonly int _errorIndex;
 
@@ -94,7 +94,7 @@ public class TestTask
         }
     }
 
-    private class TestParallelConcurrencyTask : ReuseableBatchTask
+    private class TestParallelConcurrencyTask : ReusableBatchTask
     {
         private readonly List<int> _threadIds = new List<int>();
         private readonly object _lock = new object();
@@ -116,7 +116,7 @@ public class TestTask
     }
 
     [Test(Description = "Test Task")]
-    public void TestReuseableTask()
+    public void TestReusableTask()
     {
         TestAddTask task = new TestAddTask();
         task.Run();
@@ -154,7 +154,7 @@ public class TestTask
     }
 
     [Test(Description = "Test Parallel Task Basic Functionality")]
-    public void TestReuseableParallelTaskBasic()
+    public void TestReusableParallelTaskBasic()
     {
         using var task = new TestParallelCounterTask();
 
@@ -179,7 +179,7 @@ public class TestTask
     }
 
     [Test(Description = "Test Parallel Task Array Processing")]
-    public void TestReuseableParallelTaskArray()
+    public void TestReusableParallelTaskArray()
     {
         const int arraySize = 100;
         using var task = new TestParallelArrayTask(arraySize);
@@ -194,7 +194,7 @@ public class TestTask
     }
 
     [Test(Description = "Test Parallel Task with Different Batch Sizes")]
-    public void TestReuseableParallelTaskBatchSizes()
+    public void TestReusableParallelTaskBatchSizes()
     {
         const int totalCount = 50;
         using var task = new TestParallelCounterTask();
@@ -216,7 +216,7 @@ public class TestTask
     }
 
     [Test(Description = "Test Parallel Task Exception Handling")]
-    public void TestReuseableParallelTaskExceptions()
+    public void TestReusableParallelTaskExceptions()
     {
         using var task = new TestParallelExceptionTask(5);
 
@@ -228,7 +228,7 @@ public class TestTask
     }
 
     [Test(Description = "Test Parallel Task Disposal")]
-    public void TestReuseableParallelTaskDisposal()
+    public void TestReusableParallelTaskDisposal()
     {
         var task = new TestParallelCounterTask();
 

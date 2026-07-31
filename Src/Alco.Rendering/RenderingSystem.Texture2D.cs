@@ -5,7 +5,6 @@ using System.Runtime.Intrinsics.X86;
 using StbImageSharp;
 using StbImageWriteSharp;
 using Alco.Graphics;
-using Alco.Rendering.Codec.Image;
 
 using static Alco.MemoryUtility;
 

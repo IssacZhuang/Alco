@@ -6,8 +6,8 @@ namespace Alco.Test;
 
 public class TestBatchTask2D
 {
-    // Test classes for ReuseableBatchTask2D
-    private class Test2DCounterTask : ReuseableBatchTask2D
+    // Test classes for ReusableBatchTask2D
+    private class Test2DCounterTask : ReusableBatchTask2D
     {
         private int _counter;
         private readonly object _lock = new object();
@@ -31,7 +31,7 @@ public class TestBatchTask2D
         }
     }
 
-    private class Test2DArrayTask : ReuseableBatchTask2D
+    private class Test2DArrayTask : ReusableBatchTask2D
     {
         private readonly int[,] _array;
 
@@ -48,7 +48,7 @@ public class TestBatchTask2D
         }
     }
 
-    private class Test2DExceptionTask : ReuseableBatchTask2D
+    private class Test2DExceptionTask : ReusableBatchTask2D
     {
         private readonly int _errorX;
         private readonly int _errorY;
@@ -70,7 +70,7 @@ public class TestBatchTask2D
     }
 
     [Test(Description = "Test 2D Batch Task Basic Functionality")]
-    public void TestReuseableBatchTask2DBasic()
+    public void TestReusableBatchTask2DBasic()
     {
         using var task = new Test2DCounterTask();
 
@@ -103,7 +103,7 @@ public class TestBatchTask2D
     }
 
     [Test(Description = "Test 2D Batch Task Array Processing")]
-    public void TestReuseableBatchTask2DArray()
+    public void TestReusableBatchTask2DArray()
     {
         const int width = 10;
         const int height = 8;
@@ -124,7 +124,7 @@ public class TestBatchTask2D
     }
 
     [Test(Description = "Test 2D Batch Task with Different Batch Sizes")]
-    public void TestReuseableBatchTask2DBatchSizes()
+    public void TestReusableBatchTask2DBatchSizes()
     {
         const int width = 12;
         const int height = 8;
@@ -152,7 +152,7 @@ public class TestBatchTask2D
     }
 
     [Test(Description = "Test 2D Batch Task Exception Handling")]
-    public void TestReuseableBatchTask2DExceptions()
+    public void TestReusableBatchTask2DExceptions()
     {
         using var task = new Test2DExceptionTask(2, 3);
 
@@ -164,7 +164,7 @@ public class TestBatchTask2D
     }
 
     [Test(Description = "Test 2D Batch Task Disposal")]
-    public void TestReuseableBatchTask2DDisposal()
+    public void TestReusableBatchTask2DDisposal()
     {
         var task = new Test2DCounterTask();
 
@@ -180,7 +180,7 @@ public class TestBatchTask2D
     }
 
     [Test(Description = "Test 2D Batch Task Large Area Processing")]
-    public void TestReuseableBatchTask2DLargeArea()
+    public void TestReusableBatchTask2DLargeArea()
     {
         const int size = 50; // 50x50 = 2500 elements
         using var task = new Test2DCounterTask();

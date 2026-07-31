@@ -56,6 +56,26 @@ public class UINode : IEnumerable<UINode>
     /// <value></value>
     public UINode? Parent { get; private set; } = null;
 
+    /// <summary>
+    /// Walks the parent chain starting from this node (inclusive) toward the root,
+    /// returning the first node for which <paramref name="predicate"/> is true.
+    /// </summary>
+    /// <param name="predicate">The match predicate. Must not be null.</param>
+    /// <returns>The first matching ancestor, or null if none matches.</returns>
+    public UINode? FirstAncestorWhere(Func<UINode, bool> predicate)
+    {
+        UINode? node = this;
+        while (node != null)
+        {
+            if (predicate(node))
+            {
+                return node;
+            }
+            node = node.Parent;
+        }
+        return null;
+    }
+
 
     /// <summary>
     /// The name of the node.

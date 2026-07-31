@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Alco.Rendering.Codec.Image;
+using Alco.Rendering;
 using StbImageSharp;
 
 namespace Alco.Benchmark;
