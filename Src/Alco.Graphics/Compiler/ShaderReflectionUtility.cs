@@ -260,7 +260,11 @@ public static class ShaderReflectionUtility
         switch (type)
         {
             case BindingType.Texture:
-                textureBindingInfo = new TextureBindingInfo(ReflectTypeUtility.ConvertTextureViewDimension(input.Image));
+                // The OpTypeImage Depth operand (1 for depth images, 0/2 otherwise) decides
+                // whether the texture must be bound as a depth texture (see
+                // SpirvDepthTexturePatcher, which rewrites depth textures to 1).
+                TextureSampleType sampleType = input.Image.Depth == 1 ? TextureSampleType.Depth : TextureSampleType.Float;
+                textureBindingInfo = new TextureBindingInfo(ReflectTypeUtility.ConvertTextureViewDimension(input.Image), sampleType);
                 break;
             case BindingType.StorageTexture:
                 storageTextureBindingInfo = new StorageTextureBindingInfo(

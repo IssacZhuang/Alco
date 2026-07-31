@@ -609,19 +609,31 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        ref Slot slot = ref _slots[id];
-        if (slot.type != ResourceType.TextureWithSampler)
+        if (!IsDepthTextureGroup(id))
         {
             return false;
         }
 
-        // The depth texture is not supported for writeable texture
-        slot.texture = null;
-        slot.renderTexture = renderTexture;
-        slot.renderTextureIndex = RenderTextureIndexDepth;
-        _resourceGroups[id] = renderTexture.EntryDepthRead;
+        ref Slot slot = ref _slots[id];
+        if (slot.type == ResourceType.TextureRead)
+        {
+            slot.texture = null;
+            slot.renderTexture = renderTexture;
+            slot.renderTextureIndex = RenderTextureIndexDepth;
+            _resourceGroups[id] = renderTexture.EntryDepthRead;
+            return true;
+        }
 
-        return true;
+        if (slot.type == ResourceType.TextureWithSampler)
+        {
+            slot.texture = null;
+            slot.renderTexture = renderTexture;
+            slot.renderTextureIndex = RenderTextureIndexDepth;
+            _resourceGroups[id] = renderTexture.EntryDepthComparison;
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -641,6 +653,10 @@ public sealed class ShaderParameterSet
 
     /// <summary>
     /// Set the depth texture in the render texture to the shader parameter set.
+    /// The target bind group must be a depth texture group (a texture declared with the
+    /// DEFINE_TEX2D_DEPTH or DEFINE_TEX2D_DEPTH_SAMPLE macro); a texture-only group gets
+    /// the depth view, a texture-and-comparison-sampler group additionally gets the
+    /// device default comparison sampler.
     /// </summary>
     /// <param name="id">The shader resource ID of the resource.</param>
     /// <param name="renderTexture">The render texture to set.</param>
@@ -656,17 +672,56 @@ public sealed class ShaderParameterSet
             throw new InvalidOperationException("The render texture does not have a depth attachment.");
         }
 
-        ref Slot slot = ref _slots[id];
-
-        if (slot.type != ResourceType.TextureRead)
+        if (!IsDepthTextureGroup(id))
         {
-            throw new InvalidOperationException($"The depth texture only supports texture read which is not the case for bind group {id}.");
+            throw new InvalidOperationException($"The bind group {id}({_reflectionInfo.GetResourceName(id)}) is not a depth texture group. Declare the texture with the DEFINE_TEX2D_DEPTH or DEFINE_TEX2D_DEPTH_SAMPLE macro.");
         }
 
-        slot.texture = null;
-        slot.renderTexture = renderTexture;
-        slot.renderTextureIndex = RenderTextureIndexDepth;
-        _resourceGroups[id] = renderTexture.EntryDepthRead;
+        ref Slot slot = ref _slots[id];
+
+        if (slot.type == ResourceType.TextureRead)
+        {
+            slot.texture = null;
+            slot.renderTexture = renderTexture;
+            slot.renderTextureIndex = RenderTextureIndexDepth;
+            _resourceGroups[id] = renderTexture.EntryDepthRead;
+            return;
+        }
+
+        if (slot.type == ResourceType.TextureWithSampler)
+        {
+            slot.texture = null;
+            slot.renderTexture = renderTexture;
+            slot.renderTextureIndex = RenderTextureIndexDepth;
+            _resourceGroups[id] = renderTexture.EntryDepthComparison;
+            return;
+        }
+
+        throw new InvalidOperationException($"The depth texture only supports texture read which is not the case for bind group {id}.");
+    }
+
+    /// <summary>
+    /// Whether the bind group with the given resource ID holds a depth texture binding.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <returns>True if the group's texture binding has the depth sample type.</returns>
+    private bool IsDepthTextureGroup(uint id)
+    {
+        if (id >= _reflectionInfo.BindGroups.Count)
+        {
+            return false;
+        }
+
+        IReadOnlyList<BindGroupEntryInfo> bindings = _reflectionInfo.BindGroups[(int)id].Bindings;
+        for (int i = 0; i < bindings.Count; i++)
+        {
+            if (bindings[i].Entry.Type == BindingType.Texture)
+            {
+                return bindings[i].Entry.TextureInfo.SampleType == TextureSampleType.Depth;
+            }
+        }
+
+        return false;
     }
 
     #endregion

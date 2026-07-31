@@ -51,7 +51,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// </summary>
     public struct ShadowDrawConstants
     {
-        /// <summary>Combined light view-projection * model matrix.</summary>
+        /// <summary>Combined model * light view-projection matrix.</summary>
         public Matrix4x4 LightViewProjection;
     }
 
@@ -214,8 +214,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         ShadowMapSize = shadowMapSize;
 
         // The lighting shader samples depth textures (G-buffer depth and shadow map),
-        // so its bind group layouts must declare UnfilterableFloat for those slots,
-        // matching the engine's depth-read bind group layout.
+        // so its bind group layouts must declare Depth sample type for those slots,
+        // matching the engine's depth read / depth comparison bind group layouts.
         Shader lightingShader = rendering.CreateShader(lightingShaderText, lightingShaderName, null, CreateLightingBindGroupLayouts());
 
         _gbufferLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
@@ -303,7 +303,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public void DrawShadow(in Mesh mesh, in Matrix4x4 model)
     {
         _shadowContext.DrawWithConstant(mesh, _shadowMaterial,
-            new ShadowDrawConstants { LightViewProjection = _sunViewProjection * model });
+            new ShadowDrawConstants { LightViewProjection = model * _sunViewProjection });
     }
 
     /// <summary>
@@ -372,8 +372,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Bind group layouts for the deferred lighting shader: uniform buffer (set 0),
-    /// three filterable texture+sampler pairs (sets 1-3) and two unfilterable depth
-    /// textures (sets 4-5). Must stay in sync with DeferredLighting.hlsl.
+    /// three filterable texture+sampler pairs (sets 1-3), the G-buffer depth texture
+    /// (set 4) and the shadow map depth texture with a comparison sampler (set 5).
+    /// Must stay in sync with DeferredLighting.hlsl.
     /// </summary>
     /// <returns>The custom bind group layouts.</returns>
     public static IReadOnlyList<BindGroupLayout> CreateLightingBindGroupLayouts()
@@ -401,7 +402,23 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             [
                 new BindGroupEntryInfo
                 {
-                    Entry = new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.UnfilterableFloat)),
+                    Entry = new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, TextureBindingInfo.Depth2D),
+                },
+            ],
+        };
+
+        BindGroupLayout CreateDepthComparisonGroup(uint group) => new BindGroupLayout
+        {
+            Group = group,
+            Bindings =
+            [
+                new BindGroupEntryInfo
+                {
+                    Entry = new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, TextureBindingInfo.Depth2D),
+                },
+                new BindGroupEntryInfo
+                {
+                    Entry = new BindGroupEntry(1, ShaderStage.Standard, BindingType.SamplerComparison),
                 },
             ],
         };
@@ -423,7 +440,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             CreateTextureSamplerGroup(2),
             CreateTextureSamplerGroup(3),
             CreateDepthReadGroup(4),
-            CreateDepthReadGroup(5),
+            CreateDepthComparisonGroup(5),
         ];
     }
 

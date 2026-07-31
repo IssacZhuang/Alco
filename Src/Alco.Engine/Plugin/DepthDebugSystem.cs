@@ -82,7 +82,7 @@ public class DepthDebugSystem : BaseEngineSystem
                                 0,
                                 ShaderStage.Standard,
                                 BindingType.Texture,
-                                new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.UnfilterableFloat)
+                                TextureBindingInfo.Depth2D
                                 )
                         },
                     ]

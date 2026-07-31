@@ -2,7 +2,7 @@
 
 // Deferred lighting pass shader for the PBR pipeline.
 // Samples the G-buffer, evaluates a GGX PBR BRDF with a directional sun
-// (shadow mapped, manual PCF), up to four point lights, a simple sky
+// (shadow mapped, hardware PCF), up to four point lights, a simple sky
 // ambient term and a procedural gradient skybox for empty pixels.
 
 struct Vertex
@@ -41,8 +41,8 @@ DEFINE_UNIFORM(0, _data)
 DEFINE_TEX2D_SAMPLE(1, _albedo);
 DEFINE_TEX2D_SAMPLE(2, _normal);
 DEFINE_TEX2D_SAMPLE(3, _mrAO);
-SLOT(4, 0) Texture2D<float> _gbufferDepth;
-SLOT(5, 0) Texture2D<float> _shadowMap;
+DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
+DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -101,7 +101,9 @@ float3 EvaluatePBR(float3 N, float3 V, float3 L, float3 albedo, float metallic, 
     return (diffuse + specular) * NdotL;
 }
 
-// Manual 3x3 PCF against the shadow map depth texture.
+// Hardware 3x3 PCF against the shadow map depth texture (comparison sampler).
+// Each SampleCmpLevelZero tap compares (ndc.z - bias) <= texelDepth and, with the
+// linear comparison sampler, already blends the four nearest texels.
 float SampleShadowMap(float3 worldPosition)
 {
     float4 clip = mul(sunViewProjection, float4(worldPosition, 1.0));
@@ -113,15 +115,14 @@ float SampleShadowMap(float3 worldPosition)
         return 1.0;
     }
 
-    float2 texel = shadowUV * pbrParams.z;
-    float bias = 0.002;
+    float compareDepth = ndc.z - 0.002;
+    float texelSize = 1.0 / pbrParams.z;
     float shadow = 0.0;
     for (int dy = -1; dy <= 1; dy++)
     {
         for (int dx = -1; dx <= 1; dx++)
         {
-            float sampleDepth = GET_PIXEL_TEX2D(_shadowMap, int2(texel) + int2(dx, dy));
-            shadow += (ndc.z - bias) <= sampleDepth ? 1.0 : 0.0;
+            shadow += SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, shadowUV + float2(dx, dy) * texelSize, compareDepth);
         }
     }
     return shadow / 9.0;

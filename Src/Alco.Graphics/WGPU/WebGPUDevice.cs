@@ -95,6 +95,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public override GPUBindGroup BindGroupStorageBufferWithCounter { get; }
     public override GPUBindGroup BindGroupTexture2DSampled { get; }
     public override GPUBindGroup BindGroupTextureDepthRead { get; }
+    public override GPUBindGroup BindGroupTextureDepthComparison { get; }
     public override GPUBindGroup BindGroupTexture2DRead { get; }
     public override GPUBindGroup BindGroupTexture2DStorage { get; }
 
@@ -148,8 +149,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
         BindGroupStorageBufferWithCounter.Destroy();
         BindGroupTexture2DSampled.Destroy();
         BindGroupTextureDepthRead.Destroy();
+        BindGroupTextureDepthComparison.Destroy();
         BindGroupTexture2DRead.Destroy();
         BindGroupTexture2DStorage.Destroy();
+
+        _samplerDepthComparison?.Destroy();
 
         DebugPrintReport();
 
@@ -1091,7 +1095,17 @@ internal sealed partial class WebGPUDevice : GPUDevice
             Name = "default_bind_group_texture_depth_sampled",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.UnfilterableFloat)),
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
+            },
+        });
+
+        BindGroupTextureDepthComparison = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture_depth_comparison",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.SamplerComparison),
             },
         });
 

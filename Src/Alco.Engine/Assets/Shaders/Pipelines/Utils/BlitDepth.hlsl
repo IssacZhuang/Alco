@@ -1,7 +1,6 @@
-
 #include "Shaders/Libs/Core.hlsli"
 
-SLOT(0, 0) Texture2D<float> _texture;
+DEFINE_TEX2D_DEPTH(0, _texture);
 
 DEFINE_UNIFORM(1, _data) {
     float2 canvasSize;

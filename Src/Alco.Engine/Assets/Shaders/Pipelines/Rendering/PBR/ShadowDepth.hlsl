@@ -18,7 +18,7 @@ struct V2F
 
 struct Constants
 {
-    float4x4 lightViewProjection; // combined light view * projection * model
+    float4x4 lightViewProjection; // combined model * light view * projection
 };
 
 PUSH_CONSTANT Constants constants;

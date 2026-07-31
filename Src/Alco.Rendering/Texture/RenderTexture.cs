@@ -12,6 +12,7 @@ public sealed class RenderTexture : AutoDisposable
     private readonly GPUSampler _sampler;
     private readonly GPUFrameBuffer _frameBuffer;
     private GPUResourceGroup? _groupDepthSample;
+    private GPUResourceGroup? _groupDepthComparison;
     private readonly Texture2D[] _colorTextures;
 
     /// <summary>
@@ -98,6 +99,30 @@ public sealed class RenderTexture : AutoDisposable
     }
 
     /// <summary>
+    /// The entry of depth view and comparison sampler for depth comparison sampling
+    /// (e.g. shadow map PCF).
+    /// </summary>
+    /// <value></value>
+    public GPUResourceGroup? EntryDepthComparison
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (!HasDepth)
+            {
+                return null;
+            }
+
+            if (_groupDepthComparison == null)
+            {
+                _groupDepthComparison = CreateGroupDepthComparison(_frameBuffer.DepthView!);
+            }
+
+            return _groupDepthComparison;
+        }
+    }
+
+    /// <summary>
     /// The color textures
     /// </summary>
     /// <value></value>
@@ -150,6 +175,19 @@ public sealed class RenderTexture : AutoDisposable
         return _device.CreateResourceGroup(groupDescriptor);
     }
 
+    private GPUResourceGroup CreateGroupDepthComparison(GPUTextureView view)
+    {
+        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
+            _device.BindGroupTextureDepthComparison,
+            new ResourceBindingEntry[]{
+                new ResourceBindingEntry(0, view),
+                new ResourceBindingEntry(1, _device.SamplerDepthComparison),
+            }
+        );
+
+        return _device.CreateResourceGroup(groupDescriptor);
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -161,6 +199,7 @@ public sealed class RenderTexture : AutoDisposable
             }
 
             _groupDepthSample?.Dispose();
+            _groupDepthComparison?.Dispose();
             _frameBuffer.Dispose();
         }
     }

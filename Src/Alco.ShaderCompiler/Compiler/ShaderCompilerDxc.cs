@@ -13,7 +13,7 @@ public static class ShaderCompilerDxc
         FileIncludeHandler? includeHandler = null)
 
     {
-        byte[] spirv = ConvetHlslToSpirv(hlslCode, filename, entry, stage, Span<ShaderMacroDefine>.Empty);
+        byte[] spirv = ConvetHlslToSpirv(hlslCode, filename, entry, stage, Span<ShaderMacroDefine>.Empty, includeHandler);
         return new ShaderModule(stage, ShaderLanguage.SPIRV, spirv, entry);
     }
 
@@ -23,20 +23,22 @@ public static class ShaderCompilerDxc
         string entry,
         string filename,
         Span<ShaderMacroDefine> defines,
-        FileIncludeHandler? includeHandler = null)
+        FileIncludeHandler? includeHandler = null,
+        IReadOnlyCollection<string>? depthTextures = null)
 
     {
-        byte[] spirv = ConvetHlslToSpirv(hlslCode, filename, entry, stage, defines);
+        byte[] spirv = ConvetHlslToSpirv(hlslCode, filename, entry, stage, defines, includeHandler, depthTextures);
         return new ShaderModule(stage, ShaderLanguage.SPIRV, spirv, entry);
     }
 
     public static byte[] ConvetHlslToSpirv(
-        string hlslCode, 
-        string filename, 
-        string entry, 
+        string hlslCode,
+        string filename,
+        string entry,
         ShaderStage stage,
         Span<ShaderMacroDefine> defines,
-        FileIncludeHandler? includeHandler = null)
+        FileIncludeHandler? includeHandler = null,
+        IReadOnlyCollection<string>? depthTextures = null)
     {
         CompilerOptions options = new CompilerOptions(ConvertShaderStage(stage).ToProfile(6, 0))
         {
@@ -51,13 +53,21 @@ public static class ShaderCompilerDxc
         {
             options.SetMacro(defines[i].Name, defines[i].Value);
         }
-    
+
 
         CompilationResult result = ShaderCompiler.Compile(hlslCode, options, includeHandler);
 
         if (result.compilationErrors != null)
         {
             throw new ShaderCompilationException($"Error on compiling shader '{filename}': {result.compilationErrors}");
+        }
+
+        if (depthTextures != null && depthTextures.Count > 0)
+        {
+            // DXC declares every texture with the OpTypeImage Depth operand set to
+            // "unknown" (2), which wgpu cannot bind a real depth texture to. Rewrite
+            // the depth textures to Depth = 1 so naga validates them as depth images.
+            return SpirvDepthTexturePatcher.MarkDepthTextures(result.objectBytes, depthTextures);
         }
 
         return result.objectBytes;

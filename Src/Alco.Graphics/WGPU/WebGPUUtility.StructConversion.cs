@@ -228,6 +228,14 @@ internal static partial class WebGPUUtility
             };
         }
 
+        if (binding.Type == BindingType.SamplerComparison)
+        {
+            result.sampler = new WGPUSamplerBindingLayout
+            {
+                type = WGPUSamplerBindingType.Comparison,
+            };
+        }
+
         if (binding.Type == BindingType.Texture)
         {
             result.texture = new WGPUTextureBindingLayout

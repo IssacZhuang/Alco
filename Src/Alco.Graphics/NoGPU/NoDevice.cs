@@ -53,6 +53,8 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTextureDepthRead { get; }
 
+    public override GPUBindGroup BindGroupTextureDepthComparison { get; }
+
     public override GPUBindGroup BindGroupTexture2DRead {get;}
 
     public override GPUBindGroup BindGroupTexture2DStorage {get;}
@@ -120,7 +122,17 @@ internal class NoDevice : GPUDevice
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        BindGroupTextureDepthComparison = CreateBindGroup(new BindGroupDescriptor
+
+        {
+            Name = "default_bind_group_texture_depth_comparison",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.SamplerComparison),
             },
         });
 

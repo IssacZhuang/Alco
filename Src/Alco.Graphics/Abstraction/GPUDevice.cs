@@ -30,6 +30,7 @@ public abstract class GPUDevice
     private GPUSampler? _samplerLinearClamp;
     private GPUSampler? _samplerNearestMirrorRepeat;
     private GPUSampler? _samplerLinearMirrorRepeat;
+    private protected GPUSampler? _samplerDepthComparison;
 
     protected readonly IGPUDeviceHost _host;
 
@@ -146,6 +147,33 @@ public abstract class GPUDevice
     /// The <see cref="GPUBindGroup"/> for the sampled depth 2D texture, which contains a texture view and a sampler.
     /// </summary>
     public abstract GPUBindGroup BindGroupTextureDepthRead { get; }
+
+    /// <summary>
+    /// The <see cref="GPUBindGroup"/> for the depth 2D texture sampled with a comparison sampler
+    /// (e.g. shadow map PCF), which contains a texture view and a comparison sampler entry.
+    /// </summary>
+    public abstract GPUBindGroup BindGroupTextureDepthComparison { get; }
+
+    /// <summary>
+    /// The <see cref="GPUSampler"/> for depth comparison sampling (linear filtering, clamp to edge,
+    /// less-or-equal comparison), used for shadow map PCF.
+    /// </summary>
+    public GPUSampler SamplerDepthComparison
+    {
+        get
+        {
+            _samplerDepthComparison ??= CreateSampler(new SamplerDescriptor(
+                FilterMode.Linear,
+                FilterMode.Linear,
+                FilterMode.Linear,
+                AddressMode.ClampToEdge,
+                AddressMode.ClampToEdge,
+                AddressMode.ClampToEdge,
+                compare: CompareFunction.LessEqual,
+                name: "depth_comparison_sampler"));
+            return _samplerDepthComparison;
+        }
+    }
 
     /// <summary>
     /// The <see cref="GPUBindGroup"/> for the read-only 2D texture, which contains a texture view. Can only be used in the compute shader.

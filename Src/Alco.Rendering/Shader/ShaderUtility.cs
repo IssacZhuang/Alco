@@ -15,6 +15,16 @@ public static partial class ShaderUtility
     public const string DefineTrue = "1";
 
     /// <summary>
+    /// Matches uses of the DEFINE_TEX2D_DEPTH macro (a depth texture read with Load only).
+    /// </summary>
+    public static readonly Regex RegexDepthTexture = new Regex(@"\bDEFINE_TEX2D_DEPTH\s*\(\s*\d+\s*,\s*(\w+)\s*\)", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Matches uses of the DEFINE_TEX2D_DEPTH_SAMPLE macro (a depth texture sampled with a comparison sampler).
+    /// </summary>
+    public static readonly Regex RegexDepthTextureSample = new Regex(@"\bDEFINE_TEX2D_DEPTH_SAMPLE\s*\(\s*\d+\s*,\s*(\w+)\s*\)", RegexOptions.Compiled);
+
+    /// <summary>
     /// Compiles the shader text with the specified filename and multi-compile defines.
     /// </summary>
     /// <param name="shaderText">The shader text to compile.</param>
@@ -33,6 +43,11 @@ public static partial class ShaderUtility
         }
 
         string[] defineArray = defines.ToArray();
+
+        // DXC cannot declare depth textures in SPIR-V (the OpTypeImage Depth operand is
+        // always "unknown"), so shaders mark them via DEFINE_TEX2D_DEPTH* macros; the
+        // compiled modules are rewritten accordingly (see SpirvDepthTexturePatcher).
+        string[] depthTextureNames = GetDepthTextureNames(shaderText, out List<string> comparisonSamplerNames);
 
         List<HlslFunctionInfo> functions = GetHLSLFunctionInfo(shaderText);
         HlslFunctionInfo? functionVertex = null;
@@ -87,7 +102,8 @@ public static partial class ShaderUtility
                 functionVertex!.Name,
                 filename,
                 macros.ToArray(),
-                includeResolver
+                includeResolver,
+                depthTextureNames
                 );
 
             ShaderModule pixel = ShaderCompilerDxc.CrearteSpirvShaderModule(
@@ -96,10 +112,12 @@ public static partial class ShaderUtility
                 functionPixel!.Name,
                 filename,
                 macros.ToArray(),
-                includeResolver
+                includeResolver,
+                depthTextureNames
                 );
 
             ShaderReflectionInfo reflectionInfo = ShaderReflectionUtility.GetSpirvReflection(vertex.Source, pixel.Source, true);
+            MarkDepthComparisonSamplers(reflectionInfo, comparisonSamplerNames);
             ValidateReflection(reflectionInfo, filename, maxBindGroups);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateGraphics(
                 filename,
@@ -121,10 +139,13 @@ public static partial class ShaderUtility
                 ShaderStage.Compute,
                 functionCompute!.Name,
                 filename,
-                macros.ToArray()
+                macros.ToArray(),
+                includeResolver,
+                depthTextureNames
                 );
 
             ShaderReflectionInfo reflectionInfo = ShaderReflectionUtility.GetSpirvReflection(compute.Source, true);
+            MarkDepthComparisonSamplers(reflectionInfo, comparisonSamplerNames);
             ValidateReflection(reflectionInfo, filename, maxBindGroups);
             ShaderModulesInfo modulesInfo = ShaderModulesInfo.CreateCompute(
                 filename,
@@ -285,6 +306,75 @@ public static partial class ShaderUtility
             fragmentShader,
             computeShader,
             reflectionInfo);
+    }
+
+    /// <summary>
+    /// Collects the depth texture variable names declared via the DEFINE_TEX2D_DEPTH and
+    /// DEFINE_TEX2D_DEPTH_SAMPLE macros in the shader text.
+    /// </summary>
+    /// <param name="shaderText">The shader text to scan.</param>
+    /// <param name="comparisonSamplerNames">The sampler names paired with DEFINE_TEX2D_DEPTH_SAMPLE textures (texture name + "Sampler").</param>
+    /// <returns>The depth texture variable names.</returns>
+    private static string[] GetDepthTextureNames(string shaderText, out List<string> comparisonSamplerNames)
+    {
+        List<string> names = new List<string>();
+        foreach (Match match in RegexDepthTexture.Matches(shaderText))
+        {
+            names.Add(match.Groups[1].Value);
+        }
+
+        comparisonSamplerNames = new List<string>();
+        foreach (Match match in RegexDepthTextureSample.Matches(shaderText))
+        {
+            string name = match.Groups[1].Value;
+            names.Add(name);
+            comparisonSamplerNames.Add(name + "Sampler");
+        }
+
+        return names.ToArray();
+    }
+
+    /// <summary>
+    /// Marks the sampler bindings paired with DEFINE_TEX2D_DEPTH_SAMPLE textures as
+    /// comparison samplers in the reflection info. SPIR-V carries no marker for
+    /// comparison samplers, so reflection cannot detect them on its own.
+    /// </summary>
+    /// <param name="reflectionInfo">The reflection info to patch in place.</param>
+    /// <param name="comparisonSamplerNames">The names of the comparison samplers.</param>
+    private static void MarkDepthComparisonSamplers(ShaderReflectionInfo reflectionInfo, List<string> comparisonSamplerNames)
+    {
+        if (comparisonSamplerNames.Count == 0)
+        {
+            return;
+        }
+
+        foreach (BindGroupLayout layout in reflectionInfo.BindGroups)
+        {
+            if (layout.Bindings is not BindGroupEntryInfo[] bindings)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < bindings.Length; i++)
+            {
+                ref BindGroupEntryInfo info = ref bindings[i];
+                if (info.Entry.Type != BindingType.Sampler)
+                {
+                    continue;
+                }
+
+                if (!comparisonSamplerNames.Contains(info.Entry.Name))
+                {
+                    continue;
+                }
+
+                info.Entry = new BindGroupEntry(
+                    info.Entry.Binding,
+                    info.Entry.Stage,
+                    BindingType.SamplerComparison,
+                    name: info.Entry.Name);
+            }
+        }
     }
 
     /// <summary>

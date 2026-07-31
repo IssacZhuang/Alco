@@ -171,7 +171,7 @@ public static class MaterialUtility
         }
 
         return bindings[0].Entry.Type == BindingType.Texture &&
-        bindings[1].Entry.Type == BindingType.Sampler;
+        (bindings[1].Entry.Type == BindingType.Sampler || bindings[1].Entry.Type == BindingType.SamplerComparison);
     }
 
     /// <summary>
@@ -188,7 +188,7 @@ public static class MaterialUtility
         }
 
         return bindings[0].Entry.Type == BindingType.Texture &&
-        bindings[1].Entry.Type == BindingType.Sampler;
+        (bindings[1].Entry.Type == BindingType.Sampler || bindings[1].Entry.Type == BindingType.SamplerComparison);
     }
 
     /// <summary>
@@ -205,7 +205,7 @@ public static class MaterialUtility
         }
 
         return bindings[0].Type == BindingType.Texture &&
-        bindings[1].Type == BindingType.Sampler;
+        (bindings[1].Type == BindingType.Sampler || bindings[1].Type == BindingType.SamplerComparison);
     }
 
     /// <summary>

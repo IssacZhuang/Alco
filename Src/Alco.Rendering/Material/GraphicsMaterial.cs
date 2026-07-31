@@ -55,6 +55,14 @@ public sealed class GraphicsMaterial : Material
             BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[(int)i];
             if (MaterialUtility.IsTextureSamplerGroup(bindGroupLayout.Bindings))
             {
+                // A depth texture group (e.g. shadow map with comparison sampler) must be
+                // bound via SetRenderTextureDepth; the white default texture is not a
+                // valid depth binding.
+                if (bindGroupLayout.Bindings[0].Entry.TextureInfo.SampleType == TextureSampleType.Depth)
+                {
+                    continue;
+                }
+
                 if (!_parameters.TryGetTexture(i, out Texture2D? _) &&
                     !_parameters.TryGetRenderTexture(i, out RenderTexture? _))
                 {
