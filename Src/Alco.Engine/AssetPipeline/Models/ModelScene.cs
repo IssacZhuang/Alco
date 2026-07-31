@@ -26,6 +26,19 @@ public sealed class ModelMaterial
     /// </summary>
     public Texture2D? AlbedoTexture { get; set; }
 
+    /// <summary>
+    /// The normal map texture (tangent space), null when the material has none or the
+    /// texture is still streaming in (the pipeline falls back to a flat normal until assigned).
+    /// </summary>
+    public Texture2D? NormalTexture { get; set; }
+
+    /// <summary>
+    /// The metallic-roughness texture (roughness in G, metallic in B), null when the
+    /// material has none or the texture is still streaming in (the pipeline falls back
+    /// to white, i.e. the factors pass through, until assigned).
+    /// </summary>
+    public Texture2D? MetallicRoughnessTexture { get; set; }
+
     /// <summary>The alpha handling mode.</summary>
     public GltfAlphaMode AlphaMode { get; init; }
 
@@ -63,8 +76,9 @@ public readonly struct ModelDrawItem
 /// <summary>
 /// A loaded 3D model scene: GPU meshes and textures plus a flattened draw list with
 /// engine-space world transforms. Owns all meshes and textures; dispose to release them.
-/// <br/>Textures may stream in asynchronously after creation: materials start with a null
-/// albedo texture and get it assigned on the main thread as loads complete.
+/// <br/>Textures may stream in asynchronously after creation: materials start with null
+/// albedo/normal/metallic-roughness textures and get them assigned on the main thread
+/// as loads complete.
 /// </summary>
 public sealed class ModelScene : AutoDisposable
 {

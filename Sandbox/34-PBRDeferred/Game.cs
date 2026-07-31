@@ -114,7 +114,7 @@ public class Game : GameEngine
             _yaw = 0.6f;
             _pitch = 0.12f;
             // Start in fly mode looking at the same view the orbit camera would give.
-            _flySpeed = _sceneRadius * 0.1f;
+            _flySpeed = _sceneRadius * 0.25f;
             OrbitToFly();
             Console.WriteLine($"Loaded {bistroFile}: {bistro.DrawItems.Count} draw items, " +
                 $"{bistro.Materials.Count} materials, bounds {bistro.BoundsMin} .. {bistro.BoundsMax}");
@@ -138,7 +138,8 @@ public class Game : GameEngine
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            albedoTexture: _checkerTexture);
+            albedoTexture: _checkerTexture,
+            gbufferTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"));
 
         // The G-buffer pass needs the camera matrix; bind it explicitly like the
         // forward sandboxes do (RenderingSystem.MainCamera is not set by sandboxes).
@@ -208,7 +209,7 @@ public class Game : GameEngine
 
         DebugStats.Text(FrameRate);
         DebugStats.Text(_flyMode
-            ? "RMB drag: look | WASD: move | E/Q: up/down | Shift: fast | wheel: speed | C: orbit | ESC: exit"
+            ? "mouse: look | WASD: move | E/Q: up/down | Shift: fast | wheel: speed | Alt: cursor | C: orbit | ESC: exit"
             : "LMB drag: orbit | wheel: zoom | C: fly | ESC: exit");
 
         _frameCount++;
@@ -290,6 +291,8 @@ public class Game : GameEngine
             return;
         }
 
+        Input.IsCursorVisible = true;
+
         // Do not orbit/zoom while the mouse is over an ImGui window: dragging a
         // slider or scrolling the panel must not move the camera.
         bool mouseOverImGui = ImGUIInputHandler.IsCapturingMouse;
@@ -320,22 +323,34 @@ public class Game : GameEngine
         _camera.UpdateMatrixToGPU();
     }
 
-    /// <summary>Free-fly camera: RMB looks, WASD moves along the view, E/Q or
-    /// Space/Ctrl moves vertically, Shift speeds up, the wheel tunes the fly speed.</summary>
+    /// <summary>Free-fly camera: the mouse always looks while the window is focused
+    /// (cursor stays hidden at the window center, hold Alt or unfocus the window to
+    /// release it for the UI), WASD moves along the view, E/Q or Space/Ctrl moves
+    /// vertically, Shift speeds up, the wheel tunes the fly speed.</summary>
     private void UpdateFlyCamera(float delta)
     {
-        bool mouseOverImGui = ImGUIInputHandler.IsCapturingMouse;
+        bool cursorReleased = !MainView.IsFocused
+            || Input.IsKeyPressing(KeyCode.AltLeft) || Input.IsKeyPressing(KeyCode.AltRight);
+        Input.IsCursorVisible = cursorReleased;
 
-        if (!mouseOverImGui && Input.IsMousePressing(Mouse.Right))
+        if (!cursorReleased)
         {
             Vector2 mouseDelta = Input.MouseDelta;
-            _yaw -= mouseDelta.X * 0.008f;
+            _yaw += mouseDelta.X * 0.008f;
             _pitch = Math.Clamp(_pitch - mouseDelta.Y * 0.008f, -1.55f, 1.55f);
+
+            // Keep the OS cursor pinned at the window center so looking never hits
+            // the screen edge; the input system keeps MouseDelta accurate across warps.
+            int2 windowPosition = MainView.Position;
+            uint2 windowSize = MainView.Size;
+            Input.WarpMousePreservingDelta(new Vector2(
+                windowPosition.X + windowSize.X * 0.5f,
+                windowPosition.Y + windowSize.Y * 0.5f));
         }
 
-        if (!mouseOverImGui && Input.IsMouseScrolling(out Vector2 wheel))
+        if (!cursorReleased && Input.IsMouseScrolling(out Vector2 wheel))
         {
-            _flySpeed = Math.Clamp(_flySpeed * MathF.Pow(1.2f, wheel.Y), _sceneRadius * 0.005f, _sceneRadius * 1.0f);
+            _flySpeed = Math.Clamp(_flySpeed * MathF.Pow(1.2f, wheel.Y), _sceneRadius * 0.005f, _sceneRadius * 2.0f);
         }
 
         float speed = _flySpeed;
@@ -509,6 +524,8 @@ public class Game : GameEngine
                 material.BaseColorFactor,
                 new Vector4(material.MetallicFactor, material.RoughnessFactor, 1.0f, 0.0f),
                 material.AlbedoTexture,
+                material.NormalTexture,
+                material.MetallicRoughnessTexture,
                 material.DoubleSided,
                 alphaCutoff);
         }

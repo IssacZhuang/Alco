@@ -39,8 +39,20 @@ public sealed class GltfMaterial
     /// <summary>Index into <see cref="GltfModel.Images"/> of the base color texture, -1 when absent.</summary>
     public int BaseColorImageIndex { get; init; } = -1;
 
+    /// <summary>Index into <see cref="GltfModel.Images"/> of the normal texture, -1 when absent.</summary>
+    public int NormalImageIndex { get; init; } = -1;
+
+    /// <summary>Index into <see cref="GltfModel.Images"/> of the metallic-roughness texture, -1 when absent.</summary>
+    public int MetallicRoughnessImageIndex { get; init; } = -1;
+
     /// <summary>Horizontal texture wrap mode of the base color texture sampler.</summary>
     public AddressMode WrapS { get; init; }
+
+    /// <summary>Horizontal texture wrap mode of the normal texture sampler.</summary>
+    public AddressMode NormalWrapS { get; init; }
+
+    /// <summary>Horizontal texture wrap mode of the metallic-roughness texture sampler.</summary>
+    public AddressMode MetallicRoughnessWrapS { get; init; }
 
     /// <summary>Vertical texture wrap mode of the base color texture sampler.</summary>
     public AddressMode WrapT { get; init; }

@@ -81,6 +81,8 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
+    public override bool IsFocused => (SDL_GetWindowFlags(_window) & SDL_WindowFlags.InputFocus) != 0;
+
     public override Vector2 MousePosition
     {
         get

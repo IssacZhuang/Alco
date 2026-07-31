@@ -79,6 +79,8 @@ internal static class DdsDecoder
     /// copies). Always at least 1.
     /// </param>
     /// <param name="dataOffset">Byte offset of the mip chain inside <paramref name="data"/>.</param>
+    /// <remarks>Sub-block level-0 dimensions (below 4x4, e.g. placeholder 1x1 maps) are
+    /// reported as 4x4 with a single level: the one stored block becomes the whole texture.</remarks>
     /// <exception cref="ImageDecodeException">Invalid, truncated, uncompressed or unsupported DDS data.</exception>
     public static void Decode(
         ReadOnlySpan<byte> data,
@@ -137,26 +139,38 @@ internal static class DdsDecoder
 
         format = ToPixelFormat(family, srgb);
 
-        // Use only the leading mip levels whose extents are whole 4x4 blocks: the GPU
-        // upload path (wgpu queue writes) requires block-multiple copy extents, which
-        // deep sub-4-pixel or unaligned levels can never satisfy. The sampler simply
-        // clamps to the smallest uploaded level, so truncating the chain is safe.
-        int usableLevels = 0;
-        while (usableLevels < mipLevels)
+        if (width < 4 && height < 4)
         {
-            int levelWidth = Math.Max(1, width >> usableLevels);
-            int levelHeight = Math.Max(1, height >> usableLevels);
-            if (levelWidth % 4 != 0 || levelHeight % 4 != 0)
+            // Sub-block images (e.g. 1x1 placeholder maps) hold exactly one BC block.
+            // The GPU texture is created as a full 4x4 block because wgpu queue writes
+            // must be block-aligned; sampling any texel gives the placeholder's color.
+            width = 4;
+            height = 4;
+            mipLevels = 1;
+        }
+        else
+        {
+            // Use only the leading mip levels whose extents are whole 4x4 blocks: the GPU
+            // upload path (wgpu queue writes) requires block-multiple copy extents, which
+            // deep sub-4-pixel or unaligned levels can never satisfy. The sampler simply
+            // clamps to the smallest uploaded level, so truncating the chain is safe.
+            int usableLevels = 0;
+            while (usableLevels < mipLevels)
             {
-                break;
+                int levelWidth = Math.Max(1, width >> usableLevels);
+                int levelHeight = Math.Max(1, height >> usableLevels);
+                if (levelWidth % 4 != 0 || levelHeight % 4 != 0)
+                {
+                    break;
+                }
+                usableLevels++;
             }
-            usableLevels++;
+            if (usableLevels == 0)
+            {
+                throw new ImageDecodeException($"DDS level-0 dimensions {width}x{height} are not multiples of the 4x4 BC block size.");
+            }
+            mipLevels = usableLevels;
         }
-        if (usableLevels == 0)
-        {
-            throw new ImageDecodeException($"DDS level-0 dimensions {width}x{height} are not multiples of the 4x4 BC block size.");
-        }
-        mipLevels = usableLevels;
 
         // The file must hold the whole used mip chain.
         uint blockBytes = GetBlockBytes(family);

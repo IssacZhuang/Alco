@@ -8,18 +8,26 @@ namespace Alco.Engine;
 
 /// <summary>
 /// Asset loader for glTF 2.0 model scenes (.gltf / .glb).
-/// Creates a <see cref="ModelScene"/>: GPU meshes, albedo textures and a flattened draw list.
-/// <br/>Only the engine-relevant material subset is realized (base color, metallic/roughness
-/// factors, alpha mode); normal maps, metallic-roughness textures and extensions are decoded
-/// but not yet rendered.
-/// <br/>Albedo textures stream in asynchronously: the scene is returned immediately with null
-/// albedo textures (the pipeline renders them white) and each texture is decoded off-thread
+/// Creates a <see cref="ModelScene"/>: GPU meshes, textures and a flattened draw list.
+/// <br/>Only the engine-relevant material subset is realized (base color, normal and
+/// metallic-roughness textures, factors, alpha mode); other extensions are ignored.
+/// <br/>Textures stream in asynchronously: the scene is returned immediately with null
+/// textures (the pipeline renders fallbacks) and each texture is decoded off-thread
 /// (rate-limited by <see cref="Environment.ProcessorCount"/>) and assigned on the main thread
 /// via the installed <see cref="SynchronizationContext"/>. <see cref="ModelScene.LoadingCompletion"/>
-/// completes when streaming finishes.
+/// completes when streaming finishes. Albedo textures decode as sRGB; normal and
+/// metallic-roughness textures decode as linear data.
 /// </summary>
 public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
 {
+    /// <summary>Which material slot a streaming texture belongs to.</summary>
+    private enum TextureRole
+    {
+        Albedo,
+        Normal,
+        MetallicRoughness,
+    }
+
     private static readonly string[] Extensions = [FileExt.ModelGLTF, FileExt.ModelGLB];
 
     /// <summary>
@@ -81,10 +89,12 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                 meshTable[meshIndex] = primitiveMeshes;
             }
 
-            // Materials, with a fallback default for primitives that lack one. Albedo
-            // textures stay null here and stream in asynchronously after the scene returns.
+            // Materials, with a fallback default for primitives that lack one. Textures
+            // stay null here and stream in asynchronously after the scene returns. The
+            // same image may serve different roles (e.g. shared as albedo and MR source),
+            // so the streaming groups are keyed by (image, role).
             var materials = new List<ModelMaterial>(model.Materials.Count + 1);
-            var materialsByImage = new Dictionary<int, (AddressMode Wrap, List<ModelMaterial> Targets)>();
+            var materialsByImage = new Dictionary<(int ImageIndex, TextureRole Role), (AddressMode Wrap, List<ModelMaterial> Targets)>();
             foreach (GltfMaterial gltfMaterial in model.Materials)
             {
                 var material = new ModelMaterial
@@ -99,13 +109,21 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                 };
                 materials.Add(material);
 
-                int imageIndex = gltfMaterial.BaseColorImageIndex;
-                if ((uint)imageIndex < (uint)model.Images.Count)
+                AddTextureTarget(gltfMaterial.BaseColorImageIndex, TextureRole.Albedo, gltfMaterial.WrapS);
+                AddTextureTarget(gltfMaterial.NormalImageIndex, TextureRole.Normal, gltfMaterial.NormalWrapS);
+                AddTextureTarget(gltfMaterial.MetallicRoughnessImageIndex, TextureRole.MetallicRoughness, gltfMaterial.MetallicRoughnessWrapS);
+
+                void AddTextureTarget(int imageIndex, TextureRole role, AddressMode wrap)
                 {
-                    if (!materialsByImage.TryGetValue(imageIndex, out (AddressMode Wrap, List<ModelMaterial> Targets) group))
+                    if ((uint)imageIndex >= (uint)model.Images.Count)
                     {
-                        group = (gltfMaterial.WrapS, new List<ModelMaterial>());
-                        materialsByImage[imageIndex] = group;
+                        return;
+                    }
+                    var key = (imageIndex, role);
+                    if (!materialsByImage.TryGetValue(key, out (AddressMode Wrap, List<ModelMaterial> Targets) group))
+                    {
+                        group = (wrap, new List<ModelMaterial>());
+                        materialsByImage[key] = group;
                     }
                     group.Targets.Add(material);
                 }
@@ -167,15 +185,15 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
     }
 
     /// <summary>
-    /// Kick asynchronous streaming of all referenced albedo textures. Each unique image is
-    /// decoded and uploaded on thread-pool threads (rate-limited); the main-thread
+    /// Kick asynchronous streaming of all referenced textures. Each unique (image, role) pair
+    /// is decoded and uploaded on thread-pool threads (rate-limited); the main-thread
     /// continuation assigns the texture to its materials and hands ownership to the scene.
-    /// Missing image files are tolerated: those materials keep the white fallback.
+    /// Missing image files are tolerated: those materials keep their fallbacks.
     /// </summary>
     private void StartTextureStreaming(
         ModelScene scene,
         GltfModel model,
-        Dictionary<int, (AddressMode Wrap, List<ModelMaterial> Targets)> materialsByImage,
+        Dictionary<(int ImageIndex, TextureRole Role), (AddressMode Wrap, List<ModelMaterial> Targets)> materialsByImage,
         AssetSystem assetSystem,
         string directory)
     {
@@ -186,11 +204,11 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
 
         var watch = Stopwatch.StartNew();
         var tasks = new List<Task>(materialsByImage.Count);
-        foreach ((int imageIndex, (AddressMode wrap, List<ModelMaterial> targets)) in materialsByImage)
+        foreach (((int imageIndex, TextureRole role), (AddressMode wrap, List<ModelMaterial> targets)) in materialsByImage)
         {
             GltfImage image = model.Images[imageIndex];
 
-            // Resolve external files up front so missing ones keep the white fallback.
+            // Resolve external files up front so missing ones keep the fallbacks.
             string? path = null;
             if (image.Uri != null)
             {
@@ -205,8 +223,8 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                 continue;
             }
 
-            Task<Texture2D?> imageTask = LoadImageTextureAsync(assetSystem, image, path, wrap);
-            tasks.Add(AssignImageTextureAsync(scene, targets, imageTask));
+            Task<Texture2D?> imageTask = LoadImageTextureAsync(assetSystem, image, path, wrap, role);
+            tasks.Add(AssignImageTextureAsync(scene, targets, role, imageTask));
         }
 
         if (tasks.Count == 0)
@@ -216,14 +234,14 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
         scene.SetLoadingCompletion(LogWhenStreamed(Task.WhenAll(tasks), tasks.Count, watch));
     }
 
-    /// <summary>Decode and upload one image off-thread; null on failure (white fallback kept).</summary>
+    /// <summary>Decode and upload one image off-thread; null on failure (fallback kept).</summary>
     private async Task<Texture2D?> LoadImageTextureAsync(
-        AssetSystem assetSystem, GltfImage image, string? path, AddressMode wrap)
+        AssetSystem assetSystem, GltfImage image, string? path, AddressMode wrap, TextureRole role)
     {
         await TextureLoadSlots.WaitAsync().ConfigureAwait(false);
         try
         {
-            return await Task.Run(() => DecodeImageTexture(assetSystem, image, path, wrap)).ConfigureAwait(false);
+            return await Task.Run(() => DecodeImageTexture(assetSystem, image, path, wrap, role)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -241,7 +259,7 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
     /// to the scene and assign it to its materials. Both are skipped after scene disposal.
     /// </summary>
     private static async Task AssignImageTextureAsync(
-        ModelScene scene, List<ModelMaterial> targets, Task<Texture2D?> imageTask)
+        ModelScene scene, List<ModelMaterial> targets, TextureRole role, Task<Texture2D?> imageTask)
     {
         Texture2D? texture = await imageTask;
         if (texture == null || !scene.TakeOwnedTexture(texture))
@@ -250,7 +268,18 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
         }
         foreach (ModelMaterial target in targets)
         {
-            target.AlbedoTexture = texture;
+            switch (role)
+            {
+                case TextureRole.Albedo:
+                    target.AlbedoTexture = texture;
+                    break;
+                case TextureRole.Normal:
+                    target.NormalTexture = texture;
+                    break;
+                case TextureRole.MetallicRoughness:
+                    target.MetallicRoughnessTexture = texture;
+                    break;
+            }
         }
     }
 
@@ -258,15 +287,16 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
     private static async Task LogWhenStreamed(Task whenAll, int count, Stopwatch watch)
     {
         await whenAll;
-        Log.Success($"glTF albedo streaming finished: {count} images in {watch.ElapsedMilliseconds}ms");
+        Log.Success($"glTF texture streaming finished: {count} images in {watch.ElapsedMilliseconds}ms");
     }
 
     /// <summary>Read, decode and upload one image. Runs on a thread-pool thread.</summary>
-    private Texture2D? DecodeImageTexture(AssetSystem assetSystem, GltfImage image, string? path, AddressMode wrap)
+    private Texture2D? DecodeImageTexture(AssetSystem assetSystem, GltfImage image, string? path, AddressMode wrap, TextureRole role)
     {
         var option = ImageLoadOption.Default with
         {
-            Format = PixelFormat.RGBA8UnormSrgb,
+            // Albedo is sRGB color data; normal and metallic-roughness maps are linear.
+            Format = role == TextureRole.Albedo ? PixelFormat.RGBA8UnormSrgb : PixelFormat.RGBA8Unorm,
             AddressMode = wrap,
             Name = image.Name,
         };

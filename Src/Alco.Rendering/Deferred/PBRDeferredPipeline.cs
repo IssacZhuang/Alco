@@ -162,10 +162,13 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly RenderTexture _shadowRT;
 
     private readonly Shader _gbufferShader;
+    private readonly Shader? _gbufferTangentShader;
     private readonly GraphicsMaterial _gbufferMaterial;
     private readonly GraphicsMaterial _shadowMaterial;
     private readonly GraphicsMaterial _lightingMaterial;
     private readonly Dictionary<(Texture2D? Texture, bool DoubleSided), GraphicsMaterial> _gbufferMaterialCache = new();
+    private readonly Dictionary<(Texture2D? Albedo, Texture2D? Normal, Texture2D? Mr, bool DoubleSided), GraphicsMaterial> _gbufferTangentMaterialCache = new();
+    private Texture2D? _flatNormalTexture;
     private GraphicsBuffer? _cameraBuffer;
 
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
@@ -203,6 +206,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="albedoTexture">Optional albedo texture for all G-buffer draws; defaults to a white texture.</param>
+    /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling the normal-mapped <see cref="DrawGBuffer(in Mesh, in Matrix4x4, in Vector4, in Vector4, Texture2D?, Texture2D?, Texture2D?, bool, float)"/> overload.</param>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
         Shader gbufferShader,
@@ -212,7 +216,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         uint shadowMapSize = 2048,
         uint width = 1280,
         uint height = 720,
-        Texture2D? albedoTexture = null)
+        Texture2D? albedoTexture = null,
+        Shader? gbufferTangentShader = null)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -248,6 +253,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _gbufferMaterial.RasterizerState = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.Clockwise);
         _gbufferMaterial.SetTexture("_albedoTexture", albedoTexture ?? rendering.TextureWhite);
         _gbufferShader = gbufferShader;
+        _gbufferTangentShader = gbufferTangentShader;
 
         _shadowMaterial = rendering.CreateMaterial(shadowShader);
         _shadowMaterial.DepthStencilState = DepthStencilState.Write;
@@ -279,6 +285,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _cameraBuffer = cameraBuffer;
         _gbufferMaterial.SetBuffer(ShaderResourceId.Camera, cameraBuffer);
         foreach (GraphicsMaterial material in _gbufferMaterialCache.Values)
+        {
+            material.SetBuffer(ShaderResourceId.Camera, cameraBuffer);
+        }
+        foreach (GraphicsMaterial material in _gbufferTangentMaterialCache.Values)
         {
             material.SetBuffer(ShaderResourceId.Camera, cameraBuffer);
         }
@@ -385,6 +395,42 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
+    /// Draw a mesh into the G-buffer with per-material albedo, normal and metallic-roughness
+    /// textures. Must be called inside the G-buffer pass. Requires the tangent G-buffer shader
+    /// (<c>gbufferTangentShader</c> constructor argument) and tangent-bearing meshes
+    /// (<see cref="VertexPositionNormalTextureTangent"/>). Materials are cached per
+    /// (albedo, normal, metallic-roughness, doubleSided) tuple.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="model">The world transform of the mesh.</param>
+    /// <param name="baseColor">The linear base color, multiplied with the albedo texture.</param>
+    /// <param name="metallicRoughnessAO">x=metallic y=roughness z=ambient occlusion; metallic and roughness multiply with the texture.</param>
+    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
+    /// <param name="normalTexture">The tangent-space normal map; null binds a flat normal texture.</param>
+    /// <param name="metallicRoughnessTexture">The metallic-roughness texture (roughness in G, metallic in B); null binds the shared white texture.</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
+    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent G-buffer shader.</exception>
+    public void DrawGBuffer(in Mesh mesh, in Matrix4x4 model, in Vector4 baseColor, in Vector4 metallicRoughnessAO,
+        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture, bool doubleSided = false, float alphaCutoff = 0.0f)
+    {
+        if (_gbufferTangentShader == null)
+        {
+            throw new InvalidOperationException(
+                "The normal-mapped DrawGBuffer overload requires the pipeline to be created with a tangent G-buffer shader.");
+        }
+        GraphicsMaterial material = GetOrCreateGBufferTangentMaterial(albedoTexture, normalTexture, metallicRoughnessTexture, doubleSided);
+        _gbufferContext.DrawWithConstant(mesh, material,
+            new PBRDrawConstants
+            {
+                Model = model,
+                BaseColor = baseColor,
+                MetallicRoughnessAO = metallicRoughnessAO,
+                Params = new Vector4(alphaCutoff, 0.0f, 0.0f, 0.0f),
+            });
+    }
+
+    /// <summary>
     /// End the G-buffer pass and submit its commands.
     /// </summary>
     public void EndGBufferPass()
@@ -410,6 +456,45 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         }
         _gbufferMaterialCache[(albedoTexture, doubleSided)] = material;
         return material;
+    }
+
+    private GraphicsMaterial GetOrCreateGBufferTangentMaterial(
+        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture, bool doubleSided)
+    {
+        if (_gbufferTangentMaterialCache.TryGetValue((albedoTexture, normalTexture, metallicRoughnessTexture, doubleSided), out GraphicsMaterial? cached))
+        {
+            return cached;
+        }
+
+        var material = _rendering.CreateMaterial(_gbufferTangentShader!);
+        material.DepthStencilState = DepthStencilState.Write;
+        material.RasterizerState = new RasterizerState(FillMode.Solid,
+            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        material.SetTexture("_normalTexture", normalTexture ?? GetOrCreateFlatNormalTexture());
+        material.SetTexture("_mrTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
+        if (_cameraBuffer != null)
+        {
+            material.SetBuffer(ShaderResourceId.Camera, _cameraBuffer);
+        }
+        _gbufferTangentMaterialCache[(albedoTexture, normalTexture, metallicRoughnessTexture, doubleSided)] = material;
+        return material;
+    }
+
+    /// <summary>
+    /// Lazily create the 1x1 flat-normal fallback texture: (128,128,255) decodes to the
+    /// identity tangent-space normal. Only the .rg channels are sampled, so the RGBA8
+    /// texture is a valid stand-in for the BC5 normal maps.
+    /// </summary>
+    private Texture2D GetOrCreateFlatNormalTexture()
+    {
+        if (_flatNormalTexture == null)
+        {
+            byte[] data = [128, 128, 255, 255];
+            _flatNormalTexture = _rendering.CreateTexture2D(data, 1, 1,
+                new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "pbr_flat_normal"));
+        }
+        return _flatNormalTexture;
     }
 
     /// <summary>
@@ -520,11 +605,17 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _lightingContext.Dispose();
             _lightingDataBuffer.Dispose();
             _lightingMaterial.Dispose();
+            foreach (GraphicsMaterial material in _gbufferTangentMaterialCache.Values)
+            {
+                material.Dispose();
+            }
+            _gbufferTangentMaterialCache.Clear();
             foreach (GraphicsMaterial material in _gbufferMaterialCache.Values)
             {
                 material.Dispose();
             }
             _gbufferMaterialCache.Clear();
+            _flatNormalTexture?.Dispose();
             _gbufferMaterial.Dispose();
             _shadowMaterial.Dispose();
             _gbufferRT.Dispose();

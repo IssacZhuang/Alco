@@ -7,14 +7,18 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Decoder for glTF 2.0 scenes (.gltf JSON and .glb binary container).
-/// <br/>Produces GPU-ready <see cref="VertexPositionNormalTexture"/> vertices and uint indices
+/// <br/>Produces GPU-ready <see cref="VertexPositionNormalTextureTangent"/> vertices and uint indices
 /// in native memory, plus materials, images and flattened draw items.
-/// <br/>Supported subset: float32 POSITION/NORMAL/TEXCOORD_0 attributes, u8/u16/u32 indices,
-/// TRIANGLES mode, TRS or matrix node transforms, metallic-roughness materials with a single
-/// base color texture. Sparse accessors, normalized integer attributes, quantization and
-/// Draco compression are not supported.
+/// <br/>Supported subset: float32 POSITION/NORMAL/TEXCOORD_0/TANGENT attributes, u8/u16/u32 indices,
+/// TRIANGLES mode, TRS or matrix node transforms, metallic-roughness materials with
+/// base color, normal and metallic-roughness textures. Sparse accessors, normalized integer
+/// attributes, quantization and Draco compression are not supported.
+/// <br/>When a primitive lacks a TANGENT attribute, tangents are computed from the triangle
+/// UVs (area-weighted accumulation, orthogonalized against the normal, bitangent sign from
+/// the UV handedness). Without TEXCOORD_0 a default orthogonal tangent is assigned.
 /// <br/>Coordinates are converted from glTF's right-handed +Y-up to the engine's left-handed
-/// +Z-up convention (x,y,z) → (-z,x,y); triangle winding is adjusted accordingly.
+/// +Z-up convention (x,y,z) → (-z,x,y); triangle winding and tangent signs are adjusted
+/// accordingly (the conversion is a reflection).
 /// </summary>
 internal static unsafe class GltfDecoder
 {
@@ -369,6 +373,16 @@ internal static unsafe class GltfDecoder
         return new Vector2(p[0], p[1]);
     }
 
+    private static Vector4 ReadFloat4(in AccessorView view, int index)
+    {
+        if (view.Pointer == null)
+        {
+            return Vector4.Zero;
+        }
+        float* p = (float*)(view.Pointer + (long)index * view.Stride);
+        return new Vector4(p[0], p[1], p[2], p[3]);
+    }
+
     private static uint ReadIndex(in AccessorView view, int index)
     {
         byte* p = view.Pointer + (long)index * view.Stride;
@@ -446,6 +460,15 @@ internal static unsafe class GltfDecoder
                 throw new MeshDecodeException("glTF TEXCOORD_0 accessor must be float32.");
             }
         }
+        AccessorView tangents = default;
+        if (attributes.TryGetProperty("TANGENT", out JsonElement tangentElement))
+        {
+            tangents = GetAccessor(root, context, tangentElement.GetInt32(), "VEC4");
+            if (tangents.ComponentType != 5126)
+            {
+                throw new MeshDecodeException("glTF TANGENT accessor must be float32.");
+            }
+        }
 
         int vertexCount = positions.Count;
         if (normals.Pointer != null && normals.Count != vertexCount)
@@ -456,8 +479,12 @@ internal static unsafe class GltfDecoder
         {
             throw new MeshDecodeException("glTF TEXCOORD_0 accessor count does not match POSITION.");
         }
+        if (tangents.Pointer != null && tangents.Count != vertexCount)
+        {
+            throw new MeshDecodeException("glTF TANGENT accessor count does not match POSITION.");
+        }
 
-        var vertices = (VertexPositionNormalTexture*)NativeMemory.AllocZeroed((nuint)(vertexCount * sizeof(VertexPositionNormalTexture)));
+        var vertices = (VertexPositionNormalTextureTangent*)NativeMemory.AllocZeroed((nuint)(vertexCount * sizeof(VertexPositionNormalTextureTangent)));
         try
         {
             Vector3 boundsMin = new(float.MaxValue);
@@ -468,6 +495,13 @@ internal static unsafe class GltfDecoder
                 vertices[i].Position = position;
                 vertices[i].Normal = normals.Pointer != null ? ConvertVector(ReadFloat3(normals, i)) : Vector3.UnitZ;
                 vertices[i].UV = uvs.Pointer != null ? ReadFloat2(uvs, i) : Vector2.Zero;
+                if (tangents.Pointer != null)
+                {
+                    Vector4 tangent = ReadFloat4(tangents, i);
+                    // The coordinate conversion is a reflection, so the cross product
+                    // it produces is negated: flip the bitangent sign to compensate.
+                    vertices[i].Tangent = new Vector4(ConvertVector(new Vector3(tangent.X, tangent.Y, tangent.Z)), -tangent.W);
+                }
                 boundsMin = Vector3.Min(boundsMin, position);
                 boundsMax = Vector3.Max(boundsMax, position);
             }
@@ -515,6 +549,18 @@ internal static unsafe class GltfDecoder
                 {
                     GenerateNormals(vertices, vertexCount, indices, indexCount);
                 }
+                // Tangents need the final normals, so they come after normal generation.
+                if (tangents.Pointer == null && vertexCount > 0)
+                {
+                    if (uvs.Pointer != null)
+                    {
+                        ComputeTangents(vertices, vertexCount, indices, indexCount);
+                    }
+                    else
+                    {
+                        SetDefaultTangents(vertices, vertexCount);
+                    }
+                }
 
                 return new GltfPrimitive
                 {
@@ -543,7 +589,7 @@ internal static unsafe class GltfDecoder
     /// <summary>
     /// Generate smooth area-weighted normals for primitives that lack a NORMAL attribute.
     /// </summary>
-    private static void GenerateNormals(VertexPositionNormalTexture* vertices, int vertexCount, uint* indices, int indexCount)
+    private static void GenerateNormals(VertexPositionNormalTextureTangent* vertices, int vertexCount, uint* indices, int indexCount)
     {
         for (int t = 0; t < indexCount / 3; t++)
         {
@@ -562,6 +608,96 @@ internal static unsafe class GltfDecoder
             Vector3 normal = vertices[i].Normal;
             vertices[i].Normal = normal.LengthSquared() > 1e-12f ? Vector3.Normalize(normal) : Vector3.UnitZ;
         }
+    }
+
+    /// <summary>
+    /// Compute per-vertex tangents from triangle UVs (Lengyel's method): tangents and
+    /// bitangents accumulate per triangle, then each tangent is orthogonalized against
+    /// the normal and gets its bitangent sign from the accumulated UV handedness.
+    /// </summary>
+    private static void ComputeTangents(VertexPositionNormalTextureTangent* vertices, int vertexCount, uint* indices, int indexCount)
+    {
+        var bitangents = (Vector3*)NativeMemory.AllocZeroed((nuint)(vertexCount * sizeof(Vector3)));
+        try
+        {
+            for (int t = 0; t < indexCount / 3; t++)
+            {
+                uint i0 = indices[t * 3];
+                uint i1 = indices[t * 3 + 1];
+                uint i2 = indices[t * 3 + 2];
+
+                Vector3 edge1 = vertices[i1].Position - vertices[i0].Position;
+                Vector3 edge2 = vertices[i2].Position - vertices[i0].Position;
+                Vector2 duv1 = vertices[i1].UV - vertices[i0].UV;
+                Vector2 duv2 = vertices[i2].UV - vertices[i0].UV;
+
+                float det = duv1.X * duv2.Y - duv2.X * duv1.Y;
+                if (MathF.Abs(det) < 1e-20f)
+                {
+                    continue;
+                }
+                float f = 1.0f / det;
+                Vector3 tangent = (duv2.Y * edge1 - duv1.Y * edge2) * f;
+                Vector3 bitangent = (duv1.X * edge2 - duv2.X * edge1) * f;
+
+                AddTangent(vertices, i0, tangent);
+                AddTangent(vertices, i1, tangent);
+                AddTangent(vertices, i2, tangent);
+                bitangents[i0] += bitangent;
+                bitangents[i1] += bitangent;
+                bitangents[i2] += bitangent;
+            }
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                Vector3 normal = vertices[i].Normal;
+                Vector3 accumulated = new(vertices[i].Tangent.X, vertices[i].Tangent.Y, vertices[i].Tangent.Z);
+
+                // Gram-Schmidt orthogonalization; fall back to an arbitrary orthogonal
+                // when no usable tangent accumulated (degenerate UVs everywhere).
+                Vector3 tangent = accumulated - normal * Vector3.Dot(normal, accumulated);
+                if (tangent.LengthSquared() > 1e-12f)
+                {
+                    tangent = Vector3.Normalize(tangent);
+                }
+                else
+                {
+                    tangent = ArbitraryOrthogonal(normal);
+                }
+
+                float sign = Vector3.Dot(Vector3.Cross(normal, tangent), bitangents[i]) < 0.0f ? -1.0f : 1.0f;
+                vertices[i].Tangent = new Vector4(tangent, sign);
+            }
+        }
+        finally
+        {
+            NativeMemory.Free(bitangents);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AddTangent(VertexPositionNormalTextureTangent* vertices, uint index, Vector3 tangent)
+    {
+        ref Vector4 target = ref vertices[index].Tangent;
+        target = new Vector4(target.X + tangent.X, target.Y + tangent.Y, target.Z + tangent.Z, 0.0f);
+    }
+
+    /// <summary>
+    /// Assign an arbitrary orthogonal tangent to every vertex (no UVs to derive one from).
+    /// </summary>
+    private static void SetDefaultTangents(VertexPositionNormalTextureTangent* vertices, int vertexCount)
+    {
+        for (int i = 0; i < vertexCount; i++)
+        {
+            vertices[i].Tangent = new Vector4(ArbitraryOrthogonal(vertices[i].Normal), 1.0f);
+        }
+    }
+
+    private static Vector3 ArbitraryOrthogonal(in Vector3 normal)
+    {
+        Vector3 axis = MathF.Abs(normal.Z) < 0.9f ? Vector3.UnitZ : Vector3.UnitX;
+        Vector3 orthogonal = Vector3.Cross(normal, axis);
+        return orthogonal.LengthSquared() > 1e-12f ? Vector3.Normalize(orthogonal) : Vector3.UnitX;
     }
 
     // ---------- materials and images ----------
@@ -655,8 +791,12 @@ internal static unsafe class GltfDecoder
             float metallicFactor = 1.0f;
             float roughnessFactor = 1.0f;
             int baseColorImageIndex = -1;
+            int normalImageIndex = -1;
+            int metallicRoughnessImageIndex = -1;
             Graphics.AddressMode wrapS = Graphics.AddressMode.Repeat;
             Graphics.AddressMode wrapT = Graphics.AddressMode.Repeat;
+            Graphics.AddressMode normalWrapS = Graphics.AddressMode.Repeat;
+            Graphics.AddressMode metallicRoughnessWrapS = Graphics.AddressMode.Repeat;
 
             if (hasPbr)
             {
@@ -669,14 +809,23 @@ internal static unsafe class GltfDecoder
                 // turn everything chrome when the texture is ignored. Treat an implicit
                 // factor as dielectric in that case.
                 bool hasExplicitMetallic = pbr.TryGetProperty("metallicFactor", out JsonElement metallicElement);
-                bool hasMrTexture = pbr.TryGetProperty("metallicRoughnessTexture", out _);
+                bool hasMrTexture = pbr.TryGetProperty("metallicRoughnessTexture", out JsonElement mrTextureElement);
                 metallicFactor = hasExplicitMetallic ? metallicElement.GetSingle() : (hasMrTexture ? 0.0f : 1.0f);
                 roughnessFactor = GetFloat(pbr, "roughnessFactor", 1.0f);
 
+                if (hasMrTexture)
+                {
+                    metallicRoughnessImageIndex = ResolveTextureImage(root, mrTextureElement, out metallicRoughnessWrapS, out _);
+                }
                 if (pbr.TryGetProperty("baseColorTexture", out JsonElement baseColorTexture))
                 {
                     baseColorImageIndex = ResolveTextureImage(root, baseColorTexture, out wrapS, out wrapT);
                 }
+            }
+
+            if (materialElement.TryGetProperty("normalTexture", out JsonElement normalTexture))
+            {
+                normalImageIndex = ResolveTextureImage(root, normalTexture, out normalWrapS, out _);
             }
 
             GltfAlphaMode alphaMode = GetString(materialElement, "alphaMode", "OPAQUE") switch
@@ -693,8 +842,12 @@ internal static unsafe class GltfDecoder
                 MetallicFactor = metallicFactor,
                 RoughnessFactor = roughnessFactor,
                 BaseColorImageIndex = baseColorImageIndex,
+                NormalImageIndex = normalImageIndex,
+                MetallicRoughnessImageIndex = metallicRoughnessImageIndex,
                 WrapS = wrapS,
                 WrapT = wrapT,
+                NormalWrapS = normalWrapS,
+                MetallicRoughnessWrapS = metallicRoughnessWrapS,
                 AlphaMode = alphaMode,
                 AlphaCutoff = GetFloat(materialElement, "alphaCutoff", 0.5f),
                 DoubleSided = GetBool(materialElement, "doubleSided", false),
