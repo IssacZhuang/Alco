@@ -20,7 +20,7 @@ struct V2F
 DEFINE_UNIFORM(0, _data)
 {
     float4x4 invViewProjection;
-    float4x4 sunViewProjection;
+    float4x4 sunViewProjection[4];
     float4 cameraPosition;
     float4 sunDirection;         // normalized direction the sun light travels
     float4 sunColorAndIntensity; // rgb + intensity
@@ -34,7 +34,10 @@ DEFINE_UNIFORM(0, _data)
     float4 pointLight2Color;     // rgb + intensity
     float4 pointLight3Position;
     float4 pointLight3Color;     // rgb + intensity
-    float4 pbrParams;               // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=sunDiscEnabled
+    float4 pbrParams;            // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=sunDiscEnabled
+    float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
+    float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
+    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView
     float4 viewportSize;         // xy = render target size in pixels
 };
 
@@ -102,31 +105,85 @@ float3 EvaluatePBR(float3 N, float3 V, float3 L, float3 albedo, float metallic, 
     return (diffuse + specular) * NdotL;
 }
 
-// Hardware 3x3 PCF against the shadow map depth texture (comparison sampler).
+// Pick the shadow cascade for a radial camera distance; -1 when beyond the last split.
+int SelectCascade(float viewDistance)
+{
+    if (viewDistance < cascadeSplits.x) return 0;
+    if (viewDistance < cascadeSplits.y) return 1;
+    if (viewDistance < cascadeSplits.z) return 2;
+    if (viewDistance < cascadeSplits.w) return 3;
+    return -1;
+}
+
+// Hardware 3x3 PCF against the shadow map cascade atlas (comparison sampler).
 // Each SampleCmpLevelZero tap compares (ndc.z - bias) <= texelDepth and, with the
 // linear comparison sampler, already blends the four nearest texels.
-float SampleShadowMap(float3 worldPosition)
+float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int cascade)
 {
-    float4 clip = mul(sunViewProjection, float4(worldPosition, 1.0));
-    float3 ndc = clip.xyz / clip.w;
+    // Normal offset bias: push the receiver along its normal by one world texel
+    // of this cascade, which removes most acne without peter-panning.
+    float texelWorld = cascadeTexelSizes[cascade];
+    float3 biasedWorld = worldPosition + N * texelWorld;
 
-    float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
-    if (shadowUV.x < 0.0 || shadowUV.x > 1.0 || shadowUV.y < 0.0 || shadowUV.y > 1.0)
+    float4 clip = mul(sunViewProjection[cascade], float4(biasedWorld, 1.0));
+    float3 ndc = clip.xyz / clip.w;
+    if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
     {
         return 1.0;
     }
 
-    float compareDepth = ndc.z - 0.002;
-    float texelSize = 1.0 / pbrParams.z;
+    // Map the base UV into the cascade's atlas quadrant (cascade c occupies
+    // quadrant ((c%2), (c/2)) of the 2x2 atlas).
+    float2 quadrantOffset = float2((cascade % 2) * 0.5, (cascade / 2) * 0.5);
+    float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
+
+    // Slope-scaled depth bias on top of the normal offset.
+    float NdotL = saturate(dot(N, L));
+    float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
+    float compareDepth = ndc.z - bias;
+
+    // PCF offsets in atlas UV; clamp taps inside the quadrant so they never
+    // bleed into a neighboring cascade.
+    float texelAtlas = 0.5 / pbrParams.z;
+    float2 quadrantMin = quadrantOffset + texelAtlas * 0.5;
+    float2 quadrantMax = quadrantOffset + 0.5 - texelAtlas * 0.5;
     float shadow = 0.0;
     for (int dy = -1; dy <= 1; dy++)
     {
         for (int dx = -1; dx <= 1; dx++)
         {
-            shadow += SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, shadowUV + float2(dx, dy) * texelSize, compareDepth);
+            float2 uv = clamp(shadowUV + float2(dx, dy) * texelAtlas, quadrantMin, quadrantMax);
+            shadow += SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
         }
     }
     return shadow / 9.0;
+}
+
+// Sun shadow with cascade blending: within the last fraction of each cascade
+// band the next cascade is cross-faded in (beyond the last split the shadow
+// fades to unshadowed). Splits are radial distances anchored to the camera, so
+// they sweep across the scene when the camera moves; without the blend, a
+// receiver crossing a split hard-switches between two cascades whose texel
+// grids and biases disagree, which looks like the shadow jumping.
+float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float viewDistance, int cascade)
+{
+    if (cascade < 0)
+    {
+        return 1.0;
+    }
+
+    float shadow = SampleShadowMap(worldPosition, N, L, cascade);
+
+    float splitEnd = cascadeSplits[cascade];
+    float splitStart = cascade == 0 ? 0.0 : cascadeSplits[cascade - 1];
+    float blendWidth = (splitEnd - splitStart) * 0.1;
+    float blend = saturate((viewDistance - (splitEnd - blendWidth)) / blendWidth);
+    if (blend > 0.0)
+    {
+        float nextShadow = cascade < 3 ? SampleShadowMap(worldPosition, N, L, cascade + 1) : 1.0;
+        shadow = lerp(shadow, nextShadow, blend);
+    }
+    return shadow;
 }
 
 // Procedural gradient sky with a sun disc.
@@ -191,14 +248,26 @@ float4 MainPS(V2F input) : SV_TARGET
 
     float3 Lo = 0.0;
 
-    // Directional sun light.
+    // Directional sun light (cascaded shadow map).
+    float viewDistance = length(worldPosition - cameraPosition.xyz);
+    int cascade = SelectCascade(viewDistance);
+    float sunShadow = 1.0;
     {
         float3 L = normalize(-sunDirection.xyz);
-        float shadow = pbrParams.x > 0.5 ? SampleShadowMap(worldPosition) : 1.0;
+        if (pbrParams.x > 0.5)
+        {
+            sunShadow = SampleSunShadow(worldPosition, N, L, viewDistance, cascade);
+        }
         Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
             * sunColorAndIntensity.rgb
             * sunColorAndIntensity.w
-            * shadow;
+            * sunShadow;
+    }
+
+    // Debug: visualize the raw sun shadow factor (white = lit, black = shadowed).
+    if (params2.y > 0.5)
+    {
+        return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
 
     // Point lights.
@@ -239,5 +308,16 @@ float4 MainPS(V2F input) : SV_TARGET
     // Emissive is added unshaded (stored linear in the G-buffer).
     float3 emissive = SAMPLE_TEX2D(_emissive, input.uv).rgb;
 
-    return float4(Lo + ambient + emissive, 1.0);
+    float3 color = Lo + ambient + emissive;
+
+    // Debug: tint each shadow cascade (0=red 1=green 2=blue 3=yellow).
+    if (params2.x > 0.5 && cascade >= 0)
+    {
+        float3 cascadeTints[4] = {
+            float3(1.0, 0.35, 0.35), float3(0.4, 1.0, 0.4),
+            float3(0.4, 0.6, 1.0), float3(1.0, 1.0, 0.4) };
+        color *= cascadeTints[cascade];
+    }
+
+    return float4(color, 1.0);
 }

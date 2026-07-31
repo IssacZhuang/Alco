@@ -6,13 +6,16 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// A deferred PBR rendering pipeline built on the engine's WebGPU resources.
-/// <br/>Owns a G-buffer (albedo / normal / metallic-roughness-ao + depth), a depth-only
-/// shadow map, and three render contexts (shadow pass, G-buffer pass, lighting pass).
-/// <br/>The caller drives the frame explicitly:
+/// <br/>Owns a G-buffer (albedo / normal / metallic-roughness-ao / emissive + depth), a
+/// depth-only shadow map holding <see cref="ShadowCascadeCount"/> cascades in a 2x2 atlas,
+/// and three render contexts (shadow pass, G-buffer pass, lighting pass).
+/// <br/>The caller drives the frame explicitly: per cascade
 /// <c>BeginShadowPass → DrawShadow×N → EndShadowPass</c>, then
 /// <c>BeginGBufferPass → DrawGBuffer×N → EndGBufferPass</c>, then
 /// <c>RenderLighting(target, ref data)</c> which resolves lighting, sky and shadows
 /// into the target frame buffer (typically the engine's HDR main target).
+/// <br/>Cascade splits are computed by <see cref="ComputeShadowCascades"/> (PSSM,
+/// camera-fitted, texel-snapped).
 /// </summary>
 public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 {
@@ -84,6 +87,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         }
     }
 
+    /// <summary>The number of shadow cascades (atlas quadrants) the pipeline supports.</summary>
+    public const int ShadowCascadeCount = 4;
+
     /// <summary>
     /// Per-frame data uploaded to the lighting pass. Layout must match the
     /// <c>_data</c> cbuffer in DeferredLighting.hlsl exactly.
@@ -92,8 +98,14 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         /// <summary>Inverse of the camera view-projection matrix.</summary>
         public Matrix4x4 InvViewProjection;
-        /// <summary>Sun light view-projection matrix (light space).</summary>
-        public Matrix4x4 SunViewProjection;
+        /// <summary>Sun light view-projection matrix of shadow cascade 0 (nearest).</summary>
+        public Matrix4x4 SunViewProjection0;
+        /// <summary>Sun light view-projection matrix of shadow cascade 1.</summary>
+        public Matrix4x4 SunViewProjection1;
+        /// <summary>Sun light view-projection matrix of shadow cascade 2.</summary>
+        public Matrix4x4 SunViewProjection2;
+        /// <summary>Sun light view-projection matrix of shadow cascade 3 (farthest).</summary>
+        public Matrix4x4 SunViewProjection3;
         /// <summary>Camera position in world space (w unused).</summary>
         public Vector4 CameraPosition;
         /// <summary>Normalized direction the sun light travels (w unused).</summary>
@@ -122,6 +134,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 PointLight3Color;
         /// <summary>x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=sunDiscEnabled.</summary>
         public Vector4 Params;
+        /// <summary>View-distance end boundary of each cascade; beyond w there is no shadow.</summary>
+        public Vector4 CascadeSplits;
+        /// <summary>World units per shadow texel of each cascade (for the normal-offset bias).</summary>
+        public Vector4 CascadeTexelSizes;
+        /// <summary>x=cascadeDebugTint, rest unused.</summary>
+        public Vector4 Params2;
         /// <summary>xy=render target size in pixels (filled by the pipeline).</summary>
         public Vector4 ViewportSize;
 
@@ -189,12 +207,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public RenderTexture GBuffer => _gbufferRT;
 
     /// <summary>
-    /// The depth-only shadow map render texture.
+    /// The depth-only shadow map render texture (a 2x2 cascade atlas).
     /// </summary>
     public RenderTexture ShadowMap => _shadowRT;
 
     /// <summary>
-    /// The width of the shadow map in texels.
+    /// The width of one shadow cascade (atlas quadrant) in texels.
     /// </summary>
     public uint ShadowMapSize { get; }
 
@@ -206,7 +224,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="shadowShader">The shadow map depth shader (ShadowDepth.hlsl).</param>
     /// <param name="lightingShaderText">The source text of the deferred lighting shader (DeferredLighting.hlsl).</param>
     /// <param name="lightingShaderName">The name of the deferred lighting shader.</param>
-    /// <param name="shadowMapSize">The shadow map resolution in texels.</param>
+    /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="albedoTexture">Optional albedo texture for all G-buffer draws; defaults to a white texture.</param>
@@ -254,7 +272,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             "pbr_shadow_pass"));
 
         _gbufferRT = rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
-        _shadowRT = rendering.CreateRenderTexture(_shadowLayout, shadowMapSize, shadowMapSize, "pbr_shadow_map");
+        // 2x2 cascade atlas: each cascade renders into one quadrant.
+        _shadowRT = rendering.CreateRenderTexture(_shadowLayout, shadowMapSize * 2, shadowMapSize * 2, "pbr_shadow_map");
 
         _gbufferMaterial = rendering.CreateMaterial(gbufferShader);
         _gbufferMaterial.DepthStencilState = DepthStencilState.Write;
@@ -322,14 +341,27 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Begin the shadow map pass. All <see cref="DrawShadow"/> calls must happen
-    /// between this and <see cref="EndShadowPass"/>.
+    /// Begin the shadow map pass for one cascade. All <see cref="DrawShadow"/> calls must happen
+    /// between this and <see cref="EndShadowPass"/>. Cascades render into their own quadrant of
+    /// the 2x2 atlas; only the first cascade's pass clears the atlas.
     /// </summary>
-    /// <param name="sunViewProjection">The light view-projection matrix (orthographic for the sun).</param>
-    public void BeginShadowPass(in Matrix4x4 sunViewProjection)
+    /// <param name="cascadeIndex">The cascade to render (0 = nearest .. <see cref="ShadowCascadeCount"/>-1).</param>
+    /// <param name="sunViewProjection">The light view-projection matrix of this cascade (orthographic for the sun).</param>
+    public void BeginShadowPass(int cascadeIndex, in Matrix4x4 sunViewProjection)
     {
-        _sunViewProjection = sunViewProjection;
-        _shadowContext.Begin(_shadowRT.FrameBuffer, clearDepth: 1.0f);
+        // Fold the atlas quadrant into the projection. The scissor is essential:
+        // geometry outside this cascade's orthographic box can otherwise transform
+        // into another atlas quadrant and corrupt that cascade's depth values.
+        float offsetX = (cascadeIndex % 2) - 0.5f;
+        float offsetY = 0.5f - (cascadeIndex / 2);
+        Matrix4x4 quadrant = Matrix4x4.CreateScale(0.5f, 0.5f, 1.0f) * Matrix4x4.CreateTranslation(offsetX, offsetY, 0.0f);
+        _sunViewProjection = sunViewProjection * quadrant;
+        _shadowContext.Begin(_shadowRT.FrameBuffer, clearDepth: cascadeIndex == 0 ? 1.0f : null);
+        _shadowContext.SetScissorRect(
+            (uint)(cascadeIndex % 2) * ShadowMapSize,
+            (uint)(cascadeIndex / 2) * ShadowMapSize,
+            ShadowMapSize,
+            ShadowMapSize);
     }
 
     /// <summary>
@@ -369,6 +401,125 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public void EndShadowPass()
     {
         _shadowContext.End();
+    }
+
+    /// <summary>
+    /// Compute cascaded shadow map data for a directional sun: per-cascade light
+    /// view-projection matrices, split boundaries and world texel sizes.
+    /// <br/>Splits follow the practical split scheme (log/uniform blend controlled by
+    /// <paramref name="splitLambda"/>) on radial camera distance. The light space is a
+    /// pure rotation (camera-independent) and each cascade fits a fixed-radius bounding
+    /// sphere of its frustum slice, snapped to texel increments, so the shadow map stays
+    /// stable when the camera moves or rotates.
+    /// </summary>
+    /// <param name="invCameraViewProjection">Inverse of the camera view-projection matrix (for frustum edge rays).</param>
+    /// <param name="cameraPosition">World-space camera position.</param>
+    /// <param name="shadowNear">Near boundary of cascade 0, typically the camera near plane distance.</param>
+    /// <param name="shadowDistance">Distance beyond which shadows are not rendered.</param>
+    /// <param name="sunDirection">Normalized direction the sun light travels.</param>
+    /// <param name="casterExtension">How far the light-space depth range extends back toward the sun to include off-screen casters.</param>
+    /// <param name="splitLambda">PSSM blend factor: 1 = fully logarithmic, 0 = fully uniform.</param>
+    /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels.</param>
+    /// <param name="cascadeViewProjections">Output light view-projection matrices, one per cascade (<see cref="ShadowCascadeCount"/>).</param>
+    /// <param name="cascadeSplits">Output radial end distance of each cascade.</param>
+    /// <param name="cascadeTexelSizes">Output world units per shadow texel of each cascade.</param>
+    /// <exception cref="ArgumentException">An output span does not hold <see cref="ShadowCascadeCount"/> entries.</exception>
+    public static void ComputeShadowCascades(
+        in Matrix4x4 invCameraViewProjection,
+        in Vector3 cameraPosition,
+        float shadowNear,
+        float shadowDistance,
+        in Vector3 sunDirection,
+        float casterExtension,
+        float splitLambda,
+        uint shadowMapSize,
+        Span<Matrix4x4> cascadeViewProjections,
+        Span<float> cascadeSplits,
+        Span<float> cascadeTexelSizes)
+    {
+        if (cascadeViewProjections.Length < ShadowCascadeCount ||
+            cascadeSplits.Length < ShadowCascadeCount ||
+            cascadeTexelSizes.Length < ShadowCascadeCount)
+        {
+            throw new ArgumentException($"Output spans must hold {ShadowCascadeCount} entries.");
+        }
+
+        // Frustum edge rays: the four far-plane corners in world space.
+        Span<Vector3> edgeRays = stackalloc Vector3[4];
+        int rayIndex = 0;
+        for (int y = -1; y <= 1; y += 2)
+        {
+            for (int x = -1; x <= 1; x += 2)
+            {
+                Vector4 corner = Vector4.Transform(new Vector4(x, y, 1.0f, 1.0f), invCameraViewProjection);
+                Vector3 farCorner = new Vector3(corner.X, corner.Y, corner.Z) / corner.W;
+                edgeRays[rayIndex++] = Vector3.Normalize(farCorner - cameraPosition);
+            }
+        }
+
+        // Camera-independent light space: a pure rotation around the world origin, so
+        // world geometry stays still in light space while the camera moves.
+        Vector3 up = Math.Abs(Vector3.Dot(sunDirection, Vector3.UnitZ)) > 0.95f ? Vector3.UnitY : Vector3.UnitZ;
+        Matrix4x4 lightView = Matrix4x4.CreateLookAtLeftHanded(Vector3.Zero, sunDirection, up);
+
+        float sliceNear = shadowNear;
+        Span<Vector3> corners = stackalloc Vector3[8];
+        for (int c = 0; c < ShadowCascadeCount; c++)
+        {
+            float p = (c + 1) / (float)ShadowCascadeCount;
+            float logarithmic = shadowNear * MathF.Pow(shadowDistance / shadowNear, p);
+            float uniform = shadowNear + (shadowDistance - shadowNear) * p;
+            float sliceFar = splitLambda * logarithmic + (1.0f - splitLambda) * uniform;
+            cascadeSplits[c] = sliceFar;
+
+            // Frustum slice corners on the edge rays.
+            Vector3 center = Vector3.Zero;
+            for (int r = 0; r < 4; r++)
+            {
+                corners[r] = cameraPosition + edgeRays[r] * sliceNear;
+                corners[r + 4] = cameraPosition + edgeRays[r] * sliceFar;
+                center += corners[r] + corners[r + 4];
+            }
+            center /= 8.0f;
+
+            // Fit a bounding sphere: its radius is invariant to camera rotation and
+            // translation, so the texel grid has a constant world size.
+            float radius = 0.0f;
+            for (int r = 0; r < 8; r++)
+            {
+                radius = Math.Max(radius, Vector3.Distance(corners[r], center));
+            }
+
+            // Grow by one texel per side so the sphere stays inside the snapped box
+            // (snapping shifts the box by up to ~0.71 texels diagonally).
+            float texel = radius * 2.0f / shadowMapSize;
+            radius += texel;
+            texel = radius * 2.0f / shadowMapSize;
+
+            // Snap the box center to whole texels so it steps discretely instead of
+            // sliding continuously under camera movement.
+            Vector3 centerLight = Vector3.Transform(center, lightView);
+            centerLight.X = MathF.Floor(centerLight.X / texel) * texel;
+            centerLight.Y = MathF.Floor(centerLight.Y / texel) * texel;
+
+            // Depth range: the sphere plus an extension toward the sun for off-screen
+            // casters, quantized so the depth grid is stable too. Negative near values
+            // are legal for orthographic projections.
+            float zMin = centerLight.Z - radius - casterExtension;
+            float zMax = centerLight.Z + radius;
+            float texelZ = (zMax - zMin) / shadowMapSize;
+            zMin = MathF.Floor(zMin / texelZ) * texelZ;
+            zMax = zMin + texelZ * shadowMapSize;
+
+            Matrix4x4 ortho = Matrix4x4.CreateOrthographicOffCenterLeftHanded(
+                centerLight.X - radius, centerLight.X + radius,
+                centerLight.Y - radius, centerLight.Y + radius,
+                zMin, zMax);
+            cascadeViewProjections[c] = lightView * ortho;
+            cascadeTexelSizes[c] = texel;
+
+            sliceNear = sliceFar;
+        }
     }
 
     /// <summary>

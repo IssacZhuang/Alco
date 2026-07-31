@@ -10,14 +10,14 @@ using SandboxUtils;
 
 /// <summary>
 /// Sandbox demonstrating 3D PBR rendering with a deferred pipeline:
-/// G-buffer pass, deferred lighting (GGX BRDF), a shadow-mapped directional
-/// sun, up to four point lights, emissive surfaces with HDR bloom and a
-/// procedural gradient skybox.
+/// G-buffer pass, deferred lighting (GGX BRDF), a directional sun with
+/// cascaded shadow maps (4 cascades in a 2x2 atlas), up to four point
+/// lights, emissive surfaces with HDR bloom and a procedural gradient skybox.
 /// <br/>Loads the Amazon Lumberyard Bistro scene (glTF) when present in
 /// Assets/Bistro; otherwise falls back to a procedural primitive scene.
 /// <br/>Controls: drag with the left mouse button to orbit the camera,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z]
 /// </summary>
 public class Game : GameEngine
 {
@@ -72,6 +72,15 @@ public class Game : GameEngine
     private bool _shadowEnabled = true;
     private bool _sunDiscEnabled = true;
 
+    // Cascaded shadow map state.
+    private readonly float _cameraNear;
+    private float _shadowDistance;
+    private bool _cascadeDebug;
+    private bool _shadowDebug;
+    private readonly Matrix4x4[] _cascadeViewProjections = new Matrix4x4[PBRDeferredPipeline.ShadowCascadeCount];
+    private readonly float[] _cascadeSplits = new float[PBRDeferredPipeline.ShadowCascadeCount];
+    private readonly float[] _cascadeTexelSizes = new float[PBRDeferredPipeline.ShadowCascadeCount];
+
     // Point lights (up to four).
     private readonly PBRDeferredPipeline.PointLight[] _pointLights = new PBRDeferredPipeline.PointLight[4];
 
@@ -104,6 +113,13 @@ public class Game : GameEngine
         _screenshotPath = GetArgValue(args, "--screenshot=");
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 60;
         _waitForStreaming = args.Contains("--wait-load");
+        _cascadeDebug = args.Contains("--cascade-debug");
+        _shadowDebug = args.Contains("--shadow-debug");
+        Vector3? sunOverride = ParseVector3(GetArgValue(args, "--sun="));
+        if (sunOverride.HasValue)
+        {
+            _sunDirection = Vector3.Normalize(sunOverride.Value);
+        }
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
         bool interior = args.Contains("--interior");
@@ -132,8 +148,10 @@ public class Game : GameEngine
         }
 
         _checkerTexture = CreateCheckerTexture(256);
+        _cameraNear = MathF.Max(_sceneRadius * 0.002f, 0.1f);
         _camera = RenderingSystem.CreateCameraPerspective(0.83f, 16f / 9,
-            MathF.Max(_sceneRadius * 0.002f, 0.1f), _sceneRadius * 10.0f);
+            _cameraNear, _sceneRadius * 10.0f);
+        _shadowDistance = _sceneRadius * 3.0f;
 
         string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
         _pipeline = new PBRDeferredPipeline(
@@ -442,14 +460,28 @@ public class Game : GameEngine
     {
         Vector3 sunDirection = Vector3.Normalize(_sunDirection);
 
-        // Build the sun's orthographic view-projection around the scene center.
-        Vector3 center = _sceneCenter;
-        float shadowRadius = _sceneRadius * 1.2f;
-        Vector3 eye = center - sunDirection * (_sceneRadius * 3.0f);
-        Vector3 up = Math.Abs(Vector3.Dot(sunDirection, Vector3.UnitZ)) > 0.95f ? Vector3.UnitY : Vector3.UnitZ;
-        Matrix4x4 sunView = Matrix4x4.CreateLookAtLeftHanded(eye, center, up);
-        Matrix4x4 sunProjection = Matrix4x4.CreateOrthographicLeftHanded(shadowRadius * 2.0f, shadowRadius * 2.0f, 0.1f, _sceneRadius * 6.0f);
-        Matrix4x4 sunViewProjection = sunView * sunProjection;
+        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
+
+        // Fit the shadow distance to the view: when the camera is far from the
+        // scene (e.g. aerial views), extend past the configured base so visible
+        // geometry never crosses the shadow range boundary — shadows would
+        // otherwise fade/pop out at _shadowDistance while still on screen.
+        float shadowDistance = Math.Max(_shadowDistance,
+            Vector3.Distance(_camera.Transform.Position, _sceneCenter) + _sceneRadius);
+
+        // Fit the shadow cascades to the camera frustum (PSSM splits).
+        PBRDeferredPipeline.ComputeShadowCascades(
+            invViewProjection,
+            _camera.Transform.Position,
+            _cameraNear,
+            shadowDistance,
+            sunDirection,
+            _sceneRadius,
+            0.6f,
+            _pipeline.ShadowMapSize,
+            _cascadeViewProjections,
+            _cascadeSplits,
+            _cascadeTexelSizes);
 
         // Point light 2 follows the mouse on the ground plane (z = 1).
         float groundZ = _bistro != null ? _sceneCenter.Z * 0.5f : 1.0f;
@@ -464,10 +496,11 @@ public class Game : GameEngine
             }
         }
 
-        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
-
         _lightingData.InvViewProjection = invViewProjection;
-        _lightingData.SunViewProjection = sunViewProjection;
+        _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
+        _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
+        _lightingData.SunViewProjection2 = _cascadeViewProjections[2];
+        _lightingData.SunViewProjection3 = _cascadeViewProjections[3];
         _lightingData.CameraPosition = new Vector4(_camera.Transform.Position, 1.0f);
         _lightingData.SunDirection = new Vector4(sunDirection, 0);
         _lightingData.SunColorAndIntensity = new Vector4(_sunColor, _sunIntensity);
@@ -479,6 +512,11 @@ public class Game : GameEngine
             1.0f,
             _pipeline.ShadowMapSize,
             _sunDiscEnabled ? 1.0f : 0.0f);
+        _lightingData.CascadeSplits = new Vector4(
+            _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
+        _lightingData.CascadeTexelSizes = new Vector4(
+            _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
+        _lightingData.Params2 = new Vector4(_cascadeDebug ? 1.0f : 0.0f, _shadowDebug ? 1.0f : 0.0f, 0.0f, 0.0f);
     }
 
     private void RenderFrame()
@@ -489,17 +527,20 @@ public class Game : GameEngine
             return;
         }
 
-        // 1. Shadow map pass (only objects that cast shadows).
-        _pipeline.BeginShadowPass(_lightingData.SunViewProjection);
-        for (int i = 0; i < _objects.Count; i++)
+        // 1. Shadow map pass (only objects that cast shadows), one pass per cascade.
+        for (int cascade = 0; cascade < PBRDeferredPipeline.ShadowCascadeCount; cascade++)
         {
-            SceneObject sceneObject = _objects[i];
-            if (sceneObject.CastsShadow)
+            _pipeline.BeginShadowPass(cascade, _cascadeViewProjections[cascade]);
+            for (int i = 0; i < _objects.Count; i++)
             {
-                _pipeline.DrawShadow(sceneObject.Mesh, sceneObject.WorldMatrix);
+                SceneObject sceneObject = _objects[i];
+                if (sceneObject.CastsShadow)
+                {
+                    _pipeline.DrawShadow(sceneObject.Mesh, sceneObject.WorldMatrix);
+                }
             }
+            _pipeline.EndShadowPass();
         }
-        _pipeline.EndShadowPass();
 
         // 2. G-buffer pass.
         _pipeline.BeginGBufferPass();
@@ -521,13 +562,16 @@ public class Game : GameEngine
         IReadOnlyList<ModelDrawItem> drawItems = _bistro!.DrawItems;
         IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
 
-        _pipeline.BeginShadowPass(_lightingData.SunViewProjection);
-        for (int i = 0; i < drawItems.Count; i++)
+        for (int cascade = 0; cascade < PBRDeferredPipeline.ShadowCascadeCount; cascade++)
         {
-            ModelDrawItem item = drawItems[i];
-            _pipeline.DrawShadowTangent(item.Mesh, item.World);
+            _pipeline.BeginShadowPass(cascade, _cascadeViewProjections[cascade]);
+            for (int i = 0; i < drawItems.Count; i++)
+            {
+                ModelDrawItem item = drawItems[i];
+                _pipeline.DrawShadowTangent(item.Mesh, item.World);
+            }
+            _pipeline.EndShadowPass();
         }
-        _pipeline.EndShadowPass();
 
         _pipeline.BeginGBufferPass();
         for (int i = 0; i < drawItems.Count; i++)
@@ -602,6 +646,9 @@ public class Game : GameEngine
             ImGui.ColorEdit3("Color", ref _sunColor);
             ImGui.SliderFloat("Intensity", ref _sunIntensity, 0.0f, 30.0f);
             ImGui.Checkbox("Shadows", ref _shadowEnabled);
+            ImGui.SliderFloat("Shadow Distance", ref _shadowDistance, _sceneRadius * 0.5f, _sceneRadius * 8.0f);
+            ImGui.Checkbox("Cascade Debug", ref _cascadeDebug);
+            ImGui.Checkbox("Shadow Debug", ref _shadowDebug);
             ImGui.Checkbox("Sun disc", ref _sunDiscEnabled);
         }
 

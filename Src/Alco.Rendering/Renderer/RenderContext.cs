@@ -116,6 +116,19 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     }
 
     /// <summary>
+    /// Restricts subsequent draw calls to the specified framebuffer rectangle.
+    /// </summary>
+    /// <param name="x">The horizontal origin in pixels.</param>
+    /// <param name="y">The vertical origin in pixels.</param>
+    /// <param name="width">The rectangle width in pixels.</param>
+    /// <param name="height">The rectangle height in pixels.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetScissorRect(uint x, uint y, uint width, uint height)
+    {
+        _renderScope.SetScissorRect(x, y, width, height);
+    }
+
+    /// <summary>
     /// Draws a mesh with the specified material.
     /// </summary>
     /// <param name="mesh">The mesh to draw.</param>
