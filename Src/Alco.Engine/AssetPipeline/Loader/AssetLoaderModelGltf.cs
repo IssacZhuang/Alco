@@ -304,6 +304,9 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
             // Albedo and emissive are sRGB color data; normal and metallic-roughness maps are linear.
             Format = role is TextureRole.Albedo or TextureRole.Emissive ? PixelFormat.RGBA8UnormSrgb : PixelFormat.RGBA8Unorm,
             AddressMode = wrap,
+            // Anisotropic filtering against minification moiré on walls and ground
+            // planes seen at grazing angles.
+            Anisotropy = 8,
             Name = image.Name,
         };
 

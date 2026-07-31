@@ -373,14 +373,27 @@ public abstract class GPUDevice
     }
 
     public GPUSampler GetSampler(
+        FilterMode filter,
+        AddressMode addressMode,
+        ushort maxAnisotropy
+    )
+    {
+        return GetSampler(filter, filter, filter, addressMode, addressMode, addressMode, maxAnisotropy);
+    }
+
+    public GPUSampler GetSampler(
         FilterMode minFilter,
         FilterMode magFilter,
         FilterMode mipFilter,
         AddressMode addressModeU,
         AddressMode addressModeV,
-        AddressMode addressModeW
+        AddressMode addressModeW,
+        ushort maxAnisotropy = 1
     )
     {
+        // Anisotropy above 1 only takes effect with linear filtering; wgpu caps it at 16.
+        maxAnisotropy = Math.Clamp(maxAnisotropy, (ushort)1, (ushort)16);
+
         int hash = 17;
         hash = hash * 23 + minFilter.GetHashCode();
         hash = hash * 23 + magFilter.GetHashCode();
@@ -388,6 +401,7 @@ public abstract class GPUDevice
         hash = hash * 23 + addressModeU.GetHashCode();
         hash = hash * 23 + addressModeV.GetHashCode();
         hash = hash * 23 + addressModeW.GetHashCode();
+        hash = hash * 23 + maxAnisotropy.GetHashCode();
 
         if (_samplers.TryGetValue(hash, out var sampler))
         {
@@ -395,7 +409,7 @@ public abstract class GPUDevice
         }
 
         sampler = CreateSampler(new SamplerDescriptor(minFilter, magFilter, mipFilter,
-            addressModeU, addressModeV, addressModeW));
+            addressModeU, addressModeV, addressModeW, maxAnisotropy: maxAnisotropy));
         return _samplers.TryAdd(hash, sampler) ? sampler : _samplers[hash];
     }
 

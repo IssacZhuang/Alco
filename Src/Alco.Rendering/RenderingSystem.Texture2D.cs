@@ -117,7 +117,7 @@ public partial class RenderingSystem
             throw new ImageDecodeException($"DDS pixel format {format} is not block-compressed.");
         }
 
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode);
+        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode, optionReal.Anisotropy);
 
         TextureDescriptor textureDescriptor = new TextureDescriptor(
             TextureDimension.Texture2D,
@@ -232,7 +232,7 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode);
+        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode, optionReal.Anisotropy);
 
         CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
@@ -302,7 +302,7 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode);
+        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode, optionReal.Anisotropy);
 
         CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 

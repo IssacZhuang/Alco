@@ -153,6 +153,19 @@ float3 DecodeSRGB(float3 color)
     return lerp(hi, lo, step(color, float3(0.04045, 0.04045, 0.04045)));
 }
 
+// Geometric specular antialiasing (Karis): the screen-space variance of the
+// G-buffer normal approximates the sub-pixel normal distribution; widening the
+// GGX lobe by the corresponding kernel roughness removes the specular sparkle
+// that appears on normal-mapped surfaces at a distance.
+float GeometricSpecularAA(float3 N, float roughness)
+{
+    float3 dNdx = ddx(N);
+    float3 dNdy = ddy(N);
+    float variance = (dot(dNdx, dNdx) + dot(dNdy, dNdy)) * 0.5;
+    float kernelRoughness2 = min(2.0 * variance, 0.18);
+    return saturate(roughness + sqrt(kernelRoughness2));
+}
+
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
 {
@@ -172,7 +185,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
     float3 N = normalize(normalRT * 2.0 - 1.0);
     float metallic = mrAO.x;
-    float roughness = mrAO.y;
+    float roughness = GeometricSpecularAA(N, mrAO.y);
     float ao = mrAO.z;
     float3 V = -viewDirection; // surface to camera
 
