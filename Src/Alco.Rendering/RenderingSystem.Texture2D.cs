@@ -33,6 +33,11 @@ public partial class RenderingSystem
         {
             stream.ReadExactly(new Span<byte>(nativeBuffer, (int)length));
 
+            if (DdsDecoder.IsDds(new ReadOnlySpan<byte>(nativeBuffer, (int)length)))
+            {
+                return CreateTexture2DFromDds(new ReadOnlySpan<byte>(nativeBuffer, (int)length), option);
+            }
+
             byte* pixels = ImageDecodeUtility.DecodeAuto(
                 new ReadOnlySpan<byte>(nativeBuffer, (int)length),
                 out int w, out int h);
@@ -56,6 +61,8 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a Texture2D from file bytes.
+    /// DDS files (BC1-BC7) upload their blocks and mip chain verbatim; other formats
+    /// (PNG/JPEG) decode to RGBA8 first.
     /// </summary>
     /// <param name="fileBytes">The file bytes containing image data.</param>
     /// <param name="option">Image load options.</param>
@@ -65,6 +72,11 @@ public partial class RenderingSystem
         ImageLoadOption? option = null
     )
     {
+        if (DdsDecoder.IsDds(fileBytes))
+        {
+            return CreateTexture2DFromDds(fileBytes, option);
+        }
+
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
 
         byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
@@ -79,6 +91,71 @@ public partial class RenderingSystem
         {
             NativeMemory.Free(pixels);
         }
+    }
+
+    /// <summary>
+    /// Creates a Texture2D from a DDS file holding block-compressed data (BC1-BC7).
+    /// No pixel decoding happens; the mip chain stored in the file is uploaded as-is,
+    /// overriding <see cref="ImageLoadOption.MipLevels"/>. The sRGB-ness of the BC format
+    /// follows <see cref="ImageLoadOption.Format"/>.
+    /// </summary>
+    /// <param name="fileBytes">The complete DDS file bytes.</param>
+    /// <param name="option">Image load options.</param>
+    /// <returns>A new Texture2D instance.</returns>
+    /// <exception cref="ImageDecodeException">Invalid, uncompressed or unsupported DDS data.</exception>
+    public unsafe Texture2D CreateTexture2DFromDds(
+        ReadOnlySpan<byte> fileBytes,
+        ImageLoadOption? option = null
+    )
+    {
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
+        bool srgb = PixelFormatUtility.IsSrgbFormat(optionReal.Format);
+        DdsDecoder.Decode(fileBytes, srgb, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+
+        if (!PixelFormatUtility.TryGetCompressedBlockSize(format, out uint blockBytes))
+        {
+            throw new ImageDecodeException($"DDS pixel format {format} is not block-compressed.");
+        }
+
+        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode);
+
+        TextureDescriptor textureDescriptor = new TextureDescriptor(
+            TextureDimension.Texture2D,
+            format,
+            (uint)width,
+            (uint)height,
+            1,
+            (uint)mipLevels,
+            optionReal.Usage,
+            1,
+            optionReal.Name
+        );
+        GPUTexture texture = _device.CreateTexture(textureDescriptor);
+
+        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
+            texture,
+            TextureViewDimension.Texture2D
+        );
+        GPUTextureView textureView = _device.CreateTextureView(textureViewDescriptor);
+
+        fixed (byte* basePointer = fileBytes)
+        {
+            byte* pointer = basePointer + dataOffset;
+            for (int level = 0; level < mipLevels; level++)
+            {
+                uint byteCount = DdsDecoder.GetMipByteCount(width, height, level, blockBytes);
+                _device.WriteTexture(texture, pointer, byteCount, (uint)level);
+                pointer += byteCount;
+            }
+        }
+
+        return new Texture2D(
+            _device,
+            texture,
+            textureView,
+            sampler,
+            optionReal.SlicePadding
+        );
     }
 
     /// <summary>

@@ -24,10 +24,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         /// <summary>The world transform of the object (row-vector convention, compose scale → rotation → translation).</summary>
         public Matrix4x4 Model;
-        /// <summary>Linear base color (rgb), alpha is unused.</summary>
+        /// <summary>Linear base color (rgb), alpha multiplies the albedo texture alpha.</summary>
         public Vector4 BaseColor;
         /// <summary>x=metallic y=roughness z=ambient occlusion, w is unused.</summary>
         public Vector4 MetallicRoughnessAO;
+        /// <summary>x=alpha cutoff (0 disables alpha testing), yzw are unused.</summary>
+        public Vector4 Params;
 
         /// <summary>
         /// Create draw constants for a PBR surface.
@@ -42,6 +44,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             Model = model;
             BaseColor = new Vector4(baseColor, 1.0f);
             MetallicRoughnessAO = new Vector4(metallic, roughness, ambientOcclusion, 1.0f);
+            Params = Vector4.Zero;
         }
     }
 
@@ -158,9 +161,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private RenderTexture _gbufferRT;
     private readonly RenderTexture _shadowRT;
 
+    private readonly Shader _gbufferShader;
     private readonly GraphicsMaterial _gbufferMaterial;
     private readonly GraphicsMaterial _shadowMaterial;
     private readonly GraphicsMaterial _lightingMaterial;
+    private readonly Dictionary<(Texture2D? Texture, bool DoubleSided), GraphicsMaterial> _gbufferMaterialCache = new();
+    private GraphicsBuffer? _cameraBuffer;
 
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
 
@@ -241,6 +247,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _gbufferMaterial.DepthStencilState = DepthStencilState.Write;
         _gbufferMaterial.RasterizerState = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.Clockwise);
         _gbufferMaterial.SetTexture("_albedoTexture", albedoTexture ?? rendering.TextureWhite);
+        _gbufferShader = gbufferShader;
 
         _shadowMaterial = rendering.CreateMaterial(shadowShader);
         _shadowMaterial.DepthStencilState = DepthStencilState.Write;
@@ -269,7 +276,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="cameraBuffer">The camera buffer (a <c>CameraPerspectiveBuffer</c>).</param>
     public void SetCamera(GraphicsBuffer cameraBuffer)
     {
+        _cameraBuffer = cameraBuffer;
         _gbufferMaterial.SetBuffer(ShaderResourceId.Camera, cameraBuffer);
+        foreach (GraphicsMaterial material in _gbufferMaterialCache.Values)
+        {
+            material.SetBuffer(ShaderResourceId.Camera, cameraBuffer);
+        }
     }
 
     /// <summary>
@@ -348,11 +360,56 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
+    /// Draw a mesh into the G-buffer with a per-material albedo texture. Must be called
+    /// inside the G-buffer pass. Materials are cached per (texture, doubleSided) pair.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="model">The world transform of the mesh.</param>
+    /// <param name="baseColor">The linear base color, multiplied with the albedo texture.</param>
+    /// <param name="metallicRoughnessAO">x=metallic y=roughness z=ambient occlusion.</param>
+    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
+    public void DrawGBuffer(in Mesh mesh, in Matrix4x4 model, in Vector4 baseColor, in Vector4 metallicRoughnessAO,
+        Texture2D? albedoTexture, bool doubleSided = false, float alphaCutoff = 0.0f)
+    {
+        GraphicsMaterial material = GetOrCreateGBufferMaterial(albedoTexture, doubleSided);
+        _gbufferContext.DrawWithConstant(mesh, material,
+            new PBRDrawConstants
+            {
+                Model = model,
+                BaseColor = baseColor,
+                MetallicRoughnessAO = metallicRoughnessAO,
+                Params = new Vector4(alphaCutoff, 0.0f, 0.0f, 0.0f),
+            });
+    }
+
+    /// <summary>
     /// End the G-buffer pass and submit its commands.
     /// </summary>
     public void EndGBufferPass()
     {
         _gbufferContext.End();
+    }
+
+    private GraphicsMaterial GetOrCreateGBufferMaterial(Texture2D? albedoTexture, bool doubleSided)
+    {
+        if (_gbufferMaterialCache.TryGetValue((albedoTexture, doubleSided), out GraphicsMaterial? cached))
+        {
+            return cached;
+        }
+
+        var material = _rendering.CreateMaterial(_gbufferShader);
+        material.DepthStencilState = DepthStencilState.Write;
+        material.RasterizerState = new RasterizerState(FillMode.Solid,
+            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        if (_cameraBuffer != null)
+        {
+            material.SetBuffer(ShaderResourceId.Camera, _cameraBuffer);
+        }
+        _gbufferMaterialCache[(albedoTexture, doubleSided)] = material;
+        return material;
     }
 
     /// <summary>
@@ -463,6 +520,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _lightingContext.Dispose();
             _lightingDataBuffer.Dispose();
             _lightingMaterial.Dispose();
+            foreach (GraphicsMaterial material in _gbufferMaterialCache.Values)
+            {
+                material.Dispose();
+            }
+            _gbufferMaterialCache.Clear();
             _gbufferMaterial.Dispose();
             _shadowMaterial.Dispose();
             _gbufferRT.Dispose();

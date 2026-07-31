@@ -26,6 +26,7 @@ public static class FileExt
     public const string ImageTGA = ".tga";
     public const string ImageHDR = ".hdr";
     public const string ImageGIF = ".gif";
+    public const string ImageDDS = ".dds";
 
     // Text
     public const string Text = ".txt";
@@ -55,6 +56,8 @@ public static class FileExt
 
     //model
     public const string ModelOBJ = ".obj";
+    public const string ModelGLTF = ".gltf";
+    public const string ModelGLB = ".glb";
 
     //meta
     public const string Meta = ".meta";

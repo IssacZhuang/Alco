@@ -21,7 +21,8 @@ public class AssetLoaderTexture2D : IAssetLoader
         FileExt.ImageBMP,
         FileExt.ImageTGA,
         FileExt.ImageGIF,
-        FileExt.ImageHDR
+        FileExt.ImageHDR,
+        FileExt.ImageDDS
     };
 
     private readonly RenderingSystem _renderingSystem;

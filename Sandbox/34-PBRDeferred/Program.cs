@@ -16,7 +16,7 @@ With<PluginHDR>().
 With<PluginDebugStats>().
 With<PluginImGUI>();
 
-using (Game game = new Game(setting))
+using (Game game = new Game(setting, args))
 {
     game.Run();
 }

@@ -24,6 +24,7 @@ struct Constants
     float4x4 model;
     float4 baseColor;
     float4 metallicRoughnessAO; // x=metallic y=roughness z=ambientOcclusion
+    float4 params_;             // x=alphaCutoff (0 disables alpha testing)
 };
 
 DEFINE_UNIFORM(0, _camera)
@@ -62,6 +63,14 @@ void MainPS(V2F input,
     out float4 mrAORT : SV_TARGET2)
 {
     float4 albedo = SAMPLE_TEX2D(_albedoTexture, input.uv);
+
+    // Alpha test: discard fragments below the cutoff (0 disables the test).
+    float alphaCutoff = constants.params_.x;
+    if (alphaCutoff > 0.0 && albedo.a * constants.baseColor.a < alphaCutoff)
+    {
+        discard;
+    }
+
     albedoRT = float4(EncodeSRGB(albedo.rgb * constants.baseColor.rgb), 1.0);
 
     float3 normal = normalize(input.normal);

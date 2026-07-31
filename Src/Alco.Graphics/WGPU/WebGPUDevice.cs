@@ -289,7 +289,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
     {
-        //todo: get pixel size by format
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
 
         WGPUTexelCopyTextureInfo copyTextureInfo = new WGPUTexelCopyTextureInfo
@@ -305,12 +304,16 @@ internal sealed partial class WebGPUDevice : GPUDevice
             aspect = WGPUTextureAspect.All,
         };
 
-        WGPUTexelCopyBufferLayout textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height);
+        // The write covers exactly the given mip level's extent, not the level-0 size.
+        uint mipWidth = Math.Max(1u, texture.Width >> (int)mipLevel);
+        uint mipHeight = Math.Max(1u, texture.Height >> (int)mipLevel);
+
+        WGPUTexelCopyBufferLayout textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, mipWidth, mipHeight);
 
         WGPUExtent3D writeSize = new WGPUExtent3D
         {
-            width = texture.Width,
-            height = texture.Height,
+            width = mipWidth,
+            height = mipHeight,
             depthOrArrayLayers = texture.Depth,
         };
 
