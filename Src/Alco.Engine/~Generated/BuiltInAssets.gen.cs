@@ -64,6 +64,12 @@ public partial class BuiltInAssets
 
     public Shader Shader_Particle2DAnimated => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl");
 
+    public Shader Shader_PBRDeferredLighting => GetShader("Shaders/Pipelines/Rendering/PBR/DeferredLighting.hlsl");
+
+    public Shader Shader_PBRGBuffer => GetShader("Shaders/Pipelines/Rendering/PBR/GBuffer.hlsl");
+
+    public Shader Shader_PBRShadowDepth => GetShader("Shaders/Pipelines/Rendering/PBR/ShadowDepth.hlsl");
+
     public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
 
     public Shader Shader_SpriteInstanced => GetShader("Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl");
