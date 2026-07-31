@@ -138,7 +138,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 CascadeSplits;
         /// <summary>World units per shadow texel of each cascade (for the normal-offset bias).</summary>
         public Vector4 CascadeTexelSizes;
-        /// <summary>x=cascadeDebugTint, rest unused.</summary>
+        /// <summary>x=cascadeDebugTint, y=shadowFactorView, remaining components unused.</summary>
         public Vector4 Params2;
         /// <summary>xy=render target size in pixels (filled by the pipeline).</summary>
         public Vector4 ViewportSize;
