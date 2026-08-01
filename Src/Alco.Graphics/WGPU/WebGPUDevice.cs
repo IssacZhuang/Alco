@@ -853,7 +853,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             states[i] = new TextureReadbackCallbackState
             {
                 IsInUse = 1,
-                Status = WGPUMapAsyncStatus.Unknown,
+                Status = WGPUMapAsyncStatus.None,
             };
             return i;
         }
@@ -970,9 +970,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
             (WGPUFeatureName)WGPUNativeFeature.VertexWritableStorage
         };
 
-        if (!IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.PushConstants, supportedFeatures))
+        if (!IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.Immediates, supportedFeatures))
         {
-            throw new GraphicsException("Push constants are not supported which is required");
+            throw new GraphicsException("Push constants (immediates) are not supported which is required");
         }
 
         if(IsFeatureSupported(WGPUFeatureName.TextureCompressionBC, supportedFeatures))
@@ -983,7 +983,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
 
 
-        featuresList.Add((WGPUFeatureName)WGPUNativeFeature.PushConstants);
+        featuresList.Add((WGPUFeatureName)WGPUNativeFeature.Immediates);
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TextureAdapterSpecificFormatFeatures);
 
         WGPUFeatureName* features = stackalloc WGPUFeatureName[featuresList.Count];
@@ -999,24 +999,16 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
 
             WGPULimits limits = default;
-            
+
             WGPUStatus status = wgpuAdapterGetLimits(Adapter, &limits);
             if(status != WGPUStatus.Success)
             {
                 throw new GraphicsException("Could not get WebGPU adapter limits");
             }
             _maxBindGroups = (int)limits.maxBindGroups;
-        
-            WGPUNativeLimits nativeLimits = new WGPUNativeLimits()
-            {
-                chain = new WGPUChainedStructOut()
-                {
-                    sType = (WGPUSType)WGPUNativeSType.NativeLimits,
-                },
-                maxPushConstantSize = descriptor.PushConstantsSize
-            };
 
-            limits.nextInChain = (WGPUChainedStructOut*)&nativeLimits;
+            // wgpu v29: push constants became immediates, a single block sized via the standard limits.
+            limits.maxImmediateSize = descriptor.PushConstantsSize;
 
             WGPUDeviceDescriptor deviceDescriptor = new WGPUDeviceDescriptor()
             {

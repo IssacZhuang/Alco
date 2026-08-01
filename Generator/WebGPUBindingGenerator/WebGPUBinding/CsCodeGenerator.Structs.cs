@@ -1,4 +1,4 @@
-﻿using CppAst;
+using CppAst;
 
 
 partial class CsCodeGenerator
@@ -35,6 +35,8 @@ partial class CsCodeGenerator
                 || cppClass.Name == "VkAccelerationStructureInstanceKHR"
                 || cppClass.Name == "VkAccelerationStructureSRTMotionInstanceNV"
                 || cppClass.Name == "VkAccelerationStructureMatrixMotionInstanceNV"
+                // Contains an anonymous union that CppAst cannot map; hand-written in WGPUNativeDisplayHandle.cs
+                || cppClass.Name == "WGPUNativeDisplayHandle"
                 )
             {
                 continue;

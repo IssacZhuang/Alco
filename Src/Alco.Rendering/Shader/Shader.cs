@@ -365,7 +365,7 @@ public sealed class Shader : AutoDisposable
                 primitiveTopology,
                 colors,
                 depthStencilFormat,
-                reflectionInfo.PushConstantsRanges.ToArray(),
+                (uint)reflectionInfo.PushConstantsSize,
                 Name);
 
 
@@ -415,7 +415,7 @@ public sealed class Shader : AutoDisposable
             ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
                 modulesInfo.ComputeShader!.Value,
                 bindGroups,
-                reflectionInfo.PushConstantsRanges.ToArray(),
+                (uint)reflectionInfo.PushConstantsSize,
                 Name);
 
             GPUPipeline pipelineNew = device.CreateComputePipeline(descriptor);

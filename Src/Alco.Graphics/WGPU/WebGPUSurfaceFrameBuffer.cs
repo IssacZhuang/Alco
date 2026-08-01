@@ -456,8 +456,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                     // Skip this frame, and re-configure surface.
                     shouldResize = true;
                     return false;
-                case WGPUSurfaceGetCurrentTextureStatus.OutOfMemory:
-                case WGPUSurfaceGetCurrentTextureStatus.DeviceLost:
+                case WGPUSurfaceGetCurrentTextureStatus.Error:
                     // Fatal error
                     throw new GraphicsException($"{nameof(wgpuSurfaceGetCurrentTexture)} status = {surfaceTexture.status}");
             }

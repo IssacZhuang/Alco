@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using CppAst;
 
 
@@ -26,6 +26,7 @@ partial class CsCodeGenerator
                 typeName == "WGPUMapMode" ||
                 typeName == "WGPUInstanceBackend" ||
                 typeName == "WGPUInstanceFlags" ||
+                typeName == "WGPUShaderRuntimeChecks" ||
                 typeName.EndsWith("Flag") ||
                 typeName.EndsWith("Flags");
 

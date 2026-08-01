@@ -215,8 +215,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { attachmentLayout.Colors[0].Format },
             attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
-            null,
-            "quad_pipline"
+            name: "quad_pipline"
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(descriptor);

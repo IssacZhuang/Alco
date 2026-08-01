@@ -183,8 +183,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { attachmentLayout.Colors[0].Format },
              attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
-            null,
-            "Quad Pipeline"
+            name: "Quad Pipeline"
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(pipelineDescriptor);
@@ -216,8 +215,7 @@ public class Game : GameEngine
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
             new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupTexture2DStorage, GraphicsDevice.BindGroupUniformBuffer },
-            null,
-            "box_blur_pipeline"
+            name: "box_blur_pipeline"
         );
 
         return GraphicsDevice.CreateComputePipeline(pipelineDescriptor);

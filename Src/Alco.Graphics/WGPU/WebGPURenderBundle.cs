@@ -156,8 +156,9 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
     {
         ValidateGraphicsPipeline();
 
-        WGPUShaderStage shaderStage = WebGPUUtility.ConvertShaderStage(stage);
-        wgpuRenderBundleEncoderSetPushConstants(_renderBundleEncoder, shaderStage, bufferOffset, size, data);
+        // wgpu v29 immediates form a single block shared by all stages; the stage parameter
+        // is abstraction-level metadata and is not needed by the native call.
+        wgpuRenderBundleEncoderSetImmediates(_renderBundleEncoder, bufferOffset, data, size);
     }
 
 
