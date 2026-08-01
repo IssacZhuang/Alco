@@ -26,12 +26,20 @@ struct V2F
 float4 SampleTextureClamped(float2 uv)
 {
     float4 color = SAMPLE_TEX2D(_texture, uv);
-    float luma = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
-    if (any(isnan(color)))
+    if (any(isnan(color)) || any(isinf(color)))
     {
         return float4(0, 0, 0, 0);
     }
-    return color * max(0, luma - constants.Threshold);
+
+    // Extract the radiance above the threshold without multiplying it by the
+    // source radiance. The old color * (brightness - threshold) response grew
+    // quadratically and turned very bright sources into solid bloom volumes.
+    float brightness = max(max(color.r, color.g), color.b);
+    float knee = max(constants.Threshold * 0.5, 0.0001);
+    float soft = clamp(brightness - constants.Threshold + knee, 0.0, 2.0 * knee);
+    soft = soft * soft / (4.0 * knee);
+    float contribution = max(soft, brightness - constants.Threshold) / max(brightness, 0.0001);
+    return float4(max(color.rgb, 0.0) * contribution, 1.0);
 }
 
 [shader("vertex")]
@@ -48,10 +56,10 @@ V2F MainVS(Vertex input)
 float4 MainPS(V2F input)
     : SV_TARGET
 {
-    float2 invTextureSize = constants.InvTextureSize;
+    float2 sampleOffset = constants.InvTextureSize * constants.Spread;
     float4 sum = float4(0, 0, 0, 0);
-    float weights[5] = { 0.07027, 0.316216, 0.227027, 0.316216,
-                         0.07027 }; // Gaussian weights for a 5x5 kernel
+    float weights[5] = { 0.06136, 0.24477, 0.38774, 0.24477,
+                         0.06136 }; // Normalized Gaussian weights for a 5x5 kernel
 
     // Apply the weights from the Gaussian kernel
     for (int i = -2; i <= 2; ++i)
@@ -59,11 +67,12 @@ float4 MainPS(V2F input)
         for (int j = -2; j <= 2; ++j)
         {
             float weight = weights[i + 2] * weights[j + 2];
-            sum += weight * SampleTextureClamped(input.uv + float2(i, j) * invTextureSize);
+            sum += weight * SampleTextureClamped(input.uv + float2(i, j) * sampleOffset);
         }
     }
 
-    const float IntensityBase = 2;
-
-    return float4(sum.rgb * constants.Spread, sum.a) * constants.Intensity * IntensityBase;
+    // Intensity is applied exactly once. The 2x display scale preserves the
+    // established control range while the extracted radiance stays linear.
+    // Spread changes only the blur footprint, never its energy.
+    return float4(sum.rgb * constants.Intensity, 1.0);
 }

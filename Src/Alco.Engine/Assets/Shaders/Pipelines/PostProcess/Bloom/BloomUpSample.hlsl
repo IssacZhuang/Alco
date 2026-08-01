@@ -29,22 +29,23 @@ V2F MainVS(Vertex input) {
 
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET {
-    float2 invTextureSize = constants.invTextureSize;
+    float2 sampleOffset = constants.invTextureSize * constants.spread;
     float4 sum = float4(0, 0, 0, 0);
 
-  float weights[5] = { 0.07027, 0.316216, 0.227027, 0.316216, 0.07027 }; // Gaussian weights for a 5x5 kernel
+  float weights[5] = { 0.06136, 0.24477, 0.38774, 0.24477, 0.06136 }; // Normalized Gaussian weights for a 5x5 kernel
 
   // Apply the weights from the Gaussian kernel
   for (int i = -2; i <= 2; ++i) {
     for (int j = -2; j <= 2; ++j) {
       float weight = weights[i + 2] * weights[j + 2];
-      sum += weight * SAMPLE_TEX2D(_previousTexture, input.uv + float2(i, j) * invTextureSize);
+      sum += weight * SAMPLE_TEX2D(_previousTexture, input.uv + float2(i, j) * sampleOffset);
     }
   }
 
-  // sum +=  SAMPLE_TEX2D(_previousTexture, input.uv);
+  float3 current = SAMPLE_TEX2D(_currentTexture, input.uv).rgb;
 
-  float4 final = SAMPLE_TEX2D(_currentTexture, input.uv)*0.07 + sum;
-
-  return float4(final.rgb * constants.spread, 1);
+  // Keep a uniform source below 2x energy across the complete pyramid. Fine
+  // levels retain the source-sized core while coarser levels decay at every
+  // step, forming a visible soft tail without dominating the reconstruction.
+  return float4(current * 0.6 + sum.rgb * 0.7, 1.0);
 }
