@@ -7,9 +7,10 @@ namespace Alco.Rendering;
 /// HBAO+ (horizon-based ambient occlusion) renderer for the deferred PBR pipeline.
 /// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
 /// horizon rays in a compute pass (HBAO.hlsl) and filters the noisy result with a
-/// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blurred single-channel AO
-/// texture (<see cref="AmbientOcclusionTexture"/>) is sampled by the deferred lighting
-/// pass to modulate the sky ambient term.
+/// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blur pass multiplies the
+/// filtered AO straight into the G-buffer metallic-roughness-AO attachment's AO
+/// channel (scaled by the strength parameter), so the deferred lighting pass needs
+/// no separate AO binding.
 /// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting pass.
 /// </summary>
 public sealed class HbaoRenderer : AutoDisposable
@@ -34,6 +35,8 @@ public sealed class HbaoRenderer : AutoDisposable
         public Vector4 Params;
         /// <summary>x=projScale (0.5 * viewportHeight * projection[1][1]) yz=viewport size in pixels (filled by <see cref="Render"/>) w=max step length in pixels.</summary>
         public Vector4 Params2;
+        /// <summary>x=strength (0 disables; scales how much of the blurred AO is multiplied into the G-buffer AO channel) yzw=unused.</summary>
+        public Vector4 Params3;
     }
 
     private readonly RenderingSystem _rendering;
@@ -44,14 +47,7 @@ public sealed class HbaoRenderer : AutoDisposable
     private readonly GraphicsValueBuffer<HbaoData> _dataBuffer;
 
     private RenderTexture _rawAO;
-    private RenderTexture _blurredAO;
     private RenderTexture? _boundGBuffer;
-
-    /// <summary>
-    /// The filtered ambient occlusion texture (AO in every channel), sampled by the
-    /// deferred lighting pass.
-    /// </summary>
-    public RenderTexture AmbientOcclusionTexture => _blurredAO;
 
     /// <summary>
     /// Create the HBAO+ renderer with the given compute shaders.
@@ -75,11 +71,9 @@ public sealed class HbaoRenderer : AutoDisposable
         // RGBA16Float (light map layout): proven as both a compute storage target and
         // a filterable sampled texture.
         _rawAO = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width, height, "hbao_raw");
-        _blurredAO = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width, height, "hbao_blurred");
 
         _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoOutput", _blurredAO);
     }
 
     /// <summary>
@@ -90,12 +84,9 @@ public sealed class HbaoRenderer : AutoDisposable
     public void Resize(uint width, uint height)
     {
         _rawAO.Dispose();
-        _blurredAO.Dispose();
         _rawAO = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width, height, "hbao_raw");
-        _blurredAO = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width, height, "hbao_blurred");
         _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoOutput", _blurredAO);
         _boundGBuffer = null;
     }
 
@@ -117,6 +108,8 @@ public sealed class HbaoRenderer : AutoDisposable
             _hbaoMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _blurMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _blurMaterial.SetRenderTexture("_normal", gbuffer, 1);
+            // The blur pass writes the filtered AO back into the G-buffer AO channel.
+            _blurMaterial.SetRenderTexture("_aoOutput", gbuffer, 2);
             _boundGBuffer = gbuffer;
         }
 
@@ -136,7 +129,6 @@ public sealed class HbaoRenderer : AutoDisposable
         if (disposing)
         {
             _rawAO.Dispose();
-            _blurredAO.Dispose();
             _dataBuffer.Dispose();
             _commandBuffer.Dispose();
         }

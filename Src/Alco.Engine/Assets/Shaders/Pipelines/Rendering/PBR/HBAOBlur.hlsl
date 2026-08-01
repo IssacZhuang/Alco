@@ -4,6 +4,9 @@
 // Bilateral blur for the raw HBAO+ output: removes the per-pixel rotation/jitter
 // noise without smearing occlusion across depth or normal discontinuities.
 // Weights combine a small spatial Gaussian with view-depth and normal similarity.
+// The blurred AO is multiplied straight into the G-buffer metallic-roughness-AO
+// attachment's AO channel (scaled by the strength parameter), so the deferred
+// lighting pass needs no separate AO bind group.
 
 #define HBAO_BLUR_RADIUS 2
 #define HBAO_BLUR_SPATIAL_SIGMA 1.2
@@ -13,7 +16,7 @@
 DEFINE_TEX2D_READ(1, _aoInput);
 DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
 DEFINE_TEX2D_READ(3, _normal);
-DEFINE_TEX2D_STORAGE(4, _aoOutput, float4, "rgba16f");
+DEFINE_TEX2D_STORAGE(4, _aoOutput, float4, "rgba8");
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
@@ -63,5 +66,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     }
 
     float ao = aoSum / max(weightSum, 1e-5);
-    _aoOutput[pixel] = float4(ao, ao, ao, 1.0);
+
+    // Multiply the blurred AO into the G-buffer AO channel in place (material
+    // AO x screen-space AO), preserving metallic/roughness.
+    float4 mrAO = _aoOutput[pixel];
+    mrAO.z *= lerp(1.0, ao, saturate(params3.x));
+    _aoOutput[pixel] = mrAO;
 }

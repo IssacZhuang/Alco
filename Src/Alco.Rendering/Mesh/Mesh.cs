@@ -68,13 +68,15 @@ public abstract class Mesh : AutoDisposable
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = vertexBufferSize,
-            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+            // CopySrc lets the voxel GI pipeline copy vertex data into its own
+            // storage buffers for compute voxelization.
+            Usage = BufferUsage.Vertex | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
 
         _indexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = indexBufferSize,
-            Usage = BufferUsage.Index | BufferUsage.CopyDst,
+            Usage = BufferUsage.Index | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
 
     }
@@ -131,7 +133,7 @@ public abstract class Mesh : AutoDisposable
         _vertexBuffer = _device.CreateBuffer(new BufferDescriptor
         {
             Size = size,
-            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+            Usage = BufferUsage.Vertex | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
         IncrementVersion();
     }
@@ -167,7 +169,7 @@ public abstract class Mesh : AutoDisposable
         _indexBuffer = _device.CreateBuffer(new BufferDescriptor
         {
             Size = size,
-            Usage = BufferUsage.Index | BufferUsage.CopyDst,
+            Usage = BufferUsage.Index | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
         IncrementVersion();
     }

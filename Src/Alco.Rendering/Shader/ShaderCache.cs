@@ -92,6 +92,9 @@ public unsafe class ShaderCache : IShaderCache
 
             reader.Read(bytes);
             modulesInfo = ShaderUtility.DecodeShaderModulesInfo(bytes);
+            // The cache re-reflects the modules from SPIR-V, which carries no
+            // comparison sampler marker; re-apply the markers from the shader text.
+            ShaderUtility.MarkDepthComparisonSamplers(modulesInfo, shaderText);
         }
         catch (Exception e)
         {

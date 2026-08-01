@@ -11,6 +11,7 @@ DEFINE_UNIFORM(0, _data)
     float4 cameraForward;  // xyz = world-space camera forward axis
     float4 params;         // x = radius (world units), y = intensity exponent, z = angle bias (sin space), w = 1 / radius^2
     float4 params2;        // x = projScale (0.5 * viewportHeight * projection y-scale), yz = viewport size in pixels, w = max step length in pixels
+    float4 params3;        // x = strength (multiplies the blurred AO into the G-buffer AO channel), yzw = unused
 };
 
 // Reconstruct the world-space position of a pixel from its UV and depth.

@@ -12,7 +12,9 @@ using SandboxUtils;
 /// Sandbox demonstrating 3D PBR rendering with a deferred pipeline:
 /// G-buffer pass, deferred lighting (GGX BRDF), a directional sun with
 /// cascaded shadow maps (4 cascades in a 2x2 atlas), up to four point
-/// lights, emissive surfaces with HDR bloom and a procedural gradient skybox.
+/// lights, emissive surfaces with HDR bloom, a procedural gradient skybox
+/// and voxel global illumination (a camera-following clipmap with compute
+/// voxelization, light injection and cone tracing).
 /// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
 /// G-buffer pass) and replayed every frame; the game owns the scene materials
@@ -22,7 +24,7 @@ using SandboxUtils;
 /// Assets/Bistro; otherwise falls back to a procedural primitive scene.
 /// <br/>Controls: drag with the left mouse button to orbit the camera,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--no-hbao] [--hbao-debug]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -39,6 +41,11 @@ public class Game : GameEngine
         public float SpinSpeed;
         public float FloatSpeed;
         public float FloatPhase;
+
+        /// <summary>The static voxel registration handle (-1 when not registered static).</summary>
+        public int VoxelStaticHandle = -1;
+        /// <summary>The dynamic voxel mesh handle shared by instances of this mesh (-1 when unregistered).</summary>
+        public int VoxelDynamicHandle = -1;
 
         public Matrix4x4 WorldMatrix => Transform.Matrix;
     }
@@ -114,6 +121,15 @@ public class Game : GameEngine
     private float _hbaoBias = 0.02f;
     private HbaoRenderer.HbaoData _hbaoData = new();
 
+    // Voxel global illumination (cascaded voxel clipmap + cone tracing).
+    private readonly VoxelGiRenderer? _voxelGI;
+    private VoxelGiRenderer.VoxelGiData _voxelData = new();
+    private bool _giEnabled = true;
+    private float _giDiffuseStrength = 1.0f;
+    private float _giSpecularStrength = 1.0f;
+    private float _giMaxTraceDistance = 20.0f;
+    private int _giDebugView;
+
     // Material tweak panel.
     private int _selectedObject;
     private bool _animateObjects = true;
@@ -143,6 +159,11 @@ public class Game : GameEngine
         _shadowDebug = args.Contains("--shadow-debug");
         _hbaoEnabled = !args.Contains("--no-hbao");
         _hbaoDebugView = args.Contains("--hbao-debug");
+        _giEnabled = !args.Contains("--no-gi");
+        if (int.TryParse(GetArgValue(args, "--gi-debug="), out int giDebug))
+        {
+            _giDebugView = giDebug;
+        }
         Vector3? sunOverride = ParseVector3(GetArgValue(args, "--sun="));
         if (sunOverride.HasValue)
         {
@@ -230,6 +251,27 @@ public class Game : GameEngine
         }
         _staticGBufferBundle = RenderingSystem.CreateSubRenderContext("pbr_gbuffer_static");
         RecordStaticBundles();
+
+        // Voxel global illumination: a 4-level clipmap whose coarsest level
+        // covers roughly 4x the scene radius (128^3 voxels per level).
+        if (_giEnabled)
+        {
+            float baseVoxelSize = MathF.Max(_sceneRadius * 4.0f / 1024.0f, 0.02f);
+            _voxelGI = new VoxelGiRenderer(
+                RenderingSystem,
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelClear.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelInject.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelMip.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelTrace.hlsl"),
+                width: (uint)MainView.Size.X,
+                height: (uint)MainView.Size.Y,
+                resolution: 128,
+                baseVoxelSize: baseVoxelSize);
+            _giMaxTraceDistance = _sceneRadius;
+            RegisterVoxelMeshes();
+            _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
+        }
 
         // Point light defaults: warm, cool, mouse-follow, disabled.
         float lightHeight = _bistro != null ? _sceneRadius * 0.05f : 2.0f;
@@ -321,6 +363,12 @@ public class Game : GameEngine
     {
         _camera.AspectRatio = (float)size.X / size.Y;
         _pipeline.Resize(size.X, size.Y);
+        if (_voxelGI != null)
+        {
+            // The indirect textures are recreated by the resize: rebind them.
+            _voxelGI.Resize(size.X, size.Y);
+            _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
+        }
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -568,12 +616,48 @@ public class Game : GameEngine
             _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
         _lightingData.CascadeTexelSizes = new Vector4(
             _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
-        float hbaoStrength = _hbaoEnabled && _pipeline.HBAO != null ? _hbaoStrength : 0.0f;
         _lightingData.Params2 = new Vector4(
             _cascadeDebug ? 1.0f : 0.0f,
             _shadowDebug ? 1.0f : 0.0f,
-            hbaoStrength,
+            0.0f,
             _hbaoDebugView ? 1.0f : 0.0f);
+        _lightingData.Params3 = new Vector4(
+            _giEnabled && _voxelGI != null ? 1.0f : 0.0f,
+            _giDiffuseStrength,
+            _giSpecularStrength,
+            _giDebugView);
+
+        // Voxel GI per-frame data (the clipmap and resolution fields are filled by the renderer).
+        if (_voxelGI != null)
+        {
+            _voxelData.InvViewProjection = invViewProjection;
+            _voxelData.SunViewProjection0 = _cascadeViewProjections[0];
+            _voxelData.SunViewProjection1 = _cascadeViewProjections[1];
+            _voxelData.SunViewProjection2 = _cascadeViewProjections[2];
+            _voxelData.SunViewProjection3 = _cascadeViewProjections[3];
+            _voxelData.CameraPosition = _lightingData.CameraPosition;
+            _voxelData.SunDirection = _lightingData.SunDirection;
+            _voxelData.SunColorAndIntensity = _lightingData.SunColorAndIntensity;
+            _voxelData.SkyTopColor = _lightingData.SkyTopColor;
+            _voxelData.SkyBottomColor = _lightingData.SkyBottomColor;
+            _voxelData.PointLight0Position = _lightingData.PointLight0Position;
+            _voxelData.PointLight0Color = _lightingData.PointLight0Color;
+            _voxelData.PointLight1Position = _lightingData.PointLight1Position;
+            _voxelData.PointLight1Color = _lightingData.PointLight1Color;
+            _voxelData.PointLight2Position = _lightingData.PointLight2Position;
+            _voxelData.PointLight2Color = _lightingData.PointLight2Color;
+            _voxelData.PointLight3Position = _lightingData.PointLight3Position;
+            _voxelData.PointLight3Color = _lightingData.PointLight3Color;
+            _voxelData.CascadeSplits = _lightingData.CascadeSplits;
+            _voxelData.CascadeTexelSizes = _lightingData.CascadeTexelSizes;
+            _voxelData.LightingParams = new Vector4(
+                _shadowEnabled ? 1.0f : 0.0f,
+                1.0f,
+                _pipeline.ShadowMapSize,
+                0.0f);
+            _voxelData.GiParams = new Vector4(_emissiveBoost, _giMaxTraceDistance, 0.0f, 0.0f);
+            _voxelData.GiParams2 = new Vector4(_giDebugView, 0.0f, 0.0f, 0.0f);
+        }
 
         // HBAO+ per-frame data (the viewport components of Params2 are filled by the renderer).
         Quaternion cameraRotation = _camera.Transform.Rotation;
@@ -585,6 +669,8 @@ public class Game : GameEngine
         _hbaoData.Params = new Vector4(_hbaoRadius, _hbaoIntensity, _hbaoBias, 1.0f / (_hbaoRadius * _hbaoRadius));
         float projScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
         _hbaoData.Params2 = new Vector4(projScale, 0.0f, 0.0f, HBAOMaxStepPixels);
+        float hbaoStrength = _hbaoEnabled && _pipeline.HBAO != null ? _hbaoStrength : 0.0f;
+        _hbaoData.Params3 = new Vector4(hbaoStrength, 0.0f, 0.0f, 0.0f);
     }
 
     private void RenderFrame()
@@ -636,7 +722,10 @@ public class Game : GameEngine
         // 3. Screen-space ambient occlusion (HBAO+) from the G-buffer.
         RenderHBAOPass();
 
-        // 4. Deferred lighting into the engine's HDR main target.
+        // 4. Voxel global illumination (clipmap voxelization + cone tracing).
+        RenderVoxelGIPass();
+
+        // 5. Deferred lighting into the engine's HDR main target.
         _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
     }
 
@@ -650,6 +739,13 @@ public class Game : GameEngine
             SyncBistroMaterials();
             RecordStaticBundles();
             _bistroStreaming = !_bistro!.LoadingCompletion.IsCompleted;
+            if (!_bistroStreaming && _voxelGI != null)
+            {
+                // Texture instances may have been swapped while streaming:
+                // re-register against the final textures.
+                _voxelGI.ClearStaticMeshes();
+                RegisterVoxelMeshes();
+            }
         }
         else if (_staticBundlesDirty)
         {
@@ -669,6 +765,8 @@ public class Game : GameEngine
         _pipeline.EndGBufferPass();
 
         RenderHBAOPass();
+
+        RenderVoxelGIPass();
 
         _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
     }
@@ -759,6 +857,83 @@ public class Game : GameEngine
             GltfAlphaMode.Blend => 0.5f,
             _ => 0.0f,
         };
+    }
+
+    /// <summary>Register the scene geometry into the voxel GI clipmap.</summary>
+    private void RegisterVoxelMeshes()
+    {
+        if (_voxelGI == null)
+        {
+            return;
+        }
+
+        if (_bistro != null)
+        {
+            IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
+            IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
+            for (int i = 0; i < drawItems.Count; i++)
+            {
+                ModelDrawItem item = drawItems[i];
+                ModelMaterial material = materials[item.MaterialIndex];
+                // The emissive factor is registered unboosted; the boost is a
+                // runtime cbuffer scale at injection time.
+                _voxelGI.RegisterStaticMesh(item.Mesh, (uint)VertexPositionNormalTextureTangent.SizeInBytes,
+                    material.AlbedoTexture, material.EmissiveTexture,
+                    material.BaseColorFactor, material.EmissiveFactor, GetAlphaCutoff(material), item.World);
+            }
+            return;
+        }
+
+        int dynamicSphereHandle = -1;
+        int dynamicCubeHandle = -1;
+        for (int i = 0; i < _objects.Count; i++)
+        {
+            SceneObject sceneObject = _objects[i];
+            if (IsStatic(sceneObject))
+            {
+                sceneObject.VoxelStaticHandle = _voxelGI.RegisterStaticMesh(sceneObject.Mesh,
+                    (uint)VertexPositionNormalTexture.SizeInBytes, _checkerTexture, null,
+                    new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f, sceneObject.WorldMatrix);
+            }
+            else if (sceneObject.Mesh == _sphereMesh)
+            {
+                if (dynamicSphereHandle < 0)
+                {
+                    dynamicSphereHandle = _voxelGI.RegisterDynamicMesh(sceneObject.Mesh,
+                        (uint)VertexPositionNormalTexture.SizeInBytes, _checkerTexture, null);
+                }
+                sceneObject.VoxelDynamicHandle = dynamicSphereHandle;
+            }
+            else
+            {
+                if (dynamicCubeHandle < 0)
+                {
+                    dynamicCubeHandle = _voxelGI.RegisterDynamicMesh(sceneObject.Mesh,
+                        (uint)VertexPositionNormalTexture.SizeInBytes, _checkerTexture, null);
+                }
+                sceneObject.VoxelDynamicHandle = dynamicCubeHandle;
+            }
+        }
+    }
+
+    /// <summary>Run the voxel GI passes between the G-buffer/HBAO and lighting passes.</summary>
+    private void RenderVoxelGIPass()
+    {
+        if (!_giEnabled || _voxelGI == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < _objects.Count; i++)
+        {
+            SceneObject sceneObject = _objects[i];
+            if (sceneObject.VoxelDynamicHandle >= 0)
+            {
+                _voxelGI.SubmitDynamicInstance(sceneObject.VoxelDynamicHandle, sceneObject.WorldMatrix,
+                    new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f);
+            }
+        }
+        _voxelGI.Render(_pipeline.GBuffer, _pipeline.ShadowMap, ref _voxelData, _camera.Transform.Position);
     }
 
     /// <summary>Copy the current (possibly still streaming) Bistro textures into the materials.</summary>
@@ -859,6 +1034,16 @@ public class Game : GameEngine
             ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
         }
 
+        if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Voxel)"))
+        {
+            ImGui.Checkbox("GI Enabled", ref _giEnabled);
+            ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
+            ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
+            ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
+            string[] giDebugModes = ["Off", "Indirect Diffuse", "Indirect Specular"];
+            ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);
+        }
+
         if (_bloom != null && ImGui.CollapsingHeader("Emissive & Bloom"))
         {
             // The boosted emissive factor is baked into the static G-buffer bundle.
@@ -916,6 +1101,11 @@ public class Game : GameEngine
                 if (bakedChanged && IsStatic(sceneObject))
                 {
                     _staticBundlesDirty = true;
+                    if (sceneObject.VoxelStaticHandle >= 0)
+                    {
+                        _voxelGI?.UpdateStaticMesh(sceneObject.VoxelStaticHandle,
+                            new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f, sceneObject.WorldMatrix);
+                    }
                 }
             }
 

@@ -2,8 +2,9 @@
 
 // Deferred lighting pass shader for the PBR pipeline.
 // Samples the G-buffer, evaluates a GGX PBR BRDF with a directional sun
-// (shadow mapped, hardware PCF), up to four point lights, a simple sky
-// ambient term and a procedural gradient skybox for empty pixels.
+// (shadow mapped, hardware PCF), up to four point lights, an ambient term
+// (cone-traced voxel GI when enabled, otherwise an analytic sky gradient)
+// and a procedural gradient skybox for empty pixels.
 
 struct Vertex
 {
@@ -37,8 +38,9 @@ DEFINE_UNIFORM(0, _data)
     float4 pbrParams;            // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=sunDiscEnabled
     float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
     float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
-    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=hbaoStrength, w=aoDebugView
+    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
     float4 viewportSize;         // xy = render target size in pixels
+    float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular)
 };
 
 DEFINE_TEX2D_SAMPLE(1, _albedo);
@@ -47,7 +49,9 @@ DEFINE_TEX2D_SAMPLE(3, _mrAO);
 DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
 DEFINE_TEX2D_SAMPLE(6, _emissive);
-DEFINE_TEX2D_SAMPLE(7, _ambientOcclusion);
+// Indirect GI atlas from the voxel cone tracing pass: twice the trace width,
+// gathered diffuse radiance in the left half, specular in the right half.
+DEFINE_TEX2D_SAMPLE(7, _indirectGI);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -224,6 +228,18 @@ float GeometricSpecularAA(float3 N, float roughness)
     return saturate(roughness + sqrt(kernelRoughness2));
 }
 
+// Analytic approximation of the split-sum BRDF integral (Lazarov), used to
+// weight the cone-traced indirect specular without a BRDF LUT texture.
+float3 EnvBRDFApprox(float3 F0, float roughness, float NdotV)
+{
+    const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
+    const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
+    float2 AB = float2(-1.04, 1.04) * a004 + r.zw;
+    return F0 * AB.x + AB.y;
+}
+
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
 {
@@ -232,10 +248,11 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 worldPosition = ReconstructWorldPosition(input);
     float3 viewDirection = normalize(worldPosition - cameraPosition.xyz);
 
-    // Debug: visualize the raw HBAO texture (white = unoccluded).
+    // Debug: visualize the ambient occlusion channel of the G-buffer (material
+    // AO already multiplied by HBAO; white = unoccluded).
     if (params2.w > 0.5)
     {
-        float rawAO = SAMPLE_TEX2D(_ambientOcclusion, input.uv).r;
+        float rawAO = SAMPLE_TEX2D(_mrAO, input.uv).z;
         return float4(rawAO, rawAO, rawAO, 1.0);
     }
 
@@ -251,16 +268,9 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 N = normalize(normalRT * 2.0 - 1.0);
     float metallic = mrAO.x;
     float roughness = GeometricSpecularAA(N, mrAO.y);
+    // The HBAO blur pass already multiplied screen-space AO into this channel.
     float ao = mrAO.z;
     float3 V = -viewDirection; // surface to camera
-
-    // Modulate the material AO with screen-space AO (HBAO+); params2.z is the
-    // strength (0 disables). Sky pixels never reach here (their AO stays 1).
-    if (params2.z > 0.0)
-    {
-        float ssao = SAMPLE_TEX2D(_ambientOcclusion, input.uv).r;
-        ao *= lerp(1.0, ssao, saturate(params2.z));
-    }
 
     float3 Lo = 0.0;
 
@@ -317,9 +327,35 @@ float4 MainPS(V2F input) : SV_TARGET
         }
     }
 
-    // Simple sky ambient term (diffuse only).
-    float3 skyDirection = lerp(skyBottomColor.rgb, skyTopColor.rgb, saturate(N.z * 0.5 + 0.5));
-    float3 ambient = skyDirection * albedo * ao * (1.0 - metallic);
+    // Ambient term. With voxel GI enabled the cone-traced indirect textures
+    // replace the analytic sky ambient (their cones already fall back to the
+    // sky gradient outside the clipmap): diffuse is weighted by albedo and AO,
+    // specular by the analytic split-sum BRDF approximation.
+    float3 ambient;
+    if (params3.x > 0.5)
+    {
+        // The atlas is twice the trace width: diffuse on the left, specular on the right.
+        float2 traceUV = input.uv * float2(0.5, 1.0);
+        float3 indirectDiffuse = SAMPLE_TEX2D(_indirectGI, traceUV).rgb;
+        float3 indirectSpecular = SAMPLE_TEX2D(_indirectGI, traceUV + float2(0.5, 0.0)).rgb;
+
+        // Debug: visualize the gathered indirect radiance.
+        if (params3.w > 0.5)
+        {
+            return float4(params3.w < 1.5 ? indirectDiffuse : indirectSpecular, 1.0);
+        }
+
+        float NdotV = max(dot(N, V), 0.0);
+        float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+        ambient = indirectDiffuse * albedo * ao * (1.0 - metallic) * params3.y
+            + indirectSpecular * EnvBRDFApprox(F0, roughness, NdotV) * ao * params3.z;
+    }
+    else
+    {
+        // Simple sky ambient term (diffuse only).
+        float3 skyDirection = lerp(skyBottomColor.rgb, skyTopColor.rgb, saturate(N.z * 0.5 + 0.5));
+        ambient = skyDirection * albedo * ao * (1.0 - metallic);
+    }
 
     // Emissive is added unshaded (stored linear in the G-buffer).
     float3 emissive = SAMPLE_TEX2D(_emissive, input.uv).rgb;

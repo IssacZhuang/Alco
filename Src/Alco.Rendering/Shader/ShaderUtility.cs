@@ -335,6 +335,20 @@ public static partial class ShaderUtility
     }
 
     /// <summary>
+    /// Re-applies the comparison-sampler markers to shader modules decoded from a
+    /// cache. SPIR-V carries no marker for comparison samplers, so the re-reflection
+    /// in <see cref="DecodeShaderModulesInfo"/> loses them; the markers are recovered
+    /// from the shader text (DEFINE_TEX2D_DEPTH_SAMPLE declarations).
+    /// </summary>
+    /// <param name="modulesInfo">The decoded shader modules whose reflection info is patched in place.</param>
+    /// <param name="shaderText">The original shader text.</param>
+    public static void MarkDepthComparisonSamplers(ShaderModulesInfo modulesInfo, string shaderText)
+    {
+        GetDepthTextureNames(shaderText, out List<string> comparisonSamplerNames);
+        MarkDepthComparisonSamplers(modulesInfo.ReflectionInfo, comparisonSamplerNames);
+    }
+
+    /// <summary>
     /// Marks the sampler bindings paired with DEFINE_TEX2D_DEPTH_SAMPLE textures as
     /// comparison samplers in the reflection info. SPIR-V carries no marker for
     /// comparison samplers, so reflection cannot detect them on its own.

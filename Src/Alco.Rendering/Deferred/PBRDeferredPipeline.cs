@@ -172,10 +172,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 CascadeSplits;
         /// <summary>World units per shadow texel of each cascade (for the normal-offset bias).</summary>
         public Vector4 CascadeTexelSizes;
-        /// <summary>x=cascadeDebugTint, y=shadowFactorView, z=hbaoStrength (0 disables), w=aoDebugView.</summary>
+        /// <summary>x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView.</summary>
         public Vector4 Params2;
         /// <summary>xy=render target size in pixels (filled by the pipeline).</summary>
         public Vector4 ViewportSize;
+        /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular).</summary>
+        public Vector4 Params3;
 
         /// <summary>
         /// Copy the given point lights into the light slots (up to four lights).
@@ -227,6 +229,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
     private readonly GraphicsValueBuffer<ShadowCascadeData> _shadowDataBuffer;
     private readonly HbaoRenderer? _hbao;
+
+    // Indirect radiance atlas produced by an external voxel GI renderer
+    // (SetGlobalIllumination); sampled by the lighting pass when GI is enabled.
+    private RenderTexture? _indirectGI;
 
     private readonly RenderContext _shadowContext;
     private readonly RenderContext _gbufferContext;
@@ -505,6 +511,20 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "pbr_flat_normal"));
         }
         return _flatNormalTexture;
+    }
+
+    /// <summary>
+    /// Set the indirect radiance atlas sampled by the lighting pass (bind group 7
+    /// of the lighting shader), typically produced by a <see cref="VoxelGiRenderer"/>
+    /// (diffuse radiance in the left half, specular in the right half). Pass null
+    /// to fall back to a black texture; the GI ambient term itself is toggled via
+    /// <see cref="DeferredLightingData.Params3"/> (x component).
+    /// </summary>
+    /// <param name="indirectGI">The gathered indirect radiance atlas, or null.</param>
+    public void SetGlobalIllumination(RenderTexture? indirectGI)
+    {
+        _indirectGI = indirectGI;
+        RebindGlobalIlluminationTargets();
     }
 
     /// <summary>
@@ -816,9 +836,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Bind group layouts for the deferred lighting shader: uniform buffer (set 0),
-    /// five filterable texture+sampler pairs (sets 1-3, 6 and 7), the G-buffer depth texture
+    /// six filterable texture+sampler pairs (sets 1-3, 6 and 7), the G-buffer depth texture
     /// (set 4) and the shadow map depth texture with a comparison sampler (set 5).
-    /// Set 7 is the ambient occlusion texture (HBAO result, or a white fallback).
+    /// Set 7 is the indirect GI atlas (voxel cone tracing result, or a black fallback).
     /// Must stay in sync with DeferredLighting.hlsl.
     /// </summary>
     /// <returns>The custom bind group layouts.</returns>
@@ -891,6 +911,18 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         ];
     }
 
+    private void RebindGlobalIlluminationTargets()
+    {
+        if (_indirectGI != null)
+        {
+            _lightingMaterial.SetRenderTexture("_indirectGI", _indirectGI);
+        }
+        else
+        {
+            _lightingMaterial.SetTexture("_indirectGI", _rendering.TextureBlack);
+        }
+    }
+
     private void RebindLightingTargets()
     {
         _lightingMaterial.SetRenderTexture("_albedo", _gbufferRT, 0);
@@ -899,15 +931,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingMaterial.SetRenderTexture("_emissive", _gbufferRT, 3);
         _lightingMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
         _lightingMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
-        if (_hbao != null)
-        {
-            _lightingMaterial.SetRenderTexture("_ambientOcclusion", _hbao.AmbientOcclusionTexture);
-        }
-        else
-        {
-            // No HBAO: bind white so the lighting shader's AO term stays neutral.
-            _lightingMaterial.SetTexture("_ambientOcclusion", _rendering.TextureWhite);
-        }
+        RebindGlobalIlluminationTargets();
     }
 
     /// <inheritdoc />
