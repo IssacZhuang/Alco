@@ -37,7 +37,7 @@ DEFINE_UNIFORM(0, _data)
     float4 clipmapParams;          // x=resolution y=levelCount z=mipCount w=unused
     float4 lightingParams;         // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=unused
     float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
-    float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=unused
+    float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
 };
 
 // ---------------------------------------------------------------- packing ---
@@ -138,5 +138,5 @@ int VoxelFindLevel(float3 position)
 float3 VoxelSkyColor(float3 direction)
 {
     float zenithWeight = pow(saturate(direction.z), 0.6);
-    return lerp(skyHorizonColor.rgb, skyZenithColor.rgb, zenithWeight);
+    return lerp(skyHorizonColor.rgb, skyZenithColor.rgb, zenithWeight) * giParams2.w;
 }

@@ -136,6 +136,7 @@ public class Game : GameEngine
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
     private float _giSpecularStrength = 1.0f;
+    private float _giSkyIntensity = 3.0f;
     private float _giMaxTraceDistance = 20.0f;
     private int _giDebugView;
 
@@ -692,7 +693,7 @@ public class Game : GameEngine
                 _pipeline.ShadowMapSize,
                 0.0f);
             _voxelData.GiParams = new Vector4(_emissiveBoost, _giMaxTraceDistance, 0.0f, 0.0f);
-            _voxelData.GiParams2 = new Vector4(_giDebugView, 0.0f, 0.0f, 0.0f);
+            _voxelData.GiParams2 = new Vector4(_giDebugView, 0.0f, 0.0f, _giSkyIntensity);
         }
 
         // HBAO+ per-frame data (the viewport components of Params2 are filled by the renderer).
@@ -1073,6 +1074,7 @@ public class Game : GameEngine
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
+            ImGui.SliderFloat("GI Sky Intensity", ref _giSkyIntensity, 0.0f, 10.0f);
             ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
             string[] giDebugModes = ["Off", "Indirect Diffuse", "Indirect Specular"];
             ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);

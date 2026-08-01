@@ -86,7 +86,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 LightingParams;
         /// <summary>x=emissiveScale y=traceMaxDistance zw=trace resolution in pixels (filled by the renderer).</summary>
         public Vector4 GiParams;
-        /// <summary>x=debugView yz=G-buffer resolution in pixels (filled by the renderer) w=unused.</summary>
+        /// <summary>x=debugView yz=G-buffer resolution in pixels (filled by the renderer) w=giSkyIntensity (sky light multiplier for voxel GI).</summary>
         public Vector4 GiParams2;
     }
 
@@ -382,7 +382,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, 0.0f);
         uint traceWidth = Math.Max(_indirectAtlas.Width / 2, 1);
         data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _indirectAtlas.Height);
-        data.GiParams2 = new Vector4(data.GiParams2.X, gbuffer.Width, gbuffer.Height, 0.0f);
+        data.GiParams2 = new Vector4(data.GiParams2.X, gbuffer.Width, gbuffer.Height, data.GiParams2.W);
         _dataBuffer.UpdateBuffer(data);
 
         // The G-buffer and shadow map render textures are stable across frames
