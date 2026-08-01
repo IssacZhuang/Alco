@@ -22,7 +22,8 @@ using SandboxUtils;
 /// immediately each frame.
 /// <br/>Loads the Amazon Lumberyard Bistro scene (glTF) when present in
 /// Assets/Bistro; otherwise falls back to a procedural primitive scene.
-/// <br/>Controls: drag with the left mouse button to orbit the camera,
+/// <br/>Controls: in fly mode hold the right mouse button to look around,
+/// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
 /// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N]
 /// </summary>
@@ -334,7 +335,7 @@ public class Game : GameEngine
 
         DebugStats.Text(FrameRate);
         DebugStats.Text(_flyMode
-            ? "mouse: look | WASD: move | E/Q: up/down | Shift: fast | wheel: speed | Alt: cursor | C: orbit | ESC: exit"
+            ? "RMB drag: look | WASD: move | E/Q: up/down | Shift: fast | wheel: speed | C: orbit | ESC: exit"
             : "LMB drag: orbit | wheel: zoom | C: fly | ESC: exit");
 
         _frameCount++;
@@ -461,17 +462,19 @@ public class Game : GameEngine
         _camera.UpdateMatrixToGPU();
     }
 
-    /// <summary>Free-fly camera: the mouse always looks while the window is focused
-    /// (cursor stays hidden at the window center, hold Alt or unfocus the window to
-    /// release it for the UI), WASD moves along the view, E/Q or Space/Ctrl moves
-    /// vertically, Shift speeds up, the wheel tunes the fly speed.</summary>
+    /// <summary>Free-fly camera: hold the right mouse button to look around
+    /// (the cursor hides and pins to the window center while held, release it
+    /// to free the cursor for ImGui interaction), WASD moves along the view,
+    /// E/Q or Space/Ctrl moves vertically, Shift speeds up, the wheel tunes
+    /// the fly speed while looking.</summary>
     private void UpdateFlyCamera(float delta)
     {
-        bool cursorReleased = !MainView.IsFocused
-            || Input.IsKeyPressing(KeyCode.AltLeft) || Input.IsKeyPressing(KeyCode.AltRight);
-        Input.IsCursorVisible = cursorReleased;
+        // Looking only happens while the right mouse button is held; otherwise
+        // the cursor stays visible and free so ImGui can be operated normally.
+        bool looking = MainView.IsFocused && Input.IsMousePressing(Mouse.Right);
+        Input.IsCursorVisible = !looking;
 
-        if (!cursorReleased)
+        if (looking)
         {
             Vector2 mouseDelta = Input.MouseDelta;
             _yaw += mouseDelta.X * 0.008f;
@@ -486,7 +489,7 @@ public class Game : GameEngine
                 windowPosition.Y + windowSize.Y * 0.5f));
         }
 
-        if (!cursorReleased && Input.IsMouseScrolling(out Vector2 wheel))
+        if (looking && Input.IsMouseScrolling(out Vector2 wheel))
         {
             _flySpeed = Math.Clamp(_flySpeed * MathF.Pow(1.2f, wheel.Y), _sceneRadius * 0.005f, _sceneRadius * 2.0f);
         }
