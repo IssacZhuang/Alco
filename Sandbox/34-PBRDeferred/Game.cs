@@ -13,6 +13,11 @@ using SandboxUtils;
 /// G-buffer pass, deferred lighting (GGX BRDF), a directional sun with
 /// cascaded shadow maps (4 cascades in a 2x2 atlas), up to four point
 /// lights, emissive surfaces with HDR bloom and a procedural gradient skybox.
+/// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
+/// is recorded once into render bundles (one per shadow cascade plus one for the
+/// G-buffer pass) and replayed every frame; the game owns the scene materials
+/// created via the pipeline's material factory. Only animated objects are drawn
+/// immediately each frame.
 /// <br/>Loads the Amazon Lumberyard Bistro scene (glTF) when present in
 /// Assets/Bistro; otherwise falls back to a procedural primitive scene.
 /// <br/>Controls: drag with the left mouse button to orbit the camera,
@@ -47,6 +52,17 @@ public class Game : GameEngine
 
     private readonly List<SceneObject> _objects = new();
     private PBRDeferredPipeline.DeferredLightingData _lightingData = new();
+
+    // Scene materials owned by the game (created via the pipeline's material factory).
+    private GraphicsMaterial? _proceduralMaterial;
+    private GraphicsMaterial[]? _bistroMaterials;
+
+    // Static geometry recorded once into render bundles and replayed every frame
+    // (re-recorded while Bistro textures stream in, or when baked parameters change).
+    private readonly SubRenderContext[] _staticShadowBundles = new SubRenderContext[PBRDeferredPipeline.ShadowCascadeCount];
+    private SubRenderContext? _staticGBufferBundle;
+    private bool _staticBundlesDirty;
+    private bool _bistroStreaming;
 
     // The loaded Bistro scene (null when the assets are missing).
     private readonly ModelScene? _bistro;
@@ -175,23 +191,45 @@ public class Game : GameEngine
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            albedoTexture: _checkerTexture,
             gbufferTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"),
             shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"),
             hbaoShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
             hbaoBlurShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"));
 
-        // The G-buffer pass needs the camera matrix; bind it explicitly like the
-        // forward sandboxes do (RenderingSystem.MainCamera is not set by sandboxes).
+        // Materials created by the pipeline factory bind this camera; the sandbox
+        // drives its own camera (RenderingSystem.MainCamera is not set by sandboxes).
         _pipeline.SetCamera(_camera);
 
-        if (_bistro == null)
+        if (_bistro != null)
+        {
+            // One game-owned G-buffer material per glTF material. Textures still
+            // streaming in start as the fallbacks and are synced in RenderBistroFrame.
+            _bistroMaterials = new GraphicsMaterial[_bistro.Materials.Count];
+            for (int i = 0; i < _bistroMaterials.Length; i++)
+            {
+                ModelMaterial material = _bistro.Materials[i];
+                _bistroMaterials[i] = _pipeline.CreateGBufferTangentMaterial(
+                    material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
+                    material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
+            }
+            _bistroStreaming = !_bistro.LoadingCompletion.IsCompleted;
+        }
+        else
         {
             _cubeMesh = CreateCubeMesh();
             _sphereMesh = CreateSphereMesh(48, 24);
             _groundMesh = CreateGroundMesh(40, 10);
             BuildScene();
+            _proceduralMaterial = _pipeline.CreateGBufferMaterial(_checkerTexture, name: "checker");
         }
+
+        // Record the static geometry once; the bundles are replayed every frame.
+        for (int i = 0; i < _staticShadowBundles.Length; i++)
+        {
+            _staticShadowBundles[i] = RenderingSystem.CreateSubRenderContext($"pbr_shadow_static_{i}");
+        }
+        _staticGBufferBundle = RenderingSystem.CreateSubRenderContext("pbr_gbuffer_static");
+        RecordStaticBundles();
 
         // Point light defaults: warm, cool, mouse-follow, disabled.
         float lightHeight = _bistro != null ? _sceneRadius * 0.05f : 2.0f;
@@ -557,29 +595,41 @@ public class Game : GameEngine
             return;
         }
 
-        // 1. Shadow map pass (only objects that cast shadows), one pass per cascade.
+        if (_staticBundlesDirty)
+        {
+            RecordStaticBundles();
+        }
+
+        // 1. Shadow map pass (only objects that cast shadows), one pass per cascade:
+        // replay the recorded static casters, then draw the animated ones immediately.
         for (int cascade = 0; cascade < PBRDeferredPipeline.ShadowCascadeCount; cascade++)
         {
             _pipeline.BeginShadowPass(cascade, _cascadeViewProjections[cascade]);
+            _pipeline.ExecuteShadowSubContext(_staticShadowBundles[cascade]);
             for (int i = 0; i < _objects.Count; i++)
             {
                 SceneObject sceneObject = _objects[i];
-                if (sceneObject.CastsShadow)
+                if (sceneObject.CastsShadow && !IsStatic(sceneObject))
                 {
-                    _pipeline.DrawShadow(sceneObject.Mesh, sceneObject.WorldMatrix);
+                    _pipeline.DrawShadow(_pipeline.ShadowContext, sceneObject.Mesh, sceneObject.WorldMatrix, cascade);
                 }
             }
             _pipeline.EndShadowPass();
         }
 
-        // 2. G-buffer pass.
+        // 2. G-buffer pass: recorded static geometry first, then the animated objects.
         _pipeline.BeginGBufferPass();
+        _pipeline.ExecuteGBufferSubContext(_staticGBufferBundle!);
         for (int i = 0; i < _objects.Count; i++)
         {
             SceneObject sceneObject = _objects[i];
-            _pipeline.DrawGBuffer(sceneObject.Mesh, sceneObject.WorldMatrix,
-                new Vector4(sceneObject.BaseColor, 1.0f),
-                new Vector4(sceneObject.Metallic, sceneObject.Roughness, sceneObject.AmbientOcclusion, 1.0f));
+            if (!IsStatic(sceneObject))
+            {
+                _pipeline.DrawGBuffer(_pipeline.GBufferContext, sceneObject.Mesh, _proceduralMaterial!,
+                    sceneObject.WorldMatrix,
+                    new Vector4(sceneObject.BaseColor, 1.0f),
+                    new Vector4(sceneObject.Metallic, sceneObject.Roughness, sceneObject.AmbientOcclusion, 1.0f));
+            }
         }
         _pipeline.EndGBufferPass();
 
@@ -592,47 +642,136 @@ public class Game : GameEngine
 
     private void RenderBistroFrame()
     {
-        IReadOnlyList<ModelDrawItem> drawItems = _bistro!.DrawItems;
-        IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
+        // Textures stream in asynchronously: refresh the materials and re-record the
+        // bundles until everything arrived (equivalent to drawing every frame), then
+        // the bundles stay frozen for the rest of the session.
+        if (_bistroStreaming)
+        {
+            SyncBistroMaterials();
+            RecordStaticBundles();
+            _bistroStreaming = !_bistro!.LoadingCompletion.IsCompleted;
+        }
+        else if (_staticBundlesDirty)
+        {
+            RecordStaticBundles();
+        }
 
+        // The Bistro scene is fully static: every pass is a pure bundle replay.
         for (int cascade = 0; cascade < PBRDeferredPipeline.ShadowCascadeCount; cascade++)
         {
             _pipeline.BeginShadowPass(cascade, _cascadeViewProjections[cascade]);
-            for (int i = 0; i < drawItems.Count; i++)
-            {
-                ModelDrawItem item = drawItems[i];
-                _pipeline.DrawShadowTangent(item.Mesh, item.World);
-            }
+            _pipeline.ExecuteShadowSubContext(_staticShadowBundles[cascade]);
             _pipeline.EndShadowPass();
         }
 
         _pipeline.BeginGBufferPass();
-        for (int i = 0; i < drawItems.Count; i++)
-        {
-            ModelDrawItem item = drawItems[i];
-            ModelMaterial material = materials[item.MaterialIndex];
-            float alphaCutoff = material.AlphaMode switch
-            {
-                GltfAlphaMode.Mask => material.AlphaCutoff,
-                GltfAlphaMode.Blend => 0.5f,
-                _ => 0.0f,
-            };
-            _pipeline.DrawGBuffer(item.Mesh, item.World,
-                material.BaseColorFactor,
-                new Vector4(material.MetallicFactor, material.RoughnessFactor, 1.0f, 0.0f),
-                material.AlbedoTexture,
-                material.NormalTexture,
-                material.MetallicRoughnessTexture,
-                material.EmissiveTexture,
-                material.EmissiveFactor * _emissiveBoost,
-                material.DoubleSided,
-                alphaCutoff);
-        }
+        _pipeline.ExecuteGBufferSubContext(_staticGBufferBundle!);
         _pipeline.EndGBufferPass();
 
         RenderHBAOPass();
 
         _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
+    }
+
+    /// <summary>An object is static (baked into the render bundles) when it neither spins nor floats.</summary>
+    private static bool IsStatic(SceneObject sceneObject)
+    {
+        return sceneObject.SpinSpeed == 0 && sceneObject.FloatSpeed == 0;
+    }
+
+    /// <summary>Record all static geometry into the shadow and G-buffer render bundles.</summary>
+    private void RecordStaticBundles()
+    {
+        for (int cascade = 0; cascade < PBRDeferredPipeline.ShadowCascadeCount; cascade++)
+        {
+            SubRenderContext bundle = _staticShadowBundles[cascade];
+            bundle.Begin(_pipeline.ShadowLayout);
+            RecordStaticShadowCasters(bundle, cascade);
+            bundle.End();
+        }
+
+        _staticGBufferBundle!.Begin(_pipeline.GBufferLayout);
+        RecordStaticGBufferGeometry(_staticGBufferBundle);
+        _staticGBufferBundle.End();
+
+        _staticBundlesDirty = false;
+    }
+
+    private void RecordStaticShadowCasters(IRenderContext target, int cascade)
+    {
+        if (_bistro != null)
+        {
+            IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
+            for (int i = 0; i < drawItems.Count; i++)
+            {
+                ModelDrawItem item = drawItems[i];
+                _pipeline.DrawShadowTangent(target, item.Mesh, item.World, cascade);
+            }
+            return;
+        }
+
+        for (int i = 0; i < _objects.Count; i++)
+        {
+            SceneObject sceneObject = _objects[i];
+            if (sceneObject.CastsShadow && IsStatic(sceneObject))
+            {
+                _pipeline.DrawShadow(target, sceneObject.Mesh, sceneObject.WorldMatrix, cascade);
+            }
+        }
+    }
+
+    private void RecordStaticGBufferGeometry(IRenderContext target)
+    {
+        if (_bistro != null)
+        {
+            IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
+            IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
+            for (int i = 0; i < drawItems.Count; i++)
+            {
+                ModelDrawItem item = drawItems[i];
+                ModelMaterial material = materials[item.MaterialIndex];
+                _pipeline.DrawGBuffer(target, item.Mesh, _bistroMaterials![item.MaterialIndex], item.World,
+                    material.BaseColorFactor,
+                    new Vector4(material.MetallicFactor, material.RoughnessFactor, 1.0f, 0.0f),
+                    material.EmissiveFactor * _emissiveBoost,
+                    GetAlphaCutoff(material));
+            }
+            return;
+        }
+
+        for (int i = 0; i < _objects.Count; i++)
+        {
+            SceneObject sceneObject = _objects[i];
+            if (IsStatic(sceneObject))
+            {
+                _pipeline.DrawGBuffer(target, sceneObject.Mesh, _proceduralMaterial!, sceneObject.WorldMatrix,
+                    new Vector4(sceneObject.BaseColor, 1.0f),
+                    new Vector4(sceneObject.Metallic, sceneObject.Roughness, sceneObject.AmbientOcclusion, 1.0f));
+            }
+        }
+    }
+
+    private static float GetAlphaCutoff(ModelMaterial material)
+    {
+        return material.AlphaMode switch
+        {
+            GltfAlphaMode.Mask => material.AlphaCutoff,
+            GltfAlphaMode.Blend => 0.5f,
+            _ => 0.0f,
+        };
+    }
+
+    /// <summary>Copy the current (possibly still streaming) Bistro textures into the materials.</summary>
+    private void SyncBistroMaterials()
+    {
+        IReadOnlyList<ModelMaterial> materials = _bistro!.Materials;
+        for (int i = 0; i < materials.Count; i++)
+        {
+            ModelMaterial material = materials[i];
+            _pipeline.SetGBufferTangentMaterialTextures(_bistroMaterials![i],
+                material.AlbedoTexture, material.NormalTexture,
+                material.MetallicRoughnessTexture, material.EmissiveTexture);
+        }
     }
 
     /// <summary>Run the HBAO+ compute passes between the G-buffer and lighting passes.</summary>
@@ -722,7 +861,11 @@ public class Game : GameEngine
 
         if (_bloom != null && ImGui.CollapsingHeader("Emissive & Bloom"))
         {
-            ImGui.SliderFloat("Emissive Boost", ref _emissiveBoost, 0.0f, 20.0f);
+            // The boosted emissive factor is baked into the static G-buffer bundle.
+            if (ImGui.SliderFloat("Emissive Boost", ref _emissiveBoost, 0.0f, 20.0f))
+            {
+                _staticBundlesDirty = true;
+            }
             bool bloomEnabled = _bloom.IsEnabled;
             if (ImGui.Checkbox("Bloom", ref bloomEnabled))
             {
@@ -759,14 +902,21 @@ public class Game : GameEngine
 
                 SceneObject sceneObject = _objects[_selectedObject];
                 Vector3 baseColor = sceneObject.BaseColor;
+                bool bakedChanged = false;
                 if (ImGui.ColorEdit3("Base Color", ref baseColor))
                 {
                     sceneObject.BaseColor = baseColor;
+                    bakedChanged = true;
                 }
-                ImGui.SliderFloat("Metallic", ref sceneObject.Metallic, 0.0f, 1.0f);
-                ImGui.SliderFloat("Roughness", ref sceneObject.Roughness, 0.0f, 1.0f);
-                ImGui.SliderFloat("AO", ref sceneObject.AmbientOcclusion, 0.0f, 1.0f);
-                ImGui.Checkbox("Cast Shadow", ref sceneObject.CastsShadow);
+                bakedChanged |= ImGui.SliderFloat("Metallic", ref sceneObject.Metallic, 0.0f, 1.0f);
+                bakedChanged |= ImGui.SliderFloat("Roughness", ref sceneObject.Roughness, 0.0f, 1.0f);
+                bakedChanged |= ImGui.SliderFloat("AO", ref sceneObject.AmbientOcclusion, 0.0f, 1.0f);
+                bakedChanged |= ImGui.Checkbox("Cast Shadow", ref sceneObject.CastsShadow);
+                // Static objects are baked into the render bundles: schedule a re-record.
+                if (bakedChanged && IsStatic(sceneObject))
+                {
+                    _staticBundlesDirty = true;
+                }
             }
 
             ImGui.Separator();
@@ -982,7 +1132,7 @@ public class Game : GameEngine
         int indexIndex = 0;
         for (int v = 0; v < segmentsV; v++)
         {
-            for (int u = 0; u <= segmentsU; u++)
+            for (int u = 0; u < segmentsU; u++)
             {
                 int i0 = v * (segmentsU + 1) + u;
                 int i1 = i0 + 1;

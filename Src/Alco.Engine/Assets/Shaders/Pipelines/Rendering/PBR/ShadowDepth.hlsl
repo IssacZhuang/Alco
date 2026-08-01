@@ -18,7 +18,16 @@ struct V2F
 
 struct Constants
 {
-    float4x4 lightViewProjection; // combined model * light view * projection
+    float4x4 model;
+    float4 params_; // x = shadow cascade index
+};
+
+// Per-cascade light view-projection matrices, updated per frame on the CPU.
+// Kept in a uniform buffer (reference semantics) instead of push constants so
+// recorded render bundles stay valid while the camera-fitted cascades move.
+DEFINE_UNIFORM(0, _data)
+{
+    float4x4 lightViewProjections[4];
 };
 
 PUSH_CONSTANT Constants constants;
@@ -27,7 +36,8 @@ PUSH_CONSTANT Constants constants;
 V2F MainVS(Vertex input)
 {
     V2F output = (V2F)0;
-    output.position = mul(constants.lightViewProjection, float4(input.position, 1.0f));
+    float4 worldPosition = mul(constants.model, float4(input.position, 1.0f));
+    output.position = mul(lightViewProjections[(uint)constants.params_.x], worldPosition);
     return output;
 }
 
