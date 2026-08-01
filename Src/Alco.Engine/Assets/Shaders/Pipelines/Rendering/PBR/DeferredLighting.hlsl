@@ -1,10 +1,12 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Libs/Atmosphere.hlsli"
 
 // Deferred lighting pass shader for the PBR pipeline.
 // Samples the G-buffer, evaluates a GGX PBR BRDF with a directional sun
 // (shadow mapped, hardware PCF), up to four point lights, an ambient term
-// (cone-traced voxel GI when enabled, otherwise an analytic sky gradient)
-// and a procedural gradient skybox for empty pixels.
+// (cone-traced voxel GI when enabled, otherwise the atmosphere evaluated at
+// the surface normal) and a physically-based procedural sky (single
+// scattering atmosphere plus sun disc and stars) for empty pixels.
 
 struct Vertex
 {
@@ -25,8 +27,9 @@ DEFINE_UNIFORM(0, _data)
     float4 cameraPosition;
     float4 sunDirection;         // normalized direction the sun light travels
     float4 sunColorAndIntensity; // rgb + intensity
-    float4 skyTopColor;
-    float4 skyBottomColor;
+    // Atmosphere parameters, see Shaders/Libs/Atmosphere.hlsli.
+    float4 skyParams;            // x=rayleighScale y=mieScale z=miePhaseG w=exposure
+    float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=unused
     float4 pointLight0Position;
     float4 pointLight0Color;     // rgb + intensity
     float4 pointLight1Position;
@@ -191,16 +194,17 @@ float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float viewDistan
     return shadow;
 }
 
-// Procedural gradient sky with a sun disc.
+// Physically-based procedural sky: single-scattering atmosphere with a sun
+// disc (tinted by the same atmosphere on the C# side) and a star field.
 float3 GetSkyColor(float3 direction)
 {
-    float t = pow(saturate(direction.z * 0.5 + 0.5), 0.6);
-    float3 sky = lerp(skyBottomColor.rgb, skyTopColor.rgb, t);
+    float3 dirToSun = normalize(-sunDirection.xyz);
+    float3 sky = AtmosphereSkyRadiance(direction, dirToSun, skyParams, skyParams2, 16, 8);
+    sky += AtmosphereStars(direction, dirToSun, skyParams2.x);
 
     if (pbrParams.w > 0.5)
     {
-        float3 sunDiscDirection = normalize(-sunDirection.xyz);
-        float sunDot = saturate(dot(normalize(direction), sunDiscDirection));
+        float sunDot = saturate(dot(normalize(direction), dirToSun));
         float sunDisc = smoothstep(0.9995, 0.9999, sunDot);
         sky += sunColorAndIntensity.rgb * sunColorAndIntensity.w * sunDisc * 4.0;
     }
@@ -329,7 +333,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
     // Ambient term. With voxel GI enabled the cone-traced indirect textures
     // replace the analytic sky ambient (their cones already fall back to the
-    // sky gradient outside the clipmap): diffuse is weighted by albedo and AO,
+    // atmosphere outside the clipmap): diffuse is weighted by albedo and AO,
     // specular by the analytic split-sum BRDF approximation.
     float3 ambient;
     if (params3.x > 0.5)
@@ -352,9 +356,11 @@ float4 MainPS(V2F input) : SV_TARGET
     }
     else
     {
-        // Simple sky ambient term (diffuse only).
-        float3 skyDirection = lerp(skyBottomColor.rgb, skyTopColor.rgb, saturate(N.z * 0.5 + 0.5));
-        ambient = skyDirection * albedo * ao * (1.0 - metallic);
+        // Simple sky ambient term (diffuse only): atmosphere radiance at the
+        // normal direction, evaluated with a low sample count.
+        float3 dirToSun = normalize(-sunDirection.xyz);
+        float3 skyAmbient = AtmosphereSkyRadiance(N, dirToSun, skyParams, skyParams2, 8, 4);
+        ambient = skyAmbient * albedo * ao * (1.0 - metallic);
     }
 
     // Emissive is added unshaded (stored linear in the G-buffer).

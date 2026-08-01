@@ -12,9 +12,10 @@ using SandboxUtils;
 /// Sandbox demonstrating 3D PBR rendering with a deferred pipeline:
 /// G-buffer pass, deferred lighting (GGX BRDF), a directional sun with
 /// cascaded shadow maps (4 cascades in a 2x2 atlas), up to four point
-/// lights, emissive surfaces with HDR bloom, a procedural gradient skybox
-/// and voxel global illumination (a camera-following clipmap with compute
-/// voxelization, light injection and cone tracing).
+/// lights, emissive surfaces with HDR bloom, a physically-based procedural
+/// sky (single-scattering atmosphere driven by the time of day, with a sun
+/// disc and a star field) and voxel global illumination (a camera-following
+/// clipmap with compute voxelization, light injection and cone tracing).
 /// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
 /// G-buffer pass) and replayed every frame; the game owns the scene materials
@@ -25,7 +26,7 @@ using SandboxUtils;
 /// <br/>Controls: in fly mode hold the right mouse button to look around,
 /// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -89,9 +90,10 @@ public class Game : GameEngine
     private Vector3 _flyPosition;
     private float _flySpeed = 3f;
 
-    // Sun light.
-    private Vector3 _sunDirection = Vector3.Normalize(new Vector3(-0.55f, -0.4f, -0.75f));
-    private Vector3 _sunColor = new(1.0f, 0.95f, 0.85f);
+    // Sun light. The direction comes from the time of day (see below) unless
+    // overridden with --sun=x,y,z (direction the light travels); the color is
+    // the atmosphere transmittance tint from ProceduralSkyUtility.
+    private readonly Vector3? _sunDirectionOverride;
     private float _sunIntensity = 8.0f;
     private bool _shadowEnabled = true;
     private bool _sunDiscEnabled = true;
@@ -105,9 +107,17 @@ public class Game : GameEngine
     private readonly float[] _cascadeSplits = new float[PBRDeferredPipeline.ShadowCascadeCount];
     private readonly float[] _cascadeTexelSizes = new float[PBRDeferredPipeline.ShadowCascadeCount];
 
-    // Sky.
-    private Vector3 _skyTopColor = new(0.10f, 0.20f, 0.42f);
-    private Vector3 _skyBottomColor = new(0.52f, 0.60f, 0.70f);
+    // Time of day and physically-based sky (atmosphere parameters are packed
+    // into DeferredLightingData.SkyParams/SkyParams2, see Atmosphere.hlsli).
+    private float _timeOfDay = 10.0f;
+    private float _timeSpeed = 0.5f;
+    private float _skyExposure = 1.0f;
+    private float _rayleighScale = 1.0f;
+    private float _mieScale = 1.0f;
+    private float _miePhaseG = 0.8f;
+    private float _starIntensity = 1.0f;
+    private float _sunRadianceScale = 20.0f;
+    private float _nightFloor = 0.003f;
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private const float HBAOMaxStepPixels = 64.0f;
@@ -165,7 +175,15 @@ public class Game : GameEngine
         Vector3? sunOverride = ParseVector3(GetArgValue(args, "--sun="));
         if (sunOverride.HasValue)
         {
-            _sunDirection = Vector3.Normalize(sunOverride.Value);
+            _sunDirectionOverride = Vector3.Normalize(sunOverride.Value);
+        }
+        if (float.TryParse(GetArgValue(args, "--time="), out float timeOfDay))
+        {
+            _timeOfDay = timeOfDay;
+        }
+        if (float.TryParse(GetArgValue(args, "--time-speed="), out float timeSpeed))
+        {
+            _timeSpeed = timeSpeed;
         }
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
@@ -315,6 +333,7 @@ public class Game : GameEngine
         }
 
         _time += delta;
+        _timeOfDay = (_timeOfDay + delta * _timeSpeed) % 24.0f;
 
         UpdateCamera(delta);
         if (_animateObjects)
@@ -556,7 +575,15 @@ public class Game : GameEngine
 
     private void UpdateLightingData()
     {
-        Vector3 sunDirection = Vector3.Normalize(_sunDirection);
+        // The sun orbits with the time of day (the CLI override fixes the
+        // direction the light travels for debugging); its color and intensity
+        // follow from the atmosphere transmittance and elevation.
+        Vector3 directionToSun = _sunDirectionOverride.HasValue
+            ? -_sunDirectionOverride.Value
+            : ProceduralSkyUtility.GetDirectionToSun(_timeOfDay);
+        Vector3 sunDirection = -directionToSun;
+        Vector3 sunTint = ProceduralSkyUtility.GetSunColor(directionToSun);
+        float sunScale = ProceduralSkyUtility.GetSunLightScale(directionToSun);
 
         Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
 
@@ -588,9 +615,9 @@ public class Game : GameEngine
         _lightingData.SunViewProjection3 = _cascadeViewProjections[3];
         _lightingData.CameraPosition = new Vector4(_camera.Transform.Position, 1.0f);
         _lightingData.SunDirection = new Vector4(sunDirection, 0);
-        _lightingData.SunColorAndIntensity = new Vector4(_sunColor, _sunIntensity);
-        _lightingData.SkyTopColor = new Vector4(_skyTopColor, 1.0f);
-        _lightingData.SkyBottomColor = new Vector4(_skyBottomColor, 1.0f);
+        _lightingData.SunColorAndIntensity = new Vector4(sunTint, _sunIntensity * sunScale);
+        _lightingData.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
+        _lightingData.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, 0.0f);
         _lightingData.Params = new Vector4(
             _shadowEnabled ? 1.0f : 0.0f,
             1.0f,
@@ -622,8 +649,8 @@ public class Game : GameEngine
             _voxelData.CameraPosition = _lightingData.CameraPosition;
             _voxelData.SunDirection = _lightingData.SunDirection;
             _voxelData.SunColorAndIntensity = _lightingData.SunColorAndIntensity;
-            _voxelData.SkyTopColor = _lightingData.SkyTopColor;
-            _voxelData.SkyBottomColor = _lightingData.SkyBottomColor;
+            _voxelData.SkyParams = _lightingData.SkyParams;
+            _voxelData.SkyParams2 = _lightingData.SkyParams2;
             _voxelData.CascadeSplits = _lightingData.CascadeSplits;
             _voxelData.CascadeTexelSizes = _lightingData.CascadeTexelSizes;
             _voxelData.LightingParams = new Vector4(
@@ -976,8 +1003,6 @@ public class Game : GameEngine
 
         if (ImGui.CollapsingHeader("Sun Light"))
         {
-            ImGui.SliderFloat3("Direction", ref _sunDirection, -1.0f, 1.0f);
-            ImGui.ColorEdit3("Color", ref _sunColor);
             ImGui.SliderFloat("Intensity", ref _sunIntensity, 0.0f, 30.0f);
             ImGui.Checkbox("Shadows", ref _shadowEnabled);
             ImGui.SliderFloat("Shadow Distance", ref _shadowDistance, _sceneRadius * 0.5f, _sceneRadius * 8.0f);
@@ -986,10 +1011,16 @@ public class Game : GameEngine
             ImGui.Checkbox("Sun disc", ref _sunDiscEnabled);
         }
 
-        if (ImGui.CollapsingHeader("Sky"))
+        if (ImGui.CollapsingHeader("Sky & Time"))
         {
-            ImGui.ColorEdit3("Top", ref _skyTopColor);
-            ImGui.ColorEdit3("Bottom", ref _skyBottomColor);
+            ImGui.SliderFloat("Time of Day", ref _timeOfDay, 0.0f, 24.0f);
+            ImGui.SliderFloat("Time Speed", ref _timeSpeed, 0.0f, 4.0f);
+            ImGui.SliderFloat("Sky Exposure", ref _skyExposure, 0.1f, 4.0f);
+            ImGui.SliderFloat("Rayleigh Scale", ref _rayleighScale, 0.1f, 4.0f);
+            ImGui.SliderFloat("Mie Scale (Haze)", ref _mieScale, 0.0f, 8.0f);
+            ImGui.SliderFloat("Mie Phase G", ref _miePhaseG, 0.0f, 0.95f);
+            ImGui.SliderFloat("Sun Radiance", ref _sunRadianceScale, 1.0f, 60.0f);
+            ImGui.SliderFloat("Star Intensity", ref _starIntensity, 0.0f, 4.0f);
         }
 
         if (_pipeline.HBAO != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
