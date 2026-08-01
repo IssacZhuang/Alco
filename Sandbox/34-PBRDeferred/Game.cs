@@ -17,7 +17,7 @@ using SandboxUtils;
 /// Assets/Bistro; otherwise falls back to a procedural primitive scene.
 /// <br/>Controls: drag with the left mouse button to orbit the camera,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--no-hbao] [--hbao-debug]
 /// </summary>
 public class Game : GameEngine
 {
@@ -88,6 +88,16 @@ public class Game : GameEngine
     private Vector3 _skyTopColor = new(0.10f, 0.20f, 0.42f);
     private Vector3 _skyBottomColor = new(0.52f, 0.60f, 0.70f);
 
+    // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
+    private const float HBAOMaxStepPixels = 64.0f;
+    private bool _hbaoEnabled = true;
+    private bool _hbaoDebugView;
+    private float _hbaoRadius = 1.0f;
+    private float _hbaoStrength = 1.0f;
+    private float _hbaoIntensity = 1.2f;
+    private float _hbaoBias = 0.02f;
+    private HbaoRenderer.HbaoData _hbaoData = new();
+
     // Material tweak panel.
     private int _selectedObject;
     private bool _animateObjects = true;
@@ -115,6 +125,8 @@ public class Game : GameEngine
         _waitForStreaming = args.Contains("--wait-load");
         _cascadeDebug = args.Contains("--cascade-debug");
         _shadowDebug = args.Contains("--shadow-debug");
+        _hbaoEnabled = !args.Contains("--no-hbao");
+        _hbaoDebugView = args.Contains("--hbao-debug");
         Vector3? sunOverride = ParseVector3(GetArgValue(args, "--sun="));
         if (sunOverride.HasValue)
         {
@@ -165,7 +177,9 @@ public class Game : GameEngine
             height: (uint)MainView.Size.Y,
             albedoTexture: _checkerTexture,
             gbufferTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"),
-            shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"));
+            shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"),
+            hbaoShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
+            hbaoBlurShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"));
 
         // The G-buffer pass needs the camera matrix; bind it explicitly like the
         // forward sandboxes do (RenderingSystem.MainCamera is not set by sandboxes).
@@ -516,7 +530,23 @@ public class Game : GameEngine
             _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
         _lightingData.CascadeTexelSizes = new Vector4(
             _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
-        _lightingData.Params2 = new Vector4(_cascadeDebug ? 1.0f : 0.0f, _shadowDebug ? 1.0f : 0.0f, 0.0f, 0.0f);
+        float hbaoStrength = _hbaoEnabled && _pipeline.HBAO != null ? _hbaoStrength : 0.0f;
+        _lightingData.Params2 = new Vector4(
+            _cascadeDebug ? 1.0f : 0.0f,
+            _shadowDebug ? 1.0f : 0.0f,
+            hbaoStrength,
+            _hbaoDebugView ? 1.0f : 0.0f);
+
+        // HBAO+ per-frame data (the viewport components of Params2 are filled by the renderer).
+        Quaternion cameraRotation = _camera.Transform.Rotation;
+        _hbaoData.InvViewProjection = invViewProjection;
+        _hbaoData.CameraPosition = _lightingData.CameraPosition;
+        _hbaoData.CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, cameraRotation), 0.0f);
+        _hbaoData.CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0.0f);
+        _hbaoData.CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, cameraRotation), 0.0f);
+        _hbaoData.Params = new Vector4(_hbaoRadius, _hbaoIntensity, _hbaoBias, 1.0f / (_hbaoRadius * _hbaoRadius));
+        float projScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
+        _hbaoData.Params2 = new Vector4(projScale, 0.0f, 0.0f, HBAOMaxStepPixels);
     }
 
     private void RenderFrame()
@@ -553,7 +583,10 @@ public class Game : GameEngine
         }
         _pipeline.EndGBufferPass();
 
-        // 3. Deferred lighting into the engine's HDR main target.
+        // 3. Screen-space ambient occlusion (HBAO+) from the G-buffer.
+        RenderHBAOPass();
+
+        // 4. Deferred lighting into the engine's HDR main target.
         _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
     }
 
@@ -597,7 +630,18 @@ public class Game : GameEngine
         }
         _pipeline.EndGBufferPass();
 
+        RenderHBAOPass();
+
         _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
+    }
+
+    /// <summary>Run the HBAO+ compute passes between the G-buffer and lighting passes.</summary>
+    private void RenderHBAOPass()
+    {
+        if (_hbaoEnabled && _pipeline.HBAO != null)
+        {
+            _pipeline.HBAO.Render(_pipeline.GBuffer, ref _hbaoData);
+        }
     }
 
     /// <summary>
@@ -664,6 +708,16 @@ public class Game : GameEngine
         {
             ImGui.ColorEdit3("Top", ref _skyTopColor);
             ImGui.ColorEdit3("Bottom", ref _skyBottomColor);
+        }
+
+        if (_pipeline.HBAO != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
+        {
+            ImGui.Checkbox("AO Enabled", ref _hbaoEnabled);
+            ImGui.SliderFloat("AO Radius", ref _hbaoRadius, 0.1f, MathF.Max(4.0f, _sceneRadius * 0.05f));
+            ImGui.SliderFloat("AO Strength", ref _hbaoStrength, 0.0f, 1.0f);
+            ImGui.SliderFloat("AO Power", ref _hbaoIntensity, 0.5f, 3.0f);
+            ImGui.SliderFloat("AO Bias", ref _hbaoBias, 0.0f, 0.2f);
+            ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
         }
 
         if (_bloom != null && ImGui.CollapsingHeader("Emissive & Bloom"))

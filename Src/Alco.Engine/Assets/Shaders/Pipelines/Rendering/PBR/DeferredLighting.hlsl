@@ -37,7 +37,7 @@ DEFINE_UNIFORM(0, _data)
     float4 pbrParams;            // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=sunDiscEnabled
     float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
     float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
-    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView
+    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=hbaoStrength, w=aoDebugView
     float4 viewportSize;         // xy = render target size in pixels
 };
 
@@ -47,6 +47,7 @@ DEFINE_TEX2D_SAMPLE(3, _mrAO);
 DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
 DEFINE_TEX2D_SAMPLE(6, _emissive);
+DEFINE_TEX2D_SAMPLE(7, _ambientOcclusion);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -231,6 +232,13 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 worldPosition = ReconstructWorldPosition(input);
     float3 viewDirection = normalize(worldPosition - cameraPosition.xyz);
 
+    // Debug: visualize the raw HBAO texture (white = unoccluded).
+    if (params2.w > 0.5)
+    {
+        float rawAO = SAMPLE_TEX2D(_ambientOcclusion, input.uv).r;
+        return float4(rawAO, rawAO, rawAO, 1.0);
+    }
+
     if (depth >= 0.9999)
     {
         return float4(GetSkyColor(viewDirection), 1.0);
@@ -245,6 +253,14 @@ float4 MainPS(V2F input) : SV_TARGET
     float roughness = GeometricSpecularAA(N, mrAO.y);
     float ao = mrAO.z;
     float3 V = -viewDirection; // surface to camera
+
+    // Modulate the material AO with screen-space AO (HBAO+); params2.z is the
+    // strength (0 disables). Sky pixels never reach here (their AO stays 1).
+    if (params2.z > 0.0)
+    {
+        float ssao = SAMPLE_TEX2D(_ambientOcclusion, input.uv).r;
+        ao *= lerp(1.0, ssao, saturate(params2.z));
+    }
 
     float3 Lo = 0.0;
 

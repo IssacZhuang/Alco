@@ -16,6 +16,9 @@ namespace Alco.Rendering;
 /// into the target frame buffer (typically the engine's HDR main target).
 /// <br/>Cascade splits are computed by <see cref="ComputeShadowCascades"/> (PSSM,
 /// camera-fitted, texel-snapped).
+/// <br/>When created with the HBAO shaders, <see cref="HBAO"/> computes screen-space
+/// ambient occlusion from the G-buffer between the G-buffer and lighting passes; the
+/// lighting pass then modulates its ambient term with it.
 /// </summary>
 public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 {
@@ -138,7 +141,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 CascadeSplits;
         /// <summary>World units per shadow texel of each cascade (for the normal-offset bias).</summary>
         public Vector4 CascadeTexelSizes;
-        /// <summary>x=cascadeDebugTint, y=shadowFactorView, remaining components unused.</summary>
+        /// <summary>x=cascadeDebugTint, y=shadowFactorView, z=hbaoStrength (0 disables), w=aoDebugView.</summary>
         public Vector4 Params2;
         /// <summary>xy=render target size in pixels (filled by the pipeline).</summary>
         public Vector4 ViewportSize;
@@ -194,6 +197,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private GraphicsBuffer? _cameraBuffer;
 
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
+    private readonly HbaoRenderer? _hbao;
 
     private readonly RenderContext _shadowContext;
     private readonly RenderContext _gbufferContext;
@@ -217,6 +221,14 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public uint ShadowMapSize { get; }
 
     /// <summary>
+    /// The optional HBAO+ ambient occlusion renderer; null when the pipeline was
+    /// created without the HBAO shaders. When present, call
+    /// <c>HBAO.Render(GBuffer, ref hbaoData)</c> between <see cref="EndGBufferPass"/>
+    /// and <see cref="RenderLighting"/>.
+    /// </summary>
+    public HbaoRenderer? HBAO => _hbao;
+
+    /// <summary>
     /// Create the deferred PBR pipeline with the given shaders.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
@@ -230,6 +242,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="albedoTexture">Optional albedo texture for all G-buffer draws; defaults to a white texture.</param>
     /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling the normal-mapped <see cref="DrawGBuffer(in Mesh, in Matrix4x4, in Vector4, in Vector4, Texture2D?, Texture2D?, Texture2D?, Texture2D?, in Vector3, bool, float)"/> overload.</param>
     /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="DrawShadowTangent"/> for tangent-bearing meshes.</param>
+    /// <param name="hbaoShader">Optional HBAO+ raw AO compute shader (HBAO.hlsl); together with <paramref name="hbaoBlurShader"/> enables <see cref="HBAO"/>.</param>
+    /// <param name="hbaoBlurShader">Optional HBAO+ bilateral blur compute shader (HBAOBlur.hlsl).</param>
+    /// <exception cref="ArgumentException">Exactly one of the two HBAO shaders was provided.</exception>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
         Shader gbufferShader,
@@ -241,7 +256,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         uint height = 720,
         Texture2D? albedoTexture = null,
         Shader? gbufferTangentShader = null,
-        Shader? shadowTangentShader = null)
+        Shader? shadowTangentShader = null,
+        Shader? hbaoShader = null,
+        Shader? hbaoBlurShader = null)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -302,6 +319,16 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
         _lightingDataBuffer = rendering.CreateGraphicsValueBuffer<DeferredLightingData>("pbr_lighting_data");
         _lightingMaterial.SetBuffer(ShaderResourceId.Data, _lightingDataBuffer);
+
+        if (hbaoShader != null && hbaoBlurShader != null)
+        {
+            _hbao = new HbaoRenderer(rendering, hbaoShader, hbaoBlurShader, width, height);
+        }
+        else if (hbaoShader != null || hbaoBlurShader != null)
+        {
+            throw new ArgumentException(
+                "HBAO requires both the raw AO shader and the blur shader.", nameof(hbaoBlurShader));
+        }
         RebindLightingTargets();
 
         _shadowContext = rendering.CreateRenderContext("pbr_shadow_pass");
@@ -337,6 +364,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         _gbufferRT.Dispose();
         _gbufferRT = _rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
+        _hbao?.Resize(width, height);
         RebindLightingTargets();
     }
 
@@ -707,8 +735,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Bind group layouts for the deferred lighting shader: uniform buffer (set 0),
-    /// four filterable texture+sampler pairs (sets 1-3 and 6), the G-buffer depth texture
+    /// five filterable texture+sampler pairs (sets 1-3, 6 and 7), the G-buffer depth texture
     /// (set 4) and the shadow map depth texture with a comparison sampler (set 5).
+    /// Set 7 is the ambient occlusion texture (HBAO result, or a white fallback).
     /// Must stay in sync with DeferredLighting.hlsl.
     /// </summary>
     /// <returns>The custom bind group layouts.</returns>
@@ -777,6 +806,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             CreateDepthReadGroup(4),
             CreateDepthComparisonGroup(5),
             CreateTextureSamplerGroup(6),
+            CreateTextureSamplerGroup(7),
         ];
     }
 
@@ -788,6 +818,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingMaterial.SetRenderTexture("_emissive", _gbufferRT, 3);
         _lightingMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
         _lightingMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
+        if (_hbao != null)
+        {
+            _lightingMaterial.SetRenderTexture("_ambientOcclusion", _hbao.AmbientOcclusionTexture);
+        }
+        else
+        {
+            // No HBAO: bind white so the lighting shader's AO term stays neutral.
+            _lightingMaterial.SetTexture("_ambientOcclusion", _rendering.TextureWhite);
+        }
     }
 
     /// <inheritdoc />
@@ -798,6 +837,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _shadowContext.Dispose();
             _gbufferContext.Dispose();
             _lightingContext.Dispose();
+            _hbao?.Dispose();
             _lightingDataBuffer.Dispose();
             _lightingMaterial.Dispose();
             foreach (GraphicsMaterial material in _gbufferTangentMaterialCache.Values)
