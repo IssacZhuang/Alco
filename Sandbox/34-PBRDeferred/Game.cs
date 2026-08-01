@@ -1031,6 +1031,23 @@ public class Game : GameEngine
             }
         }
 
+        if (TryGetSystem<FXAASystem>(out FXAASystem? fxaaSystem))
+        {
+            if (ImGui.CollapsingHeader("FXAA"))
+            {
+                bool fxaaEnabled = fxaaSystem.IsEnabled;
+                if (ImGui.Checkbox("FXAA Enabled", ref fxaaEnabled))
+                {
+                    fxaaSystem.IsEnabled = fxaaEnabled;
+                }
+                float fxaaThreshold = fxaaSystem.Threshold;
+                if (ImGui.SliderFloat("Edge Threshold", ref fxaaThreshold, 0.063f, 0.333f))
+                {
+                    fxaaSystem.Threshold = fxaaThreshold;
+                }
+            }
+        }
+
         if (_bistro != null)
         {
             if (ImGui.CollapsingHeader("Bistro Scene"))
