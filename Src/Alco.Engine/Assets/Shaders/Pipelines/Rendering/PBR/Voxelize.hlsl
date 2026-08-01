@@ -24,6 +24,7 @@ DEFINE_STORAGE(2, uint, _indices);
 DEFINE_STORAGE(3, uint2, _attrOut);
 DEFINE_TEX2D_SAMPLE(4, _albedoTexture);
 DEFINE_TEX2D_SAMPLE(5, _emissiveTexture);
+DEFINE_STORAGE(6, uint, _pageTable);
 
 PUSH_CONSTANT VoxelizeConstants constants;
 
@@ -161,7 +162,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float3 center = originAndSize.xyz + (float3(x, y, z) + 0.5) * voxelSize;
                 if (TriBoxOverlap(center, boxHalf, w0, w1, w2))
                 {
-                    _attrOut[VoxelIndex(uint3(x, y, z), resolution)] = attr;
+                    uint3 logicalCoord = uint3(x, y, z);
+                    uint pageEntry = _pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
+                    if (pageEntry != 0u)
+                    {
+                        _attrOut[VoxelAttributeIndex(pageEntry, logicalCoord)] = attr;
+                    }
                 }
             }
         }

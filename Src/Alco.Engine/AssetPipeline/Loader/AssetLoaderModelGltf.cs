@@ -147,12 +147,18 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                 PrimitiveMesh[] primitiveMeshes = meshTable[drawItem.MeshIndex];
                 for (int i = 0; i < mesh.PrimitiveCount; i++)
                 {
-                    int materialIndex = model.GetMaterialIndex(mesh.PrimitiveStart + i);
+                    int primitiveIndex = mesh.PrimitiveStart + i;
+                    int materialIndex = model.GetMaterialIndex(primitiveIndex);
                     if ((uint)materialIndex >= (uint)model.Materials.Count)
                     {
                         materialIndex = defaultMaterialIndex;
                     }
-                    drawItems.Add(new ModelDrawItem(primitiveMeshes[i], materialIndex, drawItem.World));
+                    drawItems.Add(new ModelDrawItem(
+                        primitiveMeshes[i],
+                        materialIndex,
+                        drawItem.World,
+                        model.GetBoundsMin(primitiveIndex),
+                        model.GetBoundsMax(primitiveIndex)));
                 }
             }
 

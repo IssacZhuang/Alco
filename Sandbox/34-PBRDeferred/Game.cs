@@ -15,7 +15,7 @@ using SandboxUtils;
 /// lights, emissive surfaces with HDR bloom, a physically-based procedural
 /// sky (single-scattering atmosphere driven by the time of day, with a sun
 /// disc and a star field) and voxel global illumination (a camera-following
-/// clipmap with compute voxelization, light injection and cone tracing).
+/// sparse brick clipmap with compute voxelization, cascaded DDGI and hybrid reflections).
 /// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
 /// G-buffer pass) and replayed every frame; the game owns the scene materials
@@ -26,7 +26,7 @@ using SandboxUtils;
 /// <br/>Controls: in fly mode hold the right mouse button to look around,
 /// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -44,10 +44,10 @@ public class Game : GameEngine
         public float FloatSpeed;
         public float FloatPhase;
 
-        /// <summary>The static voxel registration handle (-1 when not registered static).</summary>
-        public int VoxelStaticHandle = -1;
-        /// <summary>The dynamic voxel mesh handle shared by instances of this mesh (-1 when unregistered).</summary>
-        public int VoxelDynamicHandle = -1;
+        /// <summary>The shared voxel mesh-material handle.</summary>
+        public int VoxelMeshHandle = -1;
+        /// <summary>The persistent structural voxel instance handle.</summary>
+        public int VoxelStaticInstanceHandle = -1;
 
         public Matrix4x4 WorldMatrix => Transform.Matrix;
     }
@@ -130,7 +130,7 @@ public class Game : GameEngine
     private float _hbaoBias = 0.02f;
     private HbaoRenderer.HbaoData _hbaoData = new();
 
-    // Voxel global illumination (cascaded voxel clipmap + cone tracing).
+    // Voxel global illumination (sparse clipmap + cascaded DDGI + hybrid reflections).
     private readonly VoxelGiRenderer? _voxelGI;
     private VoxelGiRenderer.VoxelGiData _voxelData = new();
     private bool _giEnabled = true;
@@ -202,10 +202,12 @@ public class Game : GameEngine
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
         bool interior = args.Contains("--interior");
+        bool procedural = args.Contains("--procedural");
 
         // Load the Bistro scene; fall back to the procedural scene when absent.
         string bistroFile = interior ? "Bistro/BistroInterior.gltf" : "Bistro/BistroExterior.gltf";
-        if (AssetSystem.TryLoad(bistroFile, out ModelScene? bistro, out string failedReason))
+        string failedReason = "the procedural scene was requested";
+        if (!procedural && AssetSystem.TryLoad(bistroFile, out ModelScene? bistro, out failedReason))
         {
             _bistro = bistro;
             _sceneCenter = (bistro.BoundsMin + bistro.BoundsMax) * 0.5f;
@@ -293,6 +295,7 @@ public class Game : GameEngine
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelInject.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelMip.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/DdgiUpdate.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelTrace.hlsl"),
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
@@ -780,7 +783,7 @@ public class Game : GameEngine
             {
                 // Texture instances may have been swapped while streaming:
                 // re-register against the final textures.
-                _voxelGI.ClearStaticMeshes();
+                _voxelGI.ClearStaticInstances();
                 RegisterVoxelMeshes();
             }
         }
@@ -914,42 +917,67 @@ public class Game : GameEngine
                 ModelMaterial material = materials[item.MaterialIndex];
                 // The emissive factor is registered unboosted; the boost is a
                 // runtime cbuffer scale at injection time.
-                _voxelGI.RegisterStaticMesh(item.Mesh, (uint)VertexPositionNormalTextureTangent.SizeInBytes,
-                    material.AlbedoTexture, material.EmissiveTexture,
-                    material.BaseColorFactor, material.EmissiveFactor, GetAlphaCutoff(material), item.World);
+                int meshHandle = _voxelGI.RegisterMesh(
+                    item.Mesh,
+                    (uint)VertexPositionNormalTextureTangent.SizeInBytes,
+                    new VoxelGiBounds(item.LocalBoundsMin, item.LocalBoundsMax),
+                    material.AlbedoTexture,
+                    material.EmissiveTexture);
+                _voxelGI.AddStaticInstance(
+                    meshHandle,
+                    item.World,
+                    material.BaseColorFactor,
+                    material.EmissiveFactor,
+                    GetAlphaCutoff(material));
             }
             return;
         }
 
-        int dynamicSphereHandle = -1;
-        int dynamicCubeHandle = -1;
+        int sphereHandle = -1;
+        int cubeHandle = -1;
+        int groundHandle = -1;
         for (int i = 0; i < _objects.Count; i++)
         {
             SceneObject sceneObject = _objects[i];
-            if (IsStatic(sceneObject))
+            int meshHandle;
+            if (sceneObject.Mesh == _sphereMesh)
             {
-                sceneObject.VoxelStaticHandle = _voxelGI.RegisterStaticMesh(sceneObject.Mesh,
-                    (uint)VertexPositionNormalTexture.SizeInBytes, _checkerTexture, null,
-                    new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f, sceneObject.WorldMatrix);
+                sphereHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, sphereHandle);
+                meshHandle = sphereHandle;
             }
-            else if (sceneObject.Mesh == _sphereMesh)
+            else if (sceneObject.Mesh == _cubeMesh)
             {
-                if (dynamicSphereHandle < 0)
-                {
-                    dynamicSphereHandle = _voxelGI.RegisterDynamicMesh(sceneObject.Mesh,
-                        (uint)VertexPositionNormalTexture.SizeInBytes, _checkerTexture, null);
-                }
-                sceneObject.VoxelDynamicHandle = dynamicSphereHandle;
+                cubeHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, cubeHandle);
+                meshHandle = cubeHandle;
             }
             else
             {
-                if (dynamicCubeHandle < 0)
-                {
-                    dynamicCubeHandle = _voxelGI.RegisterDynamicMesh(sceneObject.Mesh,
-                        (uint)VertexPositionNormalTexture.SizeInBytes, _checkerTexture, null);
-                }
-                sceneObject.VoxelDynamicHandle = dynamicCubeHandle;
+                groundHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, groundHandle);
+                meshHandle = groundHandle;
             }
+            sceneObject.VoxelMeshHandle = meshHandle;
+
+            if (IsStatic(sceneObject))
+            {
+                sceneObject.VoxelStaticInstanceHandle = _voxelGI.AddStaticInstance(
+                    meshHandle,
+                    sceneObject.WorldMatrix,
+                    new Vector4(sceneObject.BaseColor, 1.0f),
+                    Vector3.Zero,
+                    0.0f);
+            }
+        }
+
+        int RegisterProceduralMeshOnce(PrimitiveMesh mesh, int existingHandle)
+        {
+            return existingHandle >= 0
+                ? existingHandle
+                : _voxelGI.RegisterMesh(
+                    mesh,
+                    (uint)VertexPositionNormalTexture.SizeInBytes,
+                    GetProceduralBounds(mesh),
+                    _checkerTexture,
+                    null);
         }
     }
 
@@ -964,9 +992,9 @@ public class Game : GameEngine
         for (int i = 0; i < _objects.Count; i++)
         {
             SceneObject sceneObject = _objects[i];
-            if (sceneObject.VoxelDynamicHandle >= 0)
+            if (!IsStatic(sceneObject) && sceneObject.VoxelMeshHandle >= 0)
             {
-                _voxelGI.SubmitDynamicInstance(sceneObject.VoxelDynamicHandle, sceneObject.WorldMatrix,
+                _voxelGI.SubmitDynamicInstance(sceneObject.VoxelMeshHandle, sceneObject.WorldMatrix,
                     new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f);
             }
         }
@@ -1029,6 +1057,19 @@ public class Game : GameEngine
         byte[] png = ImageEncodeUtility.EncodePng(rgba, width, height);
         File.WriteAllBytes(path, png);
         Console.WriteLine($"Screenshot saved to {path}");
+        if (_voxelGI != null)
+        {
+            VoxelGiStatistics statistics = _voxelGI.Statistics;
+            Console.WriteLine(
+                $"GI stats: cpu={statistics.CpuRecordMilliseconds:F2}ms, " +
+                $"gpu={(double.IsNaN(statistics.GpuMilliseconds) ? "n/a" : $"{statistics.GpuMilliseconds:F2}ms")}, " +
+                $"static={statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks}, " +
+                $"dynamic={statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks}, " +
+                $"queued={statistics.PendingStaticBricks}, dropped={statistics.DroppedBricks}, " +
+                $"attribute={statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
+                $"radiance={statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
+                $"ddgi={statistics.ProbeMemoryBytes / (1024.0 * 1024.0):F2}MiB");
+        }
     }
 
     private void DrawImGuiPanel()
@@ -1069,7 +1110,7 @@ public class Game : GameEngine
             ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
         }
 
-        if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Voxel)"))
+        if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse + DDGI)"))
         {
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
@@ -1078,6 +1119,19 @@ public class Game : GameEngine
             ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
             string[] giDebugModes = ["Off", "Indirect Diffuse", "Indirect Specular"];
             ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);
+            VoxelGiStatistics statistics = _voxelGI.Statistics;
+            ImGui.Text($"GI CPU encode: {statistics.CpuRecordMilliseconds:F2} ms");
+            ImGui.Text(double.IsNaN(statistics.GpuMilliseconds)
+                ? "GI GPU: unavailable"
+                : $"GI GPU: {statistics.GpuMilliseconds:F2} ms (sampled)");
+            ImGui.Text($"Static bricks: {statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks} " +
+                $"({statistics.PendingStaticBricks} queued, {statistics.StaticBricksUpdated} updated)");
+            ImGui.Text($"Dynamic bricks: {statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks} " +
+                $"({statistics.DynamicBricksUpdated} updated)");
+            ImGui.Text($"Dropped bricks: {statistics.DroppedBricks}");
+            ImGui.Text($"GI memory: attributes {statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1} MiB, " +
+                $"radiance {statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1} MiB, " +
+                $"probes {statistics.ProbeMemoryBytes / (1024.0 * 1024.0):F2} MiB");
         }
 
         if (_bloom != null && ImGui.CollapsingHeader("Emissive & Bloom"))
@@ -1154,10 +1208,14 @@ public class Game : GameEngine
                 if (bakedChanged && IsStatic(sceneObject))
                 {
                     _staticBundlesDirty = true;
-                    if (sceneObject.VoxelStaticHandle >= 0)
+                    if (sceneObject.VoxelStaticInstanceHandle >= 0)
                     {
-                        _voxelGI?.UpdateStaticMesh(sceneObject.VoxelStaticHandle,
-                            new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f, sceneObject.WorldMatrix);
+                        _voxelGI?.UpdateStaticInstance(
+                            sceneObject.VoxelStaticInstanceHandle,
+                            sceneObject.WorldMatrix,
+                            new Vector4(sceneObject.BaseColor, 1.0f),
+                            Vector3.Zero,
+                            0.0f);
                     }
                 }
             }
@@ -1283,6 +1341,19 @@ public class Game : GameEngine
         }
         return RenderingSystem.CreateTexture2D(data, (uint)size, (uint)size,
             new ImageLoadOption(format: PixelFormat.RGBA8UnormSrgb, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "checker_albedo"));
+    }
+
+    private VoxelGiBounds GetProceduralBounds(PrimitiveMesh mesh)
+    {
+        if (mesh == _cubeMesh)
+        {
+            return new VoxelGiBounds(new Vector3(-0.5f), new Vector3(0.5f));
+        }
+        if (mesh == _sphereMesh)
+        {
+            return new VoxelGiBounds(new Vector3(-1.0f), new Vector3(1.0f));
+        }
+        return new VoxelGiBounds(new Vector3(-20.0f, -20.0f, 0.0f), new Vector3(20.0f, 20.0f, 0.0f));
     }
 
     private PrimitiveMesh CreateCubeMesh()

@@ -73,12 +73,30 @@ public readonly struct ModelDrawItem
     /// <summary>The world transform.</summary>
     public Matrix4x4 World { get; }
 
+    /// <summary>The minimum corner of the mesh-local bounds.</summary>
+    public Vector3 LocalBoundsMin { get; }
+
+    /// <summary>The maximum corner of the mesh-local bounds.</summary>
+    public Vector3 LocalBoundsMax { get; }
+
     /// <summary>Create a draw item.</summary>
-    public ModelDrawItem(PrimitiveMesh mesh, int materialIndex, in Matrix4x4 world)
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="materialIndex">The material index.</param>
+    /// <param name="world">The local-to-world transform.</param>
+    /// <param name="localBoundsMin">The minimum corner of the mesh-local bounds.</param>
+    /// <param name="localBoundsMax">The maximum corner of the mesh-local bounds.</param>
+    public ModelDrawItem(
+        PrimitiveMesh mesh,
+        int materialIndex,
+        in Matrix4x4 world,
+        in Vector3 localBoundsMin,
+        in Vector3 localBoundsMax)
     {
         Mesh = mesh;
         MaterialIndex = materialIndex;
         World = world;
+        LocalBoundsMin = localBoundsMin;
+        LocalBoundsMax = localBoundsMax;
     }
 }
 

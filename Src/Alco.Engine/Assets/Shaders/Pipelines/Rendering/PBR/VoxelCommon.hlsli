@@ -17,8 +17,16 @@
 DEFINE_UNIFORM(0, _data)
 {
     float4x4 invViewProjection;
+    float4x4 viewProjection;
     float4x4 sunViewProjection[4];
     float4 levelOrigins[4];        // xyz = min corner in world space, w = voxel size
+    float4 levelRingOffsets[4];    // xyz = toroidal storage offset in voxels
+    float4 ddgiOrigins[3];         // xyz = probe-grid min corner, w = probe spacing
+    float4 ddgiPreviousOrigins[3]; // previous frame, used to scroll probe history
+    float4 ddgiParams;             // xyz = probe resolution, w = frame index
+    float4 ddgiParams2;            // x=history valid, y=update period, z=hysteresis, w=cascade count
+    float4 ddgiDirtyMin;            // xyz = local history invalidation min, w = valid
+    float4 ddgiDirtyMax;            // xyz = local history invalidation max
     float4 cameraPosition;         // xyz = world-space camera position
     float4 sunDirection;           // normalized direction the sun light travels
     float4 sunColorAndIntensity;   // rgb + intensity
@@ -81,9 +89,32 @@ uint VoxelResolution()
     return (uint)clipmapParams.x;
 }
 
-uint VoxelIndex(uint3 coord, uint resolution)
+static const uint VOXEL_BRICK_SIZE = 8u;
+static const uint VOXEL_BRICK_VOXEL_COUNT = VOXEL_BRICK_SIZE * VOXEL_BRICK_SIZE * VOXEL_BRICK_SIZE;
+
+// Maps a logical clipmap voxel to its toroidal page-table slot. Page-table
+// values are one-based physical page indices; zero means the brick is absent.
+uint VoxelPageTableSlot(uint3 coord, uint resolution, int level)
 {
-    return coord.x + coord.y * resolution + coord.z * resolution * resolution;
+    uint bricksPerAxis = resolution / VOXEL_BRICK_SIZE;
+    uint3 ringBrickOffset = (uint3)levelRingOffsets[level].xyz / VOXEL_BRICK_SIZE;
+    uint3 physicalBrick = (coord / VOXEL_BRICK_SIZE + ringBrickOffset) % bricksPerAxis;
+    return physicalBrick.x
+        + physicalBrick.y * bricksPerAxis
+        + physicalBrick.z * bricksPerAxis * bricksPerAxis;
+}
+
+uint VoxelBrickLocalIndex(uint3 coord)
+{
+    uint3 local = coord % VOXEL_BRICK_SIZE;
+    return local.x
+        + local.y * VOXEL_BRICK_SIZE
+        + local.z * VOXEL_BRICK_SIZE * VOXEL_BRICK_SIZE;
+}
+
+uint VoxelAttributeIndex(uint pageEntry, uint3 coord)
+{
+    return (pageEntry - 1u) * VOXEL_BRICK_VOXEL_COUNT + VoxelBrickLocalIndex(coord);
 }
 
 // Normalized texture coordinates of a world position inside a clipmap level's

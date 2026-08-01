@@ -1,17 +1,104 @@
+using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
+
+/// <summary>Per-frame diagnostics and fixed memory budgets for voxel GI.</summary>
+public readonly struct VoxelGiStatistics
+{
+    /// <summary>Gets the number of resident structural bricks.</summary>
+    public int StaticResidentBricks { get; }
+    /// <summary>Gets the structural physical-page capacity.</summary>
+    public int StaticCapacityBricks { get; }
+    /// <summary>Gets the number of resident movable-geometry bricks.</summary>
+    public int DynamicResidentBricks { get; }
+    /// <summary>Gets the movable physical-page capacity.</summary>
+    public int DynamicCapacityBricks { get; }
+    /// <summary>Gets the structural bricks still queued after this frame.</summary>
+    public int PendingStaticBricks { get; }
+    /// <summary>Gets the structural bricks processed this frame.</summary>
+    public int StaticBricksUpdated { get; }
+    /// <summary>Gets the movable bricks processed this frame.</summary>
+    public int DynamicBricksUpdated { get; }
+    /// <summary>Gets the brick allocations dropped because a physical pool was full.</summary>
+    public int DroppedBricks { get; }
+    /// <summary>Gets the number of active persistent instances.</summary>
+    public int StaticInstanceCount { get; }
+    /// <summary>Gets the number of unique GPU-resident mesh geometries.</summary>
+    public int SharedMeshCount { get; }
+    /// <summary>Gets the fixed sparse attribute-pool allocation in bytes.</summary>
+    public long AttributeMemoryBytes { get; }
+    /// <summary>Gets the dense mipmapped radiance allocation in bytes.</summary>
+    public long RadianceMemoryBytes { get; }
+    /// <summary>Gets the ping-pong DDGI probe allocation in bytes.</summary>
+    public long ProbeMemoryBytes { get; }
+    /// <summary>Gets CPU time spent preparing, encoding and submitting the GI work.</summary>
+    public double CpuRecordMilliseconds { get; }
+    /// <summary>Gets the last sampled GPU duration, or NaN when unavailable.</summary>
+    public double GpuMilliseconds { get; }
+
+    /// <summary>Creates one immutable diagnostic snapshot.</summary>
+    /// <param name="staticResidentBricks">The resident structural-brick count.</param>
+    /// <param name="staticCapacityBricks">The structural pool capacity.</param>
+    /// <param name="dynamicResidentBricks">The resident movable-brick count.</param>
+    /// <param name="dynamicCapacityBricks">The movable pool capacity.</param>
+    /// <param name="pendingStaticBricks">The queued structural-brick count.</param>
+    /// <param name="staticBricksUpdated">The structural bricks processed this frame.</param>
+    /// <param name="dynamicBricksUpdated">The movable bricks processed this frame.</param>
+    /// <param name="droppedBricks">The failed page allocations this frame.</param>
+    /// <param name="staticInstanceCount">The active structural-instance count.</param>
+    /// <param name="sharedMeshCount">The unique shared geometry count.</param>
+    /// <param name="attributeMemoryBytes">The sparse attribute allocation.</param>
+    /// <param name="radianceMemoryBytes">The radiance allocation.</param>
+    /// <param name="probeMemoryBytes">The probe allocation.</param>
+    /// <param name="cpuRecordMilliseconds">The CPU encode duration.</param>
+    /// <param name="gpuMilliseconds">The last GPU timestamp duration.</param>
+    public VoxelGiStatistics(
+        int staticResidentBricks,
+        int staticCapacityBricks,
+        int dynamicResidentBricks,
+        int dynamicCapacityBricks,
+        int pendingStaticBricks,
+        int staticBricksUpdated,
+        int dynamicBricksUpdated,
+        int droppedBricks,
+        int staticInstanceCount,
+        int sharedMeshCount,
+        long attributeMemoryBytes,
+        long radianceMemoryBytes,
+        long probeMemoryBytes,
+        double cpuRecordMilliseconds,
+        double gpuMilliseconds)
+    {
+        StaticResidentBricks = staticResidentBricks;
+        StaticCapacityBricks = staticCapacityBricks;
+        DynamicResidentBricks = dynamicResidentBricks;
+        DynamicCapacityBricks = dynamicCapacityBricks;
+        PendingStaticBricks = pendingStaticBricks;
+        StaticBricksUpdated = staticBricksUpdated;
+        DynamicBricksUpdated = dynamicBricksUpdated;
+        DroppedBricks = droppedBricks;
+        StaticInstanceCount = staticInstanceCount;
+        SharedMeshCount = sharedMeshCount;
+        AttributeMemoryBytes = attributeMemoryBytes;
+        RadianceMemoryBytes = radianceMemoryBytes;
+        ProbeMemoryBytes = probeMemoryBytes;
+        CpuRecordMilliseconds = cpuRecordMilliseconds;
+        GpuMilliseconds = gpuMilliseconds;
+    }
+}
 
 /// <summary>
 /// Voxel global illumination renderer for the deferred PBR pipeline: a cascaded
 /// voxel clipmap (4 levels, each a cube of <c>resolution</c>^3 voxels at twice
 /// the previous level's voxel size, following the camera) with compute
-/// voxelization, direct-light injection and voxel cone tracing.
-/// <br/>Static meshes are registered once (<see cref="RegisterStaticMesh"/>) and
-/// re-voxelized only when a clipmap level recenters on the camera; dynamic
-/// meshes are registered once (<see cref="RegisterDynamicMesh"/>) and their
-/// instances submitted every frame (<see cref="SubmitDynamicInstance"/>).
+/// voxelization, direct-light injection, cascaded DDGI diffuse, screen-space
+/// near-field lighting and hybrid screen-space/voxel-cone reflections.
+/// <br/>Mesh geometry is registered once through <see cref="RegisterMesh"/> and
+/// shared by persistent structural instances and per-frame movable instances.
+/// Structural bricks are rebuilt incrementally after edits or camera scrolling.
 /// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting
 /// pass; the resulting <see cref="IndirectTexture"/> atlas (diffuse in the left
 /// half, specular in the right half) is sampled by the deferred lighting pass
@@ -34,6 +121,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
     {
         /// <summary>Inverse of the camera view-projection matrix.</summary>
         public Matrix4x4 InvViewProjection;
+        /// <summary>Camera view-projection matrix (filled by the renderer).</summary>
+        public Matrix4x4 ViewProjection;
         /// <summary>Sun light view-projection matrix of shadow cascade 0 (nearest).</summary>
         public Matrix4x4 SunViewProjection0;
         /// <summary>Sun light view-projection matrix of shadow cascade 1.</summary>
@@ -50,6 +139,34 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 LevelOrigin2;
         /// <summary>Clipmap level 3 origin (filled by the renderer).</summary>
         public Vector4 LevelOrigin3;
+        /// <summary>Clipmap level 0 toroidal storage offset in voxels (filled by the renderer).</summary>
+        public Vector4 LevelRingOffset0;
+        /// <summary>Clipmap level 1 toroidal storage offset in voxels (filled by the renderer).</summary>
+        public Vector4 LevelRingOffset1;
+        /// <summary>Clipmap level 2 toroidal storage offset in voxels (filled by the renderer).</summary>
+        public Vector4 LevelRingOffset2;
+        /// <summary>Clipmap level 3 toroidal storage offset in voxels (filled by the renderer).</summary>
+        public Vector4 LevelRingOffset3;
+        /// <summary>DDGI cascade 0 origin and probe spacing (filled by the renderer).</summary>
+        public Vector4 DdgiOrigin0;
+        /// <summary>DDGI cascade 1 origin and probe spacing (filled by the renderer).</summary>
+        public Vector4 DdgiOrigin1;
+        /// <summary>DDGI cascade 2 origin and probe spacing (filled by the renderer).</summary>
+        public Vector4 DdgiOrigin2;
+        /// <summary>Previous DDGI cascade 0 origin and spacing (filled by the renderer).</summary>
+        public Vector4 DdgiPreviousOrigin0;
+        /// <summary>Previous DDGI cascade 1 origin and spacing (filled by the renderer).</summary>
+        public Vector4 DdgiPreviousOrigin1;
+        /// <summary>Previous DDGI cascade 2 origin and spacing (filled by the renderer).</summary>
+        public Vector4 DdgiPreviousOrigin2;
+        /// <summary>xyz=probe-grid resolution and w=frame index (filled by the renderer).</summary>
+        public Vector4 DdgiParams;
+        /// <summary>x=history valid y=update period z=hysteresis w=cascade count (filled by the renderer).</summary>
+        public Vector4 DdgiParams2;
+        /// <summary>xyz=minimum locally invalidated probe region and w=valid flag (filled by the renderer).</summary>
+        public Vector4 DdgiDirtyMin;
+        /// <summary>xyz=maximum locally invalidated probe region (filled by the renderer).</summary>
+        public Vector4 DdgiDirtyMax;
         /// <summary>Camera position in world space (w unused).</summary>
         public Vector4 CameraPosition;
         /// <summary>Normalized direction the sun light travels (w unused).</summary>
@@ -104,16 +221,35 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 Params2; // x=triangleCount
     }
 
-    /// <summary>A registered mesh with its GPU-resident voxelization data.</summary>
-    private sealed class MeshRegistration
+    /// <summary>GPU-resident geometry shared by all GI material registrations of one mesh.</summary>
+    private sealed class MeshGeometry
     {
         public required GraphicsBuffer Vertices;
         public required GraphicsBuffer Indices;
+        public required VoxelGiBounds LocalBounds;
         public uint TriangleCount;
         public uint VertexStrideUints;
         public bool Index16Bit;
+    }
+
+    /// <summary>A registered GI material view of shared mesh geometry.</summary>
+    private sealed class MeshRegistration
+    {
+        public required MeshGeometry Geometry;
         public Texture2D? Albedo;
         public Texture2D? Emissive;
+    }
+
+    /// <summary>A persistent structural instance stored in the static clipmap.</summary>
+    private sealed class StaticInstance
+    {
+        public required MeshRegistration Registration;
+        public Matrix4x4 World;
+        public Vector4 BaseColor;
+        public Vector3 Emissive;
+        public float AlphaCutoff;
+        public VoxelGiBounds WorldBounds;
+        public bool Active;
     }
 
     /// <summary>A dynamic mesh instance submitted for one frame.</summary>
@@ -124,6 +260,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 BaseColor;
         public Vector3 Emissive;
         public float AlphaCutoff;
+        public VoxelGiBounds WorldBounds;
     }
 
     private readonly RenderingSystem _rendering;
@@ -133,33 +270,92 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly ComputeMaterial _voxelizeMaterial;
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
+    private readonly ComputeMaterial _ddgiUpdateMaterial;
     private readonly ComputeMaterial _traceMaterial;
     private readonly GraphicsValueBuffer<VoxelGiData> _dataBuffer;
+    private readonly GPUTimestampQuerySet? _timestampQueries;
+    private readonly GPUBuffer? _timestampResolveBuffer;
 
     private readonly int _resolution;
     private readonly int _mipCount;
     private readonly float _baseVoxelSize;
+    private readonly long _attributeMemoryBytes;
+    private readonly long _radianceMemoryBytes;
+    private readonly long _probeMemoryBytes;
+    private readonly VoxelGiClipmap _clipmap;
 
-    // Per-level attribute voxel buffers (static cached + dynamic per-frame) and
-    // one radiance Texture3D shared by all levels (each level's mip cube is
-    // stacked along the texture depth axis).
-    private readonly GraphicsBuffer[] _attrStatic = new GraphicsBuffer[LevelCount];
-    private readonly GraphicsBuffer[] _attrDynamic = new GraphicsBuffer[LevelCount];
+    // Static and dynamic attributes use compact physical brick pools. Small
+    // toroidal page tables map each level's logical coordinates into the pools.
+    private readonly GraphicsBuffer _attrStatic;
+    private readonly GraphicsBuffer _attrDynamic;
+    private readonly GraphicsBuffer[] _pageTableStatic = new GraphicsBuffer[LevelCount];
+    private readonly GraphicsBuffer[] _pageTableDynamic = new GraphicsBuffer[LevelCount];
+    private readonly GraphicsBuffer[] _dirtyBrickCoordinates = new GraphicsBuffer[LevelCount];
+    private readonly VoxelGiPagePool _staticPagePool;
+    private readonly VoxelGiPagePool _dynamicPagePool;
     private readonly Texture3D _radiance;
+    private readonly Texture3D[] _ddgiIrradiance = new Texture3D[2];
+    private readonly Vector4[] _ddgiOrigins = new Vector4[DdgiCascadeCount];
+    private readonly Vector4[] _ddgiPreviousOrigins = new Vector4[DdgiCascadeCount];
+    private int _ddgiHistoryIndex;
+    private uint _ddgiFrameIndex;
+    private bool _ddgiHistoryValid;
+    private VoxelGiBounds _ddgiDirtyBounds;
+    private bool _ddgiHasDirtyBounds;
+    private double _gpuMilliseconds = double.NaN;
 
-    private readonly Vector4[] _levelOrigins = new Vector4[LevelCount];
-    private readonly bool[] _staticDirty = new bool[LevelCount];
-    private bool _originsInitialized;
-
-    private readonly List<(MeshRegistration Registration, Matrix4x4 World, Vector4 BaseColor, Vector3 Emissive, float AlphaCutoff)> _staticMeshes = new();
-    private readonly List<MeshRegistration> _dynamicMeshes = new();
+    private readonly Dictionary<(Mesh Mesh, uint VertexStrideBytes), MeshGeometry> _geometryByMesh = new();
+    private readonly List<MeshGeometry> _geometries = new();
+    private readonly List<MeshRegistration> _meshes = new();
+    private readonly List<StaticInstance?> _staticInstances = new();
+    private readonly Stack<int> _freeStaticInstanceHandles = new();
     private readonly List<DynamicInstance> _instances = new();
+    private readonly List<VoxelGiDirtyBrick> _dirtyBricks = new();
+    private readonly List<VoxelGiDirtyBrick> _candidateBricks = new();
+    private readonly HashSet<uint> _brickKeys = new();
+    private readonly bool[] _staticNeedsFullClear = new bool[LevelCount];
 
     private RenderTexture _indirectAtlas;
     private RenderTexture? _boundGBuffer;
     private RenderTexture? _boundShadowMap;
 
     private const int LevelCount = 4;
+    private const int BrickSize = 8;
+    private const int DdgiCascadeCount = 3;
+    private const int DdgiProbeCountX = 16;
+    private const int DdgiProbeCountY = 16;
+    private const int DdgiProbeCountZ = 8;
+    private const int DdgiCoefficientCount = 4;
+
+    /// <summary>
+    /// Gets or sets the maximum number of structural bricks rebuilt per clipmap level and frame.
+    /// High-priority edit bricks are processed before camera-streaming bricks.
+    /// </summary>
+    public int StaticBrickBudgetPerLevel { get; set; } = 512;
+
+    /// <summary>
+    /// Gets or sets how many nearest clipmap levels receive per-frame movable geometry.
+    /// Structural geometry remains available in every level.
+    /// </summary>
+    public int DynamicLevelCount { get; set; } = 2;
+
+    /// <summary>
+    /// Gets or sets how many temporal phases are used to refresh the irradiance probes.
+    /// A value of eight updates one eighth of established probes per frame.
+    /// </summary>
+    public int DdgiUpdatePeriod { get; set; } = 8;
+
+    /// <summary>Gets or sets the retained fraction of valid DDGI history.</summary>
+    public float DdgiHysteresis { get; set; } = 0.92f;
+
+    /// <summary>
+    /// Gets or sets the number of frames between blocking GPU timestamp readbacks.
+    /// Zero disables timing; timestamp writes remain unavailable on unsupported adapters.
+    /// </summary>
+    public int GpuTimingSamplePeriod { get; set; } = 60;
+
+    /// <summary>Gets the most recently completed frame's GI diagnostics.</summary>
+    public VoxelGiStatistics Statistics { get; private set; }
 
     /// <summary>
     /// The gathered indirect radiance atlas (twice the half G-buffer width:
@@ -176,6 +372,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// <param name="voxelizeShader">The triangle voxelization shader (Voxelize.hlsl).</param>
     /// <param name="injectShader">The direct light injection shader (VoxelInject.hlsl).</param>
     /// <param name="mipShader">The radiance mip downsample shader (VoxelMip.hlsl).</param>
+    /// <param name="ddgiUpdateShader">The cascaded irradiance-probe update shader (DdgiUpdate.hlsl).</param>
     /// <param name="traceShader">The cone tracing shader (VoxelTrace.hlsl).</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
@@ -188,6 +385,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         Shader voxelizeShader,
         Shader injectShader,
         Shader mipShader,
+        Shader ddgiUpdateShader,
         Shader traceShader,
         uint width,
         uint height,
@@ -202,34 +400,59 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
         _resolution = resolution;
-        _baseVoxelSize = baseVoxelSize;
         _mipCount = (int)MathF.Log2(resolution) + 1;
+        _baseVoxelSize = baseVoxelSize;
+        _clipmap = new VoxelGiClipmap(resolution, BrickSize, baseVoxelSize, LevelCount);
 
         _commandBuffer = _device.CreateCommandBuffer("voxel_gi");
         _clearMaterial = rendering.CreateComputeMaterial(clearShader);
         _voxelizeMaterial = rendering.CreateComputeMaterial(voxelizeShader);
         _injectMaterial = rendering.CreateComputeMaterial(injectShader);
         _mipMaterial = rendering.CreateComputeMaterial(mipShader);
+        _ddgiUpdateMaterial = rendering.CreateComputeMaterial(ddgiUpdateShader);
         _traceMaterial = rendering.CreateComputeMaterial(traceShader);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
+        if (_device.TimestampQuerySupported)
+        {
+            _timestampQueries = _device.CreateTimestampQuerySet(2, "voxel_gi_timestamps");
+            _timestampResolveBuffer = _device.CreateBuffer(new BufferDescriptor
+            {
+                Usage = BufferUsage.QueryResolve | BufferUsage.CopySrc,
+                Size = sizeof(ulong) * 2,
+                Name = "voxel_gi_timestamp_resolve",
+            });
+        }
 
         _clearMaterial.SetBuffer("_data", _dataBuffer);
         _voxelizeMaterial.SetBuffer("_data", _dataBuffer);
         _injectMaterial.SetBuffer("_data", _dataBuffer);
         _mipMaterial.SetBuffer("_data", _dataBuffer);
+        _ddgiUpdateMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
 
-        // Attribute voxel: uint2 (albedo+occupancy, normal+emissive) per voxel,
-        // one storage buffer per level.
-        uint attrBytes = (uint)(resolution * resolution * resolution * 8);
+        // Attribute voxels are sparse physical 8^3 pages. Static data can fill
+        // two complete levels and dynamic data one complete level before the
+        // allocator starts dropping lower-priority far bricks.
+        int bricksPerAxis = resolution / BrickSize;
+        int pagesPerLevel = bricksPerAxis * bricksPerAxis * bricksPerAxis;
+        int staticPageCapacity = pagesPerLevel * 2;
+        int dynamicPageCapacity = pagesPerLevel;
+        _staticPagePool = new VoxelGiPagePool(staticPageCapacity, LevelCount, resolution, BrickSize);
+        _dynamicPagePool = new VoxelGiPagePool(dynamicPageCapacity, LevelCount, resolution, BrickSize);
+        uint staticAttributeBytes = checked((uint)(_staticPagePool.VoxelCapacity * 8L));
+        uint dynamicAttributeBytes = checked((uint)(_dynamicPagePool.VoxelCapacity * 8L));
+        uint pageTableBytes = checked((uint)(pagesPerLevel * sizeof(uint)));
+        uint dirtyBrickBytes = checked((uint)(pagesPerLevel * 16));
+
+        _attrStatic = new GraphicsBuffer(rendering, staticAttributeBytes, "voxel_attr_static_pool");
+        _attrDynamic = new GraphicsBuffer(rendering, dynamicAttributeBytes, "voxel_attr_dynamic_pool");
+        _attributeMemoryBytes = staticAttributeBytes + dynamicAttributeBytes;
 
         for (int level = 0; level < LevelCount; level++)
         {
-            float voxelSize = baseVoxelSize * (1 << level);
-            _levelOrigins[level] = new Vector4(Vector3.Zero, voxelSize);
-            _staticDirty[level] = true;
-            _attrStatic[level] = new GraphicsBuffer(rendering, attrBytes, $"voxel_attr_static_{level}");
-            _attrDynamic[level] = new GraphicsBuffer(rendering, attrBytes, $"voxel_attr_dynamic_{level}");
+            _pageTableStatic[level] = new GraphicsBuffer(rendering, pageTableBytes, $"voxel_page_table_static_{level}");
+            _pageTableDynamic[level] = new GraphicsBuffer(rendering, pageTableBytes, $"voxel_page_table_dynamic_{level}");
+            _dirtyBrickCoordinates[level] = new GraphicsBuffer(rendering, dirtyBrickBytes, $"voxel_dirty_bricks_{level}");
         }
 
         // Radiance: one RGBA16Float Texture3D with a full mip chain; all levels
@@ -238,7 +461,26 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _radiance = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
             PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance");
 
+        uint ddgiDepth = DdgiProbeCountZ * DdgiCascadeCount * DdgiCoefficientCount;
+        for (int i = 0; i < _ddgiIrradiance.Length; i++)
+        {
+            _ddgiIrradiance[i] = rendering.CreateTexture3D(
+                DdgiProbeCountX,
+                DdgiProbeCountY,
+                ddgiDepth,
+                PixelFormat.RGBA16Float,
+                1,
+                name: $"ddgi_irradiance_{i}");
+        }
+        _radianceMemoryBytes = CalculateMipChainBytes(resolution, resolution, resolution * LevelCount, 8, _mipCount);
+        _probeMemoryBytes = (long)DdgiProbeCountX
+            * DdgiProbeCountY
+            * ddgiDepth
+            * 8
+            * _ddgiIrradiance.Length;
+
         _injectMaterial.SetTexture3DStorage("_radianceOut", _radiance, 0);
+        _ddgiUpdateMaterial.SetTexture("_radiance", _radiance);
         _traceMaterial.SetTexture("_radiance", _radiance);
 
         _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
@@ -249,94 +491,164 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
     private static uint TraceHeight(uint gbufferHeight) => Math.Max(gbufferHeight / 2, 1);
 
-    /// <summary>
-    /// Register a static mesh for voxelization. The mesh's vertex/index data is
-    /// copied once into voxelization storage buffers; the mesh itself stays
-    /// untouched. Static meshes are re-voxelized whenever a clipmap level
-    /// recenters or <see cref="InvalidateStatic"/> was called.
-    /// </summary>
-    /// <param name="mesh">The mesh to voxelize (single submesh).</param>
-    /// <param name="vertexStrideBytes">The vertex stride in bytes (32 for VertexPositionNormalTexture, 48 for VertexPositionNormalTextureTangent); the layout must start with position(3) / normal(3) / uv(2) floats.</param>
-    /// <param name="albedo">The albedo texture sampled at the triangle centroid; null binds the shared white texture.</param>
-    /// <param name="emissive">The emissive texture sampled at the triangle centroid; null binds the shared black texture.</param>
-    /// <param name="baseColor">The linear base color, multiplied with the albedo texture.</param>
-    /// <param name="emissiveFactor">The linear emissive factor, multiplied with the emissive texture.</param>
-    /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
-    /// <param name="world">The world transform of the mesh.</param>
-    /// <returns>The static mesh handle, used with <see cref="UpdateStaticMesh"/>.</returns>
-    public int RegisterStaticMesh(Mesh mesh, uint vertexStrideBytes, Texture2D? albedo, Texture2D? emissive,
-        in Vector4 baseColor, in Vector3 emissiveFactor, float alphaCutoff, in Matrix4x4 world)
+    private static long CalculateMipChainBytes(int width, int height, int depth, int bytesPerVoxel, int mipCount)
     {
-        MeshRegistration registration = CreateRegistration(mesh, vertexStrideBytes, albedo, emissive);
-        _staticMeshes.Add((registration, world, baseColor, emissiveFactor, alphaCutoff));
-        InvalidateStatic();
-        return _staticMeshes.Count - 1;
+        long total = 0;
+        for (int mip = 0; mip < mipCount; mip++)
+        {
+            total += (long)Math.Max(width >> mip, 1)
+                * Math.Max(height >> mip, 1)
+                * Math.Max(depth >> mip, 1)
+                * bytesPerVoxel;
+        }
+        return total;
     }
 
     /// <summary>
-    /// Update the transform and surface parameters of a registered static mesh
-    /// and schedule a static re-voxelization.
+    /// Registers a mesh and its GI material. Vertex and index data are copied once per
+    /// source mesh and shared by all material registrations and instances.
     /// </summary>
-    /// <param name="handle">The handle returned by <see cref="RegisterStaticMesh"/>.</param>
+    /// <param name="mesh">The single-submesh source mesh.</param>
+    /// <param name="vertexStrideBytes">The vertex stride; position, normal and UV must be the first attributes.</param>
+    /// <param name="localBounds">The mesh bounds before the instance transform.</param>
+    /// <param name="albedo">The albedo texture, or null for white.</param>
+    /// <param name="emissive">The emissive texture, or null for black.</param>
+    /// <returns>A mesh-material handle accepted by static and dynamic instance methods.</returns>
+    public int RegisterMesh(
+        Mesh mesh,
+        uint vertexStrideBytes,
+        in VoxelGiBounds localBounds,
+        Texture2D? albedo,
+        Texture2D? emissive)
+    {
+        if (!_geometryByMesh.TryGetValue((mesh, vertexStrideBytes), out MeshGeometry? geometry))
+        {
+            geometry = CreateGeometry(mesh, vertexStrideBytes, localBounds);
+            _geometryByMesh.Add((mesh, vertexStrideBytes), geometry);
+            _geometries.Add(geometry);
+        }
+
+        _meshes.Add(new MeshRegistration
+        {
+            Geometry = geometry,
+            Albedo = albedo,
+            Emissive = emissive,
+        });
+        return _meshes.Count - 1;
+    }
+
+    /// <summary>Adds persistent structural geometry to the incrementally updated clipmap.</summary>
+    /// <param name="meshHandle">The handle returned by <see cref="RegisterMesh"/>.</param>
+    /// <param name="world">The local-to-world transform.</param>
     /// <param name="baseColor">The linear base color.</param>
     /// <param name="emissiveFactor">The linear emissive factor.</param>
-    /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
-    /// <param name="world">The world transform of the mesh.</param>
-    public void UpdateStaticMesh(int handle, in Vector4 baseColor, in Vector3 emissiveFactor, float alphaCutoff, in Matrix4x4 world)
+    /// <param name="alphaCutoff">The alpha-test threshold; zero disables alpha testing.</param>
+    /// <returns>A persistent instance handle.</returns>
+    public int AddStaticInstance(
+        int meshHandle,
+        in Matrix4x4 world,
+        in Vector4 baseColor,
+        in Vector3 emissiveFactor,
+        float alphaCutoff)
     {
-        (MeshRegistration registration, _, _, _, _) = _staticMeshes[handle];
-        _staticMeshes[handle] = (registration, world, baseColor, emissiveFactor, alphaCutoff);
-        InvalidateStatic();
+        MeshRegistration registration = _meshes[meshHandle];
+        VoxelGiBounds worldBounds = registration.Geometry.LocalBounds.Transform(world);
+        var instance = new StaticInstance
+        {
+            Registration = registration,
+            World = world,
+            BaseColor = baseColor,
+            Emissive = emissiveFactor,
+            AlphaCutoff = alphaCutoff,
+            WorldBounds = worldBounds,
+            Active = true,
+        };
+
+        int handle;
+        if (_freeStaticInstanceHandles.TryPop(out int freeHandle))
+        {
+            handle = freeHandle;
+            _staticInstances[handle] = instance;
+        }
+        else
+        {
+            handle = _staticInstances.Count;
+            _staticInstances.Add(instance);
+        }
+        InvalidateStatic(worldBounds);
+        return handle;
     }
 
-    /// <summary>
-    /// Register a dynamic mesh for per-frame voxelization. Instances are
-    /// submitted every frame via <see cref="SubmitDynamicInstance"/>.
-    /// </summary>
-    /// <param name="mesh">The mesh to voxelize (single submesh).</param>
-    /// <param name="vertexStrideBytes">The vertex stride in bytes (32 or 48); see <see cref="RegisterStaticMesh"/>.</param>
-    /// <param name="albedo">The albedo texture; null binds the shared white texture.</param>
-    /// <param name="emissive">The emissive texture; null binds the shared black texture.</param>
-    /// <returns>The dynamic mesh handle for <see cref="SubmitDynamicInstance"/>.</returns>
-    public int RegisterDynamicMesh(Mesh mesh, uint vertexStrideBytes, Texture2D? albedo, Texture2D? emissive)
+    /// <summary>Updates one structural instance and invalidates only its previous and new bounds.</summary>
+    /// <param name="instanceHandle">The handle returned by <see cref="AddStaticInstance"/>.</param>
+    /// <param name="world">The new local-to-world transform.</param>
+    /// <param name="baseColor">The new linear base color.</param>
+    /// <param name="emissiveFactor">The new linear emissive factor.</param>
+    /// <param name="alphaCutoff">The new alpha-test threshold.</param>
+    public void UpdateStaticInstance(
+        int instanceHandle,
+        in Matrix4x4 world,
+        in Vector4 baseColor,
+        in Vector3 emissiveFactor,
+        float alphaCutoff)
     {
-        MeshRegistration registration = CreateRegistration(mesh, vertexStrideBytes, albedo, emissive);
-        _dynamicMeshes.Add(registration);
-        return _dynamicMeshes.Count - 1;
+        StaticInstance instance = GetStaticInstance(instanceHandle);
+        VoxelGiBounds previousBounds = instance.WorldBounds;
+        instance.World = world;
+        instance.BaseColor = baseColor;
+        instance.Emissive = emissiveFactor;
+        instance.AlphaCutoff = alphaCutoff;
+        instance.WorldBounds = instance.Registration.Geometry.LocalBounds.Transform(world);
+        InvalidateStatic(previousBounds);
+        InvalidateStatic(instance.WorldBounds);
+    }
+
+    /// <summary>Removes one structural instance and schedules its occupied bricks for repair.</summary>
+    /// <param name="instanceHandle">The handle returned by <see cref="AddStaticInstance"/>.</param>
+    public void RemoveStaticInstance(int instanceHandle)
+    {
+        StaticInstance instance = GetStaticInstance(instanceHandle);
+        InvalidateStatic(instance.WorldBounds);
+        instance.Active = false;
+        _staticInstances[instanceHandle] = null;
+        _freeStaticInstanceHandles.Push(instanceHandle);
     }
 
     /// <summary>
     /// Submit one instance of a registered dynamic mesh for voxelization this
     /// frame. The instance list is consumed by <see cref="Render"/>.
     /// </summary>
-    /// <param name="handle">The handle returned by <see cref="RegisterDynamicMesh"/>.</param>
+    /// <param name="meshHandle">The handle returned by <see cref="RegisterMesh"/>.</param>
     /// <param name="world">The world transform of the instance.</param>
     /// <param name="baseColor">The linear base color, multiplied with the albedo texture.</param>
     /// <param name="emissiveFactor">The linear emissive factor, multiplied with the emissive texture.</param>
     /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
-    public void SubmitDynamicInstance(int handle, in Matrix4x4 world, in Vector4 baseColor, in Vector3 emissiveFactor, float alphaCutoff)
+    public void SubmitDynamicInstance(int meshHandle, in Matrix4x4 world, in Vector4 baseColor, in Vector3 emissiveFactor, float alphaCutoff)
     {
+        MeshRegistration registration = _meshes[meshHandle];
         _instances.Add(new DynamicInstance
         {
-            Registration = _dynamicMeshes[handle],
+            Registration = registration,
             World = world,
             BaseColor = baseColor,
             Emissive = emissiveFactor,
             AlphaCutoff = alphaCutoff,
+            WorldBounds = registration.Geometry.LocalBounds.Transform(world),
         });
     }
 
-    /// <summary>
-    /// Remove all static mesh registrations (dynamic registrations are kept).
-    /// </summary>
-    public void ClearStaticMeshes()
+    /// <summary>Removes every persistent structural instance while retaining shared mesh registrations.</summary>
+    public void ClearStaticInstances()
     {
-        for (int i = 0; i < _staticMeshes.Count; i++)
+        _staticInstances.Clear();
+        _freeStaticInstanceHandles.Clear();
+        for (int level = 0; level < LevelCount; level++)
         {
-            DisposeRegistration(_staticMeshes[i].Registration);
+            _staticNeedsFullClear[level] = true;
         }
-        _staticMeshes.Clear();
-        InvalidateStatic();
+        _clipmap.InvalidateAll();
+        _ddgiHistoryValid = false;
+        _ddgiHasDirtyBounds = false;
     }
 
     /// <summary>Schedule a static re-voxelization of every clipmap level.</summary>
@@ -344,8 +656,25 @@ public sealed class VoxelGiRenderer : AutoDisposable
     {
         for (int level = 0; level < LevelCount; level++)
         {
-            _staticDirty[level] = true;
+            _staticNeedsFullClear[level] = true;
         }
+        _clipmap.InvalidateAll();
+        _ddgiHistoryValid = false;
+        _ddgiHasDirtyBounds = false;
+    }
+
+    /// <summary>Invalidates structural voxel and irradiance-probe data overlapping world bounds.</summary>
+    /// <param name="worldBounds">The edited or destroyed world-space region.</param>
+    public void InvalidateStatic(in VoxelGiBounds worldBounds)
+    {
+        _clipmap.Invalidate(worldBounds);
+        if (_ddgiHasDirtyBounds)
+        {
+            _ddgiDirtyBounds = _ddgiDirtyBounds.Union(worldBounds);
+            return;
+        }
+        _ddgiDirtyBounds = worldBounds;
+        _ddgiHasDirtyBounds = true;
     }
 
     /// <summary>
@@ -362,9 +691,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
     }
 
     /// <summary>
-    /// Run the voxel GI passes: voxelize (static on dirty, dynamic every frame),
-    /// inject direct lighting, rebuild the radiance mips and trace cones from
-    /// the G-buffer. Must be called after the G-buffer pass and before the
+    /// Run the hybrid GI passes: voxelize (static on dirty, dynamic every frame),
+    /// inject direct lighting, rebuild radiance mips, update DDGI probes and
+    /// gather diffuse/reflections from the G-buffer. Must be called after the G-buffer pass and before the
     /// lighting pass; dynamic instances are consumed (cleared) by the call.
     /// </summary>
     /// <param name="gbuffer">The pipeline G-buffer (depth + world-normal + metallic-roughness-ao attachments).</param>
@@ -373,12 +702,39 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// <param name="cameraPosition">The world-space camera position driving the clipmap.</param>
     public void Render(RenderTexture gbuffer, RenderTexture shadowMap, ref VoxelGiData data, in Vector3 cameraPosition)
     {
-        UpdateClipmapOrigins(cameraPosition);
+        long recordStart = Stopwatch.GetTimestamp();
+        int staticBricksUpdated = 0;
+        int dynamicBricksUpdated = 0;
+        int droppedBricks = 0;
+        _clipmap.UpdateOrigins(cameraPosition);
+        if (!Matrix4x4.Invert(data.InvViewProjection, out data.ViewProjection))
+        {
+            data.ViewProjection = Matrix4x4.Identity;
+        }
 
-        data.LevelOrigin0 = _levelOrigins[0];
-        data.LevelOrigin1 = _levelOrigins[1];
-        data.LevelOrigin2 = _levelOrigins[2];
-        data.LevelOrigin3 = _levelOrigins[3];
+        data.LevelOrigin0 = _clipmap.GetOriginAndVoxelSize(0);
+        data.LevelOrigin1 = _clipmap.GetOriginAndVoxelSize(1);
+        data.LevelOrigin2 = _clipmap.GetOriginAndVoxelSize(2);
+        data.LevelOrigin3 = _clipmap.GetOriginAndVoxelSize(3);
+        data.LevelRingOffset0 = _clipmap.GetRingOffset(0);
+        data.LevelRingOffset1 = _clipmap.GetRingOffset(1);
+        data.LevelRingOffset2 = _clipmap.GetRingOffset(2);
+        data.LevelRingOffset3 = _clipmap.GetRingOffset(3);
+        UpdateDdgiOrigins(cameraPosition);
+        data.DdgiOrigin0 = _ddgiOrigins[0];
+        data.DdgiOrigin1 = _ddgiOrigins[1];
+        data.DdgiOrigin2 = _ddgiOrigins[2];
+        data.DdgiPreviousOrigin0 = _ddgiPreviousOrigins[0];
+        data.DdgiPreviousOrigin1 = _ddgiPreviousOrigins[1];
+        data.DdgiPreviousOrigin2 = _ddgiPreviousOrigins[2];
+        data.DdgiParams = new Vector4(DdgiProbeCountX, DdgiProbeCountY, DdgiProbeCountZ, _ddgiFrameIndex);
+        data.DdgiParams2 = new Vector4(
+            _ddgiHistoryValid ? 1.0f : 0.0f,
+            Math.Clamp(DdgiUpdatePeriod, 1, 64),
+            Math.Clamp(DdgiHysteresis, 0.0f, 0.99f),
+            DdgiCascadeCount);
+        data.DdgiDirtyMin = new Vector4(_ddgiDirtyBounds.Min, _ddgiHasDirtyBounds ? 1.0f : 0.0f);
+        data.DdgiDirtyMax = new Vector4(_ddgiDirtyBounds.Max, 0.0f);
         data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, 0.0f);
         uint traceWidth = Math.Max(_indirectAtlas.Width / 2, 1);
         data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _indirectAtlas.Height);
@@ -390,6 +746,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
             _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _traceMaterial.SetRenderTexture("_albedo", gbuffer, 0);
             _traceMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _traceMaterial.SetRenderTexture("_mrAO", gbuffer, 2);
             _boundGBuffer = gbuffer;
@@ -401,35 +758,118 @@ public sealed class VoxelGiRenderer : AutoDisposable
         }
 
         uint resolution = (uint)_resolution;
+        _dynamicPagePool.Reset();
+        bool measureGpu = _timestampQueries != null
+            && _timestampResolveBuffer != null
+            && GpuTimingSamplePeriod > 0
+            && _ddgiFrameIndex % (uint)GpuTimingSamplePeriod == 0;
         _commandBuffer.Begin();
-        using (GPUCommandBuffer.ComputePass computePass = _commandBuffer.BeginCompute())
+        using (GPUCommandBuffer.ComputePass computePass = measureGpu
+            ? _commandBuffer.BeginCompute(_timestampQueries!, 0, 1)
+            : _commandBuffer.BeginCompute())
         {
-            // Static re-voxelization, only for the levels that recently moved.
+            // Structural voxelization is driven by high-priority edit bricks and
+            // lower-priority camera-streaming bricks. The clipmap buffer is toroidal,
+            // so retained bricks survive camera movement without being copied.
             for (int level = 0; level < LevelCount; level++)
             {
-                if (!_staticDirty[level])
+                bool fullReset = _staticNeedsFullClear[level] || _clipmap.ConsumeFullReset(level);
+                if (fullReset)
                 {
+                    _staticPagePool.ResetLevel(level);
+                    _staticNeedsFullClear[level] = false;
+                }
+
+                int maximumBricks = Math.Clamp(
+                    StaticBrickBudgetPerLevel,
+                    0,
+                    _clipmap.BricksPerAxis * _clipmap.BricksPerAxis * _clipmap.BricksPerAxis);
+                int dirtyBrickCount = _clipmap.DrainDirtyBricks(level, maximumBricks, _dirtyBricks);
+                if (dirtyBrickCount == 0)
+                {
+                    if (fullReset)
+                    {
+                        UploadPageTable(_pageTableStatic[level], _staticPagePool, level);
+                    }
                     continue;
                 }
-                _clearMaterial.SetBuffer("_attrOut", _attrStatic[level]);
-                _clearMaterial.DispatchBySize(computePass, resolution, resolution, resolution);
-                for (int i = 0; i < _staticMeshes.Count; i++)
+
+                staticBricksUpdated += dirtyBrickCount;
+                droppedBricks += UpdateStaticResidency(level, _dirtyBricks);
+                UploadPageTable(_pageTableStatic[level], _staticPagePool, level);
+                _dirtyBrickCoordinates[level].UpdateBuffer(CollectionsMarshal.AsSpan(_dirtyBricks));
+                DispatchClearBricks(
+                    computePass,
+                    _attrStatic,
+                    _pageTableStatic[level],
+                    _dirtyBrickCoordinates[level],
+                    level,
+                    dirtyBrickCount);
+
+                VoxelGiBounds dirtyBounds = GetDirtyBounds(level, _dirtyBricks);
+                VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+                for (int i = 0; i < _staticInstances.Count; i++)
                 {
-                    (MeshRegistration registration, Matrix4x4 world, Vector4 baseColor, Vector3 emissive, float alphaCutoff) = _staticMeshes[i];
-                    DispatchVoxelize(computePass, registration, _attrStatic[level], level, world, baseColor, emissive, alphaCutoff);
+                    StaticInstance? instance = _staticInstances[i];
+                    if (instance == null
+                        || !instance.Active
+                        || !instance.WorldBounds.Intersects(dirtyBounds)
+                        || !instance.WorldBounds.Intersects(levelBounds))
+                    {
+                        continue;
+                    }
+                    DispatchVoxelize(computePass, instance.Registration, _attrStatic, _pageTableStatic[level], level,
+                        instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
                 }
-                _staticDirty[level] = false;
             }
 
-            // Dynamic voxelization, every frame.
+            // Movable geometry is rebuilt in a separate sparse pool each frame
+            // and limited to the nearest configured clipmap levels.
+            int dynamicLevelCount = Math.Clamp(DynamicLevelCount, 0, LevelCount);
             for (int level = 0; level < LevelCount; level++)
             {
-                _clearMaterial.SetBuffer("_attrOut", _attrDynamic[level]);
-                _clearMaterial.DispatchBySize(computePass, resolution, resolution, resolution);
+                bool active = level < dynamicLevelCount;
+                if (!active)
+                {
+                    UploadPageTable(_pageTableDynamic[level], _dynamicPagePool, level);
+                    continue;
+                }
+
+                CollectDynamicBricks(level);
+                dynamicBricksUpdated += _dirtyBricks.Count;
+                for (int brickIndex = 0; brickIndex < _dirtyBricks.Count; brickIndex++)
+                {
+                    if (!_dynamicPagePool.TrySetResident(
+                        level,
+                        _dirtyBricks[brickIndex],
+                        _clipmap.GetRingOffset(level),
+                        true))
+                    {
+                        droppedBricks++;
+                    }
+                }
+                UploadPageTable(_pageTableDynamic[level], _dynamicPagePool, level);
+                if (_dirtyBricks.Count > 0)
+                {
+                    _dirtyBrickCoordinates[level].UpdateBuffer(CollectionsMarshal.AsSpan(_dirtyBricks));
+                    DispatchClearBricks(
+                        computePass,
+                        _attrDynamic,
+                        _pageTableDynamic[level],
+                        _dirtyBrickCoordinates[level],
+                        level,
+                        _dirtyBricks.Count);
+                }
+
+                VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
                 for (int i = 0; i < _instances.Count; i++)
                 {
                     DynamicInstance instance = _instances[i];
-                    DispatchVoxelize(computePass, instance.Registration, _attrDynamic[level], level,
+                    if (!instance.WorldBounds.Intersects(levelBounds))
+                    {
+                        continue;
+                    }
+                    DispatchVoxelize(computePass, instance.Registration, _attrDynamic, _pageTableDynamic[level], level,
                         instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
                 }
             }
@@ -437,8 +877,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
             // Direct lighting injection into radiance mip 0.
             for (int level = 0; level < LevelCount; level++)
             {
-                _injectMaterial.SetBuffer("_attrStatic", _attrStatic[level]);
-                _injectMaterial.SetBuffer("_attrDynamic", _attrDynamic[level]);
+                _injectMaterial.SetBuffer("_attrStatic", _attrStatic);
+                _injectMaterial.SetBuffer("_attrDynamic", _attrDynamic);
+                _injectMaterial.SetBuffer("_pageTableStatic", _pageTableStatic[level]);
+                _injectMaterial.SetBuffer("_pageTableDynamic", _pageTableDynamic[level]);
                 _injectMaterial.DispatchBySizeWithConstant(computePass, resolution, resolution, resolution, new Vector4(level, 0, 0, 0));
             }
 
@@ -456,101 +898,257 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 }
             }
 
-            // Cone tracing from the G-buffer.
+            // Update a rotating subset of camera-relative irradiance probes.
+            // History is reprojected in world space when a cascade scrolls.
+            int ddgiOutputIndex = 1 - _ddgiHistoryIndex;
+            _ddgiUpdateMaterial.SetTexture("_ddgiHistory", _ddgiIrradiance[_ddgiHistoryIndex]);
+            _ddgiUpdateMaterial.SetTexture3DStorage("_ddgiOutput", _ddgiIrradiance[ddgiOutputIndex], 0);
+            _ddgiUpdateMaterial.DispatchBySize(
+                computePass,
+                DdgiProbeCountX,
+                DdgiProbeCountY,
+                DdgiProbeCountZ * DdgiCascadeCount);
+            _ddgiHistoryIndex = ddgiOutputIndex;
+
+            // Gather DDGI diffuse and a single rough voxel cone for specular.
+            _traceMaterial.SetTexture("_ddgiIrradiance", _ddgiIrradiance[_ddgiHistoryIndex]);
             _traceMaterial.DispatchBySize(computePass, traceWidth, _indirectAtlas.Height, 1);
+        }
+        if (measureGpu)
+        {
+            _commandBuffer.ResolveTimestamps(_timestampQueries!, 0, 2, _timestampResolveBuffer!);
         }
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
-
-        _instances.Clear();
-    }
-
-    /// <summary>
-    /// Recenter each clipmap level on the camera: origins snap to the voxel grid
-    /// and only move when the camera leaves the central half of the level
-    /// region, which marks the level for static re-voxelization.
-    /// </summary>
-    private void UpdateClipmapOrigins(in Vector3 cameraPosition)
-    {
-        for (int level = 0; level < LevelCount; level++)
+        if (measureGpu)
         {
-            float voxelSize = _baseVoxelSize * (1 << level);
-            float region = voxelSize * _resolution;
-            Vector3 desired = cameraPosition - new Vector3(region * 0.5f);
-            Vector3 snapped = new(
-                MathF.Floor(desired.X / voxelSize) * voxelSize,
-                MathF.Floor(desired.Y / voxelSize) * voxelSize,
-                MathF.Floor(desired.Z / voxelSize) * voxelSize);
-            Vector3 origin = new(_levelOrigins[level].X, _levelOrigins[level].Y, _levelOrigins[level].Z);
-            Vector3 delta = snapped - origin;
-            bool recenter = !_originsInitialized
-                || MathF.Abs(delta.X) >= region * 0.25f
-                || MathF.Abs(delta.Y) >= region * 0.25f
-                || MathF.Abs(delta.Z) >= region * 0.25f;
-            if (recenter)
+            var timestamps = new ulong[2];
+            _device.ReadBuffer(_timestampResolveBuffer!, timestamps);
+            if (timestamps[1] >= timestamps[0])
             {
-                _levelOrigins[level] = new Vector4(snapped, voxelSize);
-                _staticDirty[level] = true;
+                _gpuMilliseconds = (timestamps[1] - timestamps[0])
+                    * _device.TimestampPeriodNanoseconds
+                    / 1_000_000.0;
             }
         }
-        _originsInitialized = true;
+
+        _instances.Clear();
+        _ddgiHistoryValid = true;
+        _ddgiHasDirtyBounds = false;
+        _ddgiFrameIndex++;
+        int pendingStaticBricks = 0;
+        for (int level = 0; level < LevelCount; level++)
+        {
+            pendingStaticBricks += _clipmap.GetPendingBrickCount(level);
+        }
+        int activeStaticInstances = 0;
+        for (int i = 0; i < _staticInstances.Count; i++)
+        {
+            if (_staticInstances[i] is { Active: true })
+            {
+                activeStaticInstances++;
+            }
+        }
+        Statistics = new VoxelGiStatistics(
+            _staticPagePool.AllocatedPageCount,
+            _staticPagePool.Capacity,
+            _dynamicPagePool.AllocatedPageCount,
+            _dynamicPagePool.Capacity,
+            pendingStaticBricks,
+            staticBricksUpdated,
+            dynamicBricksUpdated,
+            droppedBricks,
+            activeStaticInstances,
+            _geometries.Count,
+            _attributeMemoryBytes,
+            _radianceMemoryBytes,
+            _probeMemoryBytes,
+            Stopwatch.GetElapsedTime(recordStart).TotalMilliseconds,
+            _gpuMilliseconds);
     }
 
-    private void DispatchVoxelize(GPUCommandBuffer.ComputePass computePass, MeshRegistration registration,
-        GraphicsBuffer attrOut, int level, in Matrix4x4 world, in Vector4 baseColor, in Vector3 emissive, float alphaCutoff)
+    private void UpdateDdgiOrigins(in Vector3 cameraPosition)
     {
-        if (registration.TriangleCount == 0)
+        for (int cascade = 0; cascade < DdgiCascadeCount; cascade++)
+        {
+            _ddgiPreviousOrigins[cascade] = _ddgiOrigins[cascade];
+            float spacing = _baseVoxelSize * BrickSize * (1 << cascade);
+            _ddgiOrigins[cascade] = VoxelGiProbeGrid.CalculateSnappedOrigin(
+                cameraPosition,
+                spacing,
+                DdgiProbeCountX,
+                DdgiProbeCountY,
+                DdgiProbeCountZ);
+            if (!_ddgiHistoryValid)
+            {
+                _ddgiPreviousOrigins[cascade] = _ddgiOrigins[cascade];
+            }
+        }
+    }
+
+    private int UpdateStaticResidency(int level, List<VoxelGiDirtyBrick> bricks)
+    {
+        int droppedBricks = 0;
+        Vector4 ringOffset = _clipmap.GetRingOffset(level);
+        for (int brickIndex = 0; brickIndex < bricks.Count; brickIndex++)
+        {
+            VoxelGiDirtyBrick brick = bricks[brickIndex];
+            VoxelGiBounds brickBounds = _clipmap.GetBrickBounds(level, brick);
+            bool resident = HasStaticGeometry(brickBounds);
+            if (!_staticPagePool.TrySetResident(level, brick, ringOffset, resident))
+            {
+                droppedBricks++;
+                _clipmap.RequeueDirtyBrick(level, brick);
+            }
+        }
+        return droppedBricks;
+    }
+
+    private bool HasStaticGeometry(in VoxelGiBounds bounds)
+    {
+        for (int i = 0; i < _staticInstances.Count; i++)
+        {
+            StaticInstance? instance = _staticInstances[i];
+            if (instance != null && instance.Active && instance.WorldBounds.Intersects(bounds))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void CollectDynamicBricks(int level)
+    {
+        _dirtyBricks.Clear();
+        _brickKeys.Clear();
+        VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+        for (int instanceIndex = 0; instanceIndex < _instances.Count; instanceIndex++)
+        {
+            DynamicInstance instance = _instances[instanceIndex];
+            if (!instance.WorldBounds.Intersects(levelBounds))
+            {
+                continue;
+            }
+
+            _candidateBricks.Clear();
+            _clipmap.AppendIntersectingBricks(level, instance.WorldBounds, _candidateBricks);
+            for (int brickIndex = 0; brickIndex < _candidateBricks.Count; brickIndex++)
+            {
+                VoxelGiDirtyBrick brick = _candidateBricks[brickIndex];
+                uint key = brick.X
+                    + brick.Y * (uint)_clipmap.BricksPerAxis
+                    + brick.Z * (uint)(_clipmap.BricksPerAxis * _clipmap.BricksPerAxis);
+                if (_brickKeys.Add(key))
+                {
+                    _dirtyBricks.Add(brick);
+                }
+            }
+        }
+    }
+
+    private static void UploadPageTable(GraphicsBuffer buffer, VoxelGiPagePool pagePool, int level)
+    {
+        buffer.UpdateBuffer(pagePool.GetPageTable(level));
+    }
+
+    private void DispatchClearBricks(
+        GPUCommandBuffer.ComputePass computePass,
+        GraphicsBuffer attributes,
+        GraphicsBuffer pageTable,
+        GraphicsBuffer dirtyBricks,
+        int level,
+        int brickCount)
+    {
+        _clearMaterial.SetBuffer("_attrOut", attributes);
+        _clearMaterial.SetBuffer("_dirtyBricks", dirtyBricks);
+        _clearMaterial.SetBuffer("_pageTable", pageTable);
+        _clearMaterial.DispatchBySizeWithConstant(
+            computePass,
+            BrickSize,
+            BrickSize,
+            (uint)(BrickSize * brickCount),
+            new Vector4(level, 0.0f, 0.0f, 0.0f));
+    }
+
+    private void DispatchVoxelize(
+        GPUCommandBuffer.ComputePass computePass,
+        MeshRegistration registration,
+        GraphicsBuffer attrOut,
+        GraphicsBuffer pageTable,
+        int level,
+        in Matrix4x4 world,
+        in Vector4 baseColor,
+        in Vector3 emissive,
+        float alphaCutoff)
+    {
+        MeshGeometry geometry = registration.Geometry;
+        if (geometry.TriangleCount == 0)
         {
             return;
         }
 
-        _voxelizeMaterial.SetBuffer("_vertices", registration.Vertices);
-        _voxelizeMaterial.SetBuffer("_indices", registration.Indices);
+        _voxelizeMaterial.SetBuffer("_vertices", geometry.Vertices);
+        _voxelizeMaterial.SetBuffer("_indices", geometry.Indices);
         _voxelizeMaterial.SetBuffer("_attrOut", attrOut);
+        _voxelizeMaterial.SetBuffer("_pageTable", pageTable);
         _voxelizeMaterial.SetTexture("_albedoTexture", registration.Albedo ?? _rendering.TextureWhite);
         _voxelizeMaterial.SetTexture("_emissiveTexture", registration.Emissive ?? _rendering.TextureBlack);
-        _voxelizeMaterial.DispatchBySizeWithConstant(computePass, registration.TriangleCount, 8, 1, new VoxelizeConstants
+        _voxelizeMaterial.DispatchBySizeWithConstant(computePass, geometry.TriangleCount, 8, 1, new VoxelizeConstants
         {
             Model = world,
             BaseColor = baseColor,
             Emissive = new Vector4(emissive, 0.0f),
-            Params = new Vector4(level, registration.Index16Bit ? 1.0f : 0.0f, registration.VertexStrideUints, alphaCutoff),
-            Params2 = new Vector4(registration.TriangleCount, 0.0f, 0.0f, 0.0f),
+            Params = new Vector4(level, geometry.Index16Bit ? 1.0f : 0.0f, geometry.VertexStrideUints, alphaCutoff),
+            Params2 = new Vector4(geometry.TriangleCount, 0.0f, 0.0f, 0.0f),
         });
     }
 
-    private MeshRegistration CreateRegistration(Mesh mesh, uint vertexStrideBytes, Texture2D? albedo, Texture2D? emissive)
+    private MeshGeometry CreateGeometry(Mesh mesh, uint vertexStrideBytes, in VoxelGiBounds localBounds)
     {
         SubMeshData subMesh = mesh.GetSubMesh(0);
         uint vertexBytes = mesh.VertexBuffer.Size;
         uint indexBytes = mesh.IndexBuffer.Size;
 
-        var registration = new MeshRegistration
+        var geometry = new MeshGeometry
         {
             Vertices = new GraphicsBuffer(_rendering, vertexBytes, $"voxel_vertices_{mesh.Name}"),
             Indices = new GraphicsBuffer(_rendering, indexBytes, $"voxel_indices_{mesh.Name}"),
+            LocalBounds = localBounds,
             TriangleCount = subMesh.IndexCount / 3,
             VertexStrideUints = vertexStrideBytes / 4,
             Index16Bit = subMesh.IndexFormat == IndexFormat.UInt16,
-            Albedo = albedo,
-            Emissive = emissive,
         };
 
         // Copy the mesh data into the voxelization buffers (mesh buffers are
         // created with CopySrc usage for this).
         _commandBuffer.Begin();
-        _commandBuffer.CopyBuffer(mesh.VertexBuffer, registration.Vertices.NativeBuffer, vertexBytes);
-        _commandBuffer.CopyBuffer(mesh.IndexBuffer, registration.Indices.NativeBuffer, indexBytes);
+        _commandBuffer.CopyBuffer(mesh.VertexBuffer, geometry.Vertices.NativeBuffer, vertexBytes);
+        _commandBuffer.CopyBuffer(mesh.IndexBuffer, geometry.Indices.NativeBuffer, indexBytes);
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
 
-        return registration;
+        return geometry;
     }
 
-    private static void DisposeRegistration(MeshRegistration registration)
+    private StaticInstance GetStaticInstance(int handle)
     {
-        registration.Vertices.Dispose();
-        registration.Indices.Dispose();
+        if ((uint)handle >= (uint)_staticInstances.Count
+            || _staticInstances[handle] is not StaticInstance instance
+            || !instance.Active)
+        {
+            throw new ArgumentOutOfRangeException(nameof(handle), "The static GI instance handle is not active.");
+        }
+        return instance;
+    }
+
+    private VoxelGiBounds GetDirtyBounds(int level, List<VoxelGiDirtyBrick> bricks)
+    {
+        VoxelGiBounds bounds = _clipmap.GetBrickBounds(level, bricks[0]);
+        for (int i = 1; i < bricks.Count; i++)
+        {
+            bounds = bounds.Union(_clipmap.GetBrickBounds(level, bricks[i]));
+        }
+        return bounds;
     }
 
     /// <inheritdoc />
@@ -558,22 +1156,28 @@ public sealed class VoxelGiRenderer : AutoDisposable
     {
         if (disposing)
         {
-            for (int i = 0; i < _staticMeshes.Count; i++)
+            for (int i = 0; i < _geometries.Count; i++)
             {
-                DisposeRegistration(_staticMeshes[i].Registration);
-            }
-            for (int i = 0; i < _dynamicMeshes.Count; i++)
-            {
-                DisposeRegistration(_dynamicMeshes[i]);
+                _geometries[i].Vertices.Dispose();
+                _geometries[i].Indices.Dispose();
             }
             for (int level = 0; level < LevelCount; level++)
             {
-                _attrStatic[level].Dispose();
-                _attrDynamic[level].Dispose();
+                _pageTableStatic[level].Dispose();
+                _pageTableDynamic[level].Dispose();
+                _dirtyBrickCoordinates[level].Dispose();
             }
+            _attrStatic.Dispose();
+            _attrDynamic.Dispose();
             _radiance.Dispose();
+            for (int i = 0; i < _ddgiIrradiance.Length; i++)
+            {
+                _ddgiIrradiance[i].Dispose();
+            }
             _indirectAtlas.Dispose();
             _dataBuffer.Dispose();
+            _timestampQueries?.Dispose();
+            _timestampResolveBuffer?.Dispose();
             _commandBuffer.Dispose();
         }
     }

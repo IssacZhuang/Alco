@@ -16,6 +16,8 @@ DEFINE_STORAGE(1, uint2, _attrStatic);
 DEFINE_STORAGE(2, uint2, _attrDynamic);
 DEFINE_TEX3D_STORAGE(3, _radianceOut, float4, "rgba16f");
 DEFINE_TEX2D_DEPTH_SAMPLE(4, _shadowMap);
+DEFINE_STORAGE(5, uint, _pageTableStatic);
+DEFINE_STORAGE(6, uint, _pageTableDynamic);
 
 PUSH_CONSTANT VoxelInjectConstants constants;
 
@@ -70,11 +72,21 @@ float SampleSkyVisibility(float3 worldPosition, float4 originAndSize, uint resol
         {
             break;
         }
-        uint index = VoxelIndex((uint3)coord, resolution);
-        uint2 attr = _attrDynamic[index];
+        uint3 logicalCoord = (uint3)coord;
+        uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, (int)constants.params.x);
+        uint2 attr = uint2(0u, 0u);
+        uint dynamicPage = _pageTableDynamic[pageSlot];
+        if (dynamicPage != 0u)
+        {
+            attr = _attrDynamic[VoxelAttributeIndex(dynamicPage, logicalCoord)];
+        }
         if (!VoxelAttrOccupied(attr))
         {
-            attr = _attrStatic[index];
+            uint staticPage = _pageTableStatic[pageSlot];
+            if (staticPage != 0u)
+            {
+                attr = _attrStatic[VoxelAttributeIndex(staticPage, logicalCoord)];
+            }
         }
         if (VoxelAttrOccupied(attr))
         {
@@ -97,15 +109,24 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     int level = (int)constants.params.x;
     float4 originAndSize = levelOrigins[level];
     float voxelSize = originAndSize.w;
-    uint attrIndex = VoxelIndex(dispatchId, resolution);
+    uint pageSlot = VoxelPageTableSlot(dispatchId, resolution, level);
     // All levels share one radiance Texture3D; this level's slab starts at its
     // depth slice (mip 0 view bound, full resolution).
     uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, (uint)level * resolution + dispatchId.z);
 
-    uint2 attr = _attrDynamic[attrIndex];
+    uint2 attr = uint2(0u, 0u);
+    uint dynamicPage = _pageTableDynamic[pageSlot];
+    if (dynamicPage != 0u)
+    {
+        attr = _attrDynamic[VoxelAttributeIndex(dynamicPage, dispatchId)];
+    }
     if (!VoxelAttrOccupied(attr))
     {
-        attr = _attrStatic[attrIndex];
+        uint staticPage = _pageTableStatic[pageSlot];
+        if (staticPage != 0u)
+        {
+            attr = _attrStatic[VoxelAttributeIndex(staticPage, dispatchId)];
+        }
     }
     if (!VoxelAttrOccupied(attr))
     {
