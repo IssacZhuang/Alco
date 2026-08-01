@@ -134,7 +134,8 @@ public partial class RenderingSystem
 
         TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
             texture,
-            TextureViewDimension.Texture2D
+            TextureViewDimension.Texture2D,
+            mipLevelCount: (uint)mipLevels
         );
         GPUTextureView textureView = _device.CreateTextureView(textureViewDescriptor);
 
