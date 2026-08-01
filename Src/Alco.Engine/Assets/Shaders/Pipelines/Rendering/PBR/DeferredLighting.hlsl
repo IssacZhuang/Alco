@@ -29,7 +29,7 @@ DEFINE_UNIFORM(0, _data)
     float4 sunColorAndIntensity; // rgb + intensity
     // Atmosphere parameters, see Shaders/Libs/Atmosphere.hlsli.
     float4 skyParams;            // x=rayleighScale y=mieScale z=miePhaseG w=exposure
-    float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=unused
+    float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=ambientFloor
     float4 pointLight0Position;
     float4 pointLight0Color;     // rgb + intensity
     float4 pointLight1Position;
@@ -361,6 +361,19 @@ float4 MainPS(V2F input) : SV_TARGET
         float3 dirToSun = normalize(-sunDirection.xyz);
         float3 skyAmbient = AtmosphereSkyRadiance(N, dirToSun, skyParams, skyParams2, 8, 4);
         ambient = skyAmbient * albedo * ao * (1.0 - metallic);
+    }
+
+    // Minimum ambient floor: a hemisphere term (more light from above than
+    // below) that prevents surfaces from collapsing to pure black in deep
+    // shadow, at night, or inside completely enclosed indoor spaces where
+    // neither the sky ambient nor the GI cone trace can find light.
+    // Adjustable via skyParams2.w; shadowless by design — it represents
+    // omnidirectional sky bounce, never modulated by the sun shadow factor.
+    {
+        float upDot = saturate(N.z * 0.5 + 0.5);
+        float3 skyBounce = float3(0.10, 0.12, 0.15);
+        float3 groundBounce = float3(0.05, 0.045, 0.04);
+        ambient += skyParams2.w * lerp(groundBounce, skyBounce, upDot) * albedo * ao * (1.0 - metallic);
     }
 
     // Emissive is added unshaded (stored linear in the G-buffer).

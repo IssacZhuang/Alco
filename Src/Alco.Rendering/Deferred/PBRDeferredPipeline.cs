@@ -148,7 +148,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 SunColorAndIntensity;
         /// <summary>Atmosphere parameters: x=rayleighScale, y=mieScale, z=miePhaseG, w=exposure (see Atmosphere.hlsli).</summary>
         public Vector4 SkyParams;
-        /// <summary>Atmosphere parameters: x=starIntensity, y=nightFloor, z=sunRadianceScale, w=unused.</summary>
+        /// <summary>Atmosphere parameters: x=starIntensity, y=nightFloor, z=sunRadianceScale, w=ambientFloor (minimum hemisphere ambient multiplier).</summary>
         public Vector4 SkyParams2;
         /// <summary>Point light 0 position (w unused).</summary>
         public Vector4 PointLight0Position;

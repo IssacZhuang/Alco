@@ -117,7 +117,8 @@ public class Game : GameEngine
     private float _miePhaseG = 0.8f;
     private float _starIntensity = 1.0f;
     private float _sunRadianceScale = 20.0f;
-    private float _nightFloor = 0.003f;
+    private float _nightFloor = 0.2f;
+    private float _ambientFloor = 5f;
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private const float HBAOMaxStepPixels = 64.0f;
@@ -640,7 +641,7 @@ public class Game : GameEngine
         _lightingData.SunDirection = new Vector4(sunDirection, 0);
         _lightingData.SunColorAndIntensity = new Vector4(sunTint, _sunIntensity * sunScale);
         _lightingData.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
-        _lightingData.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, 0.0f);
+        _lightingData.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
         _lightingData.Params = new Vector4(
             _shadowEnabled ? 1.0f : 0.0f,
             1.0f,
@@ -1053,6 +1054,8 @@ public class Game : GameEngine
             ImGui.SliderFloat("Mie Phase G", ref _miePhaseG, 0.0f, 0.95f);
             ImGui.SliderFloat("Sun Radiance", ref _sunRadianceScale, 1.0f, 60.0f);
             ImGui.SliderFloat("Star Intensity", ref _starIntensity, 0.0f, 4.0f);
+            ImGui.SliderFloat("Night Floor", ref _nightFloor, 0.0f, 0.5f, "%.4f");
+            ImGui.SliderFloat("Ambient Floor", ref _ambientFloor, 0.0f, 10.0f);
         }
 
         if (_pipeline.HBAO != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
