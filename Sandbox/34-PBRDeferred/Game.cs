@@ -300,6 +300,11 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
+        // Match the game's tonemapping operator.
+        if (TryGetPlugin<PluginHDR>(out var pluginHDR))
+        {
+            pluginHDR.Tonemap = PluginHDR.TonemapType.Neutral;
+        }
     }
 
     protected override void OnUpdate(float delta)
