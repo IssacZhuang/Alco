@@ -202,6 +202,27 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         _computePass = wgpuCommandEncoderBeginComputePass(_encoder, null);
     }
 
+    protected override void BeginComputeTimestampCore(
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex)
+    {
+        TryFinishCurrentRenderPass();
+        TryFinishCurrentComputePass();
+
+        WGPUPassTimestampWrites timestampWrites = new()
+        {
+            querySet = ((WebGPUTimestampQuerySet)querySet).Native,
+            beginningOfPassWriteIndex = beginningQueryIndex,
+            endOfPassWriteIndex = endQueryIndex,
+        };
+        WGPUComputePassDescriptor descriptor = new()
+        {
+            timestampWrites = &timestampWrites,
+        };
+        _computePass = wgpuCommandEncoderBeginComputePass(_encoder, &descriptor);
+    }
+
     protected override void EndComputeCore()
     {
         if (_computePass != WGPUComputePassEncoder.Null)
@@ -210,6 +231,24 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
             wgpuComputePassEncoderRelease(_computePass);
             _computePass = WGPUComputePassEncoder.Null;
         }
+    }
+
+    protected override void ResolveTimestampsCore(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset)
+    {
+        WGPUQuerySet nativeQuerySet = ((WebGPUTimestampQuerySet)querySet).Native;
+        WGPUBuffer nativeDestination = ((WebGPUBuffer)destination).Native;
+        wgpuCommandEncoderResolveQuerySet(
+            _encoder,
+            nativeQuerySet,
+            firstQuery,
+            queryCount,
+            nativeDestination,
+            destinationOffset);
     }
 
     protected override void SetScissorRectCore(uint x, uint y, uint width, uint height)

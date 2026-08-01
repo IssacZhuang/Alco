@@ -32,6 +32,13 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
+    protected override void BeginComputeTimestampCore(
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex)
+    {
+    }
+
     protected override void EndComputeCore()
     {
         
@@ -148,5 +155,14 @@ internal class NoCommandBuffer : GPUCommandBuffer
 
     {
         
+    }
+
+    protected override void ResolveTimestampsCore(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset)
+    {
     }
 }

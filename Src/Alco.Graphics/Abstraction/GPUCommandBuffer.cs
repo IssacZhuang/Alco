@@ -306,6 +306,58 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         return new ComputePass(this);
     }
 
+    /// <summary>
+    /// Begins a compute pass and writes timestamps at its beginning and end.
+    /// </summary>
+    /// <param name="querySet">The destination timestamp query set.</param>
+    /// <param name="beginningQueryIndex">The slot written when the pass begins.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends.</param>
+    /// <returns>An RAII compute-pass scope.</returns>
+    public ComputePass BeginCompute(
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex)
+    {
+        if (_isRecordingRender || _isRecordingCompute)
+        {
+            throw new InvalidOperationException("Another GPU pass is already recording.");
+        }
+        if (beginningQueryIndex >= querySet.Count || endQueryIndex >= querySet.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(beginningQueryIndex));
+        }
+
+        BeginComputeTimestampCore(querySet, beginningQueryIndex, endQueryIndex);
+        _isRecordingCompute = true;
+        return new ComputePass(this);
+    }
+
+    /// <summary>Resolves timestamp query values into a query-resolve buffer.</summary>
+    /// <param name="querySet">The source query set.</param>
+    /// <param name="firstQuery">The first source query slot.</param>
+    /// <param name="queryCount">The number of slots to resolve.</param>
+    /// <param name="destination">A buffer created with <see cref="BufferUsage.QueryResolve"/>.</param>
+    /// <param name="destinationOffset">The destination byte offset.</param>
+    public void ResolveTimestamps(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset = 0)
+    {
+        AssetUtility.IsTrue(_isRecording, "Command buffer must be recording while resolving timestamps.");
+        AssetUtility.IsFalse(_isRecordingRender || _isRecordingCompute, "End the active pass before resolving timestamps.");
+        if (queryCount == 0 || firstQuery + queryCount > querySet.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(queryCount));
+        }
+        if ((destination.Usage & BufferUsage.QueryResolve) == 0)
+        {
+            throw new ArgumentException("The destination buffer does not support query resolve.", nameof(destination));
+        }
+        ResolveTimestampsCore(querySet, firstQuery, queryCount, destination, destinationOffset);
+    }
+
 
     // API
 
@@ -342,6 +394,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void EndRenderCore();
 
     protected abstract void BeginComputeCore();
+    protected abstract void BeginComputeTimestampCore(
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex);
     protected abstract void EndComputeCore();
 
     protected abstract void SetScissorRectCore(uint x, uint y, uint width, uint height);
@@ -366,4 +422,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
     protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect);
+    protected abstract void ResolveTimestampsCore(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset);
 }

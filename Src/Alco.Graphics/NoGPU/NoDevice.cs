@@ -67,6 +67,10 @@ internal class NoDevice : GPUDevice
 
     public override bool TextureCompressBC3Supported => false;
 
+    public override bool TimestampQuerySupported => false;
+
+    public override float TimestampPeriodNanoseconds => 0.0f;
+
     /// <summary>
     /// The maximum number of bind groups reported in NoGPU mode.
     /// </summary>
@@ -191,6 +195,11 @@ internal class NoDevice : GPUDevice
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
     {
         return new NoCommandBuffer(descriptor);
+    }
+
+    protected override GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name)
+    {
+        return new NoTimestampQuerySet(count, name);
     }
 
     protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)

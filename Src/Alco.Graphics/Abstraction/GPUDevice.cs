@@ -44,6 +44,12 @@ public abstract class GPUDevice
     /// </summary>
     public abstract int MaxBindGroups { get; }
 
+    /// <summary>Gets whether the active adapter supports GPU timestamp queries.</summary>
+    public abstract bool TimestampQuerySupported { get; }
+
+    /// <summary>Gets nanoseconds represented by one timestamp tick.</summary>
+    public abstract float TimestampPeriodNanoseconds { get; }
+
     public GPUDevice(in DeviceDescriptor descriptor)
     {
         _disposeDelay = descriptor.DisposeDelay;
@@ -263,6 +269,24 @@ public abstract class GPUDevice
     public GPUCommandBuffer CreateCommandBuffer(string name)
     {
         return CreateCommandBufferCore(new CommandBufferDescriptor(name));
+    }
+
+    /// <summary>Creates a fixed-size GPU timestamp query set.</summary>
+    /// <param name="count">The number of timestamp slots.</param>
+    /// <param name="name">The diagnostic resource name.</param>
+    /// <returns>The created timestamp query set.</returns>
+    /// <exception cref="NotSupportedException">The active adapter does not support timestamp queries.</exception>
+    public GPUTimestampQuerySet CreateTimestampQuerySet(uint count, string name)
+    {
+        if (!TimestampQuerySupported)
+        {
+            throw new NotSupportedException("GPU timestamp queries are not supported by the active adapter.");
+        }
+        if (count == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+        return CreateTimestampQuerySetCore(count, name);
     }
 
 
@@ -705,6 +729,9 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
+
+    /// <exclude />
+    protected abstract GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name);
 
     /// <exclude />
     protected abstract GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor);

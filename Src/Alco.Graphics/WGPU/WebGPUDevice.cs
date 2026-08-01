@@ -103,6 +103,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     public override bool TextureCompressBC3Supported { get; }
 
+    public override bool TimestampQuerySupported { get; }
+
+    public override float TimestampPeriodNanoseconds { get; }
+
     /// <summary>
     /// The maximum number of bind groups supported by the WebGPU adapter.
     /// </summary>
@@ -170,6 +174,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
     {
         return new WebGPUBuffer(this, descriptor);
+    }
+
+    protected override GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name)
+    {
+        return new WebGPUTimestampQuerySet(this, count, name);
     }
 
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
@@ -984,6 +993,13 @@ internal sealed partial class WebGPUDevice : GPUDevice
             _host.LogSuccess("Texture compression BC is supported");
         }
 
+        if (IsFeatureSupported(WGPUFeatureName.TimestampQuery, supportedFeatures))
+        {
+            TimestampQuerySupported = true;
+            featuresList.Add(WGPUFeatureName.TimestampQuery);
+            _host.LogSuccess("GPU timestamp queries are supported");
+        }
+
 
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.Immediates);
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TextureAdapterSpecificFormatFeatures);
@@ -1047,6 +1063,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         //get queue
         Queue = wgpuDeviceGetQueue(Device);
+        TimestampPeriodNanoseconds = TimestampQuerySupported ? wgpuQueueGetTimestampPeriod(Queue) : 0.0f;
         
         //create default bind groups
         BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
