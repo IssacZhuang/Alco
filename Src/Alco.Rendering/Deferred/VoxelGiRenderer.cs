@@ -16,9 +16,10 @@ namespace Alco.Rendering;
 /// pass; the resulting <see cref="IndirectTexture"/> atlas (diffuse in the left
 /// half, specular in the right half) is sampled by the deferred lighting pass
 /// (see <see cref="PBRDeferredPipeline.SetGlobalIllumination"/>).
-/// <br/>All voxel data lives in storage buffers (the engine has no 3D texture
-/// path): packed attribute voxels per level (static + dynamic) and one packed
-/// HDR radiance volume with a mip chain per level.
+/// <br/>Attribute voxels live in storage buffers (packed, point-sampled by the
+/// injection pass); the HDR radiance volume is one mip-mapped RGBA16Float
+/// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
+/// cone-traced with hardware trilinear filtering.
 /// </summary>
 public sealed class VoxelGiRenderer : AutoDisposable
 {
@@ -140,11 +141,11 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly float _baseVoxelSize;
 
     // Per-level attribute voxel buffers (static cached + dynamic per-frame) and
-    // one radiance buffer shared by all levels (each level's mip chain occupies
-    // an equal stride; see VoxelRadianceLevelStride in VoxelCommon.hlsli).
+    // one radiance Texture3D shared by all levels (each level's mip cube is
+    // stacked along the texture depth axis).
     private readonly GraphicsBuffer[] _attrStatic = new GraphicsBuffer[LevelCount];
     private readonly GraphicsBuffer[] _attrDynamic = new GraphicsBuffer[LevelCount];
-    private readonly GraphicsBuffer _radiance;
+    private readonly Texture3D _radiance;
 
     private readonly Vector4[] _levelOrigins = new Vector4[LevelCount];
     private readonly bool[] _staticDirty = new bool[LevelCount];
@@ -218,17 +219,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _mipMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
 
-        // Attribute voxel: uint2 (albedo+occupancy, normal+emissive) per voxel.
-        // Radiance voxel: uint2 (RGB9E5 radiance, occupancy) per voxel per mip;
-        // every level's mip chain gets an equal stride in the shared buffer.
+        // Attribute voxel: uint2 (albedo+occupancy, normal+emissive) per voxel,
+        // one storage buffer per level.
         uint attrBytes = (uint)(resolution * resolution * resolution * 8);
-        uint radianceVoxels = 0;
-        for (int mip = 0; mip < _mipCount; mip++)
-        {
-            uint size = (uint)Math.Max(resolution >> mip, 1);
-            radianceVoxels += size * size * size;
-        }
-        uint radianceBytes = radianceVoxels * 8 * LevelCount;
 
         for (int level = 0; level < LevelCount; level++)
         {
@@ -238,11 +231,15 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _attrStatic[level] = new GraphicsBuffer(rendering, attrBytes, $"voxel_attr_static_{level}");
             _attrDynamic[level] = new GraphicsBuffer(rendering, attrBytes, $"voxel_attr_dynamic_{level}");
         }
-        _radiance = new GraphicsBuffer(rendering, radianceBytes, "voxel_radiance");
 
-        _injectMaterial.SetBuffer("_radianceOut", _radiance);
-        _mipMaterial.SetBuffer("_radiance", _radiance);
-        _traceMaterial.SetBuffer("_radiance", _radiance);
+        // Radiance: one RGBA16Float Texture3D with a full mip chain; all levels
+        // are stacked along the depth axis (resolution^3 per level per mip),
+        // sampled with hardware trilinear filtering by the cone tracing pass.
+        _radiance = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+            PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance");
+
+        _injectMaterial.SetTexture3DStorage("_radianceOut", _radiance, 0);
+        _traceMaterial.SetTexture("_radiance", _radiance);
 
         _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
         _traceMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
@@ -445,12 +442,16 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 _injectMaterial.DispatchBySizeWithConstant(computePass, resolution, resolution, resolution, new Vector4(level, 0, 0, 0));
             }
 
-            // Radiance mip chains.
-            for (int level = 0; level < LevelCount; level++)
+            // Radiance mip chains. Each transition reads mip N and writes mip N+1
+            // through single-mip views: the non-overlapping subresource ranges of
+            // the two views avoid the read/write usage conflict within one dispatch.
+            for (int mip = 0; mip < _mipCount - 1; mip++)
             {
-                for (int mip = 0; mip < _mipCount - 1; mip++)
+                _mipMaterial.SetTexture3DRead("_radianceLoad", _radiance, (uint)mip);
+                _mipMaterial.SetTexture3DStorage("_radianceOut", _radiance, (uint)(mip + 1));
+                uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
+                for (int level = 0; level < LevelCount; level++)
                 {
-                    uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
                     _mipMaterial.DispatchBySizeWithConstant(computePass, dstResolution, dstResolution, dstResolution, new Vector4(mip, level, 0, 0));
                 }
             }

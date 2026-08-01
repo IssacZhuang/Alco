@@ -105,9 +105,6 @@ public class Game : GameEngine
     private readonly float[] _cascadeSplits = new float[PBRDeferredPipeline.ShadowCascadeCount];
     private readonly float[] _cascadeTexelSizes = new float[PBRDeferredPipeline.ShadowCascadeCount];
 
-    // Point lights (up to four).
-    private readonly PBRDeferredPipeline.PointLight[] _pointLights = new PBRDeferredPipeline.PointLight[4];
-
     // Sky.
     private Vector3 _skyTopColor = new(0.10f, 0.20f, 0.42f);
     private Vector3 _skyBottomColor = new(0.52f, 0.60f, 0.70f);
@@ -273,13 +270,6 @@ public class Game : GameEngine
             RegisterVoxelMeshes();
             _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
         }
-
-        // Point light defaults: warm, cool, mouse-follow, disabled.
-        float lightHeight = _bistro != null ? _sceneRadius * 0.05f : 2.0f;
-        _pointLights[0] = new PBRDeferredPipeline.PointLight(_sceneCenter + new Vector3(-6, -4, lightHeight), new Vector3(1.0f, 0.65f, 0.35f), 10.0f);
-        _pointLights[1] = new PBRDeferredPipeline.PointLight(_sceneCenter + new Vector3(5, 3, lightHeight), new Vector3(0.35f, 0.5f, 1.0f), 8.0f);
-        _pointLights[2] = new PBRDeferredPipeline.PointLight(Vector3.Zero, new Vector3(0.4f, 1.0f, 0.6f), 6.0f);
-        _pointLights[3] = new PBRDeferredPipeline.PointLight(_sceneCenter + new Vector3(0, 6, lightHeight), new Vector3(1.0f, 1.0f, 1.0f), 0.0f);
 
         // Bloom blits into the HDR target in OnPostUpdate, before PluginHDR's
         // tonemapped present, so boosted emissive surfaces get a natural glow.
@@ -586,19 +576,6 @@ public class Game : GameEngine
             _cascadeSplits,
             _cascadeTexelSizes);
 
-        // Point light 2 follows the mouse on the ground plane (z = 1).
-        float groundZ = _bistro != null ? _sceneCenter.Z * 0.5f : 1.0f;
-        Ray3D mouseRay = _camera.Data.ScreenPointToRay(Input.MousePosition, MainView.Size);
-        if (Math.Abs(mouseRay.Displacement.Z) > 0.001f)
-        {
-            float t = (groundZ - mouseRay.Origin.Z) / mouseRay.Displacement.Z;
-            if (t > 0)
-            {
-                Vector3 mouseWorld = mouseRay.Origin + mouseRay.Displacement * t;
-                _pointLights[2] = new PBRDeferredPipeline.PointLight(mouseWorld, new Vector3(0.4f, 1.0f, 0.6f), 6.0f);
-            }
-        }
-
         _lightingData.InvViewProjection = invViewProjection;
         _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
         _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
@@ -609,7 +586,6 @@ public class Game : GameEngine
         _lightingData.SunColorAndIntensity = new Vector4(_sunColor, _sunIntensity);
         _lightingData.SkyTopColor = new Vector4(_skyTopColor, 1.0f);
         _lightingData.SkyBottomColor = new Vector4(_skyBottomColor, 1.0f);
-        _lightingData.SetPointLights(_pointLights);
         _lightingData.Params = new Vector4(
             _shadowEnabled ? 1.0f : 0.0f,
             1.0f,
@@ -643,14 +619,6 @@ public class Game : GameEngine
             _voxelData.SunColorAndIntensity = _lightingData.SunColorAndIntensity;
             _voxelData.SkyTopColor = _lightingData.SkyTopColor;
             _voxelData.SkyBottomColor = _lightingData.SkyBottomColor;
-            _voxelData.PointLight0Position = _lightingData.PointLight0Position;
-            _voxelData.PointLight0Color = _lightingData.PointLight0Color;
-            _voxelData.PointLight1Position = _lightingData.PointLight1Position;
-            _voxelData.PointLight1Color = _lightingData.PointLight1Color;
-            _voxelData.PointLight2Position = _lightingData.PointLight2Position;
-            _voxelData.PointLight2Color = _lightingData.PointLight2Color;
-            _voxelData.PointLight3Position = _lightingData.PointLight3Position;
-            _voxelData.PointLight3Color = _lightingData.PointLight3Color;
             _voxelData.CascadeSplits = _lightingData.CascadeSplits;
             _voxelData.CascadeTexelSizes = _lightingData.CascadeTexelSizes;
             _voxelData.LightingParams = new Vector4(
@@ -1011,14 +979,6 @@ public class Game : GameEngine
             ImGui.Checkbox("Cascade Debug", ref _cascadeDebug);
             ImGui.Checkbox("Shadow Debug", ref _shadowDebug);
             ImGui.Checkbox("Sun disc", ref _sunDiscEnabled);
-        }
-
-        if (ImGui.CollapsingHeader("Point Lights"))
-        {
-            ImGui.SliderFloat("Light 0 Intensity", ref _pointLights[0].ColorAndIntensity.W, 0.0f, 30.0f);
-            ImGui.SliderFloat("Light 1 Intensity", ref _pointLights[1].ColorAndIntensity.W, 0.0f, 30.0f);
-            ImGui.SliderFloat("Light 2 Intensity", ref _pointLights[2].ColorAndIntensity.W, 0.0f, 30.0f);
-            ImGui.SliderFloat("Light 3 Intensity", ref _pointLights[3].ColorAndIntensity.W, 0.0f, 30.0f);
         }
 
         if (ImGui.CollapsingHeader("Sky"))

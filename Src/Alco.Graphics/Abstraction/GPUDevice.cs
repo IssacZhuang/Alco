@@ -185,6 +185,16 @@ public abstract class GPUDevice
     public abstract GPUBindGroup BindGroupTexture2DStorage { get; }
 
     /// <summary>
+    /// The <see cref="GPUBindGroup"/> for the sampled 3D texture, which contains a texture view and a sampler.
+    /// </summary>
+    public abstract GPUBindGroup BindGroupTexture3DSampled { get; }
+
+    /// <summary>
+    /// The <see cref="GPUBindGroup"/> for the read-only 3D texture, which contains a texture view. Can only be used in the compute shader.
+    /// </summary>
+    public abstract GPUBindGroup BindGroupTexture3DRead { get; }
+
+    /// <summary>
     /// Creates a GPU buffer with the descriptor.
     /// </summary>
     /// <param name="createInfo">The descriptor for the GPU buffer.</param>

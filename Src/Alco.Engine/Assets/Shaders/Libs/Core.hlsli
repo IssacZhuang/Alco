@@ -21,6 +21,9 @@
 #define DEFINE_TEX2D_SAMPLE(index, name) SLOT(index, 0) Texture2D name; SLOT(index, 1) SamplerState name##Sampler
 #define DEFINE_TEX2D_READ(index, name) SLOT(index, 0) Texture2D name
 #define DEFINE_TEX2D_STORAGE(index, name, type, format) SLOT(index, 0) IMAGE_FORMAT(format) RWTexture2D<type> name
+#define DEFINE_TEX3D_SAMPLE(index, name) SLOT(index, 0) Texture3D name; SLOT(index, 1) SamplerState name##Sampler
+#define DEFINE_TEX3D_READ(index, name) SLOT(index, 0) Texture3D name
+#define DEFINE_TEX3D_STORAGE(index, name, type, format) SLOT(index, 0) IMAGE_FORMAT(format) RWTexture3D<type> name
 
 // Depth textures. DXC cannot mark a texture as a depth image in SPIR-V, so textures
 // declared with these macros are rewritten to depth images after compilation
@@ -33,6 +36,10 @@
 
 #define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
 #define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
+// Hardware trilinear sampling of a 3D texture at an explicit mip level (paired by DEFINE_TEX3D_SAMPLE).
+#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
+// Exact texel fetch of a 3D texture at an explicit mip level (paired by DEFINE_TEX3D_READ).
+#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
 // Hardware depth comparison sampling (comparison sampler paired by DEFINE_TEX2D_DEPTH_SAMPLE):
 // returns 1.0 when compareDepth <= texel depth (lit), 0.0 otherwise, filtered by the sampler.
 #define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)

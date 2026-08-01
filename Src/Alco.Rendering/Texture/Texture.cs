@@ -43,6 +43,24 @@ public abstract class Texture : AutoDisposable
 
     public GPUTexture NativeTexture => _texture;
 
+    /// <summary>
+    /// The resource group containing the texture view and the sampler, for
+    /// texture-and-sampler shader bind groups.
+    /// </summary>
+    public abstract GPUResourceGroup EntrySample { get; }
+
+    /// <summary>
+    /// The resource group containing only the texture view, for read-only texture
+    /// shader bind groups.
+    /// </summary>
+    public abstract GPUResourceGroup EntryReadonly { get; }
+
+    /// <summary>
+    /// The resource group containing only the texture view, for storage texture
+    /// shader bind groups.
+    /// </summary>
+    public abstract GPUResourceGroup EntryWriteable { get; }
+
     internal Texture(
         GPUDevice device,
         GPUTexture texture,

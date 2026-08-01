@@ -4,8 +4,8 @@
 // Direct lighting injection for the voxel GI clipmap: one dispatch per clipmap
 // level at (resolution, resolution, resolution). Reads the voxelized attribute
 // buffers (dynamic wins over static), evaluates sun (CSM shadowed), an upward
-// sky-visibility march, the four point lights and emissive, and writes packed
-// HDR radiance + occupancy into mip 0 of the level's radiance buffer.
+// sky-visibility march, the four point lights and emissive, and writes HDR
+// radiance + occupancy into mip 0 of the level's slab of the radiance Texture3D.
 
 struct VoxelInjectConstants
 {
@@ -14,7 +14,7 @@ struct VoxelInjectConstants
 
 DEFINE_STORAGE(1, uint2, _attrStatic);
 DEFINE_STORAGE(2, uint2, _attrDynamic);
-DEFINE_STORAGE(3, uint2, _radianceOut);
+DEFINE_TEX3D_STORAGE(3, _radianceOut, float4, "rgba16f");
 DEFINE_TEX2D_DEPTH_SAMPLE(4, _shadowMap);
 
 PUSH_CONSTANT VoxelInjectConstants constants;
@@ -98,8 +98,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 originAndSize = levelOrigins[level];
     float voxelSize = originAndSize.w;
     uint attrIndex = VoxelIndex(dispatchId, resolution);
-    // All levels share the radiance buffer; this level's mip chain starts at its stride.
-    uint radianceIndex = (uint)level * VoxelRadianceLevelStride(resolution, (uint)clipmapParams.z) + attrIndex;
+    // All levels share one radiance Texture3D; this level's slab starts at its
+    // depth slice (mip 0 view bound, full resolution).
+    uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, (uint)level * resolution + dispatchId.z);
 
     uint2 attr = _attrDynamic[attrIndex];
     if (!VoxelAttrOccupied(attr))
@@ -108,7 +109,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     }
     if (!VoxelAttrOccupied(attr))
     {
-        _radianceOut[radianceIndex] = uint2(0u, 0u);
+        _radianceOut[storeCoord] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -157,5 +158,5 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 emissive = albedo * emissiveQ * 8.0 * giParams.x;
 
     float3 radiance = albedo * direct + emissive;
-    _radianceOut[radianceIndex] = PackVoxelRadiance(radiance, 1.0);
+    _radianceOut[storeCoord] = float4(radiance, 1.0);
 }

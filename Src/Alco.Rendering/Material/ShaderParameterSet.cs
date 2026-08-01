@@ -26,7 +26,7 @@ public sealed class ShaderParameterSet
     {
         public ResourceType type;
         public GraphicsBuffer? buffer;
-        public Texture2D? texture;
+        public Texture? texture;
         public RenderTexture? renderTexture;
         public int renderTextureIndex;
     }
@@ -271,7 +271,7 @@ public sealed class ShaderParameterSet
     /// <param name="name">The shader resource name of the resource.</param>
     /// <param name="texture">The texture to set.</param>
     /// <returns>Whether the texture is set successfully.</returns>
-    public bool TrySetTexture(string name, Texture2D texture)
+    public bool TrySetTexture(string name, Texture texture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
         {
@@ -287,7 +287,7 @@ public sealed class ShaderParameterSet
     /// <param name="id">The shader resource ID of the resource.</param>
     /// <param name="texture">The texture to set.</param>
     /// <returns>Whether the texture is set successfully.</returns>
-    public bool TrySetTexture(uint id, Texture2D texture)
+    public bool TrySetTexture(uint id, Texture texture)
     {
         if (id < 0 || id >= _slots.Length)
         {
@@ -322,7 +322,7 @@ public sealed class ShaderParameterSet
     /// </summary>
     /// <param name="name">The shader resource name of the resource.</param>
     /// <param name="texture">The texture to set.</param>
-    public void SetTexture(string name, Texture2D texture)
+    public void SetTexture(string name, Texture texture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
         {
@@ -332,7 +332,7 @@ public sealed class ShaderParameterSet
         SetTexture(id, texture);
     }
 
-    public void SetTexture(uint id, Texture2D texture)
+    public void SetTexture(uint id, Texture texture)
     {
         if (id < 0 || id >= _slots.Length)
         {
@@ -360,6 +360,94 @@ public sealed class ShaderParameterSet
             throw new InvalidOperationException($"The bind group {id} is not for a texture but {slot.type}.");
         }
 
+    }
+
+    /// <summary>
+    /// Set the storage resource group of a single mip level of a 3D texture to a
+    /// storage texture slot.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="texture">The 3D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
+    public void SetTexture3DStorage(string name, Texture3D texture, uint mipLevel)
+    {
+        if (!_reflectionInfo.TryGetResourceId(name, out uint id))
+        {
+            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+        }
+
+        SetTexture3DStorage(id, texture, mipLevel);
+    }
+
+    /// <summary>
+    /// Set the storage resource group of a single mip level of a 3D texture to a
+    /// storage texture slot.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="texture">The 3D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
+    /// <exception cref="ArgumentOutOfRangeException">The resource ID is out of range.</exception>
+    /// <exception cref="InvalidOperationException">The slot is not a storage texture slot.</exception>
+    public void SetTexture3DStorage(uint id, Texture3D texture, uint mipLevel)
+    {
+        if (id < 0 || id >= _slots.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(id), "The resource ID is out of range.");
+        }
+
+        ref Slot slot = ref _slots[id];
+        if (slot.type != ResourceType.TextureStorage)
+        {
+            throw new InvalidOperationException($"The bind group {id} is not for a storage texture but {slot.type}.");
+        }
+
+        slot.texture = texture;
+        _resourceGroups[id] = texture.EntryStorage(mipLevel);
+    }
+
+    /// <summary>
+    /// Set the read-only resource group of a single mip level of a 3D texture to a
+    /// read-only texture slot. Inside the bound view the mip is rebased to mip 0, so
+    /// shaders load it with mip index 0.
+    /// </summary>
+    /// <param name="name">The shader resource name of the resource.</param>
+    /// <param name="texture">The 3D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
+    public void SetTexture3DRead(string name, Texture3D texture, uint mipLevel)
+    {
+        if (!_reflectionInfo.TryGetResourceId(name, out uint id))
+        {
+            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+        }
+
+        SetTexture3DRead(id, texture, mipLevel);
+    }
+
+    /// <summary>
+    /// Set the read-only resource group of a single mip level of a 3D texture to a
+    /// read-only texture slot. Inside the bound view the mip is rebased to mip 0, so
+    /// shaders load it with mip index 0.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="texture">The 3D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
+    /// <exception cref="ArgumentOutOfRangeException">The resource ID is out of range.</exception>
+    /// <exception cref="InvalidOperationException">The slot is not a read-only texture slot.</exception>
+    public void SetTexture3DRead(uint id, Texture3D texture, uint mipLevel)
+    {
+        if (id < 0 || id >= _slots.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(id), "The resource ID is out of range.");
+        }
+
+        ref Slot slot = ref _slots[id];
+        if (slot.type != ResourceType.TextureRead)
+        {
+            throw new InvalidOperationException($"The bind group {id} is not for a read-only texture but {slot.type}.");
+        }
+
+        slot.texture = texture;
+        _resourceGroups[id] = texture.EntryReadonlyMip(mipLevel);
     }
 
     #endregion
@@ -394,7 +482,7 @@ public sealed class ShaderParameterSet
         ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
-            texture = slot.texture;
+            texture = slot.texture as Texture2D;
             return texture != null;
         }
 
@@ -432,7 +520,7 @@ public sealed class ShaderParameterSet
         ref Slot slot = ref _slots[id];
         if (slot.type == ResourceType.TextureWithSampler || slot.type == ResourceType.TextureStorage || slot.type == ResourceType.TextureRead)
         {
-            return slot.texture;
+            return slot.texture as Texture2D;
         }
 
         return null;

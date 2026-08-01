@@ -5,12 +5,13 @@
 //
 // The scene is stored in a clipmap of up to 4 voxel levels, each a cube of
 // resolution^3 voxels at twice the voxel size of the previous level, centered
-// on the camera. Attribute voxels are packed into uint2:
+// on the camera. Attribute voxels are packed into uint2 in storage buffers:
 //   x = albedo rgb888 + occupancy (a; 0 = empty)
 //   y = normal (rgb888, *0.5+0.5 encoded) + emissive intensity (a, 0..1)
-// Radiance voxels (with a mip chain) are packed into uint2:
-//   x = RGB9E5 shared-exponent HDR radiance
-//   y = occupancy fraction (low byte, 0..255)
+// Radiance (HDR, half float) lives in one RGBA16Float Texture3D with a full
+// mip chain: all levels are stacked along the w axis, each level's mip cube
+// occupying 1/VOXEL_MAX_LEVELS of the texture depth at every mip; alpha holds
+// the occupancy fraction.
 
 #define VOXEL_MAX_LEVELS 4
 
@@ -74,40 +75,6 @@ void UnpackVoxelAttr(uint2 attr, out float3 albedo, out float3 normal, out float
     emissiveQ = (float)(attr.y >> 24) / 255.0;
 }
 
-// RGB9E5 shared-exponent HDR packing (3 x 9-bit mantissa, 5-bit biased exponent).
-uint PackRGB9E5(float3 rgb)
-{
-    rgb = clamp(rgb, 0.0, 65000.0);
-    float maxComponent = max(rgb.r, max(rgb.g, rgb.b));
-    int exponent = (int)ceil(log2(max(maxComponent, 0.000061)));
-    exponent = clamp(exponent, -15, 15);
-    float scale = exp2((float)(9 - exponent));
-    uint r = (uint)floor(rgb.r * scale + 0.5);
-    uint g = (uint)floor(rgb.g * scale + 0.5);
-    uint b = (uint)floor(rgb.b * scale + 0.5);
-    return ((uint)(exponent + 15) << 27) | (min(b, 511u) << 18) | (min(g, 511u) << 9) | min(r, 511u);
-}
-
-float3 UnpackRGB9E5(uint v)
-{
-    int exponent = (int)(v >> 27) - 15 - 9;
-    float scale = exp2((float)exponent);
-    return float3((float)(v & 511u), (float)((v >> 9) & 511u), (float)((v >> 18) & 511u)) * scale;
-}
-
-uint2 PackVoxelRadiance(float3 radiance, float occupancy)
-{
-    uint2 packed;
-    packed.x = PackRGB9E5(radiance);
-    packed.y = (uint)(saturate(occupancy) * 255.0 + 0.5);
-    return packed;
-}
-
-float4 UnpackVoxelRadiance(uint2 packed)
-{
-    return float4(UnpackRGB9E5(packed.x), (float)(packed.y & 255u) / 255.0);
-}
-
 // ------------------------------------------------------------- addressing ---
 
 uint VoxelResolution()
@@ -120,24 +87,24 @@ uint VoxelIndex(uint3 coord, uint resolution)
     return coord.x + coord.y * resolution + coord.z * resolution * resolution;
 }
 
-// Mip levels halve the resolution each step down to 1; the chain is stored
-// back to back in the same buffer as mip 0.
-uint VoxelMipOffset(uint resolution, uint mip)
+// Normalized texture coordinates of a world position inside a clipmap level's
+// slab of the shared radiance Texture3D (all levels stacked along w, each
+// occupying 1/VOXEL_MAX_LEVELS of the depth at every mip). The coordinates are
+// clamped to a half-texel inset of the coarsest sampled mip so hardware
+// trilinear taps never bleed across slab boundaries.
+float3 VoxelWorldToUVW(float3 position, int level, float mip)
 {
-    uint offset = 0;
-    for (uint k = 0; k < mip; k++)
-    {
-        uint size = max(resolution >> k, 1u);
-        offset += size * size * size;
-    }
-    return offset;
-}
+    uint resolution = VoxelResolution();
+    float4 originAndSize = levelOrigins[level];
 
-// All clipmap levels share one radiance buffer: each level's mip chain occupies
-// an equal stride (the total mip-chain voxel count of one level).
-uint VoxelRadianceLevelStride(uint resolution, uint mipCount)
-{
-    return VoxelMipOffset(resolution, mipCount);
+    // Position normalized to the level cube (mip independent).
+    float extent = originAndSize.w * clipmapParams.x;
+    float3 p = (position - originAndSize.xyz) / extent;
+
+    uint sizeMip = max(resolution >> (uint)ceil(mip), 1u);
+    float inset = 0.5 / (float)sizeMip;
+    p = clamp(p, inset, 1.0 - inset);
+    return float3(p.xy, (level + p.z) * (1.0 / VOXEL_MAX_LEVELS));
 }
 
 // ----------------------------------------------------------------- levels ---

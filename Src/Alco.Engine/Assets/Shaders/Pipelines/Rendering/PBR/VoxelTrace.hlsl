@@ -9,56 +9,25 @@
 // (twice the trace width: diffuse in the left half, specular in the right).
 // Cones that leave every clipmap region fall back to the sky gradient.
 
-DEFINE_STORAGE(1, uint2, _radiance);
+DEFINE_TEX3D_SAMPLE(1, _radiance);
 DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
 DEFINE_TEX2D_READ(3, _normal);
 DEFINE_TEX2D_READ(4, _mrAO);
 DEFINE_TEX2D_STORAGE(5, _indirectGI, float4, "rgba16f");
 
-// All clipmap levels share one radiance buffer (see VoxelRadianceLevelStride).
-uint2 LoadRadiance(int level, uint index)
+// Hardware trilinear sample of the radiance volume at a (fractional) mip;
+// rgb = radiance, a = occupancy. All levels share the one Texture3D, stacked
+// along the w axis.
+float4 SampleRadiance(float3 position, int level, float mip)
 {
-    return _radiance[(uint)level * VoxelRadianceLevelStride(VoxelResolution(), (uint)clipmapParams.z) + index];
-}
-
-// Trilinear sample of the radiance volume at a mip; rgb = radiance, a = occupancy.
-float4 SampleRadianceTrilinear(float3 position, int level, uint mip)
-{
-    uint resolution = VoxelResolution();
-    float4 originAndSize = levelOrigins[level];
-    float voxelSizeMip = originAndSize.w * (float)(1u << mip);
-    uint sizeMip = max(resolution >> mip, 1u);
-
-    float3 grid = (position - originAndSize.xyz) / voxelSizeMip - 0.5;
-    grid = clamp(grid, 0.0, (float)sizeMip - 1.001);
-    uint3 i0 = (uint3)floor(grid);
-    uint3 i1 = min(i0 + 1, sizeMip - 1);
-    float3 f = grid - floor(grid);
-
-    uint base = VoxelMipOffset(resolution, mip);
-    float4 c000 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i0.x, i0.y, i0.z), sizeMip)));
-    float4 c001 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i0.x, i0.y, i1.z), sizeMip)));
-    float4 c010 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i0.x, i1.y, i0.z), sizeMip)));
-    float4 c011 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i0.x, i1.y, i1.z), sizeMip)));
-    float4 c100 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i1.x, i0.y, i0.z), sizeMip)));
-    float4 c101 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i1.x, i0.y, i1.z), sizeMip)));
-    float4 c110 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i1.x, i1.y, i0.z), sizeMip)));
-    float4 c111 = UnpackVoxelRadiance(LoadRadiance(level, base + VoxelIndex(uint3(i1.x, i1.y, i1.z), sizeMip)));
-
-    float4 x00 = lerp(c000, c100, f.x);
-    float4 x01 = lerp(c001, c101, f.x);
-    float4 x10 = lerp(c010, c110, f.x);
-    float4 x11 = lerp(c011, c111, f.x);
-    float4 y0 = lerp(x00, x10, f.y);
-    float4 y1 = lerp(x01, x11, f.y);
-    return lerp(y0, y1, f.z);
+    return SAMPLE_TEX3D_LEVEL(_radiance, VoxelWorldToUVW(position, level, mip), mip);
 }
 
 // March one cone through the clipmap, accumulating radiance front-to-back.
 // Returns rgb = gathered radiance (with sky fallback), a = accumulated occlusion.
 float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, float maxDistance)
 {
-    uint mipCount = (uint)clipmapParams.z;
+    float mipCount = clipmapParams.z;
     float fineVoxelSize = levelOrigins[0].w;
     float3 color = 0.0;
     float alpha = 0.0;
@@ -75,8 +44,9 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
 
         float voxelSize = levelOrigins[level].w;
         float diameter = max(2.0 * t * apertureTan, voxelSize);
-        uint mip = clamp((uint)floor(log2(diameter / voxelSize)), 0u, mipCount - 1u);
-        float4 sample_ = SampleRadianceTrilinear(position, level, mip);
+        // Fractional mip: the sampler blends the neighboring mip levels.
+        float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
+        float4 sample_ = SampleRadiance(position, level, mip);
 
         color += (1.0 - alpha) * sample_.a * sample_.rgb;
         alpha += (1.0 - alpha) * sample_.a;

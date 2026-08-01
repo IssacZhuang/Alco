@@ -21,7 +21,7 @@ public sealed class Texture2D : Texture
     private GPUResourceGroup? _resourcesStorage;//todo: make it shared
 
 
-    public GPUResourceGroup EntrySample
+    public override GPUResourceGroup EntrySample
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -35,7 +35,7 @@ public sealed class Texture2D : Texture
         }
     }
 
-    public GPUResourceGroup EntryReadonly
+    public override GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -49,7 +49,7 @@ public sealed class Texture2D : Texture
         }
     }
 
-    public GPUResourceGroup EntryWriteable
+    public override GPUResourceGroup EntryWriteable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get

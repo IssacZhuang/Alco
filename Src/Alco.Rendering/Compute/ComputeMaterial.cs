@@ -260,7 +260,7 @@ public class ComputeMaterial
     /// <param name="texture">The texture to set.</param>
     /// <returns>True if the texture was set successfully, otherwise false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TrySetTexture(string name, Texture2D texture)
+    public bool TrySetTexture(string name, Texture texture)
     {
         return _parameterSet.TrySetTexture(name, texture);
     }
@@ -272,7 +272,7 @@ public class ComputeMaterial
     /// <param name="texture">The texture to set.</param>
     /// <returns>True if the texture was set successfully, otherwise false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TrySetTexture(uint id, Texture2D texture)
+    public bool TrySetTexture(uint id, Texture texture)
 
     {
         return _parameterSet.TrySetTexture(id, texture);
@@ -284,7 +284,7 @@ public class ComputeMaterial
     /// <param name="name">The shader resource name of the texture.</param>
     /// <param name="texture">The texture to set.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetTexture(string name, Texture2D texture)
+    public void SetTexture(string name, Texture texture)
     {
         _parameterSet.SetTexture(name, texture);
     }
@@ -295,9 +295,36 @@ public class ComputeMaterial
     /// <param name="id">The index of the texture.</param>
     /// <param name="texture">The texture to set.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetTexture(uint id, Texture2D texture)
+    public void SetTexture(uint id, Texture texture)
     {
         _parameterSet.SetTexture(id, texture);
+    }
+
+    /// <summary>
+    /// Sets the storage resource group of a single mip level of a 3D texture to a
+    /// storage texture slot by name.
+    /// </summary>
+    /// <param name="name">The shader resource name of the storage texture.</param>
+    /// <param name="texture">The 3D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetTexture3DStorage(string name, Texture3D texture, uint mipLevel)
+    {
+        _parameterSet.SetTexture3DStorage(name, texture, mipLevel);
+    }
+
+    /// <summary>
+    /// Sets the read-only resource group of a single mip level of a 3D texture to a
+    /// read-only texture slot by name. Inside the bound view the mip is rebased to
+    /// mip 0, so shaders load it with mip index 0.
+    /// </summary>
+    /// <param name="name">The shader resource name of the read-only texture.</param>
+    /// <param name="texture">The 3D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetTexture3DRead(string name, Texture3D texture, uint mipLevel)
+    {
+        _parameterSet.SetTexture3DRead(name, texture, mipLevel);
     }
 
 

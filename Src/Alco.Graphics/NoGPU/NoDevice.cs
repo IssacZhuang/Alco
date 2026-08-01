@@ -59,6 +59,10 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupTexture2DStorage {get;}
 
+    public override GPUBindGroup BindGroupTexture3DSampled {get;}
+
+    public override GPUBindGroup BindGroupTexture3DRead {get;}
+
     public override PixelFormat PreferredSurfaceFormat {get;}
 
     public override bool TextureCompressBC3Supported => false;
@@ -112,6 +116,25 @@ internal class NoDevice : GPUDevice
             {
                 new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
                 new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        BindGroupTexture3DSampled = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture_3d",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        BindGroupTexture3DRead = CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "default_bind_group_texture_3d_read",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
             },
         });
 
