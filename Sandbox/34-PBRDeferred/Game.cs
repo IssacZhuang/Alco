@@ -26,7 +26,7 @@ using SandboxUtils;
 /// <br/>Controls: in fly mode hold the right mouse button to look around,
 /// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -185,6 +185,18 @@ public class Game : GameEngine
         {
             _timeSpeed = timeSpeed;
         }
+        if (float.TryParse(GetArgValue(args, "--sky-exposure="), out float skyExposure))
+        {
+            _skyExposure = skyExposure;
+        }
+        if (float.TryParse(GetArgValue(args, "--gi-diffuse="), out float giDiffuse))
+        {
+            _giDiffuseStrength = giDiffuse;
+        }
+        if (float.TryParse(GetArgValue(args, "--gi-specular="), out float giSpecular))
+        {
+            _giSpecularStrength = giSpecular;
+        }
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
         bool interior = args.Contains("--interior");
@@ -291,7 +303,18 @@ public class Game : GameEngine
 
         // Bloom blits into the HDR target in OnPostUpdate, before PluginHDR's
         // tonemapped present, so boosted emissive surfaces get a natural glow.
-        _bloom = new BloomSystem(this, MainRenderTarget) { Threshold = 2.0f, Intensity = 1.0f };
+        float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
+            ? parsedBloomThreshold
+            : 2.0f;
+        float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
+            ? parsedBloomIntensity
+            : 1.0f;
+        _bloom = new BloomSystem(this, MainRenderTarget)
+        {
+            IsEnabled = !args.Contains("--no-bloom"),
+            Threshold = bloomThreshold,
+            Intensity = bloomIntensity,
+        };
         AddSystem(_bloom);
 
         MainView.OnResize += OnMainWindowResize;
@@ -649,8 +672,17 @@ public class Game : GameEngine
             _voxelData.CameraPosition = _lightingData.CameraPosition;
             _voxelData.SunDirection = _lightingData.SunDirection;
             _voxelData.SunColorAndIntensity = _lightingData.SunColorAndIntensity;
-            _voxelData.SkyParams = _lightingData.SkyParams;
-            _voxelData.SkyParams2 = _lightingData.SkyParams2;
+            ProceduralSkyUtility.GetSkyRadianceGradient(
+                directionToSun,
+                _rayleighScale,
+                _mieScale,
+                _skyExposure,
+                _nightFloor,
+                _sunRadianceScale,
+                out Vector3 skyHorizonColor,
+                out Vector3 skyZenithColor);
+            _voxelData.SkyHorizonColor = new Vector4(skyHorizonColor, 0.0f);
+            _voxelData.SkyZenithColor = new Vector4(skyZenithColor, 0.0f);
             _voxelData.CascadeSplits = _lightingData.CascadeSplits;
             _voxelData.CascadeTexelSizes = _lightingData.CascadeTexelSizes;
             _voxelData.LightingParams = new Vector4(

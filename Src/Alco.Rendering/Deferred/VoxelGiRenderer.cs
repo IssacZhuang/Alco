@@ -56,10 +56,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 SunDirection;
         /// <summary>Sun linear color (rgb) and intensity (w).</summary>
         public Vector4 SunColorAndIntensity;
-        /// <summary>Atmosphere parameters: x=rayleighScale, y=mieScale, z=miePhaseG, w=exposure (see Atmosphere.hlsli).</summary>
-        public Vector4 SkyParams;
-        /// <summary>Atmosphere parameters: x=starIntensity, y=nightFloor, z=sunRadianceScale, w=unused.</summary>
-        public Vector4 SkyParams2;
+        /// <summary>Azimuthally filtered physical-sky radiance at the horizon.</summary>
+        public Vector4 SkyHorizonColor;
+        /// <summary>Physical-sky radiance at the zenith.</summary>
+        public Vector4 SkyZenithColor;
         /// <summary>Point light 0 position (w unused).</summary>
         public Vector4 PointLight0Position;
         /// <summary>Point light 0 color (rgb) and intensity (w). Zero intensity disables the light.</summary>

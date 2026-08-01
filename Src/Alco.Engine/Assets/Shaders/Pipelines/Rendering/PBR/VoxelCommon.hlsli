@@ -12,8 +12,6 @@
 // occupying 1/VOXEL_MAX_LEVELS of the texture depth at every mip; alpha holds
 // the occupancy fraction.
 
-#include "Shaders/Libs/Atmosphere.hlsli"
-
 #define VOXEL_MAX_LEVELS 4
 
 DEFINE_UNIFORM(0, _data)
@@ -24,9 +22,8 @@ DEFINE_UNIFORM(0, _data)
     float4 cameraPosition;         // xyz = world-space camera position
     float4 sunDirection;           // normalized direction the sun light travels
     float4 sunColorAndIntensity;   // rgb + intensity
-    // Atmosphere parameters, see Shaders/Libs/Atmosphere.hlsli.
-    float4 skyParams;              // x=rayleighScale y=mieScale z=miePhaseG w=exposure
-    float4 skyParams2;             // x=starIntensity y=nightFloor z=sunRadianceScale w=unused
+    float4 skyHorizonColor;        // low-frequency physical sky for voxel GI
+    float4 skyZenithColor;
     float4 pointLight0Position;
     float4 pointLight0Color;       // rgb + intensity
     float4 pointLight1Position;
@@ -134,10 +131,12 @@ int VoxelFindLevel(float3 position)
     return -1;
 }
 
-// Physically-based sky radiance (no sun disc, no stars), matching the
-// deferred lighting sky. Uses a low sample count: cone tracing evaluates it
-// once per cone per pixel.
+// The physical atmosphere contains more angular detail than six voxel cones
+// can sample without aliasing against normal maps. The CPU evaluates and
+// azimuthally prefilters the current atmosphere into this smooth two-color
+// representation; the visible sky and direct sun retain their full detail.
 float3 VoxelSkyColor(float3 direction)
 {
-    return AtmosphereSkyRadiance(direction, normalize(-sunDirection.xyz), skyParams, skyParams2, 8, 4);
+    float zenithWeight = pow(saturate(direction.z), 0.6);
+    return lerp(skyHorizonColor.rgb, skyZenithColor.rgb, zenithWeight);
 }

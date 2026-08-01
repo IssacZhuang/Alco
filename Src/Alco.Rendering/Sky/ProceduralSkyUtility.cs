@@ -19,6 +19,10 @@ public static class ProceduralSkyUtility
     private const float ViewHeightKm = 0.2f;
     private static readonly Vector3 BetaRayleigh = new(5.5e-3f, 13.0e-3f, 22.4e-3f); // 1/km
     private const float BetaMie = 21.0e-3f; // 1/km (extinction is 1.1x)
+    private const int SkyViewSampleCount = 8;
+    private const int SkySunSampleCount = 4;
+    private const int HorizonDirectionCount = 8;
+    private const float HorizonElevation = 0.15f;
     // Ozone absorption (Chappuis bands), sharing the rayleigh density integral.
     private static readonly Vector3 BetaOzone = new(0.650e-3f, 1.881e-3f, 0.085e-3f); // 1/km
 
@@ -54,29 +58,67 @@ public static class ProceduralSkyUtility
     public static Vector3 GetSunColor(Vector3 directionToSun)
     {
         Vector3 origin = new(0.0f, 0.0f, EarthRadiusKm + ViewHeightKm);
-        if (RayHitsSphere(origin, directionToSun, EarthRadiusKm))
+        if (!TryGetAtmosphereDensityIntegral(origin, directionToSun, 12, out Vector2 density))
         {
             return Vector3.Zero;
         }
 
-        // March to the top of the atmosphere accumulating the density integral.
-        const int sampleCount = 12;
-        float tEnd = RayExitDistance(origin, directionToSun, AtmosphereRadiusKm);
-        float dt = tEnd / sampleCount;
-        float rayleighDensity = 0.0f;
-        float mieDensity = 0.0f;
-        for (int i = 0; i < sampleCount; i++)
-        {
-            Vector3 p = origin + directionToSun * ((i + 0.5f) * dt);
-            float height = p.Length() - EarthRadiusKm;
-            rayleighDensity += MathF.Exp(-height / RayleighScaleHeightKm) * dt;
-            mieDensity += MathF.Exp(-height / MieScaleHeightKm) * dt;
-        }
-
-        Vector3 tau = BetaRayleigh * rayleighDensity
-            + new Vector3(BetaMie * 1.1f * mieDensity)
-            + BetaOzone * rayleighDensity;
+        Vector3 tau = BetaRayleigh * density.X
+            + new Vector3(BetaMie * 1.1f * density.Y)
+            + BetaOzone * density.X;
         return new Vector3(MathF.Exp(-tau.X), MathF.Exp(-tau.Y), MathF.Exp(-tau.Z));
+    }
+
+    /// <summary>
+    /// Evaluates an azimuthally filtered, low-frequency representation of the
+    /// current physical sky for sparse environment-lighting techniques such as
+    /// voxel cone tracing. The visible sky remains unfiltered.
+    /// </summary>
+    /// <param name="directionToSun">Normalized direction toward the sun.</param>
+    /// <param name="rayleighScale">Rayleigh density multiplier.</param>
+    /// <param name="mieScale">Mie density multiplier.</param>
+    /// <param name="exposure">Linear sky exposure multiplier.</param>
+    /// <param name="nightFloor">Minimum night-sky radiance.</param>
+    /// <param name="sunRadianceScale">Solar radiance driving atmospheric scattering.</param>
+    /// <param name="horizonColor">Receives the azimuthally averaged near-horizon radiance.</param>
+    /// <param name="zenithColor">Receives the zenith radiance.</param>
+    public static void GetSkyRadianceGradient(
+        Vector3 directionToSun,
+        float rayleighScale,
+        float mieScale,
+        float exposure,
+        float nightFloor,
+        float sunRadianceScale,
+        out Vector3 horizonColor,
+        out Vector3 zenithColor)
+    {
+        float horizontalScale = MathF.Sqrt(1.0f - HorizonElevation * HorizonElevation);
+        horizonColor = Vector3.Zero;
+        for (int i = 0; i < HorizonDirectionCount; i++)
+        {
+            float azimuth = i * MathF.Tau / HorizonDirectionCount;
+            Vector3 direction = new(
+                MathF.Cos(azimuth) * horizontalScale,
+                MathF.Sin(azimuth) * horizontalScale,
+                HorizonElevation);
+            horizonColor += GetSkyRadiance(
+                direction,
+                directionToSun,
+                rayleighScale,
+                mieScale,
+                exposure,
+                nightFloor,
+                sunRadianceScale);
+        }
+        horizonColor /= HorizonDirectionCount;
+        zenithColor = GetSkyRadiance(
+            Vector3.UnitZ,
+            directionToSun,
+            rayleighScale,
+            mieScale,
+            exposure,
+            nightFloor,
+            sunRadianceScale);
     }
 
     /// <summary>
@@ -85,6 +127,7 @@ public static class ProceduralSkyUtility
     /// lighting does not linger once the disc has set.
     /// </summary>
     /// <param name="directionToSun">Normalized direction toward the sun.</param>
+    /// <returns>The direct-sun intensity multiplier.</returns>
     public static float GetSunLightScale(Vector3 directionToSun)
     {
         float t = Math.Clamp((directionToSun.Z + 0.04f) / 0.045f, 0.0f, 1.0f);
@@ -104,5 +147,92 @@ public static class ProceduralSkyUtility
         float b = Vector3.Dot(origin, dir);
         float c = origin.LengthSquared() - radius * radius;
         return -b + MathF.Sqrt(b * b - c);
+    }
+
+    private static Vector3 GetSkyRadiance(
+        Vector3 rayDirection,
+        Vector3 directionToSun,
+        float rayleighScale,
+        float mieScale,
+        float exposure,
+        float nightFloor,
+        float sunRadianceScale)
+    {
+        Vector3 origin = new(0.0f, 0.0f, EarthRadiusKm + ViewHeightKm);
+        float rayLength = RayExitDistance(origin, rayDirection, AtmosphereRadiusKm);
+        float stepLength = rayLength / SkyViewSampleCount;
+        Vector3 betaRayleigh = BetaRayleigh * rayleighScale;
+        float betaMie = BetaMie * mieScale;
+        float cosTheta = Vector3.Dot(rayDirection, directionToSun);
+        float rayleighPhase = 3.0f / (16.0f * MathF.PI) * (1.0f + cosTheta * cosTheta);
+
+        // The direct sun is handled separately. An isotropic Mie phase removes
+        // its narrow forward peak before this sky is sampled by sparse cones.
+        float miePhase = 1.0f / (4.0f * MathF.PI);
+        Vector3 rayleighSum = Vector3.Zero;
+        Vector3 mieSum = Vector3.Zero;
+        Vector2 viewDensity = Vector2.Zero;
+        for (int i = 0; i < SkyViewSampleCount; i++)
+        {
+            Vector3 position = origin + rayDirection * ((i + 0.5f) * stepLength);
+            float height = position.Length() - EarthRadiusKm;
+            Vector2 localDensity = new(
+                MathF.Exp(-height / RayleighScaleHeightKm) * stepLength,
+                MathF.Exp(-height / MieScaleHeightKm) * stepLength);
+            viewDensity += localDensity;
+
+            if (!TryGetAtmosphereDensityIntegral(
+                position,
+                directionToSun,
+                SkySunSampleCount,
+                out Vector2 sunDensity))
+            {
+                continue;
+            }
+
+            Vector3 opticalDepth = betaRayleigh * (viewDensity.X + sunDensity.X)
+                + new Vector3(betaMie * 1.1f * (viewDensity.Y + sunDensity.Y))
+                + BetaOzone * (viewDensity.X + sunDensity.X);
+            Vector3 transmittance = Exp(-opticalDepth);
+            rayleighSum += localDensity.X * transmittance;
+            mieSum += localDensity.Y * transmittance;
+        }
+
+        Vector3 radiance = sunRadianceScale
+            * (rayleighSum * betaRayleigh * rayleighPhase + mieSum * betaMie * miePhase);
+        float daylight = Math.Clamp((directionToSun.Z + 0.08f) / 0.14f, 0.0f, 1.0f);
+        float night = 1.0f - EasingUtility.SmoothStep(daylight);
+        radiance += nightFloor * night * new Vector3(0.5f, 0.7f, 1.0f);
+        return radiance * exposure;
+    }
+
+    private static bool TryGetAtmosphereDensityIntegral(
+        Vector3 origin,
+        Vector3 direction,
+        int sampleCount,
+        out Vector2 density)
+    {
+        density = Vector2.Zero;
+        if (RayHitsSphere(origin, direction, EarthRadiusKm))
+        {
+            return false;
+        }
+
+        float rayLength = RayExitDistance(origin, direction, AtmosphereRadiusKm);
+        float stepLength = rayLength / sampleCount;
+        for (int i = 0; i < sampleCount; i++)
+        {
+            Vector3 position = origin + direction * ((i + 0.5f) * stepLength);
+            float height = position.Length() - EarthRadiusKm;
+            density += new Vector2(
+                MathF.Exp(-height / RayleighScaleHeightKm),
+                MathF.Exp(-height / MieScaleHeightKm)) * stepLength;
+        }
+        return true;
+    }
+
+    private static Vector3 Exp(Vector3 value)
+    {
+        return new Vector3(MathF.Exp(value.X), MathF.Exp(value.Y), MathF.Exp(value.Z));
     }
 }
