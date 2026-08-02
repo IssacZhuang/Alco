@@ -3,114 +3,60 @@
 
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the half-res
 // trace resolution. Reconstructs the world position and normal from the
-// G-buffer, gathers diffuse irradiance from camera-relative DDGI cascades and
-// traces one rough specular cone through the radiance clipmap. The result is
-// written into the output atlas
-// (twice the trace width: diffuse in the left half, specular in the right).
-// Cones that leave every clipmap region fall back to the sky gradient.
+// G-buffer, traces 9 diffuse cones covering the hemisphere and one specular
+// cone along the reflection vector through the radiance volume. The result
+// is written into the output atlas (twice the trace width: diffuse in the
+// left half, specular in the right). Cones that leave every clipmap region
+// fall back to the sky gradient.
 
 DEFINE_TEX3D_SAMPLE(1, _radiance);
 DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
 DEFINE_TEX2D_READ(3, _normal);
 DEFINE_TEX2D_READ(4, _mrAO);
 DEFINE_TEX2D_STORAGE(5, _indirectGI, float4, "rgba16f");
-DEFINE_TEX3D_SAMPLE(6, _ddgiIrradiance);
+DEFINE_TEX3D_SAMPLE(6, _opacity);
 DEFINE_TEX2D_READ(7, _albedo);
 
-static const uint DDGI_COEFFICIENT_COUNT = 4u;
-// Width of the cross-fade ring at a cascade's outer boundary, in probe cells.
-static const float DDGI_CASCADE_FADE_CELLS = 1.5;
+// --- Diffuse cone set -------------------------------------------------------
+// 9 directions distributed across the hemisphere (z = surface normal).
+//   1 cone at θ=0° (straight up), 4 at θ=45°, 4 at θ=75°.
+//   With ~30° half-angle (tan ≈ 0.577) the 9 cones tile the hemisphere
+//   with overlap, matching the classic SVOGI diffuse approximation.
+// Based on Crassin et al., "Interactive Indirect Illumination Using Voxel
+// Cone Tracing" (GPU Pro / GPU Gems).
+static const uint DIFFUSE_CONE_COUNT = 9u;
+static const float DIFFUSE_CONE_APERTURE = 0.57735; // tan(30°)
 
-float4 DdgiOrigin(int cascade)
+static const float3 DIFFUSE_CONE_DIRECTIONS[9] = {
+    float3( 0.00000,  0.00000,  1.00000), // θ=0°
+    float3( 0.70711,  0.00000,  0.70711), // θ=45°, φ=0°
+    float3( 0.00000,  0.70711,  0.70711), // θ=45°, φ=90°
+    float3(-0.70711,  0.00000,  0.70711), // θ=45°, φ=180°
+    float3( 0.00000, -0.70711,  0.70711), // θ=45°, φ=270°
+    float3( 0.68301,  0.68301,  0.25882), // θ=75°, φ=45°
+    float3(-0.68301,  0.68301,  0.25882), // θ=75°, φ=135°
+    float3(-0.68301, -0.68301,  0.25882), // θ=75°, φ=225°
+    float3( 0.68301, -0.68301,  0.25882), // θ=75°, φ=315°
+};
+
+// Cosine-weight for each cone (N·dir in tangent space = dir.z).
+// Concentrates energy near the normal where it matters most.
+static const float DIFFUSE_CONE_WEIGHTS[9] = {
+    1.00000,
+    0.70711, 0.70711, 0.70711, 0.70711,
+    0.25882, 0.25882, 0.25882, 0.25882,
+};
+
+// Build a world-space tangent basis from a single surface normal.
+float3x3 GetTangentBasis(float3 normal)
 {
-    return ddgiOrigins[cascade];
+    float3 up = abs(normal.z) < 0.999 ? float3(0.0, 0.0, 1.0) : float3(1.0, 0.0, 0.0);
+    float3 tangent = normalize(cross(up, normal));
+    float3 bitangent = cross(normal, tangent);
+    return float3x3(tangent, bitangent, normal);
 }
 
-float4 SampleDdgiCoefficient(float3 localProbe, int cascade, uint coefficient)
-{
-    float3 probeResolution = ddgiParams.xyz;
-    float totalDepth = probeResolution.z * DDGI_COEFFICIENT_COUNT * ddgiParams2.w;
-    float slabOffset = probeResolution.z * (coefficient + DDGI_COEFFICIENT_COUNT * cascade);
-    float3 uvw = float3(
-        (localProbe.x + 0.5) / probeResolution.x,
-        (localProbe.y + 0.5) / probeResolution.y,
-        (slabOffset + localProbe.z + 0.5) / totalDepth);
-    return SAMPLE_TEX3D_LEVEL(_ddgiIrradiance, uvw, 0.0);
-}
-
-// Samples one cascade's irradiance at a world position known to be inside it.
-// Falls back to the sky gradient while the probe data is not established yet.
-float3 SampleDdgiCascade(float3 localProbe, int cascade, float3 normal)
-{
-    float4 coefficient0 = SampleDdgiCoefficient(localProbe, cascade, 0u);
-    float4 coefficient1 = SampleDdgiCoefficient(localProbe, cascade, 1u);
-    float4 coefficient2 = SampleDdgiCoefficient(localProbe, cascade, 2u);
-    float4 coefficient3 = SampleDdgiCoefficient(localProbe, cascade, 3u);
-    if (coefficient2.a < 0.05)
-    {
-        return VoxelSkyColor(normal);
-    }
-
-    // Cosine-convolved first-order SH, divided by PI because deferred lighting
-    // applies albedo directly to this irradiance-like radiance value.
-    float3 diffuse = coefficient0.rgb * 0.886227
-        + coefficient1.rgb * (1.023327 * normal.y)
-        + coefficient2.rgb * (1.023327 * normal.z)
-        + coefficient3.rgb * (1.023327 * normal.x);
-
-    // Omnidirectional first/second hit-distance moments provide a conservative
-    // leak guard. The screen-space near-field term refines local contact later.
-    float spacing = DdgiOrigin(cascade).w;
-    float3 fractionalProbe = frac(localProbe);
-    float probeDistance = length(min(fractionalProbe, 1.0 - fractionalProbe) * spacing);
-    float meanDistance = coefficient0.a;
-    float variance = max(coefficient1.a - meanDistance * meanDistance, spacing * spacing * 0.01);
-    float delta = max(probeDistance - meanDistance, 0.0);
-    float visibility = delta > 0.0 ? variance / (variance + delta * delta) : 1.0;
-    return max(diffuse * (visibility / PI), 0.0);
-}
-
-float3 GatherDdgiDiffuse(float3 worldPosition, float3 normal)
-{
-    int selectedCascade = -1;
-    float3 localProbe = 0.0;
-    for (int cascade = 0; cascade < (int)ddgiParams2.w; cascade++)
-    {
-        float4 origin = DdgiOrigin(cascade);
-        float3 candidate = (worldPosition - origin.xyz) / origin.w;
-        if (all(candidate >= 0.0) && all(candidate <= ddgiParams.xyz - 1.0))
-        {
-            selectedCascade = cascade;
-            localProbe = candidate;
-            break;
-        }
-    }
-
-    if (selectedCascade < 0)
-    {
-        return VoxelSkyColor(normal);
-    }
-
-    float3 diffuse = SampleDdgiCascade(localProbe, selectedCascade, normal);
-
-    // The cascades are camera-relative, so surfaces slide across their outer
-    // boundaries as the camera moves. Cross-fade across the outer probe ring
-    // toward the next coarser cascade (or the sky fallback beyond the coarsest)
-    // instead of hard-switching the ambient term, which read as a pop.
-    float3 probeResolution = ddgiParams.xyz;
-    float3 edgeCells = min(localProbe, probeResolution - 1.0 - localProbe);
-    float edgeDistance = min(edgeCells.x, min(edgeCells.y, edgeCells.z));
-    float fade = 1.0 - saturate(edgeDistance / DDGI_CASCADE_FADE_CELLS);
-    if (fade > 0.0)
-    {
-        int nextCascade = selectedCascade + 1;
-        float3 fallback = nextCascade < (int)ddgiParams2.w
-            ? SampleDdgiCascade((worldPosition - DdgiOrigin(nextCascade).xyz) / DdgiOrigin(nextCascade).w, nextCascade, normal)
-            : VoxelSkyColor(normal);
-        diffuse = lerp(diffuse, fallback, fade);
-    }
-    return diffuse;
-}
+// --- Utility helpers (ported from the DDGI-era shader) ----------------------
 
 float3 DecodeSRGB(float3 color)
 {
@@ -137,8 +83,8 @@ float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal)
 }
 
 // A compact screen-space near-field gather. Coplanar samples reject naturally;
-// nearby facing surfaces contribute colored contact bounce while DDGI supplies
-// stable off-screen and medium/far-field lighting.
+// nearby facing surfaces contribute colored contact bounce that complements
+// the voxel cone tracing at sub-voxel scale.
 float4 GatherScreenSpaceNearField(
     int2 centerPixel,
     float2 centerUV,
@@ -173,7 +119,7 @@ float4 GatherScreenSpaceNearField(
             float3 samplePosition = ReconstructWorldPosition(sampleUV, sampleDepth);
             float3 toSample = samplePosition - worldPosition;
             float distance_ = length(toSample);
-            if (distance_ < levelOrigins[0].w * 2.0 || distance_ > ddgiOrigins[0].w * 4.0)
+            if (distance_ < levelOrigins[0].w * 2.0 || distance_ > levelOrigins[0].w * 16.0)
             {
                 continue;
             }
@@ -209,7 +155,7 @@ float4 TraceScreenSpaceReflection(
     float roughness)
 {
     uint2 resolution = uint2(giParams2.y, giParams2.z);
-    float maximumDistance = min(giParams.y, ddgiOrigins[1].w * 8.0);
+    float maximumDistance = min(giParams.y, levelOrigins[0].w * 128.0);
     float previousDifference = -1.0;
     [loop]
     for (int step = 1; step <= 24; step++)
@@ -257,7 +203,16 @@ float4 SampleRadiance(float3 position, int level, float mip)
     return SAMPLE_TEX3D_LEVEL(_radiance, VoxelWorldToUVW(position, level, mip), mip);
 }
 
+// Sample the directional opacity volume. xyz = directional opacity components
+// (project onto |rayDir| for anisotropic occlusion), a = coverage fraction.
+float4 SampleOpacity(float3 position, int level, float mip)
+{
+    return SAMPLE_TEX3D_LEVEL(_opacity, VoxelWorldToUVW(position, level, mip), mip);
+}
+
 // March one cone through the clipmap, accumulating radiance front-to-back.
+// Uses anisotropic directional opacity: alpha at each step is projected from
+// the opacity volume's xyz onto |cone direction|, matching CryEngine SVOGI.
 // Returns rgb = gathered radiance (with sky fallback), a = accumulated occlusion.
 float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, float maxDistance)
 {
@@ -266,6 +221,7 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
     float3 color = 0.0;
     float alpha = 0.0;
     float t = fineVoxelSize;
+    float3 absDir = abs(direction);
 
     for (int step = 0; step < 24 && t <= maxDistance && alpha < 0.98; step++)
     {
@@ -280,16 +236,42 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
         float diameter = max(2.0 * t * apertureTan, voxelSize);
         // Fractional mip: the sampler blends the neighboring mip levels.
         float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
-        float4 sample_ = SampleRadiance(position, level, mip);
+        float4 radSample = SampleRadiance(position, level, mip);
 
-        color += (1.0 - alpha) * sample_.a * sample_.rgb;
-        alpha += (1.0 - alpha) * sample_.a;
+        // Anisotropic opacity: project directional opacity onto |rayDir|.
+        float4 opaSample = SampleOpacity(position, level, mip);
+        float voxelAlpha = dot(opaSample.xyz, absDir);
+        // Fall back to radiance occupancy when opacity data is sparse.
+        voxelAlpha = max(voxelAlpha, radSample.a * 0.3);
+
+        color += (1.0 - alpha) * voxelAlpha * radSample.rgb;
+        alpha += (1.0 - alpha) * voxelAlpha;
         t += max(voxelSize, diameter * 0.5);
     }
 
     // Sky fallback for whatever the cones did not occlude.
     color += (1.0 - alpha) * VoxelSkyColor(direction);
     return float4(color, alpha);
+}
+
+// Trace the 9-cone diffuse hemisphere, cosine-weighted, through the radiance
+// volume. Produces directional indirect diffuse unlike the former DDGI SH
+// probes that could only represent low-frequency lighting.
+float3 TraceDiffuseCones(float3 startPosition, float3 normal, float maxDistance)
+{
+    float3x3 tbn = GetTangentBasis(normal);
+    float3 diffuse = 0.0;
+    float totalWeight = 0.0;
+    [unroll]
+    for (uint i = 0u; i < DIFFUSE_CONE_COUNT; i++)
+    {
+        float3 worldDir = mul(DIFFUSE_CONE_DIRECTIONS[i], tbn);
+        float4 coneResult = TraceCone(startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance);
+        float weight = DIFFUSE_CONE_WEIGHTS[i];
+        diffuse += coneResult.rgb * weight;
+        totalWeight += weight;
+    }
+    return diffuse / max(totalWeight, 0.0001);
 }
 
 [shader("compute")]
@@ -324,10 +306,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float fineVoxelSize = levelOrigins[0].w;
     float3 startPosition = worldPosition + N * fineVoxelSize * 1.5;
 
-    // Diffuse: temporally updated cascaded irradiance probes.
-    float3 diffuse = GatherDdgiDiffuse(startPosition, N);
+    // Diffuse: 9-cone hemisphere trace through the radiance volume.
+    float3 diffuse = TraceDiffuseCones(startPosition, N, maxDistance);
     float4 nearField = GatherScreenSpaceNearField(gbufferPixel, uv, worldPosition, N);
-    diffuse = lerp(diffuse, nearField.rgb, nearField.a * 0.35);
+    diffuse = lerp(diffuse, nearField.rgb, nearField.a * 0.25);
 
     // Specular: one cone along the reflection direction, aperture from roughness.
     float3 reflectDirection = reflect(-V, N);

@@ -15,7 +15,8 @@ using SandboxUtils;
 /// lights, emissive surfaces with HDR bloom, a physically-based procedural
 /// sky (single-scattering atmosphere driven by the time of day, with a sun
 /// disc and a star field) and voxel global illumination (a camera-following
-/// sparse brick clipmap with compute voxelization, cascaded DDGI and hybrid reflections).
+/// sparse brick clipmap with compute voxelization, 9-cone diffuse hemisphere
+/// tracing and hybrid reflections).
 /// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
 /// G-buffer pass) and replayed every frame; the game owns the scene materials
@@ -130,7 +131,7 @@ public class Game : GameEngine
     private float _hbaoBias = 0.02f;
     private HbaoRenderer.HbaoData _hbaoData = new();
 
-    // Voxel global illumination (sparse clipmap + cascaded DDGI + hybrid reflections).
+    // Voxel global illumination (sparse clipmap + cone tracing).
     private readonly VoxelGiRenderer? _voxelGI;
     private VoxelGiRenderer.VoxelGiData _voxelData = new();
     private bool _giEnabled = true;
@@ -299,8 +300,10 @@ public class Game : GameEngine
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelInject.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelMip.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/DdgiUpdate.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelPropagate.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelBounceApply.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelTrace.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelDemosaic.hlsl"),
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
                 resolution: 128,
@@ -1076,8 +1079,7 @@ public class Game : GameEngine
                 $"dynamic={statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks}, " +
                 $"queued={statistics.PendingStaticBricks}, dropped={statistics.DroppedBricks}, " +
                 $"attribute={statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
-                $"radiance={statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
-                $"ddgi={statistics.ProbeMemoryBytes / (1024.0 * 1024.0):F2}MiB");
+                $"radiance={statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1}MiB");
         }
     }
 
@@ -1119,7 +1121,7 @@ public class Game : GameEngine
             ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
         }
 
-        if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse + DDGI)"))
+        if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))
         {
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
@@ -1139,8 +1141,7 @@ public class Game : GameEngine
                 $"({statistics.DynamicBricksUpdated} updated)");
             ImGui.Text($"Dropped bricks: {statistics.DroppedBricks}");
             ImGui.Text($"GI memory: attributes {statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1} MiB, " +
-                $"radiance {statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1} MiB, " +
-                $"probes {statistics.ProbeMemoryBytes / (1024.0 * 1024.0):F2} MiB");
+                $"radiance {statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1} MiB");
         }
 
         if (_bloom != null && ImGui.CollapsingHeader("Emissive & Bloom"))

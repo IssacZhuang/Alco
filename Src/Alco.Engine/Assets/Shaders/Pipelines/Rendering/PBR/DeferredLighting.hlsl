@@ -288,6 +288,7 @@ float4 MainPS(V2F input) : SV_TARGET
         {
             sunShadow = SampleSunShadow(worldPosition, N, L, viewDistance, cascade);
         }
+
         Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
             * sunColorAndIntensity.rgb
             * sunColorAndIntensity.w

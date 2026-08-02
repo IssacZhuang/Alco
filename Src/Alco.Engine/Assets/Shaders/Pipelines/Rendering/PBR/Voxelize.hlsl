@@ -119,32 +119,31 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
-    // Albedo and emissive at the triangle centroid (high mip = averaged color).
+    // Albedo and emissive textures are sampled per-voxel at the point where the
+    // voxel center projects onto the triangle (barycentric UV), not at the
+    // triangle centroid. This preserves texture detail across large triangles
+    // that span many voxels. Alpha-test also uses the per-voxel UV.
     float2 uv0 = float2(asfloat(_vertices[i0 * strideUints + 6]), asfloat(_vertices[i0 * strideUints + 7]));
     float2 uv1 = float2(asfloat(_vertices[i1 * strideUints + 6]), asfloat(_vertices[i1 * strideUints + 7]));
     float2 uv2 = float2(asfloat(_vertices[i2 * strideUints + 6]), asfloat(_vertices[i2 * strideUints + 7]));
-    float2 uvCentroid = (uv0 + uv1 + uv2) / 3.0;
 
-    float4 albedoSample = _albedoTexture.SampleLevel(_albedoTextureSampler, uvCentroid, 5.0);
+    // Precompute barycentric projection basis: map a world-space point to
+    // barycentric coordinates (u, v, w) on the triangle plane.
+    float3 edge0 = w1 - w0;
+    float3 edge1 = w2 - w0;
+    float3 faceNormal = cross(edge0, edge1);
+    float faceArea = length(faceNormal);
+    if (faceArea < 1e-8)
+    {
+        return;
+    }
+    float3 N = faceNormal / faceArea;
+    float d00 = dot(edge0, edge0);
+    float d01 = dot(edge0, edge1);
+    float d11 = dot(edge1, edge1);
+    float invDenom = 1.0 / max(d00 * d11 - d01 * d01, 1e-12);
+
     float alphaCutoff = constants.params.w;
-    if (alphaCutoff > 0.0 && albedoSample.a * constants.baseColor.a < alphaCutoff)
-    {
-        return;
-    }
-
-    float3 albedo = albedoSample.rgb * constants.baseColor.rgb;
-    float3 emissiveSample = _emissiveTexture.SampleLevel(_emissiveTextureSampler, uvCentroid, 5.0).rgb;
-    float emissiveQ = saturate(dot(constants.emissive.rgb * emissiveSample, float3(0.2126, 0.7152, 0.0722)) / 8.0);
-
-    float3 normal = cross(w1 - w0, w2 - w0);
-    float normalLength = length(normal);
-    if (normalLength < 1e-8)
-    {
-        return;
-    }
-    normal /= normalLength;
-
-    uint2 attr = PackVoxelAttr(albedo, normal, emissiveQ);
 
     // Voxel-space AABB clamped to the grid, z-split into 8 slabs across threads.
     float3 gridMin = (worldMin - originAndSize.xyz) / voxelSize;
@@ -162,6 +161,27 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float3 center = originAndSize.xyz + (float3(x, y, z) + 0.5) * voxelSize;
                 if (TriBoxOverlap(center, boxHalf, w0, w1, w2))
                 {
+                    // Project the voxel center onto the triangle plane and
+                    // compute barycentric coordinates for per-voxel UV.
+                    float3 vp = center - w0;
+                    float d20 = dot(vp, edge0);
+                    float d21 = dot(vp, edge1);
+                    float v = (d11 * d20 - d01 * d21) * invDenom;
+                    float w = (d00 * d21 - d01 * d20) * invDenom;
+                    float u = 1.0 - v - w;
+                    float2 voxelUV = uv0 * u + uv1 * v + uv2 * w;
+
+                    float4 albedoSample = _albedoTexture.SampleLevel(_albedoTextureSampler, voxelUV, 3.0);
+                    if (alphaCutoff > 0.0 && albedoSample.a * constants.baseColor.a < alphaCutoff)
+                    {
+                        continue;
+                    }
+
+                    float3 albedo = albedoSample.rgb * constants.baseColor.rgb;
+                    float3 emissiveSample = _emissiveTexture.SampleLevel(_emissiveTextureSampler, voxelUV, 3.0).rgb;
+                    float emissiveQ = saturate(dot(constants.emissive.rgb * emissiveSample, float3(0.2126, 0.7152, 0.0722)) / 8.0);
+
+                    uint2 attr = PackVoxelAttr(albedo, N, emissiveQ);
                     uint3 logicalCoord = uint3(x, y, z);
                     uint pageEntry = _pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
                     if (pageEntry != 0u)

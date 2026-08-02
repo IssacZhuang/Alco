@@ -32,8 +32,6 @@ public readonly struct VoxelGiStatistics
     public long AttributeMemoryBytes { get; }
     /// <summary>Gets the dense mipmapped radiance allocation in bytes.</summary>
     public long RadianceMemoryBytes { get; }
-    /// <summary>Gets the ping-pong DDGI probe allocation in bytes.</summary>
-    public long ProbeMemoryBytes { get; }
     /// <summary>Gets CPU time spent preparing, encoding and submitting the GI work.</summary>
     public double CpuRecordMilliseconds { get; }
     /// <summary>Gets the last sampled GPU duration, or NaN when unavailable.</summary>
@@ -52,7 +50,6 @@ public readonly struct VoxelGiStatistics
     /// <param name="sharedMeshCount">The unique shared geometry count.</param>
     /// <param name="attributeMemoryBytes">The sparse attribute allocation.</param>
     /// <param name="radianceMemoryBytes">The radiance allocation.</param>
-    /// <param name="probeMemoryBytes">The probe allocation.</param>
     /// <param name="cpuRecordMilliseconds">The CPU encode duration.</param>
     /// <param name="gpuMilliseconds">The last GPU timestamp duration.</param>
     public VoxelGiStatistics(
@@ -68,7 +65,6 @@ public readonly struct VoxelGiStatistics
         int sharedMeshCount,
         long attributeMemoryBytes,
         long radianceMemoryBytes,
-        long probeMemoryBytes,
         double cpuRecordMilliseconds,
         double gpuMilliseconds)
     {
@@ -84,7 +80,6 @@ public readonly struct VoxelGiStatistics
         SharedMeshCount = sharedMeshCount;
         AttributeMemoryBytes = attributeMemoryBytes;
         RadianceMemoryBytes = radianceMemoryBytes;
-        ProbeMemoryBytes = probeMemoryBytes;
         CpuRecordMilliseconds = cpuRecordMilliseconds;
         GpuMilliseconds = gpuMilliseconds;
     }
@@ -94,8 +89,8 @@ public readonly struct VoxelGiStatistics
 /// Voxel global illumination renderer for the deferred PBR pipeline: a cascaded
 /// voxel clipmap (4 levels, each a cube of <c>resolution</c>^3 voxels at twice
 /// the previous level's voxel size, following the camera) with compute
-/// voxelization, direct-light injection, cascaded DDGI diffuse, screen-space
-/// near-field lighting and hybrid screen-space/voxel-cone reflections.
+/// voxelization, direct-light injection, 9-cone diffuse hemisphere tracing
+/// and hybrid screen-space/voxel-cone reflections.
 /// <br/>Mesh geometry is registered once through <see cref="RegisterMesh"/> and
 /// shared by persistent structural instances and per-frame movable instances.
 /// Structural bricks are rebuilt incrementally after edits or camera scrolling.
@@ -121,6 +116,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
     {
         /// <summary>Inverse of the camera view-projection matrix.</summary>
         public Matrix4x4 InvViewProjection;
+        /// <summary>Previous frame view-projection for temporal reprojection (filled by the renderer).</summary>
+        public Matrix4x4 ViewProjectionPrev;
         /// <summary>Camera view-projection matrix (filled by the renderer).</summary>
         public Matrix4x4 ViewProjection;
         /// <summary>Sun light view-projection matrix of shadow cascade 0 (nearest).</summary>
@@ -147,26 +144,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 LevelRingOffset2;
         /// <summary>Clipmap level 3 toroidal storage offset in voxels (filled by the renderer).</summary>
         public Vector4 LevelRingOffset3;
-        /// <summary>DDGI cascade 0 origin and probe spacing (filled by the renderer).</summary>
-        public Vector4 DdgiOrigin0;
-        /// <summary>DDGI cascade 1 origin and probe spacing (filled by the renderer).</summary>
-        public Vector4 DdgiOrigin1;
-        /// <summary>DDGI cascade 2 origin and probe spacing (filled by the renderer).</summary>
-        public Vector4 DdgiOrigin2;
-        /// <summary>Previous DDGI cascade 0 origin and spacing (filled by the renderer).</summary>
-        public Vector4 DdgiPreviousOrigin0;
-        /// <summary>Previous DDGI cascade 1 origin and spacing (filled by the renderer).</summary>
-        public Vector4 DdgiPreviousOrigin1;
-        /// <summary>Previous DDGI cascade 2 origin and spacing (filled by the renderer).</summary>
-        public Vector4 DdgiPreviousOrigin2;
-        /// <summary>xyz=probe-grid resolution and w=frame index (filled by the renderer).</summary>
-        public Vector4 DdgiParams;
-        /// <summary>x=history valid y=update period z=hysteresis w=cascade count (filled by the renderer).</summary>
-        public Vector4 DdgiParams2;
-        /// <summary>xyz=minimum locally invalidated probe region and w=valid flag (filled by the renderer).</summary>
-        public Vector4 DdgiDirtyMin;
-        /// <summary>xyz=maximum locally invalidated probe region (filled by the renderer).</summary>
-        public Vector4 DdgiDirtyMax;
         /// <summary>Camera position in world space (w unused).</summary>
         public Vector4 CameraPosition;
         /// <summary>Normalized direction the sun light travels (w unused).</summary>
@@ -205,6 +182,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 GiParams;
         /// <summary>x=debugView yz=G-buffer resolution in pixels (filled by the renderer) w=giSkyIntensity (sky light multiplier for voxel GI).</summary>
         public Vector4 GiParams2;
+        /// <summary>x=frame index for temporal dithering (filled by the renderer). yzw=unused.</summary>
+        public Vector4 GiFrameParams;
     }
 
     /// <summary>
@@ -270,8 +249,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly ComputeMaterial _voxelizeMaterial;
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
-    private readonly ComputeMaterial _ddgiUpdateMaterial;
+    private readonly ComputeMaterial _propagateMaterial;
+    private readonly ComputeMaterial _bounceApplyMaterial;
     private readonly ComputeMaterial _traceMaterial;
+    private readonly ComputeMaterial _demosaicMaterial;
     private readonly GraphicsValueBuffer<VoxelGiData> _dataBuffer;
     private readonly GPUTimestampQuerySet? _timestampQueries;
     private readonly GPUBuffer? _timestampResolveBuffer;
@@ -281,7 +262,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly float _baseVoxelSize;
     private readonly long _attributeMemoryBytes;
     private readonly long _radianceMemoryBytes;
-    private readonly long _probeMemoryBytes;
     private readonly VoxelGiClipmap _clipmap;
 
     // Static and dynamic attributes use compact physical brick pools. Small
@@ -294,14 +274,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly VoxelGiPagePool _staticPagePool;
     private readonly VoxelGiPagePool _dynamicPagePool;
     private readonly Texture3D _radiance;
-    private readonly Texture3D[] _ddgiIrradiance = new Texture3D[2];
-    private readonly Vector4[] _ddgiOrigins = new Vector4[DdgiCascadeCount];
-    private readonly Vector4[] _ddgiPreviousOrigins = new Vector4[DdgiCascadeCount];
-    private int _ddgiHistoryIndex;
-    private uint _ddgiFrameIndex;
-    private bool _ddgiHistoryValid;
-    private VoxelGiBounds _ddgiDirtyBounds;
-    private bool _ddgiHasDirtyBounds;
+    private readonly Texture3D _opacity;
+    private readonly Texture3D _propagateTemp;
+    private uint _frameIndex;
     private double _gpuMilliseconds = double.NaN;
 
     private readonly Dictionary<(Mesh Mesh, uint VertexStrideBytes), MeshGeometry> _geometryByMesh = new();
@@ -315,17 +290,16 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly HashSet<uint> _brickKeys = new();
     private readonly bool[] _staticNeedsFullClear = new bool[LevelCount];
 
+    private RenderTexture _traceRaw;
     private RenderTexture _indirectAtlas;
+    private readonly RenderTexture[] _historyGI = new RenderTexture[2];
+    private int _historyReadIndex;
+    private Matrix4x4 _viewProjectionPrev = Matrix4x4.Identity;
     private RenderTexture? _boundGBuffer;
     private RenderTexture? _boundShadowMap;
 
     private const int LevelCount = 4;
     private const int BrickSize = 8;
-    private const int DdgiCascadeCount = 3;
-    private const int DdgiProbeCountX = 16;
-    private const int DdgiProbeCountY = 16;
-    private const int DdgiProbeCountZ = 8;
-    private const int DdgiCoefficientCount = 4;
 
     /// <summary>
     /// Gets or sets the maximum number of structural bricks rebuilt per clipmap level and frame.
@@ -340,13 +314,22 @@ public sealed class VoxelGiRenderer : AutoDisposable
     public int DynamicLevelCount { get; set; } = 2;
 
     /// <summary>
-    /// Gets or sets how many temporal phases are used to refresh the irradiance probes.
-    /// A value of eight updates one eighth of established probes per frame.
+    /// Gets or sets the number of indirect light bounces propagated through the
+    /// radiance volume each frame. Zero disables bounce (direct lighting only).
     /// </summary>
-    public int DdgiUpdatePeriod { get; set; } = 8;
+    public int BounceCount { get; set; } = 1;
 
-    /// <summary>Gets or sets the retained fraction of valid DDGI history.</summary>
-    public float DdgiHysteresis { get; set; } = 0.92f;
+    /// <summary>
+    /// Gets or sets the bounce light strength multiplier. Higher values produce
+    /// brighter indirect bounces.
+    /// </summary>
+    public float BounceStrength { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets the temporal hysteresis (0..1). Higher values retain more
+    /// history, producing smoother but more laggy indirect lighting.
+    /// </summary>
+    public float TemporalHysteresis { get; set; } = 0.9f;
 
     /// <summary>
     /// Gets or sets the number of frames between blocking GPU timestamp readbacks.
@@ -372,8 +355,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// <param name="voxelizeShader">The triangle voxelization shader (Voxelize.hlsl).</param>
     /// <param name="injectShader">The direct light injection shader (VoxelInject.hlsl).</param>
     /// <param name="mipShader">The radiance mip downsample shader (VoxelMip.hlsl).</param>
-    /// <param name="ddgiUpdateShader">The cascaded irradiance-probe update shader (DdgiUpdate.hlsl).</param>
+    /// <param name="propagateShader">The multi-bounce propagation shader (VoxelPropagate.hlsl).</param>
+    /// <param name="bounceApplyShader">The bounce copy-back shader (VoxelBounceApply.hlsl).</param>
     /// <param name="traceShader">The cone tracing shader (VoxelTrace.hlsl).</param>
+    /// <param name="demosaicShader">The temporal demosaic shader (VoxelDemosaic.hlsl).</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="resolution">The voxel resolution of each clipmap level (power of two).</param>
@@ -385,8 +370,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         Shader voxelizeShader,
         Shader injectShader,
         Shader mipShader,
-        Shader ddgiUpdateShader,
+        Shader propagateShader,
+        Shader bounceApplyShader,
         Shader traceShader,
+        Shader demosaicShader,
         uint width,
         uint height,
         int resolution = 128,
@@ -409,8 +396,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _voxelizeMaterial = rendering.CreateComputeMaterial(voxelizeShader);
         _injectMaterial = rendering.CreateComputeMaterial(injectShader);
         _mipMaterial = rendering.CreateComputeMaterial(mipShader);
-        _ddgiUpdateMaterial = rendering.CreateComputeMaterial(ddgiUpdateShader);
+        _propagateMaterial = rendering.CreateComputeMaterial(propagateShader);
+        _bounceApplyMaterial = rendering.CreateComputeMaterial(bounceApplyShader);
         _traceMaterial = rendering.CreateComputeMaterial(traceShader);
+        _demosaicMaterial = rendering.CreateComputeMaterial(demosaicShader);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
         if (_device.TimestampQuerySupported)
         {
@@ -427,8 +416,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _voxelizeMaterial.SetBuffer("_data", _dataBuffer);
         _injectMaterial.SetBuffer("_data", _dataBuffer);
         _mipMaterial.SetBuffer("_data", _dataBuffer);
-        _ddgiUpdateMaterial.SetBuffer("_data", _dataBuffer);
+        _propagateMaterial.SetBuffer("_data", _dataBuffer);
+        _bounceApplyMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
+        _demosaicMaterial.SetBuffer("_data", _dataBuffer);
 
         // Attribute voxels are sparse physical 8^3 pages. Static data can fill
         // two complete levels and dynamic data one complete level before the
@@ -461,30 +452,36 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _radiance = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
             PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance");
 
-        uint ddgiDepth = DdgiProbeCountZ * DdgiCascadeCount * DdgiCoefficientCount;
-        for (int i = 0; i < _ddgiIrradiance.Length; i++)
-        {
-            _ddgiIrradiance[i] = rendering.CreateTexture3D(
-                DdgiProbeCountX,
-                DdgiProbeCountY,
-                ddgiDepth,
-                PixelFormat.RGBA16Float,
-                1,
-                name: $"ddgi_irradiance_{i}");
-        }
+        // Propagate temp: single-mip Texture3D for the multi-bounce pass (direct
+        // + bounce radiance), copied back into _radiance mip 0 by the apply pass.
+        _propagateTemp = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+            PixelFormat.RGBA16Float, 1, name: "voxel_propagate_temp");
+
+        // Directional opacity volume: xyz = |normal components| (anisotropic
+        // occlusion), w = coverage. Full mip chain for cone-traced projection.
+        _opacity = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+            PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_opacity");
+
         _radianceMemoryBytes = CalculateMipChainBytes(resolution, resolution, resolution * LevelCount, 8, _mipCount);
-        _probeMemoryBytes = (long)DdgiProbeCountX
-            * DdgiProbeCountY
-            * ddgiDepth
-            * 8
-            * _ddgiIrradiance.Length;
 
         _injectMaterial.SetTexture3DStorage("_radianceOut", _radiance, 0);
-        _ddgiUpdateMaterial.SetTexture("_radiance", _radiance);
+        _injectMaterial.SetTexture3DStorage("_opacityOut", _opacity, 0);
+        _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, 0);
+        _propagateMaterial.SetTexture("_radiance", _radiance);
+        _propagateMaterial.SetTexture("_opacity", _opacity);
+        _propagateMaterial.SetTexture3DStorage("_propagateOut", _propagateTemp, 0);
+        _bounceApplyMaterial.SetTexture3DRead("_propagateLoad", _propagateTemp, 0);
+        _bounceApplyMaterial.SetTexture3DStorage("_radianceOut", _radiance, 0);
         _traceMaterial.SetTexture("_radiance", _radiance);
+        _traceMaterial.SetTexture("_opacity", _opacity);
 
         _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
-        _traceMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
+        _traceRaw = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
+        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
+        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
+        _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
+        _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
+        _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
     }
 
     private static uint TraceWidth(uint gbufferWidth) => Math.Max(gbufferWidth / 2, 1);
@@ -647,8 +644,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _staticNeedsFullClear[level] = true;
         }
         _clipmap.InvalidateAll();
-        _ddgiHistoryValid = false;
-        _ddgiHasDirtyBounds = false;
     }
 
     /// <summary>Schedule a static re-voxelization of every clipmap level.</summary>
@@ -659,22 +654,13 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _staticNeedsFullClear[level] = true;
         }
         _clipmap.InvalidateAll();
-        _ddgiHistoryValid = false;
-        _ddgiHasDirtyBounds = false;
     }
 
-    /// <summary>Invalidates structural voxel and irradiance-probe data overlapping world bounds.</summary>
+    /// <summary>Invalidates structural voxel data overlapping world bounds.</summary>
     /// <param name="worldBounds">The edited or destroyed world-space region.</param>
     public void InvalidateStatic(in VoxelGiBounds worldBounds)
     {
         _clipmap.Invalidate(worldBounds);
-        if (_ddgiHasDirtyBounds)
-        {
-            _ddgiDirtyBounds = _ddgiDirtyBounds.Union(worldBounds);
-            return;
-        }
-        _ddgiDirtyBounds = worldBounds;
-        _ddgiHasDirtyBounds = true;
     }
 
     /// <summary>
@@ -685,15 +671,24 @@ public sealed class VoxelGiRenderer : AutoDisposable
     public void Resize(uint width, uint height)
     {
         _indirectAtlas.Dispose();
+        _traceRaw.Dispose();
+        _historyGI[0].Dispose();
+        _historyGI[1].Dispose();
         _indirectAtlas = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
-        _traceMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
+        _traceRaw = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
+        _historyGI[0] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
+        _historyGI[1] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
+        _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
+        _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
+        _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
+        _historyReadIndex = 0;
         _boundGBuffer = null;
     }
 
     /// <summary>
     /// Run the hybrid GI passes: voxelize (static on dirty, dynamic every frame),
-    /// inject direct lighting, rebuild radiance mips, update DDGI probes and
-    /// gather diffuse/reflections from the G-buffer. Must be called after the G-buffer pass and before the
+    /// inject direct lighting, rebuild radiance mips and gather diffuse/reflections
+    /// from the G-buffer. Must be called after the G-buffer pass and before the
     /// lighting pass; dynamic instances are consumed (cleared) by the call.
     /// </summary>
     /// <param name="gbuffer">The pipeline G-buffer (depth + world-normal + metallic-roughness-ao attachments).</param>
@@ -711,6 +706,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         {
             data.ViewProjection = Matrix4x4.Identity;
         }
+        data.ViewProjectionPrev = _viewProjectionPrev;
 
         data.LevelOrigin0 = _clipmap.GetOriginAndVoxelSize(0);
         data.LevelOrigin1 = _clipmap.GetOriginAndVoxelSize(1);
@@ -720,25 +716,11 @@ public sealed class VoxelGiRenderer : AutoDisposable
         data.LevelRingOffset1 = _clipmap.GetRingOffset(1);
         data.LevelRingOffset2 = _clipmap.GetRingOffset(2);
         data.LevelRingOffset3 = _clipmap.GetRingOffset(3);
-        UpdateDdgiOrigins(cameraPosition);
-        data.DdgiOrigin0 = _ddgiOrigins[0];
-        data.DdgiOrigin1 = _ddgiOrigins[1];
-        data.DdgiOrigin2 = _ddgiOrigins[2];
-        data.DdgiPreviousOrigin0 = _ddgiPreviousOrigins[0];
-        data.DdgiPreviousOrigin1 = _ddgiPreviousOrigins[1];
-        data.DdgiPreviousOrigin2 = _ddgiPreviousOrigins[2];
-        data.DdgiParams = new Vector4(DdgiProbeCountX, DdgiProbeCountY, DdgiProbeCountZ, _ddgiFrameIndex);
-        data.DdgiParams2 = new Vector4(
-            _ddgiHistoryValid ? 1.0f : 0.0f,
-            Math.Clamp(DdgiUpdatePeriod, 1, 64),
-            Math.Clamp(DdgiHysteresis, 0.0f, 0.99f),
-            DdgiCascadeCount);
-        data.DdgiDirtyMin = new Vector4(_ddgiDirtyBounds.Min, _ddgiHasDirtyBounds ? 1.0f : 0.0f);
-        data.DdgiDirtyMax = new Vector4(_ddgiDirtyBounds.Max, 0.0f);
         data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, 0.0f);
         uint traceWidth = Math.Max(_indirectAtlas.Width / 2, 1);
         data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _indirectAtlas.Height);
         data.GiParams2 = new Vector4(data.GiParams2.X, gbuffer.Width, gbuffer.Height, data.GiParams2.W);
+        data.GiFrameParams = new Vector4(_frameIndex, 0.0f, 0.0f, 0.0f);
         _dataBuffer.UpdateBuffer(data);
 
         // The G-buffer and shadow map render textures are stable across frames
@@ -749,6 +731,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _traceMaterial.SetRenderTexture("_albedo", gbuffer, 0);
             _traceMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _traceMaterial.SetRenderTexture("_mrAO", gbuffer, 2);
+            _demosaicMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _demosaicMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _boundGBuffer = gbuffer;
         }
         if (!ReferenceEquals(_boundShadowMap, shadowMap))
@@ -762,7 +746,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         bool measureGpu = _timestampQueries != null
             && _timestampResolveBuffer != null
             && GpuTimingSamplePeriod > 0
-            && _ddgiFrameIndex % (uint)GpuTimingSamplePeriod == 0;
+            && _frameIndex % (uint)GpuTimingSamplePeriod == 0;
         _commandBuffer.Begin();
         using (GPUCommandBuffer.ComputePass computePass = measureGpu
             ? _commandBuffer.BeginCompute(_timestampQueries!, 0, 1)
@@ -884,13 +868,44 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 _injectMaterial.DispatchBySizeWithConstant(computePass, resolution, resolution, resolution, new Vector4(level, 0, 0, 0));
             }
 
-            // Radiance mip chains. Each transition reads mip N and writes mip N+1
-            // through single-mip views: the non-overlapping subresource ranges of
-            // the two views avoid the read/write usage conflict within one dispatch.
+            // Multi-bounce light propagation: each occupied voxel traces a small
+            // cone set through the radiance volume to gather indirect light,
+            // multiplies by albedo and adds to existing direct radiance. The
+            // result goes into _propagateTemp, then is copied back to mip 0
+            // before the mip chain is rebuilt. Iterated BounceCount times so the
+            // second bounce sees first-bounce radiance.
+            int bounceCount = Math.Max(0, BounceCount);
+            for (int bounce = 0; bounce < bounceCount; bounce++)
+            {
+                for (int level = 0; level < LevelCount; level++)
+                {
+                    _propagateMaterial.SetBuffer("_attrStatic", _attrStatic);
+                    _propagateMaterial.SetBuffer("_attrDynamic", _attrDynamic);
+                    _propagateMaterial.SetBuffer("_pageTableStatic", _pageTableStatic[level]);
+                    _propagateMaterial.SetBuffer("_pageTableDynamic", _pageTableDynamic[level]);
+                    _propagateMaterial.DispatchBySizeWithConstant(
+                        computePass, resolution, resolution, resolution,
+                        new Vector4(level, BounceStrength, 0, 0));
+                }
+
+                for (int level = 0; level < LevelCount; level++)
+                {
+                    _bounceApplyMaterial.DispatchBySizeWithConstant(
+                        computePass, resolution, resolution, resolution,
+                        new Vector4(level, 0, 0, 0));
+                }
+            }
+
+            // Radiance + opacity mip chains. Each transition reads mip N and
+            // writes mip N+1 through single-mip views: the non-overlapping
+            // subresource ranges of the two views avoid the read/write usage
+            // conflict within one dispatch.
             for (int mip = 0; mip < _mipCount - 1; mip++)
             {
                 _mipMaterial.SetTexture3DRead("_radianceLoad", _radiance, (uint)mip);
                 _mipMaterial.SetTexture3DStorage("_radianceOut", _radiance, (uint)(mip + 1));
+                _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, (uint)mip);
+                _mipMaterial.SetTexture3DStorage("_opacityOut", _opacity, (uint)(mip + 1));
                 uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
                 for (int level = 0; level < LevelCount; level++)
                 {
@@ -898,21 +913,22 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 }
             }
 
-            // Update a rotating subset of camera-relative irradiance probes.
-            // History is reprojected in world space when a cascade scrolls.
-            int ddgiOutputIndex = 1 - _ddgiHistoryIndex;
-            _ddgiUpdateMaterial.SetTexture("_ddgiHistory", _ddgiIrradiance[_ddgiHistoryIndex]);
-            _ddgiUpdateMaterial.SetTexture3DStorage("_ddgiOutput", _ddgiIrradiance[ddgiOutputIndex], 0);
-            _ddgiUpdateMaterial.DispatchBySize(
-                computePass,
-                DdgiProbeCountX,
-                DdgiProbeCountY,
-                DdgiProbeCountZ * DdgiCascadeCount);
-            _ddgiHistoryIndex = ddgiOutputIndex;
-
-            // Gather DDGI diffuse and a single rough voxel cone for specular.
-            _traceMaterial.SetTexture("_ddgiIrradiance", _ddgiIrradiance[_ddgiHistoryIndex]);
+            // Gather diffuse (9-cone hemisphere) and specular (single cone + SSR).
             _traceMaterial.DispatchBySize(computePass, traceWidth, _indirectAtlas.Height, 1);
+
+            // Temporal demosaic: bilateral filter + history blend on the trace
+            // atlas. Writes the smoothed result into _indirectAtlas and a copy
+            // into the write history slot for next frame's reprojection.
+            int historyRead = _historyReadIndex;
+            int historyWrite = 1 - historyRead;
+            _demosaicMaterial.SetRenderTexture("_historyInput", _historyGI[historyRead], 0);
+            _demosaicMaterial.SetRenderTexture("_historyOut", _historyGI[historyWrite], 0);
+            _demosaicMaterial.DispatchBySizeWithConstant(
+                computePass,
+                _indirectAtlas.Width,
+                _indirectAtlas.Height,
+                1,
+                new Vector4(TemporalHysteresis, 1.0f, 0.0f, 0.0f));
         }
         if (measureGpu)
         {
@@ -933,9 +949,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
         }
 
         _instances.Clear();
-        _ddgiHistoryValid = true;
-        _ddgiHasDirtyBounds = false;
-        _ddgiFrameIndex++;
+        _viewProjectionPrev = data.ViewProjection;
+        _historyReadIndex = 1 - _historyReadIndex;
+        _frameIndex++;
         int pendingStaticBricks = 0;
         for (int level = 0; level < LevelCount; level++)
         {
@@ -962,28 +978,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _geometries.Count,
             _attributeMemoryBytes,
             _radianceMemoryBytes,
-            _probeMemoryBytes,
             Stopwatch.GetElapsedTime(recordStart).TotalMilliseconds,
             _gpuMilliseconds);
-    }
-
-    private void UpdateDdgiOrigins(in Vector3 cameraPosition)
-    {
-        for (int cascade = 0; cascade < DdgiCascadeCount; cascade++)
-        {
-            _ddgiPreviousOrigins[cascade] = _ddgiOrigins[cascade];
-            float spacing = _baseVoxelSize * BrickSize * (1 << cascade);
-            _ddgiOrigins[cascade] = VoxelGiProbeGrid.CalculateSnappedOrigin(
-                cameraPosition,
-                spacing,
-                DdgiProbeCountX,
-                DdgiProbeCountY,
-                DdgiProbeCountZ);
-            if (!_ddgiHistoryValid)
-            {
-                _ddgiPreviousOrigins[cascade] = _ddgiOrigins[cascade];
-            }
-        }
     }
 
     private int UpdateStaticResidency(int level, List<VoxelGiDirtyBrick> bricks)
@@ -1170,11 +1166,12 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _attrStatic.Dispose();
             _attrDynamic.Dispose();
             _radiance.Dispose();
-            for (int i = 0; i < _ddgiIrradiance.Length; i++)
-            {
-                _ddgiIrradiance[i].Dispose();
-            }
+            _opacity.Dispose();
+            _propagateTemp.Dispose();
+            _traceRaw.Dispose();
             _indirectAtlas.Dispose();
+            _historyGI[0].Dispose();
+            _historyGI[1].Dispose();
             _dataBuffer.Dispose();
             _timestampQueries?.Dispose();
             _timestampResolveBuffer?.Dispose();

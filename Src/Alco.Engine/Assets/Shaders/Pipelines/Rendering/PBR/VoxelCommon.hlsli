@@ -11,22 +11,20 @@
 // mip chain: all levels are stacked along the w axis, each level's mip cube
 // occupying 1/VOXEL_MAX_LEVELS of the texture depth at every mip; alpha holds
 // the occupancy fraction.
+// Diffuse GI is computed by tracing 9 cones covering the hemisphere through
+// the radiance volume ( CryEngine SVOGI style ); specular GI uses one cone
+// along the reflection vector.
 
 #define VOXEL_MAX_LEVELS 4
 
 DEFINE_UNIFORM(0, _data)
 {
     float4x4 invViewProjection;
+    float4x4 viewProjectionPrev; // previous frame's view-projection (for temporal reprojection)
     float4x4 viewProjection;
     float4x4 sunViewProjection[4];
     float4 levelOrigins[4];        // xyz = min corner in world space, w = voxel size
     float4 levelRingOffsets[4];    // xyz = toroidal storage offset in voxels
-    float4 ddgiOrigins[3];         // xyz = probe-grid min corner, w = probe spacing
-    float4 ddgiPreviousOrigins[3]; // previous frame, used to scroll probe history
-    float4 ddgiParams;             // xyz = probe resolution, w = frame index
-    float4 ddgiParams2;            // x=history valid, y=update period, z=hysteresis, w=cascade count
-    float4 ddgiDirtyMin;            // xyz = local history invalidation min, w = valid
-    float4 ddgiDirtyMax;            // xyz = local history invalidation max
     float4 cameraPosition;         // xyz = world-space camera position
     float4 sunDirection;           // normalized direction the sun light travels
     float4 sunColorAndIntensity;   // rgb + intensity
@@ -46,6 +44,7 @@ DEFINE_UNIFORM(0, _data)
     float4 lightingParams;         // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=unused
     float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
     float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
+    float4 giFrameParams;          // x=frameIndex (for temporal dithering) yzw=unused
 };
 
 // ---------------------------------------------------------------- packing ---
