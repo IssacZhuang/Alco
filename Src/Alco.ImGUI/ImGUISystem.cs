@@ -38,9 +38,14 @@ public class ImGUISystem: BaseEngineSystem
         _imGUIInputHandler.Update();
     }
 
+    public override void OnEndFrame(float deltaTime)
+    {
+        _imGUIRenderer.Render();
+    }
+
     private void OnPostBlit(GPUFrameBuffer swapchainFrameBuffer)
     {
-        _imGUIRenderer.End(swapchainFrameBuffer);
+        _imGUIRenderer.Draw(swapchainFrameBuffer);
     }
 
     public override void OnStop()

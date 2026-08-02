@@ -105,17 +105,29 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _target = target;
     }
 
-    public void End(GPUFrameBuffer? overrideTarget = null)
+    /// <summary>
+    /// Finalize the ImGui frame. Must be called every frame after <see cref="Begin"/>,
+    /// regardless of whether the draw data will be submitted to the GPU.
+    /// </summary>
+    public void Render()
     {
         ImGui.Render();
+        _textures.Clear();
+        _target = null;
+    }
+
+    /// <summary>
+    /// Submit ImGui draw data to the GPU. Call after <see cref="Render"/> and after
+    /// the HDR tone mapping blit so UI colors are not affected by post-processing.
+    /// </summary>
+    public void Draw(GPUFrameBuffer target)
+    {
         ImDrawDataPtr drawData = ImGui.GetDrawData();
 
         if (drawData.CmdListsCount <= 0)
         {
             return;
         }
-
-        GPUFrameBuffer target = overrideTarget ?? _target!;
 
         uint totalVertexBufferSize = (uint)(drawData.TotalVtxCount * sizeof(ImDrawVert));
         uint totalIndexBufferSize = (uint)(drawData.TotalIdxCount * sizeof(ushort));
@@ -222,9 +234,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
-        _target = null;
-
-        _textures.Clear();
     }
 
     /// <summary>
