@@ -278,6 +278,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly Texture3D _propagateTemp;
     private uint _frameIndex;
     private double _gpuMilliseconds = double.NaN;
+    private bool _hasPendingTimestamps;
 
     private readonly Dictionary<(Mesh Mesh, uint VertexStrideBytes), MeshGeometry> _geometryByMesh = new();
     private readonly List<MeshGeometry> _geometries = new();
@@ -304,8 +305,11 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// <summary>
     /// Gets or sets the maximum number of structural bricks rebuilt per clipmap level and frame.
     /// High-priority edit bricks are processed before camera-streaming bricks.
+    /// Lower values smooth out the voxelization burst when the camera crosses a
+    /// brick boundary (all levels get dirty simultaneously); the trade-off is
+    /// that newly-exposed geometry takes more frames to fully voxelize.
     /// </summary>
-    public int StaticBrickBudgetPerLevel { get; set; } = 512;
+    public int StaticBrickBudgetPerLevel { get; set; } = 128;
 
     /// <summary>
     /// Gets or sets how many nearest clipmap levels receive per-frame movable geometry.
@@ -747,6 +751,24 @@ public sealed class VoxelGiRenderer : AutoDisposable
             && _timestampResolveBuffer != null
             && GpuTimingSamplePeriod > 0
             && _frameIndex % (uint)GpuTimingSamplePeriod == 0;
+
+        // Read back the previous period's GPU timestamps (non-blocking — the
+        // work is guaranteed complete since at least GpuTimingSamplePeriod
+        // frames have elapsed). This avoids the CPU-GPU synchronization stall
+        // that occurred when reading immediately after Submit.
+        if (_hasPendingTimestamps)
+        {
+            var timestamps = new ulong[2];
+            _device.ReadBuffer(_timestampResolveBuffer!, timestamps);
+            if (timestamps[1] >= timestamps[0])
+            {
+                _gpuMilliseconds = (timestamps[1] - timestamps[0])
+                    * _device.TimestampPeriodNanoseconds
+                    / 1_000_000.0;
+            }
+            _hasPendingTimestamps = false;
+        }
+
         _commandBuffer.Begin();
         using (GPUCommandBuffer.ComputePass computePass = measureGpu
             ? _commandBuffer.BeginCompute(_timestampQueries!, 0, 1)
@@ -933,20 +955,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         if (measureGpu)
         {
             _commandBuffer.ResolveTimestamps(_timestampQueries!, 0, 2, _timestampResolveBuffer!);
+            _hasPendingTimestamps = true;
         }
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
-        if (measureGpu)
-        {
-            var timestamps = new ulong[2];
-            _device.ReadBuffer(_timestampResolveBuffer!, timestamps);
-            if (timestamps[1] >= timestamps[0])
-            {
-                _gpuMilliseconds = (timestamps[1] - timestamps[0])
-                    * _device.TimestampPeriodNanoseconds
-                    / 1_000_000.0;
-            }
-        }
 
         _instances.Clear();
         _viewProjectionPrev = data.ViewProjection;

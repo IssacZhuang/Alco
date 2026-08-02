@@ -317,17 +317,36 @@ internal sealed class VoxelGiClipmap
         state.RingOffsetY = PositiveModulo(state.RingOffsetY + deltaY * _brickSize, _resolution);
         state.RingOffsetZ = PositiveModulo(state.RingOffsetZ + deltaZ * _brickSize, _resolution);
 
-        for (int z = 0; z < _bricksPerAxis; z++)
+        // Mark only the newly-exposed brick slabs (O(|delta|*N²) instead of
+        // O(N³)). For a single-brick step this iterates 256 bricks instead of
+        // 4096. Axis-slab overlaps are harmless — Mark deduplicates via HashSet.
+        MarkExposedSlab(state, desired, deltaX, 0); // X
+        MarkExposedSlab(state, desired, deltaY, 1); // Y
+        MarkExposedSlab(state, desired, deltaZ, 2); // Z
+    }
+
+    private void MarkExposedSlab(LevelState state, BrickCoordinate desired, int delta, int axis)
+    {
+        if (delta == 0)
         {
-            for (int y = 0; y < _bricksPerAxis; y++)
+            return;
+        }
+
+        int slabStart = delta > 0 ? _bricksPerAxis - delta : 0;
+        int slabEnd = delta > 0 ? _bricksPerAxis : -delta;
+
+        for (int a = 0; a < _bricksPerAxis; a++)
+        {
+            for (int b = 0; b < _bricksPerAxis; b++)
             {
-                for (int x = 0; x < _bricksPerAxis; x++)
+                for (int s = slabStart; s < slabEnd; s++)
                 {
-                    BrickCoordinate worldBrick = new(desired.X + x, desired.Y + y, desired.Z + z);
-                    if (!Contains(previous, worldBrick))
-                    {
-                        Mark(state, worldBrick, false);
-                    }
+                    BrickCoordinate brick = axis == 0
+                        ? new BrickCoordinate(desired.X + s, desired.Y + a, desired.Z + b)
+                        : axis == 1
+                            ? new BrickCoordinate(desired.X + a, desired.Y + s, desired.Z + b)
+                            : new BrickCoordinate(desired.X + a, desired.Y + b, desired.Z + s);
+                    Mark(state, brick, false);
                 }
             }
         }
