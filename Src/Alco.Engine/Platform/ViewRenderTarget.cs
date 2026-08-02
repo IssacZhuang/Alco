@@ -33,6 +33,13 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
     public event Action<uint2>? OnResize;
 
     /// <summary>
+    /// Called after the render texture is blitted to the swapchain but before <see cref="GPUSwapchain.Present"/>.
+    /// Use this to render overlays (e.g. ImGui) directly onto the swapchain so they are not affected by
+    /// post-process materials such as HDR tone mapping.
+    /// </summary>
+    public event Action<GPUFrameBuffer>? PostBlit;
+
+    /// <summary>
     /// The view that the render target is attached to
     /// </summary>
     /// <value></value>
@@ -157,6 +164,8 @@ public class ViewRenderTarget : BaseEngineSystem, IRenderTarget
                 _renderer.Draw(_mesh, _blitMaterial);
             }
             _renderer.End();
+
+            PostBlit?.Invoke(_viewSwapchain.FrameBuffer);
         }
 
         _viewSwapchain.Present();

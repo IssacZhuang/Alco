@@ -23,6 +23,7 @@ public class ImGUISystem: BaseEngineSystem
         _material.BlendState = BlendState.AlphaBlend;
         _imGUIRenderer = new ImGUIRenderer(renderingSystem, _material, "ImGUIRenderer");
         _mainRenderTarget = mainRenderTarget;
+        _mainRenderTarget.PostBlit += OnPostBlit;
 
         _imGUIInputHandler = new ImGUIInputHandler(engine.Input, engine.MainView);
     }
@@ -37,13 +38,14 @@ public class ImGUISystem: BaseEngineSystem
         _imGUIInputHandler.Update();
     }
 
-    public override void OnEndFrame(float deltaTime)
+    private void OnPostBlit(GPUFrameBuffer swapchainFrameBuffer)
     {
-        _imGUIRenderer.End();
+        _imGUIRenderer.End(swapchainFrameBuffer);
     }
 
     public override void OnStop()
     {
+        _mainRenderTarget.PostBlit -= OnPostBlit;
         _imGUIInputHandler.Dispose();
         _imGUIRenderer.Dispose();
         _material.Dispose();

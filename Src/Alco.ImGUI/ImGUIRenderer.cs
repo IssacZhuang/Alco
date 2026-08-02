@@ -105,7 +105,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         _target = target;
     }
 
-    public void End()
+    public void End(GPUFrameBuffer? overrideTarget = null)
     {
         ImGui.Render();
         ImDrawDataPtr drawData = ImGui.GetDrawData();
@@ -114,6 +114,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
         {
             return;
         }
+
+        GPUFrameBuffer target = overrideTarget ?? _target!;
 
         uint totalVertexBufferSize = (uint)(drawData.TotalVtxCount * sizeof(ImDrawVert));
         uint totalIndexBufferSize = (uint)(drawData.TotalIdxCount * sizeof(ushort));
@@ -153,13 +155,13 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         drawData.ScaleClipRects(ImGui.GetIO().DisplayFramebufferScale);
 
-        ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(_target!.AttachmentLayout);
-        float targetWidth = _target.Width;
-        float targetHeight = _target.Height;
+        ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(target.AttachmentLayout);
+        float targetWidth = target.Width;
+        float targetHeight = target.Height;
 
         _commandBuffer.Begin();
 
-        using (var renderPass = _commandBuffer.BeginRender(_target))
+        using (var renderPass = _commandBuffer.BeginRender(target))
         {
             renderPass.SetPipeline(pipelineInfo.Pipeline);
             renderPass.SetVertexBuffer(0, _mesh.VertexBuffer);
