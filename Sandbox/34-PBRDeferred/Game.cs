@@ -150,6 +150,10 @@ public class Game : GameEngine
     private BloomSystem? _bloom;
     private float _emissiveBoost = 4.0f;
 
+    // HDR tone mapping (PluginHDR): switchable operator with per-type parameters.
+    private PluginHDR? _hdrPlugin;
+    private PluginHDR.TonemapType _tonemapType;
+
     // Screenshot mode.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
@@ -349,7 +353,8 @@ public class Game : GameEngine
         // Match the game's tonemapping operator.
         if (TryGetPlugin<PluginHDR>(out var pluginHDR))
         {
-            pluginHDR.Tonemap = PluginHDR.TonemapType.Neutral;
+            _hdrPlugin = pluginHDR;
+            _tonemapType = pluginHDR.Tonemap;
         }
     }
 
@@ -1155,6 +1160,71 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0.0f, 4.0f))
             {
                 _bloom.Intensity = bloomIntensity;
+            }
+        }
+
+        if (_hdrPlugin != null && ImGui.CollapsingHeader("Tone Mapping"))
+        {
+            if (ImGui.Combo("Tone Map Type", ref _tonemapType))
+            {
+                _hdrPlugin.Tonemap = _tonemapType;
+            }
+
+            // Optional parameter controls depending on type
+            switch (_tonemapType)
+            {
+                case PluginHDR.TonemapType.Reinhard:
+                    {
+                        var d = _hdrPlugin.ReinhardData;
+                        if (ImGui.SliderFloat("Max Luminance", ref d.MaxLuminance, 0.1f, 10f) |
+                            ImGui.SliderFloat("Gamma", ref d.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.ReinhardData = d;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.Uncharted2:
+                    {
+                        var d2 = _hdrPlugin.Uncharted2Data;
+                        if (ImGui.SliderFloat("Exposure", ref d2.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref d2.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.Uncharted2Data = d2;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.Filmic:
+                    {
+                        var df = _hdrPlugin.FilmicData;
+                        if (ImGui.SliderFloat("Exposure", ref df.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref df.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.FilmicData = df;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.ACES:
+                    {
+                        var da = _hdrPlugin.ACESData;
+                        if (ImGui.SliderFloat("Exposure", ref da.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref da.Gamma, 0.5f, 3.0f))
+                        {
+                            _hdrPlugin.ACESData = da;
+                        }
+                        break;
+                    }
+                case PluginHDR.TonemapType.Neutral:
+                    {
+                        var dn = _hdrPlugin.NeutralData;
+                        if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref dn.Gamma, 0.5f, 3.0f) |
+                            ImGui.SliderFloat("StartCompression", ref dn.StartCompression, 0.5f, 1f) |
+                            ImGui.SliderFloat("Desaturation", ref dn.Desaturation, 0.0f, 4f))
+                        {
+                            _hdrPlugin.NeutralData = dn;
+                        }
+                        break;
+                    }
             }
         }
 
