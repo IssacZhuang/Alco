@@ -107,7 +107,15 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float depthW = exp(-abs(nDepth - depth) * depthScale);
             float spatialW_neighbour = exp(-(dx * dx + dy * dy) / (2.0 * spatialSigma * spatialSigma));
 
-            float w = depthW * spatialW_neighbour;
+            // Normal-based bilateral weight: reject neighbours on different-
+            // facing surfaces. Higher exponent for specular preserves
+            // reflection sharpness on curved geometry, matching CE5's
+            // reflection-direction gating in its cross-bilateral filter.
+            float3 nNormal = normalize(GET_PIXEL_TEX2D(_normal, nGbufPixel).xyz * 2.0 - 1.0);
+            float normalExp = isSpecular ? 16.0 : 4.0;
+            float normalW = pow(max(dot(N, nNormal), 0.0), normalExp);
+
+            float w = depthW * spatialW_neighbour * normalW;
             spatialSum += _traceInput.Load(int3(np, 0)).rgb * w;
             spatialW += w;
         }
@@ -143,13 +151,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float lumDiff = abs(curLum - histLum) / max(max(curLum, histLum), 0.001);
                 float blendRate = lerp(1.0 - constants.params.x, 1.0, saturate(lumDiff * 3.0));
 
-                // Specular needs faster convergence (lower hysteresis) to
-                // avoid trailing reflections.
-                if (isSpecular)
-                {
-                    blendRate = max(blendRate, 0.25);
-                }
-
+                // Both diffuse and specular use the same luminance-based
+                // clipping. Specular relies on high hysteresis to accumulate
+                // frame-indexed cone jitter into a smooth result; forcing a
+                // minimum blend rate destroys that accumulation and causes
+                // flickering. Disocclusion is handled naturally by the
+                // luminance clip above.
                 result = lerp(history, current, blendRate);
             }
         }

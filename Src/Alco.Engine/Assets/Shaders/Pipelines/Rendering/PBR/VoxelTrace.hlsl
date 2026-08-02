@@ -358,21 +358,26 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Specular: one cone along the reflection direction, aperture from roughness.
     float3 reflectDirection = reflect(-V, N);
 
-    // Frame-indexed jitter: offset the cone start point perpendicular to the
-    // reflection direction. Over multiple frames the temporal demosaic blends
-    // these sub-voxel-offset samples into a smooth result, matching CE5's
-    // frame-indexed kernel dithering approach.
-    float2 jitter2D;
-    float jitterAngle = giFrameParams.x * 2.39996; // golden angle
-    jitter2D.x = cos(jitterAngle);
-    jitter2D.y = sin(jitterAngle);
-    float3 jitterRight = normalize(cross(reflectDirection, abs(reflectDirection.z) < 0.99 ? float3(0, 0, 1) : float3(1, 0, 0)));
-    float3 jitterUp = cross(reflectDirection, jitterRight);
-    float jitterRadius = fineVoxelSize * 0.5;
-    float3 jitterOffset = (jitterRight * jitter2D.x + jitterUp * jitter2D.y) * jitterRadius;
-
+    // CE5-style per-pixel spatial dithering with temporal flip.
+    // Each pixel in a 4x4 tile samples a different sub-direction within the
+    // cone footprint. The demosaic spatial filter then accumulates these 16
+    // spatially-distributed samples into a smooth result. Frame-parity flips
+    // (4 phases over 8 frames) add temporal variation — matching CryEngine's
+    // kernel tiling + per-frame flip approach. This avoids the flickering
+    // that golden-angle temporal jitter causes on narrow specular cones.
     float specularApertureTan = max(roughness * roughness, 0.06);
-    float3 specular = TraceCone(startPosition + jitterOffset, reflectDirection, specularApertureTan, maxDistance).rgb;
+    uint2 tile = tracePixel & 3u;
+    float2 spatialOffset = (float2(tile) + 0.5) / 4.0 - 0.5;
+    uint frameHalf = uint(giFrameParams.x) / 2u;
+    if (frameHalf & 1u) spatialOffset.x = -spatialOffset.x;
+    if (frameHalf & 2u) spatialOffset.y = -spatialOffset.y;
+    float3 jitterAxis = abs(reflectDirection.z) < 0.99 ? float3(0, 0, 1) : float3(1, 0, 0);
+    float3 jitterRight = normalize(cross(reflectDirection, jitterAxis));
+    float3 jitterUp = cross(reflectDirection, jitterRight);
+    float3 jitteredDir = normalize(reflectDirection
+        + (jitterRight * spatialOffset.x + jitterUp * spatialOffset.y) * specularApertureTan * 0.5);
+
+    float3 specular = TraceCone(startPosition, jitteredDir, specularApertureTan, maxDistance).rgb;
     if (roughness < 0.65)
     {
         // Fade the blend out ahead of the roughness gate: specular antialiasing
