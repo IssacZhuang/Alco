@@ -18,6 +18,8 @@ DEFINE_TEX3D_SAMPLE(6, _ddgiIrradiance);
 DEFINE_TEX2D_READ(7, _albedo);
 
 static const uint DDGI_COEFFICIENT_COUNT = 4u;
+// Width of the cross-fade ring at a cascade's outer boundary, in probe cells.
+static const float DDGI_CASCADE_FADE_CELLS = 1.5;
 
 float4 DdgiOrigin(int cascade)
 {
@@ -34,6 +36,38 @@ float4 SampleDdgiCoefficient(float3 localProbe, int cascade, uint coefficient)
         (localProbe.y + 0.5) / probeResolution.y,
         (slabOffset + localProbe.z + 0.5) / totalDepth);
     return SAMPLE_TEX3D_LEVEL(_ddgiIrradiance, uvw, 0.0);
+}
+
+// Samples one cascade's irradiance at a world position known to be inside it.
+// Falls back to the sky gradient while the probe data is not established yet.
+float3 SampleDdgiCascade(float3 localProbe, int cascade, float3 normal)
+{
+    float4 coefficient0 = SampleDdgiCoefficient(localProbe, cascade, 0u);
+    float4 coefficient1 = SampleDdgiCoefficient(localProbe, cascade, 1u);
+    float4 coefficient2 = SampleDdgiCoefficient(localProbe, cascade, 2u);
+    float4 coefficient3 = SampleDdgiCoefficient(localProbe, cascade, 3u);
+    if (coefficient2.a < 0.05)
+    {
+        return VoxelSkyColor(normal);
+    }
+
+    // Cosine-convolved first-order SH, divided by PI because deferred lighting
+    // applies albedo directly to this irradiance-like radiance value.
+    float3 diffuse = coefficient0.rgb * 0.886227
+        + coefficient1.rgb * (1.023327 * normal.y)
+        + coefficient2.rgb * (1.023327 * normal.z)
+        + coefficient3.rgb * (1.023327 * normal.x);
+
+    // Omnidirectional first/second hit-distance moments provide a conservative
+    // leak guard. The screen-space near-field term refines local contact later.
+    float spacing = DdgiOrigin(cascade).w;
+    float3 fractionalProbe = frac(localProbe);
+    float probeDistance = length(min(fractionalProbe, 1.0 - fractionalProbe) * spacing);
+    float meanDistance = coefficient0.a;
+    float variance = max(coefficient1.a - meanDistance * meanDistance, spacing * spacing * 0.01);
+    float delta = max(probeDistance - meanDistance, 0.0);
+    float visibility = delta > 0.0 ? variance / (variance + delta * delta) : 1.0;
+    return max(diffuse * (visibility / PI), 0.0);
 }
 
 float3 GatherDdgiDiffuse(float3 worldPosition, float3 normal)
@@ -57,32 +91,25 @@ float3 GatherDdgiDiffuse(float3 worldPosition, float3 normal)
         return VoxelSkyColor(normal);
     }
 
-    float4 coefficient0 = SampleDdgiCoefficient(localProbe, selectedCascade, 0u);
-    float4 coefficient1 = SampleDdgiCoefficient(localProbe, selectedCascade, 1u);
-    float4 coefficient2 = SampleDdgiCoefficient(localProbe, selectedCascade, 2u);
-    float4 coefficient3 = SampleDdgiCoefficient(localProbe, selectedCascade, 3u);
-    if (coefficient2.a < 0.05)
+    float3 diffuse = SampleDdgiCascade(localProbe, selectedCascade, normal);
+
+    // The cascades are camera-relative, so surfaces slide across their outer
+    // boundaries as the camera moves. Cross-fade across the outer probe ring
+    // toward the next coarser cascade (or the sky fallback beyond the coarsest)
+    // instead of hard-switching the ambient term, which read as a pop.
+    float3 probeResolution = ddgiParams.xyz;
+    float3 edgeCells = min(localProbe, probeResolution - 1.0 - localProbe);
+    float edgeDistance = min(edgeCells.x, min(edgeCells.y, edgeCells.z));
+    float fade = 1.0 - saturate(edgeDistance / DDGI_CASCADE_FADE_CELLS);
+    if (fade > 0.0)
     {
-        return VoxelSkyColor(normal);
+        int nextCascade = selectedCascade + 1;
+        float3 fallback = nextCascade < (int)ddgiParams2.w
+            ? SampleDdgiCascade((worldPosition - DdgiOrigin(nextCascade).xyz) / DdgiOrigin(nextCascade).w, nextCascade, normal)
+            : VoxelSkyColor(normal);
+        diffuse = lerp(diffuse, fallback, fade);
     }
-
-    // Cosine-convolved first-order SH, divided by PI because deferred lighting
-    // applies albedo directly to this irradiance-like radiance value.
-    float3 diffuse = coefficient0.rgb * 0.886227
-        + coefficient1.rgb * (1.023327 * normal.y)
-        + coefficient2.rgb * (1.023327 * normal.z)
-        + coefficient3.rgb * (1.023327 * normal.x);
-
-    // Omnidirectional first/second hit-distance moments provide a conservative
-    // leak guard. The screen-space near-field term refines local contact later.
-    float spacing = DdgiOrigin(selectedCascade).w;
-    float3 fractionalProbe = frac(localProbe);
-    float probeDistance = length(min(fractionalProbe, 1.0 - fractionalProbe) * spacing);
-    float meanDistance = coefficient0.a;
-    float variance = max(coefficient1.a - meanDistance * meanDistance, spacing * spacing * 0.01);
-    float delta = max(probeDistance - meanDistance, 0.0);
-    float visibility = delta > 0.0 ? variance / (variance + delta * delta) : 1.0;
-    return max(diffuse * (visibility / PI), 0.0);
+    return diffuse;
 }
 
 float3 DecodeSRGB(float3 color)
@@ -308,8 +335,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 specular = TraceCone(startPosition, reflectDirection, specularApertureTan, maxDistance).rgb;
     if (roughness < 0.65)
     {
+        // Fade the blend out ahead of the roughness gate: specular antialiasing
+        // widens roughness with distance, so a hard cutoff here pops at range.
         float4 screenReflection = TraceScreenSpaceReflection(startPosition, reflectDirection, roughness);
-        specular = lerp(specular, screenReflection.rgb, screenReflection.a * (1.0 - roughness));
+        float gateFade = saturate((0.65 - roughness) * 10.0);
+        specular = lerp(specular, screenReflection.rgb, screenReflection.a * (1.0 - roughness) * gateFade);
     }
 
     _indirectGI[tracePixel] = float4(diffuse, 1.0);

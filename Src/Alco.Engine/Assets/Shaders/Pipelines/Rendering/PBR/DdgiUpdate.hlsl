@@ -129,7 +129,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         float3(0.0, 0.0, 0.0), float3(0.0, 0.0, 0.0) };
     float meanDistance = 0.0;
     float meanDistanceSquared = 0.0;
-    float maximumDistance = origin.w * 10.0;
+    // One world-space ray budget for every cascade (based on the finest
+    // spacing): scaling it with the cascade's own spacing would let coarser
+    // cascades escape to the sky more often, baking a systematic near-dark /
+    // far-bright gradient into the cascade boundaries.
+    float maximumDistance = DdgiOrigin(0).w * 10.0;
     uint frameIndex = (uint)ddgiParams.w;
     [unroll]
     for (uint ray = 0u; ray < DDGI_RAY_COUNT; ray++)
