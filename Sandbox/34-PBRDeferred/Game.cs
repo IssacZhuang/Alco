@@ -118,8 +118,8 @@ public class Game : GameEngine
     private float _miePhaseG = 0.8f;
     private float _starIntensity = 1.0f;
     private float _sunRadianceScale = 20.0f;
-    private float _nightFloor = 0.1f;
-    private float _ambientFloor = 0f;
+    private float _nightFloor = 0.05f;
+    private float _ambientFloor = 1f;
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private const float HBAOMaxStepPixels = 64.0f;
@@ -353,15 +353,15 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        // Use Neutral tone mapping with gamma 2.2.
+        // Use ACES tone mapping with gamma 2.2.
         if (TryGetPlugin<PluginHDR>(out var pluginHDR))
         {
             _hdrPlugin = pluginHDR;
-            _hdrPlugin.Tonemap = PluginHDR.TonemapType.Neutral;
-            _tonemapType = PluginHDR.TonemapType.Neutral;
-            var neutralData = _hdrPlugin.NeutralData;
-            neutralData.Gamma = 2.2f;
-            _hdrPlugin.NeutralData = neutralData;
+            _hdrPlugin.Tonemap = PluginHDR.TonemapType.ACES;
+            _tonemapType = PluginHDR.TonemapType.ACES;
+            var acesData = _hdrPlugin.ACESData;
+            acesData.Gamma = 2.2f;
+            _hdrPlugin.ACESData = acesData;
         }
     }
 
