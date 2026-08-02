@@ -210,6 +210,56 @@ float4 SampleOpacity(float3 position, int level, float mip)
     return SAMPLE_TEX3D_LEVEL(_opacity, VoxelWorldToUVW(position, level, mip), mip);
 }
 
+// Distance of a world position from the outer boundary of its clipmap level,
+// normalized to [0, 1] where 0 = exactly on the inner edge and 1 = on the
+// outer edge. Used to blend between adjacent levels near boundaries.
+float LevelBoundaryFalloff(float3 position, int level)
+{
+    float4 originAndSize = levelOrigins[level];
+    float extent = originAndSize.w * clipmapParams.x;
+    float3 relative = (position - originAndSize.xyz) / extent;
+    float3 distFromCenter = abs(relative - 0.5);
+    float maxDist = max(distFromCenter.x, max(distFromCenter.y, distFromCenter.z));
+    // Smoothstep over the outer 20% of the level volume.
+    return saturate((maxDist - 0.4) / 0.1);
+}
+
+// Sample radiance + opacity at a position, blending between the current level
+// and the next coarser level near boundaries. This eliminates the hard popping
+// that occurs when a cone ray crosses from one clipmap level to the next,
+// because each level is independently voxelized with different data.
+float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDir)
+{
+    float4 radSample = SampleRadiance(position, level, mip);
+    float4 opaSample = SampleOpacity(position, level, mip);
+
+    int levelCount = (int)clipmapParams.y;
+    if (level + 1 < levelCount)
+    {
+        float boundaryWeight = LevelBoundaryFalloff(position, level);
+        if (boundaryWeight > 0.001)
+        {
+            float nextVoxelSize = levelOrigins[level + 1].w;
+            float curVoxelSize = levelOrigins[level].w;
+            // Convert the mip to the coarser level's mip space.
+            float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, clipmapParams.z - 1.0);
+
+            float4 nextRad = SAMPLE_TEX3D_LEVEL(_radiance,
+                VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
+            float4 nextOpa = SAMPLE_TEX3D_LEVEL(_opacity,
+                VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
+
+            float w = boundaryWeight * boundaryWeight * (3.0 - 2.0 * boundaryWeight);
+            radSample = lerp(radSample, nextRad, w);
+            opaSample = lerp(opaSample, nextOpa, w);
+        }
+    }
+
+    float voxelAlpha = dot(opaSample.xyz, absDir);
+    voxelAlpha = max(voxelAlpha, radSample.a * 0.3);
+    return float4(radSample.rgb, voxelAlpha);
+}
+
 // March one cone through the clipmap, accumulating radiance front-to-back.
 // Uses anisotropic directional opacity: alpha at each step is projected from
 // the opacity volume's xyz onto |cone direction|, matching CryEngine SVOGI.
@@ -236,16 +286,10 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
         float diameter = max(2.0 * t * apertureTan, voxelSize);
         // Fractional mip: the sampler blends the neighboring mip levels.
         float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
-        float4 radSample = SampleRadiance(position, level, mip);
+        float4 sample = SampleRadianceBlended(position, level, mip, absDir);
 
-        // Anisotropic opacity: project directional opacity onto |rayDir|.
-        float4 opaSample = SampleOpacity(position, level, mip);
-        float voxelAlpha = dot(opaSample.xyz, absDir);
-        // Fall back to radiance occupancy when opacity data is sparse.
-        voxelAlpha = max(voxelAlpha, radSample.a * 0.3);
-
-        color += (1.0 - alpha) * voxelAlpha * radSample.rgb;
-        alpha += (1.0 - alpha) * voxelAlpha;
+        color += (1.0 - alpha) * sample.a * sample.rgb;
+        alpha += (1.0 - alpha) * sample.a;
         t += max(voxelSize, diameter * 0.5);
     }
 
@@ -313,8 +357,22 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     // Specular: one cone along the reflection direction, aperture from roughness.
     float3 reflectDirection = reflect(-V, N);
-    float specularApertureTan = max(roughness * roughness, 0.03);
-    float3 specular = TraceCone(startPosition, reflectDirection, specularApertureTan, maxDistance).rgb;
+
+    // Frame-indexed jitter: offset the cone start point perpendicular to the
+    // reflection direction. Over multiple frames the temporal demosaic blends
+    // these sub-voxel-offset samples into a smooth result, matching CE5's
+    // frame-indexed kernel dithering approach.
+    float2 jitter2D;
+    float jitterAngle = giFrameParams.x * 2.39996; // golden angle
+    jitter2D.x = cos(jitterAngle);
+    jitter2D.y = sin(jitterAngle);
+    float3 jitterRight = normalize(cross(reflectDirection, abs(reflectDirection.z) < 0.99 ? float3(0, 0, 1) : float3(1, 0, 0)));
+    float3 jitterUp = cross(reflectDirection, jitterRight);
+    float jitterRadius = fineVoxelSize * 0.5;
+    float3 jitterOffset = (jitterRight * jitter2D.x + jitterUp * jitter2D.y) * jitterRadius;
+
+    float specularApertureTan = max(roughness * roughness, 0.06);
+    float3 specular = TraceCone(startPosition + jitterOffset, reflectDirection, specularApertureTan, maxDistance).rgb;
     if (roughness < 0.65)
     {
         // Fade the blend out ahead of the roughness gate: specular antialiasing
