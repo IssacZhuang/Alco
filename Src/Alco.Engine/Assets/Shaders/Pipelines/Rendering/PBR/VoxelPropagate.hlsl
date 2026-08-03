@@ -189,9 +189,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     gathered /= max(totalWeight, 0.0001);
 
     // Bounce = Lambert BRDF × incoming indirect irradiance, modulated by
-    // strength. The voxel volume stores incident irradiance (no albedo), so
-    // only one albedo multiplication happens here at the reflecting surface.
-    float3 bounce = albedo * gathered * bounceStrength;
+    // strength. Clamp dark albedos to a minimum reflectance so that very dark
+    // surfaces still contribute meaningful bounce light — matching CE5
+    // SVOGI's e_svoTI_MinReflectance (default 0.2).
+    float3 bounceAlbedo = albedo + saturate(0.2 - dot(albedo, 0.333));
+    float3 bounce = bounceAlbedo * gathered * bounceStrength;
 
     _propagateOut[storeCoord] = float4(currentRadiance + bounce, 1.0);
 }

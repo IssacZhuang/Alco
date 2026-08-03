@@ -390,6 +390,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         specular = lerp(specular, screenReflection.rgb, screenReflection.a * (1.0 - roughness) * gateFade);
     }
 
+    // Diffuse bias: a small constant sky-tint added to the GI diffuse to
+    // prevent pitch-black shadows in areas where cones over-occlude before
+    // reaching open sky (indoor, under thick roofs, deep alcoves). Matches
+    // CE5 SVOGI's e_svoTI_DiffuseBias (default 0.05).
+    diffuse += giFrameParams.yyy * skyZenithColor.rgb;
+
     _indirectGI[tracePixel] = float4(diffuse, 1.0);
     _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(specular, 1.0);
 }
