@@ -95,8 +95,9 @@ public readonly struct VoxelGiStatistics
 /// shared by persistent structural instances and per-frame movable instances.
 /// Structural bricks are rebuilt incrementally after edits or camera scrolling.
 /// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting
-/// pass; the resulting <see cref="IndirectTexture"/> atlas (diffuse in the left
-/// half, specular in the right half) is sampled by the deferred lighting pass
+/// pass; the resulting <see cref="IndirectTexture"/> atlas (diffuse bounce and
+/// visibility in the left half, specular in the right half) is sampled by the
+/// deferred lighting pass
 /// (see <see cref="PBRDeferredPipeline.SetGlobalIllumination"/>).
 /// <br/>Attribute voxels live in storage buffers (packed, point-sampled by the
 /// injection pass); the HDR radiance volume is one mip-mapped RGBA16Float
@@ -346,8 +347,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
     /// <summary>
     /// The gathered indirect radiance atlas (twice the half G-buffer width:
-    /// diffuse radiance in the left half, specular in the right half), sampled
-    /// by the deferred lighting pass.
+    /// diffuse bounce radiance in left-half rgb, environment visibility in
+    /// left-half alpha, and specular radiance in the right half), sampled by the
+    /// deferred lighting pass.
     /// </summary>
     public RenderTexture IndirectTexture => _indirectAtlas;
 

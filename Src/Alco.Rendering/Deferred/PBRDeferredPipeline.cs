@@ -150,6 +150,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 SkyParams;
         /// <summary>Atmosphere parameters: x=starIntensity, y=nightFloor, z=sunRadianceScale, w=ambientFloor (minimum hemisphere ambient multiplier).</summary>
         public Vector4 SkyParams2;
+        /// <summary>Azimuthally filtered physical-sky radiance at the horizon.</summary>
+        public Vector4 SkyHorizonColor;
+        /// <summary>Filtered physical-sky radiance at the zenith.</summary>
+        public Vector4 SkyZenithColor;
         /// <summary>Point light 0 position (w unused).</summary>
         public Vector4 PointLight0Position;
         /// <summary>Point light 0 color (rgb) and intensity (w).</summary>
@@ -176,8 +180,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 Params2;
         /// <summary>xy=render target size in pixels (filled by the pipeline).</summary>
         public Vector4 ViewportSize;
-        /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular).</summary>
+        /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility).</summary>
         public Vector4 Params3;
+        /// <summary>x=giAoAmount, y=giMinVisibility, z and w are unused.</summary>
+        public Vector4 Params4;
 
         /// <summary>
         /// Copy the given point lights into the light slots (up to four lights).
@@ -520,7 +526,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// to fall back to a black texture; the GI ambient term itself is toggled via
     /// <see cref="DeferredLightingData.Params3"/> (x component).
     /// </summary>
-    /// <param name="indirectGI">The gathered indirect radiance atlas, or null.</param>
+    /// <param name="indirectGI">The gathered indirect radiance and environment-visibility atlas, or null.</param>
     public void SetGlobalIllumination(RenderTexture? indirectGI)
     {
         _indirectGI = indirectGI;

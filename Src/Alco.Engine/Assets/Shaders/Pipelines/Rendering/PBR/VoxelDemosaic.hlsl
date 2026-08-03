@@ -3,10 +3,10 @@
 
 // Temporal demosaic for voxel GI. Reads the half-resolution cone-traced atlas
 // (diffuse left half, specular right half) and produces a temporally smoothed
-// result. A bilateral 3x3 spatial filter reduces per-cone noise using G-buffer
-// depth similarity. The result is blended with a reprojected history buffer
-// using exponential hysteresis with luminance-based clipping to suppress
-// ghosting on disocclusion.
+// result. Diffuse alpha carries environment visibility and is filtered together
+// with radiance. A bilateral 3x3 spatial filter reduces per-cone noise using
+// G-buffer depth similarity. The result is blended with a reprojected history
+// buffer using exponential hysteresis with change clipping to suppress ghosting.
 //
 // Both the indirect atlas (sampled by DeferredLighting) and a history texture
 // (read by this shader next frame) are written in the same dispatch.
@@ -70,8 +70,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float spatialSigma = max(constants.params.y, 0.001);
     float depthScale = 50.0 / spatialSigma;
 
-    float3 centerVal = _traceInput.Load(int3(pixel, 0)).rgb;
-    float3 spatialSum = centerVal;
+    float4 centerVal = _traceInput.Load(int3(pixel, 0));
+    float4 spatialSum = centerVal;
     float spatialW = 1.0;
 
     [unroll]
@@ -116,14 +116,14 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float normalW = pow(max(dot(N, nNormal), 0.0), normalExp);
 
             float w = depthW * spatialW_neighbour * normalW;
-            spatialSum += _traceInput.Load(int3(np, 0)).rgb * w;
+            spatialSum += _traceInput.Load(int3(np, 0)) * w;
             spatialW += w;
         }
     }
-    float3 current = spatialSum / max(spatialW, 0.0001);
+    float4 current = spatialSum / max(spatialW, 0.0001);
 
     // --- Temporal reprojection ---
-    float3 result = current;
+    float4 result = current;
     bool firstFrame = giFrameParams.x < 0.5;
 
     if (!firstFrame)
@@ -142,17 +142,20 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     : float2(prevUV.x * 0.5, prevUV.y);
                 int2 histPixel = int2(prevAtlasUV * float2(atlasRes));
                 histPixel = clamp(histPixel, int2(0, 0), int2((int)atlasRes.x - 1, (int)atlasRes.y - 1));
-                float3 history = _historyInput.Load(int3(histPixel, 0)).rgb;
+                float4 history = _historyInput.Load(int3(histPixel, 0));
 
-                // Luminance-based clipping: if current and history differ
-                // wildly, reduce hysteresis to avoid ghosting.
-                float curLum = dot(current, float3(0.299, 0.587, 0.114));
-                float histLum = dot(history, float3(0.299, 0.587, 0.114));
+                // Radiance- and visibility-based clipping: if current and
+                // history differ significantly, reduce hysteresis to avoid
+                // lighting or occlusion ghosting.
+                float curLum = dot(current.rgb, float3(0.299, 0.587, 0.114));
+                float histLum = dot(history.rgb, float3(0.299, 0.587, 0.114));
                 float lumDiff = abs(curLum - histLum) / max(max(curLum, histLum), 0.001);
-                float blendRate = lerp(1.0 - constants.params.x, 1.0, saturate(lumDiff * 3.0));
+                float visibilityDiff = abs(current.a - history.a);
+                float change = max(saturate(lumDiff * 3.0), saturate(visibilityDiff * 4.0));
+                float blendRate = lerp(1.0 - constants.params.x, 1.0, change);
 
-                // Both diffuse and specular use the same luminance-based
-                // clipping. Specular relies on high hysteresis to accumulate
+                // Both diffuse and specular use the same change clipping.
+                // Specular relies on high hysteresis to accumulate
                 // frame-indexed cone jitter into a smooth result; forcing a
                 // minimum blend rate destroys that accumulation and causes
                 // flickering. Disocclusion is handled naturally by the
@@ -162,6 +165,6 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
 
-    _indirectGI[pixel] = float4(result, 1.0);
-    _historyOut[pixel] = float4(result, 1.0);
+    _indirectGI[pixel] = result;
+    _historyOut[pixel] = result;
 }

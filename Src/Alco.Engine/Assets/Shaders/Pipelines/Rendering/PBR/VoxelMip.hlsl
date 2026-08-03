@@ -44,7 +44,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float radianceWeight = 0.0;
     float occupancySum = 0.0;
     float3 opacitySum = 0.0;
-    float opacityWeightSum = 0.0;
+    float opacityCoverageSum = 0.0;
     for (uint dz = 0; dz <= 1; dz++)
     {
         for (uint dy = 0; dy <= 1; dy++)
@@ -62,9 +62,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 occupancySum += radSample.a;
 
                 float4 opaSample = LOAD_TEX3D(_opacityLoad, loadCoord, 0);
-                float opaWeight = step(0.01, opaSample.a);
-                opacitySum += opaSample.xyz * opaWeight;
-                opacityWeightSum += opaWeight;
+                opacitySum += opaSample.xyz;
+                opacityCoverageSum += opaSample.a;
             }
         }
     }
@@ -73,6 +72,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 radiance = radianceWeight > 0.0 ? radianceSum / radianceWeight : 0.0;
     _radianceOut[storeCoord] = float4(radiance, occupancySum / 8.0);
 
-    float3 opacity = opacityWeightSum > 0.0 ? opacitySum / opacityWeightSum : 0.0;
-    _opacityOut[storeCoord] = float4(opacity, opacityWeightSum / 8.0);
+    // Preserve volume coverage at coarse mips. Dividing by only the occupied
+    // children makes a single thin surface fully opaque at every mip and causes
+    // severe long-range over-occlusion during cone tracing.
+    float3 opacity = opacitySum / 8.0;
+    _opacityOut[storeCoord] = float4(opacity, opacityCoverageSum / 8.0);
 }

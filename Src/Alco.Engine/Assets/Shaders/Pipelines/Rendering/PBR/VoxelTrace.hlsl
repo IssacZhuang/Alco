@@ -4,10 +4,11 @@
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the half-res
 // trace resolution. Reconstructs the world position and normal from the
 // G-buffer, traces 9 diffuse cones covering the hemisphere and one specular
-// cone along the reflection vector through the radiance volume. The result
-// is written into the output atlas (twice the trace width: diffuse in the
-// left half, specular in the right). Cones that leave every clipmap region
-// fall back to the sky gradient.
+// cone along the reflection vector through the radiance volume. The result is
+// written into the output atlas (twice the trace width): diffuse bounce
+// radiance plus environment visibility in the left half, specular radiance in
+// the right. Only specular cones fall back to the sky gradient; diffuse sky is
+// evaluated independently by the lighting pass and modulated by visibility.
 
 DEFINE_TEX3D_SAMPLE(1, _radiance);
 DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
@@ -263,14 +264,16 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
 // March one cone through the clipmap, accumulating radiance front-to-back.
 // Uses anisotropic directional opacity: alpha at each step is projected from
 // the opacity volume's xyz onto |cone direction|, matching CryEngine SVOGI.
-// Returns rgb = gathered radiance (with sky fallback), a = accumulated occlusion.
-float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, float maxDistance)
+// Returns rgb = gathered radiance, a = accumulated occlusion. Sky fallback is
+// optional so diffuse and specular integration can keep separate semantics.
+float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, float maxDistance, float skyFallback)
 {
     float mipCount = clipmapParams.z;
     float fineVoxelSize = levelOrigins[0].w;
     float3 color = 0.0;
     float alpha = 0.0;
-    float t = fineVoxelSize;
+    int startLevel = VoxelFindLevel(startPosition);
+    float t = startLevel >= 0 ? levelOrigins[startLevel].w : fineVoxelSize;
     float3 absDir = abs(direction);
 
     for (int step = 0; step < 48 && t <= maxDistance && alpha < 0.98; step++)
@@ -293,10 +296,9 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
         t += max(voxelSize, diameter * 0.5);
     }
 
-    // Sky fallback for whatever the cones did not occlude. Downward-facing
-    // cones receive no sky light to prevent illumination leaking through floors
-    // and terrain (CE5 SkyLightBottomMultiplier, default ≈ 0).
-    float skyVisibility = direction.z >= 0.0 ? 1.0 : 0.0;
+    // Specular fallback for the unoccluded part of the cone. Diffuse callers
+    // pass zero because their sky baseline is evaluated by DeferredLighting.
+    float skyVisibility = direction.z >= 0.0 ? skyFallback : 0.0;
     color += (1.0 - alpha) * VoxelSkyColor(direction) * skyVisibility;
     return float4(color, alpha);
 }
@@ -304,21 +306,24 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
 // Trace the 9-cone diffuse hemisphere, cosine-weighted, through the radiance
 // volume. Produces directional indirect diffuse unlike the former DDGI SH
 // probes that could only represent low-frequency lighting.
-float3 TraceDiffuseCones(float3 startPosition, float3 normal, float maxDistance)
+float4 TraceDiffuseCones(float3 startPosition, float3 normal, float maxDistance)
 {
     float3x3 tbn = GetTangentBasis(normal);
     float3 diffuse = 0.0;
+    float occlusion = 0.0;
     float totalWeight = 0.0;
     [unroll]
     for (uint i = 0u; i < DIFFUSE_CONE_COUNT; i++)
     {
         float3 worldDir = mul(DIFFUSE_CONE_DIRECTIONS[i], tbn);
-        float4 coneResult = TraceCone(startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance);
+        float4 coneResult = TraceCone(startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 0.0);
         float weight = DIFFUSE_CONE_WEIGHTS[i];
         diffuse += coneResult.rgb * weight;
+        occlusion += coneResult.a * weight;
         totalWeight += weight;
     }
-    return diffuse / max(totalWeight, 0.0001);
+    float inverseWeight = rcp(max(totalWeight, 0.0001));
+    return float4(diffuse * inverseWeight, saturate(1.0 - occlusion * inverseWeight));
 }
 
 [shader("compute")]
@@ -349,12 +354,18 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 V = normalize(cameraPosition.xyz - worldPosition);
     float maxDistance = giParams.y;
 
-    // Start half a fine voxel above the surface to avoid immediate self-hits.
+    // Bias by the voxel size of the finest clipmap level that contains this
+    // surface. Using the global finest size self-intersects surfaces represented
+    // only by coarse levels and makes their GI incorrectly black.
     float fineVoxelSize = levelOrigins[0].w;
-    float3 startPosition = worldPosition + N * fineVoxelSize * 1.5;
+    int surfaceLevel = VoxelFindLevel(worldPosition);
+    float surfaceVoxelSize = surfaceLevel >= 0 ? levelOrigins[surfaceLevel].w : fineVoxelSize;
+    float3 startPosition = worldPosition + N * surfaceVoxelSize * 1.5;
 
-    // Diffuse: 9-cone hemisphere trace through the radiance volume.
-    float3 diffuse = TraceDiffuseCones(startPosition, N, maxDistance);
+    // Diffuse: 9-cone hemisphere trace. RGB contains only bounced surface
+    // radiance and alpha contains unoccluded environment visibility.
+    float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance);
+    float3 diffuse = diffuseResult.rgb;
     float4 nearField = GatherScreenSpaceNearField(gbufferPixel, uv, worldPosition, N);
     diffuse = lerp(diffuse, nearField.rgb, nearField.a * 0.25);
 
@@ -380,7 +391,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 jitteredDir = normalize(reflectDirection
         + (jitterRight * spatialOffset.x + jitterUp * spatialOffset.y) * specularApertureTan * 0.5);
 
-    float3 specular = TraceCone(startPosition, jitteredDir, specularApertureTan, maxDistance).rgb;
+    float3 specular = TraceCone(startPosition, jitteredDir, specularApertureTan, maxDistance, 1.0).rgb;
     if (roughness < 0.65)
     {
         // Fade the blend out ahead of the roughness gate: specular antialiasing
@@ -390,12 +401,6 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         specular = lerp(specular, screenReflection.rgb, screenReflection.a * (1.0 - roughness) * gateFade);
     }
 
-    // Diffuse bias: a small constant sky-tint added to the GI diffuse to
-    // prevent pitch-black shadows in areas where cones over-occlude before
-    // reaching open sky (indoor, under thick roofs, deep alcoves). Matches
-    // CE5 SVOGI's e_svoTI_DiffuseBias (default 0.05).
-    diffuse += giFrameParams.yyy * skyZenithColor.rgb;
-
-    _indirectGI[tracePixel] = float4(diffuse, 1.0);
+    _indirectGI[tracePixel] = float4(diffuse, diffuseResult.a);
     _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(specular, 1.0);
 }

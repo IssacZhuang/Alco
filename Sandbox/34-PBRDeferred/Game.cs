@@ -136,8 +136,11 @@ public class Game : GameEngine
     private VoxelGiRenderer.VoxelGiData _voxelData = new();
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
-    private float _giSpecularStrength = 0.5f;
+    private float _giSpecularStrength = 1.055ff;
     private float _giSkyIntensity = 1.0f;
+    private float _giAoAmount = 1f;
+    private float _giMinVisibility = 0.1f;
+    private float _giHbaoScale = 0.7f;
     private float _giMaxTraceDistance = 20.0f;
     private int _giDebugView;
 
@@ -624,6 +627,15 @@ public class Game : GameEngine
         Vector3 sunDirection = -directionToSun;
         Vector3 sunTint = ProceduralSkyUtility.GetSunColor(directionToSun);
         float sunScale = ProceduralSkyUtility.GetSunLightScale(directionToSun);
+        ProceduralSkyUtility.GetSkyRadianceGradient(
+            directionToSun,
+            _rayleighScale,
+            _mieScale,
+            _skyExposure,
+            _nightFloor,
+            _sunRadianceScale,
+            out Vector3 skyHorizonColor,
+            out Vector3 skyZenithColor);
 
         Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
 
@@ -658,6 +670,8 @@ public class Game : GameEngine
         _lightingData.SunColorAndIntensity = new Vector4(sunTint, _sunIntensity * sunScale);
         _lightingData.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
         _lightingData.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
+        _lightingData.SkyHorizonColor = new Vector4(skyHorizonColor, 0.0f);
+        _lightingData.SkyZenithColor = new Vector4(skyZenithColor, 0.0f);
         _lightingData.Params = new Vector4(
             _shadowEnabled ? 1.0f : 0.0f,
             1.0f,
@@ -677,6 +691,7 @@ public class Game : GameEngine
             _giDiffuseStrength,
             _giSpecularStrength,
             _giDebugView);
+        _lightingData.Params4 = new Vector4(_giAoAmount, _giMinVisibility, 0.0f, 0.0f);
 
         // Voxel GI per-frame data (the clipmap and resolution fields are filled by the renderer).
         if (_voxelGI != null)
@@ -689,15 +704,6 @@ public class Game : GameEngine
             _voxelData.CameraPosition = _lightingData.CameraPosition;
             _voxelData.SunDirection = _lightingData.SunDirection;
             _voxelData.SunColorAndIntensity = _lightingData.SunColorAndIntensity;
-            ProceduralSkyUtility.GetSkyRadianceGradient(
-                directionToSun,
-                _rayleighScale,
-                _mieScale,
-                _skyExposure,
-                _nightFloor,
-                _sunRadianceScale,
-                out Vector3 skyHorizonColor,
-                out Vector3 skyZenithColor);
             _voxelData.SkyHorizonColor = new Vector4(skyHorizonColor, 0.0f);
             _voxelData.SkyZenithColor = new Vector4(skyZenithColor, 0.0f);
             _voxelData.CascadeSplits = _lightingData.CascadeSplits;
@@ -722,6 +728,10 @@ public class Game : GameEngine
         float projScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
         _hbaoData.Params2 = new Vector4(projScale, 0.0f, 0.0f, HBAOMaxStepPixels);
         float hbaoStrength = _hbaoEnabled && _pipeline.HBAO != null ? _hbaoStrength : 0.0f;
+        if (_giEnabled && _voxelGI != null)
+        {
+            hbaoStrength *= _giHbaoScale;
+        }
         _hbaoData.Params3 = new Vector4(hbaoStrength, 0.0f, 0.0f, 0.0f);
     }
 
@@ -1118,6 +1128,7 @@ public class Game : GameEngine
             ImGui.SliderFloat("AO Strength", ref _hbaoStrength, 0.0f, 1.0f);
             ImGui.SliderFloat("AO Power", ref _hbaoIntensity, 0.5f, 3.0f);
             ImGui.SliderFloat("AO Bias", ref _hbaoBias, 0.0f, 0.2f);
+            ImGui.SliderFloat("AO Strength With GI", ref _giHbaoScale, 0.0f, 1.0f);
             ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
         }
 
@@ -1127,8 +1138,10 @@ public class Game : GameEngine
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Sky Intensity", ref _giSkyIntensity, 0.0f, 10.0f);
+            ImGui.SliderFloat("GI AO Amount", ref _giAoAmount, 0.0f, 1.0f);
+            ImGui.SliderFloat("GI Minimum Visibility", ref _giMinVisibility, 0.0f, 0.5f);
             ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
-            string[] giDebugModes = ["Off", "Indirect Diffuse", "Indirect Specular"];
+            string[] giDebugModes = ["Off", "Diffuse Bounce", "Indirect Specular", "GI Visibility"];
             ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             ImGui.Text($"GI CPU encode: {statistics.CpuRecordMilliseconds:F2} ms");

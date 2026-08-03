@@ -4,8 +4,8 @@
 // Deferred lighting pass shader for the PBR pipeline.
 // Samples the G-buffer, evaluates a GGX PBR BRDF with a directional sun
 // (shadow mapped, hardware PCF), up to four point lights, an ambient term
-// (cone-traced voxel GI when enabled, otherwise the atmosphere evaluated at
-// the surface normal) and a physically-based procedural sky (single
+// (sky/probe baseline modulated by voxel visibility plus traced bounce light)
+// and a physically-based procedural sky (single
 // scattering atmosphere plus sun disc and stars) for empty pixels.
 
 struct Vertex
@@ -30,6 +30,8 @@ DEFINE_UNIFORM(0, _data)
     // Atmosphere parameters, see Shaders/Libs/Atmosphere.hlsli.
     float4 skyParams;            // x=rayleighScale y=mieScale z=miePhaseG w=exposure
     float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=ambientFloor
+    float4 skyHorizonColor;      // azimuthally filtered physical sky at the horizon
+    float4 skyZenithColor;       // filtered physical sky at the zenith
     float4 pointLight0Position;
     float4 pointLight0Color;     // rgb + intensity
     float4 pointLight1Position;
@@ -43,7 +45,8 @@ DEFINE_UNIFORM(0, _data)
     float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
     float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
     float4 viewportSize;         // xy = render target size in pixels
-    float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular)
+    float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
+    float4 params4;              // x=giAoAmount, y=giMinVisibility, zw=unused
 };
 
 DEFINE_TEX2D_SAMPLE(1, _albedo);
@@ -52,8 +55,9 @@ DEFINE_TEX2D_SAMPLE(3, _mrAO);
 DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
 DEFINE_TEX2D_SAMPLE(6, _emissive);
-// Indirect GI atlas from the voxel cone tracing pass: twice the trace width,
-// gathered diffuse radiance in the left half, specular in the right half.
+// Indirect GI atlas from the voxel cone tracing pass: twice the trace width.
+// The left half stores diffuse bounce radiance in rgb and sky/environment
+// visibility in alpha; the right half stores specular radiance.
 DEFINE_TEX2D_SAMPLE(7, _indirectGI);
 
 [shader("vertex")]
@@ -244,6 +248,21 @@ float3 EnvBRDFApprox(float3 F0, float roughness, float NdotV)
     return F0 * AB.x + AB.y;
 }
 
+// Unit-albedo Lambert response for the CPU-filtered sky gradient. The
+// coefficients integrate L(z) = lerp(horizon, zenith, z^0.6) over the visible
+// upper hemisphere and divide by PI. Unlike a raw sky lookup at the normal,
+// this is low frequency and cannot make diffuse normal maps reflect the sky.
+float3 EvaluateDiffuseSky(float3 normal)
+{
+    float3 sideResponse = skyHorizonColor.rgb * 0.218505
+        + skyZenithColor.rgb * 0.281495;
+    float3 upResponse = skyHorizonColor.rgb * 0.230769
+        + skyZenithColor.rgb * 0.769231;
+    float upFacing = saturate(normal.z);
+    float downFacing = saturate(-normal.z);
+    return lerp(sideResponse, upResponse, upFacing) * (1.0 - downFacing);
+}
+
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
 {
@@ -332,61 +351,59 @@ float4 MainPS(V2F input) : SV_TARGET
         }
     }
 
-    // Ambient term. With voxel GI enabled the cone-traced indirect textures
-    // replace the analytic sky ambient (their cones already fall back to the
-    // atmosphere outside the clipmap): diffuse is weighted by albedo and AO,
-    // specular by the analytic split-sum BRDF approximation.
-    float3 ambient;
+    // Build the diffuse environment baseline independently of voxel GI. This is
+    // the equivalent of CE5's diffuse environment-probe accumulation: shadows
+    // only remove direct sun and never remove this low-frequency illumination.
+    float3 skyAmbient = EvaluateDiffuseSky(N);
+    float upDot = saturate(N.z * 0.5 + 0.5);
+    float3 skyBounce = float3(0.10, 0.12, 0.15);
+    float3 groundBounce = float3(0.05, 0.045, 0.04);
+    float3 ambientFloor = skyParams2.w * lerp(groundBounce, skyBounce, upDot);
+    float3 diffuseIrradiance = skyAmbient + ambientFloor;
+    float3 indirectSpecularTerm = 0.0;
+
     if (params3.x > 0.5)
     {
         // The atlas is twice the trace width: diffuse on the left, specular on the right.
         float2 traceUV = input.uv * float2(0.5, 1.0);
-        float3 indirectDiffuse = SAMPLE_TEX2D(_indirectGI, traceUV).rgb;
+        float4 indirectDiffuse = SAMPLE_TEX2D(_indirectGI, traceUV);
         float3 indirectSpecular = SAMPLE_TEX2D(_indirectGI, traceUV + float2(0.5, 0.0)).rgb;
 
-        // Debug: visualize the gathered indirect radiance.
+        // Debug: visualize bounce radiance, specular radiance, or voxel
+        // environment visibility (white=open, black=occluded).
         if (params3.w > 0.5)
         {
-            return float4(params3.w < 1.5 ? indirectDiffuse : indirectSpecular, 1.0);
+            if (params3.w < 1.5)
+            {
+                return float4(indirectDiffuse.rgb, 1.0);
+            }
+            if (params3.w < 2.5)
+            {
+                return float4(indirectSpecular, 1.0);
+            }
+            return float4(indirectDiffuse.aaa, 1.0);
         }
+
+        // CE5-style AO integration: preserve the independent environment
+        // baseline and darken it by voxel visibility. Diffuse strength affects
+        // only actual bounced radiance, so it no longer controls shadow fill.
+        float giVisibility = max(saturate(indirectDiffuse.a), saturate(params4.y));
+        float environmentVisibility = lerp(1.0, giVisibility, saturate(params4.x));
+        diffuseIrradiance = diffuseIrradiance * environmentVisibility
+            + indirectDiffuse.rgb * params3.y;
 
         float NdotV = max(dot(N, V), 0.0);
         float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
-        // The cone-traced diffuse result is a hemisphere-integrated estimate
-        // of incident radiance: the volume part carries source-surface albedo
-        // (for colour bleeding) and the sky fallback is untinted. The current
-        // surface applies its Lambert BRDF (albedo) once here to convert that
-        // incident irradiance into reflected radiance. This matches CE5 where
-        // the forward shader multiplies the SVOGI diffuse RT by material albedo.
-        ambient = indirectDiffuse * albedo * ao * (1.0 - metallic) * params3.y
-            + indirectSpecular * EnvBRDFApprox(F0, roughness, NdotV) * ao * params3.z;
-    }
-    else
-    {
-        // Simple sky ambient term (diffuse only): atmosphere radiance at the
-        // normal direction, evaluated with a low sample count.
-        float3 dirToSun = normalize(-sunDirection.xyz);
-        float3 skyAmbient = AtmosphereSkyRadiance(N, dirToSun, skyParams, skyParams2, 8, 4);
-        ambient = skyAmbient * albedo * ao * (1.0 - metallic);
+        indirectSpecularTerm = indirectSpecular
+            * EnvBRDFApprox(F0, roughness, NdotV)
+            * params3.z;
     }
 
-    // Minimum ambient floor: a hemisphere term (more light from above than
-    // below) that prevents surfaces from collapsing to pure black in deep
-    // shadow, at night, or inside completely enclosed indoor spaces where
-    // neither the sky ambient nor the GI cone trace can find light.
-    // Adjustable via skyParams2.w; shadowless by design — it represents
-    // omnidirectional sky bounce, never modulated by the sun shadow factor.
-    // Skipped when voxel GI is active: the cone-traced indirect already
-    // provides directional ambient and sky fallback, and this flat fill would
-    // wash out the AO-like darkening the GI produces in corners and under
-    // overhangs.
-    if (params3.x < 0.5)
-    {
-        float upDot = saturate(N.z * 0.5 + 0.5);
-        float3 skyBounce = float3(0.10, 0.12, 0.15);
-        float3 groundBounce = float3(0.05, 0.045, 0.04);
-        ambient += skyParams2.w * lerp(groundBounce, skyBounce, upDot) * albedo * ao * (1.0 - metallic);
-    }
+    // Material AO and HBAO affect indirect/environment illumination only. The
+    // HBAO strength is reduced by the caller while voxel GI is active so the
+    // two independent occlusion estimates do not crush the same corners twice.
+    float3 ambient = (diffuseIrradiance * albedo * (1.0 - metallic)
+        + indirectSpecularTerm) * ao;
 
     // Emissive is added unshaded (stored linear in the G-buffer).
     float3 emissive = SAMPLE_TEX2D(_emissive, input.uv).rgb;
