@@ -196,63 +196,6 @@ float4 TraceScreenSpaceReflection(
     return float4(0.0, 0.0, 0.0, 0.0);
 }
 
-// Supplement coarse clipmap occlusion with visible depth-buffer intersections.
-// This follows CE5's far screen-space opacity path: it is faded in only near
-// the finest clipmap boundary, where projected voxel coverage becomes sparse.
-float TraceScreenSpaceConeOpacity(
-    float3 startPosition,
-    float3 direction,
-    float apertureTan,
-    float maxDistance)
-{
-    uint2 resolution = uint2(giParams2.y, giParams2.z);
-    float minimumDistance = levelOrigins[0].w * 4.0;
-    float maximumDistance = min(maxDistance, levelOrigins[0].w * 96.0);
-    if (maximumDistance <= minimumDistance)
-    {
-        return 0.0;
-    }
-
-    float previousDifference = -1.0;
-    [unroll]
-    for (int step = 1; step <= 8; step++)
-    {
-        float progress = step / 8.0;
-        float distance_ = lerp(minimumDistance, maximumDistance, progress * progress);
-        float3 rayPosition = startPosition + direction * distance_;
-        float4 clip = mul(viewProjection, float4(rayPosition, 1.0));
-        if (clip.w <= 0.0)
-        {
-            break;
-        }
-
-        float3 ndc = clip.xyz / clip.w;
-        float2 sampleUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
-        if (any(sampleUV <= 0.0) || any(sampleUV >= 1.0) || ndc.z <= 0.0 || ndc.z >= 1.0)
-        {
-            break;
-        }
-
-        int2 samplePixel = clamp((int2)(sampleUV * float2(resolution)), 0, (int2)resolution - 1);
-        float sceneDepth = GET_PIXEL_TEX2D(_gbufferDepth, samplePixel);
-        float difference = ndc.z - sceneDepth;
-        if (sceneDepth < 0.9999 && difference >= 0.0 && previousDifference < 0.0)
-        {
-            float3 scenePosition = ReconstructWorldPosition(sampleUV, sceneDepth);
-            float coneRadius = max(levelOrigins[0].w * 2.0, distance_ * apertureTan);
-            float separation = length(scenePosition - rayPosition);
-            if (separation <= coneRadius * 2.0)
-            {
-                float edgeConfidence = saturate(
-                    min(min(sampleUV.x, sampleUV.y), min(1.0 - sampleUV.x, 1.0 - sampleUV.y)) * 12.0);
-                return saturate(1.0 - separation / (coneRadius * 2.0)) * edgeConfidence;
-            }
-        }
-        previousDifference = difference;
-    }
-    return 0.0;
-}
-
 // Hardware trilinear sample of the radiance volume at a (fractional) mip;
 // rgb = radiance, a = occupancy. All levels share the one Texture3D, stacked
 // along the w axis.
@@ -334,15 +277,9 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
         float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
         float4 sample = SampleRadianceBlended(position, level, mip, absDir);
         float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
-        float integrationScale = saturate(marchDistance / max(diameter, effectiveVoxelSize));
-        float effectiveLod = max(log2(effectiveVoxelSize / fineVoxelSize), 0.0);
-        float coarseCoverageScale = 1.0 + 0.035 * effectiveLod * effectiveLod;
-        float sampleAlpha = 1.0 - pow(
-            saturate(1.0 - sample.a),
-            integrationScale * coarseCoverageScale);
 
-        color += (1.0 - alpha) * sampleAlpha * sample.rgb;
-        alpha += (1.0 - alpha) * sampleAlpha;
+        color += (1.0 - alpha) * sample.a * sample.rgb;
+        alpha += (1.0 - alpha) * sample.a;
         t += marchDistance;
     }
 
@@ -359,8 +296,7 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
 float4 TraceDiffuseCones(
     float3 startPosition,
     float3 normal,
-    float maxDistance,
-    float screenSpaceOcclusionWeight)
+    float maxDistance)
 {
     float3x3 tbn = GetTangentBasis(normal);
     float3 diffuse = 0.0;
@@ -371,16 +307,6 @@ float4 TraceDiffuseCones(
     {
         float3 worldDir = mul(DIFFUSE_CONE_DIRECTIONS[i], tbn);
         float4 coneResult = TraceCone(startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 0.0);
-        if (screenSpaceOcclusionWeight > 0.001)
-        {
-            float screenOpacity = TraceScreenSpaceConeOpacity(
-                startPosition,
-                worldDir,
-                DIFFUSE_CONE_APERTURE,
-                maxDistance) * screenSpaceOcclusionWeight;
-            coneResult.rgb *= 1.0 - screenOpacity;
-            coneResult.a = 1.0 - (1.0 - coneResult.a) * (1.0 - screenOpacity);
-        }
         float weight = DIFFUSE_CONE_WEIGHTS[i];
         diffuse += coneResult.rgb * weight;
         occlusion += coneResult.a * weight;
@@ -431,19 +357,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     // Diffuse: 9-cone hemisphere trace. RGB contains only bounced surface
     // radiance and alpha contains unoccluded environment visibility.
-    float screenSpaceOcclusionWeight = VoxelLevelContains(worldPosition, 0)
-        ? VoxelLevelTransitionWeight(worldPosition, 0)
-        : 1.0;
-    float4 diffuseResult = TraceDiffuseCones(
-        startPosition,
-        N,
-        maxDistance,
-        screenSpaceOcclusionWeight);
+    float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance);
 
-    // CE5 blends far screen-space opacity into the final diffuse alpha after
-    // tree tracing. Conservatively account for unresolved projected coverage
-    // as the receiver moves to coarser clipmap levels. This affects only sky
-    // visibility; gathered bounce radiance keeps its physical energy.
+    // Conservatively account for unresolved projected coverage as the receiver
+    // moves to coarser clipmap levels. This affects only sky visibility;
+    // gathered bounce radiance keeps its physical energy.
     float receiverLod = saturate(log2(surfaceVoxelSize / fineVoxelSize));
     float unresolvedCoverageScale = 1.0 + 0.27 * receiverLod * receiverLod;
     diffuseResult.a = pow(saturate(diffuseResult.a), unresolvedCoverageScale);

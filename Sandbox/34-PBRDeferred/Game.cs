@@ -136,7 +136,7 @@ public class Game : GameEngine
     private VoxelGiRenderer.VoxelGiData _voxelData = new();
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
-    private float _giSpecularStrength = 1.0f;
+    private float _giSpecularStrength = 0.5f;
     private float _giSkyIntensity = 1.0f;
     private float _giAoAmount = 1f;
     private float _giMinVisibility = 0.1f;

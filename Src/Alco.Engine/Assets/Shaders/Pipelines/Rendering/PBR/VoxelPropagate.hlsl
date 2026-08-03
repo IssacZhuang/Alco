@@ -127,15 +127,9 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
         float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
         float4 sample = SamplePropagationBlended(position, level, mip, absDir);
         float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
-        float integrationScale = saturate(marchDistance / max(diameter, effectiveVoxelSize));
-        float effectiveLod = max(log2(effectiveVoxelSize / fineVoxelSize), 0.0);
-        float coarseCoverageScale = 1.0 + 0.035 * effectiveLod * effectiveLod;
-        float sampleAlpha = 1.0 - pow(
-            saturate(1.0 - sample.a),
-            integrationScale * coarseCoverageScale);
 
-        color += (1.0 - alpha) * sampleAlpha * sample.rgb;
-        alpha += (1.0 - alpha) * sampleAlpha;
+        color += (1.0 - alpha) * sample.a * sample.rgb;
+        alpha += (1.0 - alpha) * sample.a;
         t += marchDistance;
     }
 
