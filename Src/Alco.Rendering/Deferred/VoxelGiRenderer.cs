@@ -890,12 +890,18 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 _injectMaterial.DispatchBySizeWithConstant(computePass, resolution, resolution, resolution, new Vector4(level, 0, 0, 0));
             }
 
+            // Build mip chain after injection so the propagation cones sample
+            // correct coarse-mip data instead of stale values from the previous
+            // frame. Without this, the first bounce gathers against an empty or
+            // outdated radiance volume.
+            BuildMipChains(computePass);
+
             // Multi-bounce light propagation: each occupied voxel traces a small
             // cone set through the radiance volume to gather indirect light,
             // multiplies by albedo and adds to existing direct radiance. The
-            // result goes into _propagateTemp, then is copied back to mip 0
-            // before the mip chain is rebuilt. Iterated BounceCount times so the
-            // second bounce sees first-bounce radiance.
+            // result goes into _propagateTemp, then is copied back to mip 0.
+            // Iterated BounceCount times so the second bounce sees first-bounce
+            // radiance.
             int bounceCount = Math.Max(0, BounceCount);
             for (int bounce = 0; bounce < bounceCount; bounce++)
             {
@@ -918,21 +924,12 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 }
             }
 
-            // Radiance + opacity mip chains. Each transition reads mip N and
-            // writes mip N+1 through single-mip views: the non-overlapping
-            // subresource ranges of the two views avoid the read/write usage
-            // conflict within one dispatch.
-            for (int mip = 0; mip < _mipCount - 1; mip++)
+            // Rebuild the mip chain after propagation so the screen-space cone
+            // tracer picks up both direct and bounce radiance. Skipped when there
+            // are no bounces — the post-injection build above is sufficient.
+            if (bounceCount > 0)
             {
-                _mipMaterial.SetTexture3DRead("_radianceLoad", _radiance, (uint)mip);
-                _mipMaterial.SetTexture3DStorage("_radianceOut", _radiance, (uint)(mip + 1));
-                _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, (uint)mip);
-                _mipMaterial.SetTexture3DStorage("_opacityOut", _opacity, (uint)(mip + 1));
-                uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
-                for (int level = 0; level < LevelCount; level++)
-                {
-                    _mipMaterial.DispatchBySizeWithConstant(computePass, dstResolution, dstResolution, dstResolution, new Vector4(mip, level, 0, 0));
-                }
+                BuildMipChains(computePass);
             }
 
             // Gather diffuse (9-cone hemisphere) and specular (single cone + SSR).
@@ -1057,6 +1054,30 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private static void UploadPageTable(GraphicsBuffer buffer, VoxelGiPagePool pagePool, int level)
     {
         buffer.UpdateBuffer(pagePool.GetPageTable(level));
+    }
+
+    /// <summary>
+    /// Builds the full radiance + opacity mip chain (mip 0 → mip N) for all
+    /// clipmap levels. Each transition reads mip N and writes mip N+1 through
+    /// single-mip views whose non-overlapping subresource ranges avoid the
+    /// read/write usage conflict within one dispatch.
+    /// </summary>
+    private void BuildMipChains(GPUCommandBuffer.ComputePass computePass)
+    {
+        for (int mip = 0; mip < _mipCount - 1; mip++)
+        {
+            _mipMaterial.SetTexture3DRead("_radianceLoad", _radiance, (uint)mip);
+            _mipMaterial.SetTexture3DStorage("_radianceOut", _radiance, (uint)(mip + 1));
+            _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, (uint)mip);
+            _mipMaterial.SetTexture3DStorage("_opacityOut", _opacity, (uint)(mip + 1));
+            uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
+            for (int level = 0; level < LevelCount; level++)
+            {
+                _mipMaterial.DispatchBySizeWithConstant(
+                    computePass, dstResolution, dstResolution, dstResolution,
+                    new Vector4(mip, level, 0, 0));
+            }
+        }
     }
 
     private void DispatchClearBricks(

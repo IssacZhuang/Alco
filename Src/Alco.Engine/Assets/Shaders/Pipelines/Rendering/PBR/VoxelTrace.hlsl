@@ -293,8 +293,11 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
         t += max(voxelSize, diameter * 0.5);
     }
 
-    // Sky fallback for whatever the cones did not occlude.
-    color += (1.0 - alpha) * VoxelSkyColor(direction);
+    // Sky fallback for whatever the cones did not occlude. Downward-facing
+    // cones receive no sky light to prevent illumination leaking through floors
+    // and terrain (CE5 SkyLightBottomMultiplier, default ≈ 0).
+    float skyVisibility = direction.z >= 0.0 ? 1.0 : 0.0;
+    color += (1.0 - alpha) * VoxelSkyColor(direction) * skyVisibility;
     return float4(color, alpha);
 }
 
