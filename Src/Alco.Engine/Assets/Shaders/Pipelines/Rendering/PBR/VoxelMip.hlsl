@@ -2,10 +2,11 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 
 // Radiance + opacity mip downsample for the voxel GI clipmap: one dispatch per
-// level per mip transition at (dstRes, dstRes, dstRes). Averages the 8 child
-// voxels: radiance with occupancy weighting (occupancy becomes the fraction of
-// occupied children), and directional opacity as a plain average (thin walls
-// in coarser voxels naturally get lower opacity).
+// level per mip transition at (dstRes, dstRes, dstRes). Radiance is averaged
+// with volume coverage weights. Directional opacity uses a projected-area
+// reduction: maximum coverage along the projection axis and an average across
+// the orthogonal plane. This preserves thin walls at coarse mips, matching the
+// sub-voxel opacity reduction used by CE5 SVOGI.
 // All levels share the one Texture3D, stacked along the w axis; the child mip
 // is read with exact texel fetches, the parent mip written through the bound
 // single-mip storage view.
@@ -43,8 +44,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 radianceSum = 0.0;
     float radianceWeight = 0.0;
     float occupancySum = 0.0;
-    float3 opacitySum = 0.0;
     float opacityCoverageSum = 0.0;
+    float3 opacityChildren[8];
     for (uint dz = 0; dz <= 1; dz++)
     {
         for (uint dy = 0; dy <= 1; dy++)
@@ -54,15 +55,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 uint3 coord = min(dispatchId * 2 + uint3(dx, dy, dz), srcRes - 1);
                 uint3 loadCoord = uint3(coord.x, coord.y, level * srcRes + coord.z);
                 float4 radSample = LOAD_TEX3D(_radianceLoad, loadCoord, 0);
-                if (radSample.a > 0.01)
-                {
-                    radianceSum += radSample.rgb;
-                    radianceWeight += 1.0;
-                }
+                radianceSum += radSample.rgb * radSample.a;
+                radianceWeight += radSample.a;
                 occupancySum += radSample.a;
 
                 float4 opaSample = LOAD_TEX3D(_opacityLoad, loadCoord, 0);
-                opacitySum += opaSample.xyz;
+                opacityChildren[dx + dy * 2u + dz * 4u] = opaSample.xyz;
                 opacityCoverageSum += opaSample.a;
             }
         }
@@ -75,6 +73,26 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Preserve volume coverage at coarse mips. Dividing by only the occupied
     // children makes a single thin surface fully opaque at every mip and causes
     // severe long-range over-occlusion during cone tracing.
-    float3 opacity = opacitySum / 8.0;
-    _opacityOut[storeCoord] = float4(opacity, opacityCoverageSum / 8.0);
+    float opacityX = 0.0;
+    float opacityY = 0.0;
+    float opacityZ = 0.0;
+    [unroll]
+    for (uint a = 0u; a < 2u; a++)
+    {
+        [unroll]
+        for (uint b = 0u; b < 2u; b++)
+        {
+            opacityX += max(
+                opacityChildren[0u + a * 2u + b * 4u].x,
+                opacityChildren[1u + a * 2u + b * 4u].x);
+            opacityY += max(
+                opacityChildren[a + 0u * 2u + b * 4u].y,
+                opacityChildren[a + 1u * 2u + b * 4u].y);
+            opacityZ += max(
+                opacityChildren[a + b * 2u + 0u * 4u].z,
+                opacityChildren[a + b * 2u + 1u * 4u].z);
+        }
+    }
+    float3 projectedOpacity = float3(opacityX, opacityY, opacityZ) * 0.25;
+    _opacityOut[storeCoord] = float4(projectedOpacity, opacityCoverageSum / 8.0);
 }

@@ -12,8 +12,8 @@ struct VoxelInjectConstants
     float4 params; // x=levelIndex, yzw=unused
 };
 
-DEFINE_STORAGE(1, uint2, _attrStatic);
-DEFINE_STORAGE(2, uint2, _attrDynamic);
+DEFINE_STORAGE(1, uint4, _attrStatic);
+DEFINE_STORAGE(2, uint4, _attrDynamic);
 DEFINE_TEX3D_STORAGE(3, _radianceOut, float4, "rgba16f");
 DEFINE_TEX2D_DEPTH_SAMPLE(4, _shadowMap);
 DEFINE_STORAGE(5, uint, _pageTableStatic);
@@ -26,7 +26,7 @@ PUSH_CONSTANT VoxelInjectConstants constants;
 bool IsVoxelOccupied(uint3 logicalCoord, uint resolution, int level)
 {
     uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, level);
-    uint2 attr = uint2(0u, 0u);
+    uint4 attr = uint4(0u, 0u, 0u, 0u);
     uint dynamicPage = _pageTableDynamic[pageSlot];
     if (dynamicPage != 0u)
     {
@@ -156,7 +156,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // depth slice (mip 0 view bound, full resolution).
     uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, (uint)level * resolution + dispatchId.z);
 
-    uint2 attr = uint2(0u, 0u);
+    uint4 attr = uint4(0u, 0u, 0u, 0u);
     uint dynamicPage = _pageTableDynamic[pageSlot];
     if (dynamicPage != 0u)
     {
@@ -181,7 +181,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 normal;
     float emissiveQ;
     UnpackVoxelAttr(attr, albedo, normal, emissiveQ);
-    normal = normalize(normal);
+    normal = dot(normal, normal) > 1e-6 ? normalize(normal) : float3(0.0, 0.0, 1.0);
 
     float3 worldPosition = originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize;
 

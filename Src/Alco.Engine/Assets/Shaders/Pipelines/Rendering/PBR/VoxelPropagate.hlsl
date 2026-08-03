@@ -23,8 +23,8 @@ struct VoxelPropagateConstants
 };
 
 DEFINE_TEX3D_SAMPLE(1, _radiance);
-DEFINE_STORAGE(2, uint2, _attrStatic);
-DEFINE_STORAGE(3, uint2, _attrDynamic);
+DEFINE_STORAGE(2, uint4, _attrStatic);
+DEFINE_STORAGE(3, uint4, _attrDynamic);
 DEFINE_TEX3D_STORAGE(4, _propagateOut, float4, "rgba16f");
 DEFINE_STORAGE(5, uint, _pageTableStatic);
 DEFINE_STORAGE(6, uint, _pageTableDynamic);
@@ -65,6 +65,34 @@ float3x3 GetTangentBasis(float3 normal)
     return float3x3(tangent, bitangent, normal);
 }
 
+float4 SamplePropagationBlended(float3 position, int level, float mip, float3 absoluteDirection)
+{
+    float3 uvw = VoxelWorldToUVW(position, level, mip);
+    float4 radiance = SAMPLE_TEX3D_LEVEL(_radiance, uvw, mip);
+    float4 opacity = SAMPLE_TEX3D_LEVEL(_opacity, uvw, mip);
+    int levelCount = (int)clipmapParams.y;
+    if (level + 1 < levelCount)
+    {
+        float transitionWeight = VoxelLevelTransitionWeight(position, level);
+        if (transitionWeight > 0.001)
+        {
+            float nextMip = clamp(
+                mip + log2(levelOrigins[level].w / levelOrigins[level + 1].w),
+                0.0,
+                clipmapParams.z - 1.0);
+            float3 nextUVW = VoxelWorldToUVW(position, level + 1, nextMip);
+            float4 nextRadiance = SAMPLE_TEX3D_LEVEL(_radiance, nextUVW, nextMip);
+            float4 nextOpacity = SAMPLE_TEX3D_LEVEL(_opacity, nextUVW, nextMip);
+            radiance = lerp(radiance, nextRadiance, transitionWeight);
+            opacity = lerp(opacity, nextOpacity, transitionWeight);
+        }
+    }
+
+    float voxelAlpha = dot(opacity.xyz, absoluteDirection);
+    voxelAlpha = max(voxelAlpha, radiance.a * 0.3);
+    return float4(radiance.rgb, voxelAlpha);
+}
+
 // Truncated cone trace for propagation: fewer steps and shorter range than the
 // screen-space version. On the first bounce (allowSky = true), unoccluded
 // cone fractions fall back to the sky gradient so that sky light is gathered
@@ -77,11 +105,14 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
     float fineVoxelSize = levelOrigins[0].w;
     float3 color = 0.0;
     float alpha = 0.0;
-    float t = fineVoxelSize;
+    int startLevel = VoxelFindLevel(startPosition);
+    float t = startLevel >= 0
+        ? VoxelEffectiveVoxelSize(startPosition, startLevel) * 0.5
+        : fineVoxelSize * 0.5;
     float3 absDir = abs(direction);
 
     [loop]
-    for (int step = 0; step < 32 && t <= maxDistance && alpha < 0.95; step++)
+    for (int step = 0; step < 48 && t <= maxDistance && alpha < 0.95; step++)
     {
         float3 position = startPosition + direction * t;
         int level = VoxelFindLevel(position);
@@ -91,17 +122,21 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
         }
 
         float voxelSize = levelOrigins[level].w;
+        float effectiveVoxelSize = VoxelEffectiveVoxelSize(position, level);
         float diameter = max(2.0 * t * apertureTan, voxelSize);
         float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
-        float3 uvw = VoxelWorldToUVW(position, level, mip);
-        float4 radSample = SAMPLE_TEX3D_LEVEL(_radiance, uvw, mip);
-        float4 opaSample = SAMPLE_TEX3D_LEVEL(_opacity, uvw, mip);
-        float voxelAlpha = dot(opaSample.xyz, absDir);
-        voxelAlpha = max(voxelAlpha, radSample.a * 0.3);
+        float4 sample = SamplePropagationBlended(position, level, mip, absDir);
+        float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
+        float integrationScale = saturate(marchDistance / max(diameter, effectiveVoxelSize));
+        float effectiveLod = max(log2(effectiveVoxelSize / fineVoxelSize), 0.0);
+        float coarseCoverageScale = 1.0 + 0.035 * effectiveLod * effectiveLod;
+        float sampleAlpha = 1.0 - pow(
+            saturate(1.0 - sample.a),
+            integrationScale * coarseCoverageScale);
 
-        color += (1.0 - alpha) * voxelAlpha * radSample.rgb;
-        alpha += (1.0 - alpha) * voxelAlpha;
-        t += max(voxelSize, diameter * 0.5);
+        color += (1.0 - alpha) * sampleAlpha * sample.rgb;
+        alpha += (1.0 - alpha) * sampleAlpha;
+        t += marchDistance;
     }
 
     // Sky fallback on first bounce only: provides hemisphere-integrated sky
@@ -136,7 +171,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     // Read attributes (dynamic wins over static), same as the injection pass.
     uint pageSlot = VoxelPageTableSlot(dispatchId, resolution, level);
-    uint2 attr = uint2(0u, 0u);
+    uint4 attr = uint4(0u, 0u, 0u, 0u);
     uint dynamicPage = _pageTableDynamic[pageSlot];
     if (dynamicPage != 0u)
     {
@@ -168,10 +203,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 normal;
     float emissiveQ;
     UnpackVoxelAttr(attr, albedo, normal, emissiveQ);
-    normal = normalize(normal);
+    normal = dot(normal, normal) > 1e-6 ? normalize(normal) : float3(0.0, 0.0, 1.0);
 
     float3 worldPosition = originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize;
-    float3 startPosition = worldPosition + normal * voxelSize * 1.5;
+    float receiverBias = max(levelOrigins[0].w * 2.0, voxelSize * 0.5);
+    float3 startPosition = worldPosition + normal * receiverBias;
 
     // Trace a hemisphere of cones to gather incoming indirect light.
     float3x3 tbn = GetTangentBasis(normal);

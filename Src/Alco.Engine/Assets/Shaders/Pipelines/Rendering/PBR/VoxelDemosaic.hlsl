@@ -1,12 +1,12 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 
-// Temporal demosaic for voxel GI. Reads the half-resolution cone-traced atlas
-// (diffuse left half, specular right half) and produces a temporally smoothed
-// result. Diffuse alpha carries environment visibility and is filtered together
-// with radiance. A bilateral 3x3 spatial filter reduces per-cone noise using
-// G-buffer depth similarity. The result is blended with a reprojected history
-// buffer using exponential hysteresis with change clipping to suppress ghosting.
+// Full-resolution reconstruction and temporal accumulation for voxel GI. Reads
+// the half-resolution cone-traced atlas (diffuse left, specular right), performs
+// a depth/normal-aware 2x2 upscale in linear world distance, and validates
+// reprojected history against stored clip-space w plus the surface normal at
+// the reprojected G-buffer location. Specular alpha stores history depth; the
+// deferred lighting pass consumes only specular rgb.
 //
 // Both the indirect atlas (sampled by DeferredLighting) and a history texture
 // (read by this shader next frame) are written in the same dispatch.
@@ -36,97 +36,84 @@ float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invVP)
 [numthreads(8, 8, 1)]
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
-    uint2 atlasRes = uint2(giParams.z * 2u, giParams.w);
+    uint2 gbufferRes = uint2(giParams2.y, giParams2.z);
+    uint2 atlasRes = uint2(gbufferRes.x * 2u, gbufferRes.y);
     if (any(dispatchId.xy >= atlasRes))
     {
         return;
     }
 
-    uint2 pixel = dispatchId.xy;
-    bool isSpecular = pixel.x >= giParams.z;
-    int halfWidth = (int)giParams.z;
-
-    // Map atlas pixel to the half-res trace pixel and then to full-res G-buffer.
-    int2 tracePixel = isSpecular ? int2(pixel.x - halfWidth, pixel.y) : int2(pixel.xy);
-    tracePixel = clamp(tracePixel, int2(0, 0), int2(halfWidth - 1, (int)giParams.w - 1));
-
-    uint2 gbufferRes = uint2(giParams2.y, giParams2.z);
-    float2 gbufferUV = (float2(tracePixel) + 0.5) / float2(giParams.z, giParams.w);
-    int2 gbufferPixel = int2(gbufferUV * float2(gbufferRes));
-    gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
-
+    uint2 atlasPixel = dispatchId.xy;
+    bool isSpecular = atlasPixel.x >= gbufferRes.x;
+    uint2 gbufferPixel = uint2(isSpecular ? atlasPixel.x - gbufferRes.x : atlasPixel.x, atlasPixel.y);
+    float2 gbufferUV = (float2(gbufferPixel) + 0.5) / float2(gbufferRes);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
     if (depth >= 0.9999)
     {
-        _indirectGI[pixel] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[pixel] = float4(0.0, 0.0, 0.0, 0.0);
+        _indirectGI[atlasPixel] = 0.0;
+        _historyOut[atlasPixel] = 0.0;
         return;
     }
 
     float3 N = normalize(GET_PIXEL_TEX2D(_normal, gbufferPixel).xyz * 2.0 - 1.0);
     float3 worldPos = ReconstructWorldPosition(gbufferUV, depth, invViewProjection);
+    float linearDistance = length(worldPos - cameraPosition.xyz);
+    int2 traceRes = int2(giParams.z, giParams.w);
+    float2 tracePosition = (float2(gbufferPixel) + 0.5) * float2(traceRes) / float2(gbufferRes) - 0.5;
+    int2 traceBase = int2(floor(tracePosition));
+    int2 nearestTracePixel = clamp(int2(floor(tracePosition + 0.5)), int2(0, 0), traceRes - 1);
+    int2 nearestTraceAtlasPixel = nearestTracePixel
+        + (isSpecular ? int2(traceRes.x, 0) : int2(0, 0));
+    float4 nearestTraceValue = _traceInput.Load(int3(nearestTraceAtlasPixel, 0));
+    float4 spatialSum = 0.0;
+    float spatialWeight = 0.0;
 
-    // --- Bilateral 3x3 spatial filter on the trace input ---
-    float spatialSigma = max(constants.params.y, 0.001);
-    float depthScale = 50.0 / spatialSigma;
-
-    float4 centerVal = _traceInput.Load(int3(pixel, 0));
-    float4 spatialSum = centerVal;
-    float spatialW = 1.0;
-
+    // Bilinear spatial weights retain detail on continuous surfaces. Relative
+    // linear distance and normal weights prevent foreground/background mixing,
+    // including at far depth where raw device-depth deltas collapse.
     [unroll]
-    for (int dy = -1; dy <= 1; dy++)
+    for (int oy = 0; oy <= 1; oy++)
     {
         [unroll]
-        for (int dx = -1; dx <= 1; dx++)
+        for (int ox = 0; ox <= 1; ox++)
         {
-            if (dx == 0 && dy == 0)
+            int2 tracePixel = clamp(traceBase + int2(ox, oy), int2(0, 0), traceRes - 1);
+            float2 traceUV = (float2(tracePixel) + 0.5) / float2(traceRes);
+            int2 sampleGbufferPixel = clamp(
+                int2(traceUV * float2(gbufferRes)),
+                int2(0, 0),
+                int2(gbufferRes) - 1);
+            float sampleDepth = GET_PIXEL_TEX2D(_gbufferDepth, sampleGbufferPixel);
+            if (sampleDepth >= 0.9999)
             {
                 continue;
             }
 
-            int2 np = int2(pixel) + int2(dx, dy);
-            // Keep within same atlas half (diffuse or specular).
-            if (isSpecular)
-            {
-                np.x = clamp(np.x, halfWidth, (int)atlasRes.x - 1);
-            }
-            else
-            {
-                np.x = clamp(np.x, 0, halfWidth - 1);
-            }
-            np.y = clamp(np.y, 0, (int)atlasRes.y - 1);
-
-            // G-buffer depth at the neighbour for bilateral weighting.
-            int2 nTrace = isSpecular ? np - int2(halfWidth, 0) : np;
-            float2 nUV = (float2(nTrace) + 0.5) / float2(giParams.z, giParams.w);
-            int2 nGbufPixel = int2(nUV * float2(gbufferRes));
-            nGbufPixel = clamp(nGbufPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
-            float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
-
-            float depthW = exp(-abs(nDepth - depth) * depthScale);
-            float spatialW_neighbour = exp(-(dx * dx + dy * dy) / (2.0 * spatialSigma * spatialSigma));
-
-            // Normal-based bilateral weight: reject neighbours on different-
-            // facing surfaces. Higher exponent for specular preserves
-            // reflection sharpness on curved geometry, matching CE5's
-            // reflection-direction gating in its cross-bilateral filter.
-            float3 nNormal = normalize(GET_PIXEL_TEX2D(_normal, nGbufPixel).xyz * 2.0 - 1.0);
+            float3 sampleNormal = normalize(GET_PIXEL_TEX2D(_normal, sampleGbufferPixel).xyz * 2.0 - 1.0);
+            float2 sampleGbufferUV = (float2(sampleGbufferPixel) + 0.5) / float2(gbufferRes);
+            float3 sampleWorldPos = ReconstructWorldPosition(sampleGbufferUV, sampleDepth, invViewProjection);
+            float sampleLinearDistance = length(sampleWorldPos - cameraPosition.xyz);
+            float relativeDepth = abs(sampleLinearDistance - linearDistance) / max(linearDistance, 0.001);
+            float depthWeight = saturate((0.12 - relativeDepth) * 4.0) + 0.001;
             float normalExp = isSpecular ? 16.0 : 4.0;
-            float normalW = pow(max(dot(N, nNormal), 0.0), normalExp);
-
-            float w = depthW * spatialW_neighbour * normalW;
-            spatialSum += _traceInput.Load(int3(np, 0)) * w;
-            spatialW += w;
+            float normalWeight = pow(max(dot(N, sampleNormal), 0.0), normalExp);
+            float2 bilinearDelta = abs(tracePosition - float2(tracePixel));
+            float bilinearWeight = max((1.0 - bilinearDelta.x) * (1.0 - bilinearDelta.y), 0.001);
+            float weight = bilinearWeight * depthWeight * normalWeight;
+            int2 traceAtlasPixel = tracePixel + (isSpecular ? int2(traceRes.x, 0) : int2(0, 0));
+            spatialSum += _traceInput.Load(int3(traceAtlasPixel, 0)) * weight;
+            spatialWeight += weight;
         }
     }
-    float4 current = spatialSum / max(spatialW, 0.0001);
+    float4 current = spatialWeight > 0.0001
+        ? spatialSum / spatialWeight
+        : nearestTraceValue;
 
     // --- Temporal reprojection ---
     float4 result = current;
-    bool firstFrame = giFrameParams.x < 0.5;
+    bool historyAvailable = giFrameParams.z > 0.5;
 
-    if (!firstFrame)
+    if (historyAvailable)
     {
         float4 prevClip = mul(viewProjectionPrev, float4(worldPos, 1.0));
         if (prevClip.w > 0.0)
@@ -136,35 +123,42 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
             if (all(prevUV >= 0.0) && all(prevUV <= 1.0))
             {
-                // Map prevUV into atlas coordinates matching this pixel's half.
-                float2 prevAtlasUV = isSpecular
-                    ? float2(prevUV.x * 0.5 + 0.5, prevUV.y)
-                    : float2(prevUV.x * 0.5, prevUV.y);
-                int2 histPixel = int2(prevAtlasUV * float2(atlasRes));
-                histPixel = clamp(histPixel, int2(0, 0), int2((int)atlasRes.x - 1, (int)atlasRes.y - 1));
-                float4 history = _historyInput.Load(int3(histPixel, 0));
-
-                // Radiance- and visibility-based clipping: if current and
-                // history differ significantly, reduce hysteresis to avoid
-                // lighting or occlusion ghosting.
-                float curLum = dot(current.rgb, float3(0.299, 0.587, 0.114));
-                float histLum = dot(history.rgb, float3(0.299, 0.587, 0.114));
-                float lumDiff = abs(curLum - histLum) / max(max(curLum, histLum), 0.001);
-                float visibilityDiff = abs(current.a - history.a);
-                float change = max(saturate(lumDiff * 3.0), saturate(visibilityDiff * 4.0));
-                float blendRate = lerp(1.0 - constants.params.x, 1.0, change);
-
-                // Both diffuse and specular use the same change clipping.
-                // Specular relies on high hysteresis to accumulate
-                // frame-indexed cone jitter into a smooth result; forcing a
-                // minimum blend rate destroys that accumulation and causes
-                // flickering. Disocclusion is handled naturally by the
-                // luminance clip above.
-                result = lerp(history, current, blendRate);
+                int2 previousSurfacePixel = clamp(
+                    int2(prevUV * float2(gbufferRes)),
+                    int2(0, 0),
+                    int2(gbufferRes) - 1);
+                int2 previousSpecularPixel = previousSurfacePixel + int2(gbufferRes.x, 0);
+                float historyClipW = _historyInput.Load(int3(previousSpecularPixel, 0)).a;
+                float relativePreviousDepth = abs(historyClipW - prevClip.w) / max(abs(prevClip.w), 0.001);
+                float currentPreviousDepth = GET_PIXEL_TEX2D(_gbufferDepth, previousSurfacePixel);
+                float3 currentPreviousNormal = normalize(
+                    GET_PIXEL_TEX2D(_normal, previousSurfacePixel).xyz * 2.0 - 1.0);
+                bool depthValid = historyClipW > 0.0
+                    && currentPreviousDepth < 0.9999
+                    && relativePreviousDepth < 0.03;
+                bool normalValid = dot(N, currentPreviousNormal) > 0.85;
+                if (depthValid && normalValid)
+                {
+                    int2 historyPixel = previousSurfacePixel
+                        + (isSpecular ? int2(gbufferRes.x, 0) : int2(0, 0));
+                    float4 history = _historyInput.Load(int3(historyPixel, 0));
+                    float currentLuminance = dot(current.rgb, float3(0.299, 0.587, 0.114));
+                    float historyLuminance = dot(history.rgb, float3(0.299, 0.587, 0.114));
+                    float luminanceChange = abs(currentLuminance - historyLuminance)
+                        / max(max(currentLuminance, historyLuminance), 0.001);
+                    float visibilityChange = isSpecular ? 0.0 : abs(current.a - history.a);
+                    float change = max(saturate(luminanceChange * 3.0), saturate(visibilityChange * 4.0));
+                    float blendRate = lerp(1.0 - constants.params.x, 1.0, change);
+                    result = lerp(history, current, blendRate);
+                }
             }
         }
     }
 
-    _indirectGI[pixel] = result;
-    _historyOut[pixel] = result;
+    if (isSpecular)
+    {
+        result.a = mul(viewProjection, float4(worldPos, 1.0)).w;
+    }
+    _indirectGI[atlasPixel] = result;
+    _historyOut[atlasPixel] = result;
 }

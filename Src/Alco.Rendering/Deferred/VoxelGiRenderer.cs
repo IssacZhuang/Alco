@@ -296,6 +296,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private RenderTexture _indirectAtlas;
     private readonly RenderTexture[] _historyGI = new RenderTexture[2];
     private int _historyReadIndex;
+    private bool _historyValid;
     private Matrix4x4 _viewProjectionPrev = Matrix4x4.Identity;
     private RenderTexture? _boundGBuffer;
     private RenderTexture? _boundShadowMap;
@@ -346,7 +347,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
     public VoxelGiStatistics Statistics { get; private set; }
 
     /// <summary>
-    /// The gathered indirect radiance atlas (twice the half G-buffer width:
+    /// The gathered indirect radiance atlas (twice the full G-buffer width:
     /// diffuse bounce radiance in left-half rgb, environment visibility in
     /// left-half alpha, and specular radiance in the right half), sampled by the
     /// deferred lighting pass.
@@ -436,8 +437,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
         int dynamicPageCapacity = pagesPerLevel;
         _staticPagePool = new VoxelGiPagePool(staticPageCapacity, LevelCount, resolution, BrickSize);
         _dynamicPagePool = new VoxelGiPagePool(dynamicPageCapacity, LevelCount, resolution, BrickSize);
-        uint staticAttributeBytes = checked((uint)(_staticPagePool.VoxelCapacity * 8L));
-        uint dynamicAttributeBytes = checked((uint)(_dynamicPagePool.VoxelCapacity * 8L));
+        uint staticAttributeBytes = checked((uint)(_staticPagePool.VoxelCapacity * 16L));
+        uint dynamicAttributeBytes = checked((uint)(_dynamicPagePool.VoxelCapacity * 16L));
         uint pageTableBytes = checked((uint)(pagesPerLevel * sizeof(uint)));
         uint dirtyBrickBytes = checked((uint)(pagesPerLevel * 16));
 
@@ -481,18 +482,18 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _traceMaterial.SetTexture("_radiance", _radiance);
         _traceMaterial.SetTexture("_opacity", _opacity);
 
-        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
+        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width * 2, height, "voxel_indirect_gi");
         _traceRaw = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
-        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
-        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
+        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width * 2, height, "voxel_history_a");
+        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width * 2, height, "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
     }
 
-    private static uint TraceWidth(uint gbufferWidth) => Math.Max(gbufferWidth / 2, 1);
+    private static uint TraceWidth(uint gbufferWidth) => Math.Max((gbufferWidth + 1) / 2, 1);
 
-    private static uint TraceHeight(uint gbufferHeight) => Math.Max(gbufferHeight / 2, 1);
+    private static uint TraceHeight(uint gbufferHeight) => Math.Max((gbufferHeight + 1) / 2, 1);
 
     private static long CalculateMipChainBytes(int width, int height, int depth, int bytesPerVoxel, int mipCount)
     {
@@ -680,14 +681,15 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _traceRaw.Dispose();
         _historyGI[0].Dispose();
         _historyGI[1].Dispose();
-        _indirectAtlas = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
+        _indirectAtlas = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width * 2, height, "voxel_indirect_gi");
         _traceRaw = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
-        _historyGI[0] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
-        _historyGI[1] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
+        _historyGI[0] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width * 2, height, "voxel_history_a");
+        _historyGI[1] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width * 2, height, "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
         _historyReadIndex = 0;
+        _historyValid = false;
         _boundGBuffer = null;
     }
 
@@ -723,10 +725,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         data.LevelRingOffset2 = _clipmap.GetRingOffset(2);
         data.LevelRingOffset3 = _clipmap.GetRingOffset(3);
         data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, 0.0f);
-        uint traceWidth = Math.Max(_indirectAtlas.Width / 2, 1);
-        data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _indirectAtlas.Height);
+        uint traceWidth = Math.Max(_traceRaw.Width / 2, 1);
+        data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _traceRaw.Height);
         data.GiParams2 = new Vector4(data.GiParams2.X, gbuffer.Width, gbuffer.Height, data.GiParams2.W);
-        data.GiFrameParams = new Vector4(_frameIndex, 0.05f, 0.0f, 0.0f);
+        data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, 0.0f);
         _dataBuffer.UpdateBuffer(data);
 
         // The G-buffer and shadow map render textures are stable across frames
@@ -935,11 +937,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
             }
 
             // Gather diffuse (9-cone hemisphere) and specular (single cone + SSR).
-            _traceMaterial.DispatchBySize(computePass, traceWidth, _indirectAtlas.Height, 1);
+            _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
-            // Temporal demosaic: bilateral filter + history blend on the trace
-            // atlas. Writes the smoothed result into _indirectAtlas and a copy
-            // into the write history slot for next frame's reprojection.
+            // Reconstruct the half-resolution trace into a full-resolution
+            // depth/normal-aware atlas, then validate and blend temporal history.
             int historyRead = _historyReadIndex;
             int historyWrite = 1 - historyRead;
             _demosaicMaterial.SetRenderTexture("_historyInput", _historyGI[historyRead], 0);
@@ -962,6 +963,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _instances.Clear();
         _viewProjectionPrev = data.ViewProjection;
         _historyReadIndex = 1 - _historyReadIndex;
+        _historyValid = true;
         _frameIndex++;
         int pendingStaticBricks = 0;
         for (int level = 0; level < LevelCount; level++)

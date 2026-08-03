@@ -4,7 +4,8 @@
 // Compute triangle voxelization for the voxel GI clipmap: one dispatch per mesh
 // per clipmap level, one thread per triangle and z-slab (y dimension = 8 slabs
 // splitting the triangle's voxel-space AABB along z). Writes packed attribute
-// voxels (albedo + occupancy, normal + emissive) with last-writer-wins stores.
+// voxels as 16-bit fixed-point sums. Contributions from overlapping triangles
+// are merged with commutative atomic additions and averaged during injection.
 //
 // Vertex data is read as raw uints from a copy of the mesh's vertex buffer;
 // the layout must be position(3) / normal(3) / uv(2) floats at the head of
@@ -21,7 +22,10 @@ struct VoxelizeConstants
 
 DEFINE_STORAGE(1, uint, _vertices);
 DEFINE_STORAGE(2, uint, _indices);
-DEFINE_STORAGE(3, uint2, _attrOut);
+// Use a flat uint view for atomics. The same buffer is read as uint4 by later
+// passes; the byte layout is identical, while Vulkan atomics require the target
+// expression to be a direct runtime-array element rather than a vector member.
+DEFINE_STORAGE(3, uint, _attrOut);
 DEFINE_TEX2D_SAMPLE(4, _albedoTexture);
 DEFINE_TEX2D_SAMPLE(5, _emissiveTexture);
 DEFINE_STORAGE(6, uint, _pageTable);
@@ -41,6 +45,23 @@ uint LoadIndex(uint i)
 float3 LoadFloat3(uint base)
 {
     return float3(asfloat(_vertices[base]), asfloat(_vertices[base + 1]), asfloat(_vertices[base + 2]));
+}
+
+void AtomicAccumulateVoxel(uint index, float3 albedo, float3 normal, float emissiveQ)
+{
+    uint laneIndex = index * 4u;
+    uint previousCountWord;
+    InterlockedAdd(_attrOut[laneIndex], 1u, previousCountWord);
+    if ((previousCountWord & 65535u) >= 255u)
+    {
+        return;
+    }
+
+    uint4 contribution = PackVoxelAttr(albedo, normal, emissiveQ);
+    InterlockedAdd(_attrOut[laneIndex], contribution.x & 0xFFFF0000u);
+    InterlockedAdd(_attrOut[laneIndex + 1u], contribution.y);
+    InterlockedAdd(_attrOut[laneIndex + 2u], contribution.z);
+    InterlockedAdd(_attrOut[laneIndex + 3u], contribution.w);
 }
 
 // Separating-axis test between an axis-aligned box and a triangle.
@@ -181,12 +202,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     float3 emissiveSample = _emissiveTexture.SampleLevel(_emissiveTextureSampler, voxelUV, 3.0).rgb;
                     float emissiveQ = saturate(dot(constants.emissive.rgb * emissiveSample, float3(0.2126, 0.7152, 0.0722)) / 8.0);
 
-                    uint2 attr = PackVoxelAttr(albedo, N, emissiveQ);
                     uint3 logicalCoord = uint3(x, y, z);
                     uint pageEntry = _pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
                     if (pageEntry != 0u)
                     {
-                        _attrOut[VoxelAttributeIndex(pageEntry, logicalCoord)] = attr;
+                        AtomicAccumulateVoxel(VoxelAttributeIndex(pageEntry, logicalCoord), albedo, N, emissiveQ);
                     }
                 }
             }

@@ -4,9 +4,13 @@
 // layout must match VoxelGiRenderer.VoxelGiData on the C# side exactly.
 // The scene is stored in a clipmap of up to 4 voxel levels, each a cube of
 // resolution^3 voxels at twice the voxel size of the previous level, centered
-// on the camera. Attribute voxels are packed into uint2 in storage buffers:
-//   x = albedo rgb888 + occupancy (a; 0 = empty)
-//   y = normal (rgb888, *0.5+0.5 encoded) + emissive intensity (a, 0..1)
+// on the camera. Attribute voxels are packed into uint4 in storage buffers as
+// pairs of 16-bit fixed-point sums. Voxelization atomically accumulates up to
+// 255 triangle samples, making the result independent of thread order:
+//   x = sample count | emissive sum
+//   y = albedo r sum | albedo g sum
+//   z = albedo b sum | encoded normal x sum
+//   w = encoded normal y sum | encoded normal z sum
 // Radiance (HDR, half float) lives in one RGBA16Float Texture3D with a full
 // mip chain: all levels are stacked along the w axis, each level's mip cube
 // occupying 1/VOXEL_MAX_LEVELS of the texture depth at every mip; alpha holds
@@ -44,41 +48,50 @@ DEFINE_UNIFORM(0, _data)
     float4 lightingParams;         // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=unused
     float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
     float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
-    float4 giFrameParams;          // x=frameIndex (for temporal dithering) y=giDiffuseBias z=unused w=unused
+    float4 giFrameParams;          // x=frameIndex y=giDiffuseBias z=historyValid w=unused
 };
 
 // ---------------------------------------------------------------- packing ---
 
-uint PackBytes4(uint r, uint g, uint b, uint a)
+uint PackWords2(uint low, uint high)
 {
-    return (r & 255u) | ((g & 255u) << 8) | ((b & 255u) << 16) | ((a & 255u) << 24);
+    return (low & 65535u) | ((high & 65535u) << 16);
 }
 
-uint2 PackVoxelAttr(float3 albedo, float3 normal, float emissiveQ)
+uint QuantizeVoxelAttribute(float value)
 {
-    uint2 packed;
-    packed.x = PackBytes4(
-        (uint)(saturate(albedo.r) * 255.0 + 0.5),
-        (uint)(saturate(albedo.g) * 255.0 + 0.5),
-        (uint)(saturate(albedo.b) * 255.0 + 0.5), 255u);
-    packed.y = PackBytes4(
-        (uint)(saturate(normal.x * 0.5 + 0.5) * 255.0 + 0.5),
-        (uint)(saturate(normal.y * 0.5 + 0.5) * 255.0 + 0.5),
-        (uint)(saturate(normal.z * 0.5 + 0.5) * 255.0 + 0.5),
-        (uint)(saturate(emissiveQ) * 255.0 + 0.5));
+    return (uint)(saturate(value) * 255.0 + 0.5);
+}
+
+uint4 PackVoxelAttr(float3 albedo, float3 normal, float emissiveQ)
+{
+    float3 encodedNormal = normal * 0.5 + 0.5;
+    uint4 packed;
+    packed.x = PackWords2(1u, QuantizeVoxelAttribute(emissiveQ));
+    packed.y = PackWords2(QuantizeVoxelAttribute(albedo.r), QuantizeVoxelAttribute(albedo.g));
+    packed.z = PackWords2(QuantizeVoxelAttribute(albedo.b), QuantizeVoxelAttribute(encodedNormal.x));
+    packed.w = PackWords2(QuantizeVoxelAttribute(encodedNormal.y), QuantizeVoxelAttribute(encodedNormal.z));
     return packed;
 }
 
-bool VoxelAttrOccupied(uint2 attr)
+bool VoxelAttrOccupied(uint4 attr)
 {
-    return (attr.x >> 24) != 0u;
+    return (attr.x & 65535u) != 0u;
 }
 
-void UnpackVoxelAttr(uint2 attr, out float3 albedo, out float3 normal, out float emissiveQ)
+void UnpackVoxelAttr(uint4 attr, out float3 albedo, out float3 normal, out float emissiveQ)
 {
-    albedo = float3((float)(attr.x & 255u), (float)((attr.x >> 8) & 255u), (float)((attr.x >> 16) & 255u)) / 255.0;
-    normal = float3((float)(attr.y & 255u), (float)((attr.y >> 8) & 255u), (float)((attr.y >> 16) & 255u)) / 255.0 * 2.0 - 1.0;
-    emissiveQ = (float)(attr.y >> 24) / 255.0;
+    float sampleCount = min((float)(attr.x & 65535u), 255.0);
+    float inverseScale = rcp(max(sampleCount, 1.0) * 255.0);
+    emissiveQ = (float)(attr.x >> 16) * inverseScale;
+    albedo = float3(
+        (float)(attr.y & 65535u),
+        (float)(attr.y >> 16),
+        (float)(attr.z & 65535u)) * inverseScale;
+    normal = float3(
+        (float)(attr.z >> 16),
+        (float)(attr.w & 65535u),
+        (float)(attr.w >> 16)) * inverseScale * 2.0 - 1.0;
 }
 
 // ------------------------------------------------------------- addressing ---
@@ -159,6 +172,31 @@ int VoxelFindLevel(float3 position)
         }
     }
     return -1;
+}
+
+// Smooth transition weight from a clipmap level to its next coarser level.
+// The outer 20 percent of the cube is a blend band; returning a smooth cubic
+// weight keeps both sampled data and ray-march scale continuous at boundaries.
+float VoxelLevelTransitionWeight(float3 position, int level)
+{
+    float4 originAndSize = levelOrigins[level];
+    float extent = originAndSize.w * clipmapParams.x;
+    float3 relative = (position - originAndSize.xyz) / extent;
+    float3 distanceFromCenter = abs(relative - 0.5);
+    float maximumDistance = max(distanceFromCenter.x, max(distanceFromCenter.y, distanceFromCenter.z));
+    float linearWeight = saturate((maximumDistance - 0.4) / 0.1);
+    return linearWeight * linearWeight * (3.0 - 2.0 * linearWeight);
+}
+
+float VoxelEffectiveVoxelSize(float3 position, int level)
+{
+    int levelCount = (int)clipmapParams.y;
+    float voxelSize = levelOrigins[level].w;
+    if (level + 1 >= levelCount)
+    {
+        return voxelSize;
+    }
+    return lerp(voxelSize, levelOrigins[level + 1].w, VoxelLevelTransitionWeight(position, level));
 }
 
 // The physical atmosphere contains more angular detail than six voxel cones

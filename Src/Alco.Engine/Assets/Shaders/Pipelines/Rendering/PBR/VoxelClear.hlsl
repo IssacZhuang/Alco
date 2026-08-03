@@ -9,7 +9,7 @@ struct VoxelClearConstants
     float4 params; // x=levelIndex
 };
 
-DEFINE_STORAGE(1, uint2, _attrOut);
+DEFINE_STORAGE(1, uint4, _attrOut);
 DEFINE_STORAGE(2, uint4, _dirtyBricks);
 DEFINE_STORAGE(3, uint, _pageTable);
 
@@ -35,5 +35,5 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     {
         return;
     }
-    _attrOut[VoxelAttributeIndex(pageEntry, logicalCoord)] = uint2(0u, 0u);
+    _attrOut[VoxelAttributeIndex(pageEntry, logicalCoord)] = uint4(0u, 0u, 0u, 0u);
 }
