@@ -273,7 +273,7 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
     float t = fineVoxelSize;
     float3 absDir = abs(direction);
 
-    for (int step = 0; step < 24 && t <= maxDistance && alpha < 0.98; step++)
+    for (int step = 0; step < 48 && t <= maxDistance && alpha < 0.98; step++)
     {
         float3 position = startPosition + direction * t;
         int level = VoxelFindLevel(position);

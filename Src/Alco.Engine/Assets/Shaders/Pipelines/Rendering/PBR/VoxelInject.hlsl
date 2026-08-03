@@ -186,11 +186,16 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 worldPosition = originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize;
 
     // Only direct lights (sun + point lights) are injected into surface voxels.
-    // Sky light enters the volume exclusively through cone-traced fallback in
-    // the propagation pass (first bounce, hemisphere-integrated with natural
+    // Sky light enters the volume through cone-traced fallback in the
+    // propagation pass (first bounce, hemisphere-integrated with natural
     // occlusion) and the screen-space trace — matching CE5 SVOGI where
     // ComputeDirectStaticLighting only calls ProcessLights (sun + point) and
     // bAllowSkyLight gates sky in ComputePropagateLighting.
+    //
+    // CE5 also injects DiffuseBias into the volume here (ComputeDirectStaticLighting
+    // line 2149: vRGB += max(0, DiffuseBias * skyColorTop.z)). This ensures
+    // every occupied voxel has a minimum radiance floor, so the propagation
+    // and trace passes always pick up some light even from voxels in deep shadow.
     float3 direct = 0.0;
 
     // Sun (with CSM shadow). The 1/PI matches the direct pass's diffuse BRDF.
@@ -222,6 +227,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             direct += pointLightColors[i].rgb * intensity * attenuation * (pointNdotL / PI);
         }
     }
+
+    // CE5-style DiffuseBias injection: bake a minimum sky ambient into every
+    // occupied voxel so shadowed surfaces still have non-zero radiance.
+    // giFrameParams.y = DiffuseBias (default 0.05), matching CE5's
+    // ComputeDirectStaticLighting where vRGB += DiffuseBias * skyColorTop.z.
+    direct += giFrameParams.y * skyZenithColor.rgb * giParams2.w;
 
     // Emissive: albedo-tinted, intensity recovered from the quantized value.
     float3 emissive = albedo * emissiveQ * 8.0 * giParams.x;

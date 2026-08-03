@@ -81,7 +81,7 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
     float3 absDir = abs(direction);
 
     [loop]
-    for (int step = 0; step < 16 && t <= maxDistance && alpha < 0.95; step++)
+    for (int step = 0; step < 32 && t <= maxDistance && alpha < 0.95; step++)
     {
         float3 position = startPosition + direction * t;
         int level = VoxelFindLevel(position);
@@ -177,7 +177,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3x3 tbn = GetTangentBasis(normal);
     float3 gathered = 0.0;
     float totalWeight = 0.0;
-    float maxDistance = voxelSize * resolution * 0.5;
+    // CE5 uses ConeMaxLength=12m as a global fixed distance. Using the full
+    // level extent (instead of half) lets coarser levels propagate much
+    // further, which is essential for sky light to reach into shadowed areas.
+    float maxDistance = voxelSize * resolution;
     [unroll]
     for (uint i = 0u; i < PROP_CONE_COUNT; i++)
     {
@@ -187,6 +190,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         totalWeight += PROP_CONE_WEIGHTS[i];
     }
     gathered /= max(totalWeight, 0.0001);
+
+    // CE5 PropagationBooster (default 1.5): pow(collected, 1/booster) brightens
+    // midtones so that dim bounce light propagates further instead of collapsing
+    // to near-zero after one bounce. 0.05 → 0.136, 0.1 → 0.215, 0.2 → 0.342.
+    gathered = pow(max(gathered, 0.0), 1.0 / 1.5);
 
     // Bounce = Lambert BRDF × incoming indirect irradiance, modulated by
     // strength. Clamp dark albedos to a minimum reflectance so that very dark
