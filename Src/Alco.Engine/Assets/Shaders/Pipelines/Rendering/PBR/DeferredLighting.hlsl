@@ -46,7 +46,7 @@ DEFINE_UNIFORM(0, _data)
     float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
     float4 viewportSize;         // xy = render target size in pixels
     float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
-    float4 params4;              // reserved for GI integration options
+    float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=unused w=unused
 };
 
 DEFINE_TEX2D_SAMPLE(1, _albedo);
@@ -209,9 +209,18 @@ float3 GetSkyColor(float3 direction)
 
     if (pbrParams.w > 0.5)
     {
-        float sunDot = saturate(dot(normalize(direction), dirToSun));
-        float sunDisc = smoothstep(0.9995, 0.9999, sunDot);
-        sky += sunColorAndIntensity.rgb * sunColorAndIntensity.w * sunDisc * 4.0;
+        float sunDot = dot(normalize(direction), dirToSun);
+        // Sun disc visual size (params4.x) and brightness (params4.y) are
+        // independent of the scene lighting intensity so the visible sun can
+        // be tuned without affecting PBR shading.
+        float cosRadius = params4.x;
+        float edgeWidth = max((1.0 - cosRadius) * 0.2, 1e-7);
+        // Core disc with a soft anti-aliased edge.
+        float disc = smoothstep(cosRadius - edgeWidth, cosRadius, sunDot);
+        // Faint atmospheric corona extending ~3.5x the disc radius.
+        float coronaRange = (1.0 - cosRadius) * 3.5;
+        float corona = smoothstep(1.0 - coronaRange, cosRadius, sunDot) - disc;
+        sky += sunColorAndIntensity.rgb * params4.y * (disc + corona * 0.08);
     }
     return sky;
 }

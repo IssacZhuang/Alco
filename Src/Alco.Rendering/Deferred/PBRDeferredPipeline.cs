@@ -182,7 +182,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 ViewportSize;
         /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility).</summary>
         public Vector4 Params3;
-        /// <summary>Reserved for GI integration options.</summary>
+        /// <summary>x=sunDiscSize (cosine angular threshold, higher = smaller disc), y=sunDiscBrightness (HDR visual brightness independent of lighting intensity), z=unused, w=unused.</summary>
         public Vector4 Params4;
 
         /// <summary>

@@ -93,11 +93,24 @@ public class Game : GameEngine
 
     // Sun light. The direction comes from the time of day (see below) unless
     // overridden with --sun=x,y,z (direction the light travels); the color is
-    // the atmosphere transmittance tint from ProceduralSkyUtility.
+    // the atmosphere transmittance tint from ProceduralSkyUtility, shifted warm
+    // by _sunWarmth for a more pleasing art direction.
     private readonly Vector3? _sunDirectionOverride;
     private float _sunIntensity = 8.0f;
     private bool _shadowEnabled = true;
     private bool _sunDiscEnabled = true;
+
+    // Sun disc visual parameters — independent of scene lighting intensity so
+    // the visible sun in the sky can be tuned without affecting PBR shading.
+    private float _sunDiscSize = 0.9998f;       // cosine angular threshold (higher = smaller disc)
+    private float _sunDiscBrightness = 18.0f;   // HDR visual brightness of the sun disc
+    // Artistic warm tint for direct sunlight (0 = physical neutral, 1 = fully warm).
+    private float _sunWarmth = 0.4f;
+
+    // Sun orbit: max elevation at noon simulates latitude (lower = polar,
+    // higher = tropical); azimuth controls the sunrise/sunset direction.
+    private float _sunMaxElevationDeg = 50.0f;
+    private float _sunAzimuthDeg = 0.0f;
 
     // Cascaded shadow map state.
     private readonly float _cameraNear;
@@ -636,9 +649,12 @@ public class Game : GameEngine
         // follow from the atmosphere transmittance and elevation.
         Vector3 directionToSun = _sunDirectionOverride.HasValue
             ? -_sunDirectionOverride.Value
-            : ProceduralSkyUtility.GetDirectionToSun(_timeOfDay);
+            : ProceduralSkyUtility.GetDirectionToSun(_timeOfDay, _sunMaxElevationDeg, _sunAzimuthDeg * MathF.PI / 180.0f);
         Vector3 sunDirection = -directionToSun;
         Vector3 sunTint = ProceduralSkyUtility.GetSunColor(directionToSun);
+        // Artistic warm tint: blend the physical transmittance toward a warm
+        // sunlight color so noon light reads golden instead of neutral white.
+        sunTint = Vector3.Lerp(sunTint, sunTint * new Vector3(1.0f, 0.80f, 0.55f), _sunWarmth);
         float sunScale = ProceduralSkyUtility.GetSunLightScale(directionToSun);
         ProceduralSkyUtility.GetSkyRadianceGradient(
             directionToSun,
@@ -704,7 +720,7 @@ public class Game : GameEngine
             _giDiffuseStrength,
             _giSpecularStrength,
             _giDebugView);
-        _lightingData.Params4 = Vector4.Zero;
+        _lightingData.Params4 = new Vector4(_sunDiscSize, _sunDiscBrightness, 0.0f, 0.0f);
 
         // Voxel GI per-frame data (the clipmap and resolution fields are filled by the renderer).
         if (_voxelGI != null)
@@ -1116,17 +1132,22 @@ public class Game : GameEngine
         if (ImGui.CollapsingHeader("Sun Light"))
         {
             ImGui.SliderFloat("Intensity", ref _sunIntensity, 0.0f, 30.0f);
+            ImGui.SliderFloat("Sun Warmth", ref _sunWarmth, 0.0f, 1.0f);
             ImGui.Checkbox("Shadows", ref _shadowEnabled);
             ImGui.SliderFloat("Shadow Distance", ref _shadowDistance, _sceneRadius * 0.5f, _sceneRadius * 8.0f);
             ImGui.Checkbox("Cascade Debug", ref _cascadeDebug);
             ImGui.Checkbox("Shadow Debug", ref _shadowDebug);
             ImGui.Checkbox("Sun disc", ref _sunDiscEnabled);
+            ImGui.SliderFloat("Sun Disc Size", ref _sunDiscSize, 0.9990f, 0.99999f, "%.5f");
+            ImGui.SliderFloat("Sun Disc Brightness", ref _sunDiscBrightness, 0.0f, 60.0f);
         }
 
         if (ImGui.CollapsingHeader("Sky & Time"))
         {
             ImGui.SliderFloat("Time of Day", ref _timeOfDay, 0.0f, 24.0f);
             ImGui.SliderFloat("Time Speed", ref _timeSpeed, 0.0f, 4.0f);
+            ImGui.SliderFloat("Sun Max Elevation (Latitude)", ref _sunMaxElevationDeg, 5.0f, 90.0f);
+            ImGui.SliderFloat("Sun Azimuth (Sunrise Dir)", ref _sunAzimuthDeg, -180.0f, 180.0f);
             ImGui.SliderFloat("Sky Exposure", ref _skyExposure, 0.1f, 4.0f);
             ImGui.SliderFloat("Rayleigh Scale", ref _rayleighScale, 0.1f, 4.0f);
             ImGui.SliderFloat("Mie Scale (Haze)", ref _mieScale, 0.0f, 8.0f);
