@@ -185,8 +185,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     float3 worldPosition = originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize;
 
-    // Sky ambient, occluded by the upward visibility march.
-    float3 direct = VoxelSkyColor(normal) * SampleSkyVisibility(worldPosition, originAndSize, resolution, level);
+    // Only direct lights (sun + point lights) are injected into surface voxels.
+    // Sky light enters the volume exclusively through cone-traced fallback in
+    // the propagation pass (first bounce, hemisphere-integrated with natural
+    // occlusion) and the screen-space trace — matching CE5 SVOGI where
+    // ComputeDirectStaticLighting only calls ProcessLights (sun + point) and
+    // bAllowSkyLight gates sky in ComputePropagateLighting.
+    float3 direct = 0.0;
 
     // Sun (with CSM shadow). The 1/PI matches the direct pass's diffuse BRDF.
     float3 L = normalize(-sunDirection.xyz);
@@ -221,6 +226,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Emissive: albedo-tinted, intensity recovered from the quantized value.
     float3 emissive = albedo * emissiveQ * 8.0 * giParams.x;
 
+    // Store exiting surface radiance = albedo × (direct irradiance) + emissive.
     float3 radiance = albedo * direct + emissive;
     _radianceOut[storeCoord] = float4(radiance, 1.0);
 

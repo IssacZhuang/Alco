@@ -36,7 +36,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
+    // Radiance: average only over occupied children to avoid diluting bright
+    // thin geometry when it collapses into a coarser voxel. The occupancy-
+    // weighted average (dividing by 8) would dim a lone occupied voxel by up
+    // to 8× at each mip level, making distant bounce light nearly invisible.
     float3 radianceSum = 0.0;
+    float radianceWeight = 0.0;
     float occupancySum = 0.0;
     float3 opacitySum = 0.0;
     float opacityWeightSum = 0.0;
@@ -49,7 +54,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 uint3 coord = min(dispatchId * 2 + uint3(dx, dy, dz), srcRes - 1);
                 uint3 loadCoord = uint3(coord.x, coord.y, level * srcRes + coord.z);
                 float4 radSample = LOAD_TEX3D(_radianceLoad, loadCoord, 0);
-                radianceSum += radSample.rgb * radSample.a;
+                if (radSample.a > 0.01)
+                {
+                    radianceSum += radSample.rgb;
+                    radianceWeight += 1.0;
+                }
                 occupancySum += radSample.a;
 
                 float4 opaSample = LOAD_TEX3D(_opacityLoad, loadCoord, 0);
@@ -61,7 +70,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     }
 
     uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, level * dstRes + dispatchId.z);
-    float3 radiance = occupancySum > 0.0 ? radianceSum / occupancySum : 0.0;
+    float3 radiance = radianceWeight > 0.0 ? radianceSum / radianceWeight : 0.0;
     _radianceOut[storeCoord] = float4(radiance, occupancySum / 8.0);
 
     float3 opacity = opacityWeightSum > 0.0 ? opacitySum / opacityWeightSum : 0.0;

@@ -352,6 +352,12 @@ float4 MainPS(V2F input) : SV_TARGET
 
         float NdotV = max(dot(N, V), 0.0);
         float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+        // The cone-traced diffuse result is a hemisphere-integrated estimate
+        // of incident radiance: the volume part carries source-surface albedo
+        // (for colour bleeding) and the sky fallback is untinted. The current
+        // surface applies its Lambert BRDF (albedo) once here to convert that
+        // incident irradiance into reflected radiance. This matches CE5 where
+        // the forward shader multiplies the SVOGI diffuse RT by material albedo.
         ambient = indirectDiffuse * albedo * ao * (1.0 - metallic) * params3.y
             + indirectSpecular * EnvBRDFApprox(F0, roughness, NdotV) * ao * params3.z;
     }
@@ -370,6 +376,11 @@ float4 MainPS(V2F input) : SV_TARGET
     // neither the sky ambient nor the GI cone trace can find light.
     // Adjustable via skyParams2.w; shadowless by design — it represents
     // omnidirectional sky bounce, never modulated by the sun shadow factor.
+    // Skipped when voxel GI is active: the cone-traced indirect already
+    // provides directional ambient and sky fallback, and this flat fill would
+    // wash out the AO-like darkening the GI produces in corners and under
+    // overhangs.
+    if (params3.x < 0.5)
     {
         float upDot = saturate(N.z * 0.5 + 0.5);
         float3 skyBounce = float3(0.10, 0.12, 0.15);

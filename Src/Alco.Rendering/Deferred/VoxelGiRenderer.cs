@@ -913,7 +913,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
                     _propagateMaterial.SetBuffer("_pageTableDynamic", _pageTableDynamic[level]);
                     _propagateMaterial.DispatchBySizeWithConstant(
                         computePass, resolution, resolution, resolution,
-                        new Vector4(level, BounceStrength, 0, 0));
+                        new Vector4(level, BounceStrength, bounce, 0));
                 }
 
                 for (int level = 0; level < LevelCount; level++)

@@ -3,15 +3,23 @@
 
 // Multi-bounce light propagation for the voxel GI clipmap: one dispatch per
 // clipmap level at (resolution, resolution, resolution). Each occupied voxel
-// traces a small set of cones through the radiance volume to gather incoming
+// traces a set of cones through the radiance volume to gather incoming
 // indirect light, multiplies by the surface albedo and writes the sum of
 // existing direct radiance plus the new bounce back into a temporary texture.
 // A follow-up copy pass (VoxelBounceApply.hlsl) transfers the result into the
 // radiance Texture3D mip 0, after which the mip chain is rebuilt.
+//
+// On the first bounce (bounceIndex == 0), unoccluded cones fall back to the
+// sky gradient. This is the primary path by which sky light enters the voxel
+// volume — matching CE5 SVOGI where bAllowSkyLight = (nPassId == 0) in
+// ComputePropagateLighting. The hemisphere of cones provides a proper
+// integration of sky irradiance with natural occlusion from nearby geometry,
+// which is far more accurate than the single-direction sky sample the inject
+// pass uses. Subsequent bounces exclude sky to avoid double-counting.
 
 struct VoxelPropagateConstants
 {
-    float4 params; // x=levelIndex, y=bounceStrength, zw=unused
+    float4 params; // x=levelIndex, y=bounceStrength, z=bounceIndex, w=unused
 };
 
 DEFINE_TEX3D_SAMPLE(1, _radiance);
@@ -25,23 +33,28 @@ DEFINE_TEX3D_SAMPLE(7, _opacity);
 PUSH_CONSTANT VoxelPropagateConstants constants;
 
 // --- Propagation cone set ---------------------------------------------------
-// 4 cones: 1 along the normal + 3 at ~55° spreading across the hemisphere.
-// Coarser than the 9-cone screen-space set because this runs per-voxel (up to
-// 128^3 * 4 levels dispatch).  The wider half-angle compensates for the lower
-// cone count by covering more solid angle per cone.
-static const uint PROP_CONE_COUNT = 4u;
-static const float PROP_CONE_APERTURE = 0.86603; // tan(40.9°) — wide cones
+// Same 9-cone hemisphere as the screen-space trace (VoxelTrace.hlsl): 1 cone
+// at θ=0°, 4 at θ=45°, 4 at θ=75°, with tan(30°) half-angle. CE5 uses 32
+// cones; 9 is a reasonable middle ground for per-voxel cost.
+static const uint PROP_CONE_COUNT = 9u;
+static const float PROP_CONE_APERTURE = 0.57735; // tan(30°)
 
-static const float3 PROP_CONE_DIRECTIONS[4] = {
-    float3(0.00000, 0.00000, 1.00000), // θ=0°  (along normal)
-    float3(0.57358, 0.00000, 0.81915), // θ=55°, φ=0°
-    float3(-0.28679, 0.49607, 0.81915), // θ=55°, φ=120°
-    float3(-0.28679, -0.49607, 0.81915), // θ=55°, φ=240°
+static const float3 PROP_CONE_DIRECTIONS[9] = {
+    float3( 0.00000,  0.00000,  1.00000), // θ=0°
+    float3( 0.70711,  0.00000,  0.70711), // θ=45°, φ=0°
+    float3( 0.00000,  0.70711,  0.70711), // θ=45°, φ=90°
+    float3(-0.70711,  0.00000,  0.70711), // θ=45°, φ=180°
+    float3( 0.00000, -0.70711,  0.70711), // θ=45°, φ=270°
+    float3( 0.68301,  0.68301,  0.25882), // θ=75°, φ=45°
+    float3(-0.68301,  0.68301,  0.25882), // θ=75°, φ=135°
+    float3(-0.68301, -0.68301,  0.25882), // θ=75°, φ=225°
+    float3( 0.68301, -0.68301,  0.25882), // θ=75°, φ=315°
 };
 
-static const float PROP_CONE_WEIGHTS[4] = {
+static const float PROP_CONE_WEIGHTS[9] = {
     1.00000,
-    0.81915, 0.81915, 0.81915,
+    0.70711, 0.70711, 0.70711, 0.70711,
+    0.25882, 0.25882, 0.25882, 0.25882,
 };
 
 float3x3 GetTangentBasis(float3 normal)
@@ -53,10 +66,12 @@ float3x3 GetTangentBasis(float3 normal)
 }
 
 // Truncated cone trace for propagation: fewer steps and shorter range than the
-// screen-space version. Returns gathered radiance (without sky fallback — bounce
-// should not add sky light that the voxel already receives from injection).
-// Uses anisotropic directional opacity projected onto |rayDir|.
-float3 TracePropagationCone(float3 startPosition, float3 direction, float apertureTan, float maxDistance)
+// screen-space version. On the first bounce (allowSky = true), unoccluded
+// cone fractions fall back to the sky gradient so that sky light is gathered
+// from the full hemisphere and spread through the volume. Uses anisotropic
+// directional opacity projected onto |rayDir|.
+float3 TracePropagationCone(float3 startPosition, float3 direction,
+    float apertureTan, float maxDistance, bool allowSky)
 {
     float mipCount = clipmapParams.z;
     float fineVoxelSize = levelOrigins[0].w;
@@ -89,6 +104,14 @@ float3 TracePropagationCone(float3 startPosition, float3 direction, float apertu
         t += max(voxelSize, diameter * 0.5);
     }
 
+    // Sky fallback on first bounce only: provides hemisphere-integrated sky
+    // ambient with natural occlusion from accumulated cone alpha. Downward
+    // cones get no sky (SkyLightBottomMultiplier).
+    if (allowSky && direction.z >= 0.0)
+    {
+        color += (1.0 - alpha) * VoxelSkyColor(direction);
+    }
+
     return color;
 }
 
@@ -104,6 +127,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     int level = (int)constants.params.x;
     float bounceStrength = constants.params.y;
+    uint bounceIndex = (uint)constants.params.z;
+    bool allowSky = bounceIndex == 0u;
     float4 originAndSize = levelOrigins[level];
     float voxelSize = originAndSize.w;
 
@@ -148,7 +173,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 worldPosition = originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize;
     float3 startPosition = worldPosition + normal * voxelSize * 1.5;
 
-    // Trace a small hemisphere of cones to gather incoming indirect light.
+    // Trace a hemisphere of cones to gather incoming indirect light.
     float3x3 tbn = GetTangentBasis(normal);
     float3 gathered = 0.0;
     float totalWeight = 0.0;
@@ -157,13 +182,15 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     for (uint i = 0u; i < PROP_CONE_COUNT; i++)
     {
         float3 worldDir = mul(PROP_CONE_DIRECTIONS[i], tbn);
-        gathered += TracePropagationCone(startPosition, worldDir, PROP_CONE_APERTURE, maxDistance)
+        gathered += TracePropagationCone(startPosition, worldDir, PROP_CONE_APERTURE, maxDistance, allowSky)
             * PROP_CONE_WEIGHTS[i];
         totalWeight += PROP_CONE_WEIGHTS[i];
     }
     gathered /= max(totalWeight, 0.0001);
 
-    // Bounce = surface reflectance × incoming indirect, modulated by strength.
+    // Bounce = Lambert BRDF × incoming indirect irradiance, modulated by
+    // strength. The voxel volume stores incident irradiance (no albedo), so
+    // only one albedo multiplication happens here at the reflecting surface.
     float3 bounce = albedo * gathered * bounceStrength;
 
     _propagateOut[storeCoord] = float4(currentRadiance + bounce, 1.0);
