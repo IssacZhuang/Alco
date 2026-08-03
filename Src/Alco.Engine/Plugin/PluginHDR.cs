@@ -23,6 +23,7 @@ public class PluginHDR : BaseEnginePlugin
         Filmic,
         ACES,
         Neutral,
+        AgX,
     }
 
     private Shader? _shader;
@@ -36,6 +37,7 @@ public class PluginHDR : BaseEnginePlugin
     private FilmicTonemapData _filmicData = FilmicTonemapData.Default;
     private ACESTonemapData _acesData = ACESTonemapData.Default;
     private NeutralTonemapData _neutralData = NeutralTonemapData.Default;
+    private AgXTonemapData _agxData = AgXTonemapData.Default;
 
     /// <summary>
     /// The execution order of the plugin. Runs early in the post process chain.
@@ -145,6 +147,23 @@ public class PluginHDR : BaseEnginePlugin
     }
 
     /// <summary>
+    /// AgX tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.AgX"/>,
+    /// it updates the GPU buffer immediately.
+    /// </summary>
+    public AgXTonemapData AgXData
+    {
+        get => _agxData;
+        set
+        {
+            _agxData = value;
+            if (_tonemapType == TonemapType.AgX)
+            {
+                _dataBuffer?.UpdateBuffer(_agxData);
+            }
+        }
+    }
+
+    /// <summary>
     /// Alias of <see cref="ReinhardData"/> for backward compatibility.
     /// Only affects rendering when <see cref="Tonemap"/> is <see cref="TonemapType.Reinhard"/>.
     /// </summary>
@@ -249,6 +268,13 @@ public class PluginHDR : BaseEnginePlugin
                 _material = rendering.CreateMaterial(_shader);
                 _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(NeutralTonemapData), "hdr_tonemap_data");
                 _dataBuffer.UpdateBuffer(_neutralData);
+                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
+                break;
+            case TonemapType.AgX:
+                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_AgXTonemap);
+                _material = rendering.CreateMaterial(_shader);
+                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(AgXTonemapData), "hdr_tonemap_data");
+                _dataBuffer.UpdateBuffer(_agxData);
                 _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
                 break;
         }

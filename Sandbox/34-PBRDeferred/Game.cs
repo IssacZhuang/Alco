@@ -1243,6 +1243,19 @@ public class Game : GameEngine
                         }
                         break;
                     }
+                case PluginHDR.TonemapType.AgX:
+                    {
+                        var dag = _hdrPlugin.AgXData;
+                        int look = (int)dag.Look;
+                        if (ImGui.SliderFloat("Exposure", ref dag.Exposure, 0.1f, 4f) |
+                            ImGui.SliderFloat("Gamma", ref dag.Gamma, 0.5f, 3.0f) |
+                            ImGui.Combo("Look", ref look, "Default\0Golden\0Punchy\0"))
+                        {
+                            dag.Look = look;
+                            _hdrPlugin.AgXData = dag;
+                        }
+                        break;
+                    }
             }
         }
 

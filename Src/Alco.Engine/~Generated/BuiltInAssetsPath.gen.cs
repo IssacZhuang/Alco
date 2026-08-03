@@ -43,6 +43,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_BloomUpSample = "Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl";
 
+   public const string Shader_AgXTonemap = "Shaders/Pipelines/PostProcess/Tonemap/AgXTonemap.hlsl";
+
    public const string Shader_ACESTonemap = "Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl";
 
    public const string Shader_FilmicTonemap = "Shaders/Pipelines/PostProcess/Tonemap/FilmicTonemap.hlsl";

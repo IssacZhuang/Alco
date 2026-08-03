@@ -48,6 +48,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_BloomUpSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl");
 
+    public Shader Shader_AgXTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/AgXTonemap.hlsl");
+
     public Shader Shader_ACESTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl");
 
     public Shader Shader_FilmicTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/FilmicTonemap.hlsl");
