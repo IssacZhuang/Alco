@@ -1129,6 +1129,20 @@ public class Game : GameEngine
     {
         ImGui.Begin("PBR Deferred");
 
+        // Keep an exact camera description visible so visual GI regressions can
+        // be reproduced with the existing --pos / --look screenshot arguments.
+        // Transform3D cameras look along local +X in this sandbox.
+        Vector3 cameraPosition = _camera.Transform.Position;
+        Vector3 cameraForward = Vector3.Normalize(Vector3.Transform(
+            Vector3.UnitX,
+            _camera.Transform.Rotation));
+        Vector3 cameraLookTarget = cameraPosition + cameraForward;
+        ImGui.Text("Camera Repro (--pos / --look)");
+        ImGui.Text($"Position: {cameraPosition.X:F4}, {cameraPosition.Y:F4}, {cameraPosition.Z:F4}");
+        ImGui.Text($"Forward:  {cameraForward.X:F4}, {cameraForward.Y:F4}, {cameraForward.Z:F4}");
+        ImGui.Text($"Look:     {cameraLookTarget.X:F4}, {cameraLookTarget.Y:F4}, {cameraLookTarget.Z:F4}");
+        ImGui.Separator();
+
         if (ImGui.CollapsingHeader("Sun Light"))
         {
             ImGui.SliderFloat("Intensity", ref _sunIntensity, 0.0f, 30.0f);
@@ -1186,7 +1200,10 @@ public class Game : GameEngine
                 _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
             }
             ImGui.Text($"GI trace resolution: {_voxelGI.IndirectTexture.Width / 2}x{_voxelGI.IndirectTexture.Height}");
-            string[] giDebugModes = ["Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility"];
+            string[] giDebugModes = [
+                "Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility",
+                "Raw Diffuse Trace",
+            ];
             ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             ImGui.Text($"GI CPU encode: {statistics.CpuRecordMilliseconds:F2} ms");

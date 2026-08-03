@@ -27,7 +27,7 @@ DEFINE_TEX2D_READ(7, _emissive);
 
 PUSH_CONSTANT VoxelDemosaicConstants constants;
 
-static const int2 FIREFLY_GUIDE_OFFSETS[4] = {
+static const int2 SURFACE_GUIDE_OFFSETS[4] = {
     int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1),
 };
 
@@ -61,6 +61,14 @@ float NormalSimilarity(float3 centerNormal, float3 sampleNormal)
     // footprint. Accept up to roughly 60 degrees, but still give orthogonal
     // architectural surfaces zero weight.
     return smoothstep(0.05, 0.5, dot(centerNormal, sampleNormal));
+}
+
+float GeometryNormalSimilarity(float3 centerNormal, float3 sampleNormal)
+{
+    // Geometry normals are stable enough to distinguish architectural layers.
+    // Keep this stricter than NormalSimilarity(), which intentionally tolerates
+    // normal-map detail inside a diffuse irradiance footprint.
+    return smoothstep(0.65, 0.9, dot(centerNormal, sampleNormal));
 }
 
 [shader("compute")]
@@ -111,25 +119,49 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float currentLinearDepth = abs(mul(viewProjection, float4(worldPos, 1.0)).w);
     float4 centerVal = _traceInput.Load(int3(pixel, 0));
 
-    // Reject isolated HDR cone hits before they enter either the spatial or
-    // temporal filter. The guide comes from the four nearest samples on the
-    // same geometric surface, so real extended bounce lighting is retained
-    // while a lone ray hitting a bright emissive voxel is luminance-clamped.
-    float diffuseMaximumLuminance = 65504.0;
+    // Developer view: expose the cone-trace atlas before spatial/temporal
+    // reconstruction. This makes it possible to distinguish a tracing issue
+    // from a resolve issue at an exactly reproduced camera position.
+    if (giParams2.x > 3.5 && giParams2.x < 4.5)
+    {
+        _indirectGI[pixel] = centerVal;
+        _historyOut[pixel] = centerVal;
+        if (!isSpecular)
+        {
+            _historyOut[uint2(tracePixel.x + halfWidth * 2, tracePixel.y)] =
+                float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
+        }
+        return;
+    }
+
+    // Match CE5's bounded HDR resolve without using neighbouring screen phases
+    // as a firefly oracle. A valid small light source may occur in only one
+    // member of the tiled angular kernel; clamping it to the four immediate
+    // neighbours deletes real bounce light before the phase resolve. The fixed
+    // ceiling only catches non-physical emissive outliers.
+    float diffuseMaximumLuminance = 8.0;
     float2 localLinearDepthGradient = 0.0;
     if (!isSpecular)
     {
-        float3 guideSum = 0.0;
-        float guideWeightSum = 0.0;
         float guideLinearDepths[4] = {
             currentLinearDepth, currentLinearDepth,
             currentLinearDepth, currentLinearDepth,
         };
+        float guideFitWeights[4] = { 0.0, 0.0, 0.0, 0.0 };
+
+        // CE5 deliberately uses a broad 12--20 percent depth range while
+        // gathering demosaic candidates. This range is only used to fit the
+        // local receiving surface; actual radiance filtering below still uses
+        // a tight residual around that fitted plane. Separating the two tests
+        // is essential for facades viewed at a grazing angle.
+        float3 viewDirection = normalize(cameraPosition.xyz - worldPos);
+        float viewFacing = abs(dot(viewDirection, geometryNormal));
+        float fitRelativeDepthRange = lerp(0.20, 0.12, viewFacing);
         [unroll]
         for (uint guideIndex = 0u; guideIndex < 4u; guideIndex++)
         {
             int2 guideTrace = clamp(
-                tracePixel + FIREFLY_GUIDE_OFFSETS[guideIndex],
+                tracePixel + SURFACE_GUIDE_OFFSETS[guideIndex],
                 int2(0, 0),
                 int2(halfWidth - 1, (int)giParams.w - 1));
             float2 guideUV = (float2(guideTrace) + 0.5) / float2(giParams.z, giParams.w);
@@ -139,7 +171,6 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 int2(0, 0),
                 int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
             float guideDepth = GET_PIXEL_TEX2D(_gbufferDepth, guideGbufferPixel);
-            float guideWeight = 0.0;
             if (guideDepth < 0.9999)
             {
                 float2 guideGbufferUV =
@@ -148,47 +179,60 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     guideGbufferUV, guideDepth, invViewProjection);
                 float4 guidePackedNormal = GET_PIXEL_TEX2D(
                     _normal, guideGbufferPixel);
-                float3 guideDetailNormal = normalize(
-                    guidePackedNormal.xyz * 2.0 - 1.0);
-                float normalWeight = NormalSimilarity(
-                    detailNormal, guideDetailNormal);
-                float depthTolerance = max(
-                    0.025, currentLinearDepth * 0.002);
-                float depthWeight = exp(
-                    -abs(guideLinearDepth - currentLinearDepth)
-                    / depthTolerance);
-                guideWeight = normalWeight * depthWeight;
-                if (guideWeight > 0.1)
-                {
-                    guideLinearDepths[guideIndex] = guideLinearDepth;
-                }
+                float guidePackedGeometryY = GET_PIXEL_TEX2D(
+                    _emissive, guideGbufferPixel).a;
+                float3 guideGeometryNormal = DecodeGeometryNormal(
+                    float2(guidePackedNormal.a, guidePackedGeometryY));
+                float normalWeight = GeometryNormalSimilarity(
+                    geometryNormal, guideGeometryNormal);
+                float relativeDepthDifference = abs(
+                    1.0 - guideLinearDepth / max(currentLinearDepth, 0.0001));
+                float depthFitWeight = 1.0 - smoothstep(
+                    fitRelativeDepthRange * 0.75,
+                    fitRelativeDepthRange,
+                    relativeDepthDifference);
+                guideLinearDepths[guideIndex] = guideLinearDepth;
+                guideFitWeights[guideIndex] = normalWeight * depthFitWeight;
             }
-            guideSum += max(_traceInput.Load(int3(guideTrace, 0)).rgb, 0.0) * guideWeight;
-            guideWeightSum += guideWeight;
         }
 
-        float3 guideRadiance = guideWeightSum > 0.05
-            ? guideSum / guideWeightSum
-            : max(centerVal.rgb, 0.0);
-        float guideLuminance = dot(guideRadiance, float3(0.2126, 0.7152, 0.0722));
-        diffuseMaximumLuminance = clamp(guideLuminance * 4.0 + 0.02, 0.04, 8.0);
-        centerVal.rgb = ClampRadianceLuminance(centerVal.rgb, diffuseMaximumLuminance);
+        // Fit each screen-space depth slope only when both sides belong to a
+        // continuous local plane. Opposing depth jumps (for example a narrow
+        // cornice in front of a wall) fail the slope-agreement test and retain
+        // a zero slope, so the later tight residual cannot bridge the layer.
+        float slopeAgreementTolerance = max(
+            0.04, currentLinearDepth * 0.002);
+        if (min(guideFitWeights[0], guideFitWeights[1]) > 0.1)
+        {
+            float negativeSlope = currentLinearDepth - guideLinearDepths[0];
+            float positiveSlope = guideLinearDepths[1] - currentLinearDepth;
+            if (abs(negativeSlope - positiveSlope) <= slopeAgreementTolerance)
+            {
+                localLinearDepthGradient.x =
+                    (negativeSlope + positiveSlope) * 0.5;
+            }
+        }
+        if (min(guideFitWeights[2], guideFitWeights[3]) > 0.1)
+        {
+            float negativeSlope = currentLinearDepth - guideLinearDepths[2];
+            float positiveSlope = guideLinearDepths[3] - currentLinearDepth;
+            if (abs(negativeSlope - positiveSlope) <= slopeAgreementTolerance)
+            {
+                localLinearDepthGradient.y =
+                    (negativeSlope + positiveSlope) * 0.5;
+            }
+        }
 
-        // The local depth gradient predicts the depth of a slanted plane at
-        // the sparse outer taps. Comparing against that plane, rather than
-        // against the center depth, preserves grazing surfaces while still
-        // rejecting parallel trim and foreground layers.
-        localLinearDepthGradient = float2(
-            (guideLinearDepths[1] - guideLinearDepths[0]) * 0.5,
-            (guideLinearDepths[3] - guideLinearDepths[2]) * 0.5);
+        centerVal.rgb = ClampRadianceLuminance(
+            centerVal.rgb, diffuseMaximumLuminance);
     }
 
     // --- Bilateral spatial filter on the trace input ---
     // Stable mesh normals and a scale-aware diffuse footprint remove residual
     // cone hits while preserving the original CE5 cone width and mip choice.
-    // The symmetric 5-tap weights [0.5 1 1 1 0.5] integrate each phase of the
-    // 4x4 rotation tile with exactly equal total weight; an ordinary Gaussian
-    // exposes that tile as fine vertical bands.
+    // The symmetric 9-tap weights [0.5 1 1 1 1 1 1 1 0.5] integrate each
+    // phase of the 8x8 direction tile with exactly equal total weight; an
+    // ordinary Gaussian exposes the tile as fine bands.
     // Specular keeps the sharper 3x3 footprint.
     bool phaseBalancedDiffuse = !isSpecular;
     int filterRadius = 1;
@@ -199,12 +243,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 neighborhoodMax = centerVal;
 
     [unroll]
-    for (int dy = -2; dy <= 2; dy++)
+    for (int dy = -4; dy <= 4; dy++)
     {
         [unroll]
-        for (int dx = -2; dx <= 2; dx++)
+        for (int dx = -4; dx <= 4; dx++)
         {
-            bool includePhaseBalanced = abs(dx) <= 2 && abs(dy) <= 2;
+            bool includePhaseBalanced = abs(dx) <= 4 && abs(dy) <= 4;
             bool includeRegular = (dx != 0 || dy != 0)
                 && abs(dx) <= filterRadius && abs(dy) <= filterRadius;
             if (phaseBalancedDiffuse ? !includePhaseBalanced : !includeRegular)
@@ -212,14 +256,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 continue;
             }
 
-            // The projected voxel footprint appears as broad bands on flat
-            // walls. Spread the same 25 phase-balanced taps over a 13x13
-            // trace-pixel footprint: an odd stride still visits every phase of
-            // the fixed 4x4 cone tile exactly once, but integrates the
-            // world-space voxel lattice without extra samples.
-            int diffuseStride = 3;
-            int2 filterOffset = int2(dx, dy)
-                * (isSpecular ? 1 : diffuseStride);
+            // Diffuse gathers one complete, contiguous CE-style direction tile.
+            // Its 9x9 footprint is tighter than the previous sparse 13x13
+            // footprint even though it reconstructs many more directions.
+            int2 filterOffset = int2(dx, dy);
             int2 np = int2(pixel) + filterOffset;
             // Keep within same atlas half (diffuse or specular).
             if (isSpecular)
@@ -253,8 +293,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float expectedLinearDepth = currentLinearDepth
                     + dot(float2(filterOffset), localLinearDepthGradient);
                 float depthTolerance = max(
-                    0.025, currentLinearDepth * 0.0015)
-                    * (1.0 + length(float2(filterOffset)) * 0.1);
+                    0.035, currentLinearDepth * 0.002)
+                    * (1.0 + length(float2(filterOffset)) * 0.08);
                 float depthWeight = exp(
                     -abs(nLinearDepth - expectedLinearDepth)
                     / depthTolerance);
@@ -264,8 +304,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float spatialW_neighbour;
             if (phaseBalancedDiffuse)
             {
-                float phaseWeightX = abs(dx) == 2 ? 0.5 : 1.0;
-                float phaseWeightY = abs(dy) == 2 ? 0.5 : 1.0;
+                float phaseWeightX = abs(dx) == 4 ? 0.5 : 1.0;
+                float phaseWeightY = abs(dy) == 4 ? 0.5 : 1.0;
                 spatialW_neighbour = phaseWeightX * phaseWeightY;
             }
             else

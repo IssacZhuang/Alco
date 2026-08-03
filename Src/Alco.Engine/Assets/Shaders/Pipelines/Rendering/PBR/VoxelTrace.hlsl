@@ -18,26 +18,21 @@ DEFINE_TEX2D_STORAGE(5, _indirectGI, float4, "rgba16f");
 DEFINE_TEX3D_SAMPLE(6, _opacity);
 DEFINE_TEX2D_READ(7, _albedo);
 
-// CE5 distributes narrow directions across a screen tile and resolves the
-// complete tile. This renderer uses four cones per pixel: one axial cone plus a
-// regular three-cone ring. A fixed 4x4 low-discrepancy rotation tile decorrelates
-// the ring from the voxel grid, and the geometry-aware resolve integrates those
-// phases. The tile never changes over time, so it introduces no temporal noise.
-static const uint DIFFUSE_CONE_COUNT = 4u;
+// CE5 distributes a large cosine-hemisphere kernel across a screen tile and
+// resolves the complete tile. Trace one direction at each 8x8 screen phase;
+// the resolve integrates all 64 directions. This is both more complete and
+// cheaper than tracing four directions chosen from a two-polar-angle kernel.
 static const float DIFFUSE_CONE_APERTURE = 1.0 / 24.0;
 
-static const float3 DIFFUSE_CONE_DIRECTIONS[4] = {
-    float3( 0.000000,  0.000000, 1.000000),
-    float3( 0.816497,  0.000000, 0.577350),
-    float3(-0.408248,  0.707107, 0.577350),
-    float3(-0.408248, -0.707107, 0.577350),
-};
-
-static const uint DIFFUSE_ROTATION_TILE[16] = {
-     0u,  8u,  2u, 10u,
-    12u,  4u, 14u,  6u,
-     3u, 11u,  1u,  9u,
-    15u,  7u, 13u,  5u,
+static const uint DIFFUSE_DIRECTION_TILE[64] = {
+     0u, 32u,  8u, 40u,  2u, 34u, 10u, 42u,
+    48u, 16u, 56u, 24u, 50u, 18u, 58u, 26u,
+    12u, 44u,  4u, 36u, 14u, 46u,  6u, 38u,
+    60u, 28u, 52u, 20u, 62u, 30u, 54u, 22u,
+     3u, 35u, 11u, 43u,  1u, 33u,  9u, 41u,
+    51u, 19u, 59u, 27u, 49u, 17u, 57u, 25u,
+    15u, 47u,  7u, 39u, 13u, 45u,  5u, 37u,
+    63u, 31u, 55u, 23u, 61u, 29u, 53u, 21u,
 };
 
 // Build a world-space tangent basis from a single surface normal.
@@ -49,18 +44,21 @@ float3x3 GetTangentBasis(float3 normal)
     return float3x3(tangent, bitangent, normal);
 }
 
-// Generate one cosine-weighted hemisphere direction. Cosine-weighted sampling
-// estimates the Lambert integral by a straight average, so no extra N dot L
-// weight is required when the cone results are accumulated.
-float3 GetDiffuseKernelDirection(uint sampleIndex, float2 rotationSinCos)
+// Generate one member of the deterministic 64-direction cosine-weighted
+// hemisphere kernel. The Bayer screen tile distributes neighbouring polar
+// strata, while the golden-angle azimuth avoids aligned rings.
+float3 GetDiffuseKernelDirection(uint sequenceIndex)
 {
-    float3 direction = DIFFUSE_CONE_DIRECTIONS[sampleIndex];
-    float sine = rotationSinCos.x;
-    float cosine = rotationSinCos.y;
-    direction.xy = float2(
-        direction.x * cosine - direction.y * sine,
-        direction.x * sine + direction.y * cosine);
-    return direction;
+    float radialSample = (float(sequenceIndex) + 0.5) / 64.0;
+    float radius = sqrt(radialSample);
+    float azimuth = frac((float(sequenceIndex) + 0.5) * 0.61803398875) * TAU;
+    float sine;
+    float cosine;
+    sincos(azimuth, sine, cosine);
+    return float3(
+        cosine * radius,
+        sine * radius,
+        sqrt(max(1.0 - radialSample, 0.0)));
 }
 
 // --- Utility helpers (ported from the DDGI-era shader) ----------------------
@@ -326,9 +324,9 @@ float4 TraceCone(
     return float4(color, alpha);
 }
 
-// Trace the complete reduced cosine-weighted diffuse kernel at every pixel.
-// Keeping the kernel deterministic lets temporal history remain a denoising
-// aid instead of being required to converge a changing Monte Carlo sequence.
+// Trace one deterministic member of the tiled diffuse kernel per pixel. The
+// demosaic pass gathers the complete 8x8 tile, as in CE5, so temporal history
+// remains a denoising aid rather than being required for angular convergence.
 float4 TraceDiffuseCones(
     float3 startPosition,
     float3 normal,
@@ -336,25 +334,13 @@ float4 TraceDiffuseCones(
     uint2 tracePixel)
 {
     float3x3 tbn = GetTangentBasis(normal);
-    uint tileIndex = (tracePixel.x & 3u) + ((tracePixel.y & 3u) << 2u);
-    // A three-cone ring repeats after 120 degrees. Spread the 16 tile entries
-    // uniformly over that unique interval instead of duplicating directions.
-    float rotation = float(DIFFUSE_ROTATION_TILE[tileIndex]) * (TAU / 48.0);
-    float2 rotationSinCos;
-    sincos(rotation, rotationSinCos.x, rotationSinCos.y);
-    float3 diffuse = 0.0;
-    float occlusion = 0.0;
-    [unroll]
-    for (uint i = 0u; i < DIFFUSE_CONE_COUNT; i++)
-    {
-        float3 worldDir = normalize(mul(GetDiffuseKernelDirection(i, rotationSinCos), tbn));
-        float4 coneResult = TraceCone(
-            startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0);
-        diffuse += coneResult.rgb;
-        occlusion += coneResult.a;
-    }
-    float inverseCount = rcp(float(DIFFUSE_CONE_COUNT));
-    return float4(diffuse * inverseCount, saturate(1.0 - occlusion * inverseCount));
+    uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
+    uint sequenceIndex = DIFFUSE_DIRECTION_TILE[tileIndex];
+    float3 kernelDirection = GetDiffuseKernelDirection(sequenceIndex);
+    float3 worldDir = normalize(mul(kernelDirection, tbn));
+    float4 coneResult = TraceCone(
+        startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0);
+    return float4(coneResult.rgb, saturate(1.0 - coneResult.a));
 }
 
 [shader("compute")]

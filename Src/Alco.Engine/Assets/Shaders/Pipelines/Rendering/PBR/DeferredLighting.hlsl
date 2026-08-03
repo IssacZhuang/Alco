@@ -391,7 +391,11 @@ float4 MainPS(V2F input) : SV_TARGET
             {
                 return float4(indirectSpecular, 1.0);
             }
-            return float4(indirectDiffuse.aaa, 1.0);
+            if (params3.w < 3.5)
+            {
+                return float4(indirectDiffuse.aaa, 1.0);
+            }
+            return float4(indirectDiffuse.rgb, 1.0);
         }
 
         // CE5 replacement mode: cone tracing has already integrated sky
