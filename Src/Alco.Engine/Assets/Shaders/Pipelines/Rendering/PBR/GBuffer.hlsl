@@ -1,8 +1,10 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
 // G-buffer pass shader for the deferred PBR pipeline.
-// Writes albedo, world-space normal and metallic/roughness/ambient-occlusion
-// into three color targets. The vertex layout must match
+// Writes albedo, world-space normal, metallic/roughness/ambient-occlusion and
+// emissive data. The geometric normal is octahedrally packed into two spare
+// channels for stable diffuse GI. The vertex layout must match
 // Alco.Rendering.VertexPositionNormalTexture exactly.
 
 struct Vertex
@@ -73,10 +75,16 @@ void MainPS(V2F input,
         discard;
     }
 
-    albedoRT = float4(EncodeSRGB(albedo.rgb * constants.baseColor.rgb), 1.0);
-
     float3 normal = normalize(input.normal);
-    normalRT = float4(normal * 0.5 + 0.5, 1.0);
+    float2 geometryNormal = EncodeGeometryNormal(normal);
+    // The resolved albedo alpha is unused after alpha testing; preserve the
+    // 8-bit material roughness there so voxel tracing can stay within the
+    // backend's eight-bind-group limit while reading the half-float geometry
+    // normal from the emissive target.
+    albedoRT = float4(
+        EncodeSRGB(albedo.rgb * constants.baseColor.rgb),
+        constants.metallicRoughnessAO.y);
+    normalRT = float4(normal * 0.5 + 0.5, geometryNormal.x);
 
     mrAORT = float4(
         constants.metallicRoughnessAO.x,
@@ -85,5 +93,5 @@ void MainPS(V2F input,
         1.0);
 
     // Linear emissive (RGBA16Float target), no shading applied downstream.
-    emissiveRT = float4(constants.emissive.rgb, 1.0);
+    emissiveRT = float4(constants.emissive.rgb, geometryNormal.y);
 }

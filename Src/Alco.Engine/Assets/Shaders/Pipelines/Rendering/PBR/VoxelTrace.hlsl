@@ -1,51 +1,43 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the half-res
 // trace resolution. Reconstructs the world position and normal from the
-// G-buffer, traces 9 diffuse cones covering the hemisphere and one specular
-// cone along the reflection vector through the radiance volume. The result is
-// written into the output atlas (twice the trace width): diffuse bounce
-// radiance plus environment visibility in the left half, specular radiance in
-// the right. Only specular cones fall back to the sky gradient; diffuse sky is
-// evaluated independently by the lighting pass and modulated by visibility.
+// G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
+// cones plus one specular cone through the radiance volume. The result
+// is written into the output atlas (twice the trace width): total diffuse
+// irradiance (visible sky plus bounced radiance) and diagnostic visibility in
+// the left half, specular radiance in the right half.
 
 DEFINE_TEX3D_SAMPLE(1, _radiance);
 DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
 DEFINE_TEX2D_READ(3, _normal);
-DEFINE_TEX2D_READ(4, _mrAO);
+DEFINE_TEX2D_READ(4, _emissive);
 DEFINE_TEX2D_STORAGE(5, _indirectGI, float4, "rgba16f");
 DEFINE_TEX3D_SAMPLE(6, _opacity);
 DEFINE_TEX2D_READ(7, _albedo);
 
-// --- Diffuse cone set -------------------------------------------------------
-// 9 directions distributed across the hemisphere (z = surface normal).
-//   1 cone at θ=0° (straight up), 4 at θ=45°, 4 at θ=75°.
-//   With ~30° half-angle (tan ≈ 0.577) the 9 cones tile the hemisphere
-//   with overlap, matching the classic SVOGI diffuse approximation.
-// Based on Crassin et al., "Interactive Indirect Illumination Using Voxel
-// Cone Tracing" (GPU Pro / GPU Gems).
-static const uint DIFFUSE_CONE_COUNT = 9u;
-static const float DIFFUSE_CONE_APERTURE = 0.57735; // tan(30°)
+// CE5 distributes narrow directions across a screen tile and resolves the
+// complete tile. This renderer uses four cones per pixel: one axial cone plus a
+// regular three-cone ring. A fixed 4x4 low-discrepancy rotation tile decorrelates
+// the ring from the voxel grid, and the geometry-aware resolve integrates those
+// phases. The tile never changes over time, so it introduces no temporal noise.
+static const uint DIFFUSE_CONE_COUNT = 4u;
+static const float DIFFUSE_CONE_APERTURE = 1.0 / 24.0;
 
-static const float3 DIFFUSE_CONE_DIRECTIONS[9] = {
-    float3( 0.00000,  0.00000,  1.00000), // θ=0°
-    float3( 0.70711,  0.00000,  0.70711), // θ=45°, φ=0°
-    float3( 0.00000,  0.70711,  0.70711), // θ=45°, φ=90°
-    float3(-0.70711,  0.00000,  0.70711), // θ=45°, φ=180°
-    float3( 0.00000, -0.70711,  0.70711), // θ=45°, φ=270°
-    float3( 0.68301,  0.68301,  0.25882), // θ=75°, φ=45°
-    float3(-0.68301,  0.68301,  0.25882), // θ=75°, φ=135°
-    float3(-0.68301, -0.68301,  0.25882), // θ=75°, φ=225°
-    float3( 0.68301, -0.68301,  0.25882), // θ=75°, φ=315°
+static const float3 DIFFUSE_CONE_DIRECTIONS[4] = {
+    float3( 0.000000,  0.000000, 1.000000),
+    float3( 0.816497,  0.000000, 0.577350),
+    float3(-0.408248,  0.707107, 0.577350),
+    float3(-0.408248, -0.707107, 0.577350),
 };
 
-// Cosine-weight for each cone (N·dir in tangent space = dir.z).
-// Concentrates energy near the normal where it matters most.
-static const float DIFFUSE_CONE_WEIGHTS[9] = {
-    1.00000,
-    0.70711, 0.70711, 0.70711, 0.70711,
-    0.25882, 0.25882, 0.25882, 0.25882,
+static const uint DIFFUSE_ROTATION_TILE[16] = {
+     0u,  8u,  2u, 10u,
+    12u,  4u, 14u,  6u,
+     3u, 11u,  1u,  9u,
+    15u,  7u, 13u,  5u,
 };
 
 // Build a world-space tangent basis from a single surface normal.
@@ -55,6 +47,20 @@ float3x3 GetTangentBasis(float3 normal)
     float3 tangent = normalize(cross(up, normal));
     float3 bitangent = cross(normal, tangent);
     return float3x3(tangent, bitangent, normal);
+}
+
+// Generate one cosine-weighted hemisphere direction. Cosine-weighted sampling
+// estimates the Lambert integral by a straight average, so no extra N dot L
+// weight is required when the cone results are accumulated.
+float3 GetDiffuseKernelDirection(uint sampleIndex, float2 rotationSinCos)
+{
+    float3 direction = DIFFUSE_CONE_DIRECTIONS[sampleIndex];
+    float sine = rotationSinCos.x;
+    float cosine = rotationSinCos.y;
+    direction.xy = float2(
+        direction.x * cosine - direction.y * sine,
+        direction.x * sine + direction.y * cosine);
+    return direction;
 }
 
 // --- Utility helpers (ported from the DDGI-era shader) ----------------------
@@ -244,17 +250,25 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
         }
     }
 
-    float voxelAlpha = dot(opaSample.xyz, absDir);
-    voxelAlpha = max(voxelAlpha, radSample.a * 0.3);
+    // CE5 projects directional opacity onto the absolute ray direction. Do not
+    // add an isotropic occupancy floor: it turns thin surfaces into volumetric
+    // occluders and produces broad darkening around otherwise open receivers.
+    float voxelAlpha = saturate(dot(opaSample.xyz, absDir));
     return float4(radSample.rgb, voxelAlpha);
 }
 
 // March one cone through the clipmap, accumulating radiance front-to-back.
 // Uses anisotropic directional opacity: alpha at each step is projected from
 // the opacity volume's xyz onto |cone direction|, matching CryEngine SVOGI.
-// Returns rgb = gathered radiance, a = accumulated occlusion. Sky fallback is
-// optional so diffuse and specular integration can keep separate semantics.
-float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, float maxDistance, float skyFallback)
+// Returns rgb = gathered surface radiance plus visible sky, a = accumulated
+// occlusion. The caller selects whether the unoccluded cone reaches the sky.
+float4 TraceCone(
+    float3 startPosition,
+    float3 direction,
+    float apertureTan,
+    float maxDistance,
+    float skyFallback,
+    float marchStepScale)
 {
     float mipCount = clipmapParams.z;
     float fineVoxelSize = levelOrigins[0].w;
@@ -291,44 +305,51 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
         float mip = clamp(log2(diameter / voxelSize), 0.0,
             min(mipCount - 1.0, VOXEL_BRICK_ALIGNED_MAX_MIP));
         float4 sample = SampleRadianceBlended(position, level, mip, absDir, levelChanged);
-        float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
+        // A one-footprint step is sufficient for diffuse cones because the
+        // sampled mip already represents that footprint. Specular passes 0.5
+        // to retain the previous oversampling needed by sharp reflections.
+        float marchDistance = max(effectiveVoxelSize, diameter) * marchStepScale;
 
         color += (1.0 - alpha) * sample.a * sample.rgb;
         alpha += (1.0 - alpha) * sample.a;
         t += marchDistance;
     }
 
-    // Specular fallback for the unoccluded part of the cone. Diffuse callers
-    // pass zero because their sky baseline is evaluated by DeferredLighting.
+    // Add directional sky radiance through the unoccluded part of the cone.
     float skyVisibility = direction.z >= 0.0 ? skyFallback : 0.0;
     color += (1.0 - alpha) * VoxelSkyColor(direction) * skyVisibility;
     return float4(color, alpha);
 }
 
-// Trace the 9-cone diffuse hemisphere, cosine-weighted, through the radiance
-// volume. Produces directional indirect diffuse unlike the former DDGI SH
-// probes that could only represent low-frequency lighting.
+// Trace the complete reduced cosine-weighted diffuse kernel at every pixel.
+// Keeping the kernel deterministic lets temporal history remain a denoising
+// aid instead of being required to converge a changing Monte Carlo sequence.
 float4 TraceDiffuseCones(
     float3 startPosition,
     float3 normal,
-    float maxDistance)
+    float maxDistance,
+    uint2 tracePixel)
 {
     float3x3 tbn = GetTangentBasis(normal);
+    uint tileIndex = (tracePixel.x & 3u) + ((tracePixel.y & 3u) << 2u);
+    // A three-cone ring repeats after 120 degrees. Spread the 16 tile entries
+    // uniformly over that unique interval instead of duplicating directions.
+    float rotation = float(DIFFUSE_ROTATION_TILE[tileIndex]) * (TAU / 48.0);
+    float2 rotationSinCos;
+    sincos(rotation, rotationSinCos.x, rotationSinCos.y);
     float3 diffuse = 0.0;
     float occlusion = 0.0;
-    float totalWeight = 0.0;
     [unroll]
     for (uint i = 0u; i < DIFFUSE_CONE_COUNT; i++)
     {
-        float3 worldDir = mul(DIFFUSE_CONE_DIRECTIONS[i], tbn);
-        float4 coneResult = TraceCone(startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 0.0);
-        float weight = DIFFUSE_CONE_WEIGHTS[i];
-        diffuse += coneResult.rgb * weight;
-        occlusion += coneResult.a * weight;
-        totalWeight += weight;
+        float3 worldDir = normalize(mul(GetDiffuseKernelDirection(i, rotationSinCos), tbn));
+        float4 coneResult = TraceCone(
+            startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0);
+        diffuse += coneResult.rgb;
+        occlusion += coneResult.a;
     }
-    float inverseWeight = rcp(max(totalWeight, 0.0001));
-    return float4(diffuse * inverseWeight, saturate(1.0 - occlusion * inverseWeight));
+    float inverseCount = rcp(float(DIFFUSE_CONE_COUNT));
+    return float4(diffuse * inverseCount, saturate(1.0 - occlusion * inverseCount));
 }
 
 [shader("compute")]
@@ -345,6 +366,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float2 uv = (float2(tracePixel) + 0.5) / float2(traceResolution);
     uint2 gbufferResolution = uint2(giParams2.y, giParams2.z);
     int2 gbufferPixel = int2(uv * float2(gbufferResolution));
+    gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2(gbufferResolution) - 1);
+    float2 gbufferUV = (float2(gbufferPixel) + 0.5) / float2(gbufferResolution);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
     if (depth >= 0.9999)
     {
@@ -353,9 +376,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
-    float3 worldPosition = ReconstructWorldPosition(uv, depth);
-    float3 N = normalize(GET_PIXEL_TEX2D(_normal, gbufferPixel).xyz * 2.0 - 1.0);
-    float roughness = GET_PIXEL_TEX2D(_mrAO, gbufferPixel).y;
+    float3 worldPosition = ReconstructWorldPosition(gbufferUV, depth);
+    float4 packedNormal = GET_PIXEL_TEX2D(_normal, gbufferPixel);
+    float4 packedAlbedo = GET_PIXEL_TEX2D(_albedo, gbufferPixel);
+    float packedGeometryY = GET_PIXEL_TEX2D(_emissive, gbufferPixel).a;
+    float3 detailNormal = normalize(packedNormal.xyz * 2.0 - 1.0);
+    float3 N = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
+    float roughness = packedAlbedo.a;
     float3 V = normalize(cameraPosition.xyz - worldPosition);
     float maxDistance = giParams.y;
 
@@ -370,41 +397,19 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float receiverBias = max(fineVoxelSize * 2.0, surfaceVoxelSize * 0.5);
     float3 startPosition = worldPosition + N * receiverBias;
 
-    // Diffuse: 9-cone hemisphere trace. RGB contains only bounced surface
-    // radiance and alpha contains unoccluded environment visibility.
-    float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance);
-
-    // Conservatively account for unresolved projected coverage as the receiver
-    // moves to coarser clipmap levels. This affects only sky visibility;
-    // gathered bounce radiance keeps its physical energy.
-    float receiverLod = saturate(log2(surfaceVoxelSize / fineVoxelSize));
-    float unresolvedCoverageScale = 1.0 + 0.27 * receiverLod * receiverLod;
-    diffuseResult.a = pow(saturate(diffuseResult.a), unresolvedCoverageScale);
+    // Diffuse RGB contains visible directional sky and bounced surface
+    // radiance. Alpha is retained only as a diagnostic visibility output.
+    float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance, tracePixel);
     float3 diffuse = diffuseResult.rgb;
 
-    // Specular: one cone along the reflection direction, aperture from roughness.
-    float3 reflectDirection = reflect(-V, N);
-
-    // CE5-style per-pixel spatial dithering with temporal flip.
-    // Each pixel in a 4x4 tile samples a different sub-direction within the
-    // cone footprint. The demosaic spatial filter then accumulates these 16
-    // spatially-distributed samples into a smooth result. Frame-parity flips
-    // (4 phases over 8 frames) add temporal variation — matching CryEngine's
-    // kernel tiling + per-frame flip approach. This avoids the flickering
-    // that golden-angle temporal jitter causes on narrow specular cones.
+    // Specular: one deterministic cone along the reflection direction. A
+    // screen-tiled, frame-flipped direction made the low-frequency reflection
+    // pattern crawl and forced temporal history to hide it, which in turn
+    // produced visible camera-motion trails.
+    float3 reflectDirection = reflect(-V, detailNormal);
     float specularApertureTan = max(roughness * roughness, 0.06);
-    uint2 tile = tracePixel & 3u;
-    float2 spatialOffset = (float2(tile) + 0.5) / 4.0 - 0.5;
-    uint frameHalf = uint(giFrameParams.x) / 2u;
-    if (frameHalf & 1u) spatialOffset.x = -spatialOffset.x;
-    if (frameHalf & 2u) spatialOffset.y = -spatialOffset.y;
-    float3 jitterAxis = abs(reflectDirection.z) < 0.99 ? float3(0, 0, 1) : float3(1, 0, 0);
-    float3 jitterRight = normalize(cross(reflectDirection, jitterAxis));
-    float3 jitterUp = cross(reflectDirection, jitterRight);
-    float3 jitteredDir = normalize(reflectDirection
-        + (jitterRight * spatialOffset.x + jitterUp * spatialOffset.y) * specularApertureTan * 0.5);
-
-    float3 specular = TraceCone(startPosition, jitteredDir, specularApertureTan, maxDistance, 1.0).rgb;
+    float3 specular = TraceCone(
+        startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5).rgb;
     if (roughness < 0.65)
     {
         // Fade the blend out ahead of the roughness gate: specular antialiasing

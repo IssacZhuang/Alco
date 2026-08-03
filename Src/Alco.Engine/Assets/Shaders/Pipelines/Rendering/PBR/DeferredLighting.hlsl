@@ -46,7 +46,7 @@ DEFINE_UNIFORM(0, _data)
     float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
     float4 viewportSize;         // xy = render target size in pixels
     float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
-    float4 params4;              // x=giAoAmount, y=giMinVisibility, zw=unused
+    float4 params4;              // reserved for GI integration options
 };
 
 DEFINE_TEX2D_SAMPLE(1, _albedo);
@@ -56,8 +56,9 @@ DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
 DEFINE_TEX2D_SAMPLE(6, _emissive);
 // Indirect GI atlas from the voxel cone tracing pass: twice the trace width.
-// The left half stores diffuse bounce radiance in rgb and sky/environment
-// visibility in alpha; the right half stores specular radiance.
+// The left half stores total diffuse irradiance (visible directional sky plus
+// bounced surface radiance) in rgb and diagnostic visibility in alpha; the
+// right half stores specular radiance.
 DEFINE_TEX2D_SAMPLE(7, _indirectGI);
 
 [shader("vertex")]
@@ -384,13 +385,12 @@ float4 MainPS(V2F input) : SV_TARGET
             return float4(indirectDiffuse.aaa, 1.0);
         }
 
-        // CE5-style AO integration: preserve the independent environment
-        // baseline and darken it by voxel visibility. Diffuse strength affects
-        // only actual bounced radiance, so it no longer controls shadow fill.
-        float giVisibility = max(saturate(indirectDiffuse.a), saturate(params4.y));
-        float environmentVisibility = lerp(1.0, giVisibility, saturate(params4.x));
-        diffuseIrradiance = diffuseIrradiance * environmentVisibility
-            + indirectDiffuse.rgb * params3.y;
+        // CE5 replacement mode: cone tracing has already integrated sky
+        // radiance independently along every visible direction and added
+        // bounced surface radiance. Reapplying a scalar visibility factor to
+        // the independent environment baseline would make an entire sun-shadow
+        // region dark whenever direct light is absent.
+        diffuseIrradiance = max(indirectDiffuse.rgb, 0.0) * params3.y;
 
         float NdotV = max(dot(N, V), 0.0);
         float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);

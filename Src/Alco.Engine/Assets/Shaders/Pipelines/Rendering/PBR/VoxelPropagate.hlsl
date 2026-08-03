@@ -33,9 +33,9 @@ DEFINE_TEX3D_SAMPLE(7, _opacity);
 PUSH_CONSTANT VoxelPropagateConstants constants;
 
 // --- Propagation cone set ---------------------------------------------------
-// Same 9-cone hemisphere as the screen-space trace (VoxelTrace.hlsl): 1 cone
-// at θ=0°, 4 at θ=45°, 4 at θ=75°, with tan(30°) half-angle. CE5 uses 32
-// cones; 9 is a reasonable middle ground for per-voxel cost.
+// Nine wide cones cover the hemisphere for cached propagation: 1 cone at
+// θ=0°, 4 at θ=45° and 4 at θ=75°. The final screen-space gather uses the
+// separate rotation-balanced narrow-cone kernel from VoxelTrace.hlsl.
 static const uint PROP_CONE_COUNT = 9u;
 static const float PROP_CONE_APERTURE = 0.57735; // tan(30°)
 
@@ -91,8 +91,9 @@ float4 SamplePropagationBlended(float3 position, int level, float mip, float3 ab
         }
     }
 
-    float voxelAlpha = dot(opacity.xyz, absoluteDirection);
-    voxelAlpha = max(voxelAlpha, radiance.a * 0.3);
+    // Match CE5's directional opacity projection. An isotropic occupancy floor
+    // makes thin surfaces behave like solid volume and over-occludes sky light.
+    float voxelAlpha = saturate(dot(opacity.xyz, absoluteDirection));
     return float4(radiance.rgb, voxelAlpha);
 }
 

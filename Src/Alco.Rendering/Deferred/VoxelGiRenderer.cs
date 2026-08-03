@@ -89,14 +89,14 @@ public readonly struct VoxelGiStatistics
 /// Voxel global illumination renderer for the deferred PBR pipeline: a cascaded
 /// voxel clipmap (4 levels, each a cube of <c>resolution</c>^3 voxels at twice
 /// the previous level's voxel size, following the camera) with compute
-/// voxelization, direct-light injection, 9-cone diffuse hemisphere tracing
-/// and hybrid screen-space/voxel-cone reflections.
+/// voxelization, direct-light injection, deterministic rotation-balanced
+/// diffuse cone tracing and hybrid screen-space/voxel-cone reflections.
 /// <br/>Mesh geometry is registered once through <see cref="RegisterMesh"/> and
 /// shared by persistent structural instances and per-frame movable instances.
 /// Structural bricks are rebuilt incrementally after edits or camera scrolling.
 /// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting
-/// pass; the resulting <see cref="IndirectTexture"/> atlas (diffuse bounce and
-/// visibility in the left half, specular in the right half) is sampled by the
+/// pass; the resulting <see cref="IndirectTexture"/> atlas (visible sky plus
+/// diffuse bounce in the left half, specular in the right half) is sampled by the
 /// deferred lighting pass
 /// (see <see cref="PBRDeferredPipeline.SetGlobalIllumination"/>).
 /// <br/>Attribute voxels live in storage buffers (packed, point-sampled by the
@@ -335,7 +335,14 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// Gets or sets the temporal hysteresis (0..1). Higher values retain more
     /// history, producing smoother but more laggy indirect lighting.
     /// </summary>
-    public float TemporalHysteresis { get; set; } = 0.9f;
+    public float TemporalHysteresis { get; set; } = 0.8f;
+
+    /// <summary>
+    /// Gets or sets the diffuse temporal hysteresis (0..1), independently from
+    /// specular. The deterministic diffuse kernel needs only modest history for
+    /// smoothing, so a lower default keeps camera motion responsive.
+    /// </summary>
+    public float DiffuseTemporalHysteresis { get; set; } = 0.8f;
 
     /// <summary>
     /// Gets or sets the number of frames between blocking GPU timestamp readbacks.
@@ -348,9 +355,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
     /// <summary>
     /// The gathered indirect radiance atlas (twice the half G-buffer width:
-    /// diffuse bounce radiance in left-half rgb, environment visibility in
-    /// left-half alpha, and specular radiance in the right half), sampled by the
-    /// deferred lighting pass.
+    /// visible sky plus diffuse bounce in left-half rgb, diagnostic visibility
+    /// in left-half alpha, and specular radiance in the right half), sampled by
+    /// the deferred lighting pass.
     /// </summary>
     public RenderTexture IndirectTexture => _indirectAtlas;
 
@@ -484,8 +491,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
         _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
         _traceRaw = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
-        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
-        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
+        // History has a third section for linear depth and world normal. The
+        // current GI atlas remains two sections wide; metadata is temporal-only.
+        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 3, TraceHeight(height), "voxel_history_a");
+        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 3, TraceHeight(height), "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
@@ -683,8 +692,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _historyGI[1].Dispose();
         _indirectAtlas = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
         _traceRaw = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
-        _historyGI[0] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
-        _historyGI[1] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
+        _historyGI[0] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 3, TraceHeight(height), "voxel_history_a");
+        _historyGI[1] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 3, TraceHeight(height), "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
@@ -738,9 +747,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _traceMaterial.SetRenderTexture("_albedo", gbuffer, 0);
             _traceMaterial.SetRenderTexture("_normal", gbuffer, 1);
-            _traceMaterial.SetRenderTexture("_mrAO", gbuffer, 2);
+            _traceMaterial.SetRenderTexture("_emissive", gbuffer, 3);
             _demosaicMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _demosaicMaterial.SetRenderTexture("_normal", gbuffer, 1);
+            _demosaicMaterial.SetRenderTexture("_emissive", gbuffer, 3);
             _boundGBuffer = gbuffer;
         }
         if (!ReferenceEquals(_boundShadowMap, shadowMap))
@@ -936,11 +946,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 BuildMipChains(computePass);
             }
 
-            // Gather diffuse (9-cone hemisphere) and specular (single cone + SSR).
+            // Gather rotation-balanced narrow-cone diffuse and specular.
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
-            // Spatial bilateral filter on the half-resolution trace atlas,
-            // then validate and blend temporal history.
+            // Geometry-aware bilateral resolve followed by validated history.
             int historyRead = _historyReadIndex;
             int historyWrite = 1 - historyRead;
             _demosaicMaterial.SetRenderTexture("_historyInput", _historyGI[historyRead], 0);
@@ -950,7 +959,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 _indirectAtlas.Width,
                 _indirectAtlas.Height,
                 1,
-                new Vector4(TemporalHysteresis, 1.0f, 0.0f, 0.0f));
+                new Vector4(TemporalHysteresis, 1.0f, DiffuseTemporalHysteresis, 0.0f));
         }
         if (measureGpu)
         {

@@ -182,7 +182,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 ViewportSize;
         /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility).</summary>
         public Vector4 Params3;
-        /// <summary>x=giAoAmount, y=giMinVisibility, z and w are unused.</summary>
+        /// <summary>Reserved for GI integration options.</summary>
         public Vector4 Params4;
 
         /// <summary>
@@ -245,7 +245,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly RenderContext _lightingContext;
 
     /// <summary>
-    /// The G-buffer render texture (albedo / normal / metallic-roughness-ao / depth).
+    /// The G-buffer render texture (albedo+packed-roughness /
+    /// detail+packed-geometric normal / metallic-roughness-ao /
+    /// emissive+packed-geometric normal / depth).
     /// </summary>
     public RenderTexture GBuffer => _gbufferRT;
 
@@ -522,11 +524,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <summary>
     /// Set the indirect radiance atlas sampled by the lighting pass (bind group 7
     /// of the lighting shader), typically produced by a <see cref="VoxelGiRenderer"/>
-    /// (diffuse radiance in the left half, specular in the right half). Pass null
+    /// (total diffuse irradiance in the left half, specular in the right half). Pass null
     /// to fall back to a black texture; the GI ambient term itself is toggled via
     /// <see cref="DeferredLightingData.Params3"/> (x component).
     /// </summary>
-    /// <param name="indirectGI">The gathered indirect radiance and environment-visibility atlas, or null.</param>
+    /// <param name="indirectGI">The gathered diffuse/specular radiance atlas, or null.</param>
     public void SetGlobalIllumination(RenderTexture? indirectGI)
     {
         _indirectGI = indirectGI;

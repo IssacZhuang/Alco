@@ -15,9 +15,9 @@
 // mip chain: all levels are stacked along the w axis, each level's mip cube
 // occupying 1/VOXEL_MAX_LEVELS of the texture depth at every mip; alpha holds
 // the occupancy fraction.
-// Diffuse GI is computed by tracing 9 cones covering the hemisphere through
-// the radiance volume ( CryEngine SVOGI style ); specular GI uses one cone
-// along the reflection vector.
+// Diffuse GI uses deterministic rotation-balanced narrow cones through
+// the radiance volume (CryEngine SVOGI style); specular GI uses one cone along
+// the reflection vector.
 
 #define VOXEL_MAX_LEVELS 4
 

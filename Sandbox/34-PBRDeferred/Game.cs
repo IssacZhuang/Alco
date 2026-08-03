@@ -15,7 +15,7 @@ using SandboxUtils;
 /// lights, emissive surfaces with HDR bloom, a physically-based procedural
 /// sky (single-scattering atmosphere driven by the time of day, with a sun
 /// disc and a star field) and voxel global illumination (a camera-following
-/// sparse brick clipmap with compute voxelization, 9-cone diffuse hemisphere
+/// sparse brick clipmap with compute voxelization, rotation-balanced diffuse
 /// tracing and hybrid reflections).
 /// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
@@ -138,10 +138,8 @@ public class Game : GameEngine
     private float _giDiffuseStrength = 1.0f;
     private float _giSpecularStrength = 0.5f;
     private float _giSkyIntensity = 1.0f;
-    private float _giAoAmount = 1f;
-    private float _giMinVisibility = 0.1f;
-    private float _giHbaoScale = 0.7f;
-    private float _giMaxTraceDistance = 20.0f;
+    private float _giSsaoAmount = 0.7f;
+    private float _giMaxTraceDistance = 12.0f;
     private int _giDebugView;
 
     // Material tweak panel.
@@ -311,7 +309,7 @@ public class Game : GameEngine
                 height: (uint)MainView.Size.Y,
                 resolution: 128,
                 baseVoxelSize: baseVoxelSize);
-            _giMaxTraceDistance = _sceneRadius;
+            _giMaxTraceDistance = MathF.Min(12.0f, MathF.Max(_sceneRadius, 1.0f));
             RegisterVoxelMeshes();
             _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
         }
@@ -691,7 +689,7 @@ public class Game : GameEngine
             _giDiffuseStrength,
             _giSpecularStrength,
             _giDebugView);
-        _lightingData.Params4 = new Vector4(_giAoAmount, _giMinVisibility, 0.0f, 0.0f);
+        _lightingData.Params4 = Vector4.Zero;
 
         // Voxel GI per-frame data (the clipmap and resolution fields are filled by the renderer).
         if (_voxelGI != null)
@@ -724,14 +722,17 @@ public class Game : GameEngine
         _hbaoData.CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, cameraRotation), 0.0f);
         _hbaoData.CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0.0f);
         _hbaoData.CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, cameraRotation), 0.0f);
-        _hbaoData.Params = new Vector4(_hbaoRadius, _hbaoIntensity, _hbaoBias, 1.0f / (_hbaoRadius * _hbaoRadius));
+        float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
+        float effectiveHbaoRadius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
+        _hbaoData.Params = new Vector4(
+            effectiveHbaoRadius,
+            _hbaoIntensity,
+            _hbaoBias,
+            1.0f / (effectiveHbaoRadius * effectiveHbaoRadius));
         float projScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
         _hbaoData.Params2 = new Vector4(projScale, 0.0f, 0.0f, HBAOMaxStepPixels);
         float hbaoStrength = _hbaoEnabled && _pipeline.HBAO != null ? _hbaoStrength : 0.0f;
-        if (_giEnabled && _voxelGI != null)
-        {
-            hbaoStrength *= _giHbaoScale;
-        }
+        hbaoStrength *= ssaoAmount;
         _hbaoData.Params3 = new Vector4(hbaoStrength, 0.0f, 0.0f, 0.0f);
     }
 
@@ -1128,7 +1129,7 @@ public class Game : GameEngine
             ImGui.SliderFloat("AO Strength", ref _hbaoStrength, 0.0f, 1.0f);
             ImGui.SliderFloat("AO Power", ref _hbaoIntensity, 0.5f, 3.0f);
             ImGui.SliderFloat("AO Bias", ref _hbaoBias, 0.0f, 0.2f);
-            ImGui.SliderFloat("AO Strength With GI", ref _giHbaoScale, 0.0f, 1.0f);
+            ImGui.SliderFloat("SSAO Amount With GI", ref _giSsaoAmount, 0.0f, 1.0f);
             ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
         }
 
@@ -1138,10 +1139,8 @@ public class Game : GameEngine
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Sky Intensity", ref _giSkyIntensity, 0.0f, 10.0f);
-            ImGui.SliderFloat("GI AO Amount", ref _giAoAmount, 0.0f, 1.0f);
-            ImGui.SliderFloat("GI Minimum Visibility", ref _giMinVisibility, 0.0f, 0.5f);
             ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
-            string[] giDebugModes = ["Off", "Diffuse Bounce", "Indirect Specular", "GI Visibility"];
+            string[] giDebugModes = ["Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility"];
             ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             ImGui.Text($"GI CPU encode: {statistics.CpuRecordMilliseconds:F2} ms");
