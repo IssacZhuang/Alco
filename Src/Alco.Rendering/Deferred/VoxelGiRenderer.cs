@@ -347,7 +347,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
     public VoxelGiStatistics Statistics { get; private set; }
 
     /// <summary>
-    /// The gathered indirect radiance atlas (twice the full G-buffer width:
+    /// The gathered indirect radiance atlas (twice the half G-buffer width:
     /// diffuse bounce radiance in left-half rgb, environment visibility in
     /// left-half alpha, and specular radiance in the right half), sampled by the
     /// deferred lighting pass.
@@ -482,10 +482,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _traceMaterial.SetTexture("_radiance", _radiance);
         _traceMaterial.SetTexture("_opacity", _opacity);
 
-        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width * 2, height, "voxel_indirect_gi");
+        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
         _traceRaw = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
-        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width * 2, height, "voxel_history_a");
-        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width * 2, height, "voxel_history_b");
+        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
+        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
@@ -681,10 +681,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _traceRaw.Dispose();
         _historyGI[0].Dispose();
         _historyGI[1].Dispose();
-        _indirectAtlas = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width * 2, height, "voxel_indirect_gi");
+        _indirectAtlas = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_indirect_gi");
         _traceRaw = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_trace_raw");
-        _historyGI[0] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width * 2, height, "voxel_history_a");
-        _historyGI[1] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width * 2, height, "voxel_history_b");
+        _historyGI[0] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_a");
+        _historyGI[1] = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, TraceWidth(width) * 2, TraceHeight(height), "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
@@ -939,8 +939,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
             // Gather diffuse (9-cone hemisphere) and specular (single cone + SSR).
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
-            // Reconstruct the half-resolution trace into a full-resolution
-            // depth/normal-aware atlas, then validate and blend temporal history.
+            // Spatial bilateral filter on the half-resolution trace atlas,
+            // then validate and blend temporal history.
             int historyRead = _historyReadIndex;
             int historyWrite = 1 - historyRead;
             _demosaicMaterial.SetRenderTexture("_historyInput", _historyGI[historyRead], 0);

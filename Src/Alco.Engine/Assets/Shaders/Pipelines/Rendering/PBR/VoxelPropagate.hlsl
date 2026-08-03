@@ -65,26 +65,29 @@ float3x3 GetTangentBasis(float3 normal)
     return float3x3(tangent, bitangent, normal);
 }
 
-float4 SamplePropagationBlended(float3 position, int level, float mip, float3 absoluteDirection)
+float4 SamplePropagationBlended(float3 position, int level, float mip, float3 absoluteDirection, bool enableBlend)
 {
     float3 uvw = VoxelWorldToUVW(position, level, mip);
     float4 radiance = SAMPLE_TEX3D_LEVEL(_radiance, uvw, mip);
     float4 opacity = SAMPLE_TEX3D_LEVEL(_opacity, uvw, mip);
-    int levelCount = (int)clipmapParams.y;
-    if (level + 1 < levelCount)
+    if (enableBlend)
     {
-        float transitionWeight = VoxelLevelTransitionWeight(position, level);
-        if (transitionWeight > 0.001)
+        int levelCount = (int)clipmapParams.y;
+        if (level + 1 < levelCount)
         {
-            float nextMip = clamp(
-                mip + log2(levelOrigins[level].w / levelOrigins[level + 1].w),
-                0.0,
-                clipmapParams.z - 1.0);
-            float3 nextUVW = VoxelWorldToUVW(position, level + 1, nextMip);
-            float4 nextRadiance = SAMPLE_TEX3D_LEVEL(_radiance, nextUVW, nextMip);
-            float4 nextOpacity = SAMPLE_TEX3D_LEVEL(_opacity, nextUVW, nextMip);
-            radiance = lerp(radiance, nextRadiance, transitionWeight);
-            opacity = lerp(opacity, nextOpacity, transitionWeight);
+            float transitionWeight = VoxelLevelTransitionWeight(position, level);
+            if (transitionWeight > 0.001)
+            {
+                float nextMip = clamp(
+                    mip + log2(levelOrigins[level].w / levelOrigins[level + 1].w),
+                    0.0,
+                    clipmapParams.z - 1.0);
+                float3 nextUVW = VoxelWorldToUVW(position, level + 1, nextMip);
+                float4 nextRadiance = SAMPLE_TEX3D_LEVEL(_radiance, nextUVW, nextMip);
+                float4 nextOpacity = SAMPLE_TEX3D_LEVEL(_opacity, nextUVW, nextMip);
+                radiance = lerp(radiance, nextRadiance, transitionWeight);
+                opacity = lerp(opacity, nextOpacity, transitionWeight);
+            }
         }
     }
 
@@ -110,9 +113,11 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
         ? VoxelEffectiveVoxelSize(startPosition, startLevel) * 0.5
         : fineVoxelSize * 0.5;
     float3 absDir = abs(direction);
+    int prevLevel = -2;
+    float effectiveVoxelSize = fineVoxelSize;
 
     [loop]
-    for (int step = 0; step < 48 && t <= maxDistance && alpha < 0.95; step++)
+    for (int step = 0; step < 32 && t <= maxDistance && alpha < 0.95; step++)
     {
         float3 position = startPosition + direction * t;
         int level = VoxelFindLevel(position);
@@ -121,11 +126,17 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
             break;
         }
 
+        bool levelChanged = level != prevLevel;
+        if (levelChanged)
+        {
+            effectiveVoxelSize = VoxelEffectiveVoxelSize(position, level);
+            prevLevel = level;
+        }
+
         float voxelSize = levelOrigins[level].w;
-        float effectiveVoxelSize = VoxelEffectiveVoxelSize(position, level);
         float diameter = max(2.0 * t * apertureTan, voxelSize);
         float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
-        float4 sample = SamplePropagationBlended(position, level, mip, absDir);
+        float4 sample = SamplePropagationBlended(position, level, mip, absDir, levelChanged);
         float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
 
         color += (1.0 - alpha) * sample.a * sample.rgb;

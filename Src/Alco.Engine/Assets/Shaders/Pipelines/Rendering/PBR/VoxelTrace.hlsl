@@ -215,29 +215,32 @@ float4 SampleOpacity(float3 position, int level, float mip)
 // and the next coarser level near boundaries. This eliminates the hard popping
 // that occurs when a cone ray crosses from one clipmap level to the next,
 // because each level is independently voxelized with different data.
-float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDir)
+float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDir, bool enableBlend)
 {
     float4 radSample = SampleRadiance(position, level, mip);
     float4 opaSample = SampleOpacity(position, level, mip);
 
-    int levelCount = (int)clipmapParams.y;
-    if (level + 1 < levelCount)
+    if (enableBlend)
     {
-        float boundaryWeight = VoxelLevelTransitionWeight(position, level);
-        if (boundaryWeight > 0.001)
+        int levelCount = (int)clipmapParams.y;
+        if (level + 1 < levelCount)
         {
-            float nextVoxelSize = levelOrigins[level + 1].w;
-            float curVoxelSize = levelOrigins[level].w;
-            // Convert the mip to the coarser level's mip space.
-            float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, clipmapParams.z - 1.0);
+            float boundaryWeight = VoxelLevelTransitionWeight(position, level);
+            if (boundaryWeight > 0.001)
+            {
+                float nextVoxelSize = levelOrigins[level + 1].w;
+                float curVoxelSize = levelOrigins[level].w;
+                // Convert the mip to the coarser level's mip space.
+                float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, clipmapParams.z - 1.0);
 
-            float4 nextRad = SAMPLE_TEX3D_LEVEL(_radiance,
-                VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
-            float4 nextOpa = SAMPLE_TEX3D_LEVEL(_opacity,
-                VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
+                float4 nextRad = SAMPLE_TEX3D_LEVEL(_radiance,
+                    VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
+                float4 nextOpa = SAMPLE_TEX3D_LEVEL(_opacity,
+                    VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
 
-            radSample = lerp(radSample, nextRad, boundaryWeight);
-            opaSample = lerp(opaSample, nextOpa, boundaryWeight);
+                radSample = lerp(radSample, nextRad, boundaryWeight);
+                opaSample = lerp(opaSample, nextOpa, boundaryWeight);
+            }
         }
     }
 
@@ -260,8 +263,10 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
     int startLevel = VoxelFindLevel(startPosition);
     float t = startLevel >= 0 ? VoxelEffectiveVoxelSize(startPosition, startLevel) * 0.5 : fineVoxelSize * 0.5;
     float3 absDir = abs(direction);
+    int prevLevel = -2;
+    float effectiveVoxelSize = fineVoxelSize;
 
-    for (int step = 0; step < 64 && t <= maxDistance && alpha < 0.98; step++)
+    for (int step = 0; step < 48 && t <= maxDistance && alpha < 0.98; step++)
     {
         float3 position = startPosition + direction * t;
         int level = VoxelFindLevel(position);
@@ -270,12 +275,18 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
             break;
         }
 
+        bool levelChanged = level != prevLevel;
+        if (levelChanged)
+        {
+            effectiveVoxelSize = VoxelEffectiveVoxelSize(position, level);
+            prevLevel = level;
+        }
+
         float voxelSize = levelOrigins[level].w;
-        float effectiveVoxelSize = VoxelEffectiveVoxelSize(position, level);
         float diameter = max(2.0 * t * apertureTan, voxelSize);
         // Fractional mip: the sampler blends the neighboring mip levels.
         float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
-        float4 sample = SampleRadianceBlended(position, level, mip, absDir);
+        float4 sample = SampleRadianceBlended(position, level, mip, absDir, levelChanged);
         float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
 
         color += (1.0 - alpha) * sample.a * sample.rgb;
