@@ -284,8 +284,12 @@ float4 TraceCone(float3 startPosition, float3 direction, float apertureTan, floa
 
         float voxelSize = levelOrigins[level].w;
         float diameter = max(2.0 * t * apertureTan, voxelSize);
-        // Fractional mip: the sampler blends the neighboring mip levels.
-        float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
+        // A clipmap origin scrolls by one 8^3 brick. Mips above 3 are not
+        // world-aligned under that translation (8 texels become half a texel
+        // at mip 4), so sampling them makes the radiance field change phase at
+        // every brick boundary.
+        float mip = clamp(log2(diameter / voxelSize), 0.0,
+            min(mipCount - 1.0, VOXEL_BRICK_ALIGNED_MAX_MIP));
         float4 sample = SampleRadianceBlended(position, level, mip, absDir, levelChanged);
         float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
 

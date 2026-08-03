@@ -103,6 +103,9 @@ uint VoxelResolution()
 
 static const uint VOXEL_BRICK_SIZE = 8u;
 static const uint VOXEL_BRICK_VOXEL_COUNT = VOXEL_BRICK_SIZE * VOXEL_BRICK_SIZE * VOXEL_BRICK_SIZE;
+// The clipmap scroll quantum is one brick, so mip 3 is the coarsest mip whose
+// texel grid remains world-aligned after every scroll (log2(8) = 3).
+static const float VOXEL_BRICK_ALIGNED_MAX_MIP = 3.0;
 
 // Maps a logical clipmap voxel to its toroidal page-table slot. Page-table
 // values are one-based physical page indices; zero means the brick is absent.

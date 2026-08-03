@@ -135,7 +135,11 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
 
         float voxelSize = levelOrigins[level].w;
         float diameter = max(2.0 * t * apertureTan, voxelSize);
-        float mip = clamp(log2(diameter / voxelSize), 0.0, mipCount - 1.0);
+        // Clipmap origins move in whole 8-voxel bricks. Mips above 3 are not
+        // invariant under that translation, so their downsample lattice changes
+        // phase whenever the camera crosses a brick boundary.
+        float mip = clamp(log2(diameter / voxelSize), 0.0,
+            min(mipCount - 1.0, VOXEL_BRICK_ALIGNED_MAX_MIP));
         float4 sample = SamplePropagationBlended(position, level, mip, absDir, levelChanged);
         float marchDistance = max(effectiveVoxelSize * 0.5, diameter * 0.5);
 
