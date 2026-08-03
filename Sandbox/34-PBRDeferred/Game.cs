@@ -27,7 +27,7 @@ using SandboxUtils;
 /// <br/>Controls: in fly mode hold the right mouse button to look around,
 /// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--gi-resolution=50|75|100] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -141,6 +141,10 @@ public class Game : GameEngine
     private float _giSsaoAmount = 0.7f;
     private float _giMaxTraceDistance = 12.0f;
     private int _giDebugView;
+    private int _giResolutionPreset = 1;
+    private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
+    private static readonly string[] GiTraceResolutionModes =
+        ["Performance (50%)", "Balanced (75%)", "Quality (100%)"];
 
     // Material tweak panel.
     private int _selectedObject;
@@ -179,6 +183,16 @@ public class Game : GameEngine
         if (int.TryParse(GetArgValue(args, "--gi-debug="), out int giDebug))
         {
             _giDebugView = giDebug;
+        }
+        if (int.TryParse(GetArgValue(args, "--gi-resolution="), out int giResolutionPercent))
+        {
+            _giResolutionPreset = giResolutionPercent switch
+            {
+                50 => 0,
+                75 => 1,
+                100 => 2,
+                _ => _giResolutionPreset,
+            };
         }
         Vector3? sunOverride = ParseVector3(GetArgValue(args, "--sun="));
         if (sunOverride.HasValue)
@@ -308,7 +322,8 @@ public class Game : GameEngine
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
                 resolution: 128,
-                baseVoxelSize: baseVoxelSize);
+                baseVoxelSize: baseVoxelSize,
+                traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
             _giMaxTraceDistance = MathF.Min(12.0f, MathF.Max(_sceneRadius, 1.0f));
             RegisterVoxelMeshes();
             _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
@@ -1140,6 +1155,16 @@ public class Game : GameEngine
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Sky Intensity", ref _giSkyIntensity, 0.0f, 10.0f);
             ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
+            if (ImGui.Combo(
+                "GI Resolution",
+                ref _giResolutionPreset,
+                GiTraceResolutionModes,
+                GiTraceResolutionModes.Length))
+            {
+                _voxelGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
+                _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
+            }
+            ImGui.Text($"GI trace resolution: {_voxelGI.IndirectTexture.Width / 2}x{_voxelGI.IndirectTexture.Height}");
             string[] giDebugModes = ["Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility"];
             ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);
             VoxelGiStatistics statistics = _voxelGI.Statistics;

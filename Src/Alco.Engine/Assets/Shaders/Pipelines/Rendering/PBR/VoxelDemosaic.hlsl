@@ -2,10 +2,10 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
-// Half-resolution bilateral spatial filter and temporal accumulation for
-// voxel GI. A geometry-aware diffuse footprint suppresses voxel sampling noise,
-// then validated reprojection accumulates stable history without disocclusion
-// trails. Specular uses a smaller footprint to preserve reflection detail.
+// Configurable-resolution bilateral spatial filter and temporal accumulation
+// for voxel GI. A geometry-aware diffuse footprint suppresses voxel sampling
+// noise, then validated reprojection accumulates stable history without
+// disocclusion trails. Specular uses a smaller footprint to preserve detail.
 //
 // Both the indirect atlas (sampled by DeferredLighting) and a history texture
 // (read by this shader next frame) are written in the same dispatch. The
@@ -43,6 +43,24 @@ float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invVP)
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
     float4 world = mul(invVP, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
+}
+
+// Recover view-linear depth from the homogeneous w produced by the inverse
+// view-projection. Only the fourth matrix row is needed, avoiding a full world
+// reconstruction for every bilateral tap.
+float ReconstructLinearDepth(float2 uv, float depth, float4x4 invVP)
+{
+    float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+    float reciprocalClipW = dot(invVP[3], float4(ndc, depth, 1.0));
+    return abs(rcp(reciprocalClipW));
+}
+
+float NormalSimilarity(float3 centerNormal, float3 sampleNormal)
+{
+    // Normal-map detail may vary strongly inside one low-frequency irradiance
+    // footprint. Accept up to roughly 60 degrees, but still give orthogonal
+    // architectural surfaces zero weight.
+    return smoothstep(0.05, 0.5, dot(centerNormal, sampleNormal));
 }
 
 [shader("compute")]
@@ -86,8 +104,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 packedNormal = GET_PIXEL_TEX2D(_normal, gbufferPixel);
     float packedGeometryY = GET_PIXEL_TEX2D(_emissive, gbufferPixel).a;
     float3 geometryNormal = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
+    float3 detailNormal = normalize(packedNormal.xyz * 2.0 - 1.0);
     float3 N = isSpecular
-        ? normalize(packedNormal.xyz * 2.0 - 1.0)
+        ? detailNormal
         : geometryNormal;
     float currentLinearDepth = abs(mul(viewProjection, float4(worldPos, 1.0)).w);
     float4 centerVal = _traceInput.Load(int3(pixel, 0));
@@ -97,11 +116,15 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // same geometric surface, so real extended bounce lighting is retained
     // while a lone ray hitting a bright emissive voxel is luminance-clamped.
     float diffuseMaximumLuminance = 65504.0;
+    float2 localLinearDepthGradient = 0.0;
     if (!isSpecular)
     {
         float3 guideSum = 0.0;
         float guideWeightSum = 0.0;
-        float guideDepthScale = 50.0 / max(constants.params.y * 2.0, 0.001);
+        float guideLinearDepths[4] = {
+            currentLinearDepth, currentLinearDepth,
+            currentLinearDepth, currentLinearDepth,
+        };
         [unroll]
         for (uint guideIndex = 0u; guideIndex < 4u; guideIndex++)
         {
@@ -116,8 +139,30 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 int2(0, 0),
                 int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
             float guideDepth = GET_PIXEL_TEX2D(_gbufferDepth, guideGbufferPixel);
-            float guideWeight = exp(-abs(guideDepth - depth) * guideDepthScale)
-                * (guideDepth < 0.9999 ? 1.0 : 0.0);
+            float guideWeight = 0.0;
+            if (guideDepth < 0.9999)
+            {
+                float2 guideGbufferUV =
+                    (float2(guideGbufferPixel) + 0.5) / float2(gbufferRes);
+                float guideLinearDepth = ReconstructLinearDepth(
+                    guideGbufferUV, guideDepth, invViewProjection);
+                float4 guidePackedNormal = GET_PIXEL_TEX2D(
+                    _normal, guideGbufferPixel);
+                float3 guideDetailNormal = normalize(
+                    guidePackedNormal.xyz * 2.0 - 1.0);
+                float normalWeight = NormalSimilarity(
+                    detailNormal, guideDetailNormal);
+                float depthTolerance = max(
+                    0.025, currentLinearDepth * 0.002);
+                float depthWeight = exp(
+                    -abs(guideLinearDepth - currentLinearDepth)
+                    / depthTolerance);
+                guideWeight = normalWeight * depthWeight;
+                if (guideWeight > 0.1)
+                {
+                    guideLinearDepths[guideIndex] = guideLinearDepth;
+                }
+            }
             guideSum += max(_traceInput.Load(int3(guideTrace, 0)).rgb, 0.0) * guideWeight;
             guideWeightSum += guideWeight;
         }
@@ -128,33 +173,54 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         float guideLuminance = dot(guideRadiance, float3(0.2126, 0.7152, 0.0722));
         diffuseMaximumLuminance = clamp(guideLuminance * 4.0 + 0.02, 0.04, 8.0);
         centerVal.rgb = ClampRadianceLuminance(centerVal.rgb, diffuseMaximumLuminance);
+
+        // The local depth gradient predicts the depth of a slanted plane at
+        // the sparse outer taps. Comparing against that plane, rather than
+        // against the center depth, preserves grazing surfaces while still
+        // rejecting parallel trim and foreground layers.
+        localLinearDepthGradient = float2(
+            (guideLinearDepths[1] - guideLinearDepths[0]) * 0.5,
+            (guideLinearDepths[3] - guideLinearDepths[2]) * 0.5);
     }
 
     // --- Bilateral spatial filter on the trace input ---
-    // Stable mesh normals and a 7x7 diffuse footprint remove residual isolated
+    // Stable mesh normals and a scale-aware diffuse footprint remove residual
     // cone hits while preserving the original CE5 cone width and mip choice.
+    // The symmetric 5-tap weights [0.5 1 1 1 0.5] integrate each phase of the
+    // 4x4 rotation tile with exactly equal total weight; an ordinary Gaussian
+    // exposes that tile as fine vertical bands.
     // Specular keeps the sharper 3x3 footprint.
-    int filterRadius = isSpecular ? 1 : 3;
-    float spatialSigma = max(constants.params.y * (isSpecular ? 1.0 : 2.0), 0.001);
-    float depthScale = 50.0 / spatialSigma;
-
-    float4 spatialSum = centerVal;
-    float spatialW = 1.0;
+    bool phaseBalancedDiffuse = !isSpecular;
+    int filterRadius = 1;
+    float spatialSigma = max(constants.params.y, 0.001);
+    float4 spatialSum = phaseBalancedDiffuse ? 0.0 : centerVal;
+    float spatialW = phaseBalancedDiffuse ? 0.0 : 1.0;
     float4 neighborhoodMin = centerVal;
     float4 neighborhoodMax = centerVal;
 
     [unroll]
-    for (int dy = -3; dy <= 3; dy++)
+    for (int dy = -2; dy <= 2; dy++)
     {
         [unroll]
-        for (int dx = -3; dx <= 3; dx++)
+        for (int dx = -2; dx <= 2; dx++)
         {
-            if ((dx == 0 && dy == 0) || abs(dx) > filterRadius || abs(dy) > filterRadius)
+            bool includePhaseBalanced = abs(dx) <= 2 && abs(dy) <= 2;
+            bool includeRegular = (dx != 0 || dy != 0)
+                && abs(dx) <= filterRadius && abs(dy) <= filterRadius;
+            if (phaseBalancedDiffuse ? !includePhaseBalanced : !includeRegular)
             {
                 continue;
             }
 
-            int2 np = int2(pixel) + int2(dx, dy);
+            // The projected voxel footprint appears as broad bands on flat
+            // walls. Spread the same 25 phase-balanced taps over a 13x13
+            // trace-pixel footprint: an odd stride still visits every phase of
+            // the fixed 4x4 cone tile exactly once, but integrates the
+            // world-space voxel lattice without extra samples.
+            int diffuseStride = 3;
+            int2 filterOffset = int2(dx, dy)
+                * (isSpecular ? 1 : diffuseStride);
+            int2 np = int2(pixel) + filterOffset;
             // Keep within same atlas half (diffuse or specular).
             if (isSpecular)
             {
@@ -168,26 +234,55 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
             // G-buffer depth at the neighbour for bilateral weighting.
             int2 nTrace = isSpecular ? np - int2(halfWidth, 0) : np;
-            float2 nUV = (float2(nTrace) + 0.5) / float2(giParams.z, giParams.w);
-            int2 nGbufPixel = int2(nUV * float2(gbufferRes));
+            float2 nTraceUV =
+                (float2(nTrace) + 0.5) / float2(giParams.z, giParams.w);
+            int2 nGbufPixel = int2(nTraceUV * float2(gbufferRes));
             nGbufPixel = clamp(nGbufPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
             float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
 
-            float depthW = exp(-abs(nDepth - depth) * depthScale);
-            float spatialW_neighbour = exp(-(dx * dx + dy * dy) / (2.0 * spatialSigma * spatialSigma));
+            float surfaceW = 0.0;
+            float3 nDetailNormal = N;
+            if (nDepth < 0.9999)
+            {
+                float2 nGbufferUV =
+                    (float2(nGbufPixel) + 0.5) / float2(gbufferRes);
+                float nLinearDepth = ReconstructLinearDepth(
+                    nGbufferUV, nDepth, invViewProjection);
+                float4 nPackedNormal = GET_PIXEL_TEX2D(_normal, nGbufPixel);
+                nDetailNormal = normalize(nPackedNormal.xyz * 2.0 - 1.0);
+                float expectedLinearDepth = currentLinearDepth
+                    + dot(float2(filterOffset), localLinearDepthGradient);
+                float depthTolerance = max(
+                    0.025, currentLinearDepth * 0.0015)
+                    * (1.0 + length(float2(filterOffset)) * 0.1);
+                float depthWeight = exp(
+                    -abs(nLinearDepth - expectedLinearDepth)
+                    / depthTolerance);
+                surfaceW = NormalSimilarity(detailNormal, nDetailNormal)
+                    * depthWeight;
+            }
+            float spatialW_neighbour;
+            if (phaseBalancedDiffuse)
+            {
+                float phaseWeightX = abs(dx) == 2 ? 0.5 : 1.0;
+                float phaseWeightY = abs(dy) == 2 ? 0.5 : 1.0;
+                spatialW_neighbour = phaseWeightX * phaseWeightY;
+            }
+            else
+            {
+                spatialW_neighbour = exp(
+                    -(dx * dx + dy * dy) / (2.0 * spatialSigma * spatialSigma));
+            }
 
-            // Normal maps are high-frequency material detail, not a boundary
-            // for low-frequency diffuse irradiance. Let depth preserve diffuse
-            // geometry edges; retain normal rejection only for specular.
+            // Diffuse uses a deliberately lenient normal-map compatibility
+            // through surfaceW; specular applies a much sharper rejection.
             float normalW = 1.0;
             if (isSpecular)
             {
-                float3 nNormal = normalize(
-                    GET_PIXEL_TEX2D(_normal, nGbufPixel).xyz * 2.0 - 1.0);
-                normalW = pow(max(dot(N, nNormal), 0.0), 16.0);
+                normalW = pow(max(dot(N, nDetailNormal), 0.0), 16.0);
             }
 
-            float w = depthW * spatialW_neighbour * normalW;
+            float w = surfaceW * spatialW_neighbour * normalW;
             float4 neighbourValue = _traceInput.Load(int3(np, 0));
             if (!isSpecular)
             {

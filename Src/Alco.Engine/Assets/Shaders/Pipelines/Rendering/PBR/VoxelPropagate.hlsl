@@ -150,11 +150,12 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
     }
 
     // Sky fallback on first bounce only: provides hemisphere-integrated sky
-    // ambient with natural occlusion from accumulated cone alpha. Downward
-    // cones get no sky (SkyLightBottomMultiplier).
-    if (allowSky && direction.z >= 0.0)
+    // ambient with natural occlusion from accumulated cone alpha. A narrow
+    // horizon blend replaces the discontinuous bottom-light cutoff.
+    if (allowSky)
     {
-        color += (1.0 - alpha) * VoxelSkyColor(direction);
+        float horizonVisibility = smoothstep(-0.12, 0.12, direction.z);
+        color += (1.0 - alpha) * VoxelSkyColor(direction) * horizonVisibility;
     }
 
     return color;

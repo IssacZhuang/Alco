@@ -2,8 +2,8 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
-// Voxel cone tracing for the voxel GI clipmap: one dispatch at the half-res
-// trace resolution. Reconstructs the world position and normal from the
+// Voxel cone tracing for the voxel GI clipmap: one dispatch at the configured
+// screen-space trace resolution. Reconstructs world position and normal from the
 // G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
 // cones plus one specular cone through the radiance volume. The result
 // is written into the output atlas (twice the trace width): total diffuse
@@ -316,7 +316,12 @@ float4 TraceCone(
     }
 
     // Add directional sky radiance through the unoccluded part of the cone.
-    float skyVisibility = direction.z >= 0.0 ? skyFallback : 0.0;
+    // A hard direction.z threshold made one of the reduced diffuse cones gain
+    // or lose an entire sky contribution when a mesh normal crossed the
+    // horizon, producing bright polygon-sized blocks on nearly vertical
+    // facades. The low-frequency sky is already filtered, so blend it through
+    // a narrow horizon band instead.
+    float skyVisibility = smoothstep(-0.12, 0.12, direction.z) * skyFallback;
     color += (1.0 - alpha) * VoxelSkyColor(direction) * skyVisibility;
     return float4(color, alpha);
 }
