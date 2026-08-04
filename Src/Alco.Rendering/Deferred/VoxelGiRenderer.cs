@@ -342,10 +342,12 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
     /// <summary>
     /// Gets or sets the diffuse temporal hysteresis (0..1), independently from
-    /// specular. The deterministic diffuse kernel needs only modest history for
-    /// smoothing, so a lower default keeps camera motion responsive.
+    /// specular. The diffuse direction tile rotates through eight assignments
+    /// over eight frames (CE5 SvoTracePS), so the history window must span at
+    /// least one full rotation cycle: 0.9 averages roughly ten frames and keeps
+    /// occlusion edges temporally stable.
     /// </summary>
-    public float DiffuseTemporalHysteresis { get; set; } = 0.8f;
+    public float DiffuseTemporalHysteresis { get; set; } = 0.9f;
 
     /// <summary>
     /// Gets or sets the screen-space cone-trace resolution relative to the

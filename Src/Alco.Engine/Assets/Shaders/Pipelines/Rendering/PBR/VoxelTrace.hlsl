@@ -7,10 +7,9 @@
 // G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
 // cones plus one specular cone through the radiance volume. Diffuse cones use
 // a 2x2 depth-weighted averaged geometry normal (CE5 GetAverNormAndSmooth) so
-// cone directions stay stable across edges and tessellated relief. The 8x8
-// direction tile rotates through eight assignments over eight frames (CE5
-// SvoTracePS), letting the temporal resolve average out per-direction voxel
-// quantization. The result is written into the output atlas (twice the trace
+// cone directions stay stable across edges and tessellated relief. The kernel
+// azimuth is mirrored on a four-frame cycle (CE5 SvoTracePS), letting the
+// temporal resolve average out per-direction voxel quantization. The result is written into the output atlas (twice the trace
 // width): total diffuse irradiance (visible sky plus bounced radiance) and
 // diagnostic visibility in the left half, specular radiance in the right half.
 
@@ -345,8 +344,7 @@ float4 TraceCone(
 // Trace one member of the tiled diffuse kernel per pixel. The demosaic pass
 // gathers the complete 8x8 tile, as in CE5, so temporal history remains a
 // denoising aid rather than being required for angular convergence. As in CE5
-// SvoTracePS the assignment rotates every frame: odd frames use the
-// complementary half of the 64-direction kernel and the azimuth is mirrored
+// SvoTracePS the assignment rotates per frame: the kernel azimuth is mirrored
 // on a four-frame cycle, so the temporal accumulation integrates several
 // direction sets per pixel instead of converging onto the voxel-quantization
 // pattern of one static direction (visible as teeth along occlusion
@@ -359,12 +357,18 @@ float4 TraceDiffuseCones(
 {
     float3x3 tbn = GetTangentBasis(normal);
     uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
+    // CE5 SvoTracePS rotates the kernel assignment per frame so the temporal
+    // accumulation integrates several direction sets per pixel instead of
+    // converging onto one static direction's voxel-quantization pattern
+    // (visible as teeth along occlusion boundaries). Only the azimuth is
+    // mirrored, on a four-frame cycle: swapping in the complementary half of
+    // the kernel (CE5's odd-frame behavior) trades the elevation stratum of
+    // every pixel each frame, which oscillates the accumulated value at
+    // occlusion terminators faster than the history window can settle.
     uint frameIndex = uint(giFrameParams.x);
-    uint sequenceIndex =
-        (DIFFUSE_DIRECTION_TILE[tileIndex] + (frameIndex & 1u) * 32u) & 63u;
-    float3 kernelDirection = GetDiffuseKernelDirection(sequenceIndex);
-    if ((frameIndex & 2u) != 0u) kernelDirection.x = -kernelDirection.x;
-    if ((frameIndex & 4u) != 0u) kernelDirection.y = -kernelDirection.y;
+    float3 kernelDirection = GetDiffuseKernelDirection(DIFFUSE_DIRECTION_TILE[tileIndex]);
+    if ((frameIndex & 1u) != 0u) kernelDirection.x = -kernelDirection.x;
+    if ((frameIndex & 2u) != 0u) kernelDirection.y = -kernelDirection.y;
     float3 worldDir = normalize(mul(kernelDirection, tbn));
     float4 coneResult = TraceCone(
         startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0);
