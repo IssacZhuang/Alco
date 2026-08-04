@@ -505,9 +505,14 @@ float4 MainPS(V2F input) : SV_TARGET
         // bounced surface radiance. The ALD-driven directionalMod gives
         // indirect light a directional response instead of flat ambient —
         // corners darken, surfaces facing the bounce source brighten —
-        // without changing overall brightness.
+        // without changing overall brightness. The ambientFloor is still
+        // added (matching CE5 UpScalePS: OUT.Diffuse += SvoParamsCommon.z *
+        // vSkyColorTop.z) so deeply occluded areas where cone tracing
+        // returns near-zero radiance never go pitch-black. The floor is
+        // small (~0.05–0.15) and still multiplied by AO below, so GI-driven
+        // AO contrast is preserved.
         diffuseIrradiance = max(indirectDiffuse.rgb * directionalMod, 0.0)
-            * params3.y;
+            * params3.y + ambientFloor;
 
         float NdotV = max(dot(N, V), 0.0);
         float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);

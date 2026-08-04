@@ -110,7 +110,7 @@ public class Game : GameEngine
     // Sun orbit: max elevation at noon simulates latitude (lower = polar,
     // higher = tropical); azimuth controls the sunrise/sunset direction.
     private float _sunMaxElevationDeg = 50.0f;
-    private float _sunAzimuthDeg = 0.0f;
+    private float _sunAzimuthDeg = 180f;
 
     // Cascaded shadow map state.
     private readonly float _cameraNear;
@@ -132,7 +132,7 @@ public class Game : GameEngine
     private float _starIntensity = 1.0f;
     private float _sunRadianceScale = 20.0f;
     private float _nightFloor = 0.05f;
-    private float _ambientFloor = 1f;
+    private float _ambientFloor = 0.5f;
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private const float HBAOMaxStepPixels = 64.0f;
@@ -151,7 +151,7 @@ public class Game : GameEngine
     private float _giDiffuseStrength = 1.0f;
     private float _giSpecularStrength = 0.5f;
     private float _giSkyIntensity = 1.0f;
-    private float _giSsaoAmount = 0.7f;
+    private float _giSsaoAmount = 1f;
     private float _giMaxTraceDistance = 12.0f;
     private float _giDiffuseSpreading = 0.0f;
     private int _giDebugView;
