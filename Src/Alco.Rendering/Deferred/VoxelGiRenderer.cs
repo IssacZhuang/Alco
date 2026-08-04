@@ -373,12 +373,12 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
     /// <summary>
     /// Gets or sets the diffuse temporal hysteresis (0..1), independently from
-    /// specular. The diffuse direction tile rotates through eight assignments
-    /// over eight frames (CE5 SvoTracePS), so the history window must span at
-    /// least one full rotation cycle: 0.9 averages roughly ten frames and keeps
-    /// occlusion edges temporally stable.
+    /// specular. The diffuse direction tile uses a four-frame azimuth mirror
+    /// (CE5 SvoTracePS), so the history window needs ~5 frames to cover the
+    /// cycle: 0.8 averages roughly five frames, matching CE5's effective
+    /// base blend rate of ~0.0625 while avoiding the trailing residual of 0.9.
     /// </summary>
-    public float DiffuseTemporalHysteresis { get; set; } = 0.9f;
+    public float DiffuseTemporalHysteresis { get; set; } = 0.8f;
 
     /// <summary>
     /// Gets or sets the diffuse spreading amount (CE5 e_svoTI_Diffuse_Spr) for
