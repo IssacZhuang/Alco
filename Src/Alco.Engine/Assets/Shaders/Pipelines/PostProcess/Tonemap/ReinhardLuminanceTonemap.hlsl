@@ -42,5 +42,6 @@ float4 MainPS(V2F input) : SV_TARGET {
 
   float3 ldrColor = change_luminance(source.rgb, new_luminance);
   ldrColor = pow(ldrColor, 1.0 / Gamma);
+  ldrColor += OutputDither8Bit(input.position.xy);
   return float4(ldrColor, 1.0);
 }

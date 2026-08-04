@@ -132,7 +132,7 @@ public class Game : GameEngine
     private float _starIntensity = 1.0f;
     private float _sunRadianceScale = 20.0f;
     private float _nightFloor = 0.05f;
-    private float _ambientFloor = 0.5f;
+    private float _ambientFloor = 0.25f;
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private const float HBAOMaxStepPixels = 64.0f;

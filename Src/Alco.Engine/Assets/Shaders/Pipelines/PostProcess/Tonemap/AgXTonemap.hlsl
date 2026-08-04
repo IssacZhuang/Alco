@@ -117,5 +117,6 @@ float4 MainPS(V2F input): SV_TARGET
     ldr = AgxLook(ldr, Look);
     ldr = AgxEotf(ldr);
     ldr = pow(max(ldr, 0.0), 1.0 / Gamma);
+    ldr += OutputDither8Bit(input.position.xy);
     return float4(ldr, 1.0);
 }

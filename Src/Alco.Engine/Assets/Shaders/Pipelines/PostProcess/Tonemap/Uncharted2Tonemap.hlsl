@@ -47,6 +47,7 @@ float4 MainPS(V2F input) : SV_TARGET {
 
     //gamma correction
     ldrColor = pow(ldrColor, 1.0 / Gamma);
+    ldrColor += OutputDither8Bit(input.position.xy);
 
     float4 color = float4(ldrColor, 1.0);
     return color;

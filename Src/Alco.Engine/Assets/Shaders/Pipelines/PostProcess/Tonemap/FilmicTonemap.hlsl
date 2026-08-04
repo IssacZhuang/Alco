@@ -24,6 +24,7 @@ float4 MainPS(V2F input): SV_TARGET
     float3 v = SAMPLE_TEX2D(_texture, input.uv).rgb * Exposure;
     float3 ldr = Filmic(v);
     ldr = pow(ldr, 1.0 / Gamma);
+    ldr += OutputDither8Bit(input.position.xy);
     return float4(ldr, 1.0);
 }
 

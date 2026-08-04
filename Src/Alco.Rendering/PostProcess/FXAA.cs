@@ -71,6 +71,7 @@ public class FXAA : PostProcess
 
     protected RenderTexture? _input;
     private RenderTexture? _intermediateTexture;
+    private GPUAttachmentLayout? _intermediateLayout;
 
     /// <summary>
     /// Gets or sets the FXAA quality preset.
@@ -153,9 +154,23 @@ public class FXAA : PostProcess
         // Dispose old intermediate texture if it exists
         _intermediateTexture?.Dispose();
 
-        // Create intermediate texture with same size as input
+        // The intermediate texture must keep the input's pixel format: rendering through
+        // an 8-bit SDR target here would quantize the linear HDR image before tone
+        // mapping and produce severe banding in dark areas.
+        PixelFormat inputFormat = input.AttachmentLayout.Colors[0].Format;
+        if (_intermediateLayout == null || _intermediateLayout.Colors[0].Format != inputFormat)
+        {
+            _intermediateLayout?.Dispose();
+            _intermediateLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+                [new ColorAttachment(inputFormat)],
+                null,
+                "fxaa_intermediate"
+            ));
+        }
+
+        // Create intermediate texture with same size and format as input
         _intermediateTexture = _renderingSystem.CreateRenderTexture(
-            _renderingSystem.PreferredSDRPass,
+            _intermediateLayout,
             input.Width,
             input.Height,
             "fxaa_intermediate"
@@ -180,6 +195,12 @@ public class FXAA : PostProcess
         }
 
         Mesh fullScreenMesh = FullScreenMesh;
+
+        if (_fxaaShader.TryUpdatePipelineContext(ref _fxaaPipelineInfo, _intermediateTexture.FrameBuffer.AttachmentLayout))
+        {
+            _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
+            _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
+        }
 
         if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.AttachmentLayout))
         {
@@ -226,7 +247,7 @@ public class FXAA : PostProcess
         _currentDefines = new[] { qualityDefine };
 
         // Get a new pipeline with the specified defines
-        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PreferredSDRPass, _currentDefines);
+        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_intermediateLayout ?? _renderingSystem.PreferredSDRPass, _currentDefines);
 
         // Update resource IDs after pipeline recreation
         _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
@@ -244,6 +265,7 @@ public class FXAA : PostProcess
             _commandFXAA.Dispose();
             _fxaaShaderData.Dispose();
             _intermediateTexture?.Dispose();
+            _intermediateLayout?.Dispose();
         }
         base.Dispose(disposing);
     }

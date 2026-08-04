@@ -33,6 +33,17 @@
 #define DEFINE_TEX2D_DEPTH(index, name) SLOT(index, 0) Texture2D<float> name
 #define DEFINE_TEX2D_DEPTH_SAMPLE(index, name) SLOT(index, 0) Texture2D<float> name; SLOT(index, 1) SamplerComparisonState name##Sampler
 
+// Triangular-PDF dither based on interleaved gradient noise (Jimenez 2014), scaled to
+// +/-1 code of an 8-bit UNORM target. Add it to the final LDR color before the output
+// is quantized to the swapchain to hide banding in dark gradients.
+float OutputDither8Bit(float2 pixelPos)
+{
+    const float2 k = float2(0.06711056f, 0.00583715f);
+    float r1 = frac(52.9829189f * frac(dot(pixelPos, k)));
+    float r2 = frac(52.9829189f * frac(dot(pixelPos + 0.5f, k)));
+    return (r1 + r2 - 1.0f) * (1.0f / 255.0f);
+}
+
 
 #define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
 #define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
