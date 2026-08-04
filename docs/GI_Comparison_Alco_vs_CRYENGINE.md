@@ -133,7 +133,7 @@ Alco 目前没有这一步。
 
 ---
 
-### 3.5 Dual-kernel（radiance + opacity）
+### 3.5 Dual-kernel（radiance + opacity）✅ 已完成
 
 CE5 的 `ConeTracePS` 用双 kernel——一个采样 radiance，一个采样 opacity（压低仰角增加 AO）：
 
@@ -145,9 +145,25 @@ kernOpa.z -= SvoParamsCommon.y;                       // 压低仰角
 kern = lerp(kernOpa, kern, saturate(transmittance * 4)); // 透明度混合
 ```
 
-Alco 用单 kernel。
+**状态**：已实现并验证（2026-08-04）。编译通过，shader 验证通过（`ValidateAllShaders`），180 个渲染测试全部通过。
 
-**可移植性**：✅ 可以直接移植。多采一组方向，lerp 混合即可。需要为 cbuffer 增加一个 `DiffuseSpreading` 参数。
+**实现方案**：在 Alco 的 screen-space 锥追踪中移植了 CE5 的 dual-kernel opacity bias。与 CE5 的关键差异是 Alco 没有 G-buffer transmittance 通道，因此不执行 transmittance 混合——所有锥方向统一应用 Z 偏移。在 `DiffuseSpreading=0`（默认）时方向完全不变（identity），效果与改动前完全一致。
+
+改动涉及 4 个文件：
+
+- **VoxelCommon.hlsli**：`giFrameParams.w` 从 `unused` 改为 `diffuseSpreading`
+- **VoxelTrace.hlsl**：`TraceDiffuseCones` 在帧镜像后计算 opacity 方向（`kernelDirection.z -= diffuseSpreading`），renormalize 后变换到世界空间。ALD 输出自动反映偏移后的方向（因为 `outWorldDir` 使用最终 trace 方向）
+- **VoxelGiRenderer.cs**：新增 `DiffuseSpreading` 属性（float, 默认 0.0f，对应 CE5 `e_svoTI_Diffuse_Spr`），通过 `GiFrameParams.W` 传入 shader
+- **Game.cs**：UI 新增 `GI Diffuse Spreading` 滑块（0.0–0.5），带 tooltip 说明
+
+**算法说明**：
+- CE5 的 `lerp(kernOpa, kern, saturate(transmittance * 4))`：不透明面（transmittance=0）→ 使用 kernOpa（压低仰角）；透明面（transmittance>0）→ 使用 kern（原方向）
+- Alco 无 transmittance 通道，因此等价于 transmittance 恒为 0，始终使用 kernOpa。`DiffuseSpreading` 参数直接控制 Z 压低量
+- Z 压低后 renormalize 使锥方向更靠近表面切平面 → 锥在近场采样到更多几何体 → 累积更多遮挡 → 更强的 contact AO
+
+**质量影响**：DiffuseSpreading > 0 时增强近场 AO（角落、缝隙、接触面更暗），对开放空间影响较小。推荐值 0.1–0.3。0 = 无效果（与改动前完全一致）。
+
+**性能开销**：零（仅修改方向向量，不增加采样次数）
 
 ---
 
@@ -380,7 +396,7 @@ CE5 将整个八叉树结构编码在 `brickPool_Tree` 纹理中——每个节�
 - ⚠️ RSM 注入（需要 Reflective Shadow Map 管线）
 - ⚠️ Tiled lights（需要 tiled light culling）
 - ⚠️ Portal 灯变形（需要 portal 系统）
-- ⚠️ Dual-kernel opacity（多一组 kernel 方向 + cbuffer 参数）
+- ⚠️ ~~Dual-kernel opacity（多一组 kernel 方向 + cbuffer 参数）~~ ✅ 已完成（§3.5）
 - ⚠️ Analytical Occluders（需要 occluder 组件系统）
 - ⚠️ Air 体素传播（需要扩展体素数据格式）
 - ⚠️ Troposphere / 体雾（需要 air density 通道）
@@ -404,7 +420,7 @@ CE5 将整个八叉树结构编码在 `brickPool_Tree` 纹理中——每个节�
 | **3** | Air 体素传播 | ★★★☆☆ | 中（体素数据格式扩展 + 传播 pass 修改） |
 | **4** | Multi-bounce 双缓冲 | ★★☆☆☆ | 低（多一张 Texture3D，去掉 copy pass） |
 | **5** | Desaturation 控制 | ★★☆☆☆ | 低（一个 lerp） |
-| **6** | Dual-kernel opacity | ★★★☆☆ | 中（kernel 扩展 + cbuffer 参数） |
+| **6** | Dual-kernel opacity | ★★★☆☆ | ✅ 已完成 |
 | **7** | RSM 注入 | ★★★★★ | 高（需要 RSM 管线） |
 | **8** | Tiled lights | ★★★☆☆ | 高（需要 tiled light 基础设施） |
 
@@ -720,15 +736,15 @@ gathered = lerp(luminance(gathered), gathered, saturationParam);
 
 ---
 
-#### ⑨ Dual-kernel opacity
+#### ⑨ Dual-kernel opacity ✅ 已完成
 
 CE5 `ConeTracePS` 用双 kernel——radiance kernel + opacity kernel（压低仰角增加 AO）。
 
+**状态**：已实现并验证（2026-08-04）。详见 [§3.5](#35-dual-kernelradiance--opacity-已完成)。
+
 **质量收益**：★★★☆☆（更好的近场 AO）
 
-**工作量**：中（多采一组方向 + lerp 混合 + cbuffer 参数）
-
-**建议**：收益不如 ④⑥⑧ 直接，排在后面。
+**工作量**：低（方向 Z 偏移 + cbuffer 参数，零额外采样）
 
 ---
 
@@ -759,7 +775,7 @@ Phase 2 — 质量提升（预计 3-5 天）
 
 Phase 3 — 补充完善（按需）
   ⑧ Air 体素传播
-  ⑨ Dual-kernel opacity
+  ⑨ Dual-kernel opacity                      ✅ 已完成
 
 Phase 4 — 需要引擎基础设施（长期）
   RSM 注入 / Tiled lights / Analytical Occluders / Troposphere

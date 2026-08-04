@@ -48,7 +48,7 @@ DEFINE_UNIFORM(0, _data)
     float4 lightingParams;         // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=unused
     float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
     float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
-    float4 giFrameParams;          // x=frameIndex y=giDiffuseBias z=historyValid w=unused
+    float4 giFrameParams;          // x=frameIndex y=giDiffuseBias z=historyValid w=diffuseSpreading
 };
 
 // ---------------------------------------------------------------- packing ---

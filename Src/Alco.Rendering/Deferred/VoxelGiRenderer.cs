@@ -201,7 +201,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 GiParams;
         /// <summary>x=debugView yz=G-buffer resolution in pixels (filled by the renderer) w=giSkyIntensity (sky light multiplier for voxel GI).</summary>
         public Vector4 GiParams2;
-        /// <summary>x=frame index, y=GI diffuse bias, z=history-valid flag (filled by the renderer), w=unused.</summary>
+        /// <summary>x=frame index, y=GI diffuse bias, z=history-valid flag (filled by the renderer), w=diffuse spreading (dual-kernel opacity bias).</summary>
         public Vector4 GiFrameParams;
     }
 
@@ -379,6 +379,14 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// occlusion edges temporally stable.
     /// </summary>
     public float DiffuseTemporalHysteresis { get; set; } = 0.9f;
+
+    /// <summary>
+    /// Gets or sets the diffuse spreading amount (CE5 e_svoTI_Diffuse_Spr) for
+    /// the dual-kernel opacity bias. Lowers the elevation of each diffuse cone
+    /// toward the surface tangent, gathering more near-field occlusion for
+    /// stronger contact AO. Zero disables the effect (radiance kernel only).
+    /// </summary>
+    public float DiffuseSpreading { get; set; } = 0.0f;
 
     /// <summary>
     /// Gets or sets the screen-space cone-trace resolution relative to the
@@ -862,7 +870,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
         data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _traceRaw.Height);
         data.GiParams2 = new Vector4(data.GiParams2.X, gbuffer.Width, gbuffer.Height, data.GiParams2.W);
-        data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, 0.0f);
+        data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, DiffuseSpreading);
         _dataBuffer.UpdateBuffer(data);
 
         // The G-buffer and shadow map render textures are stable across frames

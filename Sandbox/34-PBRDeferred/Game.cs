@@ -153,6 +153,7 @@ public class Game : GameEngine
     private float _giSkyIntensity = 1.0f;
     private float _giSsaoAmount = 0.7f;
     private float _giMaxTraceDistance = 12.0f;
+    private float _giDiffuseSpreading = 0.0f;
     private int _giDebugView;
     private int _giResolutionPreset = 1;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
@@ -1052,6 +1053,7 @@ public class Game : GameEngine
                     new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f);
             }
         }
+        _voxelGI.DiffuseSpreading = _giDiffuseSpreading;
         _voxelGI.Render(_pipeline.GBuffer, _pipeline.ShadowMap, ref _voxelData, _camera.Transform.Position);
     }
 
@@ -1190,6 +1192,13 @@ public class Game : GameEngine
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Sky Intensity", ref _giSkyIntensity, 0.0f, 10.0f);
             ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
+            ImGui.SliderFloat("GI Diffuse Spreading", ref _giDiffuseSpreading, 0.0f, 0.5f, "%.3f");
+            ImGui.SameLine();
+            ImGui.TextDisabled("(?)");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Dual-kernel opacity bias (CE5 e_svoTI_Diffuse_Spr).\nLowers cone elevation toward the tangent for stronger contact AO.");
+            }
             if (ImGui.Combo(
                 "GI Resolution",
                 ref _giResolutionPreset,

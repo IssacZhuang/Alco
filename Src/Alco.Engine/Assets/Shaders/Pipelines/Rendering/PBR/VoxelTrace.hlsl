@@ -378,6 +378,19 @@ float4 TraceDiffuseCones(
     float3 kernelDirection = GetDiffuseKernelDirection(DIFFUSE_DIRECTION_TILE[tileIndex]);
     if ((frameIndex & 1u) != 0u) kernelDirection.x = -kernelDirection.x;
     if ((frameIndex & 2u) != 0u) kernelDirection.y = -kernelDirection.y;
+
+    // CE5 dual-kernel (Total_Illumination.cfx:1524-1551): an "opacity" kernel
+    // lowers the cone elevation toward the surface tangent, gathering more
+    // near-field occlusion for stronger contact AO. CE5 blends between the
+    // radiance and opacity directions via lerp(kernOpa, kern, transmittance*4):
+    // opaque surfaces (transmittance 0) use the lowered direction; transparent
+    // surfaces fall back to the radiance direction. Alco has no transmittance
+    // channel, so the blend always resolves to the opacity direction. With
+    // DiffuseSpreading=0 the direction is unchanged (identity).
+    float3 opacityDirection = kernelDirection;
+    opacityDirection.z -= giFrameParams.w;
+    kernelDirection = normalize(opacityDirection);
+
     float3 worldDir = normalize(mul(kernelDirection, tbn));
     outWorldDir = worldDir;
     float4 coneResult = TraceCone(
