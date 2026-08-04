@@ -1,11 +1,14 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 
-// Direct lighting injection for the voxel GI clipmap: one dispatch per clipmap
-// level at (resolution, resolution, resolution). Reads the voxelized attribute
-// buffers (dynamic wins over static), evaluates sun (CSM shadowed), an upward
-// sky-visibility march, the four point lights and emissive, and writes HDR
-// radiance + occupancy into mip 0 of the level's slab of the radiance Texture3D.
+// Direct lighting injection for the voxel GI clipmap: sparse dispatch over a
+// brick list (one entry per resident or recently-freed 8³ brick). Reads the
+// voxelized attribute buffers (dynamic wins over static), evaluates sun (CSM
+// shadowed), an upward sky-visibility march, the four point lights and
+// emissive, and writes HDR radiance + occupancy into mip 0 of the level's slab
+// of the radiance Texture3D. Freed bricks have page-table entry 0, so the
+// occupancy check naturally writes zeros — clearing stale radiance without a
+// separate full-resolution clear pass.
 
 struct VoxelInjectConstants
 {
@@ -16,9 +19,11 @@ DEFINE_STORAGE(1, uint4, _attrStatic);
 DEFINE_STORAGE(2, uint4, _attrDynamic);
 DEFINE_TEX3D_STORAGE(3, _radianceOut, float4, "rgba16f");
 DEFINE_TEX2D_DEPTH_SAMPLE(4, _shadowMap);
-DEFINE_STORAGE(5, uint, _pageTableStatic);
-DEFINE_STORAGE(6, uint, _pageTableDynamic);
+// Combined page table: x=static page entry, y=dynamic page entry. Merging the
+// two pools into one buffer frees a descriptor set for the brick list.
+DEFINE_STORAGE(5, uint2, _pageTable);
 DEFINE_TEX3D_STORAGE(7, _opacityOut, float4, "rgba16f");
+DEFINE_STORAGE(6, uint4, _brickList);
 
 PUSH_CONSTANT VoxelInjectConstants constants;
 
@@ -26,18 +31,17 @@ PUSH_CONSTANT VoxelInjectConstants constants;
 bool IsVoxelOccupied(uint3 logicalCoord, uint resolution, int level)
 {
     uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, level);
+    uint2 pages = _pageTable[pageSlot];
     uint4 attr = uint4(0u, 0u, 0u, 0u);
-    uint dynamicPage = _pageTableDynamic[pageSlot];
-    if (dynamicPage != 0u)
+    if (pages.y != 0u)
     {
-        attr = _attrDynamic[VoxelAttributeIndex(dynamicPage, logicalCoord)];
+        attr = _attrDynamic[VoxelAttributeIndex(pages.y, logicalCoord)];
     }
     if (!VoxelAttrOccupied(attr))
     {
-        uint staticPage = _pageTableStatic[pageSlot];
-        if (staticPage != 0u)
+        if (pages.x != 0u)
         {
-            attr = _attrStatic[VoxelAttributeIndex(staticPage, logicalCoord)];
+            attr = _attrStatic[VoxelAttributeIndex(pages.x, logicalCoord)];
         }
     }
     return VoxelAttrOccupied(attr);
@@ -143,31 +147,34 @@ float SampleSkyVisibility(float3 worldPosition, float4 originAndSize, uint resol
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint resolution = VoxelResolution();
-    if (any(dispatchId >= resolution))
+    int level = (int)constants.params.x;
+    uint brickIndex = dispatchId.z / VOXEL_BRICK_SIZE;
+    uint localZ = dispatchId.z % VOXEL_BRICK_SIZE;
+    uint3 logicalCoord = _brickList[brickIndex].xyz * VOXEL_BRICK_SIZE
+        + uint3(dispatchId.x, dispatchId.y, localZ);
+    if (any(logicalCoord >= resolution))
     {
         return;
     }
 
-    int level = (int)constants.params.x;
     float4 originAndSize = levelOrigins[level];
     float voxelSize = originAndSize.w;
-    uint pageSlot = VoxelPageTableSlot(dispatchId, resolution, level);
+    uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, level);
     // All levels share one radiance Texture3D; this level's slab starts at its
     // depth slice (mip 0 view bound, full resolution).
-    uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, (uint)level * resolution + dispatchId.z);
+    uint3 storeCoord = uint3(logicalCoord.x, logicalCoord.y, (uint)level * resolution + logicalCoord.z);
 
+    uint2 pages = _pageTable[pageSlot];
     uint4 attr = uint4(0u, 0u, 0u, 0u);
-    uint dynamicPage = _pageTableDynamic[pageSlot];
-    if (dynamicPage != 0u)
+    if (pages.y != 0u)
     {
-        attr = _attrDynamic[VoxelAttributeIndex(dynamicPage, dispatchId)];
+        attr = _attrDynamic[VoxelAttributeIndex(pages.y, logicalCoord)];
     }
     if (!VoxelAttrOccupied(attr))
     {
-        uint staticPage = _pageTableStatic[pageSlot];
-        if (staticPage != 0u)
+        if (pages.x != 0u)
         {
-            attr = _attrStatic[VoxelAttributeIndex(staticPage, dispatchId)];
+            attr = _attrStatic[VoxelAttributeIndex(pages.x, logicalCoord)];
         }
     }
     if (!VoxelAttrOccupied(attr))
@@ -183,7 +190,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     UnpackVoxelAttr(attr, albedo, normal, emissiveQ);
     normal = dot(normal, normal) > 1e-6 ? normalize(normal) : float3(0.0, 0.0, 1.0);
 
-    float3 worldPosition = originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize;
+    float3 worldPosition = originAndSize.xyz + (float3(logicalCoord) + 0.5) * voxelSize;
 
     // Only direct lights (sun + point lights) are injected into surface voxels.
     // Sky light enters the volume through cone-traced fallback in the

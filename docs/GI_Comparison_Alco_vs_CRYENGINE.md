@@ -14,6 +14,9 @@
 - [3. 有差异但可以照抄/移植的部分](#3-有差异但可以照抄移植的部分)
 - [4. 无法直接照抄的部分（数据结构绑定）](#4-无法直接照抄的部分数据结构绑定)
 - [5. 总结：能不能做"完整复刻"](#5-总结能不能做完整复刻)
+- [6. 性能基线分析](#6-性能基线分析)
+- [7. 改进优先级评估](#7-改进优先级评估)
+- [8. 推荐实施路线](#8-推荐实施路线)
 - [附录 A：Alco GI 文件清单](#附录-aalco-gi-文件清单)
 - [附录 B：CRYENGINE SVOTI 文件清单](#附录-bcryengine-svoti-文件清单)
 
@@ -377,6 +380,328 @@ CE5 将整个八叉树结构编码在 `brickPool_Tree` 纹理中——每个节�
 | **6** | Dual-kernel opacity | ★★★☆☆ | 中（kernel 扩展 + cbuffer 参数） |
 | **7** | RSM 注入 | ★★★★★ | 高（需要 RSM 管线） |
 | **8** | Tiled lights | ★★★☆☆ | 高（需要 tiled light 基础设施） |
+
+---
+
+## 6. 性能基线分析
+
+### 6.1 默认配置
+
+所有数字基于默认配置（`resolution=128`, `baseVoxelSize=0.1`, 4 levels, 1 bounce, trace 半分辨率）。
+
+| 参数 | 默认值 | 来源 |
+|------|--------|------|
+| `LevelCount` | 4（硬编码） | `VoxelGiRenderer.cs:307` |
+| `BrickSize` | 8（硬编码） | `VoxelGiRenderer.cs:308` |
+| `resolution` | 128 | `VoxelGiRenderer.cs:431` |
+| `baseVoxelSize` | 0.1 world units | `VoxelGiRenderer.cs:432` |
+| `_mipCount` | `log2(128)+1 = 8` | `VoxelGiRenderer.cs:444` |
+| `StaticBrickBudgetPerLevel` | 128 bricks/frame/level | `VoxelGiRenderer.cs:317` |
+| `DynamicLevelCount` | 2（仅最近 2 个 level 处理动态几何） | `VoxelGiRenderer.cs:323` |
+| `BounceCount` | 1 | `VoxelGiRenderer.cs:329` |
+| `TraceResolutionScale` | 0.5（半分辨率） | `VoxelGiRenderer.cs:433` |
+| `TemporalHysteresis` | 0.8 | `VoxelGiRenderer.cs:341` |
+| `DiffuseTemporalHysteresis` | 0.9 | `VoxelGiRenderer.cs:350` |
+
+Clipmap 几何参数：
+
+- `BricksPerAxis = 128 / 8 = 16`
+- 每 level 页数 = `16³ = 4,096`
+- 体素大小 = `0.1 × 2^level`：**0.1, 0.2, 0.4, 0.8** world units
+- Level 覆盖范围 = `128 × voxelSize`：**12.8m, 25.6m, 51.2m, 102.4m**
+
+### 6.2 GPU 资源占用
+
+#### Texture3D 体积纹理（RGBA16Float = 8 bytes/voxel）
+
+| 资源 | 尺寸 (W×H×D) | Mips | 显存 |
+|------|-------------|------|------|
+| `_radiance` | 128×128×512（128×4 levels 沿深度堆叠） | 8 | ~73.2 MiB |
+| `_opacity` | 同上 | 8 | ~73.2 MiB |
+| `_propagateTemp` | 同上 | 1 | 64.0 MiB |
+| **Texture3D 合计** | | | **~210 MiB** |
+
+#### 属性缓冲（稀疏物理页池）
+
+| 池 | 页容量 | 体素容量 | 缓冲大小 |
+|----|--------|---------|---------|
+| `_attrStatic` | 8,192（2 个完整 level） | 4,194,304 | 64 MiB |
+| `_attrDynamic` | 4,096（1 个完整 level） | 2,097,152 | 32 MiB |
+| **属性合计** | | | **96 MiB** |
+
+#### 屏幕空间 RT（1080p, scale=0.5 → 960×540）
+
+| 资源 | 尺寸 |
+|------|------|
+| `_indirectAtlas` | 2880×540（3 段：diffuse-near / diffuse-far / specular） |
+| `_traceRaw` | 1920×540（2 段：diffuse + specular） |
+| `_historyGI[0]`, `[1]` | 3840×540 各一个（4 段含 depth+normal） |
+
+#### 总显存
+
+**~306 MiB**（96 MiB attributes + 210 MiB radiance/opacity/propagate）
+
+### 6.3 每帧 dispatch 开销
+
+#### 固定 dispatch（默认配置：4 levels, 1 bounce）
+
+| Pass | Dispatch 数 | 每次 dispatch 尺寸 | 线程组数/dispatch |
+|------|------------|-------------------|------------------|
+| Static clear | ≤4（每 level, 有 dirty 时） | (8, 8, 8×brickCount) | (2, 2, 2×brickCount) |
+| **Inject** | **4**（每 level） | (128, 128, 128) | **32,768** |
+| Mip 链 #1（注入后） | **28**（7 mip × 4 levels） | 递减 | mip 0→1: 4,096; 后续剧降 |
+| **Propagate** | **4**（1 bounce × 4 levels） | (128, 128, 128) | **32,768** |
+| **BounceApply** | **4**（1 bounce × 4 levels） | (128, 128, 128) | **32,768** |
+| Mip 链 #2（传播后） | **28** | 同 #1 | 同 #1 |
+| Trace | **1** | (traceW, traceH, 1) | ~(120, 68) at 1080p |
+| Demosaic | **1** | (traceW, traceH, 1) | ~(120, 68) at 1080p |
+
+#### 可变 dispatch（场景相关）
+
+| Pass | Dispatch 数 | 说明 |
+|------|------------|------|
+| Static voxelize | 4 levels × N_intersecting_instances | 每 instance 每 level 一次 dispatch |
+| Dynamic clear | 2（DynamicLevelCount） | |
+| Dynamic voxelize | 2 levels × N_dynamic_instances | 每 instance 每 level 一次 |
+
+**Voxelize 是最重的可变开销**——每个 instance 每 level 发 `ceil(triangleCount/64) × 8` 个线程组。10k 三角形 × 4 levels ≈ 5,056 个线程组/instance。
+
+#### 线程组合计（典型场景）
+
+| Pass | 线程组数/帧 |
+|------|------------|
+| **Inject** | 4 × 32,768 = **131,072**（全量，含空 voxel） |
+| **Propagate** | 4 × 32,768 = **131,072**（9 锥 × 32 步/voxel） |
+| **BounceApply** | 4 × 32,768 = **131,072**（纯 memcpy） |
+| Mip 链 ×2 | ~28 dispatch × 2，mip 0→1 主导：4 × 4,096 = 16,384 |
+| Trace + Demosaic | ~16,000 threads（半分辨率，最轻量） |
+| **固定合计** | **~70 dispatch, ~410K+ 线程组/帧** |
+
+### 6.4 性能瓶颈识别
+
+**核心问题：Inject + Propagate + BounceApply 做全量 128³ dispatch，但大部分 voxel 是空的。**
+
+典型场景 occupancy ~15-30%。三个最重的 pass 合计 ~393K 线程组中，约 70-85% 在 early-return。dispatch 调度开销（hardware 生成 wave、分配资源）全付了。
+
+---
+
+## 7. 改进优先级评估
+
+### 设计原则
+
+> **先释放预算（Phase 1），再花预算提升质量（Phase 2）**
+>
+> Phase 1 的稀疏化把 inject+propagate 从 ~260K 线程组降到 ~40-80K，腾出的预算在 Phase 2 里花在锥数和 ALD 上——最终 propagate 比 Phase 1 之前更便宜（分级锥数 + 稀疏化），同时质量显著更高。
+
+---
+
+### Phase 1 — 性能释放（零质量影响，纯降开销）
+
+#### ① Inject / Propagate 稀疏化 dispatch
+
+**现状**：每 level dispatch 全量 `128³ = 32,768` 个线程组，空 voxel early-return 但 dispatch 调度开销全付。
+
+**方案**：只 dispatch 有数据的 brick。维护 per-level "occupied brick list"，inject 和 propagate 改为 per-brick `[numthreads(8,8,8)]` dispatch，用 indirect dispatch buffer 驱动。
+
+**收益**：
+- 典型 occupancy ~15-30%，inject 从 131K 组降到 ~20-40K 组
+- propagate 同理，这是最贵的 pass
+- **Inject + Propagate 合计性能提升估计 3-5x**
+
+**质量影响**：零（输出完全相同）
+
+**工作量**：中
+- CPU 侧维护 occupied brick 列表（voxelize 后更新 page table 时顺便统计）
+- inject/propagate shader 改为 per-brick dispatch
+- indirect dispatch buffer 上传
+
+**参考**：CE5 的 `GetSvoBricksForUpdate()` + `SVO_NodesForUpdate0..3` 就是这个机制。
+
+---
+
+#### ② Multi-bounce 双缓冲（消除 BounceApply）
+
+**现状**：propagate 写 `_propagateTemp` → BounceApply copy 回 `_radiance` mip 0 → 重建 mip 链。BounceApply 是 131K 个线程组的纯 memcpy。
+
+**方案**：两张 radiance Texture3D 交替使用：
+```
+Bounce 0: 读 radianceA → 写 radianceB → 建 mip on B
+Bounce 1: 读 radianceB → 写 radianceA → 建 mip on A
+```
+
+**收益**：
+- 消除 BounceApply pass（-131K 线程组，-4 dispatch）
+- 省 64 MiB 显存（去掉 `_propagateTemp`）
+
+**质量影响**：零
+
+**工作量**：低（两张 Texture3D 交替 + 去掉 BounceApply dispatch）
+
+---
+
+#### ③ Mip 链合并小 mip dispatch
+
+**现状**：7 个 mip transition × 4 levels = 28 dispatch/次 × 2 次/帧 = 56 dispatch。但 mip 4 以上合计只有 ~520 个线程组，却用了 16 个 dispatch。
+
+**方案**：一个 `[numthreads(4,4,4)]` shader 循环处理 mip 4→5→6→7，一次 dispatch 替代 4 次。
+
+**收益**：减少 ~12 dispatch/帧（对低延迟 API 开销改善明显）
+
+**质量影响**：零
+
+**工作量**：低
+
+---
+
+### Phase 2 — 质量提升（在 Phase 1 释放的预算内）
+
+#### ④ Propagation 锥 9→16 + 随机旋转
+
+**现状**：9 个固定方向（1 zenith + 4@45° + 4@75°），无旋转。
+
+**方案**：16 个方向 + `GetRndRotationMat(position + frameIndex)` 位置相关随机旋转。
+
+**为什么不是 32**：32 锥让 propagate 开销 3.5x。16 锥 + 旋转在时域累积后等价于 32+ 锥覆盖，性价比远高于直接上 32。
+
+**质量收益**：★★★★★
+- 消除间接光 banding（9 锥方位间隔太大，单次 trace 可见）
+- 随机旋转让多帧时域累积收敛到正确积分
+- 对粗糙表面间接光的色彩渗色更均匀
+
+**性能成本**：propagate 从 9 锥 × 32 步 → 16 锥 × 32 步 = +78%。Phase 1 稀疏化后完全在预算内。
+
+**工作量**：中（kernel 表 + 旋转矩阵 + cbuffer 参数）
+
+---
+
+#### ⑤ Propagation 按 level 分级锥数
+
+**现状**：4 个 level 都用相同的锥数。
+
+**方案**：
+
+| Level | 体素大小 | 覆盖范围 | 锥数 | 理由 |
+|-------|---------|---------|------|------|
+| 0 | 0.1 | 12.8m | 16 | 近场需要精度 |
+| 1 | 0.2 | 25.6m | 9 | 中场 |
+| 2 | 0.4 | 51.2m | 5 | 远场粗采样足够 |
+| 3 | 0.8 | 102.4m | 3 | 极粗，只需天空光整体感 |
+
+**收益**：Level 2-3 voxel 体积大（102m 覆盖）但传播精度需求低。分级后总 propagate 开销降低 ~40%。
+
+**质量影响**：Level 2-3 间接光稍粗，但屏幕占比小且被 demosaic 时域平滑覆盖。
+
+**工作量**：低（per-level cbuffer 参数 + shader 分支）
+
+---
+
+#### ⑥ ALD（Average Light Direction）输出
+
+**现状**：diffuse trace 输出 `float4(rgb, visibility)`，deferred lighting 当 flat ambient 用。
+
+**方案**：trace 输出 `float4(ald.xyz * brightness, brightness)`，demosaic 传播 ALD，deferred lighting 用 ALD 做方向性 diffuse。
+
+**质量收益**：★★★★☆
+- 间接光有方向性——角落变暗、法线朝向间接光源的面更亮
+- 缺失 ALD 会显得 GI "平"
+- 对角色和物体的间接光照立体感影响很大
+
+**性能成本**：极小
+
+**工作量**：中（改 trace atlas 格式 + demosaic + deferred lighting 三处）
+
+---
+
+#### ⑦ Desaturation 控制
+
+```hlsl
+gathered = lerp(luminance(gathered), gathered, saturationParam);
+```
+
+**质量收益**：★★☆☆☆（美学微调）
+
+**工作量**：极低（一个 lerp，可和 ④ 一起做，加一个 cbuffer 参数）
+
+---
+
+### Phase 3 — 补充完善（按需）
+
+#### ⑧ Air 体素传播
+
+**现状**：只有 occupied voxel 参与传播。sky light 仅通过首 bounce 锥 fallback 进入体积（单方向采样，不如半球积分精确）。
+
+**方案**：propagate pass 对空 voxel 也 trace 天空半球（CE5 `bAir` 路径），sky light 通过空气传播到室内。
+
+**质量收益**：★★★☆☆
+- 室内 sky light 更自然（从窗口漫射进来，而非只靠墙面首 bounce）
+- 对大面积开口建筑（门廊、窗洞）效果明显
+
+**性能成本**：空 voxel 也 trace = 更多工作量。配合 Phase 1 稀疏化，可只对"有 occupied 邻居"的空 brick 做。
+
+**工作量**：中（修改 propagate shader 对空 voxel 的处理逻辑）
+
+---
+
+#### ⑨ Dual-kernel opacity
+
+CE5 `ConeTracePS` 用双 kernel——radiance kernel + opacity kernel（压低仰角增加 AO）。
+
+**质量收益**：★★★☆☆（更好的近场 AO）
+
+**工作量**：中（多采一组方向 + lerp 混合 + cbuffer 参数）
+
+**建议**：收益不如 ④⑥⑧ 直接，排在后面。
+
+---
+
+### Phase 4 — 需要引擎基础设施
+
+| 改进 | 依赖 | 质量收益 | 备注 |
+|------|------|----------|------|
+| **RSM 注入** | Reflective Shadow Map 管线 | ★★★★★ | 近场太阳反射品质飞跃；引擎有 shadow map 基础设施后可做 |
+| **Tiled lights** | Tiled light culling | ★★★☆☆ | 当前 4 个硬编码点光够用；支持更多光源后再做 |
+| **Analytical Occluders** | Occluder 组件系统 | ★★☆☆☆ | 角色/物体间接阴影，成本/收益比一般 |
+| **Troposphere** | Air density 通道 | ★★★☆☆ | 体雾系统，需要体积云/雾才值得做 |
+
+---
+
+## 8. 推荐实施路线
+
+```
+Phase 1 — 性能释放（预计 1-2 天）
+  ① Inject/Propagate 稀疏化 dispatch      ← 最高优先级
+  ② Multi-bounce 双缓冲（消除 BounceApply）
+  ③ Mip 链合并小 mip dispatch
+
+Phase 2 — 质量提升（预计 3-5 天）
+  ④ Propagation 16 锥 + 随机旋转           ← 最大质量收益
+  ⑤ Level 分级锥数
+  ⑥ ALD 输出
+  ⑦ Desaturation（顺手做）
+
+Phase 3 — 补充完善（按需）
+  ⑧ Air 体素传播
+  ⑨ Dual-kernel opacity
+
+Phase 4 — 需要引擎基础设施（长期）
+  RSM 注入 / Tiled lights / Analytical Occluders / Troposphere
+```
+
+### 预期最终效果
+
+| 指标 | 当前（默认配置） | Phase 1 后 | Phase 2 后 |
+|------|----------------|-----------|-----------|
+| Inject 线程组/帧 | ~131K | ~20-40K | ~20-40K |
+| Propagate 线程组/帧 | ~131K (9 锥) | ~20-40K (9 锥) | ~25-50K (16 锥, 分级) |
+| BounceApply 线程组/帧 | ~131K | **0**（消除） | **0** |
+| Mip dispatch 数/帧 | ~56 | ~44 | ~44 |
+| 总 dispatch 数/帧 | ~70+ | ~50+ | ~50+ |
+| `_propagateTemp` 显存 | 64 MiB | **0**（消除） | **0** |
+| 间接光 banding | 可见（9 锥） | 可见（9 锥） | **消除**（16 锥 + 旋转） |
+| 间接光方向性 | 无（flat ambient） | 无 | **有**（ALD） |
+| 室内天空光 | 仅墙面 bounce | 仅墙面 bounce | **空气传播**（Phase 3 ⑧） |
+
+**核心逻辑**：Phase 1 把 inject+propagate 从 ~260K 线程组降到 ~40-80K，腾出的预算在 Phase 2 花在锥数和 ALD 上——最终 propagate 比 Phase 1 之前更便宜（分级锥数 + 稀疏化），同时质量显著更高（16 锥 + 旋转 + ALD）。
 
 ---
 

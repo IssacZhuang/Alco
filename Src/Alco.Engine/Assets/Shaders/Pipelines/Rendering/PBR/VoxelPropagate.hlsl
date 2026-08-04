@@ -1,13 +1,14 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 
-// Multi-bounce light propagation for the voxel GI clipmap: one dispatch per
-// clipmap level at (resolution, resolution, resolution). Each occupied voxel
-// traces a set of cones through the radiance volume to gather incoming
-// indirect light, multiplies by the surface albedo and writes the sum of
-// existing direct radiance plus the new bounce back into a temporary texture.
-// A follow-up copy pass (VoxelBounceApply.hlsl) transfers the result into the
-// radiance Texture3D mip 0, after which the mip chain is rebuilt.
+// Multi-bounce light propagation for the voxel GI clipmap: sparse dispatch
+// over a brick list (resident bricks only — freed bricks are handled by the
+// inject pass). Each occupied voxel traces a set of cones through the radiance
+// volume to gather incoming indirect light, multiplies by the surface albedo
+// and writes the sum of existing direct radiance plus the new bounce back into
+// a temporary texture. A follow-up copy pass (VoxelBounceApply.hlsl) transfers
+// the result into the radiance Texture3D mip 0, after which the mip chain is
+// rebuilt.
 //
 // On the first bounce (bounceIndex == 0), unoccluded cones fall back to the
 // sky gradient. This is the primary path by which sky light enters the voxel
@@ -26,9 +27,11 @@ DEFINE_TEX3D_SAMPLE(1, _radiance);
 DEFINE_STORAGE(2, uint4, _attrStatic);
 DEFINE_STORAGE(3, uint4, _attrDynamic);
 DEFINE_TEX3D_STORAGE(4, _propagateOut, float4, "rgba16f");
-DEFINE_STORAGE(5, uint, _pageTableStatic);
-DEFINE_STORAGE(6, uint, _pageTableDynamic);
+// Combined page table: x=static, y=dynamic. Saves a descriptor set for the
+// brick list.
+DEFINE_STORAGE(5, uint2, _pageTable);
 DEFINE_TEX3D_SAMPLE(7, _opacity);
+DEFINE_STORAGE(6, uint4, _brickList);
 
 PUSH_CONSTANT VoxelPropagateConstants constants;
 
@@ -166,34 +169,37 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint resolution = VoxelResolution();
-    if (any(dispatchId >= resolution))
+    int level = (int)constants.params.x;
+    uint brickIndex = dispatchId.z / VOXEL_BRICK_SIZE;
+    uint localZ = dispatchId.z % VOXEL_BRICK_SIZE;
+    uint3 logicalCoord = _brickList[brickIndex].xyz * VOXEL_BRICK_SIZE
+        + uint3(dispatchId.x, dispatchId.y, localZ);
+    if (any(logicalCoord >= resolution))
     {
         return;
     }
 
-    int level = (int)constants.params.x;
     float bounceStrength = constants.params.y;
     uint bounceIndex = (uint)constants.params.z;
     bool allowSky = bounceIndex == 0u;
     float4 originAndSize = levelOrigins[level];
     float voxelSize = originAndSize.w;
 
-    uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, (uint)level * resolution + dispatchId.z);
+    uint3 storeCoord = uint3(logicalCoord.x, logicalCoord.y, (uint)level * resolution + logicalCoord.z);
 
     // Read attributes (dynamic wins over static), same as the injection pass.
-    uint pageSlot = VoxelPageTableSlot(dispatchId, resolution, level);
+    uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, level);
+    uint2 pages = _pageTable[pageSlot];
     uint4 attr = uint4(0u, 0u, 0u, 0u);
-    uint dynamicPage = _pageTableDynamic[pageSlot];
-    if (dynamicPage != 0u)
+    if (pages.y != 0u)
     {
-        attr = _attrDynamic[VoxelAttributeIndex(dynamicPage, dispatchId)];
+        attr = _attrDynamic[VoxelAttributeIndex(pages.y, logicalCoord)];
     }
     if (!VoxelAttrOccupied(attr))
     {
-        uint staticPage = _pageTableStatic[pageSlot];
-        if (staticPage != 0u)
+        if (pages.x != 0u)
         {
-            attr = _attrStatic[VoxelAttributeIndex(staticPage, dispatchId)];
+            attr = _attrStatic[VoxelAttributeIndex(pages.x, logicalCoord)];
         }
     }
 
@@ -201,7 +207,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // copy-back step replaces mip 0 with direct + bounce.
     float3 currentRadiance = SAMPLE_TEX3D_LEVEL(
         _radiance,
-        VoxelWorldToUVW(originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize, level, 0.0),
+        VoxelWorldToUVW(originAndSize.xyz + (float3(logicalCoord) + 0.5) * voxelSize, level, 0.0),
         0.0).rgb;
 
     if (!VoxelAttrOccupied(attr))
@@ -216,7 +222,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     UnpackVoxelAttr(attr, albedo, normal, emissiveQ);
     normal = dot(normal, normal) > 1e-6 ? normalize(normal) : float3(0.0, 0.0, 1.0);
 
-    float3 worldPosition = originAndSize.xyz + (float3(dispatchId) + 0.5) * voxelSize;
+    float3 worldPosition = originAndSize.xyz + (float3(logicalCoord) + 0.5) * voxelSize;
     float receiverBias = max(levelOrigins[0].w * 2.0, voxelSize * 0.5);
     float3 startPosition = worldPosition + normal * receiverBias;
 

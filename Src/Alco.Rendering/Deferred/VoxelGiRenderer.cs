@@ -36,6 +36,18 @@ public readonly struct VoxelGiStatistics
     public double CpuRecordMilliseconds { get; }
     /// <summary>Gets the last sampled GPU duration, or NaN when unavailable.</summary>
     public double GpuMilliseconds { get; }
+    /// <summary>
+    /// Gets the total number of resident bricks dispatched this frame across all
+    /// clipmap levels (inject + propagate). Compare to <see cref="DenseBrickTotal"/>
+    /// to see the sparse dispatch reduction ratio.
+    /// </summary>
+    public int SparseBrickTotal { get; }
+    /// <summary>
+    /// Gets the total number of bricks that would have been dispatched with dense
+    /// dispatch (<c>bricksPerLevel × LevelCount</c>). Used as the denominator for
+    /// the sparse dispatch reduction ratio.
+    /// </summary>
+    public int DenseBrickTotal { get; }
 
     /// <summary>Creates one immutable diagnostic snapshot.</summary>
     /// <param name="staticResidentBricks">The resident structural-brick count.</param>
@@ -52,6 +64,8 @@ public readonly struct VoxelGiStatistics
     /// <param name="radianceMemoryBytes">The radiance allocation.</param>
     /// <param name="cpuRecordMilliseconds">The CPU encode duration.</param>
     /// <param name="gpuMilliseconds">The last GPU timestamp duration.</param>
+    /// <param name="sparseBrickTotal">The resident brick count dispatched this frame.</param>
+    /// <param name="denseBrickTotal">The dense-equivalent brick count.</param>
     public VoxelGiStatistics(
         int staticResidentBricks,
         int staticCapacityBricks,
@@ -66,7 +80,9 @@ public readonly struct VoxelGiStatistics
         long attributeMemoryBytes,
         long radianceMemoryBytes,
         double cpuRecordMilliseconds,
-        double gpuMilliseconds)
+        double gpuMilliseconds,
+        int sparseBrickTotal,
+        int denseBrickTotal)
     {
         StaticResidentBricks = staticResidentBricks;
         StaticCapacityBricks = staticCapacityBricks;
@@ -82,6 +98,8 @@ public readonly struct VoxelGiStatistics
         RadianceMemoryBytes = radianceMemoryBytes;
         CpuRecordMilliseconds = cpuRecordMilliseconds;
         GpuMilliseconds = gpuMilliseconds;
+        SparseBrickTotal = sparseBrickTotal;
+        DenseBrickTotal = denseBrickTotal;
     }
 }
 
@@ -272,6 +290,11 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly GraphicsBuffer[] _pageTableStatic = new GraphicsBuffer[LevelCount];
     private readonly GraphicsBuffer[] _pageTableDynamic = new GraphicsBuffer[LevelCount];
     private readonly GraphicsBuffer[] _dirtyBrickCoordinates = new GraphicsBuffer[LevelCount];
+    private readonly GraphicsBuffer[] _residentBrickCoordinates = new GraphicsBuffer[LevelCount];
+    // Combined page table for inject/propagate: interleaved (static, dynamic)
+    // uint pairs so both pools share one descriptor set.
+    private readonly GraphicsBuffer[] _pageTableCombined = new GraphicsBuffer[LevelCount];
+    private readonly uint[][] _combinedPageTableScratch = new uint[LevelCount][];
     private readonly VoxelGiPagePool _staticPagePool;
     private readonly VoxelGiPagePool _dynamicPagePool;
     private readonly Texture3D _radiance;
@@ -290,6 +313,12 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly List<VoxelGiDirtyBrick> _dirtyBricks = new();
     private readonly List<VoxelGiDirtyBrick> _candidateBricks = new();
     private readonly HashSet<uint> _brickKeys = new();
+    private readonly List<VoxelGiDirtyBrick> _residentBricks = new();
+    private readonly List<VoxelGiDirtyBrick> _staleBricks = new();
+    private readonly bool[][] _currentResidentLogical = new bool[LevelCount][];
+    private readonly bool[][] _previousResidentLogical = new bool[LevelCount][];
+    private readonly int[] _residentCounts = new int[LevelCount];
+    private readonly int[] _staleCounts = new int[LevelCount];
     private readonly bool[] _staticNeedsFullClear = new bool[LevelCount];
 
     private RenderTexture _traceRaw;
@@ -501,6 +530,15 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _pageTableStatic[level] = new GraphicsBuffer(rendering, pageTableBytes, $"voxel_page_table_static_{level}");
             _pageTableDynamic[level] = new GraphicsBuffer(rendering, pageTableBytes, $"voxel_page_table_dynamic_{level}");
             _dirtyBrickCoordinates[level] = new GraphicsBuffer(rendering, dirtyBrickBytes, $"voxel_dirty_bricks_{level}");
+            // Resident + stale brick list: worst case is 2× pagesPerLevel (all
+            // bricks resident, all stale from a teleport). Each VoxelGiDirtyBrick
+            // is 16 bytes.
+            _residentBrickCoordinates[level] = new GraphicsBuffer(rendering, dirtyBrickBytes * 2, $"voxel_resident_bricks_{level}");
+            // Combined page table: 2 uints per slot (static, dynamic).
+            _pageTableCombined[level] = new GraphicsBuffer(rendering, pageTableBytes * 2, $"voxel_page_table_combined_{level}");
+            _combinedPageTableScratch[level] = new uint[pagesPerLevel * 2];
+            _currentResidentLogical[level] = new bool[pagesPerLevel];
+            _previousResidentLogical[level] = new bool[pagesPerLevel];
         }
 
         // Radiance: one RGBA16Float Texture3D with a full mip chain; all levels
@@ -983,14 +1021,35 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 }
             }
 
-            // Direct lighting injection into radiance mip 0.
+            // Collect resident brick lists for sparse inject/propagate/bounceApply.
+            // The buffer layout per level is [resident bricks..., stale bricks...].
+            // Inject dispatches over both (stale bricks get zeroed); Propagate and
+            // BounceApply only over the resident portion.
             for (int level = 0; level < LevelCount; level++)
             {
+                CollectResidentBricks(level);
+                if (_residentBricks.Count > 0)
+                {
+                    _residentBrickCoordinates[level].UpdateBuffer(
+                        CollectionsMarshal.AsSpan(_residentBricks));
+                }
+            }
+
+            // Direct lighting injection into radiance mip 0 (sparse).
+            for (int level = 0; level < LevelCount; level++)
+            {
+                int injectCount = _residentCounts[level] + _staleCounts[level];
+                if (injectCount == 0)
+                {
+                    continue;
+                }
                 _injectMaterial.SetBuffer("_attrStatic", _attrStatic);
                 _injectMaterial.SetBuffer("_attrDynamic", _attrDynamic);
-                _injectMaterial.SetBuffer("_pageTableStatic", _pageTableStatic[level]);
-                _injectMaterial.SetBuffer("_pageTableDynamic", _pageTableDynamic[level]);
-                _injectMaterial.DispatchBySizeWithConstant(computePass, resolution, resolution, resolution, new Vector4(level, 0, 0, 0));
+                _injectMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
+                _injectMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
+                _injectMaterial.DispatchBySizeWithConstant(
+                    computePass, BrickSize, BrickSize, (uint)(BrickSize * injectCount),
+                    new Vector4(level, 0, 0, 0));
             }
 
             // Build mip chain after injection so the propagation cones sample
@@ -999,10 +1058,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
             // outdated radiance volume.
             BuildMipChains(computePass);
 
-            // Multi-bounce light propagation: each occupied voxel traces a small
-            // cone set through the radiance volume to gather indirect light,
-            // multiplies by albedo and adds to existing direct radiance. The
-            // result goes into _propagateTemp, then is copied back to mip 0.
+            // Multi-bounce light propagation (sparse): each occupied voxel traces
+            // a small cone set through the radiance volume to gather indirect
+            // light, multiplies by albedo and adds to existing direct radiance.
+            // The result goes into _propagateTemp, then is copied back to mip 0.
             // Iterated BounceCount times so the second bounce sees first-bounce
             // radiance.
             int bounceCount = Math.Max(0, BounceCount);
@@ -1010,19 +1069,30 @@ public sealed class VoxelGiRenderer : AutoDisposable
             {
                 for (int level = 0; level < LevelCount; level++)
                 {
+                    int residentCount = _residentCounts[level];
+                    if (residentCount == 0)
+                    {
+                        continue;
+                    }
                     _propagateMaterial.SetBuffer("_attrStatic", _attrStatic);
                     _propagateMaterial.SetBuffer("_attrDynamic", _attrDynamic);
-                    _propagateMaterial.SetBuffer("_pageTableStatic", _pageTableStatic[level]);
-                    _propagateMaterial.SetBuffer("_pageTableDynamic", _pageTableDynamic[level]);
+                    _propagateMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
+                    _propagateMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
                     _propagateMaterial.DispatchBySizeWithConstant(
-                        computePass, resolution, resolution, resolution,
+                        computePass, BrickSize, BrickSize, (uint)(BrickSize * residentCount),
                         new Vector4(level, BounceStrength, bounce, 0));
                 }
 
                 for (int level = 0; level < LevelCount; level++)
                 {
+                    int residentCount = _residentCounts[level];
+                    if (residentCount == 0)
+                    {
+                        continue;
+                    }
+                    _bounceApplyMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
                     _bounceApplyMaterial.DispatchBySizeWithConstant(
-                        computePass, resolution, resolution, resolution,
+                        computePass, BrickSize, BrickSize, (uint)(BrickSize * residentCount),
                         new Vector4(level, 0, 0, 0));
                 }
             }
@@ -1078,6 +1148,13 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 activeStaticInstances++;
             }
         }
+        // Sum sparse dispatch statistics.
+        int sparseBrickTotal = 0;
+        int bricksPerLevel = _clipmap.BricksPerAxis * _clipmap.BricksPerAxis * _clipmap.BricksPerAxis;
+        for (int level = 0; level < LevelCount; level++)
+        {
+            sparseBrickTotal += _residentCounts[level];
+        }
         Statistics = new VoxelGiStatistics(
             _staticPagePool.AllocatedPageCount,
             _staticPagePool.Capacity,
@@ -1092,7 +1169,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _attributeMemoryBytes,
             _radianceMemoryBytes,
             Stopwatch.GetElapsedTime(recordStart).TotalMilliseconds,
-            _gpuMilliseconds);
+            _gpuMilliseconds,
+            sparseBrickTotal,
+            bricksPerLevel * LevelCount);
     }
 
     private int UpdateStaticResidency(int level, List<VoxelGiDirtyBrick> bricks)
@@ -1153,6 +1232,86 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Collects the per-level resident brick list (union of static + dynamic
+    /// page tables) plus any bricks that were resident last frame but are no
+    /// longer (stale). Stale bricks are appended so the inject pass can clear
+    /// their stale radiance by writing zeros, avoiding a separate full-pass
+    /// clear. Returns via <see cref="_residentBricks"/> (resident+stale) and
+    /// <see cref="_residentCounts"/>/<see cref="_staleCounts"/>.
+    /// </summary>
+    private void CollectResidentBricks(int level)
+    {
+        _residentBricks.Clear();
+        _staleBricks.Clear();
+
+        int bpa = _resolution / BrickSize;
+        ReadOnlySpan<uint> staticTable = _staticPagePool.GetPageTable(level);
+        ReadOnlySpan<uint> dynamicTable = _dynamicPagePool.GetPageTable(level);
+        bool[] currentSeen = _currentResidentLogical[level];
+        Array.Clear(currentSeen, 0, currentSeen.Length);
+
+        Vector4 ringOffset = _clipmap.GetRingOffset(level);
+        int ringBrickX = (int)ringOffset.X / BrickSize;
+        int ringBrickY = (int)ringOffset.Y / BrickSize;
+        int ringBrickZ = (int)ringOffset.Z / BrickSize;
+
+        // Single pass: collect resident bricks and build the combined page
+        // table (interleaved static, dynamic) in one loop over 4096 slots.
+        uint[] combined = _combinedPageTableScratch[level];
+        for (int slot = 0; slot < staticTable.Length; slot++)
+        {
+            uint staticEntry = staticTable[slot];
+            uint dynamicEntry = dynamicTable[slot];
+            combined[slot * 2] = staticEntry;
+            combined[slot * 2 + 1] = dynamicEntry;
+
+            if (staticEntry == 0u && dynamicEntry == 0u)
+            {
+                continue;
+            }
+
+            // Decode toroidal slot → logical brick coordinate.
+            int pz = slot / (bpa * bpa);
+            int rem = slot % (bpa * bpa);
+            int py = rem / bpa;
+            int px = rem % bpa;
+            int lx = ((px - ringBrickX) % bpa + bpa) % bpa;
+            int ly = ((py - ringBrickY) % bpa + bpa) % bpa;
+            int lz = ((pz - ringBrickZ) % bpa + bpa) % bpa;
+
+            int logicalIndex = lx + ly * bpa + lz * bpa * bpa;
+            currentSeen[logicalIndex] = true;
+            _residentBricks.Add(new VoxelGiDirtyBrick((uint)lx, (uint)ly, (uint)lz));
+        }
+
+        // Detect stale logical positions (resident last frame, not this frame).
+        bool[] previousSeen = _previousResidentLogical[level];
+        for (int i = 0; i < previousSeen.Length; i++)
+        {
+            if (previousSeen[i] && !currentSeen[i])
+            {
+                int lz = i / (bpa * bpa);
+                int rem = i % (bpa * bpa);
+                int ly = rem / bpa;
+                int lx = rem % bpa;
+                _staleBricks.Add(new VoxelGiDirtyBrick((uint)lx, (uint)ly, (uint)lz));
+            }
+        }
+
+        // Remember current residents for next frame's stale detection.
+        Array.Copy(currentSeen, previousSeen, currentSeen.Length);
+
+        _residentCounts[level] = _residentBricks.Count;
+        _staleCounts[level] = _staleBricks.Count;
+
+        _pageTableCombined[level].UpdateBuffer<uint>(combined);
+
+        // Concatenate stale bricks after resident bricks in the upload buffer.
+        // Inject dispatches over both; Propagate/BounceApply only over resident.
+        _residentBricks.AddRange(_staleBricks);
     }
 
     private static void UploadPageTable(GraphicsBuffer buffer, VoxelGiPagePool pagePool, int level)
@@ -1299,6 +1458,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 _pageTableStatic[level].Dispose();
                 _pageTableDynamic[level].Dispose();
                 _dirtyBrickCoordinates[level].Dispose();
+                _residentBrickCoordinates[level].Dispose();
+                _pageTableCombined[level].Dispose();
             }
             _attrStatic.Dispose();
             _attrDynamic.Dispose();

@@ -346,7 +346,7 @@ public class Game : GameEngine
         // tonemapped present, so boosted emissive surfaces get a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
-            : 2.0f;
+            : 1.0f;
         float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
             ? parsedBloomIntensity
             : 1.0f;
@@ -1215,6 +1215,11 @@ public class Game : GameEngine
             ImGui.Text($"Dynamic bricks: {statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks} " +
                 $"({statistics.DynamicBricksUpdated} updated)");
             ImGui.Text($"Dropped bricks: {statistics.DroppedBricks}");
+            float sparseRatio = statistics.DenseBrickTotal > 0
+                ? 100.0f * statistics.SparseBrickTotal / statistics.DenseBrickTotal
+                : 0.0f;
+            ImGui.Text($"Sparse dispatch: {statistics.SparseBrickTotal}/{statistics.DenseBrickTotal} bricks " +
+                $"({sparseRatio:F1}% of dense)");
             ImGui.Text($"GI memory: attributes {statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1} MiB, " +
                 $"radiance {statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1} MiB");
         }
