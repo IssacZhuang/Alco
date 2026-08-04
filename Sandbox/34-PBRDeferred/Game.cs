@@ -155,7 +155,7 @@ public class Game : GameEngine
     private float _giMaxTraceDistance = 12.0f;
     private float _giDiffuseSpreading = 0.0f;
     private int _giDebugView;
-    private int _giResolutionPreset = 1;
+    private int _giResolutionPreset = 0;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
     private static readonly string[] GiTraceResolutionModes =
         ["Performance (50%)", "Balanced (75%)", "Quality (100%)"];

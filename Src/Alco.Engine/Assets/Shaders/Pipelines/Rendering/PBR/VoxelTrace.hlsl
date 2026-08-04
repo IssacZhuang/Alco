@@ -228,35 +228,35 @@ float4 SampleOpacity(float3 position, int level, float mip)
 }
 
 // Sample radiance + opacity at a position, blending between the current level
-// and the next coarser level near boundaries. This eliminates the hard popping
-// that occurs when a cone ray crosses from one clipmap level to the next,
-// because each level is independently voxelized with different data.
-float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDir, bool enableBlend)
+// and the next coarser level near boundaries. Each clipmap level is independently
+// voxelized and scrolls by brick-sized quanta, so the radiance field changes
+// phase at every brick boundary. Blending is applied on every sample (not only
+// on the step where the ray crosses a level boundary) because the clipmap
+// origin itself jumps, shifting the boundary relative to a fixed world position
+// even when the ray stays inside the same level.
+float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDir)
 {
     float4 radSample = SampleRadiance(position, level, mip);
     float4 opaSample = SampleOpacity(position, level, mip);
 
-    if (enableBlend)
+    int levelCount = (int)clipmapParams.y;
+    if (level + 1 < levelCount)
     {
-        int levelCount = (int)clipmapParams.y;
-        if (level + 1 < levelCount)
+        float boundaryWeight = VoxelLevelTransitionWeight(position, level);
+        if (boundaryWeight > 0.001)
         {
-            float boundaryWeight = VoxelLevelTransitionWeight(position, level);
-            if (boundaryWeight > 0.001)
-            {
-                float nextVoxelSize = levelOrigins[level + 1].w;
-                float curVoxelSize = levelOrigins[level].w;
-                // Convert the mip to the coarser level's mip space.
-                float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, clipmapParams.z - 1.0);
+            float nextVoxelSize = levelOrigins[level + 1].w;
+            float curVoxelSize = levelOrigins[level].w;
+            // Convert the mip to the coarser level's mip space.
+            float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, clipmapParams.z - 1.0);
 
-                float4 nextRad = SAMPLE_TEX3D_LEVEL(_radiance,
-                    VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
-                float4 nextOpa = SAMPLE_TEX3D_LEVEL(_opacity,
-                    VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
+            float4 nextRad = SAMPLE_TEX3D_LEVEL(_radiance,
+                VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
+            float4 nextOpa = SAMPLE_TEX3D_LEVEL(_opacity,
+                VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
 
-                radSample = lerp(radSample, nextRad, boundaryWeight);
-                opaSample = lerp(opaSample, nextOpa, boundaryWeight);
-            }
+            radSample = lerp(radSample, nextRad, boundaryWeight);
+            opaSample = lerp(opaSample, nextOpa, boundaryWeight);
         }
     }
 
@@ -314,7 +314,7 @@ float4 TraceCone(
         // every brick boundary.
         float mip = clamp(log2(diameter / voxelSize), 0.0,
             min(mipCount - 1.0, VOXEL_BRICK_ALIGNED_MAX_MIP));
-        float4 sample = SampleRadianceBlended(position, level, mip, absDir, levelChanged);
+        float4 sample = SampleRadianceBlended(position, level, mip, absDir);
         // CE5 ConeTraceBrick fades radiance over the first voxel of travel so
         // a voxel right at the cone origin cannot fully contribute. This
         // suppresses residual self-intersection acne on top of the receiver
@@ -495,10 +495,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance, tracePixel, diffuseWorldDir);
     float3 diffuse = diffuseResult.rgb;
 
-    // Specular: one deterministic cone along the reflection direction. A
-    // screen-tiled, frame-flipped direction made the low-frequency reflection
-    // pattern crawl and forced temporal history to hide it, which in turn
-    // produced visible camera-motion trails.
+    // Specular: one deterministic cone along the reflection direction using
+    // the detail (normal-map) normal. CE5 ConeTracePS uses the averaged
+    // geometry normal here for temporal stability, but that strips normal-map
+    // detail and makes reflections look uniformly flat. Instead, keep the
+    // detail normal for trace quality and rely on the demosaic temporal
+    // resolve (neighborhood clamp + motion-accelerated blend + luminance
+    // clamp) to suppress the per-frame shimmer from voxel quantization.
     float3 reflectDirection = reflect(-V, detailNormal);
     float specularApertureTan = max(roughness * roughness, 0.06);
     float3 specular = TraceCone(

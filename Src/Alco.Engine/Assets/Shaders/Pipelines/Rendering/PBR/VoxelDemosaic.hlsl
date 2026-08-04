@@ -215,6 +215,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     centerDiffuse.rgb = ClampRadianceLuminance(
         centerDiffuse.rgb, diffuseMaximumLuminance);
+    centerSpecular.rgb = ClampRadianceLuminance(
+        centerSpecular.rgb, diffuseMaximumLuminance);
 
     // CE5's depth acceptance is a relative ratio widened at grazing view
     // angles, not an absolute centimeter tolerance.
@@ -246,6 +248,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float spatialSigma = max(constants.params.y, 0.001);
     float4 specularSum = centerSpecular;
     float specularWeight = 1.0;
+    float3 specularNeighborhoodMin = centerSpecular.rgb;
+    float3 specularNeighborhoodMax = centerSpecular.rgb;
 
     [unroll]
     for (int dy = -4; dy <= 4; dy++)
@@ -337,8 +341,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
 
-    // Specular: tight 3x3 bilateral rejection around the receiver with a
-    // sharp normal gate preserves reflection detail.
+    // Specular: tight 3x3 bilateral rejection around the receiver. Uses the
+    // geometry normal (not the detail normal) for bilateral weights: the
+    // detail normal shimmers per-pixel under camera motion and would inject
+    // noise into the spatial filter, but the geometry normal is stable and
+    // still rejects taps across depth/normal discontinuities.
     [unroll]
     for (int sy = -1; sy <= 1; sy++)
     {
@@ -361,7 +368,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
 
             float surfaceW = 0.0;
-            float3 nDetailNormal = detailNormal;
+            float3 nGeometryNormal = geometryNormal;
             if (nDepth < 0.9999)
             {
                 float2 nGbufferUV =
@@ -369,25 +376,31 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float nLinearDepth = ReconstructLinearDepth(
                     nGbufferUV, nDepth, invViewProjection);
                 float4 nPackedNormal = GET_PIXEL_TEX2D(_normal, nGbufPixel);
-                nDetailNormal = normalize(nPackedNormal.xyz * 2.0 - 1.0);
+                float nPackedGeometryY = GET_PIXEL_TEX2D(_emissive, nGbufPixel).a;
+                nGeometryNormal = DecodeGeometryNormal(
+                    float2(nPackedNormal.a, nPackedGeometryY));
                 float depthTolerance = max(
                     0.035, currentLinearDepth * 0.002)
                     * (1.0 + length(float2(filterOffset)) * 0.08);
                 float depthWeight = exp(
                     -abs(nLinearDepth - currentLinearDepth)
                     / depthTolerance);
-                surfaceW = NormalSimilarity(detailNormal, nDetailNormal)
+                surfaceW = NormalSimilarity(geometryNormal, nGeometryNormal)
                     * depthWeight;
             }
             float spatialW_neighbour = exp(
                 -(sx * sx + sy * sy) / (2.0 * spatialSigma * spatialSigma));
-            float normalW = pow(max(dot(detailNormal, nDetailNormal), 0.0), 16.0);
+            float normalW = pow(max(dot(geometryNormal, nGeometryNormal), 0.0), 16.0);
 
             float w = surfaceW * spatialW_neighbour * normalW;
             float4 specularTap = _traceInput.Load(
                 int3(np + int2(halfWidth, 0), 0));
+            specularTap.rgb = ClampRadianceLuminance(
+                specularTap.rgb, diffuseMaximumLuminance);
             specularSum += specularTap * w;
             specularWeight += w;
+            specularNeighborhoodMin = min(specularNeighborhoodMin, specularTap.rgb);
+            specularNeighborhoodMax = max(specularNeighborhoodMax, specularTap.rgb);
         }
     }
 
@@ -471,15 +484,41 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     resultAldMin = lerp(historyAldMin, layerAldMin, aldBlendRate);
                     resultAldMax = lerp(historyAldMax, layerAldMax, aldBlendRate);
 
-                    // Specular samples are deterministic enough that a large
-                    // radiance change usually represents real motion.
+                    // Clamp history specular to the current-frame neighborhood
+                    // bounding box before blending (same principle as diffuse's
+                    // AccumulateDiffuseLayer). Without this, a single bright
+                    // firefly voxel sample persists across frames and manifests
+                    // as per-pixel flicker during camera motion.
+                    float3 specularRange = specularNeighborhoodMax - specularNeighborhoodMin;
+                    float3 specularPadding = max(
+                        specularRange * 0.25,
+                        max(abs(specularCurrent.rgb) * 0.05, 0.002));
+                    historySpecular.rgb = clamp(
+                        historySpecular.rgb,
+                        specularNeighborhoodMin - specularPadding,
+                        specularNeighborhoodMax + specularPadding);
+
+                    // CE5 GetBlendMin (Total_Illumination.cfx:910-927) drives
+                    // the specular temporal blend by camera-motion displacement,
+                    // not luminance change alone. When the reprojected UV
+                    // shifts more than 2.5% of the screen, the blend ramps to
+                    // 1.0 (full current frame) — a reflection highlight sliding
+                    // across the surface changes brightness little at any given
+                    // pixel, so a luminance-only trigger lets stale history
+                    // persist and then pop when the highlight arrives.
+                    float2 motionVector = prevUV - traceUV;
+                    float motionDist = length(motionVector);
+                    float motionBlend = saturate(motionDist / 0.025);
+
                     float curLum = dot(specularCurrent.rgb, float3(0.299, 0.587, 0.114));
                     float histLum = dot(historySpecular.rgb, float3(0.299, 0.587, 0.114));
                     float lumDiff = abs(curLum - histLum) / max(max(curLum, histLum), 0.001);
                     float visibilityDiff = abs(specularCurrent.a - historySpecular.a);
                     float change = max(saturate(lumDiff * 3.0), saturate(visibilityDiff * 4.0));
+                    // Either camera motion or a luminance jump should accelerate
+                    // the blend; also floor at the disocclusion rate.
                     float specularBlendRate = max(
-                        lerp(1.0 - constants.params.x, 1.0, change),
+                        lerp(1.0 - constants.params.x, 1.0, max(change, motionBlend)),
                         1.0 - historyConfidence);
                     resultSpecular = lerp(historySpecular, specularCurrent, specularBlendRate);
                 }
