@@ -3,12 +3,13 @@
 
 // Multi-bounce light propagation for the voxel GI clipmap: sparse dispatch
 // over a brick list (resident bricks only — freed bricks are handled by the
-// inject pass). Each occupied voxel traces a set of cones through the radiance
-// volume to gather incoming indirect light, multiplies by the surface albedo
-// and writes the sum of existing direct radiance plus the new bounce back into
-// a temporary texture. A follow-up copy pass (VoxelBounceApply.hlsl) transfers
-// the result into the radiance Texture3D mip 0, after which the mip chain is
-// rebuilt.
+// inject pass). Each occupied voxel traces a set of cones through the source
+// radiance volume to gather incoming indirect light, multiplies by the surface
+// albedo and writes the sum of existing direct radiance plus the new bounce
+// directly into the destination radiance texture's mip 0. The renderer binds
+// alternating source/destination Texture3Ds per bounce so no separate copy-back
+// pass is needed. After each bounce the mip chain is rebuilt on the write
+// texture.
 //
 // On the first bounce (bounceIndex == 0), unoccluded cones fall back to the
 // sky gradient. This is the primary path by which sky light enters the voxel

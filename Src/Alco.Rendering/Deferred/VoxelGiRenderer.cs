@@ -269,7 +269,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
     private readonly ComputeMaterial _propagateMaterial;
-    private readonly ComputeMaterial _bounceApplyMaterial;
     private readonly ComputeMaterial _traceMaterial;
     private readonly ComputeMaterial _demosaicMaterial;
     private readonly GraphicsValueBuffer<VoxelGiData> _dataBuffer;
@@ -297,9 +296,11 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly uint[][] _combinedPageTableScratch = new uint[LevelCount][];
     private readonly VoxelGiPagePool _staticPagePool;
     private readonly VoxelGiPagePool _dynamicPagePool;
-    private readonly Texture3D _radiance;
+    // Double-buffered radiance: propagate writes bounce results directly into
+    // the alternate texture's mip 0, avoiding a separate copy-back pass. The
+    // opacity volume is single-buffered (propagate does not modify it).
+    private readonly Texture3D[] _radiance = new Texture3D[2];
     private readonly Texture3D _opacity;
-    private readonly Texture3D _propagateTemp;
     private uint _frameIndex;
     private double _gpuMilliseconds = double.NaN;
     private bool _hasPendingTimestamps;
@@ -436,7 +437,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// <param name="injectShader">The direct light injection shader (VoxelInject.hlsl).</param>
     /// <param name="mipShader">The radiance mip downsample shader (VoxelMip.hlsl).</param>
     /// <param name="propagateShader">The multi-bounce propagation shader (VoxelPropagate.hlsl).</param>
-    /// <param name="bounceApplyShader">The bounce copy-back shader (VoxelBounceApply.hlsl).</param>
     /// <param name="traceShader">The cone tracing shader (VoxelTrace.hlsl).</param>
     /// <param name="demosaicShader">The temporal demosaic shader (VoxelDemosaic.hlsl).</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
@@ -452,7 +452,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
         Shader injectShader,
         Shader mipShader,
         Shader propagateShader,
-        Shader bounceApplyShader,
         Shader traceShader,
         Shader demosaicShader,
         uint width,
@@ -483,7 +482,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _injectMaterial = rendering.CreateComputeMaterial(injectShader);
         _mipMaterial = rendering.CreateComputeMaterial(mipShader);
         _propagateMaterial = rendering.CreateComputeMaterial(propagateShader);
-        _bounceApplyMaterial = rendering.CreateComputeMaterial(bounceApplyShader);
         _traceMaterial = rendering.CreateComputeMaterial(traceShader);
         _demosaicMaterial = rendering.CreateComputeMaterial(demosaicShader);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
@@ -503,7 +501,6 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _injectMaterial.SetBuffer("_data", _dataBuffer);
         _mipMaterial.SetBuffer("_data", _dataBuffer);
         _propagateMaterial.SetBuffer("_data", _dataBuffer);
-        _bounceApplyMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
         _demosaicMaterial.SetBuffer("_data", _dataBuffer);
 
@@ -541,33 +538,28 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _previousResidentLogical[level] = new bool[pagesPerLevel];
         }
 
-        // Radiance: one RGBA16Float Texture3D with a full mip chain; all levels
-        // are stacked along the depth axis (resolution^3 per level per mip),
-        // sampled with hardware trilinear filtering by the cone tracing pass.
-        _radiance = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
-            PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance");
-
-        // Propagate temp: single-mip Texture3D for the multi-bounce pass (direct
-        // + bounce radiance), copied back into _radiance mip 0 by the apply pass.
-        _propagateTemp = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
-            PixelFormat.RGBA16Float, 1, name: "voxel_propagate_temp");
+        // Double-buffered radiance: two RGBA16Float Texture3Ds with full mip
+        // chains; all clipmap levels are stacked along the depth axis. Propagate
+        // reads one and writes the other, alternating per bounce — no copy-back.
+        _radiance[0] = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+            PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance_a");
+        _radiance[1] = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+            PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance_b");
 
         // Directional opacity volume: xyz = |normal components| (anisotropic
         // occlusion), w = coverage. Full mip chain for cone-traced projection.
+        // Single-buffered — propagate does not modify opacity.
         _opacity = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
             PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_opacity");
 
-        _radianceMemoryBytes = CalculateMipChainBytes(resolution, resolution, resolution * LevelCount, 8, _mipCount);
+        _radianceMemoryBytes = 2 * CalculateMipChainBytes(resolution, resolution, resolution * LevelCount, 8, _mipCount);
 
-        _injectMaterial.SetTexture3DStorage("_radianceOut", _radiance, 0);
+        // Initial bindings (rebound per-bounce in Render for propagate/trace):
+        // Inject always writes to radiance[0] mip 0 at the start of each frame.
+        _injectMaterial.SetTexture3DStorage("_radianceOut", _radiance[0], 0);
         _injectMaterial.SetTexture3DStorage("_opacityOut", _opacity, 0);
         _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, 0);
-        _propagateMaterial.SetTexture("_radiance", _radiance);
         _propagateMaterial.SetTexture("_opacity", _opacity);
-        _propagateMaterial.SetTexture3DStorage("_propagateOut", _propagateTemp, 0);
-        _bounceApplyMaterial.SetTexture3DRead("_propagateLoad", _propagateTemp, 0);
-        _bounceApplyMaterial.SetTexture3DStorage("_radianceOut", _radiance, 0);
-        _traceMaterial.SetTexture("_radiance", _radiance);
         _traceMaterial.SetTexture("_opacity", _opacity);
 
         uint traceWidth = TraceWidth(_gbufferWidth);
@@ -1021,10 +1013,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 }
             }
 
-            // Collect resident brick lists for sparse inject/propagate/bounceApply.
+            // Collect resident brick lists for sparse inject/propagate.
             // The buffer layout per level is [resident bricks..., stale bricks...].
-            // Inject dispatches over both (stale bricks get zeroed); Propagate and
-            // BounceApply only over the resident portion.
+            // Inject dispatches over both (stale bricks get zeroed); Propagate
+            // only over the resident portion.
             for (int level = 0; level < LevelCount; level++)
             {
                 CollectResidentBricks(level);
@@ -1056,17 +1048,23 @@ public sealed class VoxelGiRenderer : AutoDisposable
             // correct coarse-mip data instead of stale values from the previous
             // frame. Without this, the first bounce gathers against an empty or
             // outdated radiance volume.
-            BuildMipChains(computePass);
+            int radianceReadIndex = 0;
+            BuildMipChains(computePass, _radiance[radianceReadIndex]);
 
-            // Multi-bounce light propagation (sparse): each occupied voxel traces
-            // a small cone set through the radiance volume to gather indirect
-            // light, multiplies by albedo and adds to existing direct radiance.
-            // The result goes into _propagateTemp, then is copied back to mip 0.
-            // Iterated BounceCount times so the second bounce sees first-bounce
-            // radiance.
+            // Multi-bounce light propagation (sparse, double-buffered): each
+            // occupied voxel traces a cone set through the source radiance volume
+            // to gather indirect light, multiplies by albedo and adds to existing
+            // direct radiance, then writes directly into the alternate radiance
+            // texture's mip 0. No separate copy-back pass is needed. Iterated
+            // BounceCount times, alternating read/write textures each bounce so
+            // bounce N+1 sees bounce N's results.
             int bounceCount = Math.Max(0, BounceCount);
             for (int bounce = 0; bounce < bounceCount; bounce++)
             {
+                int writeIndex = 1 - radianceReadIndex;
+                _propagateMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
+                _propagateMaterial.SetTexture3DStorage("_propagateOut", _radiance[writeIndex], 0);
+
                 for (int level = 0; level < LevelCount; level++)
                 {
                     int residentCount = _residentCounts[level];
@@ -1083,29 +1081,15 @@ public sealed class VoxelGiRenderer : AutoDisposable
                         new Vector4(level, BounceStrength, bounce, 0));
                 }
 
-                for (int level = 0; level < LevelCount; level++)
-                {
-                    int residentCount = _residentCounts[level];
-                    if (residentCount == 0)
-                    {
-                        continue;
-                    }
-                    _bounceApplyMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
-                    _bounceApplyMaterial.DispatchBySizeWithConstant(
-                        computePass, BrickSize, BrickSize, (uint)(BrickSize * residentCount),
-                        new Vector4(level, 0, 0, 0));
-                }
+                // Build mip chain on the write texture so the next bounce (or
+                // the screen-space tracer) samples correct coarse-mip data.
+                BuildMipChains(computePass, _radiance[writeIndex]);
+                radianceReadIndex = writeIndex;
             }
 
-            // Rebuild the mip chain after propagation so the screen-space cone
-            // tracer picks up both direct and bounce radiance. Skipped when there
-            // are no bounces — the post-injection build above is sufficient.
-            if (bounceCount > 0)
-            {
-                BuildMipChains(computePass);
-            }
-
-            // Gather rotation-balanced narrow-cone diffuse and specular.
+            // Gather rotation-balanced narrow-cone diffuse and specular from the
+            // last-written radiance texture (direct + bounce).
+            _traceMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
             // CE5-style dual-layer diffuse resolve plus specular, one thread
@@ -1310,7 +1294,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _pageTableCombined[level].UpdateBuffer<uint>(combined);
 
         // Concatenate stale bricks after resident bricks in the upload buffer.
-        // Inject dispatches over both; Propagate/BounceApply only over resident.
+        // Inject dispatches over both; Propagate only over resident.
         _residentBricks.AddRange(_staleBricks);
     }
 
@@ -1325,12 +1309,12 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// single-mip views whose non-overlapping subresource ranges avoid the
     /// read/write usage conflict within one dispatch.
     /// </summary>
-    private void BuildMipChains(GPUCommandBuffer.ComputePass computePass)
+    private void BuildMipChains(GPUCommandBuffer.ComputePass computePass, Texture3D radiance)
     {
         for (int mip = 0; mip < _mipCount - 1; mip++)
         {
-            _mipMaterial.SetTexture3DRead("_radianceLoad", _radiance, (uint)mip);
-            _mipMaterial.SetTexture3DStorage("_radianceOut", _radiance, (uint)(mip + 1));
+            _mipMaterial.SetTexture3DRead("_radianceLoad", radiance, (uint)mip);
+            _mipMaterial.SetTexture3DStorage("_radianceOut", radiance, (uint)(mip + 1));
             _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, (uint)mip);
             _mipMaterial.SetTexture3DStorage("_opacityOut", _opacity, (uint)(mip + 1));
             uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
@@ -1463,9 +1447,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
             }
             _attrStatic.Dispose();
             _attrDynamic.Dispose();
-            _radiance.Dispose();
+            _radiance[0].Dispose();
+            _radiance[1].Dispose();
             _opacity.Dispose();
-            _propagateTemp.Dispose();
             _traceRaw.Dispose();
             _indirectAtlas.Dispose();
             _historyGI[0].Dispose();

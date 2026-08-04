@@ -497,45 +497,77 @@ Clipmap 几何参数：
 
 ### Phase 1 — 性能释放（零质量影响，纯降开销）
 
-#### ① Inject / Propagate 稀疏化 dispatch
+#### ① Inject / Propagate 稀疏化 dispatch ✅ 已完成
 
-**现状**：每 level dispatch 全量 `128³ = 32,768` 个线程组，空 voxel early-return 但 dispatch 调度开销全付。
+**状态**：已实现并验证（2026-08-04）。编译通过，shader 验证通过（`ValidateAllShaders`），运行正确。
 
-**方案**：只 dispatch 有数据的 brick。维护 per-level "occupied brick list"，inject 和 propagate 改为 per-brick `[numthreads(8,8,8)]` dispatch，用 indirect dispatch buffer 驱动。
+**改动前**：每 level dispatch 全量 `128³ = 32,768` 个线程组，空 voxel early-return 但 dispatch 调度开销全付。
 
-**收益**：
-- 典型 occupancy ~15-30%，inject 从 131K 组降到 ~20-40K 组
-- propagate 同理，这是最贵的 pass
-- **Inject + Propagate 合计性能提升估计 3-5x**
+**实现方案**：只 dispatch 有数据的 brick。
+
+- **Shader 侧** (`VoxelInject.hlsl` / `VoxelPropagate.hlsl` / `VoxelBounceApply.hlsl`)：
+  - 新增 `_brickList` storage buffer，每个 entry 是一个 `uint4`（xyz = brick 逻辑坐标，w = padding）
+  - 入口点从 `dispatchId` 直接做坐标改为通过 `_brickList[brickIndex].xyz * 8 + localOffset` 重建逻辑坐标
+  - 将 `_pageTableStatic` + `_pageTableDynamic` 合并为一个 `RWStructuredBuffer<uint2> _pageTable`（`.x` = static、`.y` = dynamic），腾出一个 descriptor set 给 `_brickList`（WebGPU 限制 8 个 set）
+
+- **C# 侧** (`VoxelGiRenderer.cs`)：
+  - 新增 `CollectResidentBricks(level)`：每帧扫描 page table（固定 4096 slots/level），收集 resident + stale brick 列表，构建 combined page table
+  - Stale brick（上帧 resident、本帧已释放）追加到 brick list 末尾，Inject 发现 page entry = 0 自然写零——清理旧 radiance，无需额外 clear pass
+  - Inject dispatch `(8, 8, 8 × brickCount)`，Propagate/BounceApply dispatch `(8, 8, 8 × residentCount)`
+  - 新增 `_residentBrickCoordinates[]` / `_pageTableCombined[]` GPU buffer（共 ~640 KB）
+
+- **Diagnostics**：`VoxelGiStatistics` 新增 `SparseBrickTotal` / `DenseBrickTotal`，Sandbox UI 显示 sparse dispatch 百分比
+
+**实测结果**：
+- Resident brick 数量：~2000/16384（~12% occupancy），sparse dispatch 正确生效
+- **帧率无明显变化**——分析结论：Inject/Propagate 不是瓶颈
+  - Dense 模式下空 voxel 线程在前几条指令 early-return（读 page table → entry=0 → return），GPU warp scheduler 快速回收，实际 GPU 耗时很低
+  - 真正的瓶颈是 **VoxelTrace**（屏幕空间全分辨率，每像素 6-9 锥 × 32 步 = 200-300 次纹理采样）和 **BuildMipChains**（仍然 dense）
+  - 稀疏化的价值在于 Phase 2 增加 16 锥后 propagate 开销仍在可控范围内
 
 **质量影响**：零（输出完全相同）
 
-**工作量**：中
-- CPU 侧维护 occupied brick 列表（voxelize 后更新 page table 时顺便统计）
-- inject/propagate shader 改为 per-brick dispatch
-- indirect dispatch buffer 上传
+**CPU 开销**：与场景物体数量**完全无关**——`CollectResidentBricks` 扫描固定大小 page table（4 × 4096 = 16K slots），不遍历物体列表。估算 < 0.05ms/帧。
 
 **参考**：CE5 的 `GetSvoBricksForUpdate()` + `SVO_NodesForUpdate0..3` 就是这个机制。
 
 ---
 
-#### ② Multi-bounce 双缓冲（消除 BounceApply）
+#### ② Multi-bounce 双缓冲（消除 BounceApply） ✅ 已完成
 
-**现状**：propagate 写 `_propagateTemp` → BounceApply copy 回 `_radiance` mip 0 → 重建 mip 链。BounceApply 是 131K 个线程组的纯 memcpy。
+**状态**：已实现并验证（2026-08-04）。编译通过，shader 验证通过（`ValidateAllShaders`）。
 
-**方案**：两张 radiance Texture3D 交替使用：
+**改动前**：propagate 写 `_propagateTemp` → BounceApply copy 回 `_radiance` mip 0 → 重建 mip 链。BounceApply 是纯 memcpy pass（sparse 后 ~2000 bricks × 4 levels = ~8K 线程组）。
+
+**实现方案**：两张完整 mip-chain radiance Texture3D 交替读写，propagate 直接写入目标纹理 mip 0。
+
 ```
-Bounce 0: 读 radianceA → 写 radianceB → 建 mip on B
-Bounce 1: 读 radianceB → 写 radianceA → 建 mip on A
+Inject → radiance[0] mip 0 → BuildMipChains(radiance[0])
+Bounce 0: Propagate reads radiance[0] → writes radiance[1] mip 0 → BuildMipChains(radiance[1])
+Bounce 1: Propagate reads radiance[1] → writes radiance[0] mip 0 → BuildMipChains(radiance[0])
+...alternating each bounce
+Trace reads from the last-written radiance texture
 ```
+
+- **VoxelGiRenderer.cs**：
+  - `_radiance` (单 Texture3D) + `_propagateTemp` (单 mip Texture3D) → `_radiance[2]` (双完整 mip-chain Texture3D)
+  - 移除 `_bounceApplyMaterial` 字段和构造函数 `bounceApplyShader` 参数
+  - `BuildMipChains` 改为接收 `Texture3D radiance` 参数，每次在正确的纹理上构建 mip 链
+  - Render 方法中每个 bounce 动态切换 propagate 的读写绑定：`SetTexture("_radiance", read)` + `SetTexture3DStorage("_propagateOut", write, 0)`
+  - Trace 在 bounce 循环结束后绑定到最后写入的纹理
+
+- **Shader 侧**：VoxelPropagate.hlsl 无算法修改，仅更新头部注释说明双缓冲方案。VoxelBounceApply.hlsl 不再使用（文件保留但已不被引用）。
+- **Game.cs**：移除 `VoxelBounceApply.hlsl` shader 加载行。
 
 **收益**：
-- 消除 BounceApply pass（-131K 线程组，-4 dispatch）
-- 省 64 MiB 显存（去掉 `_propagateTemp`）
+- 消除 BounceApply pass（sparse 后 ~8K 线程组 → 0，4 个 dispatch → 0）
+- 消除 `_propagateTemp` 纹理（64 MiB → 0），但新增第二张完整 mip-chain radiance（+73.2 MiB）
+- 净增显存 ~9.2 MiB（第二张 mip-chain radiance 73.2 MiB - 移除 _propagateTemp 64 MiB）
+- 多 bounce 时无 copy 开销，bounce 数量扩展成本更低
 
-**质量影响**：零
+**质量影响**：零（算法完全等价——propagate 读源纹理写目标纹理，双缓冲消除了 read-modify-write hazard）
 
-**工作量**：低（两张 Texture3D 交替 + 去掉 BounceApply dispatch）
+**与 CE5 方案对比**：CE5 用 5 个独立 RGB 池交替读写。Alco 用 2 张 Texture3D 交替，原理相同，只是存储粒度不同（CE5 按 brick pool 分池，Alco 按整张 volume 分池）。
 
 ---
 
@@ -669,8 +701,8 @@ CE5 `ConeTracePS` 用双 kernel——radiance kernel + opacity kernel（压低�
 
 ```
 Phase 1 — 性能释放（预计 1-2 天）
-  ① Inject/Propagate 稀疏化 dispatch      ← 最高优先级
-  ② Multi-bounce 双缓冲（消除 BounceApply）
+  ① Inject/Propagate 稀疏化 dispatch      ✅ 已完成
+  ② Multi-bounce 双缓冲（消除 BounceApply）  ✅ 已完成
   ③ Mip 链合并小 mip dispatch
 
 Phase 2 — 质量提升（预计 3-5 天）
@@ -691,17 +723,18 @@ Phase 4 — 需要引擎基础设施（长期）
 
 | 指标 | 当前（默认配置） | Phase 1 后 | Phase 2 后 |
 |------|----------------|-----------|-----------|
-| Inject 线程组/帧 | ~131K | ~20-40K | ~20-40K |
-| Propagate 线程组/帧 | ~131K (9 锥) | ~20-40K (9 锥) | ~25-50K (16 锥, 分级) |
-| BounceApply 线程组/帧 | ~131K | **0**（消除） | **0** |
+| Inject 线程组/帧 | ~131K | ~2-4K（实测 ~12% occupancy）✅ | ~2-4K |
+| Propagate 线程组/帧 | ~131K (9 锥) | ~2-4K (9 锥) ✅ | ~3-6K (16 锥, 分级) |
+| BounceApply 线程组/帧 | ~131K | **0**（消除）✅ | **0** |
 | Mip dispatch 数/帧 | ~56 | ~44 | ~44 |
-| 总 dispatch 数/帧 | ~70+ | ~50+ | ~50+ |
-| `_propagateTemp` 显存 | 64 MiB | **0**（消除） | **0** |
+| 总 dispatch 数/帧 | ~70+ | ~46+ | ~46+ |
+| `_propagateTemp` 显存 | 64 MiB | **0**（消除）✅ | **0** |
+| 双缓冲 radiance 显存 | 0 | +73 MiB（第二张 mip-chain）✅ | +73 MiB |
 | 间接光 banding | 可见（9 锥） | 可见（9 锥） | **消除**（16 锥 + 旋转） |
 | 间接光方向性 | 无（flat ambient） | 无 | **有**（ALD） |
 | 室内天空光 | 仅墙面 bounce | 仅墙面 bounce | **空气传播**（Phase 3 ⑧） |
 
-**核心逻辑**：Phase 1 把 inject+propagate 从 ~260K 线程组降到 ~40-80K，腾出的预算在 Phase 2 花在锥数和 ALD 上——最终 propagate 比 Phase 1 之前更便宜（分级锥数 + 稀疏化），同时质量显著更高（16 锥 + 旋转 + ALD）。
+**核心逻辑**：Phase 1 把 inject+propagate 从 ~260K 线程组降到 ~2-8K（实测 ~12% occupancy），虽然帧率瓶颈在 VoxelTrace 而非 inject/propagate，但稀疏化为 Phase 2 增加 16 锥腾出了充足的 GPU 预算——最终 propagate 在 16 锥模式下仍比 Phase 1 之前（9 锥 dense）更便宜，同时质量显著更高（16 锥 + 旋转 + ALD）。
 
 ---
 
