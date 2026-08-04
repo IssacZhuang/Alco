@@ -151,7 +151,7 @@ Alco 用单 kernel。
 
 ---
 
-### 3.6 ALD（Average Light Direction）输出
+### 3.6 ALD（Average Light Direction）输出 ✅ 已完成
 
 CE5 的 diffuse trace 输出 ALD——方向加权平均：
 ```hlsl
@@ -161,12 +161,39 @@ vALD.w += brightness;                  // 亮度累加
 ```
 然后在材质 shader 里用 ALD 做有方向的 diffuse 响应（间接光不是纯 flat ambient）。
 
-Alco 当前输出 `float4(diffuse, visibility)`，没有 ALD。
+**状态**：已实现并验证（2026-08-04）。编译通过，shader 验证通过（`ValidateAllShaders`），180 个渲染测试全部通过。
 
-**可移植性**：✅ 可以移植。需要：
-1. 修改 trace atlas 格式（diffuse 段从 rgb+visibility 改为 ald.xyz+ald.w）
-2. 修改 `DeferredLighting.hlsl` 采样 ALD 做方向性 diffuse
-3. 在 `VoxelDemosaic.hlsl` 的双层 gather 中也传播 ALD
+**实现方案**：在 Alco 的 clipmap + mip Texture3D 架构上移植了 CE5 的 ALD 管线。与 CE5 的关键差异是**能量守恒的方向调制**——CE5 在 demosaic 中将 RGB 归一化到单位向量，亮度完全由 ALD 的 `fIntensity` 重建；Alco 保留完整 RGB 辐射度，ALD 仅调制方向分布，不放大整体亮度。
+
+改动涉及 5 个文件：
+
+**Atlas 段数扩展**：
+- `_traceRaw`：2 段（diffuse+vis, specular）→ **3 段**（+diffuse+vis, specular, ALD）
+- `_indirectAtlas`：3 段 → **5 段**（+ALD near, ALD far）
+- `_historyGI`：4 段 → **6 段**（+ALD near, ALD far）
+
+- **VoxelTrace.hlsl**：`TraceDiffuseCones` 新增 `outWorldDir` 输出参数；MainCS 计算 `ALD = float4(worldDir × brightness, brightness)`，写入 `_traceRaw` 第 3 段
+- **VoxelDemosaic.hlsl**：双层空间 gather 中同步累积 ALD（相同 bilateral 权重），时域累积中对 ALD 做同样的 reprojection + blend；输出到 `_indirectAtlas` 第 3/4 段和 `_historyOut` 第 3/4 段
+- **DeferredLighting.hlsl**：5-tap 上采样同时 gather ALD near/far 层，应用能量守恒方向调制：
+
+```hlsl
+// dirFraction: 0=环境光（均匀半球），1=单一主导方向
+float dirFraction = saturate(dirIntens / aldBrightness);
+float directionalMod = lerp(1.0, NdotAld * 2.0, dirFraction);
+// 环境光 → mod=1.0（亮度不变）；方向光 → mod=NdotAld*2（半球均值≈1.0，能量守恒）
+diffuseIrradiance = indirectDiffuse.rgb * directionalMod;
+```
+
+- **VoxelGiRenderer.cs**：`_traceRaw` 2×→3×, `_indirectAtlas` 3×→5×, `_historyGI` 4×→6×；`traceWidth` 推导从 `/2` 改为 `/3`
+- **PBRDeferredPipeline.cs**：`Params4.Z` 系数从 `3.0/Width` 改为 `5.0/Width`
+
+**显存开销**：+2 段 × traceW × traceH × 8 bytes（atlas）+ 2 段 × traceW × traceH × 8 bytes（history）≈ +18 MiB（1080p, scale=0.5）
+
+**质量影响**：间接光从 flat ambient 变为有方向性的 diffuse——角落和背向间接光源的面变暗，朝向 bounce-light 源的面更亮，立体感显著增强。新增 debug view `giDebugView=4` 可可视化 ALD 方向。
+
+**性能开销**：极小（每像素多读 2 张纹理 + 少量算术）
+
+**与 CE5 差异说明**：CE5 的 `UpScalePS` 用 `fIntensity = fDirIntens × pow(NdotH, 1) + max(0, vALD.w - fDirIntens)` 重建亮度（因为 RGB 已归一化）。Alco 保留完整 RGB，直接用 `directionalMod = lerp(1.0, NdotAld*2, dirFraction)` 做方向调制。两者在视觉效果上等价——都让间接光有方向性——但 Alco 的方案不需要在 demosaic 中归一化 RGB，避免了色彩信息丢失。
 
 ---
 
@@ -346,13 +373,13 @@ CE5 将整个八叉树结构编码在 `brickPool_Tree` 纹理中——每个节�
 - ✅ UpScalePS 上采样
 - ✅ 方向性不透明度投影
 - ✅ PropagationBooster / MinReflectance
+- ✅ ALD（Average Light Direction）输出（方向加权平均 + 能量守恒方向调制）
 
 ### 能移植但需要引擎侧基础设施的
 
 - ⚠️ RSM 注入（需要 Reflective Shadow Map 管线）
 - ⚠️ Tiled lights（需要 tiled light culling）
 - ⚠️ Portal 灯变形（需要 portal 系统）
-- ⚠️ ALD 输出（需要修改 atlas 格式和 deferred lighting shader）
 - ⚠️ Dual-kernel opacity（多一组 kernel 方向 + cbuffer 参数）
 - ⚠️ Analytical Occluders（需要 occluder 组件系统）
 - ⚠️ Air 体素传播（需要扩展体素数据格式）
@@ -370,10 +397,10 @@ CE5 将整个八叉树结构编码在 `brickPool_Tree` 纹理中——每个节�
 
 如果要进一步提升 GI 质量，按预期收益排序：
 
-| 优先级 | 改进项 | 预期收益 | 工作量 |
+| 优先级 | 改进项 | 预期收益 | 状态/工作量 |
 |--------|--------|----------|--------|
 | **1** | 传播锥从 9 增到 32 + 随机旋转 | ★★★★★ | 中（kernel 表 + 旋转矩阵 + 性能调优） |
-| **2** | ALD 输出 | ★★★★☆ | 中（atlas 格式 + deferred lighting 改造） |
+| **2** | ALD 输出 | ★★★★☆ | ✅ 已完成 |
 | **3** | Air 体素传播 | ★★★☆☆ | 中（体素数据格式扩展 + 传播 pass 修改） |
 | **4** | Multi-bounce 双缓冲 | ★★☆☆☆ | 低（多一张 Texture3D，去掉 copy pass） |
 | **5** | Desaturation 控制 | ★★☆☆☆ | 低（一个 lerp） |
@@ -640,20 +667,26 @@ Trace reads from the last-written radiance texture
 
 ---
 
-#### ⑥ ALD（Average Light Direction）输出
+#### ⑥ ALD（Average Light Direction）输出 ✅ 已完成
 
-**现状**：diffuse trace 输出 `float4(rgb, visibility)`，deferred lighting 当 flat ambient 用。
+**状态**：已实现并验证（2026-08-04）。编译通过，shader 验证通过（`ValidateAllShaders`），180 个渲染测试全部通过。
 
-**方案**：trace 输出 `float4(ald.xyz * brightness, brightness)`，demosaic 传播 ALD，deferred lighting 用 ALD 做方向性 diffuse。
+**改动前**：diffuse trace 输出 `float4(rgb, visibility)`，deferred lighting 当 flat ambient 用。
+
+**实现方案**：trace 输出 `float4(ald.xyz * brightness, brightness)`，demosaic 双层空间 + 时域同步传播 ALD，deferred lighting 用能量守恒方向调制替换 flat ambient。
+
+详见 [§3.6](#36-aldaverage-light-direction输出-已完成)。
 
 **质量收益**：★★★★☆
 - 间接光有方向性——角落变暗、法线朝向间接光源的面更亮
 - 缺失 ALD 会显得 GI "平"
 - 对角色和物体的间接光照立体感影响很大
 
-**性能成本**：极小
+**性能成本**：极小（每像素多读 2 张纹理 + 少量算术）
 
-**工作量**：中（改 trace atlas 格式 + demosaic + deferred lighting 三处）
+**显存开销**：+~18 MiB（atlas + history 各增加 2 段，1080p scale=0.5）
+
+**与 CE5 差异**：CE5 在 demosaic 中将 RGB 归一化到单位向量，亮度由 ALD 的 `fIntensity` 重建。Alco 保留完整 RGB 辐射度，ALD 仅做方向调制（`lerp(1.0, NdotAld*2, dirFraction)`），避免了亮度被双重计算的问题。
 
 ---
 
@@ -721,7 +754,7 @@ Phase 1 — 性能释放（预计 1-2 天）
 Phase 2 — 质量提升（预计 3-5 天）
   ④ Propagation 16 锥 + 随机旋转           ← 最大质量收益
   ⑤ Level 分级锥数
-  ⑥ ALD 输出
+  ⑥ ALD 输出                               ✅ 已完成
   ⑦ Desaturation（顺手做）
 
 Phase 3 — 补充完善（按需）
@@ -744,7 +777,7 @@ Phase 4 — 需要引擎基础设施（长期）
 | `_propagateTemp` 显存 | 64 MiB | **0**（消除）✅ | **0** |
 | 双缓冲 radiance 显存 | 0 | +73 MiB（第二张 mip-chain）✅ | +73 MiB |
 | 间接光 banding | 可见（9 锥） | 可见（9 锥） | **消除**（16 锥 + 旋转） |
-| 间接光方向性 | 无（flat ambient） | 无 | **有**（ALD） |
+| 间接光方向性 | 无（flat ambient） | 无 | **有**（ALD）✅ |
 | 室内天空光 | 仅墙面 bounce | 仅墙面 bounce | **空气传播**（Phase 3 ⑧） |
 
 **核心逻辑**：Phase 1 把 inject+propagate 从 ~260K 线程组降到 ~2-8K（实测 ~12% occupancy），虽然帧率瓶颈在 VoxelTrace 而非 inject/propagate，但稀疏化为 Phase 2 增加 16 锥腾出了充足的 GPU 预算——最终 propagate 在 16 锥模式下仍比 Phase 1 之前（9 锥 dense）更便宜，同时质量显著更高（16 锥 + 旋转 + ALD）。
@@ -775,10 +808,10 @@ Phase 4 — 需要引擎基础设施（长期）
 | `VoxelMip.hlsl` | Radiance + opacity mip downsample |
 | `VoxelPropagate.hlsl` | Multi-bounce：9 锥半球传播、PropagationBooster、MinReflectance |
 | `VoxelBounceApply.hlsl` | Copy propagation 结果回 radiance mip 0 |
-| `VoxelTrace.hlsl` | Screen-space 锥追踪：64-dir Bayer tile diffuse + specular + SSR + SS near-field |
-| `VoxelDemosaic.hlsl` | 时域/空间 resolve：min/max 双层、9×9 bilateral、3×3 specular bilateral |
+| `VoxelTrace.hlsl` | Screen-space 锥追踪：64-dir Bayer tile diffuse + specular + SSR + SS near-field + ALD 输出 |
+| `VoxelDemosaic.hlsl` | 时域/空间 resolve：min/max 双层、9×9 bilateral、3×3 specular bilateral、ALD 双层传播 |
 | `GeometryNormal.hlsli` | 八面体编码法线 |
-| `DeferredLighting.hlsl` | 消费 indirect atlas（3 段），UpScalePS 5-tap 上采样 |
+| `DeferredLighting.hlsl` | 消费 indirect atlas（5 段），UpScalePS 5-tap 上采样，ALD 方向性 diffuse |
 
 ---
 
