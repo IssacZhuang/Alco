@@ -268,6 +268,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly ComputeMaterial _voxelizeMaterial;
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
+    private readonly ComputeMaterial _mipChainMaterial;
     private readonly ComputeMaterial _propagateMaterial;
     private readonly ComputeMaterial _traceMaterial;
     private readonly ComputeMaterial _demosaicMaterial;
@@ -451,6 +452,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         Shader voxelizeShader,
         Shader injectShader,
         Shader mipShader,
+        Shader mipChainShader,
         Shader propagateShader,
         Shader traceShader,
         Shader demosaicShader,
@@ -481,6 +483,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _voxelizeMaterial = rendering.CreateComputeMaterial(voxelizeShader);
         _injectMaterial = rendering.CreateComputeMaterial(injectShader);
         _mipMaterial = rendering.CreateComputeMaterial(mipShader);
+        _mipChainMaterial = rendering.CreateComputeMaterial(mipChainShader);
         _propagateMaterial = rendering.CreateComputeMaterial(propagateShader);
         _traceMaterial = rendering.CreateComputeMaterial(traceShader);
         _demosaicMaterial = rendering.CreateComputeMaterial(demosaicShader);
@@ -500,6 +503,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _voxelizeMaterial.SetBuffer("_data", _dataBuffer);
         _injectMaterial.SetBuffer("_data", _dataBuffer);
         _mipMaterial.SetBuffer("_data", _dataBuffer);
+        _mipChainMaterial.SetBuffer("_data", _dataBuffer);
         _propagateMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
         _demosaicMaterial.SetBuffer("_data", _dataBuffer);
@@ -1308,23 +1312,51 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// clipmap levels. Each transition reads mip N and writes mip N+1 through
     /// single-mip views whose non-overlapping subresource ranges avoid the
     /// read/write usage conflict within one dispatch.
+    /// Levels are packed into the dispatch z dimension, so one dispatch per
+    /// transition covers all clipmap levels. The last three transitions (tiny
+    /// mip sizes) are merged into a single cascading dispatch per texture type
+    /// via VoxelMipChain, reducing dispatch count further.
     /// </summary>
     private void BuildMipChains(GPUCommandBuffer.ComputePass computePass, Texture3D radiance)
     {
-        for (int mip = 0; mip < _mipCount - 1; mip++)
+        // The last 3 transitions are cascaded; earlier transitions use the
+        // standard per-mip shader.
+        int cascadeSrcMip = Math.Max(0, _mipCount - 4);
+
+        for (int mip = 0; mip < cascadeSrcMip; mip++)
         {
             _mipMaterial.SetTexture3DRead("_radianceLoad", radiance, (uint)mip);
             _mipMaterial.SetTexture3DStorage("_radianceOut", radiance, (uint)(mip + 1));
             _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, (uint)mip);
             _mipMaterial.SetTexture3DStorage("_opacityOut", _opacity, (uint)(mip + 1));
             uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
-            for (int level = 0; level < LevelCount; level++)
-            {
-                _mipMaterial.DispatchBySizeWithConstant(
-                    computePass, dstResolution, dstResolution, dstResolution,
-                    new Vector4(mip, level, 0, 0));
-            }
+            // All levels in one dispatch: z = dstRes * LevelCount.
+            _mipMaterial.DispatchBySizeWithConstant(
+                computePass, dstResolution, dstResolution, dstResolution * (uint)LevelCount,
+                new Vector4(mip, 0, 0, 0));
         }
+
+        // Cascade the last 3 transitions (radiance then opacity) in one dispatch
+        // each, using groupshared reductions inside the shader.
+        DispatchMipChain(computePass, radiance, cascadeSrcMip, 0);
+        DispatchMipChain(computePass, _opacity, cascadeSrcMip, 1);
+    }
+
+    /// <summary>
+    /// Dispatches the cascading mip-chain shader for one texture (radiance or
+    /// opacity), producing three coarser mips from a single source mip.
+    /// </summary>
+    private void DispatchMipChain(
+        GPUCommandBuffer.ComputePass computePass, Texture3D texture, int srcMip, int mode)
+    {
+        _mipChainMaterial.SetTexture3DRead("_srcTex", texture, (uint)srcMip);
+        _mipChainMaterial.SetTexture3DStorage("_outTex1", texture, (uint)(srcMip + 1));
+        _mipChainMaterial.SetTexture3DStorage("_outTex2", texture, (uint)(srcMip + 2));
+        _mipChainMaterial.SetTexture3DStorage("_outTex3", texture, (uint)(srcMip + 3));
+        // 4 × 4 × (4 * LevelCount) threads: one 4³ group per clipmap level.
+        _mipChainMaterial.DispatchBySizeWithConstant(
+            computePass, 4, 4, 4 * (uint)LevelCount,
+            new Vector4(srcMip, mode, 0, 0));
     }
 
     private void DispatchClearBricks(

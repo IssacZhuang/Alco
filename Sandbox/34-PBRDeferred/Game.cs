@@ -328,6 +328,7 @@ public class Game : GameEngine
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelInject.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelMip.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelMipChain.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelPropagate.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelTrace.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelDemosaic.hlsl"),

@@ -571,13 +571,26 @@ Trace reads from the last-written radiance texture
 
 ---
 
-#### ③ Mip 链合并小 mip dispatch
+#### ③ Mip 链合并小 mip dispatch ✅ 已完成
 
 **现状**：7 个 mip transition × 4 levels = 28 dispatch/次 × 2 次/帧 = 56 dispatch。但 mip 4 以上合计只有 ~520 个线程组，却用了 16 个 dispatch。
 
-**方案**：一个 `[numthreads(4,4,4)]` shader 循环处理 mip 4→5→6→7，一次 dispatch 替代 4 次。
+**方案**：两层优化：
+1. **Level 维度合并**（VoxelMip.hlsl）：将 4 个 clipmap level 打包进 dispatch z 维度（`z = dstRes * LevelCount`），shader 内 `level = dispatchId.z / dstRes` 解包。一次 dispatch 覆盖所有 level，消除内层 level 循环。
+2. **尾部 3 transition 级联**（VoxelMipChain.hlsl）：新增级联 shader，在 `[numthreads(4,4,4)]` 的一个线程组内用 groupshared 内存完成 srcMip→srcMip+1→srcMip+2→srcMip+3 三个连续 transition。radiance 和 opacity 分别 dispatch（因 descriptor set 上限无法同时容纳两组各 3 个输出 mip）。
 
-**收益**：减少 ~12 dispatch/帧（对低延迟 API 开销改善明显）
+**实际 dispatch 变化**（resolution=128, _mipCount=8, cascadeSrcMip=4）：
+- 标准 mip：4 个 transition × 1 dispatch（含所有 level）= 4 dispatch/texture
+- 级联：1 dispatch/texture（radiance）+ 1 dispatch/texture（opacity）= 2 dispatch
+- 每 texture 6 dispatch（原 28），每帧 2 次 BuildMipChains → **12 dispatch/帧**（原 56，减少 79%）
+
+**实现文件**：
+- `VoxelMip.hlsl` — 改为 z 维度打包 level
+- `VoxelMipChain.hlsl` — 新增级联 shader
+- `VoxelGiRenderer.cs` — 新增 `_mipChainMaterial` + `DispatchMipChain()` 方法
+- `Game.cs` — 新增 VoxelMipChain shader 加载
+
+**收益**：减少 ~44 dispatch/帧（对低延迟 API 开销改善明显）
 
 **质量影响**：零
 
@@ -703,7 +716,7 @@ CE5 `ConeTracePS` 用双 kernel——radiance kernel + opacity kernel（压低�
 Phase 1 — 性能释放（预计 1-2 天）
   ① Inject/Propagate 稀疏化 dispatch      ✅ 已完成
   ② Multi-bounce 双缓冲（消除 BounceApply）  ✅ 已完成
-  ③ Mip 链合并小 mip dispatch
+  ③ Mip 链合并小 mip dispatch               ✅ 已完成
 
 Phase 2 — 质量提升（预计 3-5 天）
   ④ Propagation 16 锥 + 随机旋转           ← 最大质量收益
@@ -726,8 +739,8 @@ Phase 4 — 需要引擎基础设施（长期）
 | Inject 线程组/帧 | ~131K | ~2-4K（实测 ~12% occupancy）✅ | ~2-4K |
 | Propagate 线程组/帧 | ~131K (9 锥) | ~2-4K (9 锥) ✅ | ~3-6K (16 锥, 分级) |
 | BounceApply 线程组/帧 | ~131K | **0**（消除）✅ | **0** |
-| Mip dispatch 数/帧 | ~56 | ~44 | ~44 |
-| 总 dispatch 数/帧 | ~70+ | ~46+ | ~46+ |
+| Mip dispatch 数/帧 | ~56 | ~12 ✅ | ~12 |
+| 总 dispatch 数/帧 | ~70+ | ~14+ | ~14+ |
 | `_propagateTemp` 显存 | 64 MiB | **0**（消除）✅ | **0** |
 | 双缓冲 radiance 显存 | 0 | +73 MiB（第二张 mip-chain）✅ | +73 MiB |
 | 间接光 banding | 可见（9 锥） | 可见（9 锥） | **消除**（16 锥 + 旋转） |

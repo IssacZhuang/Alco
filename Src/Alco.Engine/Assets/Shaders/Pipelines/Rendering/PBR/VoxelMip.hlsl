@@ -1,19 +1,22 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 
-// Radiance + opacity mip downsample for the voxel GI clipmap: one dispatch per
-// level per mip transition at (dstRes, dstRes, dstRes). Radiance is averaged
-// with volume coverage weights. Directional opacity uses a projected-area
-// reduction: maximum coverage along the projection axis and an average across
-// the orthogonal plane. This preserves thin walls at coarse mips, matching the
-// sub-voxel opacity reduction used by CE5 SVOGI.
+// Radiance + opacity mip downsample for the voxel GI clipmap. One dispatch
+// per mip transition covers ALL clipmap levels: the z dimension encodes both
+// the texel z (low bits) and the level index (high bits), so dispatching
+// (dstRes, dstRes, dstRes * LevelCount) threads processes every level without
+// a per-level dispatch call. Radiance is averaged with volume coverage weights.
+// Directional opacity uses a projected-area reduction: maximum coverage along
+// the projection axis and an average across the orthogonal plane. This preserves
+// thin walls at coarse mips, matching the sub-voxel opacity reduction used by
+// CE5 SVOGI.
 // All levels share the one Texture3D, stacked along the w axis; the child mip
 // is read with exact texel fetches, the parent mip written through the bound
 // single-mip storage view.
 
 struct VoxelMipConstants
 {
-    float4 params; // x=mipIndex, y=levelIndex, zw=unused
+    float4 params; // x=mipIndex, yzw=unused (level derived from dispatch z)
 };
 
 DEFINE_TEX3D_READ(1, _radianceLoad);
@@ -29,10 +32,14 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint resolution = VoxelResolution();
     uint mip = (uint)constants.params.x;
-    uint level = (uint)constants.params.y;
     uint srcRes = max(resolution >> mip, 1u);
     uint dstRes = max(resolution >> (mip + 1u), 1u);
-    if (any(dispatchId >= dstRes))
+
+    // Level is packed into the dispatch z dimension: z / dstRes gives the
+    // clipmap level, z % dstRes gives the texel z within that level.
+    uint level = dispatchId.z / dstRes;
+    uint zTexel = dispatchId.z % dstRes;
+    if (dispatchId.x >= dstRes || dispatchId.y >= dstRes)
     {
         return;
     }
@@ -52,7 +59,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         {
             for (uint dx = 0; dx <= 1; dx++)
             {
-                uint3 coord = min(dispatchId * 2 + uint3(dx, dy, dz), srcRes - 1);
+                uint3 coord = min(uint3(dispatchId.x * 2 + dx, dispatchId.y * 2 + dy, zTexel * 2 + dz), srcRes - 1);
                 uint3 loadCoord = uint3(coord.x, coord.y, level * srcRes + coord.z);
                 float4 radSample = LOAD_TEX3D(_radianceLoad, loadCoord, 0);
                 radianceSum += radSample.rgb * radSample.a;
@@ -66,7 +73,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
 
-    uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, level * dstRes + dispatchId.z);
+    uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, level * dstRes + zTexel);
     float3 radiance = radianceWeight > 0.0 ? radianceSum / radianceWeight : 0.0;
     _radianceOut[storeCoord] = float4(radiance, occupancySum / 8.0);
 
