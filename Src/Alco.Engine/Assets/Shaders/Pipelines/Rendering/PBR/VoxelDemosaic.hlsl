@@ -424,21 +424,22 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     int2(0, 0),
                     int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
 
-                // The sixth history section stores the surface that produced
-                // the sample. Reprojection is accepted only when both linear
-                // depth and world normal still match. This rejects history
-                // revealed from behind an occluder during camera movement.
+                // CE5 GetBlendMin uses a depth RATIO (not absolute difference)
+                // to gradually increase the current-frame blend weight. An
+                // absolute tolerance (7.5 cm) is far too strict for geometric
+                // features: a window recess or eave at 5 m has 20-30 cm of
+                // depth change, which would completely discard temporal
+                // history on every frame the half-resolution trace pixel
+                // crosses the feature edge. The ratio test (0.06 at 5 m /
+                // 4.7 m) only raises the blend from 0.1 to 0.16, keeping 84%
+                // of the accumulated history.
                 int2 metadataPixel = previousTracePixel + int2(halfWidth * 5, 0);
                 float4 historyMetadata = _historyInput.Load(int3(metadataPixel, 0));
                 float expectedPreviousDepth = abs(prevClip.w);
-                float depthDifference = abs(historyMetadata.x - expectedPreviousDepth);
-                float depthTolerance = max(0.075, expectedPreviousDepth * 0.0075);
-                float depthConfidence = 1.0 - saturate(depthDifference / depthTolerance);
-                float3 historyNormal = normalize(historyMetadata.yzw * 2.0 - 1.0);
-                float normalConfidence = saturate(
-                    (dot(geometryNormal, historyNormal) - 0.8) * 5.0);
-                float historyConfidence = depthConfidence * normalConfidence
-                    * (historyMetadata.x > 0.0 ? 1.0 : 0.0);
+                float depthRatio = abs(
+                    expectedPreviousDepth / max(historyMetadata.x, 0.0001) - 1.0);
+                float historyConfidence = 1.0 - saturate(depthRatio);
+                historyConfidence *= (historyMetadata.x > 0.0 ? 1.0 : 0.0);
 
                 if (historyConfidence > 0.001)
                 {
