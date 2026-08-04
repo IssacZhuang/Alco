@@ -2,15 +2,26 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
-// Configurable-resolution bilateral spatial filter and temporal accumulation
-// for voxel GI. A geometry-aware diffuse footprint suppresses voxel sampling
-// noise, then validated reprojection accumulates stable history without
-// disocclusion trails. Specular uses a smaller footprint to preserve detail.
+// CE5-style Min/Max dual-layer spatial resolve and temporal accumulation for
+// voxel GI. One thread per trace pixel: every tap of the 8x8 direction-tile
+// footprint is accumulated into a near (depthMin) and a far (depthMax) surface
+// layer using soft relative depth tests, so a geometry edge keeps a nearly
+// complete directional kernel on both of its sides instead of a rejected,
+// degenerate one. The two layers are written to separate atlas sections with
+// their layer linear depths in alpha; the deferred lighting pass then blends
+// the layers at full-resolution depth (CE5 UpScalePS), so occlusion
+// boundaries stay sharp at every trace resolution. Validated reprojection
+// accumulates each layer independently. Specular keeps a small sharp
+// footprint to preserve detail.
 //
-// Both the indirect atlas (sampled by DeferredLighting) and a history texture
-// (read by this shader next frame) are written in the same dispatch. The
-// history texture has a third atlas section containing linear depth and world
-// normal so reprojected samples can be rejected after disocclusion.
+// Indirect atlas layout (3x trace width), sampled by DeferredLighting:
+//   [0] diffuse near layer: rgb = irradiance, a = near layer linear depth
+//   [1] diffuse far layer:  rgb = irradiance, a = far layer linear depth
+//   [2] specular:           rgb = specular radiance, a = selected diffuse
+//                           visibility (debug view only)
+// History layout (4x trace width), read back next frame:
+//   [0] near layer rgb + visibility, [1] far layer rgb + visibility,
+//   [2] specular, [3] linear depth + world normal (disocclusion metadata).
 
 struct VoxelDemosaicConstants
 {
@@ -26,10 +37,6 @@ DEFINE_TEX2D_STORAGE(6, _historyOut, float4, "rgba16f");
 DEFINE_TEX2D_READ(7, _emissive);
 
 PUSH_CONSTANT VoxelDemosaicConstants constants;
-
-static const int2 SURFACE_GUIDE_OFFSETS[4] = {
-    int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1),
-};
 
 float3 ClampRadianceLuminance(float3 radiance, float maximumLuminance)
 {
@@ -63,34 +70,50 @@ float NormalSimilarity(float3 centerNormal, float3 sampleNormal)
     return smoothstep(0.05, 0.5, dot(centerNormal, sampleNormal));
 }
 
-float GeometryNormalSimilarity(float3 centerNormal, float3 sampleNormal)
+// Clamp the reprojected diffuse layer estimate to the current geometry-aware
+// neighborhood, then accumulate it at a confidence-weighted rate. Disoccluded
+// pixels use only the current frame.
+float4 AccumulateDiffuseLayer(
+    float4 history,
+    float4 current,
+    float4 neighborhoodMin,
+    float4 neighborhoodMax,
+    float hysteresis,
+    float historyConfidence)
 {
-    // Geometry normals are stable enough to distinguish architectural layers.
-    // Keep this stricter than NormalSimilarity(), which intentionally tolerates
-    // normal-map detail inside a diffuse irradiance footprint.
-    return smoothstep(0.65, 0.9, dot(centerNormal, sampleNormal));
+    float3 radianceRange = neighborhoodMax.rgb - neighborhoodMin.rgb;
+    float3 radiancePadding = max(
+        radianceRange * 0.25,
+        max(abs(current.rgb) * 0.05, 0.002));
+    history.rgb = clamp(
+        history.rgb,
+        neighborhoodMin.rgb - radiancePadding,
+        neighborhoodMax.rgb + radiancePadding);
+    float visibilityRange = neighborhoodMax.a - neighborhoodMin.a;
+    float visibilityPadding = max(visibilityRange * 0.25, 0.01);
+    history.a = clamp(
+        history.a,
+        neighborhoodMin.a - visibilityPadding,
+        neighborhoodMax.a + visibilityPadding);
+    float blendRate = lerp(1.0, 1.0 - hysteresis, historyConfidence);
+    return lerp(history, current, blendRate);
 }
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
-    uint2 atlasRes = uint2(giParams.z * 2u, giParams.w);
-    if (any(dispatchId.xy >= atlasRes))
+    uint2 traceResolution = uint2(giParams.z, giParams.w);
+    if (any(dispatchId.xy >= traceResolution))
     {
         return;
     }
 
-    uint2 pixel = dispatchId.xy;
-    bool isSpecular = pixel.x >= giParams.z;
+    int2 tracePixel = int2(dispatchId.xy);
     int halfWidth = (int)giParams.z;
 
-    // Map atlas pixel to the half-res trace pixel and then to full-res G-buffer.
-    int2 tracePixel = isSpecular ? int2(pixel.x - halfWidth, pixel.y) : int2(pixel.xy);
-    tracePixel = clamp(tracePixel, int2(0, 0), int2(halfWidth - 1, (int)giParams.w - 1));
-
     uint2 gbufferRes = uint2(giParams2.y, giParams2.z);
-    float2 traceUV = (float2(tracePixel) + 0.5) / float2(giParams.z, giParams.w);
+    float2 traceUV = (float2(tracePixel) + 0.5) / float2(traceResolution);
     int2 gbufferPixel = int2(traceUV * float2(gbufferRes));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
     float2 gbufferUV = (float2(gbufferPixel) + 0.5) / float2(gbufferRes);
@@ -98,13 +121,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
     if (depth >= 0.9999)
     {
-        _indirectGI[pixel] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[pixel] = float4(0.0, 0.0, 0.0, 0.0);
-        if (!isSpecular)
-        {
-            _historyOut[uint2(tracePixel.x + halfWidth * 2, tracePixel.y)] =
-                float4(0.0, 0.0, 0.0, 0.0);
-        }
+        _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+        _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+        _historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -113,24 +136,25 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float packedGeometryY = GET_PIXEL_TEX2D(_emissive, gbufferPixel).a;
     float3 geometryNormal = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
     float3 detailNormal = normalize(packedNormal.xyz * 2.0 - 1.0);
-    float3 N = isSpecular
-        ? detailNormal
-        : geometryNormal;
     float currentLinearDepth = abs(mul(viewProjection, float4(worldPos, 1.0)).w);
-    float4 centerVal = _traceInput.Load(int3(pixel, 0));
+    float4 centerDiffuse = _traceInput.Load(int3(tracePixel, 0));
+    float4 centerSpecular = _traceInput.Load(int3(tracePixel + int2(halfWidth, 0), 0));
 
     // Developer view: expose the cone-trace atlas before spatial/temporal
     // reconstruction. This makes it possible to distinguish a tracing issue
     // from a resolve issue at an exactly reproduced camera position.
     if (giParams2.x > 3.5 && giParams2.x < 4.5)
     {
-        _indirectGI[pixel] = centerVal;
-        _historyOut[pixel] = centerVal;
-        if (!isSpecular)
-        {
-            _historyOut[uint2(tracePixel.x + halfWidth * 2, tracePixel.y)] =
-                float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
-        }
+        _indirectGI[tracePixel] = float4(centerDiffuse.rgb, currentLinearDepth);
+        _indirectGI[tracePixel + int2(halfWidth, 0)] =
+            float4(centerDiffuse.rgb, currentLinearDepth);
+        _indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
+            float4(centerSpecular.rgb, centerDiffuse.a);
+        _historyOut[tracePixel] = centerDiffuse;
+        _historyOut[tracePixel + int2(halfWidth, 0)] = centerDiffuse;
+        _historyOut[tracePixel + int2(halfWidth * 2, 0)] = centerSpecular;
+        _historyOut[tracePixel + int2(halfWidth * 3, 0)] =
+            float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
         return;
     }
 
@@ -140,107 +164,63 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // neighbours deletes real bounce light before the phase resolve. The fixed
     // ceiling only catches non-physical emissive outliers.
     float diffuseMaximumLuminance = 8.0;
-    float2 localLinearDepthGradient = 0.0;
-    if (!isSpecular)
-    {
-        float guideLinearDepths[4] = {
-            currentLinearDepth, currentLinearDepth,
-            currentLinearDepth, currentLinearDepth,
-        };
-        float guideFitWeights[4] = { 0.0, 0.0, 0.0, 0.0 };
 
-        // CE5 deliberately uses a broad 12--20 percent depth range while
-        // gathering demosaic candidates. This range is only used to fit the
-        // local receiving surface; actual radiance filtering below still uses
-        // a tight residual around that fitted plane. Separating the two tests
-        // is essential for facades viewed at a grazing angle.
-        float3 viewDirection = normalize(cameraPosition.xyz - worldPos);
-        float viewFacing = abs(dot(viewDirection, geometryNormal));
-        float fitRelativeDepthRange = lerp(0.20, 0.12, viewFacing);
+    // CE5 GetAverNormAndSmooth: the receiving surface layers are the min
+    // and max linear depth inside a 2x2 G-buffer neighborhood. At a depth
+    // discontinuity, foreground taps accumulate into the near layer and
+    // background taps into the far layer, so each side of the edge keeps a
+    // nearly complete directional kernel instead of a rejected fraction.
+    float layerDepthMin = currentLinearDepth;
+    float layerDepthMax = currentLinearDepth;
+    [unroll]
+    for (int layerY = 0; layerY <= 1; layerY++)
+    {
         [unroll]
-        for (uint guideIndex = 0u; guideIndex < 4u; guideIndex++)
+        for (int layerX = 0; layerX <= 1; layerX++)
         {
-            int2 guideTrace = clamp(
-                tracePixel + SURFACE_GUIDE_OFFSETS[guideIndex],
-                int2(0, 0),
-                int2(halfWidth - 1, (int)giParams.w - 1));
-            float2 guideUV = (float2(guideTrace) + 0.5) / float2(giParams.z, giParams.w);
-            int2 guideGbufferPixel = int2(guideUV * float2(gbufferRes));
-            guideGbufferPixel = clamp(
-                guideGbufferPixel,
+            int2 layerPixel = clamp(
+                gbufferPixel + int2(layerX, layerY),
                 int2(0, 0),
                 int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
-            float guideDepth = GET_PIXEL_TEX2D(_gbufferDepth, guideGbufferPixel);
-            if (guideDepth < 0.9999)
+            float layerDepth = GET_PIXEL_TEX2D(_gbufferDepth, layerPixel);
+            if (layerDepth < 0.9999)
             {
-                float2 guideGbufferUV =
-                    (float2(guideGbufferPixel) + 0.5) / float2(gbufferRes);
-                float guideLinearDepth = ReconstructLinearDepth(
-                    guideGbufferUV, guideDepth, invViewProjection);
-                float4 guidePackedNormal = GET_PIXEL_TEX2D(
-                    _normal, guideGbufferPixel);
-                float guidePackedGeometryY = GET_PIXEL_TEX2D(
-                    _emissive, guideGbufferPixel).a;
-                float3 guideGeometryNormal = DecodeGeometryNormal(
-                    float2(guidePackedNormal.a, guidePackedGeometryY));
-                float normalWeight = GeometryNormalSimilarity(
-                    geometryNormal, guideGeometryNormal);
-                float relativeDepthDifference = abs(
-                    1.0 - guideLinearDepth / max(currentLinearDepth, 0.0001));
-                float depthFitWeight = 1.0 - smoothstep(
-                    fitRelativeDepthRange * 0.75,
-                    fitRelativeDepthRange,
-                    relativeDepthDifference);
-                guideLinearDepths[guideIndex] = guideLinearDepth;
-                guideFitWeights[guideIndex] = normalWeight * depthFitWeight;
+                float2 layerUV =
+                    (float2(layerPixel) + 0.5) / float2(gbufferRes);
+                float layerLinearDepth = ReconstructLinearDepth(
+                    layerUV, layerDepth, invViewProjection);
+                layerDepthMin = min(layerDepthMin, layerLinearDepth);
+                layerDepthMax = max(layerDepthMax, layerLinearDepth);
             }
         }
-
-        // Fit each screen-space depth slope only when both sides belong to a
-        // continuous local plane. Opposing depth jumps (for example a narrow
-        // cornice in front of a wall) fail the slope-agreement test and retain
-        // a zero slope, so the later tight residual cannot bridge the layer.
-        float slopeAgreementTolerance = max(
-            0.04, currentLinearDepth * 0.002);
-        if (min(guideFitWeights[0], guideFitWeights[1]) > 0.1)
-        {
-            float negativeSlope = currentLinearDepth - guideLinearDepths[0];
-            float positiveSlope = guideLinearDepths[1] - currentLinearDepth;
-            if (abs(negativeSlope - positiveSlope) <= slopeAgreementTolerance)
-            {
-                localLinearDepthGradient.x =
-                    (negativeSlope + positiveSlope) * 0.5;
-            }
-        }
-        if (min(guideFitWeights[2], guideFitWeights[3]) > 0.1)
-        {
-            float negativeSlope = currentLinearDepth - guideLinearDepths[2];
-            float positiveSlope = guideLinearDepths[3] - currentLinearDepth;
-            if (abs(negativeSlope - positiveSlope) <= slopeAgreementTolerance)
-            {
-                localLinearDepthGradient.y =
-                    (negativeSlope + positiveSlope) * 0.5;
-            }
-        }
-
-        centerVal.rgb = ClampRadianceLuminance(
-            centerVal.rgb, diffuseMaximumLuminance);
     }
 
-    // --- Bilateral spatial filter on the trace input ---
-    // Stable mesh normals and a scale-aware diffuse footprint remove residual
-    // cone hits while preserving the original CE5 cone width and mip choice.
+    centerDiffuse.rgb = ClampRadianceLuminance(
+        centerDiffuse.rgb, diffuseMaximumLuminance);
+
+    // CE5's depth acceptance is a relative ratio widened at grazing view
+    // angles, not an absolute centimeter tolerance.
+    float3 viewDirection = normalize(cameraPosition.xyz - worldPos);
+    float viewFacing = abs(dot(viewDirection, geometryNormal));
+    float depthRangeRatio = 0.12 + 0.08 * (1.0 - viewFacing);
+
+    // --- Dual-layer diffuse gather on the trace input ---
     // The symmetric 9-tap weights [0.5 1 1 1 1 1 1 1 0.5] integrate each
     // phase of the 8x8 direction tile with exactly equal total weight; an
-    // ordinary Gaussian exposes the tile as fine bands.
-    // Specular keeps the sharper 3x3 footprint.
-    bool phaseBalancedDiffuse = !isSpecular;
-    int filterRadius = 1;
+    // ordinary Gaussian exposes the tile as fine bands. Every tap contributes
+    // to both the near and the far layer with independent soft depth tests.
+    float4 layerSumMin = 0.0;
+    float4 layerSumMax = 0.0;
+    float layerWeightMin = 0.0;
+    float layerWeightMax = 0.0;
+    float4 neighborhoodMin = centerDiffuse;
+    float4 neighborhoodMax = centerDiffuse;
+
+    // --- Specular gather state (3x3 tight bilateral, filled in the same
+    // footprint loop below on its own taps) ---
     float spatialSigma = max(constants.params.y, 0.001);
-    float4 spatialSum = phaseBalancedDiffuse ? 0.0 : centerVal;
-    float spatialW = phaseBalancedDiffuse ? 0.0 : 1.0;
-    float4 neighborhoodMin = centerVal;
-    float4 neighborhoodMax = centerVal;
+    float4 specularSum = centerSpecular;
+    float specularWeight = 1.0;
 
     [unroll]
     for (int dy = -4; dy <= 4; dy++)
@@ -248,40 +228,107 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         [unroll]
         for (int dx = -4; dx <= 4; dx++)
         {
-            bool includePhaseBalanced = abs(dx) <= 4 && abs(dy) <= 4;
-            bool includeRegular = (dx != 0 || dy != 0)
-                && abs(dx) <= filterRadius && abs(dy) <= filterRadius;
-            if (phaseBalancedDiffuse ? !includePhaseBalanced : !includeRegular)
-            {
-                continue;
-            }
-
-            // Diffuse gathers one complete, contiguous CE-style direction tile.
-            // Its 9x9 footprint is tighter than the previous sparse 13x13
-            // footprint even though it reconstructs many more directions.
+            // Diffuse gathers one complete, contiguous CE-style direction
+            // tile. Its 9x9 footprint is tighter than the previous sparse
+            // 13x13 footprint even though it reconstructs many more
+            // directions.
             int2 filterOffset = int2(dx, dy);
-            int2 np = int2(pixel) + filterOffset;
-            // Keep within same atlas half (diffuse or specular).
-            if (isSpecular)
+            int2 np = clamp(
+                tracePixel + filterOffset,
+                int2(0, 0),
+                int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
+
+            // G-buffer depth at the neighbour for layer assignment.
+            float2 nTraceUV = (float2(np) + 0.5) / float2(traceResolution);
+            int2 nGbufPixel = int2(nTraceUV * float2(gbufferRes));
+            nGbufPixel = clamp(nGbufPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
+            float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
+
+            float4 diffuseTap = _traceInput.Load(int3(np, 0));
+
+            float phaseWeightX = abs(dx) == 4 ? 0.5 : 1.0;
+            float phaseWeightY = abs(dy) == 4 ? 0.5 : 1.0;
+            float phaseWeight = phaseWeightX * phaseWeightY;
+
+            float weightMin = 0.0;
+            float weightMax = 0.0;
+            if (nDepth < 0.9999)
             {
-                np.x = clamp(np.x, halfWidth, (int)atlasRes.x - 1);
+                float2 nGbufferUV =
+                    (float2(nGbufPixel) + 0.5) / float2(gbufferRes);
+                float nLinearDepth = ReconstructLinearDepth(
+                    nGbufferUV, nDepth, invViewProjection);
+                float4 nPackedNormal = GET_PIXEL_TEX2D(_normal, nGbufPixel);
+                float nPackedGeometryY = GET_PIXEL_TEX2D(_emissive, nGbufPixel).a;
+                float3 nGeometryNormal = DecodeGeometryNormal(
+                    float2(nPackedNormal.a, nPackedGeometryY));
+                // Orthogonal architecture still contributes at a 0.25 floor
+                // (CE5's fDotTest floor) so concave corners do not starve
+                // the kernel; coplanar taps keep full weight.
+                float normalWeight = NormalSimilarity(
+                    geometryNormal, nGeometryNormal) * 0.75 + 0.25;
+
+                // Independent soft depth tests per layer. The +0.001 floor
+                // keeps every kernel non-empty (CE5 DemosaicPS).
+                float depthTestMin = saturate(
+                    (depthRangeRatio - abs(1.0 - nLinearDepth / max(layerDepthMin, 0.0001))) * 4.0)
+                    + 0.001;
+                float depthTestMax = saturate(
+                    (depthRangeRatio - abs(1.0 - nLinearDepth / max(layerDepthMax, 0.0001))) * 4.0)
+                    + 0.001;
+                weightMin = depthTestMin * normalWeight * phaseWeight;
+                weightMax = depthTestMax * normalWeight * phaseWeight;
             }
             else
             {
-                np.x = clamp(np.x, 0, halfWidth - 1);
+                // Sky taps carry no cone. As in CE5, empty taps still
+                // accumulate with a small floor weight so missing phases
+                // count as black samples instead of breaking the kernel
+                // normalization.
+                weightMin = 0.015 * phaseWeight;
+                weightMax = 0.015 * phaseWeight;
+                diffuseTap = 0.0;
             }
-            np.y = clamp(np.y, 0, (int)atlasRes.y - 1);
 
-            // G-buffer depth at the neighbour for bilateral weighting.
-            int2 nTrace = isSpecular ? np - int2(halfWidth, 0) : np;
-            float2 nTraceUV =
-                (float2(nTrace) + 0.5) / float2(giParams.z, giParams.w);
+            diffuseTap.rgb = ClampRadianceLuminance(
+                diffuseTap.rgb, diffuseMaximumLuminance);
+            layerSumMin += diffuseTap * weightMin;
+            layerSumMax += diffuseTap * weightMax;
+            layerWeightMin += weightMin;
+            layerWeightMax += weightMax;
+            if (max(weightMin, weightMax) > 0.001)
+            {
+                neighborhoodMin = min(neighborhoodMin, diffuseTap);
+                neighborhoodMax = max(neighborhoodMax, diffuseTap);
+            }
+        }
+    }
+
+    // Specular: tight 3x3 bilateral rejection around the receiver with a
+    // sharp normal gate preserves reflection detail.
+    [unroll]
+    for (int sy = -1; sy <= 1; sy++)
+    {
+        [unroll]
+        for (int sx = -1; sx <= 1; sx++)
+        {
+            if (sx == 0 && sy == 0)
+            {
+                continue;
+            }
+            int2 filterOffset = int2(sx, sy);
+            int2 np = clamp(
+                tracePixel + filterOffset,
+                int2(0, 0),
+                int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
+
+            float2 nTraceUV = (float2(np) + 0.5) / float2(traceResolution);
             int2 nGbufPixel = int2(nTraceUV * float2(gbufferRes));
             nGbufPixel = clamp(nGbufPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
             float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
 
             float surfaceW = 0.0;
-            float3 nDetailNormal = N;
+            float3 nDetailNormal = detailNormal;
             if (nDepth < 0.9999)
             {
                 float2 nGbufferUV =
@@ -290,58 +337,37 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     nGbufferUV, nDepth, invViewProjection);
                 float4 nPackedNormal = GET_PIXEL_TEX2D(_normal, nGbufPixel);
                 nDetailNormal = normalize(nPackedNormal.xyz * 2.0 - 1.0);
-                float expectedLinearDepth = currentLinearDepth
-                    + dot(float2(filterOffset), localLinearDepthGradient);
                 float depthTolerance = max(
                     0.035, currentLinearDepth * 0.002)
                     * (1.0 + length(float2(filterOffset)) * 0.08);
                 float depthWeight = exp(
-                    -abs(nLinearDepth - expectedLinearDepth)
+                    -abs(nLinearDepth - currentLinearDepth)
                     / depthTolerance);
                 surfaceW = NormalSimilarity(detailNormal, nDetailNormal)
                     * depthWeight;
             }
-            float spatialW_neighbour;
-            if (phaseBalancedDiffuse)
-            {
-                float phaseWeightX = abs(dx) == 4 ? 0.5 : 1.0;
-                float phaseWeightY = abs(dy) == 4 ? 0.5 : 1.0;
-                spatialW_neighbour = phaseWeightX * phaseWeightY;
-            }
-            else
-            {
-                spatialW_neighbour = exp(
-                    -(dx * dx + dy * dy) / (2.0 * spatialSigma * spatialSigma));
-            }
-
-            // Diffuse uses a deliberately lenient normal-map compatibility
-            // through surfaceW; specular applies a much sharper rejection.
-            float normalW = 1.0;
-            if (isSpecular)
-            {
-                normalW = pow(max(dot(N, nDetailNormal), 0.0), 16.0);
-            }
+            float spatialW_neighbour = exp(
+                -(sx * sx + sy * sy) / (2.0 * spatialSigma * spatialSigma));
+            float normalW = pow(max(dot(detailNormal, nDetailNormal), 0.0), 16.0);
 
             float w = surfaceW * spatialW_neighbour * normalW;
-            float4 neighbourValue = _traceInput.Load(int3(np, 0));
-            if (!isSpecular)
-            {
-                neighbourValue.rgb = ClampRadianceLuminance(
-                    neighbourValue.rgb, diffuseMaximumLuminance);
-            }
-            spatialSum += neighbourValue * w;
-            spatialW += w;
-            if (w > 0.001)
-            {
-                neighborhoodMin = min(neighborhoodMin, neighbourValue);
-                neighborhoodMax = max(neighborhoodMax, neighbourValue);
-            }
+            float4 specularTap = _traceInput.Load(
+                int3(np + int2(halfWidth, 0), 0));
+            specularSum += specularTap * w;
+            specularWeight += w;
         }
     }
-    float4 current = spatialSum / max(spatialW, 0.0001);
 
-    // --- Temporal reprojection ---
-    float4 result = current;
+    // rgb = irradiance, a = per-layer visibility (diagnostic).
+    float4 layerMin = layerSumMin / max(layerWeightMin, 0.0001);
+    float4 layerMax = layerSumMax / max(layerWeightMax, 0.0001);
+    float4 specularCurrent = specularSum / max(specularWeight, 0.0001);
+
+    // --- Temporal reprojection: one shared surface-validity test, then an
+    // independent accumulation per layer ---
+    float4 resultMin = layerMin;
+    float4 resultMax = layerMax;
+    float4 resultSpecular = specularCurrent;
     bool historyAvailable = giFrameParams.z > 0.5;
 
     if (historyAvailable)
@@ -354,17 +380,17 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
             if (all(prevUV >= 0.0) && all(prevUV <= 1.0))
             {
-                int2 previousTracePixel = int2(prevUV * float2(giParams.z, giParams.w));
+                int2 previousTracePixel = int2(prevUV * float2(traceResolution));
                 previousTracePixel = clamp(
                     previousTracePixel,
                     int2(0, 0),
-                    int2(halfWidth - 1, (int)giParams.w - 1));
+                    int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
 
-                // The third history section stores the surface that produced
+                // The fourth history section stores the surface that produced
                 // the sample. Reprojection is accepted only when both linear
                 // depth and world normal still match. This rejects history
                 // revealed from behind an occluder during camera movement.
-                int2 metadataPixel = previousTracePixel + int2(halfWidth * 2, 0);
+                int2 metadataPixel = previousTracePixel + int2(halfWidth * 3, 0);
                 float4 historyMetadata = _historyInput.Load(int3(metadataPixel, 0));
                 float expectedPreviousDepth = abs(prevClip.w);
                 float depthDifference = abs(historyMetadata.x - expectedPreviousDepth);
@@ -378,60 +404,50 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
                 if (historyConfidence > 0.001)
                 {
-                    int2 histPixel = previousTracePixel
-                        + (isSpecular ? int2(halfWidth, 0) : int2(0, 0));
-                    float4 history = _historyInput.Load(int3(histPixel, 0));
+                    float4 historyMin = _historyInput.Load(
+                        int3(previousTracePixel, 0));
+                    float4 historyMax = _historyInput.Load(
+                        int3(previousTracePixel + int2(halfWidth, 0), 0));
+                    float4 historySpecular = _historyInput.Load(
+                        int3(previousTracePixel + int2(halfWidth * 2, 0), 0));
 
-                    if (isSpecular)
-                    {
-                        // Specular samples are deterministic enough that a large
-                        // radiance change usually represents real motion.
-                        float curLum = dot(current.rgb, float3(0.299, 0.587, 0.114));
-                        float histLum = dot(history.rgb, float3(0.299, 0.587, 0.114));
-                        float lumDiff = abs(curLum - histLum) / max(max(curLum, histLum), 0.001);
-                        float visibilityDiff = abs(current.a - history.a);
-                        float change = max(saturate(lumDiff * 3.0), saturate(visibilityDiff * 4.0));
-                        float blendRate = max(
-                            lerp(1.0 - constants.params.x, 1.0, change),
-                            1.0 - historyConfidence);
-                        result = lerp(history, current, blendRate);
-                    }
-                    else
-                    {
-                        // Clamp the reprojected diffuse estimate to the current
-                        // geometry-aware neighborhood, then accumulate it at a
-                        // confidence-weighted rate. Disoccluded pixels use only
-                        // the current frame.
-                        float3 radianceRange = neighborhoodMax.rgb - neighborhoodMin.rgb;
-                        float3 radiancePadding = max(
-                            radianceRange * 0.25,
-                            max(abs(current.rgb) * 0.05, 0.002));
-                        history.rgb = clamp(
-                            history.rgb,
-                            neighborhoodMin.rgb - radiancePadding,
-                            neighborhoodMax.rgb + radiancePadding);
-                        float visibilityRange = neighborhoodMax.a - neighborhoodMin.a;
-                        float visibilityPadding = max(visibilityRange * 0.25, 0.01);
-                        history.a = clamp(
-                            history.a,
-                            neighborhoodMin.a - visibilityPadding,
-                            neighborhoodMax.a + visibilityPadding);
-                        float blendRate = lerp(
-                            1.0,
-                            1.0 - constants.params.z,
-                            historyConfidence);
-                        result = lerp(history, current, blendRate);
-                    }
+                    resultMin = AccumulateDiffuseLayer(
+                        historyMin, layerMin, neighborhoodMin, neighborhoodMax,
+                        constants.params.z, historyConfidence);
+                    resultMax = AccumulateDiffuseLayer(
+                        historyMax, layerMax, neighborhoodMin, neighborhoodMax,
+                        constants.params.z, historyConfidence);
+
+                    // Specular samples are deterministic enough that a large
+                    // radiance change usually represents real motion.
+                    float curLum = dot(specularCurrent.rgb, float3(0.299, 0.587, 0.114));
+                    float histLum = dot(historySpecular.rgb, float3(0.299, 0.587, 0.114));
+                    float lumDiff = abs(curLum - histLum) / max(max(curLum, histLum), 0.001);
+                    float visibilityDiff = abs(specularCurrent.a - historySpecular.a);
+                    float change = max(saturate(lumDiff * 3.0), saturate(visibilityDiff * 4.0));
+                    float specularBlendRate = max(
+                        lerp(1.0 - constants.params.x, 1.0, change),
+                        1.0 - historyConfidence);
+                    resultSpecular = lerp(historySpecular, specularCurrent, specularBlendRate);
                 }
             }
         }
     }
 
-    _indirectGI[pixel] = result;
-    _historyOut[pixel] = result;
-    if (!isSpecular)
-    {
-        _historyOut[uint2(tracePixel.x + halfWidth * 2, tracePixel.y)] =
-            float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
-    }
+    // The visibility shown by the debug view mirrors the lighting pass: the
+    // receiving pixel blends the two layer visibilities by its own depth.
+    float layerLerp = saturate(
+        (currentLinearDepth - layerDepthMin)
+        / max(layerDepthMax - layerDepthMin, 0.0001));
+    float selectedVisibility = lerp(resultMin.a, resultMax.a, layerLerp);
+
+    _indirectGI[tracePixel] = float4(resultMin.rgb, layerDepthMin);
+    _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(resultMax.rgb, layerDepthMax);
+    _indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
+        float4(resultSpecular.rgb, selectedVisibility);
+    _historyOut[tracePixel] = resultMin;
+    _historyOut[tracePixel + int2(halfWidth, 0)] = resultMax;
+    _historyOut[tracePixel + int2(halfWidth * 2, 0)] = resultSpecular;
+    _historyOut[tracePixel + int2(halfWidth * 3, 0)] =
+        float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
 }

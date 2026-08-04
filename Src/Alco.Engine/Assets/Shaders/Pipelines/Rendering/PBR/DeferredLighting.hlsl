@@ -46,7 +46,7 @@ DEFINE_UNIFORM(0, _data)
     float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
     float4 viewportSize;         // xy = render target size in pixels
     float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
-    float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=unused w=unused
+    float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
 };
 
 DEFINE_TEX2D_SAMPLE(1, _albedo);
@@ -55,10 +55,13 @@ DEFINE_TEX2D_SAMPLE(3, _mrAO);
 DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
 DEFINE_TEX2D_SAMPLE(6, _emissive);
-// Indirect GI atlas from the voxel cone tracing pass: twice the trace width.
-// The left half stores total diffuse irradiance (visible directional sky plus
-// bounced surface radiance) in rgb and diagnostic visibility in alpha; the
-// right half stores specular radiance.
+// Indirect GI atlas from the voxel cone tracing resolve: three times the
+// trace width. Sections: diffuse near layer and diffuse far layer (rgb =
+// irradiance, a = layer view-linear depth), then specular radiance (rgb;
+// alpha carries the selected diffuse visibility for the debug view). The
+// lighting pass upscales the two diffuse layers with CE5 UpScalePS's 5-tap
+// depth-weighted kernel at full resolution, keeping occlusion edges sharp at
+// reduced trace resolutions.
 DEFINE_TEX2D_SAMPLE(7, _indirectGI);
 
 [shader("vertex")]
@@ -76,6 +79,17 @@ float3 ReconstructWorldPosition(V2F input)
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, int2(input.uv * viewportSize.xy));
     float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
+}
+
+// View-linear depth of the current pixel from the homogeneous w produced by
+// the inverse view-projection (fourth matrix row only). Matches the metric
+// stored in the GI atlas layer depths.
+float ReconstructLinearDepth(V2F input)
+{
+    float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
+    float depth = GET_PIXEL_TEX2D(_gbufferDepth, int2(input.uv * viewportSize.xy));
+    float reciprocalClipW = dot(invViewProjection[3], float4(ndc, depth, 1.0));
+    return abs(rcp(reciprocalClipW));
 }
 
 float DistributionGGX(float NdotH, float roughness)
@@ -374,10 +388,67 @@ float4 MainPS(V2F input) : SV_TARGET
 
     if (params3.x > 0.5)
     {
-        // The atlas is twice the trace width: diffuse on the left, specular on the right.
-        float2 traceUV = input.uv * float2(0.5, 1.0);
-        float4 indirectDiffuse = SAMPLE_TEX2D(_indirectGI, traceUV);
-        float3 indirectSpecular = SAMPLE_TEX2D(_indirectGI, traceUV + float2(0.5, 0.0)).rgb;
+        // The atlas is three times the trace width: the diffuse near layer and
+        // far layer (rgb = irradiance, a = layer view-linear depth), then
+        // specular (rgb; alpha carries the selected diffuse visibility).
+        float2 traceUV = input.uv * float2(1.0 / 3.0, 1.0);
+        // CE5 UpScalePS: reconstruct the diffuse term at full resolution with
+        // a 5-tap cross kernel over the trace texture. Every tap is bilinearly
+        // filtered, blended between its near/far layers at this pixel's depth,
+        // and weighted by a soft relative-depth test (center counts four
+        // times), so occlusion edges keep full-resolution precision instead
+        // of stair-stepping at trace texels.
+        float linearDepth = ReconstructLinearDepth(input);
+        float2 traceTexel = params4.zw; // one trace texel in segment-local UV
+        float2 atlasTexel = float2(traceTexel.x * (1.0 / 3.0), traceTexel.y);
+        float4 sampleTM = float4(atlasTexel * 1.5, atlasTexel * 0.25);
+        const float2 sampleOffsets[5] =
+        {
+            float2( 0, -1) * sampleTM.xy - sampleTM.zw,
+            float2( 0,  1) * sampleTM.xy - sampleTM.zw,
+            float2(-1,  0) * sampleTM.xy - sampleTM.zw,
+            float2( 1,  0) * sampleTM.xy - sampleTM.zw,
+            float2( 0,  0) * sampleTM.xy - sampleTM.zw,
+        };
+
+        float3 indirectDiffuseSum = 0.0;
+        float indirectDiffuseWeight = 0.0;
+        [unroll]
+        for (int s = 0; s < 5; s++)
+        {
+            float2 tapUV = traceUV + sampleOffsets[s];
+            float4 tapDiffuseMin = SAMPLE_TEX2D(_indirectGI, tapUV);
+            float4 tapDiffuseMax = SAMPLE_TEX2D(_indirectGI, tapUV + float2(1.0 / 3.0, 0.0));
+
+            // CE5 clamps the layer depths at 4 m ("reduce artifacts around 1p
+            // weapon") so near-camera depth ratios cannot explode.
+            float tapDepthMin = max(4.0, tapDiffuseMin.a);
+            float tapDepthMax = max(4.0, tapDiffuseMax.a);
+            float tapLerp = saturate(
+                (linearDepth - tapDepthMin) / max(tapDepthMax - tapDepthMin, 0.0001));
+            float3 tapDiffuse = lerp(tapDiffuseMin.rgb, tapDiffuseMax.rgb, tapLerp);
+            float tapDepth = lerp(tapDepthMin, tapDepthMax, tapLerp);
+
+            // CE5 fDepTest with the 0.25 fDotTest floor (no average light
+            // direction is stored in the atlas to steer rejection).
+            float depthTest = saturate(
+                (0.12 - abs(1.0 - linearDepth / tapDepth)) * 4.0);
+            float tapWeight = depthTest * 0.25;
+            if (s == 4)
+            {
+                tapWeight = saturate(tapWeight * 4.0);
+            }
+            tapWeight += 0.001;
+
+            indirectDiffuseSum += tapDiffuse * tapWeight;
+            indirectDiffuseWeight += tapWeight;
+        }
+
+        float4 indirectSpecularSection = SAMPLE_TEX2D(_indirectGI, traceUV + float2(2.0 / 3.0, 0.0));
+        float4 indirectDiffuse = float4(
+            indirectDiffuseSum / indirectDiffuseWeight,
+            indirectSpecularSection.a);
+        float3 indirectSpecular = indirectSpecularSection.rgb;
 
         // Debug: visualize bounce radiance, specular radiance, or voxel
         // environment visibility (white=open, black=occluded).

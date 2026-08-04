@@ -1199,7 +1199,7 @@ public class Game : GameEngine
                 _voxelGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
                 _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
             }
-            ImGui.Text($"GI trace resolution: {_voxelGI.IndirectTexture.Width / 2}x{_voxelGI.IndirectTexture.Height}");
+            ImGui.Text($"GI trace resolution: {_voxelGI.IndirectTexture.Width / 3}x{_voxelGI.IndirectTexture.Height}");
             string[] giDebugModes = [
                 "Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility",
                 "Raw Diffuse Trace",

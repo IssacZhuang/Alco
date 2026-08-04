@@ -182,7 +182,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 ViewportSize;
         /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility).</summary>
         public Vector4 Params3;
-        /// <summary>x=sunDiscSize (cosine angular threshold, higher = smaller disc), y=sunDiscBrightness (HDR visual brightness independent of lighting intensity), z=unused, w=unused.</summary>
+        /// <summary>x=sunDiscSize (cosine angular threshold, higher = smaller disc), y=sunDiscBrightness (HDR visual brightness independent of lighting intensity), z=1/GI trace width, w=1/GI trace height (filled by the pipeline, 0 when GI is off).</summary>
         public Vector4 Params4;
 
         /// <summary>
@@ -524,8 +524,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <summary>
     /// Set the indirect radiance atlas sampled by the lighting pass (bind group 7
     /// of the lighting shader), typically produced by a <see cref="VoxelGiRenderer"/>
-    /// (total diffuse irradiance in the left half, specular in the right half). Pass null
-    /// to fall back to a black texture; the GI ambient term itself is toggled via
+    /// (three sections at three times the trace width: diffuse near layer, diffuse
+    /// far layer, specular). Pass null to fall back to a black texture; the GI
+    /// ambient term itself is toggled via
     /// <see cref="DeferredLightingData.Params3"/> (x component).
     /// </summary>
     /// <param name="indirectGI">The gathered diffuse/specular radiance atlas, or null.</param>
@@ -832,10 +833,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// (typically the engine's HDR main target).
     /// </summary>
     /// <param name="target">The frame buffer to render the lighting result into.</param>
-    /// <param name="data">Per-frame lighting data; <see cref="DeferredLightingData.ViewportSize"/> is filled by the pipeline.</param>
+    /// <param name="data">Per-frame lighting data; <see cref="DeferredLightingData.ViewportSize"/> and the GI trace texel size in <see cref="DeferredLightingData.Params4"/> (z/w) are filled by the pipeline.</param>
     public void RenderLighting(GPUFrameBuffer target, ref DeferredLightingData data)
     {
         data.ViewportSize = new Vector4(_gbufferRT.Width, _gbufferRT.Height, 0, 0);
+        // Section-local size of one GI trace texel for the CE5-style depth-weighted
+        // upscale kernel; the atlas is three times the trace width. Zero when no GI
+        // atlas is bound (the lighting shader skips the GI path then anyway).
+        data.Params4.Z = _indirectGI != null ? 3.0f / _indirectGI.Width : 0.0f;
+        data.Params4.W = _indirectGI != null ? 1.0f / _indirectGI.Height : 0.0f;
         _lightingDataBuffer.UpdateBuffer(data);
         _lightingContext.Begin(target);
         _lightingContext.Draw(_fullScreenMesh, _lightingMaterial);

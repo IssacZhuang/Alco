@@ -96,9 +96,9 @@ public readonly struct VoxelGiStatistics
 /// Structural bricks are rebuilt incrementally after edits or camera scrolling.
 /// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting
 /// pass; the resulting configurable-resolution <see cref="IndirectTexture"/>
-/// atlas (visible sky plus diffuse bounce in the left half, specular in the
-/// right half) is sampled by the deferred lighting pass
-/// (see <see cref="PBRDeferredPipeline.SetGlobalIllumination"/>).
+/// atlas (diffuse near/far layers with layer depths, then specular) is sampled
+/// by the deferred lighting pass, which blends the layers at full-resolution
+/// depth (see <see cref="PBRDeferredPipeline.SetGlobalIllumination"/>).
 /// <br/>Attribute voxels live in storage buffers (packed, point-sampled by the
 /// injection pass); the HDR radiance volume is one mip-mapped RGBA16Float
 /// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
@@ -389,10 +389,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
     public VoxelGiStatistics Statistics { get; private set; }
 
     /// <summary>
-    /// The gathered indirect radiance atlas (twice the configured trace width:
-    /// visible sky plus diffuse bounce in left-half rgb, diagnostic visibility
-    /// in left-half alpha, and specular radiance in the right half), sampled by
-    /// the deferred lighting pass.
+    /// The gathered indirect radiance atlas (three times the configured trace
+    /// width: diffuse near layer and diffuse far layer with their view-linear
+    /// layer depths in alpha, then specular radiance), sampled by the deferred
+    /// lighting pass, which blends the diffuse layers at full-resolution depth.
     /// </summary>
     public RenderTexture IndirectTexture => _indirectAtlas;
 
@@ -532,12 +532,13 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
         uint traceWidth = TraceWidth(_gbufferWidth);
         uint traceHeight = TraceHeight(_gbufferHeight);
-        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 2, traceHeight, "voxel_indirect_gi");
+        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_indirect_gi");
         _traceRaw = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 2, traceHeight, "voxel_trace_raw");
-        // History has a third section for linear depth and world normal. The
-        // current GI atlas remains two sections wide; metadata is temporal-only.
-        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_history_a");
-        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_history_b");
+        // The resolve writes diffuse near/far layers plus specular (three
+        // sections); history adds a fourth section for linear depth and world
+        // normal used by temporal disocclusion rejection.
+        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_a");
+        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
@@ -755,13 +756,13 @@ public sealed class VoxelGiRenderer : AutoDisposable
         try
         {
             newIndirectAtlas = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth * 2, traceHeight, "voxel_indirect_gi");
+                _rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_indirect_gi");
             newTraceRaw = _rendering.CreateRenderTexture(
                 _rendering.PreferredLightMapPass, traceWidth * 2, traceHeight, "voxel_trace_raw");
             newHistoryA = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_history_a");
+                _rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_a");
             newHistoryB = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_history_b");
+                _rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_b");
         }
         catch
         {
@@ -1035,15 +1036,17 @@ public sealed class VoxelGiRenderer : AutoDisposable
             // Gather rotation-balanced narrow-cone diffuse and specular.
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
-            // Geometry-aware bilateral resolve followed by validated history.
+            // CE5-style dual-layer diffuse resolve plus specular, one thread
+            // per trace pixel writing all three atlas sections, followed by
+            // validated per-layer history accumulation.
             int historyRead = _historyReadIndex;
             int historyWrite = 1 - historyRead;
             _demosaicMaterial.SetRenderTexture("_historyInput", _historyGI[historyRead], 0);
             _demosaicMaterial.SetRenderTexture("_historyOut", _historyGI[historyWrite], 0);
             _demosaicMaterial.DispatchBySizeWithConstant(
                 computePass,
-                _indirectAtlas.Width,
-                _indirectAtlas.Height,
+                traceWidth,
+                _traceRaw.Height,
                 1,
                 new Vector4(TemporalHysteresis, 1.0f, DiffuseTemporalHysteresis, 0.0f));
         }

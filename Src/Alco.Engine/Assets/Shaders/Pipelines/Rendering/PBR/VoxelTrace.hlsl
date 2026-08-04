@@ -5,10 +5,14 @@
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the configured
 // screen-space trace resolution. Reconstructs world position and normal from the
 // G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
-// cones plus one specular cone through the radiance volume. The result
-// is written into the output atlas (twice the trace width): total diffuse
-// irradiance (visible sky plus bounced radiance) and diagnostic visibility in
-// the left half, specular radiance in the right half.
+// cones plus one specular cone through the radiance volume. Diffuse cones use
+// a 2x2 depth-weighted averaged geometry normal (CE5 GetAverNormAndSmooth) so
+// cone directions stay stable across edges and tessellated relief. The 8x8
+// direction tile rotates through eight assignments over eight frames (CE5
+// SvoTracePS), letting the temporal resolve average out per-direction voxel
+// quantization. The result is written into the output atlas (twice the trace
+// width): total diffuse irradiance (visible sky plus bounced radiance) and
+// diagnostic visibility in the left half, specular radiance in the right half.
 
 DEFINE_TEX3D_SAMPLE(1, _radiance);
 DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
@@ -75,6 +79,15 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
     float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
+}
+
+// Recover view-linear depth from the homogeneous w produced by the inverse
+// view-projection (fourth matrix row only).
+float ReconstructLinearDepth(float2 uv, float depth)
+{
+    float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+    float reciprocalClipW = dot(invViewProjection[3], float4(ndc, depth, 1.0));
+    return abs(rcp(reciprocalClipW));
 }
 
 float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal)
@@ -303,12 +316,17 @@ float4 TraceCone(
         float mip = clamp(log2(diameter / voxelSize), 0.0,
             min(mipCount - 1.0, VOXEL_BRICK_ALIGNED_MAX_MIP));
         float4 sample = SampleRadianceBlended(position, level, mip, absDir, levelChanged);
+        // CE5 ConeTraceBrick fades radiance over the first voxel of travel so
+        // a voxel right at the cone origin cannot fully contribute. This
+        // suppresses residual self-intersection acne on top of the receiver
+        // bias; occupancy still accumulates unfaded.
+        float nearFade = saturate(t / voxelSize);
         // A one-footprint step is sufficient for diffuse cones because the
         // sampled mip already represents that footprint. Specular passes 0.5
         // to retain the previous oversampling needed by sharp reflections.
         float marchDistance = max(effectiveVoxelSize, diameter) * marchStepScale;
 
-        color += (1.0 - alpha) * sample.a * sample.rgb;
+        color += (1.0 - alpha) * sample.a * sample.rgb * nearFade;
         alpha += (1.0 - alpha) * sample.a;
         t += marchDistance;
     }
@@ -324,9 +342,15 @@ float4 TraceCone(
     return float4(color, alpha);
 }
 
-// Trace one deterministic member of the tiled diffuse kernel per pixel. The
-// demosaic pass gathers the complete 8x8 tile, as in CE5, so temporal history
-// remains a denoising aid rather than being required for angular convergence.
+// Trace one member of the tiled diffuse kernel per pixel. The demosaic pass
+// gathers the complete 8x8 tile, as in CE5, so temporal history remains a
+// denoising aid rather than being required for angular convergence. As in CE5
+// SvoTracePS the assignment rotates every frame: odd frames use the
+// complementary half of the 64-direction kernel and the azimuth is mirrored
+// on a four-frame cycle, so the temporal accumulation integrates several
+// direction sets per pixel instead of converging onto the voxel-quantization
+// pattern of one static direction (visible as teeth along occlusion
+// boundaries).
 float4 TraceDiffuseCones(
     float3 startPosition,
     float3 normal,
@@ -335,8 +359,12 @@ float4 TraceDiffuseCones(
 {
     float3x3 tbn = GetTangentBasis(normal);
     uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
-    uint sequenceIndex = DIFFUSE_DIRECTION_TILE[tileIndex];
+    uint frameIndex = uint(giFrameParams.x);
+    uint sequenceIndex =
+        (DIFFUSE_DIRECTION_TILE[tileIndex] + (frameIndex & 1u) * 32u) & 63u;
     float3 kernelDirection = GetDiffuseKernelDirection(sequenceIndex);
+    if ((frameIndex & 2u) != 0u) kernelDirection.x = -kernelDirection.x;
+    if ((frameIndex & 4u) != 0u) kernelDirection.y = -kernelDirection.y;
     float3 worldDir = normalize(mul(kernelDirection, tbn));
     float4 coneResult = TraceCone(
         startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0);
@@ -372,10 +400,55 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 packedAlbedo = GET_PIXEL_TEX2D(_albedo, gbufferPixel);
     float packedGeometryY = GET_PIXEL_TEX2D(_emissive, gbufferPixel).a;
     float3 detailNormal = normalize(packedNormal.xyz * 2.0 - 1.0);
-    float3 N = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
+    float3 geometryNormal = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
     float roughness = packedAlbedo.a;
     float3 V = normalize(cameraPosition.xyz - worldPosition);
     float maxDistance = giParams.y;
+
+    // CE5 GetAverNormAndSmooth: trace with a 2x2 depth-weighted averaged
+    // geometry normal instead of the raw per-pixel normal. The relative depth
+    // test keeps normals from the far side of a depth discontinuity out of
+    // the average, so cone directions stay stable across edges and over
+    // tessellated relief instead of picking per-pixel directions.
+    float centerLinearDepth = ReconstructLinearDepth(gbufferUV, depth);
+    float3 N = geometryNormal;
+    {
+        float3 averagedNormal = 0.0;
+        float averagedWeight = 0.0;
+        [unroll]
+        for (int normalY = 0; normalY <= 1; normalY++)
+        {
+            [unroll]
+            for (int normalX = 0; normalX <= 1; normalX++)
+            {
+                int2 normalPixel = clamp(
+                    gbufferPixel + int2(normalX, normalY),
+                    int2(0, 0),
+                    int2(gbufferResolution) - 1);
+                float sampleDepth = GET_PIXEL_TEX2D(_gbufferDepth, normalPixel);
+                if (sampleDepth >= 0.9999)
+                {
+                    continue;
+                }
+                float2 sampleUV =
+                    (float2(normalPixel) + 0.5) / float2(gbufferResolution);
+                float sampleLinearDepth = ReconstructLinearDepth(
+                    sampleUV, sampleDepth);
+                float sampleWeight = saturate(
+                    0.12 - abs(1.0 - sampleLinearDepth / max(centerLinearDepth, 0.0001)))
+                    + 0.001;
+                float4 samplePackedNormal = GET_PIXEL_TEX2D(_normal, normalPixel);
+                float samplePackedGeometryY = GET_PIXEL_TEX2D(_emissive, normalPixel).a;
+                averagedNormal += DecodeGeometryNormal(float2(
+                    samplePackedNormal.a, samplePackedGeometryY)) * sampleWeight;
+                averagedWeight += sampleWeight;
+            }
+        }
+        if (averagedWeight > 0.001)
+        {
+            N = normalize(averagedNormal / averagedWeight);
+        }
+    }
 
     // Bias by the voxel size of the finest clipmap level that contains this
     // surface. Using the global finest size self-intersects surfaces represented
