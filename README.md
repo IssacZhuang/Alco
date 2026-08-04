@@ -9,6 +9,7 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 - Windows only; Linux and macOS are untested
 - Modern graphics API support through WGPU
 - Comprehensive rendering pipeline
+- Voxel Cone Tracing Global Illumination (SVOGI-style sparse voxel GI)
 - High performance math and spatial implementation
 - Audio system (via OpenAL Soft)
 - Input/Output handling
@@ -45,7 +46,9 @@ You can also include it as a git submodule if preferred.
 - .NET 10.0 SDK
 - Visual Studio 2022 or compatible IDE
 
-## Third-Party Libraries
+## Credits
+
+### Third-Party Libraries
 
 - [Silk.NET](https://github.com/dotnet/Silk.NET): OpenAL audio and SPIR-V reflection
 - [Alimer.Bindings.WebGPU](https://github.com/amerkoleci/Alimer.Bindings.WebGPU): WebGPU API bindings (embedded as source code and modified)
@@ -58,6 +61,10 @@ You can also include it as a git submodule if preferred.
 - [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo): Algorithm reference for the built-in C# manipulation gizmo (Src/Alco.ImGUI/Gizmo, no longer a runtime dependency)
 
 All external libraries are used under their respective licenses, primarily MIT License.
+
+### Algorithm References
+
+- The Global Illumination system (Voxel Cone Tracing / SVOGI) references the algorithm design and parameter choices of CRYENGINE 5's SVOTI (Sparse Voxel Octree Total Illumination).
 
 ## Notice
 

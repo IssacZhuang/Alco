@@ -373,18 +373,18 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
     /// <summary>
     /// Gets or sets the diffuse temporal hysteresis (0..1), independently from
-    /// specular. The diffuse direction tile uses a four-frame azimuth mirror
-    /// (CE5 SvoTracePS), so the history window needs ~5 frames to cover the
-    /// cycle: 0.8 averages roughly five frames, matching CE5's effective
-    /// base blend rate of ~0.0625 while avoiding the trailing residual of 0.9.
+    /// specular. The diffuse direction tile uses a four-frame azimuth mirror,
+    /// so the history window needs ~5 frames to cover the cycle: 0.8 averages
+    /// roughly five frames, yielding an effective base blend rate of ~0.0625
+    /// while avoiding the trailing residual of 0.9.
     /// </summary>
     public float DiffuseTemporalHysteresis { get; set; } = 0.8f;
 
     /// <summary>
-    /// Gets or sets the diffuse spreading amount (CE5 e_svoTI_Diffuse_Spr) for
-    /// the dual-kernel opacity bias. Lowers the elevation of each diffuse cone
-    /// toward the surface tangent, gathering more near-field occlusion for
-    /// stronger contact AO. Zero disables the effect (radiance kernel only).
+    /// Gets or sets the diffuse spreading amount for the dual-kernel opacity
+    /// bias. Lowers the elevation of each diffuse cone toward the surface
+    /// tangent, gathering more near-field occlusion for stronger contact AO.
+    /// Zero disables the effect (radiance kernel only).
     /// </summary>
     public float DiffuseSpreading { get; set; } = 0.0f;
 
@@ -1106,9 +1106,9 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _traceMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
-            // CE5-style dual-layer diffuse resolve plus specular, one thread
-            // per trace pixel writing all three atlas sections, followed by
-            // validated per-layer history accumulation.
+            // Dual-layer diffuse resolve plus specular, one thread per trace
+            // pixel writing all three atlas sections, followed by validated
+            // per-layer history accumulation.
             int historyRead = _historyReadIndex;
             int historyWrite = 1 - historyRead;
             _demosaicMaterial.SetRenderTexture("_historyInput", _historyGI[historyRead], 0);

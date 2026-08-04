@@ -2,21 +2,21 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
-// CE5-style Min/Max dual-layer spatial resolve and temporal accumulation for
+// Min/Max dual-layer spatial resolve and temporal accumulation for
 // voxel GI. One thread per trace pixel: every tap of the 8x8 direction-tile
 // footprint is accumulated into a near (depthMin) and a far (depthMax) surface
 // layer using soft relative depth tests, so a geometry edge keeps a nearly
 // complete directional kernel on both of its sides instead of a rejected,
 // degenerate one. The two layers are written to separate atlas sections with
 // their layer linear depths in alpha; the deferred lighting pass then blends
-// the layers at full-resolution depth (CE5 UpScalePS), so occlusion
+// the layers at full-resolution depth (the upscale pass), so occlusion
 // boundaries stay sharp at every trace resolution. Validated reprojection
 // accumulates each layer independently. Specular keeps a small sharp
 // footprint to preserve detail.
 //
-// ALD (Average Light Direction, CE5 ConeTracePS/UpScalePS) is accumulated
-// alongside RGB with the same bilateral weights. The deferred lighting pass
-// uses ALD to give indirect light a directional diffuse response.
+// ALD (Average Light Direction) is accumulated alongside RGB with the same
+// bilateral weights. The deferred lighting pass uses ALD to give indirect
+// light a directional diffuse response.
 //
 // Indirect atlas layout (5x trace width), sampled by DeferredLighting:
 //   [0] diffuse near layer: rgb = irradiance, a = near layer linear depth
@@ -176,18 +176,18 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
-    // Match CE5's bounded HDR resolve without using neighbouring screen phases
-    // as a firefly oracle. A valid small light source may occur in only one
-    // member of the tiled angular kernel; clamping it to the four immediate
-    // neighbours deletes real bounce light before the phase resolve. The fixed
-    // ceiling only catches non-physical emissive outliers.
+    // Bounded HDR resolve without using neighbouring screen phases as a
+    // firefly oracle. A valid small light source may occur in only one member
+    // of the tiled angular kernel; clamping it to the four immediate neighbours
+    // deletes real bounce light before the phase resolve. The fixed ceiling
+    // only catches non-physical emissive outliers.
     float diffuseMaximumLuminance = 8.0;
 
-    // CE5 GetAverNormAndSmooth: the receiving surface layers are the min
-    // and max linear depth inside a 2x2 G-buffer neighborhood. At a depth
-    // discontinuity, foreground taps accumulate into the near layer and
-    // background taps into the far layer, so each side of the edge keeps a
-    // nearly complete directional kernel instead of a rejected fraction.
+    // The receiving surface layers are the min and max linear depth inside a
+    // 2x2 G-buffer neighborhood. At a depth discontinuity, foreground taps
+    // accumulate into the near layer and background taps into the far layer,
+    // so each side of the edge keeps a nearly complete directional kernel
+    // instead of a rejected fraction.
     float layerDepthMin = currentLinearDepth;
     float layerDepthMax = currentLinearDepth;
     [unroll]
@@ -218,8 +218,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     centerSpecular.rgb = ClampRadianceLuminance(
         centerSpecular.rgb, diffuseMaximumLuminance);
 
-    // CE5's depth acceptance is a relative ratio widened at grazing view
-    // angles, not an absolute centimeter tolerance.
+    // The depth acceptance is a relative ratio widened at grazing view angles,
+    // not an absolute centimeter tolerance.
     float3 viewDirection = normalize(cameraPosition.xyz - worldPos);
     float viewFacing = abs(dot(viewDirection, geometryNormal));
     float depthRangeRatio = 0.12 + 0.08 * (1.0 - viewFacing);
@@ -236,8 +236,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 neighborhoodMin = centerDiffuse;
     float4 neighborhoodMax = centerDiffuse;
 
-    // --- ALD accumulation state (CE5 DemosaicPS accumulates vALD alongside
-    // vRGB with identical bilateral weights) ---
+    // --- ALD accumulation state (accumulated alongside RGB with identical
+    // bilateral weights) ---
     float4 layerAldSumMin = centerAld * 0.001;
     float4 layerAldSumMax = centerAld * 0.001;
     float aldWeightMin = 0.001;
@@ -257,10 +257,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         [unroll]
         for (int dx = -4; dx <= 4; dx++)
         {
-            // Diffuse gathers one complete, contiguous CE-style direction
-            // tile. Its 9x9 footprint is tighter than the previous sparse
-            // 13x13 footprint even though it reconstructs many more
-            // directions.
+            // Diffuse gathers one complete, contiguous direction tile. Its
+            // 9x9 footprint is tighter than the previous sparse 13x13
+            // footprint even though it reconstructs many more directions.
             int2 filterOffset = int2(dx, dy);
             int2 np = clamp(
                 tracePixel + filterOffset,
@@ -274,9 +273,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
 
             float4 diffuseTap = _traceInput.Load(int3(np, 0));
-            // CE5 DemosaicPS accumulates ALD with the same bilateral weights
-            // as RGB. ALD is a direction-weighted value, not HDR color, so no
-            // luminance clamping is applied.
+            // ALD accumulates with the same bilateral weights as RGB. ALD is
+            // a direction-weighted value, not HDR color, so no luminance
+            // clamping is applied.
             float4 aldTap = _traceInput.Load(int3(np + int2(halfWidth * 2, 0), 0));
 
             float phaseWeightX = abs(dx) == 4 ? 0.5 : 1.0;
@@ -296,13 +295,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float3 nGeometryNormal = DecodeGeometryNormal(
                     float2(nPackedNormal.a, nPackedGeometryY));
                 // Orthogonal architecture still contributes at a 0.25 floor
-                // (CE5's fDotTest floor) so concave corners do not starve
-                // the kernel; coplanar taps keep full weight.
+                // so concave corners do not starve the kernel; coplanar taps
+                // keep full weight.
                 float normalWeight = NormalSimilarity(
                     geometryNormal, nGeometryNormal) * 0.75 + 0.25;
 
                 // Independent soft depth tests per layer. The +0.001 floor
-                // keeps every kernel non-empty (CE5 DemosaicPS).
+                // keeps every kernel non-empty.
                 float depthTestMin = saturate(
                     (depthRangeRatio - abs(1.0 - nLinearDepth / max(layerDepthMin, 0.0001))) * 4.0)
                     + 0.001;
@@ -314,10 +313,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             }
             else
             {
-                // Sky taps carry no cone. As in CE5, empty taps still
-                // accumulate with a small floor weight so missing phases
-                // count as black samples instead of breaking the kernel
-                // normalization.
+                // Sky taps carry no cone. Empty taps still accumulate with
+                // a small floor weight so missing phases count as black
+                // samples instead of breaking the kernel normalization.
                 weightMin = 0.015 * phaseWeight;
                 weightMax = 0.015 * phaseWeight;
                 diffuseTap = 0.0;
@@ -437,9 +435,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     int2(0, 0),
                     int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
 
-                // CE5 GetBlendMin uses a depth RATIO (not absolute difference)
-                // to gradually increase the current-frame blend weight. An
-                // absolute tolerance (7.5 cm) is far too strict for geometric
+                // The depth RATIO (not absolute difference) gradually
+                // increases the current-frame blend weight. An absolute
+                // tolerance (7.5 cm) is far too strict for geometric
                 // features: a window recess or eave at 5 m has 20-30 cm of
                 // depth change, which would completely discard temporal
                 // history on every frame the half-resolution trace pixel
@@ -498,14 +496,14 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                         specularNeighborhoodMin - specularPadding,
                         specularNeighborhoodMax + specularPadding);
 
-                    // CE5 GetBlendMin (Total_Illumination.cfx:910-927) drives
-                    // the specular temporal blend by camera-motion displacement,
-                    // not luminance change alone. When the reprojected UV
-                    // shifts more than 2.5% of the screen, the blend ramps to
-                    // 1.0 (full current frame) — a reflection highlight sliding
-                    // across the surface changes brightness little at any given
-                    // pixel, so a luminance-only trigger lets stale history
-                    // persist and then pop when the highlight arrives.
+                    // The specular temporal blend is driven by camera-motion
+                    // displacement, not luminance change alone. When the
+                    // reprojected UV shifts more than 2.5% of the screen, the
+                    // blend ramps to 1.0 (full current frame) — a reflection
+                    // highlight sliding across the surface changes brightness
+                    // little at any given pixel, so a luminance-only trigger
+                    // lets stale history persist and then pop when the
+                    // highlight arrives.
                     float2 motionVector = prevUV - traceUV;
                     float motionDist = length(motionVector);
                     float motionBlend = saturate(motionDist / 0.025);

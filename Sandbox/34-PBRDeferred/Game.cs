@@ -1197,7 +1197,7 @@ public class Game : GameEngine
             ImGui.TextDisabled("(?)");
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Dual-kernel opacity bias (CE5 e_svoTI_Diffuse_Spr).\nLowers cone elevation toward the tangent for stronger contact AO.");
+                ImGui.SetTooltip("Diffuse spreading amount for the dual-kernel opacity bias.\nLowers cone elevation toward the tangent for stronger contact AO.");
             }
             if (ImGui.Combo(
                 "GI Resolution",

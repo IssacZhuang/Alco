@@ -6,12 +6,13 @@
 // screen-space trace resolution. Reconstructs world position and normal from the
 // G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
 // cones plus one specular cone through the radiance volume. Diffuse cones use
-// a 2x2 depth-weighted averaged geometry normal (CE5 GetAverNormAndSmooth) so
-// cone directions stay stable across edges and tessellated relief. The kernel
-// azimuth is mirrored on a four-frame cycle (CE5 SvoTracePS), letting the
-// temporal resolve average out per-direction voxel quantization. The result is written into the output atlas (twice the trace
-// width): total diffuse irradiance (visible sky plus bounced radiance) and
-// diagnostic visibility in the left half, specular radiance in the right half.
+// a 2x2 depth-weighted averaged geometry normal so cone directions stay stable
+// across edges and tessellated relief. The kernel azimuth is mirrored on a
+// four-frame cycle, letting the temporal resolve average out per-direction
+// voxel quantization. The result is written into the output atlas (twice the
+// trace width): total diffuse irradiance (visible sky plus bounced radiance)
+// and diagnostic visibility in the left half, specular radiance in the right
+// half.
 
 DEFINE_TEX3D_SAMPLE(1, _radiance);
 DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
@@ -21,8 +22,8 @@ DEFINE_TEX2D_STORAGE(5, _indirectGI, float4, "rgba16f");
 DEFINE_TEX3D_SAMPLE(6, _opacity);
 DEFINE_TEX2D_READ(7, _albedo);
 
-// CE5 distributes a large cosine-hemisphere kernel across a screen tile and
-// resolves the complete tile. Trace one direction at each 8x8 screen phase;
+// A large cosine-hemisphere kernel is distributed across a screen tile and
+// resolved as a complete tile. Trace one direction at each 8x8 screen phase;
 // the resolve integrates all 64 directions. This is both more complete and
 // cheaper than tracing four directions chosen from a two-polar-angle kernel.
 static const float DIFFUSE_CONE_APERTURE = 1.0 / 24.0;
@@ -260,7 +261,7 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
         }
     }
 
-    // CE5 projects directional opacity onto the absolute ray direction. Do not
+    // Directional opacity is projected onto the absolute ray direction. Do not
     // add an isotropic occupancy floor: it turns thin surfaces into volumetric
     // occluders and produces broad darkening around otherwise open receivers.
     float voxelAlpha = saturate(dot(opaSample.xyz, absDir));
@@ -269,7 +270,7 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
 
 // March one cone through the clipmap, accumulating radiance front-to-back.
 // Uses anisotropic directional opacity: alpha at each step is projected from
-// the opacity volume's xyz onto |cone direction|, matching CryEngine SVOGI.
+// the opacity volume's xyz onto |cone direction|.
 // Returns rgb = gathered surface radiance plus visible sky, a = accumulated
 // occlusion. The caller selects whether the unoccluded cone reaches the sky.
 float4 TraceCone(
@@ -315,10 +316,10 @@ float4 TraceCone(
         float mip = clamp(log2(diameter / voxelSize), 0.0,
             min(mipCount - 1.0, VOXEL_BRICK_ALIGNED_MAX_MIP));
         float4 sample = SampleRadianceBlended(position, level, mip, absDir);
-        // CE5 ConeTraceBrick fades radiance over the first voxel of travel so
-        // a voxel right at the cone origin cannot fully contribute. This
-        // suppresses residual self-intersection acne on top of the receiver
-        // bias; occupancy still accumulates unfaded.
+        // Radiance is faded over the first voxel of travel so a voxel right at
+        // the cone origin cannot fully contribute. This suppresses residual
+        // self-intersection acne on top of the receiver bias; occupancy still
+        // accumulates unfaded.
         float nearFade = saturate(t / voxelSize);
         // A one-footprint step is sufficient for diffuse cones because the
         // sampled mip already represents that footprint. Specular passes 0.5
@@ -342,17 +343,16 @@ float4 TraceCone(
 }
 
 // Trace one member of the tiled diffuse kernel per pixel. The demosaic pass
-// gathers the complete 8x8 tile, as in CE5, so temporal history remains a
-// denoising aid rather than being required for angular convergence. As in CE5
-// SvoTracePS the assignment rotates per frame: the kernel azimuth is mirrored
-// on a four-frame cycle, so the temporal accumulation integrates several
-// direction sets per pixel instead of converging onto the voxel-quantization
-// pattern of one static direction (visible as teeth along occlusion
-// boundaries).
+// gathers the complete 8x8 tile, so temporal history remains a denoising aid
+// rather than being required for angular convergence. The assignment rotates
+// per frame: the kernel azimuth is mirrored on a four-frame cycle, so the
+// temporal accumulation integrates several direction sets per pixel instead
+// of converging onto the voxel-quantization pattern of one static direction
+// (visible as teeth along occlusion boundaries).
 //
-// CE5 ConeTracePS accumulates ALD (Average Light Direction) alongside RGB:
-//   vALD.xyz += r.direction * brightness
-//   vALD.w   += brightness
+// ALD (Average Light Direction) is accumulated alongside RGB:
+//   ald.xyz += direction * brightness
+//   ald.w   += brightness
 // The deferred lighting pass uses ALD to give indirect light a directional
 // diffuse response instead of treating it as flat ambient. Each trace pixel
 // traces one cone, so it outputs one ALD contribution; the demosaic pass
@@ -366,27 +366,27 @@ float4 TraceDiffuseCones(
 {
     float3x3 tbn = GetTangentBasis(normal);
     uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
-    // CE5 SvoTracePS rotates the kernel assignment per frame so the temporal
-    // accumulation integrates several direction sets per pixel instead of
-    // converging onto one static direction's voxel-quantization pattern
-    // (visible as teeth along occlusion boundaries). Only the azimuth is
-    // mirrored, on a four-frame cycle: swapping in the complementary half of
-    // the kernel (CE5's odd-frame behavior) trades the elevation stratum of
-    // every pixel each frame, which oscillates the accumulated value at
-    // occlusion terminators faster than the history window can settle.
+    // The kernel assignment rotates per frame so the temporal accumulation
+    // integrates several direction sets per pixel instead of converging onto
+    // one static direction's voxel-quantization pattern (visible as teeth
+    // along occlusion boundaries). Only the azimuth is mirrored, on a
+    // four-frame cycle: swapping in the complementary half of the kernel
+    // trades the elevation stratum of every pixel each frame, which
+    // oscillates the accumulated value at occlusion terminators faster than
+    // the history window can settle.
     uint frameIndex = uint(giFrameParams.x);
     float3 kernelDirection = GetDiffuseKernelDirection(DIFFUSE_DIRECTION_TILE[tileIndex]);
     if ((frameIndex & 1u) != 0u) kernelDirection.x = -kernelDirection.x;
     if ((frameIndex & 2u) != 0u) kernelDirection.y = -kernelDirection.y;
 
-    // CE5 dual-kernel (Total_Illumination.cfx:1524-1551): an "opacity" kernel
-    // lowers the cone elevation toward the surface tangent, gathering more
-    // near-field occlusion for stronger contact AO. CE5 blends between the
-    // radiance and opacity directions via lerp(kernOpa, kern, transmittance*4):
-    // opaque surfaces (transmittance 0) use the lowered direction; transparent
-    // surfaces fall back to the radiance direction. Alco has no transmittance
-    // channel, so the blend always resolves to the opacity direction. With
-    // DiffuseSpreading=0 the direction is unchanged (identity).
+    // Dual-kernel approach: an "opacity" kernel lowers the cone elevation
+    // toward the surface tangent, gathering more near-field occlusion for
+    // stronger contact AO. The radiance and opacity directions are blended via
+    // lerp(kernOpa, kern, transmittance*4): opaque surfaces (transmittance 0)
+    // use the lowered direction; transparent surfaces fall back to the radiance
+    // direction. Alco has no transmittance channel, so the blend always
+    // resolves to the opacity direction. With DiffuseSpreading=0 the direction
+    // is unchanged (identity).
     float3 opacityDirection = kernelDirection;
     opacityDirection.z -= giFrameParams.w;
     kernelDirection = normalize(opacityDirection);
@@ -433,11 +433,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 V = normalize(cameraPosition.xyz - worldPosition);
     float maxDistance = giParams.y;
 
-    // CE5 GetAverNormAndSmooth: trace with a 2x2 depth-weighted averaged
-    // geometry normal instead of the raw per-pixel normal. The relative depth
-    // test keeps normals from the far side of a depth discontinuity out of
-    // the average, so cone directions stay stable across edges and over
-    // tessellated relief instead of picking per-pixel directions.
+    // Trace with a 2x2 depth-weighted averaged geometry normal instead of the
+    // raw per-pixel normal. The relative depth test keeps normals from the
+    // far side of a depth discontinuity out of the average, so cone directions
+    // stay stable across edges and over tessellated relief instead of picking
+    // per-pixel directions.
     float centerLinearDepth = ReconstructLinearDepth(gbufferUV, depth);
     float3 N = geometryNormal;
     {
@@ -496,12 +496,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 diffuse = diffuseResult.rgb;
 
     // Specular: one deterministic cone along the reflection direction using
-    // the detail (normal-map) normal. CE5 ConeTracePS uses the averaged
-    // geometry normal here for temporal stability, but that strips normal-map
-    // detail and makes reflections look uniformly flat. Instead, keep the
-    // detail normal for trace quality and rely on the demosaic temporal
-    // resolve (neighborhood clamp + motion-accelerated blend + luminance
-    // clamp) to suppress the per-frame shimmer from voxel quantization.
+    // the detail (normal-map) normal. Using the averaged geometry normal here
+    // would give temporal stability but strips normal-map detail and makes
+    // reflections look uniformly flat. Instead, keep the detail normal for
+    // trace quality and rely on the demosaic temporal resolve (neighborhood
+    // clamp + motion-accelerated blend + luminance clamp) to suppress the
+    // per-frame shimmer from voxel quantization.
     float3 reflectDirection = reflect(-V, detailNormal);
     float specularApertureTan = max(roughness * roughness, 0.06);
     float3 specular = TraceCone(
@@ -515,12 +515,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         specular = lerp(specular, screenReflection.rgb, screenReflection.a * (1.0 - roughness) * gateFade);
     }
 
-    // CE5 ALD (Average Light Direction): direction-weighted accumulation of
-    // cone brightness. xyz = worldDir * brightness, w = brightness. The
-    // deferred lighting pass normalises this to derive the dominant indirect
-    // light direction and gives diffuse a directional response (corners
-    // darken, surfaces facing the bounce-light source brighten) instead of
-    // treating indirect light as flat ambient.
+    // ALD (Average Light Direction): direction-weighted accumulation of cone
+    // brightness. xyz = worldDir * brightness, w = brightness. The deferred
+    // lighting pass normalises this to derive the dominant indirect light
+    // direction and gives diffuse a directional response (corners darken,
+    // surfaces facing the bounce-light source brighten) instead of treating
+    // indirect light as flat ambient.
     float diffuseBrightness = length(diffuse);
     float4 ald = float4(diffuseWorldDir * diffuseBrightness, diffuseBrightness);
 

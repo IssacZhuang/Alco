@@ -9,7 +9,7 @@
 // Directional opacity uses a projected-area reduction: maximum coverage along
 // the projection axis and an average across the orthogonal plane. This preserves
 // thin walls at coarse mips, matching the sub-voxel opacity reduction used by
-// CE5 SVOGI.
+// SVOGI.
 // All levels share the one Texture3D, stacked along the w axis; the child mip
 // is read with exact texel fetches, the parent mip written through the bound
 // single-mip storage view.

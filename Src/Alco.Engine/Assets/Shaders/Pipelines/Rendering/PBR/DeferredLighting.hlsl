@@ -61,7 +61,7 @@ DEFINE_TEX2D_SAMPLE(6, _emissive);
 // alpha carries the selected diffuse visibility for the debug view), then
 // ALD (Average Light Direction) near and far layers (xyz = dir*brightness,
 // a = layer view-linear depth). The lighting pass upsamples all layers with
-// CE5 UpScalePS's 5-tap depth-weighted kernel at full resolution, keeping
+// the upscale pass's 5-tap depth-weighted kernel at full resolution, keeping
 // occlusion edges sharp at reduced trace resolutions.
 DEFINE_TEX2D_SAMPLE(7, _indirectGI);
 
@@ -377,8 +377,8 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // Build the diffuse environment baseline independently of voxel GI. This is
-    // the equivalent of CE5's diffuse environment-probe accumulation: shadows
-    // only remove direct sun and never remove this low-frequency illumination.
+    // the diffuse environment-probe accumulation: shadows only remove direct
+    // sun and never remove this low-frequency illumination.
     float3 skyAmbient = EvaluateDiffuseSky(N);
     float upDot = saturate(N.z * 0.5 + 0.5);
     float3 skyBounce = float3(0.10, 0.12, 0.15);
@@ -393,8 +393,8 @@ float4 MainPS(V2F input) : SV_TARGET
         // ALD near/far. Each segment occupies 1/5 of the atlas width.
         const float segmentCount = 5.0;
         float2 traceUV = input.uv * float2(1.0 / segmentCount, 1.0);
-        // CE5 UpScalePS: reconstruct the diffuse term at full resolution with
-        // a 5-tap cross kernel over the trace texture. Every tap is bilinearly
+        // The upscale pass reconstructs the diffuse term at full resolution
+        // with a 5-tap cross kernel over the trace texture. Every tap is bilinearly
         // filtered, blended between its near/far layers at this pixel's depth,
         // and weighted by a soft relative-depth test (center counts four
         // times), so occlusion edges keep full-resolution precision instead
@@ -425,8 +425,8 @@ float4 MainPS(V2F input) : SV_TARGET
             float4 tapAldMin = SAMPLE_TEX2D(_indirectGI, tapUV + float2(3.0 / segmentCount, 0.0));
             float4 tapAldMax = SAMPLE_TEX2D(_indirectGI, tapUV + float2(4.0 / segmentCount, 0.0));
 
-            // CE5 clamps the layer depths at 4 m ("reduce artifacts around 1p
-            // weapon") so near-camera depth ratios cannot explode.
+            // The layer depths are clamped at 4 m so near-camera depth ratios
+            // cannot explode.
             float tapDepthMin = max(4.0, tapDiffuseMin.a);
             float tapDepthMax = max(4.0, tapDiffuseMax.a);
             float tapLerp = saturate(
@@ -457,12 +457,10 @@ float4 MainPS(V2F input) : SV_TARGET
         float3 indirectSpecular = indirectSpecularSection.rgb;
         float4 indirectAld = indirectAldSum / max(indirectAldWeight, 0.0001);
 
-        // CE5 UpScalePS directional diffuse: ALD gives indirect light a
-        // directional response. CE5 normalises vRGB to unit length in the
-        // demosaic pass and reconstructs brightness entirely from fIntensity
-        // (derived from ALD). Our pipeline keeps full-colour radiance in the
-        // diffuse atlas, so ALD must modulate only the angular distribution
-        // without amplifying overall brightness.
+        // Directional diffuse: ALD gives indirect light a directional response.
+        // Our pipeline keeps full-colour radiance in the diffuse atlas, so ALD
+        // must modulate only the angular distribution without amplifying
+        // overall brightness.
         //
         // dirFraction: how concentrated the indirect light is in one
         // direction (0 = uniform hemisphere, 1 = single dominant direction).
@@ -500,17 +498,15 @@ float4 MainPS(V2F input) : SV_TARGET
             return float4(indirectDiffuse.rgb, 1.0);
         }
 
-        // CE5 replacement mode: cone tracing has already integrated sky
-        // radiance independently along every visible direction and added
-        // bounced surface radiance. The ALD-driven directionalMod gives
-        // indirect light a directional response instead of flat ambient —
-        // corners darken, surfaces facing the bounce source brighten —
-        // without changing overall brightness. The ambientFloor is still
-        // added (matching CE5 UpScalePS: OUT.Diffuse += SvoParamsCommon.z *
-        // vSkyColorTop.z) so deeply occluded areas where cone tracing
-        // returns near-zero radiance never go pitch-black. The floor is
-        // small (~0.05–0.15) and still multiplied by AO below, so GI-driven
-        // AO contrast is preserved.
+        // Cone tracing has already integrated sky radiance independently
+        // along every visible direction and added bounced surface radiance.
+        // The ALD-driven directionalMod gives indirect light a directional
+        // response instead of flat ambient — corners darken, surfaces facing
+        // the bounce source brighten — without changing overall brightness.
+        // The ambientFloor is still added so deeply occluded areas where cone
+        // tracing returns near-zero radiance never go pitch-black. The floor
+        // is small (~0.05–0.15) and still multiplied by AO below, so
+        // GI-driven AO contrast is preserved.
         diffuseIrradiance = max(indirectDiffuse.rgb * directionalMod, 0.0)
             * params3.y + ambientFloor;
 

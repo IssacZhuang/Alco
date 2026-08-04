@@ -16,7 +16,7 @@
 // occupying 1/VOXEL_MAX_LEVELS of the texture depth at every mip; alpha holds
 // the occupancy fraction.
 // Diffuse GI uses deterministic rotation-balanced narrow cones through
-// the radiance volume (CryEngine SVOGI style); specular GI uses one cone along
+// the radiance volume (SVOGI style); specular GI uses one cone along
 // the reflection vector.
 
 #define VOXEL_MAX_LEVELS 4

@@ -13,11 +13,10 @@
 //
 // On the first bounce (bounceIndex == 0), unoccluded cones fall back to the
 // sky gradient. This is the primary path by which sky light enters the voxel
-// volume — matching CE5 SVOGI where bAllowSkyLight = (nPassId == 0) in
-// ComputePropagateLighting. The hemisphere of cones provides a proper
-// integration of sky irradiance with natural occlusion from nearby geometry,
-// which is far more accurate than the single-direction sky sample the inject
-// pass uses. Subsequent bounces exclude sky to avoid double-counting.
+// volume. The hemisphere of cones provides a proper integration of sky
+// irradiance with natural occlusion from nearby geometry, which is far more
+// accurate than the single-direction sky sample the inject pass uses.
+// Subsequent bounces exclude sky to avoid double-counting.
 
 struct VoxelPropagateConstants
 {
@@ -95,8 +94,8 @@ float4 SamplePropagationBlended(float3 position, int level, float mip, float3 ab
         }
     }
 
-    // Match CE5's directional opacity projection. An isotropic occupancy floor
-    // makes thin surfaces behave like solid volume and over-occludes sky light.
+    // Directional opacity projection. An isotropic occupancy floor makes thin
+    // surfaces behave like solid volume and over-occludes sky light.
     float voxelAlpha = saturate(dot(opacity.xyz, absoluteDirection));
     return float4(radiance.rgb, voxelAlpha);
 }
@@ -231,9 +230,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3x3 tbn = GetTangentBasis(normal);
     float3 gathered = 0.0;
     float totalWeight = 0.0;
-    // CE5 uses ConeMaxLength=12m as a global fixed distance. Using the full
-    // level extent (instead of half) lets coarser levels propagate much
-    // further, which is essential for sky light to reach into shadowed areas.
+    // Using the full level extent (instead of a short fixed distance) lets
+    // coarser levels propagate much further, which is essential for sky light
+    // to reach into shadowed areas.
     float maxDistance = voxelSize * resolution;
     [unroll]
     for (uint i = 0u; i < PROP_CONE_COUNT; i++)
@@ -245,15 +244,14 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     }
     gathered /= max(totalWeight, 0.0001);
 
-    // CE5 PropagationBooster (default 1.5): pow(collected, 1/booster) brightens
-    // midtones so that dim bounce light propagates further instead of collapsing
-    // to near-zero after one bounce. 0.05 → 0.136, 0.1 → 0.215, 0.2 → 0.342.
+    // Propagation booster: pow(collected, 1/1.5) brightens midtones so that
+    // dim bounce light propagates further instead of collapsing to near-zero
+    // after one bounce. 0.05 → 0.136, 0.1 → 0.215, 0.2 → 0.342.
     gathered = pow(max(gathered, 0.0), 1.0 / 1.5);
 
     // Bounce = Lambert BRDF × incoming indirect irradiance, modulated by
-    // strength. Clamp dark albedos to a minimum reflectance so that very dark
-    // surfaces still contribute meaningful bounce light — matching CE5
-    // SVOGI's e_svoTI_MinReflectance (default 0.2).
+    // strength. Clamp dark albedos to a minimum reflectance (0.2) so that very
+    // dark surfaces still contribute meaningful bounce light.
     float3 bounceAlbedo = albedo + saturate(0.2 - dot(albedo, 0.333));
     float3 bounce = bounceAlbedo * gathered * bounceStrength;
 

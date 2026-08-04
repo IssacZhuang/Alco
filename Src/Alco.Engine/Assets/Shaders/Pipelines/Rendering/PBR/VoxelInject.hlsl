@@ -48,7 +48,7 @@ bool IsVoxelOccupied(uint3 logicalCoord, uint resolution, int level)
 }
 
 // Cone march along the sun direction through the voxel grid, accumulating
-// occlusion. CE SVOGI traces a cone up to 63 m; here we march through the
+// occlusion. The cone traces up to 63 m; here we march through the
 // clipmap's attribute buffers (the opacity volume isn't built yet at inject
 // time). Used for voxels beyond the CSM shadow range.
 float TraceVoxelSunCone(float3 worldPosition, float3 sunDir, float voxelSize,
@@ -80,7 +80,7 @@ float TraceVoxelSunCone(float3 worldPosition, float3 sunDir, float voxelSize,
 }
 
 // Sun shadow for a voxel: CSM when inside the cascade range; cone march
-// through the voxel grid when beyond it (CE SVOGI style).
+// through the voxel grid when beyond it.
 float SampleSunShadowVoxel(float3 worldPosition, float3 N, float voxelSize,
     float4 originAndSize, uint resolution, int level)
 {
@@ -93,7 +93,7 @@ float SampleSunShadowVoxel(float3 worldPosition, float3 N, float voxelSize,
     if (cascade < 0)
     {
         // Beyond CSM range: cone march along the sun direction through the
-        // voxel grid (CE SVOGI cone-traced sun shadow).
+        // voxel grid (cone-traced sun shadow).
         float3 sunDir = normalize(-sunDirection.xyz);
         return TraceVoxelSunCone(worldPosition, sunDir, voxelSize, originAndSize, resolution, level);
     }
@@ -195,12 +195,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Only direct lights (sun + point lights) are injected into surface voxels.
     // Sky light enters the volume through cone-traced fallback in the
     // propagation pass (first bounce, hemisphere-integrated with natural
-    // occlusion) and the screen-space trace — matching CE5 SVOGI where
-    // ComputeDirectStaticLighting only calls ProcessLights (sun + point) and
-    // bAllowSkyLight gates sky in ComputePropagateLighting.
+    // occlusion) and the screen-space trace.
     //
-    // CE5 also injects DiffuseBias into the volume here (ComputeDirectStaticLighting
-    // line 2149: vRGB += max(0, DiffuseBias * skyColorTop.z)). This ensures
+    // A DiffuseBias is also injected into the volume here. This ensures
     // every occupied voxel has a minimum radiance floor, so the propagation
     // and trace passes always pick up some light even from voxels in deep shadow.
     float3 direct = 0.0;
@@ -235,10 +232,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
 
-    // CE5-style DiffuseBias injection: bake a minimum sky ambient into every
-    // occupied voxel so shadowed surfaces still have non-zero radiance.
-    // giFrameParams.y = DiffuseBias (default 0.05), matching CE5's
-    // ComputeDirectStaticLighting where vRGB += DiffuseBias * skyColorTop.z.
+    // DiffuseBias injection: bake a minimum sky ambient into every occupied
+    // voxel so shadowed surfaces still have non-zero radiance.
+    // giFrameParams.y = DiffuseBias (default 0.05).
     direct += giFrameParams.y * skyZenithColor.rgb * giParams2.w;
 
     // Emissive: albedo-tinted, intensity recovered from the quantized value.
