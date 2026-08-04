@@ -55,13 +55,14 @@ DEFINE_TEX2D_SAMPLE(3, _mrAO);
 DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
 DEFINE_TEX2D_SAMPLE(6, _emissive);
-// Indirect GI atlas from the voxel cone tracing resolve: three times the
+// Indirect GI atlas from the voxel cone tracing resolve: five times the
 // trace width. Sections: diffuse near layer and diffuse far layer (rgb =
 // irradiance, a = layer view-linear depth), then specular radiance (rgb;
-// alpha carries the selected diffuse visibility for the debug view). The
-// lighting pass upscales the two diffuse layers with CE5 UpScalePS's 5-tap
-// depth-weighted kernel at full resolution, keeping occlusion edges sharp at
-// reduced trace resolutions.
+// alpha carries the selected diffuse visibility for the debug view), then
+// ALD (Average Light Direction) near and far layers (xyz = dir*brightness,
+// a = layer view-linear depth). The lighting pass upsamples all layers with
+// CE5 UpScalePS's 5-tap depth-weighted kernel at full resolution, keeping
+// occlusion edges sharp at reduced trace resolutions.
 DEFINE_TEX2D_SAMPLE(7, _indirectGI);
 
 [shader("vertex")]
@@ -388,10 +389,10 @@ float4 MainPS(V2F input) : SV_TARGET
 
     if (params3.x > 0.5)
     {
-        // The atlas is three times the trace width: the diffuse near layer and
-        // far layer (rgb = irradiance, a = layer view-linear depth), then
-        // specular (rgb; alpha carries the selected diffuse visibility).
-        float2 traceUV = input.uv * float2(1.0 / 3.0, 1.0);
+        // The atlas is five times the trace width: diffuse near/far, specular,
+        // ALD near/far. Each segment occupies 1/5 of the atlas width.
+        const float segmentCount = 5.0;
+        float2 traceUV = input.uv * float2(1.0 / segmentCount, 1.0);
         // CE5 UpScalePS: reconstruct the diffuse term at full resolution with
         // a 5-tap cross kernel over the trace texture. Every tap is bilinearly
         // filtered, blended between its near/far layers at this pixel's depth,
@@ -400,7 +401,7 @@ float4 MainPS(V2F input) : SV_TARGET
         // of stair-stepping at trace texels.
         float linearDepth = ReconstructLinearDepth(input);
         float2 traceTexel = params4.zw; // one trace texel in segment-local UV
-        float2 atlasTexel = float2(traceTexel.x * (1.0 / 3.0), traceTexel.y);
+        float2 atlasTexel = float2(traceTexel.x / segmentCount, traceTexel.y);
         float4 sampleTM = float4(atlasTexel * 1.5, atlasTexel * 0.25);
         const float2 sampleOffsets[5] =
         {
@@ -413,12 +414,16 @@ float4 MainPS(V2F input) : SV_TARGET
 
         float3 indirectDiffuseSum = 0.0;
         float indirectDiffuseWeight = 0.0;
+        float4 indirectAldSum = 0.0;
+        float indirectAldWeight = 0.0;
         [unroll]
         for (int s = 0; s < 5; s++)
         {
             float2 tapUV = traceUV + sampleOffsets[s];
             float4 tapDiffuseMin = SAMPLE_TEX2D(_indirectGI, tapUV);
-            float4 tapDiffuseMax = SAMPLE_TEX2D(_indirectGI, tapUV + float2(1.0 / 3.0, 0.0));
+            float4 tapDiffuseMax = SAMPLE_TEX2D(_indirectGI, tapUV + float2(1.0 / segmentCount, 0.0));
+            float4 tapAldMin = SAMPLE_TEX2D(_indirectGI, tapUV + float2(3.0 / segmentCount, 0.0));
+            float4 tapAldMax = SAMPLE_TEX2D(_indirectGI, tapUV + float2(4.0 / segmentCount, 0.0));
 
             // CE5 clamps the layer depths at 4 m ("reduce artifacts around 1p
             // weapon") so near-camera depth ratios cannot explode.
@@ -427,10 +432,9 @@ float4 MainPS(V2F input) : SV_TARGET
             float tapLerp = saturate(
                 (linearDepth - tapDepthMin) / max(tapDepthMax - tapDepthMin, 0.0001));
             float3 tapDiffuse = lerp(tapDiffuseMin.rgb, tapDiffuseMax.rgb, tapLerp);
+            float4 tapAld = lerp(tapAldMin, tapAldMax, tapLerp);
             float tapDepth = lerp(tapDepthMin, tapDepthMax, tapLerp);
 
-            // CE5 fDepTest with the 0.25 fDotTest floor (no average light
-            // direction is stored in the atlas to steer rejection).
             float depthTest = saturate(
                 (0.12 - abs(1.0 - linearDepth / tapDepth)) * 4.0);
             float tapWeight = depthTest * 0.25;
@@ -442,13 +446,35 @@ float4 MainPS(V2F input) : SV_TARGET
 
             indirectDiffuseSum += tapDiffuse * tapWeight;
             indirectDiffuseWeight += tapWeight;
+            indirectAldSum += tapAld * tapWeight;
+            indirectAldWeight += tapWeight;
         }
 
-        float4 indirectSpecularSection = SAMPLE_TEX2D(_indirectGI, traceUV + float2(2.0 / 3.0, 0.0));
+        float4 indirectSpecularSection = SAMPLE_TEX2D(_indirectGI, traceUV + float2(2.0 / segmentCount, 0.0));
         float4 indirectDiffuse = float4(
             indirectDiffuseSum / indirectDiffuseWeight,
             indirectSpecularSection.a);
         float3 indirectSpecular = indirectSpecularSection.rgb;
+        float4 indirectAld = indirectAldSum / max(indirectAldWeight, 0.0001);
+
+        // CE5 UpScalePS directional diffuse: ALD gives indirect light a
+        // directional response. CE5 normalises vRGB to unit length in the
+        // demosaic pass and reconstructs brightness entirely from fIntensity
+        // (derived from ALD). Our pipeline keeps full-colour radiance in the
+        // diffuse atlas, so ALD must modulate only the angular distribution
+        // without amplifying overall brightness.
+        //
+        // dirFraction: how concentrated the indirect light is in one
+        // direction (0 = uniform hemisphere, 1 = single dominant direction).
+        // directionalMod: energy-conserving modulation centred at 1.0.
+        // Ambient light (dirFraction=0) → 1.0 everywhere. Directional light
+        // (dirFraction=1) → NdotAld*2, whose hemisphere average is ~1.0.
+        float dirIntens = max(0.0, length(indirectAld.xyz));
+        float aldBrightness = max(indirectAld.w, 0.0001);
+        float dirFraction = saturate(dirIntens / aldBrightness);
+        float3 aldDir = dirIntens > 0.0001 ? normalize(indirectAld.xyz) : N;
+        float NdotAld = saturate(dot(N, aldDir));
+        float directionalMod = lerp(1.0, NdotAld * 2.0, dirFraction);
 
         // Debug: visualize bounce radiance, specular radiance, or voxel
         // environment visibility (white=open, black=occluded).
@@ -466,15 +492,22 @@ float4 MainPS(V2F input) : SV_TARGET
             {
                 return float4(indirectDiffuse.aaa, 1.0);
             }
+            // 4 = ALD direction (visualization)
+            if (params3.w < 4.5)
+            {
+                return float4(indirectAld.xyz * 0.5 + 0.5, 1.0);
+            }
             return float4(indirectDiffuse.rgb, 1.0);
         }
 
         // CE5 replacement mode: cone tracing has already integrated sky
         // radiance independently along every visible direction and added
-        // bounced surface radiance. Reapplying a scalar visibility factor to
-        // the independent environment baseline would make an entire sun-shadow
-        // region dark whenever direct light is absent.
-        diffuseIrradiance = max(indirectDiffuse.rgb, 0.0) * params3.y;
+        // bounced surface radiance. The ALD-driven directionalMod gives
+        // indirect light a directional response instead of flat ambient —
+        // corners darken, surfaces facing the bounce source brighten —
+        // without changing overall brightness.
+        diffuseIrradiance = max(indirectDiffuse.rgb * directionalMod, 0.0)
+            * params3.y;
 
         float NdotV = max(dot(N, V), 0.0);
         float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);

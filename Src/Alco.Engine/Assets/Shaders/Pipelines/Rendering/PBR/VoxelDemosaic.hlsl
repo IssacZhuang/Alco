@@ -14,14 +14,21 @@
 // accumulates each layer independently. Specular keeps a small sharp
 // footprint to preserve detail.
 //
-// Indirect atlas layout (3x trace width), sampled by DeferredLighting:
+// ALD (Average Light Direction, CE5 ConeTracePS/UpScalePS) is accumulated
+// alongside RGB with the same bilateral weights. The deferred lighting pass
+// uses ALD to give indirect light a directional diffuse response.
+//
+// Indirect atlas layout (5x trace width), sampled by DeferredLighting:
 //   [0] diffuse near layer: rgb = irradiance, a = near layer linear depth
 //   [1] diffuse far layer:  rgb = irradiance, a = far layer linear depth
 //   [2] specular:           rgb = specular radiance, a = selected diffuse
 //                           visibility (debug view only)
-// History layout (4x trace width), read back next frame:
+//   [3] ALD near layer:     xyz = dir*brightness, a = near layer linear depth
+//   [4] ALD far layer:      xyz = dir*brightness, a = far layer linear depth
+// History layout (6x trace width), read back next frame:
 //   [0] near layer rgb + visibility, [1] far layer rgb + visibility,
-//   [2] specular, [3] linear depth + world normal (disocclusion metadata).
+//   [2] specular, [3] near ALD, [4] far ALD,
+//   [5] linear depth + world normal (disocclusion metadata).
 
 struct VoxelDemosaicConstants
 {
@@ -124,10 +131,14 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _indirectGI[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _indirectGI[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
         _historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         _historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
         _historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
         _historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _historyOut[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        _historyOut[tracePixel + int2(halfWidth * 5, 0)] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -139,6 +150,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float currentLinearDepth = abs(mul(viewProjection, float4(worldPos, 1.0)).w);
     float4 centerDiffuse = _traceInput.Load(int3(tracePixel, 0));
     float4 centerSpecular = _traceInput.Load(int3(tracePixel + int2(halfWidth, 0), 0));
+    float4 centerAld = _traceInput.Load(int3(tracePixel + int2(halfWidth * 2, 0), 0));
 
     // Developer view: expose the cone-trace atlas before spatial/temporal
     // reconstruction. This makes it possible to distinguish a tracing issue
@@ -150,10 +162,16 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float4(centerDiffuse.rgb, currentLinearDepth);
         _indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
             float4(centerSpecular.rgb, centerDiffuse.a);
+        _indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
+            float4(centerAld.xyz, currentLinearDepth);
+        _indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
+            float4(centerAld.xyz, currentLinearDepth);
         _historyOut[tracePixel] = centerDiffuse;
         _historyOut[tracePixel + int2(halfWidth, 0)] = centerDiffuse;
         _historyOut[tracePixel + int2(halfWidth * 2, 0)] = centerSpecular;
-        _historyOut[tracePixel + int2(halfWidth * 3, 0)] =
+        _historyOut[tracePixel + int2(halfWidth * 3, 0)] = centerAld;
+        _historyOut[tracePixel + int2(halfWidth * 4, 0)] = centerAld;
+        _historyOut[tracePixel + int2(halfWidth * 5, 0)] =
             float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
         return;
     }
@@ -216,6 +234,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 neighborhoodMin = centerDiffuse;
     float4 neighborhoodMax = centerDiffuse;
 
+    // --- ALD accumulation state (CE5 DemosaicPS accumulates vALD alongside
+    // vRGB with identical bilateral weights) ---
+    float4 layerAldSumMin = centerAld * 0.001;
+    float4 layerAldSumMax = centerAld * 0.001;
+    float aldWeightMin = 0.001;
+    float aldWeightMax = 0.001;
+
     // --- Specular gather state (3x3 tight bilateral, filled in the same
     // footprint loop below on its own taps) ---
     float spatialSigma = max(constants.params.y, 0.001);
@@ -245,6 +270,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
 
             float4 diffuseTap = _traceInput.Load(int3(np, 0));
+            // CE5 DemosaicPS accumulates ALD with the same bilateral weights
+            // as RGB. ALD is a direction-weighted value, not HDR color, so no
+            // luminance clamping is applied.
+            float4 aldTap = _traceInput.Load(int3(np + int2(halfWidth * 2, 0), 0));
 
             float phaseWeightX = abs(dx) == 4 ? 0.5 : 1.0;
             float phaseWeightY = abs(dy) == 4 ? 0.5 : 1.0;
@@ -296,6 +325,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             layerSumMax += diffuseTap * weightMax;
             layerWeightMin += weightMin;
             layerWeightMax += weightMax;
+            layerAldSumMin += aldTap * weightMin;
+            layerAldSumMax += aldTap * weightMax;
+            aldWeightMin += weightMin;
+            aldWeightMax += weightMax;
             if (max(weightMin, weightMax) > 0.001)
             {
                 neighborhoodMin = min(neighborhoodMin, diffuseTap);
@@ -362,12 +395,17 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 layerMin = layerSumMin / max(layerWeightMin, 0.0001);
     float4 layerMax = layerSumMax / max(layerWeightMax, 0.0001);
     float4 specularCurrent = specularSum / max(specularWeight, 0.0001);
+    // ALD normalisation: xyz = direction-weighted, w = total brightness.
+    float4 layerAldMin = layerAldSumMin / max(aldWeightMin, 0.0001);
+    float4 layerAldMax = layerAldSumMax / max(aldWeightMax, 0.0001);
 
     // --- Temporal reprojection: one shared surface-validity test, then an
     // independent accumulation per layer ---
     float4 resultMin = layerMin;
     float4 resultMax = layerMax;
     float4 resultSpecular = specularCurrent;
+    float4 resultAldMin = layerAldMin;
+    float4 resultAldMax = layerAldMax;
     bool historyAvailable = giFrameParams.z > 0.5;
 
     if (historyAvailable)
@@ -386,11 +424,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     int2(0, 0),
                     int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
 
-                // The fourth history section stores the surface that produced
+                // The sixth history section stores the surface that produced
                 // the sample. Reprojection is accepted only when both linear
                 // depth and world normal still match. This rejects history
                 // revealed from behind an occluder during camera movement.
-                int2 metadataPixel = previousTracePixel + int2(halfWidth * 3, 0);
+                int2 metadataPixel = previousTracePixel + int2(halfWidth * 5, 0);
                 float4 historyMetadata = _historyInput.Load(int3(metadataPixel, 0));
                 float expectedPreviousDepth = abs(prevClip.w);
                 float depthDifference = abs(historyMetadata.x - expectedPreviousDepth);
@@ -410,6 +448,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                         int3(previousTracePixel + int2(halfWidth, 0), 0));
                     float4 historySpecular = _historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 2, 0), 0));
+                    float4 historyAldMin = _historyInput.Load(
+                        int3(previousTracePixel + int2(halfWidth * 3, 0), 0));
+                    float4 historyAldMax = _historyInput.Load(
+                        int3(previousTracePixel + int2(halfWidth * 4, 0), 0));
 
                     resultMin = AccumulateDiffuseLayer(
                         historyMin, layerMin, neighborhoodMin, neighborhoodMax,
@@ -417,6 +459,16 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     resultMax = AccumulateDiffuseLayer(
                         historyMax, layerMax, neighborhoodMin, neighborhoodMax,
                         constants.params.z, historyConfidence);
+
+                    // ALD accumulates with the same temporal scheme as diffuse
+                    // RGB: clamp to a neighbourhood, blend at the confidence-
+                    // weighted rate. ALD magnitude (w) is clamped against the
+                    // diffuse neighbourhood alpha range so a stale bright
+                    // direction cannot persist after the source surface moves.
+                    float aldHysteresis = constants.params.z;
+                    float aldBlendRate = lerp(1.0, 1.0 - aldHysteresis, historyConfidence);
+                    resultAldMin = lerp(historyAldMin, layerAldMin, aldBlendRate);
+                    resultAldMax = lerp(historyAldMax, layerAldMax, aldBlendRate);
 
                     // Specular samples are deterministic enough that a large
                     // radiance change usually represents real motion.
@@ -445,9 +497,15 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(resultMax.rgb, layerDepthMax);
     _indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
         float4(resultSpecular.rgb, selectedVisibility);
+    _indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
+        float4(resultAldMin.xyz, layerDepthMin);
+    _indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
+        float4(resultAldMax.xyz, layerDepthMax);
     _historyOut[tracePixel] = resultMin;
     _historyOut[tracePixel + int2(halfWidth, 0)] = resultMax;
     _historyOut[tracePixel + int2(halfWidth * 2, 0)] = resultSpecular;
-    _historyOut[tracePixel + int2(halfWidth * 3, 0)] =
+    _historyOut[tracePixel + int2(halfWidth * 3, 0)] = resultAldMin;
+    _historyOut[tracePixel + int2(halfWidth * 4, 0)] = resultAldMax;
+    _historyOut[tracePixel + int2(halfWidth * 5, 0)] =
         float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
 }

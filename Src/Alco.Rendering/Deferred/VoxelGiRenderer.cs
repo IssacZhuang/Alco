@@ -422,10 +422,10 @@ public sealed class VoxelGiRenderer : AutoDisposable
     public VoxelGiStatistics Statistics { get; private set; }
 
     /// <summary>
-    /// The gathered indirect radiance atlas (three times the configured trace
-    /// width: diffuse near layer and diffuse far layer with their view-linear
-    /// layer depths in alpha, then specular radiance), sampled by the deferred
-    /// lighting pass, which blends the diffuse layers at full-resolution depth.
+    /// The gathered indirect radiance atlas (five times the configured trace
+    /// width: diffuse near/far layers, specular, ALD near/far layers with
+    /// their view-linear layer depths in alpha), sampled by the deferred
+    /// lighting pass, which blends the layers at full-resolution depth.
     /// </summary>
     public RenderTexture IndirectTexture => _indirectAtlas;
 
@@ -568,13 +568,15 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
         uint traceWidth = TraceWidth(_gbufferWidth);
         uint traceHeight = TraceHeight(_gbufferHeight);
-        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_indirect_gi");
-        _traceRaw = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 2, traceHeight, "voxel_trace_raw");
-        // The resolve writes diffuse near/far layers plus specular (three
-        // sections); history adds a fourth section for linear depth and world
-        // normal used by temporal disocclusion rejection.
-        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_a");
-        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_b");
+        // Atlas: 5 segments (diffuse near/far, specular, ALD near/far).
+        _indirectAtlas = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 5, traceHeight, "voxel_indirect_gi");
+        // Trace raw: 3 segments (diffuse+visibility, specular, ALD).
+        _traceRaw = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_trace_raw");
+        // History: 6 segments (diffuse near/far, specular, ALD near/far,
+        // disocclusion metadata). The demosaic shader derives halfWidth as
+        // traceRaw.Width / 3 (one segment width).
+        _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_a");
+        _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
@@ -792,13 +794,13 @@ public sealed class VoxelGiRenderer : AutoDisposable
         try
         {
             newIndirectAtlas = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_indirect_gi");
+                _rendering.PreferredLightMapPass, traceWidth * 5, traceHeight, "voxel_indirect_gi");
             newTraceRaw = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth * 2, traceHeight, "voxel_trace_raw");
+                _rendering.PreferredLightMapPass, traceWidth * 3, traceHeight, "voxel_trace_raw");
             newHistoryA = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_a");
+                _rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_a");
             newHistoryB = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth * 4, traceHeight, "voxel_history_b");
+                _rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_b");
         }
         catch
         {
@@ -857,7 +859,7 @@ public sealed class VoxelGiRenderer : AutoDisposable
         data.LevelRingOffset2 = _clipmap.GetRingOffset(2);
         data.LevelRingOffset3 = _clipmap.GetRingOffset(3);
         data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, 0.0f);
-        uint traceWidth = Math.Max(_traceRaw.Width / 2, 1);
+        uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
         data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _traceRaw.Height);
         data.GiParams2 = new Vector4(data.GiParams2.X, gbuffer.Width, gbuffer.Height, data.GiParams2.W);
         data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, 0.0f);

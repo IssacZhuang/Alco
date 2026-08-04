@@ -838,9 +838,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         data.ViewportSize = new Vector4(_gbufferRT.Width, _gbufferRT.Height, 0, 0);
         // Section-local size of one GI trace texel for the CE5-style depth-weighted
-        // upscale kernel; the atlas is three times the trace width. Zero when no GI
+        // upscale kernel; the atlas is five times the trace width. Zero when no GI
         // atlas is bound (the lighting shader skips the GI path then anyway).
-        data.Params4.Z = _indirectGI != null ? 3.0f / _indirectGI.Width : 0.0f;
+        data.Params4.Z = _indirectGI != null ? 5.0f / _indirectGI.Width : 0.0f;
         data.Params4.W = _indirectGI != null ? 1.0f / _indirectGI.Height : 0.0f;
         _lightingDataBuffer.UpdateBuffer(data);
         _lightingContext.Begin(target);

@@ -349,11 +349,20 @@ float4 TraceCone(
 // direction sets per pixel instead of converging onto the voxel-quantization
 // pattern of one static direction (visible as teeth along occlusion
 // boundaries).
+//
+// CE5 ConeTracePS accumulates ALD (Average Light Direction) alongside RGB:
+//   vALD.xyz += r.direction * brightness
+//   vALD.w   += brightness
+// The deferred lighting pass uses ALD to give indirect light a directional
+// diffuse response instead of treating it as flat ambient. Each trace pixel
+// traces one cone, so it outputs one ALD contribution; the demosaic pass
+// gathers the full tile just as it does for RGB.
 float4 TraceDiffuseCones(
     float3 startPosition,
     float3 normal,
     float maxDistance,
-    uint2 tracePixel)
+    uint2 tracePixel,
+    out float3 outWorldDir)
 {
     float3x3 tbn = GetTangentBasis(normal);
     uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
@@ -370,6 +379,7 @@ float4 TraceDiffuseCones(
     if ((frameIndex & 1u) != 0u) kernelDirection.x = -kernelDirection.x;
     if ((frameIndex & 2u) != 0u) kernelDirection.y = -kernelDirection.y;
     float3 worldDir = normalize(mul(kernelDirection, tbn));
+    outWorldDir = worldDir;
     float4 coneResult = TraceCone(
         startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0);
     return float4(coneResult.rgb, saturate(1.0 - coneResult.a));
@@ -396,6 +406,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     {
         _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
+        _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -467,7 +478,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     // Diffuse RGB contains visible directional sky and bounced surface
     // radiance. Alpha is retained only as a diagnostic visibility output.
-    float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance, tracePixel);
+    float3 diffuseWorldDir;
+    float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance, tracePixel, diffuseWorldDir);
     float3 diffuse = diffuseResult.rgb;
 
     // Specular: one deterministic cone along the reflection direction. A
@@ -487,6 +499,16 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         specular = lerp(specular, screenReflection.rgb, screenReflection.a * (1.0 - roughness) * gateFade);
     }
 
+    // CE5 ALD (Average Light Direction): direction-weighted accumulation of
+    // cone brightness. xyz = worldDir * brightness, w = brightness. The
+    // deferred lighting pass normalises this to derive the dominant indirect
+    // light direction and gives diffuse a directional response (corners
+    // darken, surfaces facing the bounce-light source brighten) instead of
+    // treating indirect light as flat ambient.
+    float diffuseBrightness = length(diffuse);
+    float4 ald = float4(diffuseWorldDir * diffuseBrightness, diffuseBrightness);
+
     _indirectGI[tracePixel] = float4(diffuse, diffuseResult.a);
     _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(specular, 1.0);
+    _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] = ald;
 }
