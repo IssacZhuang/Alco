@@ -20,12 +20,17 @@ public sealed class ComputeMaterialInstance : ComputeMaterial
     public override GPUResourceGroup? this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _parameterSet.ResourceGroups[index] ?? _parent[index];
+        get
+        {
+            _parameterSet.FlushResourceGroups();
+            return _parameterSet.ResourceGroups[index] ?? _parent[index];
+        }
     }
 
     internal ComputeMaterialInstance(RenderingSystem system, ComputeMaterial parent) : base(system, parent.Shader)
     {
         _parent = parent;
+        _parameterSet.Fallback = parent.ParameterSet;
         _pipelineContext = new ComputePipelineContext(
             parent.ReflectionInfo,
             parent.Defines

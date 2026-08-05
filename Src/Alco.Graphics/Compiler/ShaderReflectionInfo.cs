@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace Alco.Graphics;
@@ -8,7 +9,29 @@ namespace Alco.Graphics;
 /// </summary>
 public sealed class ShaderReflectionInfo
 {
+    /// <summary>
+    /// The suffix that marks a storage buffer entry as the counter companion of the
+    /// storage buffer with the same name minus the suffix. Counter companions are
+    /// auto-bound from the owner buffer and are not settable resources.
+    /// </summary>
+    public const string CounterSuffix = "_counter";
+
+    /// <summary>
+    /// The prefix DXC gives the implicit counter buffer of a structured buffer in
+    /// SPIR-V reflection (e.g. <c>counter.var._lights</c> for <c>_lights</c>).
+    /// Counter companions are auto-bound from the owner buffer and are not settable
+    /// resources.
+    /// </summary>
+    public const string CounterPrefix = "counter.var.";
+
+    /// <summary>
+    /// The suffix that pairs a sampler entry with the texture entry of the same
+    /// name minus the suffix (e.g. `_albedoSampler` for `_albedo`).
+    /// </summary>
+    public const string SamplerSuffix = "Sampler";
+
     private FrozenDictionary<string, uint> _resourceIds = FrozenDictionary<string, uint>.Empty;
+    private ShaderResourceLocation[] _resourceLocations = Array.Empty<ShaderResourceLocation>();
     private readonly string[] _idToName;
 
     /// <summary>
@@ -60,11 +83,28 @@ public sealed class ShaderReflectionInfo
 
         BuildResourceIndex();
 
-        _idToName = new string[BindGroups.Count];
-        for (int i = 0; i < BindGroups.Count; i++)
+        _idToName = new string[_resourceLocations.Length];
+        for (int i = 0; i < _resourceLocations.Length; i++)
         {
-            _idToName[i] = BindGroups[i].Bindings[0].Entry.Name;
+            _idToName[i] = _resourceLocations[i].Name;
         }
+    }
+
+    /// <summary>
+    /// The number of settable resources (buffers and textures) of the shader.
+    /// Sampler and counter companion entries are not counted.
+    /// </summary>
+    public int ResourceCount
+    {
+        get => _resourceLocations.Length;
+    }
+
+    /// <summary>
+    /// The locations of the settable resources, indexed by resource ID.
+    /// </summary>
+    public IReadOnlyList<ShaderResourceLocation> ResourceLocations
+    {
+        get => _resourceLocations;
     }
 
     /// <summary>
@@ -111,6 +151,41 @@ public sealed class ShaderReflectionInfo
     }
 
     /// <summary>
+    /// Tries to get the location of the resource associated with the given name.
+    /// <br/> <c>thread safe.</c>
+    /// </summary>
+    /// <param name="name">The name of the resource.</param>
+    /// <param name="location">The resource location if found, otherwise the default value.</param>
+    /// <returns>True if the resource was found, false otherwise.</returns>
+    public bool TryGetResourceLocation(string name, out ShaderResourceLocation location)
+    {
+        if (_resourceIds.TryGetValue(name, out uint resourceId))
+        {
+            location = _resourceLocations[resourceId];
+            return true;
+        }
+
+        location = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the location of the resource associated with the given resource ID.
+    /// <br/> <c>thread safe.</c>
+    /// </summary>
+    /// <param name="id">The resource ID.</param>
+    /// <throws>ArgumentOutOfRangeException if the resource ID is out of range.</throws>
+    /// <returns>The resource location.</returns>
+    public ShaderResourceLocation GetResourceLocation(uint id)
+    {
+        if (id < _resourceLocations.Length)
+        {
+            return _resourceLocations[id];
+        }
+        throw new ArgumentOutOfRangeException(nameof(id), id, "The resource ID is out of range.");
+    }
+
+    /// <summary>
     /// Tries to get the resource name associated with the given shader resource ID.
     /// </summary>
     /// <param name="id">The shader resource ID.</param>
@@ -131,22 +206,93 @@ public sealed class ShaderReflectionInfo
 
 
     private void BuildResourceIndex()
-
-
     {
         Dictionary<string, uint> resourceIds = new Dictionary<string, uint>();
-        resourceIds.Clear();
-        for (uint i = 0; i < BindGroups.Count; i++)
+        List<ShaderResourceLocation> locations = new List<ShaderResourceLocation>();
+
+        for (int groupIndex = 0; groupIndex < BindGroups.Count; groupIndex++)
         {
-            BindGroupLayout bindGroup = BindGroups[(int)i];
-            if (bindGroup.Bindings != null
-            && bindGroup.Bindings.Count > 0)
+            IReadOnlyList<BindGroupEntryInfo> bindings = BindGroups[groupIndex].Bindings;
+            if (bindings == null)
             {
-                resourceIds[bindGroup.Bindings[0].Entry.Name] = i;
+                continue;
+            }
+
+            for (int entryIndex = 0; entryIndex < bindings.Count; entryIndex++)
+            {
+                BindGroupEntry entry = bindings[entryIndex].Entry;
+                if (!IsSettableResource(entry))
+                {
+                    continue;
+                }
+
+                uint id = (uint)locations.Count;
+                locations.Add(new ShaderResourceLocation
+                {
+                    GroupIndex = groupIndex,
+                    EntryIndex = entryIndex,
+                    Binding = entry.Binding,
+                    Type = entry.Type,
+                    Name = entry.Name
+                });
+                resourceIds[entry.Name] = id;
             }
         }
 
         _resourceIds = resourceIds.ToFrozenDictionary();
+        _resourceLocations = locations.ToArray();
+    }
+
+    // A settable resource is a shader variable the material API binds by name or id:
+    // a buffer or a texture. Samplers are companions of the texture with the same
+    // name minus the sampler suffix; counter companions of storage buffers are
+    // auto-bound from the owner buffer.
+    private static bool IsSettableResource(BindGroupEntry entry)
+    {
+        switch (entry.Type)
+        {
+            case BindingType.UniformBuffer:
+            case BindingType.Texture:
+            case BindingType.StorageTexture:
+                return true;
+            case BindingType.StorageBuffer:
+                return !IsCounterCompanion(entry, out _);
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Whether the entry is the counter companion of a storage buffer, and if so the
+    /// name of the owning buffer. DXC names the implicit counter of a structured
+    /// buffer <c>counter.var.&lt;name&gt;</c>; an explicitly declared counter variable
+    /// uses the <c>&lt;name&gt;_counter</c> suffix.
+    /// </summary>
+    /// <param name="entry">The bind group entry to check.</param>
+    /// <param name="ownerName">The name of the owning storage buffer if the entry is a counter companion.</param>
+    /// <returns>True if the entry is the counter companion of a storage buffer.</returns>
+    public static bool IsCounterCompanion(BindGroupEntry entry, [NotNullWhen(true)] out string? ownerName)
+    {
+        if (entry.Type != BindingType.StorageBuffer)
+        {
+            ownerName = null;
+            return false;
+        }
+
+        if (entry.Name.StartsWith(CounterPrefix, StringComparison.Ordinal))
+        {
+            ownerName = entry.Name.Substring(CounterPrefix.Length);
+            return true;
+        }
+
+        if (entry.Name.EndsWith(CounterSuffix, StringComparison.Ordinal))
+        {
+            ownerName = entry.Name.Substring(0, entry.Name.Length - CounterSuffix.Length);
+            return true;
+        }
+
+        ownerName = null;
+        return false;
     }
 
     public override string ToString()

@@ -20,7 +20,10 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-DEFINE_UNIFORM(0, _data)
+// Bind groups: set 0 is the per-frame lighting constants; set 1 packs every
+// per-pass input of the lighting pass (G-buffer, shadow map, GI atlas) at
+// distinct bindings, so the pass needs two of the eight available sets.
+DEFINE_UNIFORM_AT(ALCO_GROUP_FRAME, 0, _data)
 {
     float4x4 invViewProjection;
     float4x4 sunViewProjection[4];
@@ -49,12 +52,12 @@ DEFINE_UNIFORM(0, _data)
     float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
 };
 
-DEFINE_TEX2D_SAMPLE(1, _albedo);
-DEFINE_TEX2D_SAMPLE(2, _normal);
-DEFINE_TEX2D_SAMPLE(3, _mrAO);
-DEFINE_TEX2D_DEPTH(4, _gbufferDepth);
-DEFINE_TEX2D_DEPTH_SAMPLE(5, _shadowMap);
-DEFINE_TEX2D_SAMPLE(6, _emissive);
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 1, _albedo);
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 3, _normal);
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 5, _mrAO);
+DEFINE_TEX2D_DEPTH_AT(ALCO_GROUP_PASS, 7, _gbufferDepth);
+DEFINE_TEX2D_DEPTH_SAMPLE_AT(ALCO_GROUP_PASS, 8, _shadowMap);
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 10, _emissive);
 // Indirect GI atlas from the voxel cone tracing resolve: five times the
 // trace width. Sections: diffuse near layer and diffuse far layer (rgb =
 // irradiance, a = layer view-linear depth), then specular radiance (rgb;
@@ -63,7 +66,7 @@ DEFINE_TEX2D_SAMPLE(6, _emissive);
 // a = layer view-linear depth). The lighting pass upsamples all layers with
 // the upscale pass's 5-tap depth-weighted kernel at full resolution, keeping
 // occlusion edges sharp at reduced trace resolutions.
-DEFINE_TEX2D_SAMPLE(7, _indirectGI);
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 12, _indirectGI);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)

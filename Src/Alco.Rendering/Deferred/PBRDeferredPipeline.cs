@@ -328,10 +328,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _fullScreenMesh = rendering.MeshFullScreen;
         ShadowMapSize = shadowMapSize;
 
-        // The lighting shader samples depth textures (G-buffer depth and shadow map),
-        // so its bind group layouts must declare Depth sample type for those slots,
-        // matching the engine's depth read / depth comparison bind group layouts.
-        Shader lightingShader = rendering.CreateShader(lightingShaderText, lightingShaderName, null, CreateLightingBindGroupLayouts());
+        // The lighting shader declares its depth textures with the DEFINE_TEX2D_DEPTH*
+        // macros, so the reflection already carries the Depth sample type and the
+        // comparison sampler; the pipeline layout is built from the reflection.
+        Shader lightingShader = rendering.CreateShader(lightingShaderText, lightingShaderName);
 
         _gbufferLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [
@@ -846,83 +846,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingContext.Begin(target);
         _lightingContext.Draw(_fullScreenMesh, _lightingMaterial);
         _lightingContext.End();
-    }
-
-    /// <summary>
-    /// Bind group layouts for the deferred lighting shader: uniform buffer (set 0),
-    /// six filterable texture+sampler pairs (sets 1-3, 6 and 7), the G-buffer depth texture
-    /// (set 4) and the shadow map depth texture with a comparison sampler (set 5).
-    /// Set 7 is the indirect GI atlas (voxel cone tracing result, or a black fallback).
-    /// Must stay in sync with DeferredLighting.hlsl.
-    /// </summary>
-    /// <returns>The custom bind group layouts.</returns>
-    public static IReadOnlyList<BindGroupLayout> CreateLightingBindGroupLayouts()
-    {
-        BindGroupLayout CreateTextureSamplerGroup(uint group) => new BindGroupLayout
-        {
-            Group = group,
-            Bindings =
-            [
-                new BindGroupEntryInfo
-                {
-                    Entry = new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
-                },
-                new BindGroupEntryInfo
-                {
-                    Entry = new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
-                },
-            ],
-        };
-
-        BindGroupLayout CreateDepthReadGroup(uint group) => new BindGroupLayout
-        {
-            Group = group,
-            Bindings =
-            [
-                new BindGroupEntryInfo
-                {
-                    Entry = new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, TextureBindingInfo.Depth2D),
-                },
-            ],
-        };
-
-        BindGroupLayout CreateDepthComparisonGroup(uint group) => new BindGroupLayout
-        {
-            Group = group,
-            Bindings =
-            [
-                new BindGroupEntryInfo
-                {
-                    Entry = new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, TextureBindingInfo.Depth2D),
-                },
-                new BindGroupEntryInfo
-                {
-                    Entry = new BindGroupEntry(1, ShaderStage.Standard, BindingType.SamplerComparison),
-                },
-            ],
-        };
-
-        return
-        [
-            new BindGroupLayout
-            {
-                Group = 0,
-                Bindings =
-                [
-                    new BindGroupEntryInfo
-                    {
-                        Entry = new BindGroupEntry(0, ShaderStage.Standard, BindingType.UniformBuffer),
-                    },
-                ],
-            },
-            CreateTextureSamplerGroup(1),
-            CreateTextureSamplerGroup(2),
-            CreateTextureSamplerGroup(3),
-            CreateDepthReadGroup(4),
-            CreateDepthComparisonGroup(5),
-            CreateTextureSamplerGroup(6),
-            CreateTextureSamplerGroup(7),
-        ];
     }
 
     private void RebindGlobalIlluminationTargets()

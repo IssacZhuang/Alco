@@ -14,13 +14,16 @@
 // and diagnostic visibility in the left half, specular radiance in the right
 // half.
 
-DEFINE_TEX3D_SAMPLE(1, _radiance);
-DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
-DEFINE_TEX2D_READ(3, _normal);
-DEFINE_TEX2D_READ(4, _emissive);
-DEFINE_TEX2D_STORAGE(5, _indirectGI, float4, "rgba16f");
-DEFINE_TEX3D_SAMPLE(6, _opacity);
-DEFINE_TEX2D_READ(7, _albedo);
+// Bind groups: set 0 packs the per-dispatch inputs together with the shared
+// uniform (binding 0, from VoxelCommon.hlsli); set 1 is the output atlas, so the
+// pass needs two of the eight available sets.
+DEFINE_TEX3D_SAMPLE_AT(0, 1, _radiance);
+DEFINE_TEX2D_DEPTH_AT(0, 3, _gbufferDepth);
+DEFINE_TEX2D_READ_AT(0, 4, _normal);
+DEFINE_TEX2D_READ_AT(0, 5, _emissive);
+DEFINE_TEX3D_SAMPLE_AT(0, 6, _opacity);
+DEFINE_TEX2D_READ_AT(0, 8, _albedo);
+DEFINE_TEX2D_STORAGE_AT(1, 0, _indirectGI, float4, "rgba16f");
 
 // A large cosine-hemisphere kernel is distributed across a screen tile and
 // resolved as a complete tile. Trace one direction at each 8x8 screen phase;

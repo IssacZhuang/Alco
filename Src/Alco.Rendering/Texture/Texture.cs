@@ -44,6 +44,24 @@ public abstract class Texture : AutoDisposable
     public GPUTexture NativeTexture => _texture;
 
     /// <summary>
+    /// The full-chain texture view of the texture.
+    /// </summary>
+    public GPUTextureView View
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _textureView;
+    }
+
+    /// <summary>
+    /// The sampler used when the texture is bound to a texture-and-sampler slot.
+    /// </summary>
+    public GPUSampler Sampler
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _sampler;
+    }
+
+    /// <summary>
     /// The resource group containing the texture view and the sampler, for
     /// texture-and-sampler shader bind groups.
     /// </summary>

@@ -115,7 +115,11 @@ public abstract class Material : AutoDisposable
     public virtual GPUResourceGroup? this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _parameters.ResourceGroups[index];
+        get
+        {
+            _parameters.FlushResourceGroups();
+            return _parameters.ResourceGroups[index];
+        }
     }
 
     /// <summary>
@@ -137,12 +141,17 @@ public abstract class Material : AutoDisposable
         }
 
         ShaderReflectionInfo reflectionInfo = shader.GetShaderModules().ReflectionInfo;
-        _parameters = new ShaderParameterSet(reflectionInfo);
+        _parameters = new ShaderParameterSet(system.GraphicsDevice, reflectionInfo);
         UpdateSlotResources(reflectionInfo);
 
         _pipelineContext = GraphicsPipelineContext.Default;
         _pipelineContext.ReflectionInfo = reflectionInfo;
     }
+
+    /// <summary>
+    /// The shader parameter set of the material.
+    /// </summary>
+    internal ShaderParameterSet Parameters => _parameters;
 
     /// <summary>
     /// Set the defines of the shader to control the variant of the shader.
@@ -170,6 +179,7 @@ public abstract class Material : AutoDisposable
     {
         if (_shader.TryUpdatePipelineContext(ref _pipelineContext, attachmentLayout, _isPipelineDirty))
         {
+            _parameters.SetReflectionInfo(_pipelineContext.ReflectionInfo!);
             UpdateSlotResources(_pipelineContext.ReflectionInfo!);
             _pipelineInfo = new ShaderPipelineInfo
             {
@@ -178,7 +188,6 @@ public abstract class Material : AutoDisposable
                 PushConstantsStages = _pipelineContext.ReflectionInfo!.PushConstantsStages,
                 PushConstantsSize = _pipelineContext.ReflectionInfo!.PushConstantsSize
             };
-            _parameters.SetReflectionInfo(_pipelineContext.ReflectionInfo!);
             _isPipelineDirty = false;
             IncreaseVersion();
         }

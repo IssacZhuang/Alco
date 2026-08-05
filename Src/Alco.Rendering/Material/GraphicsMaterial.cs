@@ -10,15 +10,16 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class GraphicsMaterial : Material
 {
-    
+
     internal GraphicsMaterial(RenderingSystem system, Shader shader, string name) : base(system, shader, name)
     {
-        
+
     }
 
     /// <inheritdoc/>
     public override void PushResources(GPUCommandBuffer.RenderPass renderPass)
     {
+        _parameters.FlushResourceGroups();
         ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
         for (uint i = 0; i < resources.Length; i++)
         {
@@ -27,13 +28,14 @@ public sealed class GraphicsMaterial : Material
             {
                 renderPass.SetResources(i, resource);
             }else{
-                throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
+                throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.BindGroups[(int)i].Bindings[0].Entry.Name} of shader {_shader.Name}");
             }
         }
     }
 
     public override void PushResources(GPURenderBundle renderBundle)
     {
+        _parameters.FlushResourceGroups();
         ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
         for (uint i = 0; i < resources.Length; i++)
         {
@@ -42,36 +44,21 @@ public sealed class GraphicsMaterial : Material
             {
                 renderBundle.SetGraphicsResources(i, resource);
             }else{
-                throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.GetResourceName(i)} of shader {_shader.Name}");
+                throw new InvalidOperationException($"Null resource group at index {i}, {_parameters.ReflectionInfo.BindGroups[(int)i].Bindings[0].Entry.Name} of shader {_shader.Name}");
             }
         }
     }
 
     protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo)
     {
-        for (uint i = 0; i < reflectionInfo.BindGroups.Count; i++)
+        for (uint i = 0; i < reflectionInfo.ResourceCount; i++)
         {
-
-            BindGroupLayout bindGroupLayout = reflectionInfo.BindGroups[(int)i];
-            if (MaterialUtility.IsTextureSamplerGroup(bindGroupLayout.Bindings))
+            // Sampled texture slots default to the white texture. Depth texture slots
+            // (e.g. shadow map with comparison sampler) must be bound via
+            // SetRenderTextureDepth; the white texture is not a valid depth binding.
+            if (_parameters.NeedsDefaultTexture(i))
             {
-                // A depth texture group (e.g. shadow map with comparison sampler) must be
-                // bound via SetRenderTextureDepth; the white default texture is not a
-                // valid depth binding.
-                if (bindGroupLayout.Bindings[0].Entry.TextureInfo.SampleType == TextureSampleType.Depth)
-                {
-                    continue;
-                }
-
-                if (!_parameters.TryGetTexture(i, out Texture2D? _) &&
-                    !_parameters.TryGetRenderTexture(i, out RenderTexture? _))
-                {
-                    _parameters.SetTexture(i, _system.TextureWhite);
-                }
-            }
-            else
-            {
-                //do nothing
+                _parameters.SetTexture(i, _system.TextureWhite);
             }
         }
     }

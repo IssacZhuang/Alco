@@ -37,6 +37,15 @@ public class GraphicsBuffer : AutoDisposable
     }
 
     /// <summary>
+    /// The internal GPU buffer that backs the structured buffer counter, created on demand.
+    /// </summary>
+    internal GPUBuffer CounterBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => BufferCounter;
+    }
+
+    /// <summary>
     /// The name of the buffer.
     /// </summary>
     /// <value>The name of the buffer.</value>
@@ -92,9 +101,11 @@ public class GraphicsBuffer : AutoDisposable
 
     /// <summary>
     /// The internal abstracted GPU buffer object.
+    /// <br/>Accessed by the material system when assembling bind groups; subclasses
+    /// may override it to flush pending uploads lazily (see <see cref="BaseCameraBuffer{T}"/>).
     /// </summary>
     /// <value></value>
-    public GPUBuffer NativeBuffer
+    public virtual GPUBuffer NativeBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _buffer;

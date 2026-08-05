@@ -158,7 +158,7 @@ public sealed class Texture3D : Texture
         _resourcesSample = null;
     }
 
-    private GPUTextureView GetMipView(uint mipLevel)
+    internal GPUTextureView GetMipView(uint mipLevel)
     {
         if (_mipViews[mipLevel] == null)
         {

@@ -30,7 +30,11 @@ public class ComputeMaterial
     public virtual GPUResourceGroup? this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _parameterSet.ResourceGroups[index];
+        get
+        {
+            _parameterSet.FlushResourceGroups();
+            return _parameterSet.ResourceGroups[index];
+        }
     }
 
     /// <summary>
@@ -72,8 +76,13 @@ public class ComputeMaterial
         _system = system;
         _shader = shader;
         _pipelineContext = shader.GetComputePipelineInfo(defines);
-        _parameterSet = new ShaderParameterSet(_pipelineContext.ReflectionInfo!);
+        _parameterSet = new ShaderParameterSet(system.GraphicsDevice, _pipelineContext.ReflectionInfo!);
     }
+
+    /// <summary>
+    /// The shader parameter set of the compute material.
+    /// </summary>
+    internal ShaderParameterSet ParameterSet => _parameterSet;
 
     private void SetPipelineResources(GPUCommandBuffer.ComputePass computePass)
     {
@@ -86,6 +95,7 @@ public class ComputeMaterial
 
         computePass.SetPipeline(_pipelineContext.Pipeline!);
 
+        _parameterSet.FlushResourceGroups();
         int length = ResourceGroupCount;
         for (int i = 0; i < length; i++)
         {
@@ -96,7 +106,7 @@ public class ComputeMaterial
             }
             else
             {
-                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineContext.ReflectionInfo!.GetResourceName((uint)i)} of shader {_shader.Name}");
+                throw new InvalidOperationException($"The resource group is null at index {i}, {_pipelineContext.ReflectionInfo!.BindGroups[i].Bindings[0].Entry.Name} of shader {_shader.Name}");
             }
         }
     }

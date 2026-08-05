@@ -63,8 +63,6 @@ public sealed class Texture2D : Texture
         }
     }
 
-    public GPUSampler Sampler => _sampler;
-
     public Padding SlicePadding { get; }
 
     internal Texture2D(

@@ -123,6 +123,16 @@ public sealed class RenderTexture : AutoDisposable
     }
 
     /// <summary>
+    /// The depth texture view of the depth attachment, or null when the render texture
+    /// has no depth attachment.
+    /// </summary>
+    public GPUTextureView? DepthView
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _frameBuffer.DepthView;
+    }
+
+    /// <summary>
     /// The color textures
     /// </summary>
     /// <value></value>

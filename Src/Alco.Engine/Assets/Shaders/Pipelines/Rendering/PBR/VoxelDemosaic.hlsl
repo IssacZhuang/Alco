@@ -35,13 +35,16 @@ struct VoxelDemosaicConstants
     float4 params; // x=specularHysteresis, y=spatialSigma, z=diffuseHysteresis, w=unused
 };
 
-DEFINE_TEX2D_READ(1, _traceInput);
-DEFINE_TEX2D_DEPTH(2, _gbufferDepth);
-DEFINE_TEX2D_READ(3, _normal);
-DEFINE_TEX2D_STORAGE(4, _indirectGI, float4, "rgba16f");
-DEFINE_TEX2D_READ(5, _historyInput);
-DEFINE_TEX2D_STORAGE(6, _historyOut, float4, "rgba16f");
-DEFINE_TEX2D_READ(7, _emissive);
+// Bind groups: set 0 packs the per-dispatch inputs together with the shared
+// uniform (binding 0, from VoxelCommon.hlsli); set 1 holds the output textures,
+// so the pass needs two of the eight available sets.
+DEFINE_TEX2D_READ_AT(0, 1, _traceInput);
+DEFINE_TEX2D_DEPTH_AT(0, 2, _gbufferDepth);
+DEFINE_TEX2D_READ_AT(0, 3, _normal);
+DEFINE_TEX2D_READ_AT(0, 4, _historyInput);
+DEFINE_TEX2D_READ_AT(0, 5, _emissive);
+DEFINE_TEX2D_STORAGE_AT(1, 0, _indirectGI, float4, "rgba16f");
+DEFINE_TEX2D_STORAGE_AT(1, 1, _historyOut, float4, "rgba16f");
 
 PUSH_CONSTANT VoxelDemosaicConstants constants;
 

@@ -23,15 +23,17 @@ struct VoxelPropagateConstants
     float4 params; // x=levelIndex, y=bounceStrength, z=bounceIndex, w=unused
 };
 
-DEFINE_TEX3D_SAMPLE(1, _radiance);
-DEFINE_STORAGE(2, uint4, _attrStatic);
-DEFINE_STORAGE(3, uint4, _attrDynamic);
-DEFINE_TEX3D_STORAGE(4, _propagateOut, float4, "rgba16f");
-// Combined page table: x=static, y=dynamic. Saves a descriptor set for the
-// brick list.
-DEFINE_STORAGE(5, uint2, _pageTable);
-DEFINE_TEX3D_SAMPLE(7, _opacity);
-DEFINE_STORAGE(6, uint4, _brickList);
+// Bind groups: set 0 packs the per-dispatch inputs together with the shared
+// uniform (binding 0, from VoxelCommon.hlsli); set 1 is the output texture, so
+// the pass needs two of the eight available sets.
+DEFINE_TEX3D_SAMPLE_AT(0, 1, _radiance);
+DEFINE_STORAGE_AT(0, 3, uint4, _attrStatic);
+DEFINE_STORAGE_AT(0, 4, uint4, _attrDynamic);
+// Combined page table: x=static, y=dynamic. Saves a binding for the brick list.
+DEFINE_STORAGE_AT(0, 5, uint2, _pageTable);
+DEFINE_TEX3D_SAMPLE_AT(0, 6, _opacity);
+DEFINE_STORAGE_AT(0, 8, uint4, _brickList);
+DEFINE_TEX3D_STORAGE_AT(1, 0, _propagateOut, float4, "rgba16f");
 
 PUSH_CONSTANT VoxelPropagateConstants constants;
 

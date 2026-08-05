@@ -23,12 +23,29 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            if (_dirty)
-            {
-                UpdateBuffer(_data.ViewProjectionMatrix);
-                _dirty = false;
-            }
+            FlushDirty();
             return base.EntryReadonly;
+        }
+    }
+
+    // Bind group assembly reads the buffer through this property (the Entry* properties are
+    // no longer touched by the material system), so the pending matrix upload is flushed here.
+    public override GPUBuffer NativeBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            FlushDirty();
+            return base.NativeBuffer;
+        }
+    }
+
+    private void FlushDirty()
+    {
+        if (_dirty)
+        {
+            UpdateBuffer(_data.ViewProjectionMatrix);
+            _dirty = false;
         }
     }
 
