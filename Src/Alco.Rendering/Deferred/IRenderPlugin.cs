@@ -34,8 +34,8 @@ public sealed class RenderPluginContext
     /// <summary>Inverse of the camera view-projection matrix for this frame.</summary>
     public required Matrix4x4 InvViewProjection { get; init; }
 
-    /// <summary>World-space camera position for this frame.</summary>
-    public required Vector3 CameraPosition { get; init; }
+    /// <summary>World-space camera transform (position + rotation + scale) for this frame.</summary>
+    public required Transform3D CameraTransform { get; init; }
 
     /// <summary>G-buffer width in pixels.</summary>
     public uint Width { get; init; }

@@ -960,13 +960,13 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         int staticBricksUpdated = 0;
         int dynamicBricksUpdated = 0;
         int droppedBricks = 0;
-        _clipmap.UpdateOrigins(context.CameraPosition);
+        _clipmap.UpdateOrigins(context.CameraTransform.Position);
 
         // ── Assemble the GPU constant buffer internally ──
         VoxelGiData data = new()
         {
             InvViewProjection = context.InvViewProjection,
-            CameraPosition = new Vector4(context.CameraPosition, 0.0f),
+            CameraPosition = new Vector4(context.CameraTransform.Position, 0.0f),
         };
 
         // Copy lighting/shadow/sky data from the pipeline context.

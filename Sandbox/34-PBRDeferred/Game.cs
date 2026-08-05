@@ -135,13 +135,10 @@ public class Game : GameEngine
     private float _ambientFloor = 0.25f;
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
-    private const float HBAOMaxStepPixels = 64.0f;
     private bool _hbaoEnabled = true;
     private bool _hbaoDebugView;
     private float _hbaoRadius = 1.0f;
     private float _hbaoStrength = 1.0f;
-    private float _hbaoIntensity = 1.2f;
-    private float _hbaoBias = 0.02f;
     private HbaoRenderer? _hbaoRenderer;
 
     // Voxel global illumination (sparse clipmap + cone tracing).
@@ -1172,27 +1169,14 @@ public class Game : GameEngine
     /// </summary>
     private void ExecuteAfterGBufferPlugins()
     {
-        // Populate HBAO plugin data.
+        // Sync HBAO user-tunable parameters (camera data is read automatically
+        // from RenderPluginContext).
         if (_hbaoRenderer != null)
         {
             float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
-            float effectiveHbaoRadius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
-            float hbaoStrength = _hbaoEnabled ? _hbaoStrength : 0.0f;
-            hbaoStrength *= ssaoAmount;
-            Quaternion cameraRotation = _camera.Transform.Rotation;
-            _hbaoRenderer.Data.InvViewProjection = _invViewProjection;
-            _hbaoRenderer.Data.CameraPosition = _lightingData.CameraPosition;
-            _hbaoRenderer.Data.CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, cameraRotation), 0.0f);
-            _hbaoRenderer.Data.CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0.0f);
-            _hbaoRenderer.Data.CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, cameraRotation), 0.0f);
-            _hbaoRenderer.Data.Params = new Vector4(
-                effectiveHbaoRadius,
-                _hbaoIntensity,
-                _hbaoBias,
-                1.0f / (effectiveHbaoRadius * effectiveHbaoRadius));
-            float projScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
-            _hbaoRenderer.Data.Params2 = new Vector4(projScale, 0.0f, 0.0f, HBAOMaxStepPixels);
-            _hbaoRenderer.Data.Params3 = new Vector4(hbaoStrength, 0.0f, 0.0f, 0.0f);
+            _hbaoRenderer.Radius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
+            _hbaoRenderer.Strength = (_hbaoEnabled ? _hbaoStrength : 0.0f) * ssaoAmount;
+            _hbaoRenderer.ProjectionScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
         }
 
         RenderPluginContext context = new()
@@ -1201,7 +1185,7 @@ public class Game : GameEngine
             GBuffer = _pipeline.GBuffer,
             ShadowMap = _pipeline.ShadowMap,
             InvViewProjection = _invViewProjection,
-            CameraPosition = _camera.Transform.Position,
+            CameraTransform = _camera.Transform,
             Width = _pipeline.GBuffer.Width,
             Height = _pipeline.GBuffer.Height,
             LightingData = _lightingData,
@@ -1323,8 +1307,12 @@ public class Game : GameEngine
             ImGui.Checkbox("AO Enabled", ref _hbaoEnabled);
             ImGui.SliderFloat("AO Radius", ref _hbaoRadius, 0.1f, MathF.Max(4.0f, _sceneRadius * 0.05f));
             ImGui.SliderFloat("AO Strength", ref _hbaoStrength, 0.0f, 1.0f);
-            ImGui.SliderFloat("AO Power", ref _hbaoIntensity, 0.5f, 3.0f);
-            ImGui.SliderFloat("AO Bias", ref _hbaoBias, 0.0f, 0.2f);
+            float intensity = _hbaoRenderer.Intensity;
+            if (ImGui.SliderFloat("AO Power", ref intensity, 0.5f, 3.0f))
+                _hbaoRenderer.Intensity = intensity;
+            float bias = _hbaoRenderer.Bias;
+            if (ImGui.SliderFloat("AO Bias", ref bias, 0.0f, 0.2f))
+                _hbaoRenderer.Bias = bias;
             ImGui.SliderFloat("SSAO Amount With GI", ref _giSsaoAmount, 0.0f, 1.0f);
             ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
         }

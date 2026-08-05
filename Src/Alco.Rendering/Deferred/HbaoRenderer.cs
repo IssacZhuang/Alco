@@ -18,9 +18,11 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
 {
     /// <summary>
     /// Per-frame HBAO data uploaded to both compute passes. Layout must match the
-    /// <c>_data</c> cbuffer in HBAOCommon.hlsli exactly.
+    /// <c>_data</c> cbuffer in HBAOCommon.hlsli exactly. Assembled internally by
+    /// the renderer from <see cref="RenderPluginContext"/> and user-tunable
+    /// properties.
     /// </summary>
-    public struct HbaoData
+    private struct HbaoData
     {
         /// <summary>Inverse of the camera view-projection matrix.</summary>
         public Matrix4x4 InvViewProjection;
@@ -52,11 +54,39 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
     private RenderTexture? _boundGBuffer;
 
     /// <summary>
-    /// Per-frame data; fill before the pipeline executes this plugin. The viewport
-    /// components of <see cref="HbaoData.Params2"/> (yz) are filled automatically
-    /// by <see cref="Execute"/>.
+    /// Gets or sets the world-space AO sampling radius. Larger radii catch broader
+    /// occlusion but are more expensive and prone to streaking.
     /// </summary>
-    public HbaoData Data;
+    public float Radius { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets the AO intensity (power exponent applied to the raw occlusion).
+    /// </summary>
+    public float Intensity { get; set; } = 1.2f;
+
+    /// <summary>
+    /// Gets or sets the angle bias in sine space. Higher values reject thin
+    /// geometry features that cause false occlusion.
+    /// </summary>
+    public float Bias { get; set; } = 0.02f;
+
+    /// <summary>
+    /// Gets or sets the overall AO strength multiplier. Zero disables the effect
+    /// (the output texture is all white). Values above 1 amplify occlusion.
+    /// </summary>
+    public float Strength { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets the projection scale factor: <c>0.5 * viewportHeight *
+    /// projectionMatrix[1][1]</c>. Converts world-space radius to pixel-space
+    /// march distance.
+    /// </summary>
+    public float ProjectionScale { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum march distance in pixels per direction.
+    /// </summary>
+    public float MaxStepPixels { get; set; } = 64.0f;
 
     /// <summary>The full-resolution AO result texture (r = occlusion [0,1], white = unoccluded).</summary>
     public RenderTexture AOResult => _aoResult;
@@ -112,19 +142,25 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
     /// <inheritdoc />
     public void Execute(RenderPluginContext context)
     {
-        Render(context.GBuffer);
-        context.AOResult = _aoResult;
-    }
+        // ── Assemble the GPU constant buffer internally ──
+        // Camera basis axes are derived from the camera rotation quaternion.
+        // The engine camera convention is +X forward, +Y right, +Z up.
+        Quaternion rot = context.CameraTransform.Rotation;
+        float r2 = MathF.Max(Radius * Radius, 1e-6f);
+        HbaoData data = new()
+        {
+            InvViewProjection = context.InvViewProjection,
+            CameraPosition = new Vector4(context.CameraTransform.Position, 0.0f),
+            CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, rot), 0.0f),
+            CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, rot), 0.0f),
+            CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, rot), 0.0f),
+            Params = new Vector4(Radius, Intensity, Bias, 1.0f / r2),
+            Params2 = new Vector4(ProjectionScale, context.GBuffer.Width, context.GBuffer.Height, MaxStepPixels),
+            Params3 = new Vector4(Strength, 0.0f, 0.0f, 0.0f),
+        };
+        _dataBuffer.UpdateBuffer(data);
 
-    /// <summary>
-    /// Compute ambient occlusion from the G-buffer. Must be called after the G-buffer
-    /// pass and before the lighting pass.
-    /// </summary>
-    /// <param name="gbuffer">The pipeline G-buffer (depth + world-normal attachments).</param>
-    private void Render(RenderTexture gbuffer)
-    {
-        Data.Params2 = new Vector4(Data.Params2.X, gbuffer.Width, gbuffer.Height, Data.Params2.W);
-        _dataBuffer.UpdateBuffer(Data);
+        RenderTexture gbuffer = context.GBuffer;
 
         // The G-buffer render texture is recreated on resize; avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
@@ -144,6 +180,8 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
         }
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
+
+        context.AOResult = _aoResult;
     }
 
     /// <inheritdoc />
