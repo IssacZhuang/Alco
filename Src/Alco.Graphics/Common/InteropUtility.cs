@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using Silk.NET.Core.Native;
+using System.Text;
 
 namespace Alco.Graphics;
 
@@ -41,6 +41,17 @@ internal unsafe static class InteropUtility
 
     public unsafe static string ReadString(byte* ptrString)
     {
-        return SilkMarshal.PtrToString((IntPtr)ptrString) ?? string.Empty;
+        if (ptrString == null)
+        {
+            return string.Empty;
+        }
+
+        int length = 0;
+        while (ptrString[length] != 0)
+        {
+            length++;
+        }
+
+        return Encoding.UTF8.GetString(ptrString, length);
     }
 }

@@ -1,3 +1,4 @@
+using Alco.Graphics.Spirv;
 using NUnit.Framework;
 
 namespace Alco.ShaderCompiler;
@@ -53,31 +54,43 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     /// </summary>
     private static uint? GetImageDepthOperand(byte[] spirv, string variableName)
     {
-        uint[] words = ToWords(spirv);
-        foreach ((uint[] instruction, int _) in EnumerateInstructions(words))
-        {
-            // OpName
-            if (Opcode(instruction) != 5 || ReadString(instruction, 2) != variableName)
-            {
-                continue;
-            }
+        SpirvModule module = SpirvReader.Parse(spirv);
 
-            uint variableId = instruction[1];
-            uint pointerTypeId = FindInstruction(words, 59, i => i[2] == variableId)![1];
-            uint imageTypeId = FindInstruction(words, 32, i => i[1] == pointerTypeId)![3];
-            uint[] image = FindInstruction(words, 25, i => i[1] == imageTypeId)!;
-            return image[4];
+        // Find the variable ID by name.
+        uint variableId = 0;
+        bool found = false;
+        foreach (KeyValuePair<uint, string> pair in module.Names)
+        {
+            if (pair.Value == variableName)
+            {
+                variableId = pair.Key;
+                found = true;
+                break;
+            }
         }
 
-        return null;
+        if (!found)
+        {
+            return null;
+        }
+
+        // Follow: OpVariable → OpTypePointer → OpTypeImage → Depth operand (word[4]).
+        SpirvInstruction variable = module.GetInstruction(variableId)
+            ?? throw new InvalidOperationException($"Variable %{variableId} not found.");
+        uint pointerTypeId = variable[1];
+        SpirvInstruction pointerType = module.GetInstruction(pointerTypeId)
+            ?? throw new InvalidOperationException($"Pointer type %{pointerTypeId} not found.");
+        uint imageTypeId = pointerType[3];
+        SpirvInstruction imageType = module.GetInstruction(imageTypeId)
+            ?? throw new InvalidOperationException($"Image type %{imageTypeId} not found.");
+        return imageType[4];
     }
 
-    /// <summary>
-    /// Returns the bound word of the module header.
-    /// </summary>
+    /// <summary>Returns the bound word of the module header.</summary>
     private static uint GetBound(byte[] spirv)
     {
-        return ToWords(spirv)[3];
+        SpirvModule module = SpirvReader.Parse(spirv);
+        return module.Bound;
     }
 
     /// <summary>
@@ -86,89 +99,50 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     /// </summary>
     private static void AssertTypeChainConsistent(byte[] spirv, string variableName)
     {
-        uint[] words = ToWords(spirv);
+        SpirvModule module = SpirvReader.Parse(spirv);
 
+        // Find variable by name.
         uint variableId = 0;
-        foreach ((uint[] instruction, int _) in EnumerateInstructions(words))
+        bool found = false;
+        foreach (KeyValuePair<uint, string> pair in module.Names)
         {
-            if (Opcode(instruction) == 5 && ReadString(instruction, 2) == variableName)
+            if (pair.Value == variableName)
             {
-                variableId = instruction[1];
+                variableId = pair.Key;
+                found = true;
                 break;
             }
         }
 
-        uint[] variable = FindInstruction(words, 59, i => i[2] == variableId)!;
-        uint imageTypeId = FindInstruction(words, 32, i => i[1] == variable[1])![3];
+        Assert.That(found, Is.True, $"Variable '{variableName}' not found in module.");
+        SpirvInstruction variable = module.GetInstruction(variableId)!;
+        SpirvInstruction pointerType = module.GetInstruction(variable[1])!;
+        uint imageTypeId = pointerType[3];
 
-        foreach ((uint[] instruction, int _) in EnumerateInstructions(words))
+        foreach (SpirvInstruction inst in module.Instructions)
         {
             // OpLoad of the variable must produce the (possibly cloned) image type.
-            if (Opcode(instruction) == 61 && instruction[3] == variableId)
+            if ((SpirvOp)inst.OpCode == SpirvOp.Load && inst[3] == variableId)
             {
-                Assert.That(instruction[1], Is.EqualTo(imageTypeId),
-                    $"OpLoad %{instruction[2]} does not produce the variable's image type");
+                Assert.That(inst[1], Is.EqualTo(imageTypeId),
+                    $"OpLoad %{inst[2]} does not produce the variable's image type");
             }
 
             // OpSampledImage wrapping such a load must use a sampled image type built
             // on the same image type.
-            if (Opcode(instruction) == 86 && IsLoadOf(words, instruction[3], variableId))
+            if ((SpirvOp)inst.OpCode == SpirvOp.SampledImage && IsLoadOf(module, inst[3], variableId))
             {
-                uint[] sampledImageType = FindInstruction(words, 27, i => i[1] == instruction[1])!;
+                SpirvInstruction sampledImageType = module.GetInstruction(inst[1])!;
                 Assert.That(sampledImageType[2], Is.EqualTo(imageTypeId),
-                    $"OpSampledImage %{instruction[2]} does not use the variable's image type");
+                    $"OpSampledImage %{inst[2]} does not use the variable's image type");
             }
         }
     }
 
-    private static bool IsLoadOf(uint[] words, uint id, uint variableId)
+    private static bool IsLoadOf(SpirvModule module, uint id, uint variableId)
     {
-        uint[]? load = FindInstruction(words, 61, i => i[2] == id);
-        return load != null && load[3] == variableId;
-    }
-
-    private static ushort Opcode(uint[] instruction) => (ushort)(instruction[0] & 0xFFFF);
-
-    private static uint[] ToWords(byte[] spirv)
-    {
-        uint[] words = new uint[spirv.Length / 4];
-        Buffer.BlockCopy(spirv, 0, words, 0, spirv.Length);
-        return words;
-    }
-
-    private static IEnumerable<(uint[] instruction, int offset)> EnumerateInstructions(uint[] words)
-    {
-        int offset = 5;
-        while (offset < words.Length)
-        {
-            int wordCount = (int)(words[offset] >> 16);
-            uint[] instruction = new uint[wordCount];
-            Array.Copy(words, offset, instruction, 0, wordCount);
-            yield return (instruction, offset);
-            offset += wordCount;
-        }
-    }
-
-    private static uint[]? FindInstruction(uint[] words, ushort opcode, Func<uint[], bool> predicate)
-    {
-        foreach ((uint[] instruction, int _) in EnumerateInstructions(words))
-        {
-            if (Opcode(instruction) == opcode && predicate(instruction))
-            {
-                return instruction;
-            }
-        }
-
-        return null;
-    }
-
-    private static string ReadString(uint[] instruction, int wordOffset)
-    {
-        int byteCount = (instruction.Length - wordOffset) * 4;
-        byte[] bytes = new byte[byteCount];
-        Buffer.BlockCopy(instruction, wordOffset * 4, bytes, 0, byteCount);
-        int length = Array.IndexOf<byte>(bytes, 0);
-        return System.Text.Encoding.UTF8.GetString(bytes, 0, length < 0 ? bytes.Length : length);
+        SpirvInstruction? load = module.GetInstruction(id);
+        return load != null && (SpirvOp)load.OpCode == SpirvOp.Load && load[3] == variableId;
     }
 
     [Test(Description = "DXC emits the Depth operand as 2 (unknown) for all textures")]

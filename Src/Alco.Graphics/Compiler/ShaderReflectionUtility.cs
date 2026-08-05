@@ -1,50 +1,20 @@
-using Silk.NET.SPIRV;
-using Silk.NET.SPIRV.Reflect;
+using Alco.Graphics.Spirv;
 
 namespace Alco.Graphics;
 
 public static class ShaderReflectionUtility
 {
-    private static readonly Reflect API = Reflect.GetApi();
-
-    public static ShaderReflectionInfo GetSpirvReflection(ReadOnlyMemory<byte> vertexSpirv, ReadOnlyMemory<byte> fragmentSpirv, bool useStandardStage = false)
+    public static ShaderReflectionInfo GetSpirvReflection(
+        ReadOnlyMemory<byte> vertexSpirv, ReadOnlyMemory<byte> fragmentSpirv, bool useStandardStage = false)
     {
-        ShaderReflectionInfo vertex = GetSpirvReflection(vertexSpirv, useStandardStage);
-        ShaderReflectionInfo fragment = GetSpirvReflection(fragmentSpirv, useStandardStage);
-
-
+        ShaderReflectionInfo vertex = SpirvReflector.Reflect(vertexSpirv.Span, useStandardStage);
+        ShaderReflectionInfo fragment = SpirvReflector.Reflect(fragmentSpirv.Span, useStandardStage);
         return MergeReflectionInfo(vertex, fragment);
     }
 
-    public unsafe static ShaderReflectionInfo GetSpirvReflection(ReadOnlyMemory<byte> spirv, bool useStandardStage = false)
+    public static ShaderReflectionInfo GetSpirvReflection(ReadOnlyMemory<byte> spirv, bool useStandardStage = false)
     {
-        ReflectShaderModule module = new ReflectShaderModule();
-        fixed (byte* ptr = spirv.Span)
-        {
-            Result result = API.CreateShaderModule((nuint)spirv.Length, ptr, &module);
-            if (result != Result.Success)
-            {
-                throw new ShaderReflectionException($"Failed to create shader module, result{result}");
-            }
-        }
-
-
-        ShaderReflectionInfo info = new ShaderReflectionInfo
-        (
-            new VertexInputLayout[] { GetVertexInputLayout(module) },
-            GetBindgGroupLayouts(module,useStandardStage),
-            GetPushConstants(module),
-            GetThreadGroupSize(module)
-        );
-
-        API.DestroyShaderModule(&module);
-
-        // if (useStandardStage)
-        // {
-        //     SetToStandardVisibility(info);
-        // }
-
-        return info;
+        return SpirvReflector.Reflect(spirv.Span, useStandardStage);
     }
 
     /// <summary>
@@ -78,6 +48,7 @@ public static class ShaderReflectionUtility
         {
             indices[i] = bindGroups[i].Group;
         }
+
         Array.Sort(indices);
 
         for (int i = 0; i < count; i++)
@@ -100,53 +71,16 @@ public static class ShaderReflectionUtility
             {
                 builder.Append(", ");
             }
+
             builder.Append(bindGroups[i].Group);
         }
+
         return builder.ToString();
-    }
-
-    // public static void SetToStandardVisibility(ShaderReflectionInfo info)
-    // {
-    //     for (int i = 0; i < info.BindGroups.Count; i++)
-    //     {
-    //         for (int j = 0; j < info.BindGroups[i].Bindings.Count; j++)
-    //         {
-    //             if ((info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Vertex) != 0 ||
-    //             (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Fragment) != 0 ||
-    //             (info.BindGroups[i].Bindings[j].Entry.Stage & ShaderStage.Compute) != 0)
-    //             {
-    //                 info.BindGroups[i].Bindings[j].Entry.Stage = ShaderStage.Standard;
-    //             }
-    //         }
-    //     }
-    // }
-
-    public unsafe static PushConstantsRange[] GetPushConstants(ReflectShaderModule shaderModule)
-    {
-        if (shaderModule.PushConstantBlockCount == 0)
-        {
-            return Array.Empty<PushConstantsRange>();
-        }
-
-        ShaderStage stage = ReflectTypeUtility.ConvertShaderStage(shaderModule.ShaderStage);
-        PushConstantsRange[] ranges = new PushConstantsRange[shaderModule.PushConstantBlockCount];
-        for (int i = 0; i < shaderModule.PushConstantBlockCount; i++)
-        {
-            BlockVariable block = shaderModule.PushConstantBlocks[i];
-            ranges[i] = new PushConstantsRange
-            {
-                Stage = stage,
-                Start = block.Offset,
-                End = block.Offset + block.Size
-            };
-        }
-
-        return ranges;
     }
 
     public static ShaderReflectionInfo MergeReflectionInfo(ShaderReflectionInfo vertex, ShaderReflectionInfo fragment)
     {
-        Dictionary<uint, BindGroupLayout> bindGroups = new Dictionary<uint, BindGroupLayout>();
+        Dictionary<uint, BindGroupLayout> bindGroups = new();
 
         foreach (BindGroupLayout layout in vertex.BindGroups)
         {
@@ -169,7 +103,6 @@ public static class ShaderReflectionUtility
             }
         }
 
-        
         IReadOnlyList<PushConstantsRange> maxRangesList;
         IReadOnlyList<PushConstantsRange> minRangesList;
         if (vertex.PushConstantsRanges.Count >= fragment.PushConstantsRanges.Count)
@@ -194,216 +127,44 @@ public static class ShaderReflectionUtility
             ranges[i].Stage |= minRangesList[i].Stage;
         }
 
-
         KeyValuePair<uint, BindGroupLayout>[] bindGroupsArray = bindGroups.ToArray();
-
-        Array.Sort(bindGroupsArray, (a, b) =>
-        {
-            return a.Key.CompareTo(b.Key);
-        });
+        Array.Sort(bindGroupsArray, (a, b) => a.Key.CompareTo(b.Key));
 
         BindGroupLayout[] layouts = new BindGroupLayout[bindGroupsArray.Length];
-
         for (int i = 0; i < bindGroupsArray.Length; i++)
         {
             layouts[i] = bindGroupsArray[i].Value;
         }
-        
 
-        return new ShaderReflectionInfo
-        (
+        return new ShaderReflectionInfo(
             vertex.VertexLayouts,
             layouts,
             ranges,
-            ThreadGroupSize.Default
-        );
+            ThreadGroupSize.Default);
     }
 
-    // compute thread group size
-    private unsafe static ThreadGroupSize GetThreadGroupSize(ReflectShaderModule shaderModule)
+    private static BindGroupEntryInfo[] MergeBindGroupEntries(
+        IReadOnlyList<BindGroupEntryInfo> left, IReadOnlyList<BindGroupEntryInfo> right)
     {
-        if (shaderModule.EntryPointCount == 0)
+        Dictionary<uint, BindGroupEntryInfo> bindings = new();
+        foreach (BindGroupEntryInfo binding in left)
         {
-            return ThreadGroupSize.Default;
+            bindings.Add(binding.Entry.Binding, binding);
         }
 
-        if ((shaderModule.ShaderStage & ShaderStageFlagBits.ComputeBit) == 0)
+        foreach (BindGroupEntryInfo binding in right)
         {
-            return ThreadGroupSize.Default;
-        }
-
-        EntryPoint entry = shaderModule.EntryPoints[0];
-        return GetThreadGroupSize(entry);
-    }
-
-    private unsafe static ThreadGroupSize GetThreadGroupSize(EntryPoint entry)
-    {
-        LocalSize size = entry.LocalSize;
-        return new ThreadGroupSize
-        {
-            X = size.X,
-            Y = size.Y,
-            Z = size.Z
-        };
-    }
-
-
-    // resource binding reflection
-
-    private unsafe static BindGroupEntryInfo ConvertResourceBinding(DescriptorBinding input, ShaderStage stage)
-    {
-        BindingType type = ReflectTypeUtility.ConvertBindingType(input.DescriptorType);
-
-        TextureBindingInfo? textureBindingInfo = null;
-        StorageTextureBindingInfo? storageTextureBindingInfo = null;
-
-        switch (type)
-        {
-            case BindingType.Texture:
-                // The OpTypeImage Depth operand (1 for depth images, 0/2 otherwise) decides
-                // whether the texture must be bound as a depth texture (see
-                // SpirvDepthTexturePatcher, which rewrites depth textures to 1).
-                TextureSampleType sampleType = input.Image.Depth == 1 ? TextureSampleType.Depth : TextureSampleType.Float;
-                textureBindingInfo = new TextureBindingInfo(ReflectTypeUtility.ConvertTextureViewDimension(input.Image), sampleType);
-                break;
-            case BindingType.StorageTexture:
-                storageTextureBindingInfo = new StorageTextureBindingInfo(
-                    AccessMode.ReadWrite,
-                    ReflectTypeUtility.ConvertTextureViewDimension(input.Image),
-                    ReflectTypeUtility.ConvertImageFormat(input.Image.ImageFormat)
-                    );
-                break;
-        }
-
-        return new BindGroupEntryInfo
-        {
-            Entry = new BindGroupEntry(
-            input.Binding,
-            stage,
-            type,
-            textureBindingInfo,
-            storageTextureBindingInfo,
-            InteropUtility.ReadString(input.Name)
-        ),
-            Size = input.Block.PaddedSize
-        };
-
-    }
-
-    private unsafe static BindGroupEntryInfo[] GetBindGroups(ReflectDescriptorSet set, ShaderStage stage)
-    {
-        if (set.BindingCount == 0) return Array.Empty<BindGroupEntryInfo>();
-
-        BindGroupEntryInfo[] bindings = new BindGroupEntryInfo[set.BindingCount];
-        for (int i = 0; i < set.BindingCount; i++)
-        {
-            DescriptorBinding* input = set.Bindings[i];
-            bindings[i] = ConvertResourceBinding(*input, stage);
-        }
-
-        return bindings;
-    }
-
-    private unsafe static BindGroupLayout GetBindgGroupLayout(ReflectDescriptorSet set, ShaderStage stage)
-    {
-        BindGroupEntryInfo[] bindings = GetBindGroups(set, stage);
-        return new BindGroupLayout
-        {
-            Group = set.Set,
-            Bindings = bindings,
-        };
-    }
-
-    private unsafe static BindGroupLayout[] GetBindgGroupLayouts(ReflectShaderModule shaderModule, bool useStandardStage = false)
-    {
-        if (shaderModule.DescriptorSetCount == 0) return Array.Empty<BindGroupLayout>();
-
-        BindGroupLayout[] layouts = new BindGroupLayout[shaderModule.DescriptorSetCount];
-        for (int i = 0; i < shaderModule.DescriptorSetCount; i++)
-        {
-            ReflectDescriptorSet set = shaderModule.DescriptorSets[i];
-            ShaderStage stage = ReflectTypeUtility.ConvertShaderStage(shaderModule.ShaderStage);
-            if (useStandardStage||
-                (stage & ShaderStage.Vertex) != 0 ||
-                (stage & ShaderStage.Fragment) != 0 ||
-                (stage & ShaderStage.Compute) != 0)
+            if (bindings.TryGetValue(binding.Entry.Binding, out BindGroupEntryInfo existing))
             {
-                stage = ShaderStage.Standard;
+                existing.Entry.Stage |= binding.Entry.Stage;
+                bindings[binding.Entry.Binding] = existing;
             }
-            layouts[i] = GetBindgGroupLayout(set, stage);
-        }
-
-        return layouts;
-    }
-
-    private static BindGroupEntryInfo[] MergeBindGroupEntries(params Span<IReadOnlyList<BindGroupEntryInfo>> bindingsList)
-    {
-        Dictionary<uint, BindGroupEntryInfo> bindings = new Dictionary<uint, BindGroupEntryInfo>();
-        foreach (BindGroupEntryInfo[] list in bindingsList)
-        {
-            foreach (BindGroupEntryInfo binding in list)
+            else
             {
-                if (bindings.TryGetValue(binding.Entry.Binding, out BindGroupEntryInfo existing))
-                {
-                    existing.Entry.Stage |= binding.Entry.Stage;
-                    bindings[binding.Entry.Binding] = existing;
-                }
-                else
-                {
-                    bindings.Add(binding.Entry.Binding, binding);
-                }
+                bindings.Add(binding.Entry.Binding, binding);
             }
         }
 
         return bindings.Values.ToArray();
     }
-
-    // vertex layout reflection
-
-    private unsafe static VertexElement ConvertVertexElement(InterfaceVariable input, uint offset)
-    {
-        return new VertexElement
-        {
-            Location = input.Location,
-            Name = InteropUtility.ReadString(input.Name),
-            Format = ReflectTypeUtility.ConvertFormat(input.Format),
-            Offset = offset
-        };
-    }
-
-    private unsafe static VertexElement[] GetVertexElements(InterfaceVariable** inputs, uint count, out uint stride)
-    {
-        stride = 0;
-
-        if (count == 0)
-        {
-            return Array.Empty<VertexElement>();
-        }
-
-        List<VertexElement> elements = new List<VertexElement>();
-        for (int i = 0; i < count; i++)
-        {
-            InterfaceVariable* input = inputs[i];
-            if (input->BuiltIn >= 0)
-            {
-                continue;
-            }
-            elements.Add(ConvertVertexElement(*input, stride));
-            stride += GetNumericSize(input->Numeric);
-        }
-
-        return elements.ToArray();
-    }
-
-    private unsafe static VertexInputLayout GetVertexInputLayout(ReflectShaderModule shaderModule)
-    {
-        VertexElement[] elements = GetVertexElements(shaderModule.InputVariables, shaderModule.InputVariableCount, out uint stride);
-        return new VertexInputLayout(elements, stride, VertexStepMode.Vertex);
-    }
-
-    private static uint GetNumericSize(NumericTraits num)
-    {
-        return num.Scalar.Width / 8 * num.Vector.ComponentCount;
-    }
-
 }
