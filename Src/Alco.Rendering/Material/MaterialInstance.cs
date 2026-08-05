@@ -16,7 +16,10 @@ public sealed class MaterialInstance : Material
         get
         {
             _parameters.FlushResourceGroups();
-            return _parameters.ResourceGroups[index] ?? _parent[index];
+            // The assembly already resolves unbound values from the whole parent
+            // chain by name, so the groups are complete on their own; a null group
+            // here would be null for the parent as well.
+            return _parameters.ResourceGroups[index];
         }
     }
     
@@ -37,11 +40,11 @@ public sealed class MaterialInstance : Material
     public override void PushResources(GPUCommandBuffer.RenderPass renderPass)
     {
         _parameters.FlushResourceGroups();
-        int length = ResourceGroupCount;
+        ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
 
-        for (uint i = 0; i < length; i++)
+        for (uint i = 0; i < resources.Length; i++)
         {
-            GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
+            GPUResourceGroup? resourceGroup = resources[(int)i];//parent resource already included
             if (resourceGroup != null)
             {
                 renderPass.SetResources(i, resourceGroup);
@@ -55,10 +58,10 @@ public sealed class MaterialInstance : Material
     public override void PushResources(GPURenderBundle renderBundle)
     {
         _parameters.FlushResourceGroups();
-        int length = ResourceGroupCount;
-        for (uint i = 0; i < length; i++)
+        ReadOnlySpan<GPUResourceGroup?> resources = _parameters.ResourceGroups;
+        for (uint i = 0; i < resources.Length; i++)
         {
-            GPUResourceGroup? resourceGroup = this[(int)i];//parent resource already included
+            GPUResourceGroup? resourceGroup = resources[(int)i];//parent resource already included
             if (resourceGroup != null)
             {
                 renderBundle.SetGraphicsResources(i, resourceGroup);

@@ -96,10 +96,12 @@ public class ComputeMaterial
         computePass.SetPipeline(_pipelineContext.Pipeline!);
 
         _parameterSet.FlushResourceGroups();
+        ReadOnlySpan<GPUResourceGroup?> resources = _parameterSet.ResourceGroups;
         int length = ResourceGroupCount;
         for (int i = 0; i < length; i++)
         {
-            GPUResourceGroup? resourceGroup = this[i];
+            // For an instance the assembly already includes the parent chain values.
+            GPUResourceGroup? resourceGroup = resources[i];
             if (resourceGroup != null)
             {
                 computePass.SetResources((uint)i, resourceGroup);

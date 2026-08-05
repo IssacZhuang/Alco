@@ -12,18 +12,19 @@ public sealed class ComputeMaterialInstance : ComputeMaterial
     private readonly ComputeMaterial _parent;
 
     /// <summary>
-    /// Gets the resource group at the specified index. If the resource group is not set in this instance,
-    /// returns the resource group from the parent compute dispatcher.
+    /// Gets the resource group at the specified index. Values not bound on this
+    /// instance are resolved from the parent chain when the groups are assembled,
+    /// so the groups are complete on their own.
     /// </summary>
     /// <param name="index">The index of the resource group.</param>
-    /// <returns>The resource group at the specified index, or the parent's resource group if not set in this instance.</returns>
+    /// <returns>The resource group at the specified index.</returns>
     public override GPUResourceGroup? this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             _parameterSet.FlushResourceGroups();
-            return _parameterSet.ResourceGroups[index] ?? _parent[index];
+            return _parameterSet.ResourceGroups[index];
         }
     }
 
