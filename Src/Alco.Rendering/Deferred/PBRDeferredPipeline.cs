@@ -26,9 +26,10 @@ namespace Alco.Rendering;
 /// semantics, so recorded bundles stay valid while the camera-fitted cascades move).
 /// <br/>Cascade splits are computed by <see cref="ComputeShadowCascades"/> (PSSM,
 /// camera-fitted, texel-snapped).
-/// <br/>When created with the HBAO shaders, <see cref="HBAO"/> computes screen-space
-/// ambient occlusion from the G-buffer between the G-buffer and lighting passes; the
-/// lighting pass then modulates its ambient term with it.
+/// <br/>Pluggable effects (AO, GI, etc.) implementing <see cref="IRenderPlugin"/> can be
+/// registered via <see cref="RegisterPlugin"/>; they execute at their declared
+/// <see cref="RenderInjectionPoint"/> and their output textures are bound to the
+/// lighting material automatically.
 /// </summary>
 public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 {
@@ -196,11 +197,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
     private readonly GraphicsValueBuffer<ShadowCascadeData> _shadowDataBuffer;
     private readonly GraphicsArrayBuffer<PointLight> _pointLightBuffer;
-    private readonly HbaoRenderer? _hbao;
 
-    // Indirect radiance atlas produced by an external voxel GI renderer
-    // (SetGlobalIllumination); sampled by the lighting pass when GI is enabled.
-    private RenderTexture? _indirectGI;
+    // Pluggable render effects (AO, GI, etc.) executed between the G-buffer
+    // and lighting passes. The pipeline binds their output textures to the
+    // lighting material automatically after execution.
+    private readonly List<IRenderPlugin> _plugins = new();
 
     private readonly RenderContext _shadowContext;
     private readonly RenderContext _gbufferContext;
@@ -248,12 +249,81 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public IRenderContext ShadowContext => _shadowContext;
 
     /// <summary>
-    /// The optional HBAO+ ambient occlusion renderer; null when the pipeline was
-    /// created without the HBAO shaders. When present, call
-    /// <c>HBAO.Render(GBuffer, ref hbaoData)</c> between <see cref="EndGBufferPass"/>
-    /// and <see cref="RenderLighting"/>.
+    /// Register a pluggable render effect. The pipeline executes the plugin at
+    /// its declared <see cref="RenderInjectionPoint"/> and binds the output
+    /// textures to the lighting material automatically. The caller owns the
+    /// plugin's lifetime (dispose it after disposing the pipeline or
+    /// unregistering it).
     /// </summary>
-    public HbaoRenderer? HBAO => _hbao;
+    /// <param name="plugin">The render plugin to register.</param>
+    public void RegisterPlugin(IRenderPlugin plugin)
+    {
+        _plugins.Add(plugin);
+    }
+
+    /// <summary>
+    /// Unregister a previously registered render plugin.
+    /// </summary>
+    public void UnregisterPlugin(IRenderPlugin plugin)
+    {
+        _plugins.Remove(plugin);
+    }
+
+    /// <summary>
+    /// Get the first registered plugin of the specified type, or null.
+    /// </summary>
+    public T? GetPlugin<T>() where T : class, IRenderPlugin
+    {
+        for (int i = 0; i < _plugins.Count; i++)
+        {
+            if (_plugins[i] is T typed)
+            {
+                return typed;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Execute all plugins registered at the given injection point and bind
+    /// their output textures to the lighting material. Called by the caller
+    /// between <see cref="EndGBufferPass"/> and <see cref="RenderLighting"/>.
+    /// </summary>
+    public void ExecutePlugins(RenderInjectionPoint point, RenderPluginContext context)
+    {
+        for (int i = 0; i < _plugins.Count; i++)
+        {
+            IRenderPlugin plugin = _plugins[i];
+            if (plugin.InjectionPoint == point)
+            {
+                plugin.Execute(context);
+            }
+        }
+        RebindPluginOutputs(context);
+    }
+
+    private void RebindPluginOutputs(RenderPluginContext context)
+    {
+        if (context.AOResult != null)
+        {
+            _lightingMaterial.SetRenderTexture("_aoTexture", context.AOResult);
+        }
+        else
+        {
+            _lightingMaterial.SetTexture("_aoTexture", _rendering.TextureWhite);
+        }
+
+        if (context.GIDiffuse != null)
+        {
+            _lightingMaterial.SetRenderTexture("_giDiffuse", context.GIDiffuse);
+            _lightingMaterial.SetRenderTexture("_giSpecular", context.GISpecular!);
+        }
+        else
+        {
+            _lightingMaterial.SetTexture("_giDiffuse", _rendering.TextureBlack);
+            _lightingMaterial.SetTexture("_giSpecular", _rendering.TextureBlack);
+        }
+    }
 
     /// <summary>
     /// Create the deferred PBR pipeline with the given shaders.
@@ -268,9 +338,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling <see cref="CreateGBufferTangentMaterial"/> for normal-mapped materials.</param>
     /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="DrawShadowTangent"/> for tangent-bearing meshes.</param>
-    /// <param name="hbaoShader">Optional HBAO+ raw AO compute shader (HBAO.hlsl); together with <paramref name="hbaoBlurShader"/> enables <see cref="HBAO"/>.</param>
-    /// <param name="hbaoBlurShader">Optional HBAO+ bilateral blur compute shader (HBAOBlur.hlsl).</param>
-    /// <exception cref="ArgumentException">Exactly one of the two HBAO shaders was provided.</exception>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
         Shader gbufferShader,
@@ -281,9 +348,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         uint width = 1280,
         uint height = 720,
         Shader? gbufferTangentShader = null,
-        Shader? shadowTangentShader = null,
-        Shader? hbaoShader = null,
-        Shader? hbaoBlurShader = null)
+        Shader? shadowTangentShader = null)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -350,15 +415,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _pointLightBuffer = rendering.CreateGraphicsArrayBuffer<PointLight>(MaxPointLights, "pbr_point_lights");
         _lightingMaterial.SetBuffer(ShaderResourceId.PointLights, _pointLightBuffer);
 
-        if (hbaoShader != null && hbaoBlurShader != null)
-        {
-            _hbao = new HbaoRenderer(rendering, hbaoShader, hbaoBlurShader, width, height);
-        }
-        else if (hbaoShader != null || hbaoBlurShader != null)
-        {
-            throw new ArgumentException(
-                "HBAO requires both the raw AO shader and the blur shader.", nameof(hbaoBlurShader));
-        }
         RebindLightingTargets();
 
         _shadowContext = rendering.CreateRenderContext("pbr_shadow_pass");
@@ -389,7 +445,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         _gbufferRT.Dispose();
         _gbufferRT = _rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
-        _hbao?.Resize(width, height);
+        for (int i = 0; i < _plugins.Count; i++)
+        {
+            _plugins[i].Resize(width, height);
+        }
         RebindLightingTargets();
     }
 
@@ -486,21 +545,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "pbr_flat_normal"));
         }
         return _flatNormalTexture;
-    }
-
-    /// <summary>
-    /// Set the indirect radiance atlas sampled by the lighting pass (bind group 7
-    /// of the lighting shader), typically produced by a <see cref="VoxelGiRenderer"/>
-    /// (three sections at three times the trace width: diffuse near layer, diffuse
-    /// far layer, specular). Pass null to fall back to a black texture; the GI
-    /// ambient term itself is toggled via
-    /// <see cref="DeferredLightingData.Params3"/> (x component).
-    /// </summary>
-    /// <param name="indirectGI">The gathered diffuse/specular radiance atlas, or null.</param>
-    public void SetGlobalIllumination(RenderTexture? indirectGI)
-    {
-        _indirectGI = indirectGI;
-        RebindGlobalIlluminationTargets();
     }
 
     /// <summary>
@@ -828,31 +872,14 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// (typically the engine's HDR main target).
     /// </summary>
     /// <param name="target">The frame buffer to render the lighting result into.</param>
-    /// <param name="data">Per-frame lighting data; <see cref="DeferredLightingData.ViewportSize"/> and the GI trace texel size in <see cref="DeferredLightingData.Params4"/> (z/w) are filled by the pipeline.</param>
+    /// <param name="data">Per-frame lighting data; <see cref="DeferredLightingData.ViewportSize"/> is filled by the pipeline.</param>
     public void RenderLighting(GPUFrameBuffer target, ref DeferredLightingData data)
     {
         data.ViewportSize = new Vector4(_gbufferRT.Width, _gbufferRT.Height, 0, 0);
-        // Section-local size of one GI trace texel for the depth-weighted upscale
-        // kernel; the atlas is five times the trace width. Zero when no GI
-        // atlas is bound (the lighting shader skips the GI path then anyway).
-        data.Params4.Z = _indirectGI != null ? 5.0f / _indirectGI.Width : 0.0f;
-        data.Params4.W = _indirectGI != null ? 1.0f / _indirectGI.Height : 0.0f;
         _lightingDataBuffer.UpdateBuffer(data);
         _lightingContext.Begin(target);
         _lightingContext.Draw(_fullScreenMesh, _lightingMaterial);
         _lightingContext.End();
-    }
-
-    private void RebindGlobalIlluminationTargets()
-    {
-        if (_indirectGI != null)
-        {
-            _lightingMaterial.SetRenderTexture("_indirectGI", _indirectGI);
-        }
-        else
-        {
-            _lightingMaterial.SetTexture("_indirectGI", _rendering.TextureBlack);
-        }
     }
 
     private void RebindLightingTargets()
@@ -863,7 +890,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingMaterial.SetRenderTexture("_emissive", _gbufferRT, 3);
         _lightingMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
         _lightingMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
-        RebindGlobalIlluminationTargets();
+        // Plugin output textures default to white/black until a plugin sets them.
+        _lightingMaterial.SetTexture("_aoTexture", _rendering.TextureWhite);
+        _lightingMaterial.SetTexture("_giDiffuse", _rendering.TextureBlack);
+        _lightingMaterial.SetTexture("_giSpecular", _rendering.TextureBlack);
     }
 
     /// <inheritdoc />
@@ -874,7 +904,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _shadowContext.Dispose();
             _gbufferContext.Dispose();
             _lightingContext.Dispose();
-            _hbao?.Dispose();
             _lightingDataBuffer.Dispose();
             _shadowDataBuffer.Dispose();
             _pointLightBuffer.Dispose();

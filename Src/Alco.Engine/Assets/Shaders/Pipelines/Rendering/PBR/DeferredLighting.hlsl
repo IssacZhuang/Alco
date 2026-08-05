@@ -60,15 +60,15 @@ DEFINE_TEX2D_SAMPLE(1, _mrAO);
 DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
 DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap);
 DEFINE_TEX2D_SAMPLE(1, _emissive);
-// Indirect GI atlas from the voxel cone tracing resolve: five times the
-// trace width. Sections: diffuse near layer and diffuse far layer (rgb =
-// irradiance, a = layer view-linear depth), then specular radiance (rgb;
-// alpha carries the selected diffuse visibility for the debug view), then
-// ALD (Average Light Direction) near and far layers (xyz = dir*brightness,
-// a = layer view-linear depth). The lighting pass upsamples all layers with
-// the upscale pass's 5-tap depth-weighted kernel at full resolution, keeping
-// occlusion edges sharp at reduced trace resolutions.
-DEFINE_TEX2D_SAMPLE(1, _indirectGI);
+// Indirect GI textures from the GI render plugin (full-resolution):
+// diffuse irradiance with ALD directional modulation pre-applied, and
+// specular radiance. White/black fallbacks are bound by the pipeline when
+// no GI plugin is active.
+DEFINE_TEX2D_SAMPLE(1, _giDiffuse);
+DEFINE_TEX2D_SAMPLE(1, _giSpecular);
+// Screen-space ambient occlusion from an AO render plugin (full-resolution,
+// white = unoccluded). The pipeline binds white when no AO plugin is active.
+DEFINE_TEX2D_SAMPLE(1, _aoTexture);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -301,12 +301,14 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 worldPosition = ReconstructWorldPosition(input);
     float3 viewDirection = normalize(worldPosition - cameraPosition.xyz);
 
-    // Debug: visualize the ambient occlusion channel of the G-buffer (material
-    // AO already multiplied by HBAO; white = unoccluded).
+    // Debug: visualize the combined ambient occlusion (material × screen-space).
     if (params2.w > 0.5)
     {
-        float rawAO = SAMPLE_TEX2D(_mrAO, input.uv).z;
-        return float4(rawAO, rawAO, rawAO, 1.0);
+        float3 mrAO = SAMPLE_TEX2D(_mrAO, input.uv).xyz;
+        float matAO = mrAO.z;
+        float ssaoVal = SAMPLE_TEX2D(_aoTexture, input.uv).r;
+        float combined = matAO * ssaoVal;
+        return float4(combined, combined, combined, 1.0);
     }
 
     if (depth >= 0.9999)
@@ -321,8 +323,10 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 N = normalize(normalRT * 2.0 - 1.0);
     float metallic = mrAO.x;
     float roughness = GeometricSpecularAA(N, mrAO.y);
-    // The HBAO blur pass already multiplied screen-space AO into this channel.
-    float ao = mrAO.z;
+    // Material AO from the G-buffer, screen-space AO from the AO plugin.
+    float materialAO = mrAO.z;
+    float ssao = SAMPLE_TEX2D(_aoTexture, input.uv).r;
+    float ao = materialAO * ssao;
     float3 V = -viewDirection; // surface to camera
 
     float3 Lo = 0.0;
@@ -399,90 +403,13 @@ float4 MainPS(V2F input) : SV_TARGET
 
     if (params3.x > 0.5)
     {
-        // The atlas is five times the trace width: diffuse near/far, specular,
-        // ALD near/far. Each segment occupies 1/5 of the atlas width.
-        const float segmentCount = 5.0;
-        float2 traceUV = input.uv * float2(1.0 / segmentCount, 1.0);
-        // The upscale pass reconstructs the diffuse term at full resolution
-        // with a 5-tap cross kernel over the trace texture. Every tap is bilinearly
-        // filtered, blended between its near/far layers at this pixel's depth,
-        // and weighted by a soft relative-depth test (center counts four
-        // times), so occlusion edges keep full-resolution precision instead
-        // of stair-stepping at trace texels.
-        float linearDepth = ReconstructLinearDepth(input);
-        float2 traceTexel = params4.zw; // one trace texel in segment-local UV
-        float2 atlasTexel = float2(traceTexel.x / segmentCount, traceTexel.y);
-        float4 sampleTM = float4(atlasTexel * 1.5, atlasTexel * 0.25);
-        const float2 sampleOffsets[5] =
-        {
-            float2( 0, -1) * sampleTM.xy - sampleTM.zw,
-            float2( 0,  1) * sampleTM.xy - sampleTM.zw,
-            float2(-1,  0) * sampleTM.xy - sampleTM.zw,
-            float2( 1,  0) * sampleTM.xy - sampleTM.zw,
-            float2( 0,  0) * sampleTM.xy - sampleTM.zw,
-        };
-
-        float3 indirectDiffuseSum = 0.0;
-        float indirectDiffuseWeight = 0.0;
-        float4 indirectAldSum = 0.0;
-        float indirectAldWeight = 0.0;
-        [unroll]
-        for (int s = 0; s < 5; s++)
-        {
-            float2 tapUV = traceUV + sampleOffsets[s];
-            float4 tapDiffuseMin = SAMPLE_TEX2D(_indirectGI, tapUV);
-            float4 tapDiffuseMax = SAMPLE_TEX2D(_indirectGI, tapUV + float2(1.0 / segmentCount, 0.0));
-            float4 tapAldMin = SAMPLE_TEX2D(_indirectGI, tapUV + float2(3.0 / segmentCount, 0.0));
-            float4 tapAldMax = SAMPLE_TEX2D(_indirectGI, tapUV + float2(4.0 / segmentCount, 0.0));
-
-            // The layer depths are clamped at 4 m so near-camera depth ratios
-            // cannot explode.
-            float tapDepthMin = max(4.0, tapDiffuseMin.a);
-            float tapDepthMax = max(4.0, tapDiffuseMax.a);
-            float tapLerp = saturate(
-                (linearDepth - tapDepthMin) / max(tapDepthMax - tapDepthMin, 0.0001));
-            float3 tapDiffuse = lerp(tapDiffuseMin.rgb, tapDiffuseMax.rgb, tapLerp);
-            float4 tapAld = lerp(tapAldMin, tapAldMax, tapLerp);
-            float tapDepth = lerp(tapDepthMin, tapDepthMax, tapLerp);
-
-            float depthTest = saturate(
-                (0.12 - abs(1.0 - linearDepth / tapDepth)) * 4.0);
-            float tapWeight = depthTest * 0.25;
-            if (s == 4)
-            {
-                tapWeight = saturate(tapWeight * 4.0);
-            }
-            tapWeight += 0.001;
-
-            indirectDiffuseSum += tapDiffuse * tapWeight;
-            indirectDiffuseWeight += tapWeight;
-            indirectAldSum += tapAld * tapWeight;
-            indirectAldWeight += tapWeight;
-        }
-
-        float4 indirectSpecularSection = SAMPLE_TEX2D(_indirectGI, traceUV + float2(2.0 / segmentCount, 0.0));
-        float4 indirectDiffuse = float4(
-            indirectDiffuseSum / indirectDiffuseWeight,
-            indirectSpecularSection.a);
-        float3 indirectSpecular = indirectSpecularSection.rgb;
-        float4 indirectAld = indirectAldSum / max(indirectAldWeight, 0.0001);
-
-        // Directional diffuse: ALD gives indirect light a directional response.
-        // Our pipeline keeps full-colour radiance in the diffuse atlas, so ALD
-        // must modulate only the angular distribution without amplifying
-        // overall brightness.
-        //
-        // dirFraction: how concentrated the indirect light is in one
-        // direction (0 = uniform hemisphere, 1 = single dominant direction).
-        // directionalMod: energy-conserving modulation centred at 1.0.
-        // Ambient light (dirFraction=0) → 1.0 everywhere. Directional light
-        // (dirFraction=1) → NdotAld*2, whose hemisphere average is ~1.0.
-        float dirIntens = max(0.0, length(indirectAld.xyz));
-        float aldBrightness = max(indirectAld.w, 0.0001);
-        float dirFraction = saturate(dirIntens / aldBrightness);
-        float3 aldDir = dirIntens > 0.0001 ? normalize(indirectAld.xyz) : N;
-        float NdotAld = saturate(dot(N, aldDir));
-        float directionalMod = lerp(1.0, NdotAld * 2.0, dirFraction);
+        // Full-resolution textures from the GI plugin's upsample pass. The
+        // directional modulation (ALD), near/far layer blend and depth-weighted
+        // upsampling have all been applied by the plugin already.
+        float4 giDiffuseSample = SAMPLE_TEX2D(_giDiffuse, input.uv);
+        float3 giDiffuseColor = giDiffuseSample.rgb;
+        float giVisibility = giDiffuseSample.a;
+        float3 giSpecularColor = SAMPLE_TEX2D(_giSpecular, input.uv).rgb;
 
         // Debug: visualize bounce radiance, specular radiance, or voxel
         // environment visibility (white=open, black=occluded).
@@ -490,46 +417,38 @@ float4 MainPS(V2F input) : SV_TARGET
         {
             if (params3.w < 1.5)
             {
-                return float4(indirectDiffuse.rgb, 1.0);
+                return float4(giDiffuseColor, 1.0);
             }
             if (params3.w < 2.5)
             {
-                return float4(indirectSpecular, 1.0);
+                return float4(giSpecularColor, 1.0);
             }
             if (params3.w < 3.5)
             {
-                return float4(indirectDiffuse.aaa, 1.0);
+                return float4(giVisibility, giVisibility, giVisibility, 1.0);
             }
-            // 4 = ALD direction (visualization)
-            if (params3.w < 4.5)
-            {
-                return float4(indirectAld.xyz * 0.5 + 0.5, 1.0);
-            }
-            return float4(indirectDiffuse.rgb, 1.0);
+            return float4(giDiffuseColor, 1.0);
         }
 
         // Cone tracing has already integrated sky radiance independently
         // along every visible direction and added bounced surface radiance.
-        // The ALD-driven directionalMod gives indirect light a directional
-        // response instead of flat ambient — corners darken, surfaces facing
-        // the bounce source brighten — without changing overall brightness.
         // The ambientFloor is still added so deeply occluded areas where cone
         // tracing returns near-zero radiance never go pitch-black. The floor
         // is small (~0.05–0.15) and still multiplied by AO below, so
         // GI-driven AO contrast is preserved.
-        diffuseIrradiance = max(indirectDiffuse.rgb * directionalMod, 0.0)
+        diffuseIrradiance = max(giDiffuseColor, 0.0)
             * params3.y + ambientFloor;
 
         float NdotV = max(dot(N, V), 0.0);
         float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
-        indirectSpecularTerm = indirectSpecular
+        indirectSpecularTerm = giSpecularColor
             * EnvBRDFApprox(F0, roughness, NdotV)
             * params3.z;
     }
 
-    // Material AO and HBAO affect indirect/environment illumination only. The
-    // HBAO strength is reduced by the caller while voxel GI is active so the
-    // two independent occlusion estimates do not crush the same corners twice.
+    // Material AO and screen-space AO affect indirect/environment illumination
+    // only. The HBAO strength is reduced by the caller while voxel GI is active
+    // so the two independent occlusion estimates do not crush the same corners.
     float3 ambient = (diffuseIrradiance * albedo * (1.0 - metallic)
         + indirectSpecularTerm) * ao;
 

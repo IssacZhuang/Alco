@@ -7,13 +7,14 @@ namespace Alco.Rendering;
 /// HBAO+ (horizon-based ambient occlusion) renderer for the deferred PBR pipeline.
 /// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
 /// horizon rays in a compute pass (HBAO.hlsl) and filters the noisy result with a
-/// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blur pass multiplies the
-/// filtered AO straight into the G-buffer metallic-roughness-AO attachment's AO
-/// channel (scaled by the strength parameter), so the deferred lighting pass needs
-/// no separate AO binding.
-/// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting pass.
+/// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blur pass writes the
+/// filtered AO to a standalone full-resolution texture (<see cref="AOResult"/>),
+/// which the pipeline binds to the deferred lighting material's _aoTexture slot.
+/// <br/>Implements <see cref="IRenderPlugin"/> so it can be registered with
+/// <see cref="PBRDeferredPipeline.RegisterPlugin"/> and executes automatically at
+/// the <see cref="RenderInjectionPoint.AfterGBuffer"/> injection point.
 /// </summary>
-public sealed class HbaoRenderer : AutoDisposable
+public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
 {
     /// <summary>
     /// Per-frame HBAO data uploaded to both compute passes. Layout must match the
@@ -33,9 +34,9 @@ public sealed class HbaoRenderer : AutoDisposable
         public Vector4 CameraForward;
         /// <summary>x=radius (world units) y=intensity exponent z=angle bias (sin space) w=1/radius^2.</summary>
         public Vector4 Params;
-        /// <summary>x=projScale (0.5 * viewportHeight * projection[1][1]) yz=viewport size in pixels (filled by <see cref="Render"/>) w=max step length in pixels.</summary>
+        /// <summary>x=projScale (0.5 * viewportHeight * projection[1][1]) yz=viewport size in pixels (filled by <see cref="Execute"/>) w=max step length in pixels.</summary>
         public Vector4 Params2;
-        /// <summary>x=strength (0 disables; scales how much of the blurred AO is multiplied into the G-buffer AO channel) yzw=unused.</summary>
+        /// <summary>x=strength (0 disables; scales how much of the blurred AO is written to the result texture) yzw=unused.</summary>
         public Vector4 Params3;
     }
 
@@ -47,7 +48,24 @@ public sealed class HbaoRenderer : AutoDisposable
     private readonly GraphicsValueBuffer<HbaoData> _dataBuffer;
 
     private RenderTexture _rawAO;
+    private RenderTexture _aoResult;
     private RenderTexture? _boundGBuffer;
+
+    /// <summary>
+    /// Per-frame data; fill before the pipeline executes this plugin. The viewport
+    /// components of <see cref="HbaoData.Params2"/> (yz) are filled automatically
+    /// by <see cref="Execute"/>.
+    /// </summary>
+    public HbaoData Data;
+
+    /// <summary>The full-resolution AO result texture (r = occlusion [0,1], white = unoccluded).</summary>
+    public RenderTexture AOResult => _aoResult;
+
+    /// <inheritdoc />
+    public string Name => "HBAO+";
+
+    /// <inheritdoc />
+    public RenderInjectionPoint InjectionPoint => RenderInjectionPoint.AfterGBuffer;
 
     /// <summary>
     /// Create the HBAO+ renderer with the given compute shaders.
@@ -71,23 +89,31 @@ public sealed class HbaoRenderer : AutoDisposable
         // RGBA16Float (light map layout): proven as both a compute storage target and
         // a filterable sampled texture.
         _rawAO = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width, height, "hbao_raw");
+        _aoResult = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width, height, "hbao_result");
 
         _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
+        _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
     }
 
-    /// <summary>
-    /// Recreate the AO textures at a new resolution. Call when the G-buffer resizes.
-    /// </summary>
-    /// <param name="width">The new width in pixels.</param>
-    /// <param name="height">The new height in pixels.</param>
+    /// <inheritdoc />
     public void Resize(uint width, uint height)
     {
         _rawAO.Dispose();
+        _aoResult.Dispose();
         _rawAO = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width, height, "hbao_raw");
+        _aoResult = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width, height, "hbao_result");
         _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
+        _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
         _boundGBuffer = null;
+    }
+
+    /// <inheritdoc />
+    public void Execute(RenderPluginContext context)
+    {
+        Render(context.GBuffer);
+        context.AOResult = _aoResult;
     }
 
     /// <summary>
@@ -95,11 +121,10 @@ public sealed class HbaoRenderer : AutoDisposable
     /// pass and before the lighting pass.
     /// </summary>
     /// <param name="gbuffer">The pipeline G-buffer (depth + world-normal attachments).</param>
-    /// <param name="data">Per-frame HBAO data; the viewport components of <see cref="HbaoData.Params2"/> are filled by this method.</param>
-    public void Render(RenderTexture gbuffer, ref HbaoData data)
+    private void Render(RenderTexture gbuffer)
     {
-        data.Params2 = new Vector4(data.Params2.X, gbuffer.Width, gbuffer.Height, data.Params2.W);
-        _dataBuffer.UpdateBuffer(data);
+        Data.Params2 = new Vector4(Data.Params2.X, gbuffer.Width, gbuffer.Height, Data.Params2.W);
+        _dataBuffer.UpdateBuffer(Data);
 
         // The G-buffer render texture is recreated on resize; avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
@@ -108,8 +133,6 @@ public sealed class HbaoRenderer : AutoDisposable
             _hbaoMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _blurMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _blurMaterial.SetRenderTexture("_normal", gbuffer, 1);
-            // The blur pass writes the filtered AO back into the G-buffer AO channel.
-            _blurMaterial.SetRenderTexture("_aoOutput", gbuffer, 2);
             _boundGBuffer = gbuffer;
         }
 
@@ -129,6 +152,7 @@ public sealed class HbaoRenderer : AutoDisposable
         if (disposing)
         {
             _rawAO.Dispose();
+            _aoResult.Dispose();
             _dataBuffer.Dispose();
             _commandBuffer.Dispose();
         }

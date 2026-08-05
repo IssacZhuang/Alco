@@ -142,7 +142,7 @@ public class Game : GameEngine
     private float _hbaoStrength = 1.0f;
     private float _hbaoIntensity = 1.2f;
     private float _hbaoBias = 0.02f;
-    private HbaoRenderer.HbaoData _hbaoData = new();
+    private HbaoRenderer? _hbaoRenderer;
 
     // Voxel global illumination (sparse clipmap + cone tracing).
     private readonly VoxelGiRenderer? _voxelGI;
@@ -153,7 +153,7 @@ public class Game : GameEngine
     private float _giSkyIntensity = 1.0f;
     private float _giSsaoAmount = 1f;
     private float _giMaxTraceDistance = 12.0f;
-    private float _giDiffuseSpreading = 0.0f;
+    private float _giDiffuseSpreading = 0.5f;
     private int _giDebugView;
     private int _giResolutionPreset = 0;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
@@ -190,6 +190,9 @@ public class Game : GameEngine
     private int _frameCount;
 
     private float _time;
+
+    // Cached each frame in UpdateLightingData for the render plugin context.
+    private Matrix4x4 _invViewProjection;
 
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
@@ -286,13 +289,22 @@ public class Game : GameEngine
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
             gbufferTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"),
-            shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"),
-            hbaoShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
-            hbaoBlurShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"));
+            shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"));
 
         // Materials created by the pipeline factory bind this camera; the sandbox
         // drives its own camera (RenderingSystem.MainCamera is not set by sandboxes).
         _pipeline.SetCamera(_camera);
+
+        // HBAO+ as a render plugin (decoupled from the pipeline).
+        if (_hbaoEnabled)
+        {
+            _hbaoRenderer = new HbaoRenderer(
+                RenderingSystem,
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"),
+                (uint)MainView.Size.X, (uint)MainView.Size.Y);
+            _pipeline.RegisterPlugin(_hbaoRenderer);
+        }
 
         if (_bistro != null)
         {
@@ -348,8 +360,10 @@ public class Game : GameEngine
                 traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
             _giMaxTraceDistance = MathF.Min(12.0f, MathF.Max(_sceneRadius, 1.0f));
             RegisterVoxelMeshes();
-            _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
             _voxelGI.SetPointLightBuffer(_pipeline.PointLightBuffer);
+            _voxelGI.SetUpsampleShader(
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelGiUpsample.hlsl"));
+            _pipeline.RegisterPlugin(_voxelGI);
         }
 
         // Bloom blits into the HDR target in OnPostUpdate, before PluginHDR's
@@ -457,12 +471,7 @@ public class Game : GameEngine
     {
         _camera.AspectRatio = (float)size.X / size.Y;
         _pipeline.Resize(size.X, size.Y);
-        if (_voxelGI != null)
-        {
-            // The indirect textures are recreated by the resize: rebind them.
-            _voxelGI.Resize(size.X, size.Y);
-            _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
-        }
+        // Plugins (including VoxelGI) are resized by the pipeline automatically.
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -811,6 +820,7 @@ public class Game : GameEngine
             _cascadeTexelSizes);
 
         _lightingData.InvViewProjection = invViewProjection;
+        _invViewProjection = invViewProjection;
         _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
         _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
         _lightingData.SunViewProjection2 = _cascadeViewProjections[2];
@@ -888,26 +898,6 @@ public class Game : GameEngine
             _voxelData.GiParams = new Vector4(_pointLightsEnabled ? _emissiveBoost : 0.0f, _giMaxTraceDistance, 0.0f, 0.0f);
             _voxelData.GiParams2 = new Vector4(_giDebugView, 0.0f, 0.0f, _giSkyIntensity);
         }
-
-        // HBAO+ per-frame data (the viewport components of Params2 are filled by the renderer).
-        Quaternion cameraRotation = _camera.Transform.Rotation;
-        _hbaoData.InvViewProjection = invViewProjection;
-        _hbaoData.CameraPosition = _lightingData.CameraPosition;
-        _hbaoData.CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, cameraRotation), 0.0f);
-        _hbaoData.CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0.0f);
-        _hbaoData.CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, cameraRotation), 0.0f);
-        float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
-        float effectiveHbaoRadius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
-        _hbaoData.Params = new Vector4(
-            effectiveHbaoRadius,
-            _hbaoIntensity,
-            _hbaoBias,
-            1.0f / (effectiveHbaoRadius * effectiveHbaoRadius));
-        float projScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
-        _hbaoData.Params2 = new Vector4(projScale, 0.0f, 0.0f, HBAOMaxStepPixels);
-        float hbaoStrength = _hbaoEnabled && _pipeline.HBAO != null ? _hbaoStrength : 0.0f;
-        hbaoStrength *= ssaoAmount;
-        _hbaoData.Params3 = new Vector4(hbaoStrength, 0.0f, 0.0f, 0.0f);
     }
 
     private void RenderFrame()
@@ -956,13 +946,12 @@ public class Game : GameEngine
         }
         _pipeline.EndGBufferPass();
 
-        // 3. Screen-space ambient occlusion (HBAO+) from the G-buffer.
-        RenderHBAOPass();
+        // 3. AfterGBuffer plugins (HBAO+, VoxelGI) — pipeline executes them
+        // and auto-binds output textures to the lighting material.
+        SubmitDynamicInstances();
+        ExecuteAfterGBufferPlugins();
 
-        // 4. Voxel global illumination (clipmap voxelization + cone tracing).
-        RenderVoxelGIPass();
-
-        // 5. Deferred lighting into the engine's HDR main target.
+        // 4. Deferred lighting into the engine's HDR main target.
         _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
     }
 
@@ -1001,9 +990,9 @@ public class Game : GameEngine
         _pipeline.ExecuteGBufferSubContext(_staticGBufferBundle!);
         _pipeline.EndGBufferPass();
 
-        RenderHBAOPass();
-
-        RenderVoxelGIPass();
+        // AfterGBuffer plugins (HBAO+, VoxelGI).
+        SubmitDynamicInstances();
+        ExecuteAfterGBufferPlugins();
 
         _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
     }
@@ -1179,13 +1168,13 @@ public class Game : GameEngine
     }
 
     /// <summary>Run the voxel GI passes between the G-buffer/HBAO and lighting passes.</summary>
-    private void RenderVoxelGIPass()
+    /// <summary>Submit dynamic object instances to the voxel GI before plugin execution.</summary>
+    private void SubmitDynamicInstances()
     {
         if (!_giEnabled || _voxelGI == null)
         {
             return;
         }
-
         for (int i = 0; i < _objects.Count; i++)
         {
             SceneObject sceneObject = _objects[i];
@@ -1196,7 +1185,60 @@ public class Game : GameEngine
             }
         }
         _voxelGI.DiffuseSpreading = _giDiffuseSpreading;
-        _voxelGI.Render(_pipeline.GBuffer, _pipeline.ShadowMap, ref _voxelData, _camera.Transform.Position);
+    }
+
+    /// <summary>
+    /// Fill per-frame plugin data and execute all AfterGBuffer plugins (HBAO+,
+    /// VoxelGI). The pipeline auto-binds the output textures to the lighting material.
+    /// </summary>
+    private void ExecuteAfterGBufferPlugins()
+    {
+        // Populate HBAO plugin data.
+        if (_hbaoRenderer != null)
+        {
+            float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
+            float effectiveHbaoRadius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
+            float hbaoStrength = _hbaoEnabled ? _hbaoStrength : 0.0f;
+            hbaoStrength *= ssaoAmount;
+            Quaternion cameraRotation = _camera.Transform.Rotation;
+            _hbaoRenderer.Data.InvViewProjection = _invViewProjection;
+            _hbaoRenderer.Data.CameraPosition = _lightingData.CameraPosition;
+            _hbaoRenderer.Data.CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, cameraRotation), 0.0f);
+            _hbaoRenderer.Data.CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0.0f);
+            _hbaoRenderer.Data.CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, cameraRotation), 0.0f);
+            _hbaoRenderer.Data.Params = new Vector4(
+                effectiveHbaoRadius,
+                _hbaoIntensity,
+                _hbaoBias,
+                1.0f / (effectiveHbaoRadius * effectiveHbaoRadius));
+            float projScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
+            _hbaoRenderer.Data.Params2 = new Vector4(projScale, 0.0f, 0.0f, HBAOMaxStepPixels);
+            _hbaoRenderer.Data.Params3 = new Vector4(hbaoStrength, 0.0f, 0.0f, 0.0f);
+        }
+
+        // Populate VoxelGI plugin data.
+        if (_voxelGI != null)
+        {
+            _voxelGI.Data = _voxelData;
+        }
+
+        RenderPluginContext context = new()
+        {
+            Rendering = RenderingSystem,
+            GBuffer = _pipeline.GBuffer,
+            ShadowMap = _pipeline.ShadowMap,
+            InvViewProjection = _invViewProjection,
+            CameraPosition = _camera.Transform.Position,
+            Width = _pipeline.GBuffer.Width,
+            Height = _pipeline.GBuffer.Height,
+        };
+        _pipeline.ExecutePlugins(RenderInjectionPoint.AfterGBuffer, context);
+
+        // Read back any data the renderer filled (ViewProjectionPrev etc.).
+        if (_voxelGI != null)
+        {
+            _voxelData = _voxelGI.Data;
+        }
     }
 
     /// <summary>Copy the current (possibly still streaming) Bistro textures into the materials.</summary>
@@ -1209,15 +1251,6 @@ public class Game : GameEngine
             _pipeline.SetGBufferTangentMaterialTextures(_bistroMaterials![i],
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
-        }
-    }
-
-    /// <summary>Run the HBAO+ compute passes between the G-buffer and lighting passes.</summary>
-    private void RenderHBAOPass()
-    {
-        if (_hbaoEnabled && _pipeline.HBAO != null)
-        {
-            _pipeline.HBAO.Render(_pipeline.GBuffer, ref _hbaoData);
         }
     }
 
@@ -1316,7 +1349,7 @@ public class Game : GameEngine
             ImGui.SliderFloat("Ambient Floor", ref _ambientFloor, 0.0f, 10.0f);
         }
 
-        if (_pipeline.HBAO != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
+        if (_hbaoRenderer != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
         {
             ImGui.Checkbox("AO Enabled", ref _hbaoEnabled);
             ImGui.SliderFloat("AO Radius", ref _hbaoRadius, 0.1f, MathF.Max(4.0f, _sceneRadius * 0.05f));
@@ -1348,7 +1381,6 @@ public class Game : GameEngine
                 GiTraceResolutionModes.Length))
             {
                 _voxelGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
-                _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
             }
             ImGui.Text($"GI trace resolution: {_voxelGI.IndirectTexture.Width / 3}x{_voxelGI.IndirectTexture.Height}");
             string[] giDebugModes = [

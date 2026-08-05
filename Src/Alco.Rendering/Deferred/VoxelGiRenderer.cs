@@ -114,15 +114,14 @@ public readonly struct VoxelGiStatistics
 /// Structural bricks are rebuilt incrementally after edits or camera scrolling.
 /// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting
 /// pass; the resulting configurable-resolution <see cref="IndirectTexture"/>
-/// atlas (diffuse near/far layers with layer depths, then specular) is sampled
-/// by the deferred lighting pass, which blends the layers at full-resolution
-/// depth (see <see cref="PBRDeferredPipeline.SetGlobalIllumination"/>).
+/// atlas is upsampled internally to the full-resolution <see cref="DiffuseTexture"/>
+/// and <see cref="SpecularTexture"/> outputs that the deferred lighting pass samples.
 /// <br/>Attribute voxels live in storage buffers (packed, point-sampled by the
 /// injection pass); the HDR radiance volume is one mip-mapped RGBA16Float
 /// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
 /// cone-traced with hardware trilinear filtering.
 /// </summary>
-public sealed class VoxelGiRenderer : AutoDisposable
+public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
 {
     /// <summary>
     /// Per-frame data uploaded to every voxel GI shader. Layout must match the
@@ -187,6 +186,18 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 GiParams2;
         /// <summary>x=frame index, y=GI diffuse bias, z=history-valid flag (filled by the renderer), w=diffuse spreading (dual-kernel opacity bias).</summary>
         public Vector4 GiFrameParams;
+    }
+
+    /// <summary>
+    /// Per-frame data uploaded to the VoxelGiUpsample compute pass. Layout must
+    /// match the <c>_data</c> cbuffer in VoxelGiUpsample.hlsl exactly.
+    /// </summary>
+    public struct VoxelGiUpsampleData
+    {
+        /// <summary>Inverse of the camera view-projection matrix for linear-depth reconstruction.</summary>
+        public Matrix4x4 InvViewProjection;
+        /// <summary>xy = G-buffer size in pixels, z = 1/traceWidth (= 5/atlasWidth), w = 1/traceHeight.</summary>
+        public Vector4 Params;
     }
 
     /// <summary>
@@ -256,6 +267,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
     private readonly ComputeMaterial _propagateMaterial;
     private readonly ComputeMaterial _traceMaterial;
     private readonly ComputeMaterial _demosaicMaterial;
+    private ComputeMaterial? _upsampleMaterial;
+    private GraphicsValueBuffer<VoxelGiUpsampleData>? _upsampleDataBuffer;
     private readonly GraphicsValueBuffer<VoxelGiData> _dataBuffer;
     private readonly GPUTimestampQuerySet? _timestampQueries;
     private readonly GPUBuffer? _timestampResolveBuffer;
@@ -309,6 +322,8 @@ public sealed class VoxelGiRenderer : AutoDisposable
 
     private RenderTexture _traceRaw;
     private RenderTexture _indirectAtlas;
+    private RenderTexture _giDiffuseFullRes;
+    private RenderTexture _giSpecularFullRes;
     private readonly RenderTexture[] _historyGI = new RenderTexture[2];
     private uint _gbufferWidth;
     private uint _gbufferHeight;
@@ -416,10 +431,37 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// <summary>
     /// The gathered indirect radiance atlas (five times the configured trace
     /// width: diffuse near/far layers, specular, ALD near/far layers with
-    /// their view-linear layer depths in alpha), sampled by the deferred
-    /// lighting pass, which blends the layers at full-resolution depth.
+    /// their view-linear layer depths in alpha). This is the trace-resolution
+    /// atlas consumed by the internal upsample pass; the full-resolution outputs
+    /// are <see cref="DiffuseTexture"/> and <see cref="SpecularTexture"/>.
     /// </summary>
     public RenderTexture IndirectTexture => _indirectAtlas;
+
+    /// <summary>
+    /// The full-resolution diffuse irradiance output (rgba = irradiance * directionalMod,
+    /// selected visibility), produced by the internal upsample pass from
+    /// <see cref="IndirectTexture"/>. Consumed by the deferred lighting pass.
+    /// </summary>
+    public RenderTexture DiffuseTexture => _giDiffuseFullRes;
+
+    /// <summary>
+    /// The full-resolution specular radiance output, produced by the internal
+    /// upsample pass. Consumed by the deferred lighting pass.
+    /// </summary>
+    public RenderTexture SpecularTexture => _giSpecularFullRes;
+
+    /// <inheritdoc />
+    public string Name => "VoxelGI";
+
+    /// <inheritdoc />
+    public RenderInjectionPoint InjectionPoint => RenderInjectionPoint.AfterGBuffer;
+
+    /// <summary>
+    /// Per-frame GI data; fill before the pipeline executes this plugin. The
+    /// clipmap and view-projection fields are filled automatically by
+    /// <see cref="Render(RenderTexture, RenderTexture, ref VoxelGiData, in Vector3)"/>.
+    /// </summary>
+    public VoxelGiData Data;
 
     /// <summary>
     /// Bind a shared point-light StructuredBuffer to the GI inject pass so that
@@ -584,6 +626,35 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
+
+        // Full-resolution GI outputs (upsampled from the trace-resolution atlas
+        // by VoxelGiUpsample.hlsl) consumed by the deferred lighting pass.
+        _giDiffuseFullRes = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_diffuse");
+        _giSpecularFullRes = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_specular");
+
+        // Upsample compute pass is created lazily via <see cref="SetUpsampleShader"/>
+        // so callers that do not use the plugin interface (direct Render calls)
+        // are not forced to supply the shader.
+    }
+
+    /// <summary>
+    /// Supply the upsample compute shader and finalize the full-resolution output
+    /// bindings. Must be called once after construction when the renderer is used
+    /// as a render plugin (the pipeline calls this automatically).
+    /// </summary>
+    /// <param name="upsampleShader">The VoxelGiUpsample.hlsl compute shader.</param>
+    public void SetUpsampleShader(Shader upsampleShader)
+    {
+        if (_upsampleMaterial != null)
+        {
+            return;
+        }
+        _upsampleMaterial = _rendering.CreateComputeMaterial(upsampleShader);
+        _upsampleDataBuffer = _rendering.CreateGraphicsValueBuffer<VoxelGiUpsampleData>("voxel_gi_upsample_data");
+        _upsampleMaterial.SetBuffer("_data", _upsampleDataBuffer);
+        _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
+        _upsampleMaterial.SetRenderTexture("_giDiffuseOut", _giDiffuseFullRes);
+        _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
     }
 
     private static void ValidateTraceResolutionScale(float scale)
@@ -819,13 +890,29 @@ public sealed class VoxelGiRenderer : AutoDisposable
         _traceRaw.Dispose();
         _historyGI[0].Dispose();
         _historyGI[1].Dispose();
+        _giDiffuseFullRes.Dispose();
+        _giSpecularFullRes.Dispose();
+
+        RenderTexture newGiDiffuse = _rendering.CreateRenderTexture(
+            _rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_diffuse");
+        RenderTexture newGiSpecular = _rendering.CreateRenderTexture(
+            _rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_specular");
+
         _indirectAtlas = newIndirectAtlas;
         _traceRaw = newTraceRaw;
         _historyGI[0] = newHistoryA;
         _historyGI[1] = newHistoryB;
+        _giDiffuseFullRes = newGiDiffuse;
+        _giSpecularFullRes = newGiSpecular;
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
+        if (_upsampleMaterial != null)
+        {
+            _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
+            _upsampleMaterial.SetRenderTexture("_giDiffuseOut", _giDiffuseFullRes);
+            _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
+        }
         _historyReadIndex = 0;
         _historyValid = false;
         _boundGBuffer = null;
@@ -880,6 +967,11 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _demosaicMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _demosaicMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _demosaicMaterial.SetRenderTexture("_emissive", gbuffer, 3);
+            if (_upsampleMaterial != null)
+            {
+                _upsampleMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+                _upsampleMaterial.SetRenderTexture("_normal", gbuffer, 1);
+            }
             _boundGBuffer = gbuffer;
         }
         if (!ReferenceEquals(_boundShadowMap, shadowMap))
@@ -1116,6 +1208,23 @@ public sealed class VoxelGiRenderer : AutoDisposable
                 1,
                 new Vector4(TemporalHysteresis, 1.0f, DiffuseTemporalHysteresis, 0.0f));
         }
+
+        // Full-resolution upsample: read the trace-resolution atlas (_indirectAtlas),
+        // blend near/far layers at full-resolution depth, apply ALD directional
+        // modulation, and write two full-GBuffer-resolution textures consumed by
+        // the deferred lighting pass. Separate compute pass ensures the demosaic
+        // UAV writes are visible as SRV reads.
+        if (_upsampleMaterial != null && _upsampleDataBuffer != null)
+        {
+            using GPUCommandBuffer.ComputePass upsamplePass = _commandBuffer.BeginCompute();
+            _upsampleDataBuffer.Value.InvViewProjection = data.InvViewProjection;
+            _upsampleDataBuffer.Value.Params = new Vector4(
+                _gbufferWidth, _gbufferHeight,
+                5.0f / _indirectAtlas.Width,
+                1.0f / _indirectAtlas.Height);
+            _upsampleDataBuffer.UpdateBuffer();
+            _upsampleMaterial.DispatchBySize(upsamplePass, _gbufferWidth, _gbufferHeight, 1);
+        }
         if (measureGpu)
         {
             _commandBuffer.ResolveTimestamps(_timestampQueries!, 0, 2, _timestampResolveBuffer!);
@@ -1166,6 +1275,14 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _gpuMilliseconds,
             sparseBrickTotal,
             bricksPerLevel * LevelCount);
+    }
+
+    /// <inheritdoc />
+    void IRenderPlugin.Execute(RenderPluginContext context)
+    {
+        Render(context.GBuffer, context.ShadowMap, ref Data, context.CameraPosition);
+        context.GIDiffuse = _giDiffuseFullRes;
+        context.GISpecular = _giSpecularFullRes;
     }
 
     private int UpdateStaticResidency(int level, List<VoxelGiDirtyBrick> bricks)
@@ -1490,9 +1607,12 @@ public sealed class VoxelGiRenderer : AutoDisposable
             _opacity.Dispose();
             _traceRaw.Dispose();
             _indirectAtlas.Dispose();
+            _giDiffuseFullRes.Dispose();
+            _giSpecularFullRes.Dispose();
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
             _dataBuffer.Dispose();
+            _upsampleDataBuffer?.Dispose();
             _timestampQueries?.Dispose();
             _timestampResolveBuffer?.Dispose();
             _commandBuffer.Dispose();
