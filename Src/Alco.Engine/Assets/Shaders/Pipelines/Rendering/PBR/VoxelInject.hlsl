@@ -4,8 +4,8 @@
 // Direct lighting injection for the voxel GI clipmap: sparse dispatch over a
 // brick list (one entry per resident or recently-freed 8³ brick). Reads the
 // voxelized attribute buffers (dynamic wins over static), evaluates sun (CSM
-// shadowed), an upward sky-visibility march, the four point lights and
-// emissive, and writes HDR radiance + occupancy into mip 0 of the level's slab
+// shadowed), an upward sky-visibility march, dynamic point lights (from a
+// StructuredBuffer) and emissive, and writes HDR radiance + occupancy into mip 0 of the level's slab
 // of the radiance Texture3D. Freed bricks have page-table entry 0, so the
 // occupancy check naturally writes zeros — clearing stale radiance without a
 // separate full-resolution clear pass.
@@ -25,6 +25,14 @@ DEFINE_TEX2D_DEPTH_SAMPLE_AT(0, 3, _shadowMap);
 // two pools into one buffer frees a binding for the brick list.
 DEFINE_STORAGE_AT(0, 5, uint2, _pageTable);
 DEFINE_STORAGE_AT(0, 6, uint4, _brickList);
+
+// Point lights shared with the deferred lighting pass (same StructuredBuffer).
+struct PointLightData
+{
+    float4 positionRange;    // xyz = world-space position, w = cutoff radius
+    float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
+};
+DEFINE_STORAGE_AT(0, 7, PointLightData, _pointLights);
 DEFINE_TEX3D_STORAGE_AT(1, 0, _radianceOut, float4, "rgba16f");
 DEFINE_TEX3D_STORAGE_AT(1, 1, _opacityOut, float4, "rgba16f");
 
@@ -211,27 +219,32 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float shadow = lightingParams.x > 0.5 ? SampleSunShadowVoxel(worldPosition, normal, voxelSize, originAndSize, resolution, level) : 1.0;
     direct += sunColorAndIntensity.rgb * sunColorAndIntensity.w * (NdotL / PI) * shadow;
 
-    // Point lights (unshadowed).
-    if (lightingParams.y > 0.5)
+    // Point lights (unshadowed, StructuredBuffer with per-light range).
     {
-        float4 pointLightPositions[4] = {
-            pointLight0Position, pointLight1Position,
-            pointLight2Position, pointLight3Position };
-        float4 pointLightColors[4] = {
-            pointLight0Color, pointLight1Color,
-            pointLight2Color, pointLight3Color };
-        for (int i = 0; i < 4; i++)
+        uint lightCount = (uint)lightingParams.y;
+        [loop]
+        for (uint i = 0; i < lightCount; i++)
         {
-            float intensity = pointLightColors[i].w;
-            if (intensity <= 0.0)
+            float4 posRange = _pointLights[i].positionRange;
+            float4 colInt   = _pointLights[i].colorIntensity;
+            if (colInt.w <= 0.0)
             {
                 continue;
             }
-            float3 toLight = pointLightPositions[i].xyz - worldPosition;
-            float distanceSqr = dot(toLight, toLight);
-            float attenuation = 1.0 / (distanceSqr + 1.0);
-            float pointNdotL = max(dot(normal, normalize(toLight)), 0.0);
-            direct += pointLightColors[i].rgb * intensity * attenuation * (pointNdotL / PI);
+            float3 toLight = posRange.xyz - worldPosition;
+            float dist = length(toLight);
+            if (posRange.w > 0.0 && dist > posRange.w)
+            {
+                continue;
+            }
+            float attenuation = 1.0 / (dist * dist + 1.0);
+            if (posRange.w > 0.0)
+            {
+                float fallOff = saturate(1.0 - dist / posRange.w);
+                attenuation *= fallOff * fallOff;
+            }
+            float pointNdotL = max(dot(normal, toLight / max(dist, 1e-6)), 0.0);
+            direct += colInt.rgb * colInt.w * attenuation * (pointNdotL / PI);
         }
     }
 

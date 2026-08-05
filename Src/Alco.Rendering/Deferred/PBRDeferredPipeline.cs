@@ -99,30 +99,35 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// A point light: position in world space and linear color (rgb) plus intensity (w).
+    /// A point light: position with range in world space and linear color (rgb)
+    /// plus intensity (w). Uploaded as elements of a StructuredBuffer to the GPU.
     /// </summary>
     public struct PointLight
     {
-        /// <summary>World-space position (w is unused).</summary>
+        /// <summary>World-space position (xyz) and effective range / cutoff radius (w).</summary>
         public Vector4 Position;
         /// <summary>Linear color (rgb) and intensity (w). Zero intensity disables the light.</summary>
         public Vector4 ColorAndIntensity;
 
         /// <summary>
-        /// Create a point light.
+        /// Create a point light with a custom range.
         /// </summary>
         /// <param name="position">World-space position.</param>
         /// <param name="color">Linear color.</param>
         /// <param name="intensity">Light intensity; zero disables the light.</param>
-        public PointLight(in Vector3 position, in Vector3 color, float intensity)
+        /// <param name="range">Cutoff radius beyond which the light contributes nothing.</param>
+        public PointLight(in Vector3 position, in Vector3 color, float intensity, float range)
         {
-            Position = new Vector4(position, 1.0f);
+            Position = new Vector4(position, range);
             ColorAndIntensity = new Vector4(color, intensity);
         }
     }
 
     /// <summary>The number of shadow cascades (atlas quadrants) the pipeline supports.</summary>
     public const int ShadowCascadeCount = 4;
+
+    /// <summary>The maximum number of point lights the StructuredBuffer can hold.</summary>
+    public const int MaxPointLights = 256;
 
     /// <summary>
     /// Per-frame data uploaded to the lighting pass. Layout must match the
@@ -154,23 +159,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 SkyHorizonColor;
         /// <summary>Filtered physical-sky radiance at the zenith.</summary>
         public Vector4 SkyZenithColor;
-        /// <summary>Point light 0 position (w unused).</summary>
-        public Vector4 PointLight0Position;
-        /// <summary>Point light 0 color (rgb) and intensity (w).</summary>
-        public Vector4 PointLight0Color;
-        /// <summary>Point light 1 position (w unused).</summary>
-        public Vector4 PointLight1Position;
-        /// <summary>Point light 1 color (rgb) and intensity (w).</summary>
-        public Vector4 PointLight1Color;
-        /// <summary>Point light 2 position (w unused).</summary>
-        public Vector4 PointLight2Position;
-        /// <summary>Point light 2 color (rgb) and intensity (w).</summary>
-        public Vector4 PointLight2Color;
-        /// <summary>Point light 3 position (w unused).</summary>
-        public Vector4 PointLight3Position;
-        /// <summary>Point light 3 color (rgb) and intensity (w).</summary>
-        public Vector4 PointLight3Color;
-        /// <summary>x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=sunDiscEnabled.</summary>
+        /// <summary>x=shadowEnabled y=numPointLights z=shadowMapSize w=sunDiscEnabled.</summary>
         public Vector4 Params;
         /// <summary>View-distance end boundary of each cascade; beyond w there is no shadow.</summary>
         public Vector4 CascadeSplits;
@@ -185,34 +174,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         /// <summary>x=sunDiscSize (cosine angular threshold, higher = smaller disc), y=sunDiscBrightness (HDR visual brightness independent of lighting intensity), z=1/GI trace width, w=1/GI trace height (filled by the pipeline, 0 when GI is off).</summary>
         public Vector4 Params4;
 
-        /// <summary>
-        /// Copy the given point lights into the light slots (up to four lights).
-        /// </summary>
-        /// <param name="lights">The lights to copy; unused slots keep their previous values.</param>
-        public void SetPointLights(ReadOnlySpan<PointLight> lights)
-        {
-            int count = Math.Min(lights.Length, 4);
-            if (count > 0)
-            {
-                PointLight0Position = lights[0].Position;
-                PointLight0Color = lights[0].ColorAndIntensity;
-            }
-            if (count > 1)
-            {
-                PointLight1Position = lights[1].Position;
-                PointLight1Color = lights[1].ColorAndIntensity;
-            }
-            if (count > 2)
-            {
-                PointLight2Position = lights[2].Position;
-                PointLight2Color = lights[2].ColorAndIntensity;
-            }
-            if (count > 3)
-            {
-                PointLight3Position = lights[3].Position;
-                PointLight3Color = lights[3].ColorAndIntensity;
-            }
-        }
     }
 
     private readonly RenderingSystem _rendering;
@@ -234,6 +195,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
     private readonly GraphicsValueBuffer<ShadowCascadeData> _shadowDataBuffer;
+    private readonly GraphicsArrayBuffer<PointLight> _pointLightBuffer;
     private readonly HbaoRenderer? _hbao;
 
     // Indirect radiance atlas produced by an external voxel GI renderer
@@ -382,6 +344,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
         _lightingDataBuffer = rendering.CreateGraphicsValueBuffer<DeferredLightingData>("pbr_lighting_data");
         _lightingMaterial.SetBuffer(ShaderResourceId.Data, _lightingDataBuffer);
+
+        // Point lights are uploaded as a StructuredBuffer (not cbuffer) so the
+        // count is bounded only by GPU memory, not by cbuffer size limits.
+        _pointLightBuffer = rendering.CreateGraphicsArrayBuffer<PointLight>(MaxPointLights, "pbr_point_lights");
+        _lightingMaterial.SetBuffer(ShaderResourceId.PointLights, _pointLightBuffer);
 
         if (hbaoShader != null && hbaoBlurShader != null)
         {
@@ -534,6 +501,34 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         _indirectGI = indirectGI;
         RebindGlobalIlluminationTargets();
+    }
+
+    /// <summary>
+    /// The GPU buffer holding the point light array. Bind this to any pass that
+    /// needs point light data (e.g. <see cref="VoxelGiRenderer.SetPointLightBuffer"/>).
+    /// </summary>
+    public GraphicsBuffer PointLightBuffer => _pointLightBuffer;
+
+    /// <summary>
+    /// Upload point lights to the GPU StructuredBuffer and record the active
+    /// count in <paramref name="data"/>. Call once per frame before
+    /// <see cref="RenderLighting"/>; the caller passes the same
+    /// <paramref name="data"/> to <c>RenderLighting</c>.
+    /// </summary>
+    /// <param name="lights">Active point lights; excess lights beyond
+    /// <see cref="MaxPointLights"/> are silently dropped.</param>
+    /// <param name="data">The per-frame lighting data whose
+    /// <see cref="DeferredLightingData.Params"/>.Y (numPointLights) is updated.</param>
+    public void UpdatePointLights(ReadOnlySpan<PointLight> lights, ref DeferredLightingData data)
+    {
+        int count = Math.Min(lights.Length, MaxPointLights);
+        var span = _pointLightBuffer.AsSpan();
+        for (int i = 0; i < count; i++)
+        {
+            span[i] = lights[i];
+        }
+        _pointLightBuffer.UpdateBufferRanged(0, (uint)count);
+        data.Params = new Vector4(data.Params.X, count, data.Params.Z, data.Params.W);
     }
 
     /// <summary>
@@ -882,6 +877,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _hbao?.Dispose();
             _lightingDataBuffer.Dispose();
             _shadowDataBuffer.Dispose();
+            _pointLightBuffer.Dispose();
             _lightingMaterial.Dispose();
             _flatNormalTexture?.Dispose();
             _shadowTangentMaterial?.Dispose();

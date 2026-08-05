@@ -3,9 +3,9 @@
 
 // Deferred lighting pass shader for the PBR pipeline.
 // Samples the G-buffer, evaluates a GGX PBR BRDF with a directional sun
-// (shadow mapped, hardware PCF), up to four point lights, an ambient term
-// (sky/probe baseline modulated by voxel visibility plus traced bounce light)
-// and a physically-based procedural sky (single
+// (shadow mapped, hardware PCF), dynamic point lights from a StructuredBuffer,
+// an ambient term (sky/probe baseline modulated by voxel visibility plus
+// traced bounce light) and a physically-based procedural sky (single
 // scattering atmosphere plus sun disc and stars) for empty pixels.
 
 struct Vertex
@@ -35,15 +35,7 @@ DEFINE_UNIFORM_AT(ALCO_GROUP_FRAME, 0, _data)
     float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=ambientFloor
     float4 skyHorizonColor;      // azimuthally filtered physical sky at the horizon
     float4 skyZenithColor;       // filtered physical sky at the zenith
-    float4 pointLight0Position;
-    float4 pointLight0Color;     // rgb + intensity
-    float4 pointLight1Position;
-    float4 pointLight1Color;     // rgb + intensity
-    float4 pointLight2Position;
-    float4 pointLight2Color;     // rgb + intensity
-    float4 pointLight3Position;
-    float4 pointLight3Color;     // rgb + intensity
-    float4 pbrParams;            // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=sunDiscEnabled
+    float4 pbrParams;            // x=shadowEnabled y=numPointLights z=shadowMapSize w=sunDiscEnabled
     float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
     float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
     float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
@@ -53,6 +45,19 @@ DEFINE_UNIFORM_AT(ALCO_GROUP_FRAME, 0, _data)
 };
 
 DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 1, _albedo);
+
+// Point lights stored in a StructuredBuffer (not cbuffer) so the count is
+// bounded by GPU memory, not by cbuffer size limits. xyz = position, w = range.
+struct PointLightData
+{
+    float4 positionRange;    // xyz = world-space position, w = cutoff radius
+    float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
+};
+// Binding 2 is taken by _albedo's companion sampler (DEFINE_TEX2D_SAMPLE_AT
+// occupies bind and bind+1), so the storage buffer goes after every
+// texture+sampler pair to avoid a collision.
+DEFINE_STORAGE_AT(ALCO_GROUP_PASS, 14, PointLightData, _pointLights);
+
 DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 3, _normal);
 DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 5, _mrAO);
 DEFINE_TEX2D_DEPTH_AT(ALCO_GROUP_PASS, 7, _gbufferDepth);
@@ -348,33 +353,38 @@ float4 MainPS(V2F input) : SV_TARGET
         return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
 
-    // Point lights.
-    if (pbrParams.y > 0.5)
+    // Point lights (StructuredBuffer with per-light range / smooth attenuation).
     {
-        float4 pointLightPositions[4] = {
-            pointLight0Position, pointLight1Position,
-            pointLight2Position, pointLight3Position };
-        float4 pointLightColors[4] = {
-            pointLight0Color, pointLight1Color,
-            pointLight2Color, pointLight3Color };
-
-        for (int i = 0; i < 4; i++)
+        uint lightCount = (uint)pbrParams.y;
+        [loop]
+        for (uint i = 0; i < lightCount; i++)
         {
-            float3 lightColor = pointLightColors[i].rgb;
-            float lightIntensity = pointLightColors[i].w;
-            if (lightIntensity <= 0.0)
+            float4 posRange = _pointLights[i].positionRange;
+            float4 colInt   = _pointLights[i].colorIntensity;
+            if (colInt.w <= 0.0)
             {
                 continue;
             }
 
-            float3 toLight = pointLightPositions[i].xyz - worldPosition;
-            float distanceSqr = dot(toLight, toLight);
-            float attenuation = 1.0 / (distanceSqr + 1.0);
+            float3 toLight = posRange.xyz - worldPosition;
+            float dist = length(toLight);
+            if (posRange.w > 0.0 && dist > posRange.w)
+            {
+                continue;
+            }
 
-            float3 L = normalize(toLight);
+            // Smooth inverse-square falloff with range-based cutoff.
+            float attenuation = 1.0 / (dist * dist + 1.0);
+            if (posRange.w > 0.0)
+            {
+                float fallOff = saturate(1.0 - dist / posRange.w);
+                attenuation *= fallOff * fallOff;
+            }
+
+            float3 L = toLight / max(dist, 1e-6);
             Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
-                * lightColor
-                * lightIntensity
+                * colInt.rgb
+                * colInt.w
                 * attenuation;
         }
     }

@@ -36,4 +36,6 @@ public static class ShaderResourceId
     public const string Instances = "_instances";
 
     public const string GaussianKernel = "_gaussianKernel";
+
+    public const string PointLights = "_pointLights";
 }

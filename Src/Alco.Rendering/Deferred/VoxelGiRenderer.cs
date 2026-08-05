@@ -173,29 +173,13 @@ public sealed class VoxelGiRenderer : AutoDisposable
         public Vector4 SkyHorizonColor;
         /// <summary>Physical-sky radiance at the zenith.</summary>
         public Vector4 SkyZenithColor;
-        /// <summary>Point light 0 position (w unused).</summary>
-        public Vector4 PointLight0Position;
-        /// <summary>Point light 0 color (rgb) and intensity (w). Zero intensity disables the light.</summary>
-        public Vector4 PointLight0Color;
-        /// <summary>Point light 1 position (w unused).</summary>
-        public Vector4 PointLight1Position;
-        /// <summary>Point light 1 color (rgb) and intensity (w).</summary>
-        public Vector4 PointLight1Color;
-        /// <summary>Point light 2 position (w unused).</summary>
-        public Vector4 PointLight2Position;
-        /// <summary>Point light 2 color (rgb) and intensity (w).</summary>
-        public Vector4 PointLight2Color;
-        /// <summary>Point light 3 position (w unused).</summary>
-        public Vector4 PointLight3Position;
-        /// <summary>Point light 3 color (rgb) and intensity (w).</summary>
-        public Vector4 PointLight3Color;
         /// <summary>View-distance end boundary of each shadow cascade.</summary>
         public Vector4 CascadeSplits;
         /// <summary>World units per shadow texel of each cascade.</summary>
         public Vector4 CascadeTexelSizes;
         /// <summary>x=level resolution y=level count z=mip count (filled by the renderer).</summary>
         public Vector4 ClipmapParams;
-        /// <summary>x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=unused.</summary>
+        /// <summary>x=shadowEnabled y=numPointLights z=shadowMapSize w=unused.</summary>
         public Vector4 LightingParams;
         /// <summary>x=emissiveScale y=traceMaxDistance zw=trace resolution in pixels (filled by the renderer).</summary>
         public Vector4 GiParams;
@@ -436,6 +420,18 @@ public sealed class VoxelGiRenderer : AutoDisposable
     /// lighting pass, which blends the layers at full-resolution depth.
     /// </summary>
     public RenderTexture IndirectTexture => _indirectAtlas;
+
+    /// <summary>
+    /// Bind a shared point-light StructuredBuffer to the GI inject pass so that
+    /// direct point-light radiance is injected into the voxel volume. The buffer
+    /// is typically owned by <see cref="PBRDeferredPipeline"/> and obtained via
+    /// <see cref="PBRDeferredPipeline.PointLightBuffer"/>.
+    /// </summary>
+    /// <param name="buffer">The point-light storage buffer to bind.</param>
+    public void SetPointLightBuffer(GraphicsBuffer buffer)
+    {
+        _injectMaterial.SetBuffer(ShaderResourceId.PointLights, buffer);
+    }
 
     /// <summary>
     /// Create the voxel GI renderer with its compute shaders.

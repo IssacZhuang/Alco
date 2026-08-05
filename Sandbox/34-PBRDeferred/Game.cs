@@ -341,6 +341,7 @@ public class Game : GameEngine
             _giMaxTraceDistance = MathF.Min(12.0f, MathF.Max(_sceneRadius, 1.0f));
             RegisterVoxelMeshes();
             _pipeline.SetGlobalIllumination(_voxelGI.IndirectTexture);
+            _voxelGI.SetPointLightBuffer(_pipeline.PointLightBuffer);
         }
 
         // Bloom blits into the HDR target in OnPostUpdate, before PluginHDR's
@@ -704,7 +705,7 @@ public class Game : GameEngine
         _lightingData.SkyZenithColor = new Vector4(skyZenithColor, 0.0f);
         _lightingData.Params = new Vector4(
             _shadowEnabled ? 1.0f : 0.0f,
-            1.0f,
+            0.0f,
             _pipeline.ShadowMapSize,
             _sunDiscEnabled ? 1.0f : 0.0f);
         _lightingData.CascadeSplits = new Vector4(
@@ -740,7 +741,7 @@ public class Game : GameEngine
             _voxelData.CascadeTexelSizes = _lightingData.CascadeTexelSizes;
             _voxelData.LightingParams = new Vector4(
                 _shadowEnabled ? 1.0f : 0.0f,
-                1.0f,
+                0.0f,
                 _pipeline.ShadowMapSize,
                 0.0f);
             _voxelData.GiParams = new Vector4(_emissiveBoost, _giMaxTraceDistance, 0.0f, 0.0f);

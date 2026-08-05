@@ -34,18 +34,10 @@ DEFINE_UNIFORM(0, _data)
     float4 sunColorAndIntensity;   // rgb + intensity
     float4 skyHorizonColor;        // low-frequency physical sky for voxel GI
     float4 skyZenithColor;
-    float4 pointLight0Position;
-    float4 pointLight0Color;       // rgb + intensity
-    float4 pointLight1Position;
-    float4 pointLight1Color;
-    float4 pointLight2Position;
-    float4 pointLight2Color;
-    float4 pointLight3Position;
-    float4 pointLight3Color;
     float4 cascadeSplits;          // radial end distance of each shadow cascade
     float4 cascadeTexelSizes;      // world units per shadow texel of each cascade
     float4 clipmapParams;          // x=resolution y=levelCount z=mipCount w=unused
-    float4 lightingParams;         // x=shadowEnabled y=pointLightEnabled z=shadowMapSize w=unused
+    float4 lightingParams;         // x=shadowEnabled y=numPointLights z=shadowMapSize w=unused
     float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
     float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
     float4 giFrameParams;          // x=frameIndex y=giDiffuseBias z=historyValid w=diffuseSpreading
