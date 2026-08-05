@@ -146,15 +146,10 @@ public class Game : GameEngine
 
     // Voxel global illumination (sparse clipmap + cone tracing).
     private readonly VoxelGiRenderer? _voxelGI;
-    private VoxelGiRenderer.VoxelGiData _voxelData = new();
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
     private float _giSpecularStrength = 0.5f;
-    private float _giSkyIntensity = 1.0f;
     private float _giSsaoAmount = 1f;
-    private float _giMaxTraceDistance = 12.0f;
-    private float _giDiffuseSpreading = 0.5f;
-    private int _giDebugView;
     private int _giResolutionPreset = 0;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
     private static readonly string[] GiTraceResolutionModes =
@@ -204,9 +199,10 @@ public class Game : GameEngine
         _hbaoEnabled = !args.Contains("--no-hbao");
         _hbaoDebugView = args.Contains("--hbao-debug");
         _giEnabled = !args.Contains("--no-gi");
-        if (int.TryParse(GetArgValue(args, "--gi-debug="), out int giDebug))
+        VoxelGiDebugMode giDebugView = default;
+        if (Enum.TryParse<VoxelGiDebugMode>(GetArgValue(args, "--gi-debug="), ignoreCase: true, out var parsedDebug))
         {
-            _giDebugView = giDebug;
+            giDebugView = parsedDebug;
         }
         if (int.TryParse(GetArgValue(args, "--gi-resolution="), out int giResolutionPercent))
         {
@@ -343,26 +339,29 @@ public class Game : GameEngine
         if (_giEnabled)
         {
             float baseVoxelSize = MathF.Max(_sceneRadius * 4.0f / 1024.0f, 0.02f);
+            string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
             _voxelGI = new VoxelGiRenderer(
                 RenderingSystem,
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelClear.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelInject.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelMip.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelMipChain.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelPropagate.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelTrace.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelDemosaic.hlsl"),
+                new VoxelGiShaders
+                {
+                    Clear = AssetSystem.Load<Shader>(shaderDir + "VoxelClear.hlsl"),
+                    Voxelize = AssetSystem.Load<Shader>(shaderDir + "Voxelize.hlsl"),
+                    Inject = AssetSystem.Load<Shader>(shaderDir + "VoxelInject.hlsl"),
+                    Mip = AssetSystem.Load<Shader>(shaderDir + "VoxelMip.hlsl"),
+                    MipChain = AssetSystem.Load<Shader>(shaderDir + "VoxelMipChain.hlsl"),
+                    Propagate = AssetSystem.Load<Shader>(shaderDir + "VoxelPropagate.hlsl"),
+                    Trace = AssetSystem.Load<Shader>(shaderDir + "VoxelTrace.hlsl"),
+                    Demosaic = AssetSystem.Load<Shader>(shaderDir + "VoxelDemosaic.hlsl"),
+                    Upsample = AssetSystem.Load<Shader>(shaderDir + "VoxelGiUpsample.hlsl"),
+                },
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
                 resolution: 128,
                 baseVoxelSize: baseVoxelSize,
                 traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
-            _giMaxTraceDistance = MathF.Min(12.0f, MathF.Max(_sceneRadius, 1.0f));
+            _voxelGI.TraceMaxDistance = MathF.Min(12.0f, MathF.Max(_sceneRadius, 1.0f));
+            _voxelGI.DebugView = giDebugView;
             RegisterVoxelMeshes();
-            _voxelGI.SetPointLightBuffer(_pipeline.PointLightBuffer);
-            _voxelGI.SetUpsampleShader(
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/VoxelGiUpsample.hlsl"));
             _pipeline.RegisterPlugin(_voxelGI);
         }
 
@@ -850,7 +849,7 @@ public class Game : GameEngine
             _giEnabled && _voxelGI != null ? 1.0f : 0.0f,
             _giDiffuseStrength,
             _giSpecularStrength,
-            _giDebugView);
+            (_voxelGI != null ? (int)_voxelGI.DebugView : 0));
         _lightingData.Params4 = new Vector4(_sunDiscSize, _sunDiscBrightness, 0.0f, 0.0f);
 
         // Scale and upload point lights generated from Bistro emissive surfaces.
@@ -875,28 +874,10 @@ public class Game : GameEngine
                 : ReadOnlySpan<PBRDeferredPipeline.PointLight>.Empty,
             ref _lightingData);
 
-        // Voxel GI per-frame data (the clipmap and resolution fields are filled by the renderer).
+        // EmissiveScale depends on runtime state (point-light enable + boost).
         if (_voxelGI != null)
         {
-            _voxelData.InvViewProjection = invViewProjection;
-            _voxelData.SunViewProjection0 = _cascadeViewProjections[0];
-            _voxelData.SunViewProjection1 = _cascadeViewProjections[1];
-            _voxelData.SunViewProjection2 = _cascadeViewProjections[2];
-            _voxelData.SunViewProjection3 = _cascadeViewProjections[3];
-            _voxelData.CameraPosition = _lightingData.CameraPosition;
-            _voxelData.SunDirection = _lightingData.SunDirection;
-            _voxelData.SunColorAndIntensity = _lightingData.SunColorAndIntensity;
-            _voxelData.SkyHorizonColor = new Vector4(skyHorizonColor, 0.0f);
-            _voxelData.SkyZenithColor = new Vector4(skyZenithColor, 0.0f);
-            _voxelData.CascadeSplits = _lightingData.CascadeSplits;
-            _voxelData.CascadeTexelSizes = _lightingData.CascadeTexelSizes;
-            _voxelData.LightingParams = new Vector4(
-                _shadowEnabled ? 1.0f : 0.0f,
-                pointLightCount,
-                _pipeline.ShadowMapSize,
-                0.0f);
-            _voxelData.GiParams = new Vector4(_pointLightsEnabled ? _emissiveBoost : 0.0f, _giMaxTraceDistance, 0.0f, 0.0f);
-            _voxelData.GiParams2 = new Vector4(_giDebugView, 0.0f, 0.0f, _giSkyIntensity);
+            _voxelGI.EmissiveScale = _pointLightsEnabled ? _emissiveBoost : 0.0f;
         }
     }
 
@@ -1167,7 +1148,6 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Run the voxel GI passes between the G-buffer/HBAO and lighting passes.</summary>
     /// <summary>Submit dynamic object instances to the voxel GI before plugin execution.</summary>
     private void SubmitDynamicInstances()
     {
@@ -1184,7 +1164,6 @@ public class Game : GameEngine
                     new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f);
             }
         }
-        _voxelGI.DiffuseSpreading = _giDiffuseSpreading;
     }
 
     /// <summary>
@@ -1216,12 +1195,6 @@ public class Game : GameEngine
             _hbaoRenderer.Data.Params3 = new Vector4(hbaoStrength, 0.0f, 0.0f, 0.0f);
         }
 
-        // Populate VoxelGI plugin data.
-        if (_voxelGI != null)
-        {
-            _voxelGI.Data = _voxelData;
-        }
-
         RenderPluginContext context = new()
         {
             Rendering = RenderingSystem,
@@ -1231,14 +1204,10 @@ public class Game : GameEngine
             CameraPosition = _camera.Transform.Position,
             Width = _pipeline.GBuffer.Width,
             Height = _pipeline.GBuffer.Height,
+            LightingData = _lightingData,
+            PointLightBuffer = _pipeline.PointLightBuffer,
         };
         _pipeline.ExecutePlugins(RenderInjectionPoint.AfterGBuffer, context);
-
-        // Read back any data the renderer filled (ViewProjectionPrev etc.).
-        if (_voxelGI != null)
-        {
-            _voxelData = _voxelGI.Data;
-        }
     }
 
     /// <summary>Copy the current (possibly still streaming) Bistro textures into the materials.</summary>
@@ -1365,9 +1334,15 @@ public class Game : GameEngine
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
-            ImGui.SliderFloat("GI Sky Intensity", ref _giSkyIntensity, 0.0f, 10.0f);
-            ImGui.SliderFloat("GI Max Trace Distance", ref _giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f));
-            ImGui.SliderFloat("GI Diffuse Spreading", ref _giDiffuseSpreading, 0.0f, 0.5f, "%.3f");
+            float giSkyIntensity = _voxelGI.SkyIntensity;
+            if (ImGui.SliderFloat("GI Sky Intensity", ref giSkyIntensity, 0.0f, 10.0f))
+                _voxelGI.SkyIntensity = giSkyIntensity;
+            float giMaxTraceDistance = _voxelGI.TraceMaxDistance;
+            if (ImGui.SliderFloat("GI Max Trace Distance", ref giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f)))
+                _voxelGI.TraceMaxDistance = giMaxTraceDistance;
+            float giDiffuseSpreading = _voxelGI.DiffuseSpreading;
+            if (ImGui.SliderFloat("GI Diffuse Spreading", ref giDiffuseSpreading, 0.0f, 0.5f, "%.3f"))
+                _voxelGI.DiffuseSpreading = giDiffuseSpreading;
             ImGui.SameLine();
             ImGui.TextDisabled("(?)");
             if (ImGui.IsItemHovered())
@@ -1387,7 +1362,11 @@ public class Game : GameEngine
                 "Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility",
                 "Raw Diffuse Trace",
             ];
-            ImGui.Combo("GI Debug", ref _giDebugView, giDebugModes, giDebugModes.Length);
+            int giDebugInt = (int)_voxelGI.DebugView;
+            if (ImGui.Combo("GI Debug", ref giDebugInt, giDebugModes, giDebugModes.Length))
+            {
+                _voxelGI.DebugView = (VoxelGiDebugMode)giDebugInt;
+            }
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             ImGui.Text($"GI CPU encode: {statistics.CpuRecordMilliseconds:F2} ms");
             ImGui.Text(double.IsNaN(statistics.GpuMilliseconds)

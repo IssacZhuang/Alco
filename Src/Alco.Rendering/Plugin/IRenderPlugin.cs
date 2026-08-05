@@ -43,6 +43,20 @@ public sealed class RenderPluginContext
     /// <summary>G-buffer height in pixels.</summary>
     public uint Height { get; init; }
 
+    /// <summary>
+    /// The deferred lighting data computed by the caller this frame (sun direction,
+    /// shadow cascades, sky colors, etc.). May be null when the pipeline is not a
+    /// deferred PBR pipeline. GI plugins read lighting/shadow data from here instead
+    /// of requiring the caller to manually copy it into a separate struct.
+    /// </summary>
+    public PBRDeferredPipeline.DeferredLightingData? LightingData { get; init; }
+
+    /// <summary>
+    /// The pipeline's shared point-light StructuredBuffer, or null when point lights
+    /// are not used. GI plugins bind this to the inject pass automatically.
+    /// </summary>
+    public GraphicsBuffer? PointLightBuffer { get; init; }
+
     // ── Outputs set by plugins ──
 
     /// <summary>

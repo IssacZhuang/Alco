@@ -548,8 +548,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// The GPU buffer holding the point light array. Bind this to any pass that
-    /// needs point light data (e.g. <see cref="VoxelGiRenderer.SetPointLightBuffer"/>).
+    /// The GPU buffer holding the point light array. Pass this via
+    /// <see cref="RenderPluginContext.PointLightBuffer"/> to plugins that need
+    /// point light data (e.g. VoxelGI inject pass).
     /// </summary>
     public GraphicsBuffer PointLightBuffer => _pointLightBuffer;
 

@@ -104,6 +104,49 @@ public readonly struct VoxelGiStatistics
 }
 
 /// <summary>
+/// Debug visualization modes for voxel GI output.
+/// </summary>
+public enum VoxelGiDebugMode
+{
+    /// <summary>Normal rendering — no debug overlay.</summary>
+    Off = 0,
+    /// <summary>Show the diffuse irradiance contribution only.</summary>
+    DiffuseIrradiance = 1,
+    /// <summary>Show the indirect specular contribution only.</summary>
+    IndirectSpecular = 2,
+    /// <summary>Show the GI visibility (occlusion) term.</summary>
+    Visibility = 3,
+    /// <summary>Show the raw diffuse trace before temporal accumulation.</summary>
+    RawDiffuseTrace = 4,
+}
+
+/// <summary>
+/// The complete set of compute shaders required by <see cref="VoxelGiRenderer"/>.
+/// Load each from its HLSL file and pass to the constructor.
+/// </summary>
+public readonly struct VoxelGiShaders
+{
+    /// <summary>The voxel clear shader (VoxelClear.hlsl).</summary>
+    public required Shader Clear { get; init; }
+    /// <summary>The triangle voxelization shader (Voxelize.hlsl).</summary>
+    public required Shader Voxelize { get; init; }
+    /// <summary>The direct light injection shader (VoxelInject.hlsl).</summary>
+    public required Shader Inject { get; init; }
+    /// <summary>The radiance mip downsample shader (VoxelMip.hlsl).</summary>
+    public required Shader Mip { get; init; }
+    /// <summary>The cascading mip chain shader (VoxelMipChain.hlsl).</summary>
+    public required Shader MipChain { get; init; }
+    /// <summary>The multi-bounce propagation shader (VoxelPropagate.hlsl).</summary>
+    public required Shader Propagate { get; init; }
+    /// <summary>The cone tracing shader (VoxelTrace.hlsl).</summary>
+    public required Shader Trace { get; init; }
+    /// <summary>The temporal demosaic shader (VoxelDemosaic.hlsl).</summary>
+    public required Shader Demosaic { get; init; }
+    /// <summary>The full-resolution upsample shader (VoxelGiUpsample.hlsl), or null when not used as a plugin.</summary>
+    public Shader? Upsample { get; init; }
+}
+
+/// <summary>
 /// Voxel global illumination renderer for the deferred PBR pipeline: a cascaded
 /// voxel clipmap (4 levels, each a cube of <c>resolution</c>^3 voxels at twice
 /// the previous level's voxel size, following the camera) with compute
@@ -125,12 +168,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
 {
     /// <summary>
     /// Per-frame data uploaded to every voxel GI shader. Layout must match the
-    /// <c>_data</c> cbuffer in VoxelCommon.hlsli exactly. The caller fills the
-    /// lighting fields; the renderer fills the clipmap fields (level origins,
-    /// <see cref="ClipmapParams"/>) and the trace/G-buffer resolution components
-    /// of <see cref="GiParams"/> / <see cref="GiParams2"/>.
+    /// <c>_data</c> cbuffer in VoxelCommon.hlsli exactly. Assembled internally by
+    /// the renderer from <see cref="RenderPluginContext"/> and user-tunable
+    /// properties.
     /// </summary>
-    public struct VoxelGiData
+    private struct VoxelGiData
     {
         /// <summary>Inverse of the camera view-projection matrix.</summary>
         public Matrix4x4 InvViewProjection;
@@ -333,6 +375,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private Matrix4x4 _viewProjectionPrev = Matrix4x4.Identity;
     private RenderTexture? _boundGBuffer;
     private RenderTexture? _boundShadowMap;
+    private GraphicsBuffer? _boundPointLightBuffer;
 
     private const int LevelCount = 4;
     private const int BrickSize = 8;
@@ -385,7 +428,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// tangent, gathering more near-field occlusion for stronger contact AO.
     /// Zero disables the effect (radiance kernel only).
     /// </summary>
-    public float DiffuseSpreading { get; set; } = 0.0f;
+    public float DiffuseSpreading { get; set; } = 0.5f;
 
     /// <summary>
     /// Gets or sets the screen-space cone-trace resolution relative to the
@@ -425,6 +468,30 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// </summary>
     public int GpuTimingSamplePeriod { get; set; } = 60;
 
+    /// <summary>
+    /// Gets or sets the emissive scale multiplier for direct-light injection.
+    /// Boosts emissive surface contribution to the voxel volume. Zero disables
+    /// emissive injection.
+    /// </summary>
+    public float EmissiveScale { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum world-space cone-trace distance. Beyond this
+    /// distance, cones return no radiance, limiting artifacts from far geometry.
+    /// </summary>
+    public float TraceMaxDistance { get; set; } = 12.0f;
+
+    /// <summary>
+    /// Gets or sets the sky-light multiplier for voxel GI. Scales the sky
+    /// radiance injected into the voxel volume.
+    /// </summary>
+    public float SkyIntensity { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets the debug visualization mode.
+    /// </summary>
+    public VoxelGiDebugMode DebugView { get; set; }
+
     /// <summary>Gets the most recently completed frame's GI diagnostics.</summary>
     public VoxelGiStatistics Statistics { get; private set; }
 
@@ -457,35 +524,10 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     public RenderInjectionPoint InjectionPoint => RenderInjectionPoint.AfterGBuffer;
 
     /// <summary>
-    /// Per-frame GI data; fill before the pipeline executes this plugin. The
-    /// clipmap and view-projection fields are filled automatically by
-    /// <see cref="Render(RenderTexture, RenderTexture, ref VoxelGiData, in Vector3)"/>.
-    /// </summary>
-    public VoxelGiData Data;
-
-    /// <summary>
-    /// Bind a shared point-light StructuredBuffer to the GI inject pass so that
-    /// direct point-light radiance is injected into the voxel volume. The buffer
-    /// is typically owned by <see cref="PBRDeferredPipeline"/> and obtained via
-    /// <see cref="PBRDeferredPipeline.PointLightBuffer"/>.
-    /// </summary>
-    /// <param name="buffer">The point-light storage buffer to bind.</param>
-    public void SetPointLightBuffer(GraphicsBuffer buffer)
-    {
-        _injectMaterial.SetBuffer(ShaderResourceId.PointLights, buffer);
-    }
-
-    /// <summary>
-    /// Create the voxel GI renderer with its compute shaders.
+    /// Create the voxel GI renderer.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="clearShader">The voxel clear shader (VoxelClear.hlsl).</param>
-    /// <param name="voxelizeShader">The triangle voxelization shader (Voxelize.hlsl).</param>
-    /// <param name="injectShader">The direct light injection shader (VoxelInject.hlsl).</param>
-    /// <param name="mipShader">The radiance mip downsample shader (VoxelMip.hlsl).</param>
-    /// <param name="propagateShader">The multi-bounce propagation shader (VoxelPropagate.hlsl).</param>
-    /// <param name="traceShader">The cone tracing shader (VoxelTrace.hlsl).</param>
-    /// <param name="demosaicShader">The temporal demosaic shader (VoxelDemosaic.hlsl).</param>
+    /// <param name="shaders">The complete set of voxel GI compute shaders.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="resolution">The voxel resolution of each clipmap level (power of two).</param>
@@ -494,14 +536,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// <exception cref="ArgumentException">The voxel resolution or trace-resolution scale is invalid.</exception>
     public VoxelGiRenderer(
         RenderingSystem rendering,
-        Shader clearShader,
-        Shader voxelizeShader,
-        Shader injectShader,
-        Shader mipShader,
-        Shader mipChainShader,
-        Shader propagateShader,
-        Shader traceShader,
-        Shader demosaicShader,
+        VoxelGiShaders shaders,
         uint width,
         uint height,
         int resolution = 128,
@@ -525,14 +560,14 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _clipmap = new VoxelGiClipmap(resolution, BrickSize, baseVoxelSize, LevelCount);
 
         _commandBuffer = _device.CreateCommandBuffer("voxel_gi");
-        _clearMaterial = rendering.CreateComputeMaterial(clearShader);
-        _voxelizeMaterial = rendering.CreateComputeMaterial(voxelizeShader);
-        _injectMaterial = rendering.CreateComputeMaterial(injectShader);
-        _mipMaterial = rendering.CreateComputeMaterial(mipShader);
-        _mipChainMaterial = rendering.CreateComputeMaterial(mipChainShader);
-        _propagateMaterial = rendering.CreateComputeMaterial(propagateShader);
-        _traceMaterial = rendering.CreateComputeMaterial(traceShader);
-        _demosaicMaterial = rendering.CreateComputeMaterial(demosaicShader);
+        _clearMaterial = rendering.CreateComputeMaterial(shaders.Clear);
+        _voxelizeMaterial = rendering.CreateComputeMaterial(shaders.Voxelize);
+        _injectMaterial = rendering.CreateComputeMaterial(shaders.Inject);
+        _mipMaterial = rendering.CreateComputeMaterial(shaders.Mip);
+        _mipChainMaterial = rendering.CreateComputeMaterial(shaders.MipChain);
+        _propagateMaterial = rendering.CreateComputeMaterial(shaders.Propagate);
+        _traceMaterial = rendering.CreateComputeMaterial(shaders.Trace);
+        _demosaicMaterial = rendering.CreateComputeMaterial(shaders.Demosaic);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
         if (_device.TimestampQuerySupported)
         {
@@ -632,23 +667,15 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _giDiffuseFullRes = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_diffuse");
         _giSpecularFullRes = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_specular");
 
-        // Upsample compute pass is created lazily via <see cref="SetUpsampleShader"/>
-        // so callers that do not use the plugin interface (direct Render calls)
-        // are not forced to supply the shader.
+        // Create the upsample compute pass eagerly when the shader is supplied.
+        if (shaders.Upsample != null)
+        {
+            InitUpsample(shaders.Upsample);
+        }
     }
 
-    /// <summary>
-    /// Supply the upsample compute shader and finalize the full-resolution output
-    /// bindings. Must be called once after construction when the renderer is used
-    /// as a render plugin (the pipeline calls this automatically).
-    /// </summary>
-    /// <param name="upsampleShader">The VoxelGiUpsample.hlsl compute shader.</param>
-    public void SetUpsampleShader(Shader upsampleShader)
+    private void InitUpsample(Shader upsampleShader)
     {
-        if (_upsampleMaterial != null)
-        {
-            return;
-        }
         _upsampleMaterial = _rendering.CreateComputeMaterial(upsampleShader);
         _upsampleDataBuffer = _rendering.CreateGraphicsValueBuffer<VoxelGiUpsampleData>("voxel_gi_upsample_data");
         _upsampleMaterial.SetBuffer("_data", _upsampleDataBuffer);
@@ -926,15 +953,51 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// </summary>
     /// <param name="gbuffer">The pipeline G-buffer (depth + world-normal + metallic-roughness-ao attachments).</param>
     /// <param name="shadowMap">The pipeline shadow map (2x2 cascade atlas).</param>
-    /// <param name="data">Per-frame data; the clipmap fields are filled by the renderer.</param>
-    /// <param name="cameraPosition">The world-space camera position driving the clipmap.</param>
-    public void Render(RenderTexture gbuffer, RenderTexture shadowMap, ref VoxelGiData data, in Vector3 cameraPosition)
+    /// <param name="context">The render plugin context providing lighting data, camera, and point-light buffer.</param>
+    public void Render(RenderTexture gbuffer, RenderTexture shadowMap, RenderPluginContext context)
     {
         long recordStart = Stopwatch.GetTimestamp();
         int staticBricksUpdated = 0;
         int dynamicBricksUpdated = 0;
         int droppedBricks = 0;
-        _clipmap.UpdateOrigins(cameraPosition);
+        _clipmap.UpdateOrigins(context.CameraPosition);
+
+        // ── Assemble the GPU constant buffer internally ──
+        VoxelGiData data = new()
+        {
+            InvViewProjection = context.InvViewProjection,
+            CameraPosition = new Vector4(context.CameraPosition, 0.0f),
+        };
+
+        // Copy lighting/shadow/sky data from the pipeline context.
+        if (context.LightingData is { } ld)
+        {
+            data.SunViewProjection0 = ld.SunViewProjection0;
+            data.SunViewProjection1 = ld.SunViewProjection1;
+            data.SunViewProjection2 = ld.SunViewProjection2;
+            data.SunViewProjection3 = ld.SunViewProjection3;
+            data.SunDirection = ld.SunDirection;
+            data.SunColorAndIntensity = ld.SunColorAndIntensity;
+            data.SkyHorizonColor = ld.SkyHorizonColor;
+            data.SkyZenithColor = ld.SkyZenithColor;
+            data.CascadeSplits = ld.CascadeSplits;
+            data.CascadeTexelSizes = ld.CascadeTexelSizes;
+            // x=shadowEnabled y=numPointLights z=shadowMapSize
+            data.LightingParams = new Vector4(
+                ld.Params.X,
+                ld.Params.Y,
+                ld.Params.Z,
+                0.0f);
+        }
+
+        // Bind the point-light buffer once (the buffer is stable across frames).
+        if (context.PointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, context.PointLightBuffer))
+        {
+            _injectMaterial.SetBuffer(ShaderResourceId.PointLights, context.PointLightBuffer);
+            _boundPointLightBuffer = context.PointLightBuffer;
+        }
+
+        // User-tunable GI parameters.
         if (!Matrix4x4.Invert(data.InvViewProjection, out data.ViewProjection))
         {
             data.ViewProjection = Matrix4x4.Identity;
@@ -951,8 +1014,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         data.LevelRingOffset3 = _clipmap.GetRingOffset(3);
         data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, 0.0f);
         uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
-        data.GiParams = new Vector4(data.GiParams.X, data.GiParams.Y, traceWidth, _traceRaw.Height);
-        data.GiParams2 = new Vector4(data.GiParams2.X, gbuffer.Width, gbuffer.Height, data.GiParams2.W);
+        data.GiParams = new Vector4(EmissiveScale, TraceMaxDistance, traceWidth, _traceRaw.Height);
+        data.GiParams2 = new Vector4((int)DebugView, gbuffer.Width, gbuffer.Height, SkyIntensity);
         data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, DiffuseSpreading);
         _dataBuffer.UpdateBuffer(data);
 
@@ -1280,7 +1343,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// <inheritdoc />
     void IRenderPlugin.Execute(RenderPluginContext context)
     {
-        Render(context.GBuffer, context.ShadowMap, ref Data, context.CameraPosition);
+        Render(context.GBuffer, context.ShadowMap, context);
         context.GIDiffuse = _giDiffuseFullRes;
         context.GISpecular = _giSpecularFullRes;
     }
