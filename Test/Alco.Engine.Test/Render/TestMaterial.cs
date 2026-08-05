@@ -66,13 +66,75 @@ public class TestMaterial
         Assert.IsTrue(material[0] != null);
         Assert.IsFalse(IsDirty(camera));
 
-        // The instance resolves the camera from the parent chain on every flush,
-        // so a later matrix change is picked up without rebinding.
+        // The instance resolves the camera from the parent chain when assembling,
+        // so the pending matrix change is picked up without rebinding.
         MaterialInstance instance = material.CreateInstance();
         camera.Position = new System.Numerics.Vector2(200, 200);
         Assert.IsTrue(IsDirty(camera));
         Assert.IsTrue(instance[0] != null);
         Assert.IsFalse(IsDirty(camera));
+    }
+
+    [Test]
+    public void TestInstanceTracksParentChanges()
+    {
+        GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
+        RenderingSystem renderingSystem = engine.RenderingSystem;
+        Shader shader = engine.BuiltInAssets.Shader_Sprite;
+        GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");
+        material.SetBuffer(0, renderingSystem.CreateCamera2D(640, 360, 100));
+
+        MaterialInstance instance = material.CreateInstance();
+        GPUResourceGroup? before = instance[0];
+        Assert.IsTrue(before != null);
+
+        // Changing only the parent must be picked up by the instance (tracked
+        // through the fallback chain versions) without any set on the instance.
+        material.SetBuffer(0, renderingSystem.CreateCamera2D(1280, 720, 100));
+        GPUResourceGroup? after = instance[0];
+        Assert.IsTrue(after != null);
+        Assert.AreNotSame(before, after);
+
+        // Steady state: no change, no reassembly.
+        Assert.AreSame(after, instance[0]);
+    }
+
+    [Test]
+    public void TestFlushSteadyStateNoAllocation()
+    {
+        GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
+        RenderingSystem renderingSystem = engine.RenderingSystem;
+        Shader shader = engine.BuiltInAssets.Shader_Sprite;
+        GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");
+        material.SetBuffer(0, renderingSystem.CreateCamera2D(1280, 720, 100));
+        MaterialInstance instance = material.CreateInstance();
+        instance.SetTexture(1, renderingSystem.TextureWhite);
+
+        // Warm up: assemble the groups and let the JIT settle.
+        for (int i = 0; i < 100_000; i++)
+        {
+            _ = instance[0];
+            _ = instance[1];
+        }
+
+        // The per-draw flush is on the hot path: with unchanged values it must be
+        // a few integer comparisons per group and allocate nothing. The first
+        // measured chunk absorbs one-time runtime effects; the second must be 0.
+        long before = System.GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 10000; i++)
+        {
+            _ = instance[0];
+            _ = instance[1];
+        }
+        long mid = System.GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 10000; i++)
+        {
+            _ = instance[0];
+            _ = instance[1];
+        }
+        long after = System.GC.GetAllocatedBytesForCurrentThread();
+        TestContext.WriteLine($"chunk1: {mid - before} B, chunk2: {after - mid} B");
+        Assert.AreEqual(0, after - mid);
     }
 
     private static bool IsDirty(Camera2DBuffer camera)

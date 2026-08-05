@@ -66,6 +66,8 @@ public sealed class ShaderParameterSet
         public GPUBindGroup? layout;
         public EntryPlan[] plans = [];
         public bool dirty = true;
+        // The fallback chain version at the time this group was last assembled.
+        public int fallbackVersion;
         public GPUResourceGroup? current;
         public readonly Dictionary<ulong, GPUResourceGroup> cache = new();
         public readonly Queue<ulong> cacheOrder = new();
@@ -78,6 +80,10 @@ public sealed class ShaderParameterSet
     private GPUResourceGroup?[] _resourceGroups;
     // The parameter set to resolve unbound slot values from (material instance parenting).
     private ShaderParameterSet? _fallback;
+    // Bumped on every slot value change, so dependent sets (instances using this set
+    // as fallback) can tell that a re-resolution is needed. Monotonically increasing;
+    // a sum of such versions over the fallback chain strictly increases on any change.
+    private int _version;
 
     /// <summary>
     /// Get the reflection information of the shader.
@@ -86,14 +92,22 @@ public sealed class ShaderParameterSet
 
     /// <summary>
     /// The parameter set used to resolve values for slots that have no value of their
-    /// own (material instance parenting). When a fallback is set,
-    /// <see cref="FlushResourceGroups"/> always re-resolves the groups, since changes
-    /// of the fallback values are not tracked here.
+    /// own (material instance parenting). Changes of the fallback values are tracked
+    /// through a per-set version number, so <see cref="FlushResourceGroups"/> only
+    /// re-resolves the groups when the fallback chain actually changed.
     /// </summary>
     internal ShaderParameterSet? Fallback
     {
         get => _fallback;
-        set => _fallback = value;
+        set
+        {
+            _fallback = value;
+            // Rewiring the fallback invalidates the recorded fallback versions.
+            for (int i = 0; i < _groups.Length; i++)
+            {
+                _groups[i].dirty = true;
+            }
+        }
     }
 
     /// <summary>
@@ -135,6 +149,9 @@ public sealed class ShaderParameterSet
 
         _reflectionInfo = reflectionInfo;
         BuildSlotsAndGroups();
+        // Notify dependent sets that the fallback values must be re-resolved (the
+        // resource locations changed even when the values are carried over).
+        _version++;
 
         if (resetResources)
         {
@@ -892,21 +909,30 @@ public sealed class ShaderParameterSet
     /// Rebuilds the assembled resource groups whose slot values changed since the
     /// last call. Identical contents are served from a per-group cache, so repeated
     /// updates (e.g. double buffered ping-pong) do not recreate bind groups.
+    /// <br/>A group is skipped entirely when neither its own slots (dirty flag) nor
+    /// any value of the fallback chain (version sum) changed, which makes the steady
+    /// state a few integer comparisons per group with no allocation.
     /// </summary>
     public void FlushResourceGroups()
     {
-        // With a fallback set, changes of the fallback values are not tracked, so
-        // every group is re-resolved; the content cache still prevents rebuilds.
-        bool force = _fallback != null;
+        // Every set version is monotonically increasing, so the sum strictly
+        // increases whenever any value of the fallback chain changes.
+        int fallbackVersion = 0;
+        for (ShaderParameterSet? set = _fallback; set != null; set = set._fallback)
+        {
+            fallbackVersion += set._version;
+        }
+
         for (int i = 0; i < _groups.Length; i++)
         {
             GroupState group = _groups[i];
-            if (!force && !group.dirty)
+            if (!group.dirty && group.fallbackVersion == fallbackVersion)
             {
                 continue;
             }
 
             group.dirty = false;
+            group.fallbackVersion = fallbackVersion;
             group.current = AssembleGroup(i, group);
             _resourceGroups[i] = group.current;
         }
@@ -936,9 +962,9 @@ public sealed class ShaderParameterSet
     private GPUResourceGroup? AssembleGroup(int groupIndex, GroupState group)
     {
         EntryPlan[] plans = group.plans;
-        IGPUBindableResource?[] values = new IGPUBindableResource?[plans.Length];
 
-        // FNV-1a over the ordered (binding, resource identity) pairs.
+        // Pass 1: resolve and hash (FNV-1a over the ordered (binding, resource
+        // identity) pairs) without allocating; identical contents hit the cache.
         ulong hash = 14695981039346656037UL;
         for (int i = 0; i < plans.Length; i++)
         {
@@ -949,7 +975,6 @@ public sealed class ShaderParameterSet
                 return null;
             }
 
-            values[i] = value;
             hash = (hash ^ plans[i].binding) * 1099511628211UL;
             hash = (hash ^ (ulong)RuntimeHelpers.GetHashCode(value)) * 1099511628211UL;
         }
@@ -959,12 +984,15 @@ public sealed class ShaderParameterSet
             return cached;
         }
 
+        // Pass 2 (cache miss only): resolve again into the binding entries and
+        // build the group. Resolution is idempotent (a camera flush or a counter
+        // buffer creation happens at most once), so resolving twice is safe.
         group.layout ??= _device.CreateBindGroup(_reflectionInfo.BindGroups[groupIndex].ToDescriptor($"material_bind_group_layout_{groupIndex}"));
 
         ResourceBindingEntry[] resources = new ResourceBindingEntry[plans.Length];
         for (int i = 0; i < plans.Length; i++)
         {
-            resources[i] = new ResourceBindingEntry(plans[i].binding, values[i]!);
+            resources[i] = new ResourceBindingEntry(plans[i].binding, ResolveEntryValue(in plans[i])!);
         }
 
         GPUResourceGroup resourceGroup = _device.CreateResourceGroup(new ResourceGroupDescriptor(group.layout, resources, $"material_bind_group_{groupIndex}"));
@@ -1104,6 +1132,8 @@ public sealed class ShaderParameterSet
     private void MarkDirty(int groupIndex)
     {
         _groups[groupIndex].dirty = true;
+        // Notify dependent sets (instances resolving through this set as fallback).
+        _version++;
     }
 
     private static bool IsTextureSlot(ResourceType type)
