@@ -4,7 +4,6 @@
 #define ALPHA_CLIP 0.05
 
 //simulate the slang keyword
-#define vk_binding vk::binding
 #define vk_push_constant vk::push_constant
 #define vk_image_format vk::image_format
 
@@ -13,7 +12,6 @@
 
 
 #define PUSH_CONSTANT [[vk::push_constant]] // layout(push_constant) in GLSL
-#define SLOT(set, bind) [[vk_binding(bind, set)]] // layout(binding = bind, set = set) in GLSL
 #define IMAGE_FORMAT(format) [[vk::image_format(format)]]
 
 // Bind group indices by update frequency. A set holds many resources at distinct
@@ -27,38 +25,35 @@
 #define ALCO_GROUP_MATERIAL 2
 #define ALCO_GROUP_DRAW 3
 
-// Resource declaration macros. The *_AT variants take the set and the binding
-// explicitly, so multiple resources can share one set; the sampler companion of a
-// sampled texture takes the binding right after its texture. The plain variants
-// keep the legacy one-set-per-resource layout (set = index, binding = 0, sampler
-// companion at binding 1) and expand to the *_AT variants.
-#define DEFINE_UNIFORM_AT(set, bind, name) SLOT(set, bind) cbuffer name
-#define DEFINE_STORAGE_AT(set, bind, type, name) SLOT(set, bind) RWStructuredBuffer<type> name
-#define DEFINE_TEX2D_SAMPLE_AT(set, bind, name) SLOT(set, bind) Texture2D name; SLOT(set, bind + 1) SamplerState name##Sampler
-#define DEFINE_TEX2D_READ_AT(set, bind, name) SLOT(set, bind) Texture2D name
-#define DEFINE_TEX2D_STORAGE_AT(set, bind, name, type, format) SLOT(set, bind) IMAGE_FORMAT(format) RWTexture2D<type> name
-#define DEFINE_TEX3D_SAMPLE_AT(set, bind, name) SLOT(set, bind) Texture3D name; SLOT(set, bind + 1) SamplerState name##Sampler
-#define DEFINE_TEX3D_READ_AT(set, bind, name) SLOT(set, bind) Texture3D name
-#define DEFINE_TEX3D_STORAGE_AT(set, bind, name, type, format) SLOT(set, bind) IMAGE_FORMAT(format) RWTexture3D<type> name
+// Set-only annotation: register(spaceN) without a register number makes DXC assign
+// binding numbers automatically, sequentially per set in declaration order (the
+// sampler companion of a sampled texture takes the binding right after its
+// texture). Two-level indirection is required so the group constant is expanded
+// before token pasting.
+#define ALCO_PASTE_(a, b) a##b
+#define ALCO_PASTE(a, b) ALCO_PASTE_(a, b)
+#define ALCO_SET(set) register(ALCO_PASTE(space, set))
 
-#define DEFINE_UNIFORM(index, name) DEFINE_UNIFORM_AT(index, 0, name)
-#define DEFINE_STORAGE(index, type, name) DEFINE_STORAGE_AT(index, 0, type, name)
-#define DEFINE_TEX2D_SAMPLE(index, name) DEFINE_TEX2D_SAMPLE_AT(index, 0, name)
-#define DEFINE_TEX2D_READ(index, name) DEFINE_TEX2D_READ_AT(index, 0, name)
-#define DEFINE_TEX2D_STORAGE(index, name, type, format) DEFINE_TEX2D_STORAGE_AT(index, 0, name, type, format)
-#define DEFINE_TEX3D_SAMPLE(index, name) DEFINE_TEX3D_SAMPLE_AT(index, 0, name)
-#define DEFINE_TEX3D_READ(index, name) DEFINE_TEX3D_READ_AT(index, 0, name)
-#define DEFINE_TEX3D_STORAGE(index, name, type, format) DEFINE_TEX3D_STORAGE_AT(index, 0, name, type, format)
+// Resource declaration macros. `index` is the bind group (set) index; bindings
+// inside a set are assigned automatically by the compiler in declaration order,
+// so multiple resources can share one set simply by being declared one after
+// another. The engine resolves resources by name, never by binding number.
+#define DEFINE_UNIFORM(index, name) cbuffer name : ALCO_SET(index)
+#define DEFINE_STORAGE(index, type, name) RWStructuredBuffer<type> name : ALCO_SET(index)
+#define DEFINE_TEX2D_SAMPLE(index, name) Texture2D name : ALCO_SET(index); SamplerState name##Sampler : ALCO_SET(index)
+#define DEFINE_TEX2D_READ(index, name) Texture2D name : ALCO_SET(index)
+#define DEFINE_TEX2D_STORAGE(index, name, type, format) IMAGE_FORMAT(format) RWTexture2D<type> name : ALCO_SET(index)
+#define DEFINE_TEX3D_SAMPLE(index, name) Texture3D name : ALCO_SET(index); SamplerState name##Sampler : ALCO_SET(index)
+#define DEFINE_TEX3D_READ(index, name) Texture3D name : ALCO_SET(index)
+#define DEFINE_TEX3D_STORAGE(index, name, type, format) IMAGE_FORMAT(format) RWTexture3D<type> name : ALCO_SET(index)
 
 // Depth textures. DXC cannot mark a texture as a depth image in SPIR-V, so textures
 // declared with these macros are rewritten to depth images after compilation
 // (see SpirvDepthTexturePatcher) and must be bound via SetRenderTextureDepth.
 // DEFINE_TEX2D_DEPTH: Load-only depth texture (raw depth reads).
 // DEFINE_TEX2D_DEPTH_SAMPLE: depth texture + comparison sampler pair (shadow map PCF).
-#define DEFINE_TEX2D_DEPTH_AT(set, bind, name) SLOT(set, bind) Texture2D<float> name
-#define DEFINE_TEX2D_DEPTH_SAMPLE_AT(set, bind, name) SLOT(set, bind) Texture2D<float> name; SLOT(set, bind + 1) SamplerComparisonState name##Sampler
-#define DEFINE_TEX2D_DEPTH(index, name) DEFINE_TEX2D_DEPTH_AT(index, 0, name)
-#define DEFINE_TEX2D_DEPTH_SAMPLE(index, name) DEFINE_TEX2D_DEPTH_SAMPLE_AT(index, 0, name)
+#define DEFINE_TEX2D_DEPTH(index, name) Texture2D<float> name : ALCO_SET(index)
+#define DEFINE_TEX2D_DEPTH_SAMPLE(index, name) Texture2D<float> name : ALCO_SET(index); SamplerComparisonState name##Sampler : ALCO_SET(index)
 
 // Triangular-PDF dither based on interleaved gradient noise (Jimenez 2014), scaled to
 // +/-1 code of an 8-bit UNORM target. Add it to the final LDR color before the output

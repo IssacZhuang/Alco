@@ -26,14 +26,14 @@ struct VoxelPropagateConstants
 // Bind groups: set 0 packs the per-dispatch inputs together with the shared
 // uniform (binding 0, from VoxelCommon.hlsli); set 1 is the output texture, so
 // the pass needs two of the eight available sets.
-DEFINE_TEX3D_SAMPLE_AT(0, 1, _radiance);
-DEFINE_STORAGE_AT(0, 3, uint4, _attrStatic);
-DEFINE_STORAGE_AT(0, 4, uint4, _attrDynamic);
+DEFINE_TEX3D_SAMPLE(0, _radiance);
+DEFINE_STORAGE(0, uint4, _attrStatic);
+DEFINE_STORAGE(0, uint4, _attrDynamic);
 // Combined page table: x=static, y=dynamic. Saves a binding for the brick list.
-DEFINE_STORAGE_AT(0, 5, uint2, _pageTable);
-DEFINE_TEX3D_SAMPLE_AT(0, 6, _opacity);
-DEFINE_STORAGE_AT(0, 8, uint4, _brickList);
-DEFINE_TEX3D_STORAGE_AT(1, 0, _propagateOut, float4, "rgba16f");
+DEFINE_STORAGE(0, uint2, _pageTable);
+DEFINE_TEX3D_SAMPLE(0, _opacity);
+DEFINE_STORAGE(0, uint4, _brickList);
+DEFINE_TEX3D_STORAGE(1, _propagateOut, float4, "rgba16f");
 
 PUSH_CONSTANT VoxelPropagateConstants constants;
 

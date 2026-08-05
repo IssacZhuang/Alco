@@ -18,13 +18,13 @@ struct VoxelInjectConstants
 // Bind groups: set 0 packs the per-dispatch inputs together with the shared
 // uniform (binding 0, from VoxelCommon.hlsli); set 1 holds the output textures,
 // so the pass needs two of the eight available sets.
-DEFINE_STORAGE_AT(0, 1, uint4, _attrStatic);
-DEFINE_STORAGE_AT(0, 2, uint4, _attrDynamic);
-DEFINE_TEX2D_DEPTH_SAMPLE_AT(0, 3, _shadowMap);
+DEFINE_STORAGE(0, uint4, _attrStatic);
+DEFINE_STORAGE(0, uint4, _attrDynamic);
+DEFINE_TEX2D_DEPTH_SAMPLE(0, _shadowMap);
 // Combined page table: x=static page entry, y=dynamic page entry. Merging the
 // two pools into one buffer frees a binding for the brick list.
-DEFINE_STORAGE_AT(0, 5, uint2, _pageTable);
-DEFINE_STORAGE_AT(0, 6, uint4, _brickList);
+DEFINE_STORAGE(0, uint2, _pageTable);
+DEFINE_STORAGE(0, uint4, _brickList);
 
 // Point lights shared with the deferred lighting pass (same StructuredBuffer).
 struct PointLightData
@@ -32,9 +32,9 @@ struct PointLightData
     float4 positionRange;    // xyz = world-space position, w = cutoff radius
     float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
 };
-DEFINE_STORAGE_AT(0, 7, PointLightData, _pointLights);
-DEFINE_TEX3D_STORAGE_AT(1, 0, _radianceOut, float4, "rgba16f");
-DEFINE_TEX3D_STORAGE_AT(1, 1, _opacityOut, float4, "rgba16f");
+DEFINE_STORAGE(0, PointLightData, _pointLights);
+DEFINE_TEX3D_STORAGE(1, _radianceOut, float4, "rgba16f");
+DEFINE_TEX3D_STORAGE(1, _opacityOut, float4, "rgba16f");
 
 PUSH_CONSTANT VoxelInjectConstants constants;
 

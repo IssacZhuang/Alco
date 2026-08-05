@@ -15,8 +15,6 @@ public class TestShaderResourceMapping
     // One set per resource, packed with companions: a sampler paired to _albedo by
     // name, and the implicit counter DXC emits for a structured buffer used through
     // a function parameter ("counter.var._buffer", at a binding chosen by DXC).
-    // The sampler binding uses the constant expression form (0+1) that the
-    // DEFINE_TEX2D_SAMPLE_AT macros of Core.hlsli rely on.
     private const string PackedShader = @"
 [[vk::binding(0, 0)]] cbuffer _data { float4 value; };
 [[vk::binding(1, 0)]] Texture2D _albedo;

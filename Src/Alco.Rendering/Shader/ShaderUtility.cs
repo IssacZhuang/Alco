@@ -25,16 +25,6 @@ public static partial class ShaderUtility
     public static readonly Regex RegexDepthTextureSample = new Regex(@"\bDEFINE_TEX2D_DEPTH_SAMPLE\s*\([^,]+,\s*(\w+)\s*\)", RegexOptions.Compiled);
 
     /// <summary>
-    /// Matches uses of the DEFINE_TEX2D_DEPTH_AT macro (a depth texture read with Load only, explicit set and binding).
-    /// </summary>
-    public static readonly Regex RegexDepthTextureAt = new Regex(@"\bDEFINE_TEX2D_DEPTH_AT\s*\([^,]+,[^,]+,\s*(\w+)\s*\)", RegexOptions.Compiled);
-
-    /// <summary>
-    /// Matches uses of the DEFINE_TEX2D_DEPTH_SAMPLE_AT macro (a depth texture sampled with a comparison sampler, explicit set and binding).
-    /// </summary>
-    public static readonly Regex RegexDepthTextureSampleAt = new Regex(@"\bDEFINE_TEX2D_DEPTH_SAMPLE_AT\s*\([^,]+,[^,]+,\s*(\w+)\s*\)", RegexOptions.Compiled);
-
-    /// <summary>
     /// Compiles the shader text with the specified filename and multi-compile defines.
     /// </summary>
     /// <param name="shaderText">The shader text to compile.</param>
@@ -333,20 +323,8 @@ public static partial class ShaderUtility
             names.Add(match.Groups[1].Value);
         }
 
-        foreach (Match match in RegexDepthTextureAt.Matches(shaderText))
-        {
-            names.Add(match.Groups[1].Value);
-        }
-
         comparisonSamplerNames = new List<string>();
         foreach (Match match in RegexDepthTextureSample.Matches(shaderText))
-        {
-            string name = match.Groups[1].Value;
-            names.Add(name);
-            comparisonSamplerNames.Add(name + "Sampler");
-        }
-
-        foreach (Match match in RegexDepthTextureSampleAt.Matches(shaderText))
         {
             string name = match.Groups[1].Value;
             names.Add(name);
