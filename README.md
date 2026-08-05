@@ -50,7 +50,7 @@ You can also include it as a git submodule if preferred.
 
 ### Third-Party Libraries
 
-- [Silk.NET](https://github.com/dotnet/Silk.NET): OpenAL audio and SPIR-V reflection
+- [Silk.NET](https://github.com/dotnet/Silk.NET): OpenAL audio
 - [Alimer.Bindings.WebGPU](https://github.com/amerkoleci/Alimer.Bindings.WebGPU): WebGPU API bindings (embedded as source code and modified)
 - [wgpu-native](https://github.com/gfx-rs/wgpu-native): WebGPU native implementation
 - [DirectX Compiler](https://github.com/microsoft/DirectXShaderCompiler): HLSL shader compilation
@@ -65,6 +65,7 @@ All external libraries are used under their respective licenses, primarily MIT L
 ### Algorithm References
 
 - The Global Illumination system (Voxel Cone Tracing / SVOGI) references the algorithm design and parameter choices of CRYENGINE 5's SVOTI (Sparse Voxel Octree Total Illumination).
+- The SPIR-V reflection and bytecode parsing module (`Src/Alco.Graphics/Spirv/`) is a pure-managed C# reimplementation referencing [SPIRV-Reflect](https://github.com/KhronosGroup/SPIRV-Reflect) by Khronos Group.
 
 ## Notice
 

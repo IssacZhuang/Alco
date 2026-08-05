@@ -3,7 +3,6 @@ namespace Alco.Graphics.Spirv;
 /// <summary>
 /// Reflects a parsed SPIR-V module into engine types (<see cref="ShaderReflectionInfo"/>,
 /// <see cref="BindGroupLayout"/>, <see cref="VertexInputLayout"/>, etc.).
-/// Replaces the Silk.NET.SPIRV.Reflect native binding with a pure-managed implementation.
 /// </summary>
 internal static class SpirvReflector
 {
