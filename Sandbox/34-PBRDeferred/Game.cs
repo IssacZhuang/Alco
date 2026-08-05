@@ -170,6 +170,13 @@ public class Game : GameEngine
     private BloomSystem? _bloom;
     private float _emissiveBoost = 4.0f;
 
+    // Point lights auto-generated from Bistro emissive surfaces.
+    private bool _pointLightsEnabled = false;
+    private float _pointLightIntensity = 1.0f;   // global multiplier on per-light base intensity
+    private float _pointLightRangeScale = 1.0f;   // global multiplier on per-light range
+    private PBRDeferredPipeline.PointLight[]? _bistroPointLights;         // base lights (unscaled)
+    private PBRDeferredPipeline.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
+
     // HDR tone mapping (PluginHDR): switchable operator with per-type parameters.
     private PluginHDR? _hdrPlugin;
     private PluginHDR.TonemapType _tonemapType;
@@ -300,6 +307,7 @@ public class Game : GameEngine
                     material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
             }
             _bistroStreaming = !_bistro.LoadingCompletion.IsCompleted;
+            BuildBistroPointLights();
         }
         else
         {
@@ -644,6 +652,117 @@ public class Game : GameEngine
         }
     }
 
+    /// <summary>
+    /// Scan Bistro draw items for emissive materials and build point lights at
+    /// their world-space centers. Light color, range and intensity are matched
+    /// to the emissive material name (street lights, string lights, shop signs,
+    /// ceiling lamps, etc.). Called once during initialization.
+    /// </summary>
+    private void BuildBistroPointLights()
+    {
+        if (_bistro == null)
+        {
+            return;
+        }
+
+        var lights = new List<PBRDeferredPipeline.PointLight>();
+        IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
+        IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
+
+        for (int i = 0; i < drawItems.Count; i++)
+        {
+            ModelDrawItem item = drawItems[i];
+            ModelMaterial mat = materials[item.MaterialIndex];
+            bool hasEmissive = mat.EmissiveFactor != Vector3.Zero || mat.EmissiveTexture != null;
+            if (!hasEmissive)
+            {
+                continue;
+            }
+
+            Vector3 localCenter = (item.LocalBoundsMin + item.LocalBoundsMax) * 0.5f;
+            Vector3 worldCenter = Vector3.Transform(localCenter, item.World);
+
+            GetEmissiveLightParams(mat.Name, out Vector3 color, out float range, out float intensity);
+            lights.Add(new PBRDeferredPipeline.PointLight(worldCenter, color, intensity, range));
+
+            if (lights.Count >= PBRDeferredPipeline.MaxPointLights)
+            {
+                break;
+            }
+        }
+
+        _bistroPointLights = lights.ToArray();
+        _pointLightUploadBuffer = new PBRDeferredPipeline.PointLight[lights.Count];
+    }
+
+    /// <summary>
+    /// Match a Bistro emissive material name to point light parameters.
+    /// </summary>
+    private static void GetEmissiveLightParams(string name, out Vector3 color, out float range, out float intensity)
+    {
+        // Large warm-white fixtures: street lights, spotlights, lanterns, interior lamps.
+        if (name.Contains("StreetLight", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("Spotlight", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("Lantern", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("Ceiling_Lamp", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("CeilingFan", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("Wall_Light", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(1.0f, 0.85f, 0.6f);
+            range = 6.0f;
+            intensity = 15.0f;
+        }
+        else if (name.Contains("Orange", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(1.0f, 0.5f, 0.15f);
+            range = 3.0f;
+            intensity = 5.0f;
+        }
+        else if (name.Contains("Blue", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(0.3f, 0.55f, 1.0f);
+            range = 3.0f;
+            intensity = 5.0f;
+        }
+        else if (name.Contains("White", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(1.0f, 1.0f, 1.0f);
+            range = 3.0f;
+            intensity = 5.0f;
+        }
+        else if (name.Contains("Pink", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(1.0f, 0.4f, 0.6f);
+            range = 3.0f;
+            intensity = 5.0f;
+        }
+        else if (name.Contains("Red", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(1.0f, 0.2f, 0.15f);
+            range = 3.0f;
+            intensity = 5.0f;
+        }
+        else if (name.Contains("Green", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(0.2f, 1.0f, 0.3f);
+            range = 3.0f;
+            intensity = 5.0f;
+        }
+        else if (name.Contains("Shopsign", StringComparison.OrdinalIgnoreCase))
+        {
+            color = new Vector3(1.0f, 0.9f, 0.7f);
+            range = 4.0f;
+            intensity = 8.0f;
+        }
+        else
+        {
+            // Default: warm white.
+            color = new Vector3(1.0f, 0.85f, 0.6f);
+            range = 4.0f;
+            intensity = 8.0f;
+        }
+    }
+
     private void UpdateLightingData()
     {
         // The sun orbits with the time of day (the CLI override fixes the
@@ -724,6 +843,28 @@ public class Game : GameEngine
             _giDebugView);
         _lightingData.Params4 = new Vector4(_sunDiscSize, _sunDiscBrightness, 0.0f, 0.0f);
 
+        // Scale and upload point lights generated from Bistro emissive surfaces.
+        // UpdatePointLights overwrites _lightingData.Params.Y (numPointLights),
+        // so this must happen after the Params assignment above.
+        int pointLightCount = 0;
+        if (_pointLightsEnabled && _bistroPointLights != null && _bistroPointLights.Length > 0)
+        {
+            for (int i = 0; i < _bistroPointLights.Length; i++)
+            {
+                Vector4 ci = _bistroPointLights[i].ColorAndIntensity;
+                _pointLightUploadBuffer![i] = _bistroPointLights[i];
+                _pointLightUploadBuffer[i].ColorAndIntensity =
+                    new Vector4(ci.X, ci.Y, ci.Z, ci.W * _pointLightIntensity);
+                _pointLightUploadBuffer[i].Position.W *= _pointLightRangeScale;
+            }
+            pointLightCount = _bistroPointLights.Length;
+        }
+        _pipeline.UpdatePointLights(
+            _pointLightUploadBuffer != null
+                ? _pointLightUploadBuffer.AsSpan(0, pointLightCount)
+                : ReadOnlySpan<PBRDeferredPipeline.PointLight>.Empty,
+            ref _lightingData);
+
         // Voxel GI per-frame data (the clipmap and resolution fields are filled by the renderer).
         if (_voxelGI != null)
         {
@@ -741,10 +882,10 @@ public class Game : GameEngine
             _voxelData.CascadeTexelSizes = _lightingData.CascadeTexelSizes;
             _voxelData.LightingParams = new Vector4(
                 _shadowEnabled ? 1.0f : 0.0f,
-                0.0f,
+                pointLightCount,
                 _pipeline.ShadowMapSize,
                 0.0f);
-            _voxelData.GiParams = new Vector4(_emissiveBoost, _giMaxTraceDistance, 0.0f, 0.0f);
+            _voxelData.GiParams = new Vector4(_pointLightsEnabled ? _emissiveBoost : 0.0f, _giMaxTraceDistance, 0.0f, 0.0f);
             _voxelData.GiParams2 = new Vector4(_giDebugView, 0.0f, 0.0f, _giSkyIntensity);
         }
 
@@ -927,7 +1068,7 @@ public class Game : GameEngine
                 _pipeline.DrawGBuffer(target, item.Mesh, _bistroMaterials![item.MaterialIndex], item.World,
                     material.BaseColorFactor,
                     new Vector4(material.MetallicFactor, material.RoughnessFactor, 1.0f, 0.0f),
-                    material.EmissiveFactor * _emissiveBoost,
+                    material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f),
                     GetAlphaCutoff(material));
             }
             return;
@@ -1256,6 +1397,17 @@ public class Game : GameEngine
             {
                 _bloom.Intensity = bloomIntensity;
             }
+        }
+
+        if (_bistroPointLights != null && ImGui.CollapsingHeader("Point Lights"))
+        {
+            if (ImGui.Checkbox("Enabled", ref _pointLightsEnabled))
+            {
+                _staticBundlesDirty = true;
+            }
+            ImGui.SliderFloat("Light Intensity", ref _pointLightIntensity, 0.0f, 5.0f);
+            ImGui.SliderFloat("Light Range", ref _pointLightRangeScale, 0.1f, 3.0f);
+            ImGui.Text($"Lights: {_bistroPointLights.Length} / {PBRDeferredPipeline.MaxPointLights}");
         }
 
         if (_hdrPlugin != null && ImGui.CollapsingHeader("Tone Mapping"))
