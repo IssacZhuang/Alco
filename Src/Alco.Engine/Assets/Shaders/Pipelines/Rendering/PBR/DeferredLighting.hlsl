@@ -23,7 +23,7 @@ struct V2F
 // Bind groups: set 0 is the per-frame lighting constants; set 1 packs every
 // per-pass input of the lighting pass (G-buffer, shadow map, GI atlas) at
 // distinct bindings, so the pass needs two of the eight available sets.
-DEFINE_UNIFORM(ALCO_GROUP_FRAME, _data)
+DEFINE_UNIFORM(0, _data)
 {
     float4x4 invViewProjection;
     float4x4 sunViewProjection[4];
@@ -44,7 +44,7 @@ DEFINE_UNIFORM(ALCO_GROUP_FRAME, _data)
     float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
 };
 
-DEFINE_TEX2D_SAMPLE(ALCO_GROUP_PASS, _albedo);
+DEFINE_TEX2D_SAMPLE(1, _albedo);
 
 // Point lights stored in a StructuredBuffer (not cbuffer) so the count is
 // bounded by GPU memory, not by cbuffer size limits. xyz = position, w = range.
@@ -53,13 +53,13 @@ struct PointLightData
     float4 positionRange;    // xyz = world-space position, w = cutoff radius
     float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
 };
-DEFINE_STORAGE(ALCO_GROUP_PASS, PointLightData, _pointLights);
+DEFINE_STORAGE(1, PointLightData, _pointLights);
 
-DEFINE_TEX2D_SAMPLE(ALCO_GROUP_PASS, _normal);
-DEFINE_TEX2D_SAMPLE(ALCO_GROUP_PASS, _mrAO);
-DEFINE_TEX2D_DEPTH(ALCO_GROUP_PASS, _gbufferDepth);
-DEFINE_TEX2D_DEPTH_SAMPLE(ALCO_GROUP_PASS, _shadowMap);
-DEFINE_TEX2D_SAMPLE(ALCO_GROUP_PASS, _emissive);
+DEFINE_TEX2D_SAMPLE(1, _normal);
+DEFINE_TEX2D_SAMPLE(1, _mrAO);
+DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
+DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap);
+DEFINE_TEX2D_SAMPLE(1, _emissive);
 // Indirect GI atlas from the voxel cone tracing resolve: five times the
 // trace width. Sections: diffuse near layer and diffuse far layer (rgb =
 // irradiance, a = layer view-linear depth), then specular radiance (rgb;
@@ -68,7 +68,7 @@ DEFINE_TEX2D_SAMPLE(ALCO_GROUP_PASS, _emissive);
 // a = layer view-linear depth). The lighting pass upsamples all layers with
 // the upscale pass's 5-tap depth-weighted kernel at full resolution, keeping
 // occlusion edges sharp at reduced trace resolutions.
-DEFINE_TEX2D_SAMPLE(ALCO_GROUP_PASS, _indirectGI);
+DEFINE_TEX2D_SAMPLE(1, _indirectGI);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)

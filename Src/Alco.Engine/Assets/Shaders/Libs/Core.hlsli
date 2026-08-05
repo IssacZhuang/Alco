@@ -14,17 +14,6 @@
 #define PUSH_CONSTANT [[vk::push_constant]] // layout(push_constant) in GLSL
 #define IMAGE_FORMAT(format) [[vk::image_format(format)]]
 
-// Bind group indices by update frequency. A set holds many resources at distinct
-// bindings, so a shader never needs more sets than these four.
-// FRAME: per-frame constants shared by all passes (e.g. the camera).
-// PASS: per-pass resources (e.g. the G-Buffer inputs of a lighting pass).
-// MATERIAL: per-material resources (textures, material parameters).
-// DRAW: per-draw data (instance buffers, per-object constants).
-#define ALCO_GROUP_FRAME 0
-#define ALCO_GROUP_PASS 1
-#define ALCO_GROUP_MATERIAL 2
-#define ALCO_GROUP_DRAW 3
-
 // Set-only annotation: register(spaceN) without a register number makes DXC assign
 // binding numbers automatically, sequentially per set in declaration order (the
 // sampler companion of a sampled texture takes the binding right after its
