@@ -951,11 +951,12 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// from the G-buffer. Must be called after the G-buffer pass and before the
     /// lighting pass; dynamic instances are consumed (cleared) by the call.
     /// </summary>
-    /// <param name="gbuffer">The pipeline G-buffer (depth + world-normal + metallic-roughness-ao attachments).</param>
-    /// <param name="shadowMap">The pipeline shadow map (2x2 cascade atlas).</param>
-    /// <param name="context">The render plugin context providing lighting data, camera, and point-light buffer.</param>
-    public void Render(RenderTexture gbuffer, RenderTexture shadowMap, RenderPluginContext context)
+    /// <param name="context">The render plugin context providing G-buffer, shadow map,
+    /// lighting data, camera, and point-light buffer.</param>
+    public void Render(RenderPluginContext context)
     {
+        RenderTexture gbuffer = context.GBuffer;
+        RenderTexture shadowMap = context.ShadowMap;
         long recordStart = Stopwatch.GetTimestamp();
         int staticBricksUpdated = 0;
         int dynamicBricksUpdated = 0;
@@ -970,25 +971,23 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         };
 
         // Copy lighting/shadow/sky data from the pipeline context.
-        if (context.LightingData is { } ld)
-        {
-            data.SunViewProjection0 = ld.SunViewProjection0;
-            data.SunViewProjection1 = ld.SunViewProjection1;
-            data.SunViewProjection2 = ld.SunViewProjection2;
-            data.SunViewProjection3 = ld.SunViewProjection3;
-            data.SunDirection = ld.SunDirection;
-            data.SunColorAndIntensity = ld.SunColorAndIntensity;
-            data.SkyHorizonColor = ld.SkyHorizonColor;
-            data.SkyZenithColor = ld.SkyZenithColor;
-            data.CascadeSplits = ld.CascadeSplits;
-            data.CascadeTexelSizes = ld.CascadeTexelSizes;
-            // x=shadowEnabled y=numPointLights z=shadowMapSize
-            data.LightingParams = new Vector4(
-                ld.Params.X,
-                ld.Params.Y,
-                ld.Params.Z,
-                0.0f);
-        }
+        PBRDeferredPipeline.DeferredLightingData ld = context.LightingData;
+        data.SunViewProjection0 = ld.SunViewProjection0;
+        data.SunViewProjection1 = ld.SunViewProjection1;
+        data.SunViewProjection2 = ld.SunViewProjection2;
+        data.SunViewProjection3 = ld.SunViewProjection3;
+        data.SunDirection = ld.SunDirection;
+        data.SunColorAndIntensity = ld.SunColorAndIntensity;
+        data.SkyHorizonColor = ld.SkyHorizonColor;
+        data.SkyZenithColor = ld.SkyZenithColor;
+        data.CascadeSplits = ld.CascadeSplits;
+        data.CascadeTexelSizes = ld.CascadeTexelSizes;
+        // x=shadowEnabled y=numPointLights z=shadowMapSize
+        data.LightingParams = new Vector4(
+            ld.Params.X,
+            ld.Params.Y,
+            ld.Params.Z,
+            0.0f);
 
         // Bind the point-light buffer once (the buffer is stable across frames).
         if (context.PointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, context.PointLightBuffer))
@@ -1343,7 +1342,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// <inheritdoc />
     void IRenderPlugin.Execute(RenderPluginContext context)
     {
-        Render(context.GBuffer, context.ShadowMap, context);
+        Render(context);
         context.GIDiffuse = _giDiffuseFullRes;
         context.GISpecular = _giSpecularFullRes;
     }

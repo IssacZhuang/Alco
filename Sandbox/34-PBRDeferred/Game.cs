@@ -61,7 +61,6 @@ public class Game : GameEngine
     private readonly Texture2D _checkerTexture;
 
     private readonly List<SceneObject> _objects = new();
-    private PBRDeferredPipeline.DeferredLightingData _lightingData = new();
 
     // Scene materials owned by the game (created via the pipeline's material factory).
     private GraphicsMaterial? _proceduralMaterial;
@@ -97,13 +96,7 @@ public class Game : GameEngine
     // by _sunWarmth for a more pleasing art direction.
     private readonly Vector3? _sunDirectionOverride;
     private float _sunIntensity = 8.0f;
-    private bool _shadowEnabled = true;
-    private bool _sunDiscEnabled = true;
 
-    // Sun disc visual parameters — independent of scene lighting intensity so
-    // the visible sun in the sky can be tuned without affecting PBR shading.
-    private float _sunDiscSize = 0.9998f;       // cosine angular threshold (higher = smaller disc)
-    private float _sunDiscBrightness = 18.0f;   // HDR visual brightness of the sun disc
     // Artistic warm tint for direct sunlight (0 = physical neutral, 1 = fully warm).
     private float _sunWarmth = 0.4f;
 
@@ -115,11 +108,6 @@ public class Game : GameEngine
     // Cascaded shadow map state.
     private readonly float _cameraNear;
     private float _shadowDistance;
-    private bool _cascadeDebug;
-    private bool _shadowDebug;
-    private readonly Matrix4x4[] _cascadeViewProjections = new Matrix4x4[PBRDeferredPipeline.ShadowCascadeCount];
-    private readonly float[] _cascadeSplits = new float[PBRDeferredPipeline.ShadowCascadeCount];
-    private readonly float[] _cascadeTexelSizes = new float[PBRDeferredPipeline.ShadowCascadeCount];
 
     // Time of day and physically-based sky (atmosphere parameters are packed
     // into DeferredLightingData.SkyParams/SkyParams2, see Atmosphere.hlsli).
@@ -136,7 +124,6 @@ public class Game : GameEngine
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private bool _hbaoEnabled = true;
-    private bool _hbaoDebugView;
     private float _hbaoRadius = 1.0f;
     private float _hbaoStrength = 1.0f;
     private HbaoRenderer? _hbaoRenderer;
@@ -183,18 +170,15 @@ public class Game : GameEngine
 
     private float _time;
 
-    // Cached each frame in UpdateLightingData for the render plugin context.
-    private Matrix4x4 _invViewProjection;
-
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 60;
         _waitForStreaming = args.Contains("--wait-load");
-        _cascadeDebug = args.Contains("--cascade-debug");
-        _shadowDebug = args.Contains("--shadow-debug");
+        bool cascadeDebug = args.Contains("--cascade-debug");
+        bool shadowDebug = args.Contains("--shadow-debug");
         _hbaoEnabled = !args.Contains("--no-hbao");
-        _hbaoDebugView = args.Contains("--hbao-debug");
+        bool hbaoDebugView = args.Contains("--hbao-debug");
         _giEnabled = !args.Contains("--no-gi");
         VoxelGiDebugMode giDebugView = default;
         if (Enum.TryParse<VoxelGiDebugMode>(GetArgValue(args, "--gi-debug="), ignoreCase: true, out var parsedDebug))
@@ -287,6 +271,10 @@ public class Game : GameEngine
         // Materials created by the pipeline factory bind this camera; the sandbox
         // drives its own camera (RenderingSystem.MainCamera is not set by sandboxes).
         _pipeline.SetCamera(_camera);
+        _pipeline.ShadowCasterExtension = _sceneRadius;
+        _pipeline.CascadeDebug = cascadeDebug;
+        _pipeline.ShadowDebug = shadowDebug;
+        _pipeline.AoDebugView = hbaoDebugView;
 
         // HBAO+ as a render plugin (decoupled from the pipeline).
         if (_hbaoEnabled)
@@ -792,66 +780,26 @@ public class Game : GameEngine
             out Vector3 skyHorizonColor,
             out Vector3 skyZenithColor);
 
-        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
+        // Scene-level lighting properties on the pipeline.
+        _pipeline.SunDirection = sunDirection;
+        _pipeline.SunColor = sunTint;
+        _pipeline.SunIntensity = _sunIntensity * sunScale;
+        _pipeline.SkyHorizonColor = skyHorizonColor;
+        _pipeline.SkyZenithColor = skyZenithColor;
+        _pipeline.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
+        _pipeline.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
 
         // Fit the shadow distance to the view: when the camera is far from the
         // scene (e.g. aerial views), extend past the configured base so visible
         // geometry never crosses the shadow range boundary — shadows would
         // otherwise fade/pop out at _shadowDistance while still on screen.
-        float shadowDistance = Math.Max(_shadowDistance,
+        _pipeline.ShadowDistance = Math.Max(_shadowDistance,
             Vector3.Distance(_camera.Transform.Position, _sceneCenter) + _sceneRadius);
 
         // Fit the shadow cascades to the camera frustum (PSSM splits).
-        PBRDeferredPipeline.ComputeShadowCascades(
-            invViewProjection,
-            _camera.Transform.Position,
-            _cameraNear,
-            shadowDistance,
-            sunDirection,
-            _sceneRadius,
-            0.6f,
-            _pipeline.ShadowMapSize,
-            _cascadeViewProjections,
-            _cascadeSplits,
-            _cascadeTexelSizes);
-
-        _lightingData.InvViewProjection = invViewProjection;
-        _invViewProjection = invViewProjection;
-        _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
-        _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
-        _lightingData.SunViewProjection2 = _cascadeViewProjections[2];
-        _lightingData.SunViewProjection3 = _cascadeViewProjections[3];
-        _lightingData.CameraPosition = new Vector4(_camera.Transform.Position, 1.0f);
-        _lightingData.SunDirection = new Vector4(sunDirection, 0);
-        _lightingData.SunColorAndIntensity = new Vector4(sunTint, _sunIntensity * sunScale);
-        _lightingData.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
-        _lightingData.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
-        _lightingData.SkyHorizonColor = new Vector4(skyHorizonColor, 0.0f);
-        _lightingData.SkyZenithColor = new Vector4(skyZenithColor, 0.0f);
-        _lightingData.Params = new Vector4(
-            _shadowEnabled ? 1.0f : 0.0f,
-            0.0f,
-            _pipeline.ShadowMapSize,
-            _sunDiscEnabled ? 1.0f : 0.0f);
-        _lightingData.CascadeSplits = new Vector4(
-            _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
-        _lightingData.CascadeTexelSizes = new Vector4(
-            _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
-        _lightingData.Params2 = new Vector4(
-            _cascadeDebug ? 1.0f : 0.0f,
-            _shadowDebug ? 1.0f : 0.0f,
-            0.0f,
-            _hbaoDebugView ? 1.0f : 0.0f);
-        _lightingData.Params3 = new Vector4(
-            _giEnabled && _voxelGI != null ? 1.0f : 0.0f,
-            _giDiffuseStrength,
-            _giSpecularStrength,
-            (_voxelGI != null ? (int)_voxelGI.DebugView : 0));
-        _lightingData.Params4 = new Vector4(_sunDiscSize, _sunDiscBrightness, 0.0f, 0.0f);
+        _pipeline.ComputeShadowCascades(_cameraNear);
 
         // Scale and upload point lights generated from Bistro emissive surfaces.
-        // UpdatePointLights overwrites _lightingData.Params.Y (numPointLights),
-        // so this must happen after the Params assignment above.
         int pointLightCount = 0;
         if (_pointLightsEnabled && _bistroPointLights != null && _bistroPointLights.Length > 0)
         {
@@ -868,12 +816,15 @@ public class Game : GameEngine
         _pipeline.UpdatePointLights(
             _pointLightUploadBuffer != null
                 ? _pointLightUploadBuffer.AsSpan(0, pointLightCount)
-                : ReadOnlySpan<PBRDeferredPipeline.PointLight>.Empty,
-            ref _lightingData);
+                : ReadOnlySpan<PBRDeferredPipeline.PointLight>.Empty);
 
-        // EmissiveScale depends on runtime state (point-light enable + boost).
+        // GI state on the pipeline.
         if (_voxelGI != null)
         {
+            _pipeline.GiEnabled = _giEnabled;
+            _pipeline.GiDiffuseStrength = _giDiffuseStrength;
+            _pipeline.GiSpecularStrength = _giSpecularStrength;
+            _pipeline.GiDebugView = (int)_voxelGI.DebugView;
             _voxelGI.EmissiveScale = _pointLightsEnabled ? _emissiveBoost : 0.0f;
         }
     }
@@ -895,7 +846,7 @@ public class Game : GameEngine
         // replay the recorded static casters, then draw the animated ones immediately.
         for (int cascade = 0; cascade < PBRDeferredPipeline.ShadowCascadeCount; cascade++)
         {
-            _pipeline.BeginShadowPass(cascade, _cascadeViewProjections[cascade]);
+            _pipeline.BeginShadowPass(cascade);
             _pipeline.ExecuteShadowSubContext(_staticShadowBundles[cascade]);
             for (int i = 0; i < _objects.Count; i++)
             {
@@ -930,7 +881,7 @@ public class Game : GameEngine
         ExecuteAfterGBufferPlugins();
 
         // 4. Deferred lighting into the engine's HDR main target.
-        _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
+        _pipeline.RenderLighting(MainFrameBuffer);
     }
 
     private void RenderBistroFrame()
@@ -959,7 +910,7 @@ public class Game : GameEngine
         // The Bistro scene is fully static: every pass is a pure bundle replay.
         for (int cascade = 0; cascade < PBRDeferredPipeline.ShadowCascadeCount; cascade++)
         {
-            _pipeline.BeginShadowPass(cascade, _cascadeViewProjections[cascade]);
+            _pipeline.BeginShadowPass(cascade);
             _pipeline.ExecuteShadowSubContext(_staticShadowBundles[cascade]);
             _pipeline.EndShadowPass();
         }
@@ -972,7 +923,7 @@ public class Game : GameEngine
         SubmitDynamicInstances();
         ExecuteAfterGBufferPlugins();
 
-        _pipeline.RenderLighting(MainFrameBuffer, ref _lightingData);
+        _pipeline.RenderLighting(MainFrameBuffer);
     }
 
     /// <summary>An object is static (baked into the render bundles) when it neither spins nor floats.</summary>
@@ -1176,22 +1127,9 @@ public class Game : GameEngine
             float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
             _hbaoRenderer.Radius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
             _hbaoRenderer.Strength = (_hbaoEnabled ? _hbaoStrength : 0.0f) * ssaoAmount;
-            _hbaoRenderer.ProjectionScale = 0.5f * MainView.Size.Y * _camera.Data.ProjectionMatrix.M22;
         }
 
-        RenderPluginContext context = new()
-        {
-            Rendering = RenderingSystem,
-            GBuffer = _pipeline.GBuffer,
-            ShadowMap = _pipeline.ShadowMap,
-            InvViewProjection = _invViewProjection,
-            CameraTransform = _camera.Transform,
-            Width = _pipeline.GBuffer.Width,
-            Height = _pipeline.GBuffer.Height,
-            LightingData = _lightingData,
-            PointLightBuffer = _pipeline.PointLightBuffer,
-        };
-        _pipeline.ExecutePlugins(RenderInjectionPoint.AfterGBuffer, context);
+        _pipeline.ExecutePlugins(RenderInjectionPoint.AfterGBuffer);
     }
 
     /// <summary>Copy the current (possibly still streaming) Bistro textures into the materials.</summary>
@@ -1277,13 +1215,25 @@ public class Game : GameEngine
         {
             ImGui.SliderFloat("Intensity", ref _sunIntensity, 0.0f, 30.0f);
             ImGui.SliderFloat("Sun Warmth", ref _sunWarmth, 0.0f, 1.0f);
-            ImGui.Checkbox("Shadows", ref _shadowEnabled);
+            bool shadowEnabled = _pipeline.ShadowEnabled;
+            if (ImGui.Checkbox("Shadows", ref shadowEnabled))
+                _pipeline.ShadowEnabled = shadowEnabled;
             ImGui.SliderFloat("Shadow Distance", ref _shadowDistance, _sceneRadius * 0.5f, _sceneRadius * 8.0f);
-            ImGui.Checkbox("Cascade Debug", ref _cascadeDebug);
-            ImGui.Checkbox("Shadow Debug", ref _shadowDebug);
-            ImGui.Checkbox("Sun disc", ref _sunDiscEnabled);
-            ImGui.SliderFloat("Sun Disc Size", ref _sunDiscSize, 0.9990f, 0.99999f, "%.5f");
-            ImGui.SliderFloat("Sun Disc Brightness", ref _sunDiscBrightness, 0.0f, 60.0f);
+            bool cascadeDebug = _pipeline.CascadeDebug;
+            if (ImGui.Checkbox("Cascade Debug", ref cascadeDebug))
+                _pipeline.CascadeDebug = cascadeDebug;
+            bool shadowDebug = _pipeline.ShadowDebug;
+            if (ImGui.Checkbox("Shadow Debug", ref shadowDebug))
+                _pipeline.ShadowDebug = shadowDebug;
+            bool sunDiscEnabled = _pipeline.SunDiscEnabled;
+            if (ImGui.Checkbox("Sun disc", ref sunDiscEnabled))
+                _pipeline.SunDiscEnabled = sunDiscEnabled;
+            float sunDiscSize = _pipeline.SunDiscSize;
+            if (ImGui.SliderFloat("Sun Disc Size", ref sunDiscSize, 0.9990f, 0.99999f, "%.5f"))
+                _pipeline.SunDiscSize = sunDiscSize;
+            float sunDiscBrightness = _pipeline.SunDiscBrightness;
+            if (ImGui.SliderFloat("Sun Disc Brightness", ref sunDiscBrightness, 0.0f, 60.0f))
+                _pipeline.SunDiscBrightness = sunDiscBrightness;
         }
 
         if (ImGui.CollapsingHeader("Sky & Time"))
@@ -1314,7 +1264,9 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("AO Bias", ref bias, 0.0f, 0.2f))
                 _hbaoRenderer.Bias = bias;
             ImGui.SliderFloat("SSAO Amount With GI", ref _giSsaoAmount, 0.0f, 1.0f);
-            ImGui.Checkbox("AO Debug View", ref _hbaoDebugView);
+            bool aoDebugView = _pipeline.AoDebugView;
+            if (ImGui.Checkbox("AO Debug View", ref aoDebugView))
+                _pipeline.AoDebugView = aoDebugView;
         }
 
         if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))

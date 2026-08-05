@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
@@ -15,8 +16,14 @@ namespace Alco.Rendering;
 /// <br/>The caller drives the frame explicitly: per cascade
 /// <c>BeginShadowPass → draws → EndShadowPass</c>, then
 /// <c>BeginGBufferPass → draws → EndGBufferPass</c>, then
-/// <c>RenderLighting(target, ref data)</c> which resolves lighting, sky and shadows
-/// into the target frame buffer (typically the engine's HDR main target).
+/// <c>ExecutePlugins(AfterGBuffer)</c> + <c>RenderLighting(target)</c> which resolves
+/// lighting, sky and shadows into the target frame buffer (typically the engine's HDR
+/// main target).
+/// <br/>Scene properties (sun direction/color, sky params, GI strength, debug flags) are
+/// set directly on the pipeline as properties. Camera, shadow cascades, viewport and
+/// point-light count are managed internally — the caller only calls
+/// <see cref="SetCamera"/>, <see cref="ComputeShadowCascades"/> and
+/// <see cref="UpdatePointLights"/>.
 /// <br/>Every draw method takes an <see cref="IRenderContext"/> target: pass
 /// <see cref="ShadowContext"/> / <see cref="GBufferContext"/> for immediate (per-frame
 /// dynamic) draws, or a <see cref="SubRenderContext"/> to record static geometry into a
@@ -87,7 +94,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// shadow depth shaders: the quadrant-folded light view-projection matrix of each
     /// cascade. Layout must match the <c>_data</c> cbuffer in ShadowDepth.hlsl exactly.
     /// </summary>
-    public struct ShadowCascadeData
+    internal struct ShadowCascadeData
     {
         /// <summary>Light view-projection matrix of shadow cascade 0 (nearest).</summary>
         public Matrix4x4 CascadeViewProjection0;
@@ -132,9 +139,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Per-frame data uploaded to the lighting pass. Layout must match the
-    /// <c>_data</c> cbuffer in DeferredLighting.hlsl exactly.
+    /// <c>_data</c> cbuffer in DeferredLighting.hlsl exactly. Assembled internally
+    /// from caller-set properties (<see cref="SunDirection"/>, <see cref="SkyParams"/>,
+    /// etc.) and pipeline-owned data (camera, cascades, viewport).
     /// </summary>
-    public struct DeferredLightingData
+    internal struct DeferredLightingData
     {
         /// <summary>Inverse of the camera view-projection matrix.</summary>
         public Matrix4x4 InvViewProjection;
@@ -192,7 +201,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly GraphicsMaterial? _shadowTangentMaterial;
     private readonly GraphicsMaterial _lightingMaterial;
     private Texture2D? _flatNormalTexture;
-    private GraphicsBuffer? _cameraBuffer;
+    private CameraPerspectiveBuffer? _camera;
 
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
     private readonly GraphicsValueBuffer<ShadowCascadeData> _shadowDataBuffer;
@@ -202,6 +211,17 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     // and lighting passes. The pipeline binds their output textures to the
     // lighting material automatically after execution.
     private readonly List<IRenderPlugin> _plugins = new();
+
+    // Cascade state computed by ComputeShadowCascades and consumed by both the
+    // shadow pass and the lighting pass — no longer exposed to the caller.
+    private readonly Matrix4x4[] _cascadeViewProjections = new Matrix4x4[ShadowCascadeCount];
+    private readonly float[] _cascadeSplits = new float[ShadowCascadeCount];
+    private readonly float[] _cascadeTexelSizes = new float[ShadowCascadeCount];
+
+    // Assembled internally from properties + camera + cascade state each frame.
+    private DeferredLightingData _lightingData;
+    private int _pointLightCount;
+    private bool _giActive;
 
     private readonly RenderContext _shadowContext;
     private readonly RenderContext _gbufferContext;
@@ -223,6 +243,71 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// The width of one shadow cascade (atlas quadrant) in texels.
     /// </summary>
     public uint ShadowMapSize { get; }
+
+    // ── Scene properties (caller-set each frame) ──
+
+    /// <summary>Normalized direction the sun light travels.</summary>
+    public Vector3 SunDirection { get; set; }
+
+    /// <summary>Linear sun color (rgb).</summary>
+    public Vector3 SunColor { get; set; } = Vector3.One;
+
+    /// <summary>Sun light intensity multiplier.</summary>
+    public float SunIntensity { get; set; } = 1.0f;
+
+    /// <summary>Whether cascaded shadow mapping is enabled.</summary>
+    public bool ShadowEnabled { get; set; } = true;
+
+    /// <summary>Distance beyond which shadows are not rendered.</summary>
+    public float ShadowDistance { get; set; }
+
+    /// <summary>How far the light-space depth range extends toward the sun for off-screen casters, in world units.</summary>
+    public float ShadowCasterExtension { get; set; } = 20.0f;
+
+    /// <summary>PSSM split blend: 1 = fully logarithmic, 0 = fully uniform.</summary>
+    public float ShadowSplitLambda { get; set; } = 0.6f;
+
+    /// <summary>Whether the physical-sky sun disc is visible.</summary>
+    public bool SunDiscEnabled { get; set; } = true;
+
+    /// <summary>Sun disc cosine angular threshold (higher = smaller disc).</summary>
+    public float SunDiscSize { get; set; } = 0.9998f;
+
+    /// <summary>Sun disc HDR visual brightness (independent of lighting intensity).</summary>
+    public float SunDiscBrightness { get; set; } = 18.0f;
+
+    /// <summary>Atmosphere params: x=rayleighScale, y=mieScale, z=miePhaseG, w=exposure.</summary>
+    public Vector4 SkyParams { get; set; } = new(1.0f, 1.0f, 0.8f, 1.0f);
+
+    /// <summary>Atmosphere params: x=starIntensity, y=nightFloor, z=sunRadianceScale, w=ambientFloor.</summary>
+    public Vector4 SkyParams2 { get; set; } = new(1.0f, 0.05f, 20.0f, 0.25f);
+
+    /// <summary>Filtered physical-sky radiance at the horizon.</summary>
+    public Vector3 SkyHorizonColor { get; set; }
+
+    /// <summary>Filtered physical-sky radiance at the zenith.</summary>
+    public Vector3 SkyZenithColor { get; set; }
+
+    /// <summary>Tint shadow cascade quadrants for debugging.</summary>
+    public bool CascadeDebug { get; set; }
+
+    /// <summary>Visualize shadow factor instead of applying shadows.</summary>
+    public bool ShadowDebug { get; set; }
+
+    /// <summary>Visualize ambient occlusion only.</summary>
+    public bool AoDebugView { get; set; }
+
+    /// <summary>Whether GI contributes to the lighting pass.</summary>
+    public bool GiEnabled { get; set; } = true;
+
+    /// <summary>Diffuse GI strength multiplier.</summary>
+    public float GiDiffuseStrength { get; set; } = 1.0f;
+
+    /// <summary>Specular GI strength multiplier.</summary>
+    public float GiSpecularStrength { get; set; } = 0.5f;
+
+    /// <summary>GI debug view mode (0=off 1=diffuse 2=specular 3=visibility).</summary>
+    public int GiDebugView { get; set; }
 
     /// <summary>
     /// The attachment layout of the G-buffer pass, used to record render bundles
@@ -259,6 +344,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public void RegisterPlugin(IRenderPlugin plugin)
     {
         _plugins.Add(plugin);
+        // Track whether any GI plugin is registered so the lighting shader can
+        // gate the GI code path. The flag is updated on register/unregister.
+        if (plugin is VoxelGiRenderer)
+        {
+            _giActive = true;
+        }
     }
 
     /// <summary>
@@ -267,6 +358,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public void UnregisterPlugin(IRenderPlugin plugin)
     {
         _plugins.Remove(plugin);
+        if (plugin is VoxelGiRenderer)
+        {
+            _giActive = _plugins.Any(p => p is VoxelGiRenderer);
+        }
     }
 
     /// <summary>
@@ -288,9 +383,37 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// Execute all plugins registered at the given injection point and bind
     /// their output textures to the lighting material. Called by the caller
     /// between <see cref="EndGBufferPass"/> and <see cref="RenderLighting"/>.
+    /// The context (camera, G-buffer, shadow map, lighting data, point-light
+    /// buffer) is assembled internally from pipeline state.
     /// </summary>
-    public void ExecutePlugins(RenderInjectionPoint point, RenderPluginContext context)
+    /// <exception cref="InvalidOperationException">No camera is set.</exception>
+    public void ExecutePlugins(RenderInjectionPoint point)
     {
+        if (_camera == null)
+        {
+            throw new InvalidOperationException("ExecutePlugins requires a camera (call SetCamera first).");
+        }
+
+        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
+
+        // Pre-populate the lighting data for plugins that need it (GI reads sun
+        // direction, cascades, sky colors from here).
+        AssembleLightingData(invViewProjection);
+
+        RenderPluginContext context = new()
+        {
+            Rendering = _rendering,
+            GBuffer = _gbufferRT,
+            ShadowMap = _shadowRT,
+            InvViewProjection = invViewProjection,
+            ProjectionMatrix = _camera.Data.ProjectionMatrix,
+            CameraTransform = _camera.Transform,
+            Width = _gbufferRT.Width,
+            Height = _gbufferRT.Height,
+            LightingData = _lightingData,
+            PointLightBuffer = _pointLightBuffer,
+        };
+
         for (int i = 0; i < _plugins.Count; i++)
         {
             IRenderPlugin plugin = _plugins[i];
@@ -300,6 +423,48 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             }
         }
         RebindPluginOutputs(context);
+    }
+
+    /// <summary>
+    /// Assemble <see cref="_lightingData"/> from pipeline properties, camera and
+    /// cascade state. Called by both <see cref="ExecutePlugins"/> (so plugins see
+    /// current data) and <see cref="RenderLighting"/> (for the final GPU upload).
+    /// </summary>
+    private void AssembleLightingData(Matrix4x4 invViewProjection)
+    {
+        _lightingData.InvViewProjection = invViewProjection;
+        _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
+        _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
+        _lightingData.SunViewProjection2 = _cascadeViewProjections[2];
+        _lightingData.SunViewProjection3 = _cascadeViewProjections[3];
+        _lightingData.CameraPosition = new Vector4(_camera!.Transform.Position, 1.0f);
+        _lightingData.SunDirection = new Vector4(SunDirection, 0);
+        _lightingData.SunColorAndIntensity = new Vector4(SunColor, SunIntensity);
+        _lightingData.SkyParams = SkyParams;
+        _lightingData.SkyParams2 = SkyParams2;
+        _lightingData.SkyHorizonColor = new Vector4(SkyHorizonColor, 0.0f);
+        _lightingData.SkyZenithColor = new Vector4(SkyZenithColor, 0.0f);
+        _lightingData.Params = new Vector4(
+            ShadowEnabled ? 1.0f : 0.0f,
+            _pointLightCount,
+            ShadowMapSize,
+            SunDiscEnabled ? 1.0f : 0.0f);
+        _lightingData.CascadeSplits = new Vector4(
+            _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
+        _lightingData.CascadeTexelSizes = new Vector4(
+            _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
+        _lightingData.Params2 = new Vector4(
+            CascadeDebug ? 1.0f : 0.0f,
+            ShadowDebug ? 1.0f : 0.0f,
+            0.0f,
+            AoDebugView ? 1.0f : 0.0f);
+        _lightingData.ViewportSize = new Vector4(_gbufferRT.Width, _gbufferRT.Height, 0, 0);
+        _lightingData.Params3 = new Vector4(
+            (_giActive && GiEnabled) ? 1.0f : 0.0f,
+            GiDiffuseStrength,
+            GiSpecularStrength,
+            GiDebugView);
+        _lightingData.Params4 = new Vector4(SunDiscSize, SunDiscBrightness, 0.0f, 0.0f);
     }
 
     private void RebindPluginOutputs(RenderPluginContext context)
@@ -423,15 +588,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Set the camera bound by <see cref="CreateGBufferMaterial"/> and
-    /// <see cref="CreateGBufferTangentMaterial"/> when they create a material
-    /// (materials created earlier are not updated). The caller must keep the camera
-    /// updated (e.g. <c>UpdateMatrixToGPU</c>) before drawing each frame.
+    /// Set the camera used by the pipeline for G-buffer material binding, lighting
+    /// data (inverse view-projection, position) and shadow cascade fitting.
+    /// The caller must keep the camera updated (e.g. <c>UpdateMatrixToGPU</c>)
+    /// before drawing each frame.
     /// </summary>
-    /// <param name="cameraBuffer">The camera buffer (a <c>CameraPerspectiveBuffer</c>).</param>
-    public void SetCamera(GraphicsBuffer cameraBuffer)
+    /// <param name="camera">The perspective camera buffer.</param>
+    public void SetCamera(CameraPerspectiveBuffer camera)
     {
-        _cameraBuffer = cameraBuffer;
+        _camera = camera;
     }
 
     /// <summary>
@@ -468,9 +633,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
         material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        if (_cameraBuffer != null)
+        if (_camera != null)
         {
-            material.SetBuffer(ShaderResourceId.Camera, _cameraBuffer);
+            material.SetBuffer(ShaderResourceId.Camera, _camera);
         }
         return material;
     }
@@ -503,9 +668,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
         SetGBufferTangentMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
-        if (_cameraBuffer != null)
+        if (_camera != null)
         {
-            material.SetBuffer(ShaderResourceId.Camera, _cameraBuffer);
+            material.SetBuffer(ShaderResourceId.Camera, _camera);
         }
         return material;
     }
@@ -548,23 +713,18 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// The GPU buffer holding the point light array. Pass this via
-    /// <see cref="RenderPluginContext.PointLightBuffer"/> to plugins that need
-    /// point light data (e.g. VoxelGI inject pass).
+    /// The GPU buffer holding the point light array. Passed to plugins via
+    /// <see cref="RenderPluginContext"/> automatically by <see cref="ExecutePlugins"/>.
     /// </summary>
-    public GraphicsBuffer PointLightBuffer => _pointLightBuffer;
+    internal GraphicsBuffer PointLightBuffer => _pointLightBuffer;
 
     /// <summary>
-    /// Upload point lights to the GPU StructuredBuffer and record the active
-    /// count in <paramref name="data"/>. Call once per frame before
-    /// <see cref="RenderLighting"/>; the caller passes the same
-    /// <paramref name="data"/> to <c>RenderLighting</c>.
+    /// Upload point lights to the GPU StructuredBuffer. Call once per frame before
+    /// <see cref="RenderLighting"/>; the active count is tracked internally.
     /// </summary>
     /// <param name="lights">Active point lights; excess lights beyond
     /// <see cref="MaxPointLights"/> are silently dropped.</param>
-    /// <param name="data">The per-frame lighting data whose
-    /// <see cref="DeferredLightingData.Params"/>.Y (numPointLights) is updated.</param>
-    public void UpdatePointLights(ReadOnlySpan<PointLight> lights, ref DeferredLightingData data)
+    public void UpdatePointLights(ReadOnlySpan<PointLight> lights)
     {
         int count = Math.Min(lights.Length, MaxPointLights);
         var span = _pointLightBuffer.AsSpan();
@@ -573,7 +733,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             span[i] = lights[i];
         }
         _pointLightBuffer.UpdateBufferRanged(0, (uint)count);
-        data.Params = new Vector4(data.Params.X, count, data.Params.Z, data.Params.W);
+        _pointLightCount = count;
     }
 
     /// <summary>
@@ -582,10 +742,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <see cref="ExecuteShadowSubContext"/> and/or immediate draws via
     /// <see cref="ShadowContext"/>. Cascades render into their own quadrant of
     /// the 2x2 atlas; only the first cascade's pass clears the atlas.
+    /// <br/>The light view-projection matrix is read from the cascade data computed
+    /// by <see cref="ComputeShadowCascades"/>.
     /// </summary>
     /// <param name="cascadeIndex">The cascade to render (0 = nearest .. <see cref="ShadowCascadeCount"/>-1).</param>
-    /// <param name="sunViewProjection">The light view-projection matrix of this cascade (orthographic for the sun).</param>
-    public void BeginShadowPass(int cascadeIndex, in Matrix4x4 sunViewProjection)
+    public void BeginShadowPass(int cascadeIndex)
     {
         // Fold the atlas quadrant into the projection. The scissor is essential:
         // geometry outside this cascade's orthographic box can otherwise transform
@@ -593,7 +754,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         float offsetX = (cascadeIndex % 2) - 0.5f;
         float offsetY = 0.5f - (cascadeIndex / 2);
         Matrix4x4 quadrant = Matrix4x4.CreateScale(0.5f, 0.5f, 1.0f) * Matrix4x4.CreateTranslation(offsetX, offsetY, 0.0f);
-        SetCascadeViewProjection(cascadeIndex, sunViewProjection * quadrant);
+        SetCascadeViewProjection(cascadeIndex, _cascadeViewProjections[cascadeIndex] * quadrant);
         _shadowContext.Begin(_shadowRT.FrameBuffer, clearDepth: cascadeIndex == 0 ? 1.0f : null);
         _shadowContext.SetScissorRect(
             (uint)(cascadeIndex % 2) * ShadowMapSize,
@@ -673,44 +834,30 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Compute cascaded shadow map data for a directional sun: per-cascade light
-    /// view-projection matrices, split boundaries and world texel sizes.
+    /// view-projection matrices, split boundaries and world texel sizes, stored
+    /// internally for use by <see cref="BeginShadowPass"/> and <see cref="RenderLighting"/>.
     /// <br/>Splits follow the practical split scheme (log/uniform blend controlled by
-    /// <paramref name="splitLambda"/>) on radial camera distance. The light space is a
+    /// <see cref="ShadowSplitLambda"/>) on radial camera distance. The light space is a
     /// pure rotation (camera-independent) and each cascade fits a fixed-radius bounding
     /// sphere of its frustum slice, snapped to texel increments, so the shadow map stays
     /// stable when the camera moves or rotates.
     /// </summary>
-    /// <param name="invCameraViewProjection">Inverse of the camera view-projection matrix (for frustum edge rays).</param>
-    /// <param name="cameraPosition">World-space camera position.</param>
-    /// <param name="shadowNear">Near boundary of cascade 0, typically the camera near plane distance.</param>
-    /// <param name="shadowDistance">Distance beyond which shadows are not rendered.</param>
-    /// <param name="sunDirection">Normalized direction the sun light travels.</param>
-    /// <param name="casterExtension">How far the light-space depth range extends back toward the sun to include off-screen casters.</param>
-    /// <param name="splitLambda">PSSM blend factor: 1 = fully logarithmic, 0 = fully uniform.</param>
-    /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels.</param>
-    /// <param name="cascadeViewProjections">Output light view-projection matrices, one per cascade (<see cref="ShadowCascadeCount"/>).</param>
-    /// <param name="cascadeSplits">Output radial end distance of each cascade.</param>
-    /// <param name="cascadeTexelSizes">Output world units per shadow texel of each cascade.</param>
-    /// <exception cref="ArgumentException">An output span does not hold <see cref="ShadowCascadeCount"/> entries.</exception>
-    public static void ComputeShadowCascades(
-        in Matrix4x4 invCameraViewProjection,
-        in Vector3 cameraPosition,
-        float shadowNear,
-        float shadowDistance,
-        in Vector3 sunDirection,
-        float casterExtension,
-        float splitLambda,
-        uint shadowMapSize,
-        Span<Matrix4x4> cascadeViewProjections,
-        Span<float> cascadeSplits,
-        Span<float> cascadeTexelSizes)
+    /// <param name="cameraNear">Near boundary of cascade 0, typically the camera near plane distance.</param>
+    /// <exception cref="InvalidOperationException">No camera is set (<see cref="SetCamera"/>).</exception>
+    public void ComputeShadowCascades(float cameraNear)
     {
-        if (cascadeViewProjections.Length < ShadowCascadeCount ||
-            cascadeSplits.Length < ShadowCascadeCount ||
-            cascadeTexelSizes.Length < ShadowCascadeCount)
+        if (_camera == null)
         {
-            throw new ArgumentException($"Output spans must hold {ShadowCascadeCount} entries.");
+            throw new InvalidOperationException("ComputeShadowCascades requires a camera (call SetCamera first).");
         }
+
+        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invCameraViewProjection);
+        Vector3 cameraPosition = _camera.Transform.Position;
+        Vector3 sunDirection = SunDirection;
+        uint shadowMapSize = ShadowMapSize;
+        float shadowDistance = ShadowDistance;
+        float casterExtension = ShadowCasterExtension;
+        float splitLambda = ShadowSplitLambda;
 
         // Frustum edge rays: the four far-plane corners in world space.
         Span<Vector3> edgeRays = stackalloc Vector3[4];
@@ -730,15 +877,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         Vector3 up = Math.Abs(Vector3.Dot(sunDirection, Vector3.UnitZ)) > 0.95f ? Vector3.UnitY : Vector3.UnitZ;
         Matrix4x4 lightView = Matrix4x4.CreateLookAtLeftHanded(Vector3.Zero, sunDirection, up);
 
-        float sliceNear = shadowNear;
+        float sliceNear = cameraNear;
         Span<Vector3> corners = stackalloc Vector3[8];
         for (int c = 0; c < ShadowCascadeCount; c++)
         {
             float p = (c + 1) / (float)ShadowCascadeCount;
-            float logarithmic = shadowNear * MathF.Pow(shadowDistance / shadowNear, p);
-            float uniform = shadowNear + (shadowDistance - shadowNear) * p;
+            float logarithmic = cameraNear * MathF.Pow(shadowDistance / cameraNear, p);
+            float uniform = cameraNear + (shadowDistance - cameraNear) * p;
             float sliceFar = splitLambda * logarithmic + (1.0f - splitLambda) * uniform;
-            cascadeSplits[c] = sliceFar;
+            _cascadeSplits[c] = sliceFar;
 
             // Frustum slice corners on the edge rays.
             Vector3 center = Vector3.Zero;
@@ -783,8 +930,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 centerLight.X - radius, centerLight.X + radius,
                 centerLight.Y - radius, centerLight.Y + radius,
                 zMin, zMax);
-            cascadeViewProjections[c] = lightView * ortho;
-            cascadeTexelSizes[c] = texel;
+            _cascadeViewProjections[c] = lightView * ortho;
+            _cascadeTexelSizes[c] = texel;
 
             sliceNear = sliceFar;
         }
@@ -870,14 +1017,22 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Resolve lighting, shadows and the sky into the target frame buffer
-    /// (typically the engine's HDR main target).
+    /// (typically the engine's HDR main target). Assembles the GPU constant buffer
+    /// from caller-set properties, camera data and internally tracked cascade state.
     /// </summary>
     /// <param name="target">The frame buffer to render the lighting result into.</param>
-    /// <param name="data">Per-frame lighting data; <see cref="DeferredLightingData.ViewportSize"/> is filled by the pipeline.</param>
-    public void RenderLighting(GPUFrameBuffer target, ref DeferredLightingData data)
+    /// <exception cref="InvalidOperationException">No camera is set.</exception>
+    public void RenderLighting(GPUFrameBuffer target)
     {
-        data.ViewportSize = new Vector4(_gbufferRT.Width, _gbufferRT.Height, 0, 0);
-        _lightingDataBuffer.UpdateBuffer(data);
+        if (_camera == null)
+        {
+            throw new InvalidOperationException("RenderLighting requires a camera (call SetCamera first).");
+        }
+
+        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
+        AssembleLightingData(invViewProjection);
+
+        _lightingDataBuffer.UpdateBuffer(_lightingData);
         _lightingContext.Begin(target);
         _lightingContext.Draw(_fullScreenMesh, _lightingMaterial);
         _lightingContext.End();

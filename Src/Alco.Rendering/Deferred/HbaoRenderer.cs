@@ -77,13 +77,6 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
     public float Strength { get; set; } = 1.0f;
 
     /// <summary>
-    /// Gets or sets the projection scale factor: <c>0.5 * viewportHeight *
-    /// projectionMatrix[1][1]</c>. Converts world-space radius to pixel-space
-    /// march distance.
-    /// </summary>
-    public float ProjectionScale { get; set; }
-
-    /// <summary>
     /// Gets or sets the maximum march distance in pixels per direction.
     /// </summary>
     public float MaxStepPixels { get; set; } = 64.0f;
@@ -147,6 +140,7 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
         // The engine camera convention is +X forward, +Y right, +Z up.
         Quaternion rot = context.CameraTransform.Rotation;
         float r2 = MathF.Max(Radius * Radius, 1e-6f);
+        float projectionScale = 0.5f * context.Height * context.ProjectionMatrix.M22;
         HbaoData data = new()
         {
             InvViewProjection = context.InvViewProjection,
@@ -155,7 +149,7 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
             CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, rot), 0.0f),
             CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, rot), 0.0f),
             Params = new Vector4(Radius, Intensity, Bias, 1.0f / r2),
-            Params2 = new Vector4(ProjectionScale, context.GBuffer.Width, context.GBuffer.Height, MaxStepPixels),
+            Params2 = new Vector4(projectionScale, context.GBuffer.Width, context.GBuffer.Height, MaxStepPixels),
             Params3 = new Vector4(Strength, 0.0f, 0.0f, 0.0f),
         };
         _dataBuffer.UpdateBuffer(data);

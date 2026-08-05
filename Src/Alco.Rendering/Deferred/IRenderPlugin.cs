@@ -34,6 +34,9 @@ public sealed class RenderPluginContext
     /// <summary>Inverse of the camera view-projection matrix for this frame.</summary>
     public required Matrix4x4 InvViewProjection { get; init; }
 
+    /// <summary>The camera's projection matrix for this frame (used for AO projection scale).</summary>
+    public required Matrix4x4 ProjectionMatrix { get; init; }
+
     /// <summary>World-space camera transform (position + rotation + scale) for this frame.</summary>
     public required Transform3D CameraTransform { get; init; }
 
@@ -44,12 +47,11 @@ public sealed class RenderPluginContext
     public uint Height { get; init; }
 
     /// <summary>
-    /// The deferred lighting data computed by the caller this frame (sun direction,
-    /// shadow cascades, sky colors, etc.). May be null when the pipeline is not a
-    /// deferred PBR pipeline. GI plugins read lighting/shadow data from here instead
-    /// of requiring the caller to manually copy it into a separate struct.
+    /// The deferred lighting data computed by the pipeline this frame (sun direction,
+    /// shadow cascades, sky colors, etc.). GI plugins read lighting/shadow data from
+    /// here instead of requiring the caller to manually copy it into a separate struct.
     /// </summary>
-    public PBRDeferredPipeline.DeferredLightingData? LightingData { get; init; }
+    internal PBRDeferredPipeline.DeferredLightingData LightingData { get; init; }
 
     /// <summary>
     /// The pipeline's shared point-light StructuredBuffer, or null when point lights
