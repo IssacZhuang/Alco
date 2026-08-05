@@ -112,7 +112,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
     public void Render()
     {
         ImGui.Render();
-        _textures.Clear();
         _target = null;
     }
 
@@ -234,6 +233,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
+        _textures.Clear();
     }
 
     /// <summary>
