@@ -69,6 +69,8 @@ internal class NoDevice : GPUDevice
 
     public override bool TimestampQuerySupported => false;
 
+    public override bool TimestampQueryInsidePassesSupported => false;
+
     public override float TimestampPeriodNanoseconds => 0.0f;
 
     /// <summary>

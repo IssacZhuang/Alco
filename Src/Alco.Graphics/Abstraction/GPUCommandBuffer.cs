@@ -197,6 +197,29 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             PushConstants(0, data);
         }
 
+        /// <summary>
+        /// Writes a timestamp inside this open compute pass. If the device does not
+        /// support <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>, this
+        /// method is a no-op (the timing is silently disabled) so callers can use it
+        /// unconditionally for maximum device compatibility.
+        /// </summary>
+        /// <param name="querySet">The destination timestamp query set.</param>
+        /// <param name="queryIndex">The slot to write.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteTimestamp(GPUTimestampQuerySet querySet, uint queryIndex)
+        {
+            AssetUtility.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while WriteTimestamp, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            if (!_commandBuffer.Device.TimestampQueryInsidePassesSupported)
+            {
+                return;
+            }
+            if (queryIndex >= querySet.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(queryIndex));
+            }
+            _commandBuffer.WriteTimestampInsidePassCore(querySet, queryIndex);
+        }
+
         public void Dispose()
         {
             _commandBuffer.EndComputeCore();
@@ -398,6 +421,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         GPUTimestampQuerySet querySet,
         uint beginningQueryIndex,
         uint endQueryIndex);
+    protected abstract void WriteTimestampInsidePassCore(
+        GPUTimestampQuerySet querySet,
+        uint queryIndex);
     protected abstract void EndComputeCore();
 
     protected abstract void SetScissorRectCore(uint x, uint y, uint width, uint height);

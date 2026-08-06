@@ -39,6 +39,12 @@ internal class NoCommandBuffer : GPUCommandBuffer
     {
     }
 
+    protected override void WriteTimestampInsidePassCore(
+        GPUTimestampQuerySet querySet,
+        uint queryIndex)
+    {
+    }
+
     protected override void EndComputeCore()
     {
         

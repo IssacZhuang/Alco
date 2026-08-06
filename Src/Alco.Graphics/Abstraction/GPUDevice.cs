@@ -47,6 +47,13 @@ public abstract class GPUDevice
     /// <summary>Gets whether the active adapter supports GPU timestamp queries.</summary>
     public abstract bool TimestampQuerySupported { get; }
 
+    /// <summary>
+    /// Gets whether timestamp writes are allowed inside an open compute pass
+    /// (wgpu-native <c>TimestampQueryInsidePasses</c>). When false, timestamps
+    /// can only be written at pass boundaries.
+    /// </summary>
+    public abstract bool TimestampQueryInsidePassesSupported { get; }
+
     /// <summary>Gets nanoseconds represented by one timestamp tick.</summary>
     public abstract float TimestampPeriodNanoseconds { get; }
 

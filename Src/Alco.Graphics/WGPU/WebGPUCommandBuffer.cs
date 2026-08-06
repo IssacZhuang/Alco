@@ -233,6 +233,19 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
+    protected override void WriteTimestampInsidePassCore(
+        GPUTimestampQuerySet querySet,
+        uint queryIndex)
+    {
+        if (_computePass != WGPUComputePassEncoder.Null)
+        {
+            wgpuComputePassEncoderWriteTimestamp(
+                _computePass,
+                ((WebGPUTimestampQuerySet)querySet).Native,
+                queryIndex);
+        }
+    }
+
     protected override void ResolveTimestampsCore(
         GPUTimestampQuerySet querySet,
         uint firstQuery,

@@ -105,6 +105,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     public override bool TimestampQuerySupported { get; }
 
+    public override bool TimestampQueryInsidePassesSupported { get; }
+
     public override float TimestampPeriodNanoseconds { get; }
 
     /// <summary>
@@ -998,6 +1000,14 @@ internal sealed partial class WebGPUDevice : GPUDevice
             TimestampQuerySupported = true;
             featuresList.Add(WGPUFeatureName.TimestampQuery);
             _host.LogSuccess("GPU timestamp queries are supported");
+        }
+
+        if (TimestampQuerySupported
+            && IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses, supportedFeatures))
+        {
+            TimestampQueryInsidePassesSupported = true;
+            featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses);
+            _host.LogSuccess("GPU timestamp queries inside passes are supported");
         }
 
 
