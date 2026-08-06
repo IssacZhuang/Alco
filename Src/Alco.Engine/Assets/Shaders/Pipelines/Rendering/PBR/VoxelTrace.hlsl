@@ -2,6 +2,11 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
+// When defined, a voxel specular cone is traced along the reflection vector
+// and blended with SSR as a fallback for off-screen / occluded reflection
+// paths. Undefine to make SSR the sole specular source.
+#define VOXEL_SPECULAR_CONE
+
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the configured
 // screen-space trace resolution. Reconstructs world position and normal from the
 // G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
@@ -209,15 +214,18 @@ float4 GatherScreenSpaceNearField(
     return float4(gathered / totalWeight, saturate(totalWeight * 0.75));
 }
 
-// Low-roughness screen-space reflection. The voxel cone remains the fallback
-// for rough, hidden and off-screen reflection paths.
+// Low-roughness screen-space reflection. The ray marches through the depth
+// buffer until it hits a surface or leaves the screen / far plane.
 float4 TraceScreenSpaceReflection(
     float3 startPosition,
     float3 direction,
     float roughness)
 {
     uint2 resolution = uint2(giParams2.y, giParams2.z);
-    float maximumDistance = min(giParams.y, levelOrigins[0].w * 128.0);
+    // SSR maximum distance is purely screen-space: the furthest a ray can
+    // travel before reaching the far clip plane. Not clamped by the voxel GI
+    // trace distance (giParams.y), which governs voxel cone range only.
+    float maximumDistance = levelOrigins[0].w * 128.0;
     float previousDifference = -1.0;
     [loop]
     for (int step = 1; step <= 24; step++)
@@ -540,24 +548,19 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance, tracePixel, diffuseWorldDir);
     float3 diffuse = diffuseResult.rgb;
 
-    // Specular: one deterministic cone along the reflection direction using
-    // the detail (normal-map) normal. Using the averaged geometry normal here
-    // would give temporal stability but strips normal-map detail and makes
-    // reflections look uniformly flat. Instead, keep the detail normal for
-    // trace quality and rely on the demosaic temporal resolve (neighborhood
-    // clamp + motion-accelerated blend + luminance clamp) to suppress the
-    // per-frame shimmer from voxel quantization.
+    // Specular reflection: SSR is always active. The voxel specular cone is
+    // opt-in via VOXEL_SPECULAR_CONE — when enabled it provides a low-frequency
+    // fallback that blends with SSR; when disabled SSR is the sole source.
     float3 reflectDirection = reflect(-V, detailNormal);
-    float specularApertureTan = max(roughness * roughness, 0.06);
-    float3 specular = TraceCone(
-        startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5).rgb;
+    float3 specular = 0.0;
 
-    // Screen-space reflection with dedicated temporal accumulation. The SSR
-    // ray-march produces high-frequency jitter (single-ray, 24 steps, single-
-    // pixel hit sample) that the demosaic specular resolve — tuned for the
-    // smoother voxel cone — cannot fully clean up. Accumulating SSR
-    // independently across frames, with a luminance clamp to prevent ghosting,
-    // suppresses the jitter before it enters the cone blend.
+#ifdef VOXEL_SPECULAR_CONE
+    float specularApertureTan = max(roughness * roughness, 0.06);
+    specular = TraceCone(
+        startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5).rgb;
+#endif
+
+    // Screen-space reflection with dedicated temporal accumulation.
     float4 ssrAccumulated = float4(0.0, 0.0, 0.0, 0.0);
     if (roughness < 0.65)
     {
@@ -590,21 +593,14 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         {
             // Symmetric luminance clamp: constrain history to a narrow band
             // around the current frame so jitter bright-spots cannot inflate
-            // the accumulated value. The band [0.5x, 1.5x] is tight enough to
-            // prevent brightness drift while still allowing legitimate gradual
-            // changes (e.g. moving towards a light source).
+            // the accumulated value.
             float curLum = max(dot(screenReflection.rgb, float3(0.299, 0.587, 0.114)), 0.001);
             float histLum = max(dot(ssrHistory.rgb, float3(0.299, 0.587, 0.114)), 0.001);
             float targetLum = clamp(histLum, curLum * 0.5, curLum * 1.5);
             ssrHistory.rgb *= targetLum / histLum;
 
-            // Clamp accumulated confidence to the current frame's value so the
-            // temporal blend does not inflate the cone-blend weight beyond what
-            // the per-frame ray march actually warrants.
             ssrHistory.a = min(ssrHistory.a, screenReflection.a);
 
-            // Low blend rate when SSR has a hit (accumulate → smooth); high
-            // rate when SSR misses (let the history decay quickly).
             float blendRate = screenReflection.a > 0.01 ? 0.12 : 0.35;
             ssrAccumulated = float4(
                 lerp(ssrHistory.rgb, screenReflection.rgb, blendRate),
@@ -617,9 +613,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
         _ssrHistoryOut[tracePixel] = ssrAccumulated;
 
+#ifdef VOXEL_SPECULAR_CONE
         float gateFade = saturate((0.65 - roughness) * 10.0);
         specular = lerp(specular, ssrAccumulated.rgb,
             ssrAccumulated.a * (1.0 - roughness) * gateFade);
+#else
+        specular = ssrAccumulated.rgb * ssrAccumulated.a;
+#endif
     }
     else
     {
