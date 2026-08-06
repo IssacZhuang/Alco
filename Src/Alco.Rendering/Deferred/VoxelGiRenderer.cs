@@ -367,6 +367,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private RenderTexture _giDiffuseFullRes;
     private RenderTexture _giSpecularFullRes;
     private readonly RenderTexture[] _historyGI = new RenderTexture[2];
+    private readonly RenderTexture[] _ssrHistory = new RenderTexture[2];
+    private int _ssrHistoryReadIndex;
     private uint _gbufferWidth;
     private uint _gbufferHeight;
     private float _traceResolutionScale;
@@ -658,7 +660,12 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         // traceRaw.Width / 3 (one segment width).
         _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_a");
         _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_b");
+        // SSR temporal history (ping-pong): one trace-resolution RGBA16F plane.
+        _ssrHistory[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_a");
+        _ssrHistory[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_b");
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
+        _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[0], 0);
+        _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1], 0);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
 
@@ -893,6 +900,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         RenderTexture? newTraceRaw = null;
         RenderTexture? newHistoryA = null;
         RenderTexture? newHistoryB = null;
+        RenderTexture? newSsrHistoryA = null;
+        RenderTexture? newSsrHistoryB = null;
         try
         {
             newIndirectAtlas = _rendering.CreateRenderTexture(
@@ -903,6 +912,10 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 _rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_a");
             newHistoryB = _rendering.CreateRenderTexture(
                 _rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_b");
+            newSsrHistoryA = _rendering.CreateRenderTexture(
+                _rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_a");
+            newSsrHistoryB = _rendering.CreateRenderTexture(
+                _rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_b");
         }
         catch
         {
@@ -910,6 +923,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             newTraceRaw?.Dispose();
             newHistoryA?.Dispose();
             newHistoryB?.Dispose();
+            newSsrHistoryA?.Dispose();
+            newSsrHistoryB?.Dispose();
             throw;
         }
 
@@ -917,6 +932,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _traceRaw.Dispose();
         _historyGI[0].Dispose();
         _historyGI[1].Dispose();
+        _ssrHistory[0].Dispose();
+        _ssrHistory[1].Dispose();
         _giDiffuseFullRes.Dispose();
         _giSpecularFullRes.Dispose();
 
@@ -929,9 +946,13 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _traceRaw = newTraceRaw;
         _historyGI[0] = newHistoryA;
         _historyGI[1] = newHistoryB;
+        _ssrHistory[0] = newSsrHistoryA!;
+        _ssrHistory[1] = newSsrHistoryB!;
         _giDiffuseFullRes = newGiDiffuse;
         _giSpecularFullRes = newGiSpecular;
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
+        _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[0], 0);
+        _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1], 0);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
         if (_upsampleMaterial != null)
@@ -941,6 +962,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
         }
         _historyReadIndex = 0;
+        _ssrHistoryReadIndex = 0;
         _historyValid = false;
         _boundGBuffer = null;
     }
@@ -1255,6 +1277,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             // Gather rotation-balanced narrow-cone diffuse and specular from the
             // last-written radiance texture (direct + bounce).
             _traceMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
+            _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[_ssrHistoryReadIndex], 0);
+            _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1 - _ssrHistoryReadIndex], 0);
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
             // Dual-layer diffuse resolve plus specular, one thread per trace
@@ -1299,6 +1323,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _instances.Clear();
         _viewProjectionPrev = data.ViewProjection;
         _historyReadIndex = 1 - _historyReadIndex;
+        _ssrHistoryReadIndex = 1 - _ssrHistoryReadIndex;
         _historyValid = true;
         _frameIndex++;
         int pendingStaticBricks = 0;
@@ -1674,6 +1699,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _giSpecularFullRes.Dispose();
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
+            _ssrHistory[0].Dispose();
+            _ssrHistory[1].Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
             _timestampQueries?.Dispose();

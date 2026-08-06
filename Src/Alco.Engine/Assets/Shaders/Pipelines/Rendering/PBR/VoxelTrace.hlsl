@@ -24,7 +24,11 @@ DEFINE_TEX2D_READ(0, _emissive);
 DEFINE_TEX3D_SAMPLE(0, _opacity);
 DEFINE_TEX2D_READ(0, _albedo);
 DEFINE_TEX2D_DEPTH_SAMPLE(0, _shadowMap);
+// Previous frame's temporally accumulated SSR (rgb = radiance, a = confidence).
+DEFINE_TEX2D_READ(0, _ssrHistory);
 DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
+// This frame's accumulated SSR output (ping-pong with _ssrHistory).
+DEFINE_TEX2D_STORAGE(1, _ssrHistoryOut, float4, "rgba16f");
 
 // A large cosine-hemisphere kernel is distributed across a screen tile and
 // resolved as a complete tile. Trace one direction at each 8x8 screen phase;
@@ -460,6 +464,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
+        _ssrHistoryOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -546,13 +551,79 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float specularApertureTan = max(roughness * roughness, 0.06);
     float3 specular = TraceCone(
         startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5).rgb;
+
+    // Screen-space reflection with dedicated temporal accumulation. The SSR
+    // ray-march produces high-frequency jitter (single-ray, 24 steps, single-
+    // pixel hit sample) that the demosaic specular resolve — tuned for the
+    // smoother voxel cone — cannot fully clean up. Accumulating SSR
+    // independently across frames, with a luminance clamp to prevent ghosting,
+    // suppresses the jitter before it enters the cone blend.
+    float4 ssrAccumulated = float4(0.0, 0.0, 0.0, 0.0);
     if (roughness < 0.65)
     {
-        // Fade the blend out ahead of the roughness gate: specular antialiasing
-        // widens roughness with distance, so a hard cutoff here pops at range.
-        float4 screenReflection = TraceScreenSpaceReflection(startPosition, reflectDirection, roughness);
+        float4 screenReflection = TraceScreenSpaceReflection(
+            startPosition, reflectDirection, roughness);
+
+        // Temporal reprojection: find where this surface was last frame.
+        float4 ssrHistory = float4(0.0, 0.0, 0.0, 0.0);
+        bool historyValid = false;
+        if (giFrameParams.z > 0.5)
+        {
+            float4 prevClip = mul(viewProjectionPrev, float4(worldPosition, 1.0));
+            if (prevClip.w > 0.0)
+            {
+                float2 prevNDC = float2(prevClip.x / prevClip.w, prevClip.y / prevClip.w);
+                float2 prevUV = float2(prevNDC.x * 0.5 + 0.5, 0.5 - prevNDC.y * 0.5);
+                if (all(prevUV >= 0.0) && all(prevUV <= 1.0))
+                {
+                    int2 prevPixel = clamp(
+                        int2(prevUV * float2(traceResolution)),
+                        int2(0, 0),
+                        int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
+                    ssrHistory = _ssrHistory.Load(int3(prevPixel, 0));
+                    historyValid = true;
+                }
+            }
+        }
+
+        if (historyValid)
+        {
+            // Symmetric luminance clamp: constrain history to a narrow band
+            // around the current frame so jitter bright-spots cannot inflate
+            // the accumulated value. The band [0.5x, 1.5x] is tight enough to
+            // prevent brightness drift while still allowing legitimate gradual
+            // changes (e.g. moving towards a light source).
+            float curLum = max(dot(screenReflection.rgb, float3(0.299, 0.587, 0.114)), 0.001);
+            float histLum = max(dot(ssrHistory.rgb, float3(0.299, 0.587, 0.114)), 0.001);
+            float targetLum = clamp(histLum, curLum * 0.5, curLum * 1.5);
+            ssrHistory.rgb *= targetLum / histLum;
+
+            // Clamp accumulated confidence to the current frame's value so the
+            // temporal blend does not inflate the cone-blend weight beyond what
+            // the per-frame ray march actually warrants.
+            ssrHistory.a = min(ssrHistory.a, screenReflection.a);
+
+            // Low blend rate when SSR has a hit (accumulate → smooth); high
+            // rate when SSR misses (let the history decay quickly).
+            float blendRate = screenReflection.a > 0.01 ? 0.12 : 0.35;
+            ssrAccumulated = float4(
+                lerp(ssrHistory.rgb, screenReflection.rgb, blendRate),
+                lerp(ssrHistory.a, screenReflection.a, blendRate));
+        }
+        else
+        {
+            ssrAccumulated = screenReflection;
+        }
+
+        _ssrHistoryOut[tracePixel] = ssrAccumulated;
+
         float gateFade = saturate((0.65 - roughness) * 10.0);
-        specular = lerp(specular, screenReflection.rgb, screenReflection.a * (1.0 - roughness) * gateFade);
+        specular = lerp(specular, ssrAccumulated.rgb,
+            ssrAccumulated.a * (1.0 - roughness) * gateFade);
+    }
+    else
+    {
+        _ssrHistoryOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
     }
 
     // ALD (Average Light Direction): direction-weighted accumulation of cone
