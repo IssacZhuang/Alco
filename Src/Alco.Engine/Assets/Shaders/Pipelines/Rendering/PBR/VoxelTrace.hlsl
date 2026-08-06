@@ -23,6 +23,7 @@ DEFINE_TEX2D_READ(0, _normal);
 DEFINE_TEX2D_READ(0, _emissive);
 DEFINE_TEX3D_SAMPLE(0, _opacity);
 DEFINE_TEX2D_READ(0, _albedo);
+DEFINE_TEX2D_DEPTH_SAMPLE(0, _shadowMap);
 DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
 
 // A large cosine-hemisphere kernel is distributed across a screen tile and
@@ -93,13 +94,49 @@ float ReconstructLinearDepth(float2 uv, float depth)
     return abs(rcp(reciprocalClipW));
 }
 
-float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal)
+// Sun shadow for SSR / near-field hit points: single-tap CSM lookup with
+// slope-scaled bias. Matches the inject pass's shadow logic so reflected
+// surfaces respect the same shadow cascades as the lit scene.
+float SampleSunShadowScreen(float3 worldPosition, float3 N)
+{
+    if (lightingParams.x < 0.5)
+    {
+        return 1.0;
+    }
+    float viewDistance = length(worldPosition - cameraPosition.xyz);
+    int cascade = -1;
+    if (viewDistance < cascadeSplits.x) cascade = 0;
+    else if (viewDistance < cascadeSplits.y) cascade = 1;
+    else if (viewDistance < cascadeSplits.z) cascade = 2;
+    else if (viewDistance < cascadeSplits.w) cascade = 3;
+    if (cascade < 0)
+    {
+        return 1.0;
+    }
+
+    float3 biasedWorld = worldPosition + N * cascadeTexelSizes[cascade];
+    float4 clip = mul(sunViewProjection[cascade], float4(biasedWorld, 1.0));
+    float3 ndc = clip.xyz / clip.w;
+    if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
+    {
+        return 1.0;
+    }
+
+    float2 quadrantOffset = float2((cascade % 2) * 0.5, (cascade / 2) * 0.5);
+    float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
+    float NdotL = saturate(dot(N, normalize(-sunDirection.xyz)));
+    float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
+    return SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, shadowUV, ndc.z - bias);
+}
+
+float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3 worldPosition)
 {
     float3 albedo = DecodeSRGB(GET_PIXEL_TEX2D(_albedo, pixel).rgb);
     float3 sky = VoxelSkyColor(normal);
     float3 L = normalize(-sunDirection.xyz);
     float sunAmount = max(dot(normal, L), 0.0) / PI;
-    float3 sun = sunColorAndIntensity.rgb * sunColorAndIntensity.w * sunAmount;
+    float shadow = SampleSunShadowScreen(worldPosition, normal);
+    float3 sun = sunColorAndIntensity.rgb * sunColorAndIntensity.w * sunAmount * shadow;
     return albedo * (sky + sun);
 }
 
@@ -155,7 +192,7 @@ float4 GatherScreenSpaceNearField(
                 continue;
             }
 
-            gathered += ApproximateScreenSurfaceRadiance(samplePixel, sampleNormal) * weight;
+            gathered += ApproximateScreenSurfaceRadiance(samplePixel, sampleNormal, samplePosition) * weight;
             totalWeight += weight;
             break;
         }
@@ -208,7 +245,7 @@ float4 TraceScreenSpaceReflection(
                 float3 sampleNormal = normalize(GET_PIXEL_TEX2D(_normal, samplePixel).xyz * 2.0 - 1.0);
                 float edge = saturate(min(min(sampleUV.x, sampleUV.y), min(1.0 - sampleUV.x, 1.0 - sampleUV.y)) * 12.0);
                 float confidence = edge * (1.0 - roughness);
-                return float4(ApproximateScreenSurfaceRadiance(samplePixel, sampleNormal), confidence);
+                return float4(ApproximateScreenSurfaceRadiance(samplePixel, sampleNormal, scenePosition), confidence);
             }
         }
         previousDifference = difference;

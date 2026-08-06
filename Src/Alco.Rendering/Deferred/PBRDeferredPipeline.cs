@@ -304,7 +304,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public float GiDiffuseStrength { get; set; } = 1.0f;
 
     /// <summary>Specular GI strength multiplier.</summary>
-    public float GiSpecularStrength { get; set; } = 0.5f;
+    public float GiSpecularStrength { get; set; } = 1f;
 
     /// <summary>GI debug view mode (0=off 1=diffuse 2=specular 3=visibility).</summary>
     public int GiDebugView { get; set; }

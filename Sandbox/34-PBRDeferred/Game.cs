@@ -132,7 +132,7 @@ public class Game : GameEngine
     private readonly VoxelGiRenderer? _voxelGI;
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
-    private float _giSpecularStrength = 0.5f;
+    private float _giSpecularStrength = 1f;
     private float _giSsaoAmount = 1f;
     private int _giResolutionPreset = 0;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];

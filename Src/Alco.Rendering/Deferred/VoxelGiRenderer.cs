@@ -1039,6 +1039,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         if (!ReferenceEquals(_boundShadowMap, shadowMap))
         {
             _injectMaterial.SetRenderTextureDepth("_shadowMap", shadowMap);
+            _traceMaterial.SetRenderTextureDepth("_shadowMap", shadowMap);
             _boundShadowMap = shadowMap;
         }
 
