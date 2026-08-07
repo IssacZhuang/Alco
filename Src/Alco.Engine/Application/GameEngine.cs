@@ -39,7 +39,8 @@ IDisposable
     private readonly Platform _platform;
     private readonly Input _input;
     private readonly View _mainView;
-    private readonly ViewRenderTarget _mainRenderTarget;
+    private readonly ViewPresenter _mainPresenter;
+    private readonly RenderPipeline _mainPipeline;
 
     #endregion
 
@@ -112,16 +113,32 @@ IDisposable
         get => _mainView;
     }
 
-    public ViewRenderTarget MainRenderTarget
+    /// <summary>
+    /// The presenter of the main view: owns the swapchain surface (acquire, present, resize).
+    /// </summary>
+    public ViewPresenter MainPresenter
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainRenderTarget;
+        get => _mainPresenter;
     }
 
+    /// <summary>
+    /// The render pipeline of the main view: owns the scene render texture and the
+    /// post-process chain that resolves it into the swapchain.
+    /// </summary>
+    public RenderPipeline MainPipeline
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _mainPipeline;
+    }
+
+    /// <summary>
+    /// The frame buffer of the main pipeline's scene texture — the target for scene rendering.
+    /// </summary>
     public GPUFrameBuffer MainFrameBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainRenderTarget.RenderTexture.FrameBuffer;
+        get => _mainPipeline.SceneFrameBuffer;
     }
 
 
@@ -258,8 +275,6 @@ IDisposable
             _assetSystem.RegisterAssetHotReloader(assetHotReloader);
         }
 
-        Task<Shader> shaderBlit = _assetSystem.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
-
         _platform = _setting.Platform ?? new Sdl3Platform();
         _platform.TargetFrameRate = _setting.TargetFrameRate;
         _input = _platform.Input;
@@ -269,8 +284,10 @@ IDisposable
 
         //main view
         _mainView = CreateView(_setting.View);
-        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PreferredSDRPass, shaderBlit.Result);
-        AddSystem(_mainRenderTarget);
+        _mainPresenter = new ViewPresenter(_mainView);
+        _mainPresenter.OnResize += OnMainViewResize;
+
+        _mainPipeline = CreateMainPipeline();
 
 
         InitializePlugins(_setting.Plugins);
@@ -366,17 +383,6 @@ IDisposable
     }
 
     /// <summary>
-    /// Called after scene rendering and scene post-processing, before combined post-processing.
-    /// Use this for rendering UI elements that should not be affected by scene-only effects.
-    /// </summary>
-    /// <param name="delta">The time since the last frame</param>
-    protected virtual void OnUpdateUI(float delta)
-    {
-
-    }
-
-
-    /// <summary>
     /// Called when player exit the game
     /// </summary>
     protected virtual void OnStop()
@@ -435,6 +441,9 @@ IDisposable
 
         _audioDevice.Poll(delta);
 
+        // Acquire the swapchain surface for this frame
+        _mainPresenter.BeginFrame();
+
         try
         {
             OnBeginFrame();
@@ -445,6 +454,9 @@ IDisposable
             TryErrorStop();
         }
         OnSystemBeginFrame(delta);
+
+        // Clear the scene texture before any rendering of this frame
+        _mainPipeline.BeginFrame();
 
         EventOnUpdate?.Invoke(delta);
 
@@ -457,18 +469,6 @@ IDisposable
         catch (Exception e)
         {
             Log.Error("[Update Error]", e);
-            TryErrorStop();
-        }
-
-        OnSystemPostSceneUpdate(delta);
-
-        try
-        {
-            OnUpdateUI(delta);
-        }
-        catch (Exception e)
-        {
-            Log.Error("[UpdateUI Error]", e);
             TryErrorStop();
         }
 
@@ -485,9 +485,16 @@ IDisposable
             TryErrorStop();
         }
 
+        // Resolve the scene texture through the post-process chain into the swapchain.
+        // Systems drawing overlays (ImGui, debug stats) draw on top of it in OnEndFrame.
+        _mainPipeline.RenderFrame(_mainPresenter.FrameBuffer);
+
         OnSystemEndFrame(delta);
 
         EventOnEndFrame?.Invoke();
+
+        // Present the frame and process the deferred view resize
+        _mainPresenter.EndFrame();
 
     }
 
@@ -538,12 +545,20 @@ IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
+        _mainPresenter.OnResize -= OnMainViewResize;
+        _mainPipeline.Dispose();
         DisposePlugins(_setting.Plugins);
+        _mainPresenter.Dispose();
         MainView.Close();
         _platform.Dispose();
 
         EventOnDispose?.Invoke();
         GC.SuppressFinalize(this);
+    }
+
+    private void OnMainViewResize(uint2 size)
+    {
+        _mainPipeline.Resize(size.X, size.Y);
     }
 
     private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)
@@ -659,23 +674,6 @@ IDisposable
             catch (Exception e)
             {
                 Log.Error($"Error when post update system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
-    private void OnSystemPostSceneUpdate(float delta)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try
-            {
-                _systems[i].OnPostSceneUpdate(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post scene update system {_systems[i].GetType().Name}: ");
                 Log.Error(e);
                 TryErrorStop();
             }

@@ -27,9 +27,9 @@ public class Game : GameEngine
     private ColorFloat _color = new ColorFloat(4, 2, 2, 1);
     private bool _enabled = true;
 
-    private BloomSystem? _bloomSystem;
+    private BloomStage? _bloomSystem;
     private PluginHDR? _hdrPlugin;
-    private PluginHDR.TonemapType _toneMapType;
+    private TonemapType _toneMapType;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -62,8 +62,8 @@ public class Game : GameEngine
     /// </summary>
     protected override void OnStart()
     {
-        // Get BloomSystem reference after systems are initialized
-        TryGetSystem<BloomSystem>(out _bloomSystem);
+        // Get BloomStage reference after the pipeline is initialized
+        _bloomSystem = MainPipeline.PostProcess.Get<BloomStage>();
 
         // Try get HDR plugin for tone map control
         if (TryGetPlugin<PluginHDR>(out var hdr))
@@ -159,7 +159,7 @@ public class Game : GameEngine
             // Optional parameter controls depending on type
             switch (_toneMapType)
             {
-                case PluginHDR.TonemapType.Reinhard:
+                case TonemapType.Reinhard:
                     {
                         var d = _hdrPlugin.ReinhardData;
                         if (ImGui.SliderFloat("Max Luminance", ref d.MaxLuminance, 0.1f, 10f) |
@@ -169,7 +169,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.Uncharted2:
+                case TonemapType.Uncharted2:
                     {
                         var d2 = _hdrPlugin.Uncharted2Data;
                         if (ImGui.SliderFloat("Exposure", ref d2.Exposure, 0.1f, 4f) |
@@ -179,7 +179,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.Filmic:
+                case TonemapType.Filmic:
                     {
                         var df = _hdrPlugin.FilmicData;
                         if (ImGui.SliderFloat("Exposure", ref df.Exposure, 0.1f, 4f) |
@@ -189,7 +189,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.ACES:
+                case TonemapType.ACES:
                     {
                         var da = _hdrPlugin.ACESData;
                         if (ImGui.SliderFloat("Exposure", ref da.Exposure, 0.1f, 4f) |
@@ -199,7 +199,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.Neutral:
+                case TonemapType.Neutral:
                     {
                         var dn = _hdrPlugin.NeutralData;
                         if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |

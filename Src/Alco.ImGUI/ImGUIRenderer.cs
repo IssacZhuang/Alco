@@ -21,7 +21,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private readonly GraphicsBuffer _viewProjectionBuffer;
     private readonly Material _material;
     private IntPtr _imGuiContext;
-    private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
     private readonly IntPtr _fontTextureId = (IntPtr)(-1);
     private Texture2D _fontTexture;
@@ -85,10 +84,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
         return _textures.Count - 1;
     }
 
-    public void Begin(GPUFrameBuffer target, float deltaTime)
+    /// <summary>
+    /// Starts a new ImGui frame with the given display size in pixels.
+    /// </summary>
+    public void Begin(uint width, uint height, float deltaTime)
     {
-        uint width = target.Width;
-        uint height = target.Height;
         ImGuiIOPtr io = ImGui.GetIO();
 
         if (_fontTextureDirty)
@@ -102,7 +102,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         ImGui.NewFrame();
         Gizmo.BeginFrame(width, height);
-        _target = target;
     }
 
     /// <summary>
@@ -112,12 +111,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
     public void Render()
     {
         ImGui.Render();
-        _target = null;
     }
 
     /// <summary>
     /// Submit ImGui draw data to the GPU. Call after <see cref="Render"/> and after
-    /// the HDR tone mapping blit so UI colors are not affected by post-processing.
+    /// the pipeline resolved the frame, so UI colors are not affected by post-processing.
     /// </summary>
     public void Draw(GPUFrameBuffer target)
     {

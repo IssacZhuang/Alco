@@ -26,11 +26,11 @@ public class DropletSystem : IDisposable
         private readonly InstanceRenderer<SpriteConstant>[] _renderers;
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
-        private readonly ViewRenderTarget _renderTarget;
+        private readonly RenderPipeline _renderTarget;
         private readonly Mesh _mesh;
 
 
-        public JobParallelRender(ViewRenderTarget renderTarget, SubRenderContext[] renderContext, InstanceRenderer<SpriteConstant>[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Mesh mesh)
+        public JobParallelRender(RenderPipeline renderTarget, SubRenderContext[] renderContext, InstanceRenderer<SpriteConstant>[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Mesh mesh)
         {
             _renderTarget = renderTarget;
             _renderContext = renderContext;
@@ -42,7 +42,7 @@ public class DropletSystem : IDisposable
 
         protected override void ExecuteCore(int index)
         {
-            _renderContext[index].Begin(_renderTarget.FrameBuffer.AttachmentLayout);
+            _renderContext[index].Begin(_renderTarget.SceneFrameBuffer.AttachmentLayout);
             RenderRange range = _renderRanges[index];
             int i = 0;
             Span<SpriteConstant> instances = stackalloc SpriteConstant[range.end - range.start];
@@ -69,7 +69,7 @@ public class DropletSystem : IDisposable
     private readonly RenderRange[] _renderRanges;
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(200000, () => new Droplet());
-    private readonly ViewRenderTarget _renderTarget;
+    private readonly RenderPipeline _renderTarget;
     private readonly JobParallelRender _jobParallelRender;
     private int _spawnRate = 100;
     private int _spawnHeight = 280;
@@ -79,7 +79,7 @@ public class DropletSystem : IDisposable
 
     private FastRandom _random = new FastRandom(123);
 
-    public DropletSystem(ViewRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
+    public DropletSystem(RenderPipeline windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         _renderContext = system.CreateRenderContext();
         _subRenderContexts = new SubRenderContext[RenderThreadCount];
@@ -159,7 +159,7 @@ public class DropletSystem : IDisposable
         }
 
         _jobParallelRender.RunParallel(RenderThreadCount);
-        _renderContext.Begin(_renderTarget.FrameBuffer);
+        _renderContext.Begin(_renderTarget.SceneFrameBuffer);
         for (int i = 0; i < RenderThreadCount; i++)
         {
             _renderContext.ExecuteSubContext(_subRenderContexts[i]);

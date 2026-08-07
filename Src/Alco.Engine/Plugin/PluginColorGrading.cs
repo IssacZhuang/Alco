@@ -3,12 +3,12 @@ using Alco.Rendering;
 namespace Alco.Engine;
 
 /// <summary>
-/// Plugin that registers the procedural color grading system.
-/// Color grading applies between scene and UI rendering via the <see cref="ColorGradingSystem"/>.
+/// Plugin that registers a <see cref="ColorGradingStage"/> on the main render pipeline.
+/// Configure the grading parameters via <see cref="Stage"/>.
 /// </summary>
 public class PluginColorGrading : BaseEnginePlugin
 {
-    private ColorGradingSystem? _system;
+    private ColorGradingStage? _stage;
 
     /// <summary>
     /// The execution order of the plugin. Runs before bloom initialization.
@@ -16,19 +16,13 @@ public class PluginColorGrading : BaseEnginePlugin
     public override int Order => 850;
 
     /// <summary>
-    /// Gets the color grading system. Available after engine initialization.
+    /// The color grading stage registered on the main pipeline. Available after engine initialization.
     /// </summary>
-    public ColorGradingSystem System => _system!;
+    public ColorGradingStage Stage => _stage!;
 
     public override void OnPostInitialize(GameEngine engine)
     {
-        Shader gradingShader = engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ColorGrading);
-        _system = new ColorGradingSystem(engine, engine.MainRenderTarget, gradingShader);
-        engine.AddSystem(_system);
-    }
-
-    public override void Dispose()
-    {
-        _system?.Dispose();
+        _stage = new ColorGradingStage(engine.RenderingSystem, engine.BuiltInAssets.Shader_ColorGrading);
+        engine.MainPipeline.PostProcess.Add(_stage);
     }
 }

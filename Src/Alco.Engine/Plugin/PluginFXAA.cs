@@ -1,12 +1,15 @@
+using Alco.Rendering;
+
 namespace Alco.Engine;
 
 /// <summary>
-/// Plugin that enables FXAA (Fast Approximate Anti-Aliasing) post-processing.
-/// Provides screen-space anti-aliasing with minimal performance impact.
+/// Plugin that registers an <see cref="FXAAStage"/> (Fast Approximate Anti-Aliasing) on the
+/// main render pipeline.
 /// </summary>
 public class PluginFXAA : BaseEnginePlugin
 {
-    private FXAASystem? _fxaaSystem;
+    private FXAAStage? _stage;
+    private float _threshold = 0.125f;
 
     /// <summary>
     /// Execution order for the FXAA plugin. Should be after main rendering setup.
@@ -18,7 +21,18 @@ public class PluginFXAA : BaseEnginePlugin
     /// Lower values detect more edges but may introduce artifacts.
     /// Valid range: 0.063 - 0.333, Default: 0.125
     /// </summary>
-    public float Threshold { get; set; } = 0.125f;
+    public float Threshold
+    {
+        get => _threshold;
+        set
+        {
+            _threshold = value;
+            if (_stage != null)
+            {
+                _stage.Threshold = value;
+            }
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the PluginFXAA with default settings.
@@ -38,32 +52,15 @@ public class PluginFXAA : BaseEnginePlugin
     }
 
     /// <summary>
-    /// Called after engine initialization. Sets up the FXAA system.
+    /// Called after engine initialization. Registers the FXAA stage on the main pipeline.
     /// </summary>
     /// <param name="engine">The game engine instance</param>
     public override void OnPostInitialize(GameEngine engine)
     {
-        _fxaaSystem = new FXAASystem(engine, engine.MainRenderTarget);
-
-        _fxaaSystem.Threshold = Threshold;
-
-        engine.AddSystem(_fxaaSystem);
-    }
-
-    /// <summary>
-    /// Gets the FXAA system instance for runtime configuration.
-    /// </summary>
-    /// <returns>The FXAA system instance, or null if not initialized</returns>
-    public FXAASystem? GetFXAASystem()
-    {
-        return _fxaaSystem;
-    }
-
-    /// <summary>
-    /// Disposes of resources used by the plugin.
-    /// </summary>
-    public override void Dispose()
-    {
-        _fxaaSystem?.Dispose();
+        _stage = new FXAAStage(engine.RenderingSystem.CreateFXAA(
+            engine.BuiltInAssets.Shader_FXAA,
+            engine.BuiltInAssets.Shader_Blit));
+        _stage.Threshold = _threshold;
+        engine.MainPipeline.PostProcess.Add(_stage);
     }
 }

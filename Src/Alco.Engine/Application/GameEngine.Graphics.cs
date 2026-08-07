@@ -11,9 +11,38 @@ public partial class GameEngine
         return _platform.CreateView(_graphicsDevice, setting);
     }
 
-    public ViewRenderTarget CreateViewRenderTarget(View view, GPUAttachmentLayout attachmentLayout, Shader blitShader)
+    /// <summary>
+    /// Creates a presenter for an additional view. The caller drives it manually
+    /// (<see cref="ViewPresenter.BeginFrame"/>/<see cref="ViewPresenter.EndFrame"/>) and pairs
+    /// it with a <see cref="RenderPipeline"/> that resolves into the presenter's frame buffer.
+    /// </summary>
+    public ViewPresenter CreateViewPresenter(View view)
     {
-        return new ViewRenderTarget(this, view, attachmentLayout, blitShader);
+        return new ViewPresenter(view);
+    }
+
+    /// <summary>
+    /// Creates the render pipeline of the main view. The default is a
+    /// <see cref="ForwardPipeline"/>, HDR when <see cref="PluginHDR"/> is registered.
+    /// Override to use a custom pipeline (e.g. <see cref="PBRDeferredRenderPipeline"/>).
+    /// </summary>
+    protected virtual RenderPipeline CreateMainPipeline()
+    {
+        bool hdr = false;
+        for (int i = 0; i < _setting.Plugins.Count; i++)
+        {
+            if (_setting.Plugins[i] is PluginHDR)
+            {
+                hdr = true;
+                break;
+            }
+        }
+        return new ForwardPipeline(
+            _renderingSystem,
+            hdr ? _renderingSystem.PreferredHDRPass : _renderingSystem.PreferredSDRPass,
+            _builtInAssets.Shader_Blit,
+            _mainView.Size.X,
+            _mainView.Size.Y);
     }
 
     public virtual IShaderCache? CreateShaderCache(GraphicsSetting setting)

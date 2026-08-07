@@ -254,10 +254,11 @@ public class Game : GameEngine
     private int _selectedObject;
     private bool _animateObjects = true;
 
-    // Bloom post-processing (engine built-in) and the emissive boost feeding it.
+    // Bloom post-processing (a stage on the main pipeline's post-process chain)
+    // and the emissive boost feeding it.
     // The Bistro emissive factors are all 1.0 and its emissive textures are LDR,
     // so without a boost nothing crosses the bloom threshold next to the sun.
-    private BloomSystem? _bloom;
+    private BloomStage? _bloom;
     private float _emissiveBoost = 4.0f;
 
     // Point lights auto-generated from Bistro emissive surfaces.
@@ -269,7 +270,7 @@ public class Game : GameEngine
 
     // HDR tone mapping (PluginHDR): switchable operator with per-type parameters.
     private PluginHDR? _hdrPlugin;
-    private PluginHDR.TonemapType _tonemapType;
+    private TonemapType _tonemapType;
 
     // Screenshot mode.
     private readonly string? _screenshotPath;
@@ -366,16 +367,9 @@ public class Game : GameEngine
             _cameraNear, _sceneRadius * 10.0f);
         _shadowDistance = _sceneRadius * 3.0f;
 
-        string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
-        string blitShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_Blit);
-        _pipeline = new PBRDeferredPipeline(
-            RenderingSystem,
-            lightingShaderText,
-            BuiltInAssetsPath.Shader_PBRDeferredLighting,
-            blitShaderText,
-            shadowMapSize: 2048,
-            width: (uint)MainView.Size.X,
-            height: (uint)MainView.Size.Y);
+        // The deferred pipeline is created by CreateMainPipeline (invoked from the
+        // base constructor); grab it to configure cameras, renderers and plugins.
+        _pipeline = ((PBRDeferredRenderPipeline)MainPipeline).Deferred;
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
@@ -433,7 +427,7 @@ public class Game : GameEngine
         if (_bistro != null)
         {
             // One game-owned G-buffer material per glTF material. Textures still
-            // streaming in start as the fallbacks and are synced in RenderBistroFrame.
+            // streaming in start as the fallbacks and are synced in PrepareBistroFrame.
             _bistroMaterials = new GraphicsMaterial[_bistro.Materials.Count];
             // One cutout shadow material per glTF material so alpha-tested meshes
             // (foliage, fences, etc.) cast correctly shaped shadows.
@@ -527,23 +521,50 @@ public class Game : GameEngine
             _pipeline.RegisterPlugin(_voxelGI);
         }
 
-        // Bloom blits into the HDR target in OnPostUpdate, before PluginHDR's
-        // tonemapped present, so boosted emissive surfaces get a natural glow.
+        // Bloom is a stage on the main pipeline's post-process chain; its order
+        // places it before PluginHDR's tonemap stage, so boosted emissive surfaces
+        // get a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
             : 1.0f;
         float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
             ? parsedBloomIntensity
             : 1.0f;
-        _bloom = new BloomSystem(this, MainRenderTarget)
+        _bloom = new BloomStage(RenderingSystem.CreateBloom(
+            BuiltInAssets.Shader_BloomBlit,
+            BuiltInAssets.Shader_BloomClamp,
+            BuiltInAssets.Shader_BloomDownSample,
+            BuiltInAssets.Shader_BloomUpSample,
+            11))
         {
             IsEnabled = !args.Contains("--no-bloom"),
             Threshold = bloomThreshold,
             Intensity = bloomIntensity,
         };
-        AddSystem(_bloom);
+        MainPipeline.PostProcess.Add(_bloom);
 
         MainView.OnResize += OnMainWindowResize;
+    }
+
+    /// <summary>
+    /// Installs the PBR deferred pipeline as the main view's render pipeline: the engine
+    /// drives its passes (shadow → G-buffer → lighting → forward) and the post-process
+    /// chain every frame. Called from the base constructor, so everything it touches
+    /// (asset sources, rendering system, main view) is engine-owned state.
+    /// </summary>
+    protected override RenderPipeline CreateMainPipeline()
+    {
+        string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
+        return new PBRDeferredRenderPipeline(
+            RenderingSystem,
+            new PBRDeferredPipeline(
+                RenderingSystem,
+                lightingShaderText,
+                BuiltInAssetsPath.Shader_PBRDeferredLighting,
+                shadowMapSize: 2048,
+                width: (uint)MainView.Size.X,
+                height: (uint)MainView.Size.Y),
+            BuiltInAssets.Shader_Blit);
     }
 
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
@@ -571,8 +592,8 @@ public class Game : GameEngine
         if (TryGetPlugin<PluginHDR>(out var pluginHDR))
         {
             _hdrPlugin = pluginHDR;
-            _hdrPlugin.Tonemap = PluginHDR.TonemapType.ACES;
-            _tonemapType = PluginHDR.TonemapType.ACES;
+            _hdrPlugin.Tonemap = TonemapType.ACES;
+            _tonemapType = TonemapType.ACES;
             var acesData = _hdrPlugin.ACESData;
             acesData.Gamma = 2.2f;
             _hdrPlugin.ACESData = acesData;
@@ -597,7 +618,7 @@ public class Game : GameEngine
 
         UpdateLightingData();
 
-        RenderFrame();
+        PrepareFrame();
 
         DrawImGuiPanel();
 
@@ -611,11 +632,12 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        // Capture here, after OnSystemPostUpdate, so the shot includes bloom:
-        // bloom blits into the HDR target after OnUpdate, and ViewRenderTarget
-        // clears that target again at the start of the next frame. With
-        // --wait-load the capture is held back until the Bistro scene's
-        // asynchronously streaming textures have all arrived.
+        // Capture here: the engine runs the main pipeline's RenderFrame (deferred
+        // passes, then the post-process chain into the swapchain) after OnEndFrame,
+        // so the scene texture still holds the last completed frame's HDR image.
+        // Bloom is composited into the swapchain by the chain and is not part of
+        // the capture. With --wait-load the capture is held back until the Bistro
+        // scene's asynchronously streaming textures have all arrived.
         if (_screenshotPath != null && _frameCount >= _screenshotFrames &&
             (!_waitForStreaming || _bistro == null || _bistro.LoadingCompletion.IsCompleted))
         {
@@ -631,8 +653,8 @@ public class Game : GameEngine
     protected void OnMainWindowResize(uint2 size)
     {
         _camera.AspectRatio = (float)size.X / size.Y;
-        _pipeline.Resize(size.X, size.Y);
-        // Plugins (including VoxelGI) are resized by the pipeline automatically.
+        // The engine resizes the main pipeline, and with it the deferred pipeline
+        // and its plugins (including VoxelGI).
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -1006,11 +1028,17 @@ public class Game : GameEngine
         }
     }
 
-    private void RenderFrame()
+    /// <summary>
+    /// Per-frame render bookkeeping (texture streaming sync, stale bundle
+    /// re-records). The passes themselves are driven by the engine through the
+    /// main pipeline after OnUpdate: shadow → G-buffer → callback → plugins →
+    /// lighting → forward transparency.
+    /// </summary>
+    private void PrepareFrame()
     {
         if (_bistro != null)
         {
-            RenderBistroFrame();
+            PrepareBistroFrame();
             return;
         }
 
@@ -1019,13 +1047,13 @@ public class Game : GameEngine
             _shadowRenderer.MarkStaticBundleDirty();
             _staticShadowBundlesDirty = false;
         }
-
-        // The pipeline drives the full frame: shadow → G-buffer → callback →
-        // plugins → lighting → forward transparency.
-        _pipeline.Render(MainFrameBuffer);
     }
 
-    private void RenderBistroFrame()
+    /// <summary>
+    /// The Bistro scene is fully static: every pass the pipeline runs is a pure
+    /// bundle replay; only streaming and dirty bookkeeping happens here.
+    /// </summary>
+    private void PrepareBistroFrame()
     {
         // Textures stream in asynchronously: refresh the materials and re-record the
         // bundles until everything arrived (equivalent to drawing every frame), then
@@ -1049,11 +1077,6 @@ public class Game : GameEngine
             _shadowRenderer.MarkStaticBundleDirty();
             _staticShadowBundlesDirty = false;
         }
-
-        // The Bistro scene is fully static: every pass is a pure bundle replay.
-        // The pipeline drives the full frame: shadow → G-buffer → callback →
-        // plugins → lighting → forward transparency.
-        _pipeline.Render(MainFrameBuffer);
     }
 
     /// <summary>An object is static (baked into the render bundles) when it neither spins nor floats.</summary>
@@ -1219,16 +1242,16 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Read back the HDR main target, tonemap and save it as a PNG screenshot.
+    /// Read back the HDR scene texture, tonemap and save it as a PNG screenshot.
     /// </summary>
     private unsafe void CaptureScreenshot(string path)
     {
-        Texture2D color = MainRenderTarget.RenderTexture.ColorTextures[0];
+        Texture2D color = MainPipeline.SceneRenderTexture.ColorTextures[0];
         int width = (int)color.Width;
         int height = (int)color.Height;
         int pixelCount = width * height;
 
-        // The HDR main target is RGBA16Float.
+        // The HDR scene texture is RGBA16Float.
         var raw = new byte[pixelCount * 8];
         fixed (byte* rawPointer = raw)
         {
@@ -1438,7 +1461,7 @@ public class Game : GameEngine
             // Optional parameter controls depending on type
             switch (_tonemapType)
             {
-                case PluginHDR.TonemapType.Reinhard:
+                case TonemapType.Reinhard:
                     {
                         var d = _hdrPlugin.ReinhardData;
                         if (ImGui.SliderFloat("Max Luminance", ref d.MaxLuminance, 0.1f, 10f) |
@@ -1448,7 +1471,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.Uncharted2:
+                case TonemapType.Uncharted2:
                     {
                         var d2 = _hdrPlugin.Uncharted2Data;
                         if (ImGui.SliderFloat("Exposure", ref d2.Exposure, 0.1f, 4f) |
@@ -1458,7 +1481,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.Filmic:
+                case TonemapType.Filmic:
                     {
                         var df = _hdrPlugin.FilmicData;
                         if (ImGui.SliderFloat("Exposure", ref df.Exposure, 0.1f, 4f) |
@@ -1468,7 +1491,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.ACES:
+                case TonemapType.ACES:
                     {
                         var da = _hdrPlugin.ACESData;
                         if (ImGui.SliderFloat("Exposure", ref da.Exposure, 0.1f, 4f) |
@@ -1478,7 +1501,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.Neutral:
+                case TonemapType.Neutral:
                     {
                         var dn = _hdrPlugin.NeutralData;
                         if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |
@@ -1490,7 +1513,7 @@ public class Game : GameEngine
                         }
                         break;
                     }
-                case PluginHDR.TonemapType.AgX:
+                case TonemapType.AgX:
                     {
                         var dag = _hdrPlugin.AgXData;
                         int look = (int)dag.Look;
@@ -1506,20 +1529,18 @@ public class Game : GameEngine
             }
         }
 
-        if (TryGetSystem<FXAASystem>(out FXAASystem? fxaaSystem))
+        FXAAStage? fxaaStage = MainPipeline.PostProcess.Get<FXAAStage>();
+        if (fxaaStage != null && ImGui.CollapsingHeader("FXAA"))
         {
-            if (ImGui.CollapsingHeader("FXAA"))
+            bool fxaaEnabled = fxaaStage.IsEnabled;
+            if (ImGui.Checkbox("FXAA Enabled", ref fxaaEnabled))
             {
-                bool fxaaEnabled = fxaaSystem.IsEnabled;
-                if (ImGui.Checkbox("FXAA Enabled", ref fxaaEnabled))
-                {
-                    fxaaSystem.IsEnabled = fxaaEnabled;
-                }
-                float fxaaThreshold = fxaaSystem.Threshold;
-                if (ImGui.SliderFloat("Edge Threshold", ref fxaaThreshold, 0.063f, 0.333f))
-                {
-                    fxaaSystem.Threshold = fxaaThreshold;
-                }
+                fxaaStage.IsEnabled = fxaaEnabled;
+            }
+            float fxaaThreshold = fxaaStage.Threshold;
+            if (ImGui.SliderFloat("Edge Threshold", ref fxaaThreshold, 0.063f, 0.333f))
+            {
+                fxaaStage.Threshold = fxaaThreshold;
             }
         }
 

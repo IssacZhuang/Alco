@@ -215,7 +215,7 @@ public class Game : GameEngine
         // Render lighting using internal command buffer
         _lightingManager.Render();
 
-        _renderer.Begin(MainRenderTarget.FrameBuffer);
+        _renderer.Begin(MainFrameBuffer);
         _surfaceBlock.Render();
         _wallManager.Render(_renderer);
 
@@ -259,12 +259,12 @@ public class Game : GameEngine
         }
         _renderer.End();
 
-        if (TryGetSystem<FXAASystem>(out var fxaaSystem))
+        if (MainPipeline.PostProcess.Get<FXAAStage>() is { } fxaaStage)
         {
-            bool isFXAAEnabled = fxaaSystem.IsEnabled;
+            bool isFXAAEnabled = fxaaStage.IsEnabled;
             if (ImGui.Checkbox("FXAA", ref isFXAAEnabled))
             {
-                fxaaSystem.IsEnabled = isFXAAEnabled;
+                fxaaStage.IsEnabled = isFXAAEnabled;
             }
         }
 

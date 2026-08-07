@@ -74,7 +74,7 @@ public class Game : GameEngine
         };
 
         //draw atlas texture
-        _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
+        _materialRenderer.Begin(MainFrameBuffer);
         if (_isShowCompressed)
         {
             _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);

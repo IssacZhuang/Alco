@@ -160,7 +160,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.Opaque;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainFrameBuffer.AttachmentLayout;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroup },

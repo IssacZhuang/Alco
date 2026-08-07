@@ -16,11 +16,12 @@ namespace Alco.Rendering;
 /// <see cref="ShadowRenderer"/>) registered via <see cref="AddSceneRenderer"/>; the
 /// pipeline does not know their types — it invokes <see cref="ISceneRenderer"/> methods
 /// inside each pass. The caller can also drive passes manually via Begin/End methods.
-/// <br/>The caller drives the frame by calling the convenience methods
-/// <see cref="RenderShadowPass"/> + <see cref="RenderGBufferPass"/>, then
-/// <see cref="ExecutePlugins"/> + <see cref="RenderLighting(target)"/> which resolves
-/// lighting, sky and shadows into the target frame buffer (typically the engine's HDR
-/// main target). Each pass can also be driven manually via Begin/End methods.
+/// <br/>The frame is driven by <see cref="RenderFrame"/>: shadow cascades → G-buffer →
+/// AfterGBuffer plugins → deferred lighting → forward transparency, resolving into the
+/// pipeline-internal <see cref="ForwardRenderTexture"/> (HDR + depth). The owner of the
+/// pipeline (e.g. an engine render pipeline) runs its post-process chain from there
+/// straight to the final destination — no intermediate engine render target is involved.
+/// Each pass can also be driven manually via Begin/End methods.
 /// <br/>Scene properties (sun direction/color, sky params, GI strength, debug flags) are
 /// set directly on the pipeline as properties. Camera, shadow cascades, viewport and
 /// point-light count are managed internally — the caller only calls
@@ -150,13 +151,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly RenderTexture _shadowRT;
 
     // Pipeline-internal forward RT: HDR color + depth. Lighting and forward
-    // transparency both render into here, then a final blit copies the result
-    // to the caller's target. This lets forward glass use hardware depth
-    // testing (the depth is pre-filled from the G-buffer via a native CopyTexture).
+    // transparency both render into here; the owning render pipeline then runs its
+    // post-process chain from this texture straight to the final destination.
+    // This lets forward glass use hardware depth testing (the depth is pre-filled
+    // from the G-buffer via a native CopyTexture).
     private readonly GPUAttachmentLayout _forwardLayout;
     private RenderTexture _forwardRT;
-    private readonly GraphicsMaterial _compositeMaterial;
-    private readonly RenderContext _compositeContext;
     private readonly GPUCommandBuffer _depthCopyCommand;
 
     private readonly GraphicsMaterial _lightingMaterial;
@@ -172,10 +172,30 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly List<IRenderPlugin> _plugins = new();
 
     /// <summary>
-    /// Called inside <see cref="Render"/> after the G-buffer pass, before AfterGBuffer
+    /// Called inside <see cref="RenderFrame"/> after the G-buffer pass, before AfterGBuffer
     /// plugins. Use this to submit per-frame dynamic data (e.g. voxel GI instances).
     /// </summary>
     public event Action? AfterGBufferCallback;
+
+    /// <summary>
+    /// The pipeline-internal forward render texture (HDR color + depth) holding the
+    /// resolved lighting and forward transparency — the output of <see cref="RenderFrame"/>.
+    /// Recreated by <see cref="Resize"/>.
+    /// </summary>
+    public RenderTexture ForwardRenderTexture
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _forwardRT;
+    }
+
+    /// <summary>
+    /// The attachment layout of <see cref="ForwardRenderTexture"/>.
+    /// </summary>
+    public GPUAttachmentLayout ForwardLayout
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _forwardLayout;
+    }
 
     // Cascade state computed by ComputeShadowCascades and consumed by both the
     // shadow pass and the lighting pass — no longer exposed to the caller.
@@ -554,7 +574,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         RenderingSystem rendering,
         string lightingShaderText,
         string lightingShaderName,
-        string blitShaderText,
         uint shadowMapSize = 2048,
         uint width = 1280,
         uint height = 720)
@@ -624,18 +643,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             "pbr_forward_pass"));
         _forwardRT = rendering.CreateRenderTexture(_forwardLayout, width, height, "pbr_forward");
 
-        // Composite material: blit forward RT color to the caller's target.
-        Shader blitShader = rendering.CreateShader(
-            blitShaderText, "Shaders/Pipelines/Utils/Blit.hlsl");
-        _compositeMaterial = rendering.CreateMaterial(blitShader);
-        _compositeMaterial.DepthStencilState = DepthStencilState.Default;
-        _compositeMaterial.RasterizerState = RasterizerState.CullNone;
-        _compositeMaterial.SetRenderTexture("_texture", _forwardRT, 0);
-
         // Dedicated command buffer for the native G-buffer → forward RT depth copy.
         _depthCopyCommand = _device.CreateCommandBuffer("pbr_depth_copy");
-
-        _compositeContext = rendering.CreateRenderContext("pbr_composite");
 
         // Register pipeline-internal counters once; the returned handles are used
         // for zero-allocation PushValue calls on the per-frame hot path.
@@ -704,21 +713,17 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _plugins[i].Resize(width, height);
         }
         RebindLightingTargets();
-
-        // Rebind composite material to the new forward RT.
-        _compositeMaterial.SetRenderTexture("_texture", _forwardRT, 0);
     }
 
     /// <summary>
     /// Execute the complete deferred frame in the correct order: shadow cascades →
     /// G-buffer → <see cref="AfterGBufferCallback"/> → AfterGBuffer plugins → deferred
-    /// lighting → forward transparency. This is the recommended single-call entry
-    /// point; the individual <c>Render*Pass</c> methods remain available for custom
-    /// pipelines or debugging.
+    /// lighting → forward transparency. The result is resolved into
+    /// <see cref="ForwardRenderTexture"/>; the owning render pipeline runs its
+    /// post-process chain from there to the final destination. The individual
+    /// <c>Render*Pass</c> methods remain available for custom pipelines or debugging.
     /// </summary>
-    /// <param name="target">The HDR frame buffer to resolve lighting and blend
-    /// transparent objects into (typically the engine's main frame buffer).</param>
-    public void Render(GPUFrameBuffer target)
+    public void RenderFrame()
     {
         RenderShadowPass();
         RenderGBufferPass();
@@ -726,7 +731,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         ExecutePlugins(RenderInjectionPoint.AfterGBuffer);
         RenderLighting(_forwardRT.FrameBuffer);
         RenderForwardPass(_forwardRT.FrameBuffer);
-        CompositeToTarget(target);
     }
 
     /// <summary>
@@ -1073,20 +1077,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Blit the pipeline-internal forward RT color onto the caller's target frame buffer.
-    /// </summary>
-    /// <param name="target">The caller's frame buffer (e.g. the engine's main HDR target).</param>
-    private void CompositeToTarget(GPUFrameBuffer target)
-    {
-        _compositeContext.Begin(target);
-        _compositeContext.Draw(_fullScreenMesh, _compositeMaterial);
-        _compositeContext.End();
-    }
-
-    /// <summary>
     /// Resolve lighting, shadows and the sky into the target frame buffer
-    /// (typically the engine's HDR main target). Assembles the GPU constant buffer
-    /// from caller-set properties, camera data and internally tracked cascade state.
+    /// (typically <see cref="ForwardRenderTexture"/>'s frame buffer). Assembles the GPU
+    /// constant buffer from caller-set properties, camera data and internally tracked
+    /// cascade state.
     /// </summary>
     /// <param name="target">The frame buffer to render the lighting result into.</param>
     /// <exception cref="InvalidOperationException">No camera is set.</exception>
@@ -1156,8 +1150,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _lightingMaterial.Dispose();
             _gbufferRT.Dispose();
             _shadowRT.Dispose();
+            _forwardRT.Dispose();
+            _depthCopyCommand.Dispose();
             _gbufferLayout.Dispose();
             _shadowLayout.Dispose();
+            _forwardLayout.Dispose();
             _gpuTimestamps?.Dispose();
         }
     }

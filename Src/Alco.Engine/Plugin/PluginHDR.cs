@@ -1,36 +1,15 @@
-using Alco.Graphics;
 using Alco.Rendering;
 
 namespace Alco.Engine;
 
 /// <summary>
-/// HDR post-process plugin that applies a tone mapping operator on the main render target.
-/// Supports switching between Reinhard and Uncharted 2 filmic tone mapping.
+/// HDR post-process plugin that registers a <see cref="TonemapStage"/> on the main render
+/// pipeline. Supports switching between tone mapping operators at runtime.
 /// </summary>
 public class PluginHDR : BaseEnginePlugin
 {
-    /// <summary>
-    /// Supported tone mapping operators.
-    /// </summary>
-    public enum TonemapType
-    {
-        /// <summary>
-        /// Linear tonemapping (no tonemap), directly blits the HDR buffer.
-        /// </summary>
-        Linear,
-        Reinhard,
-        Uncharted2,
-        Filmic,
-        ACES,
-        Neutral,
-        AgX,
-    }
+    private TonemapStage? _stage;
 
-    private Shader? _shader;
-    private Material? _material;
-    private GraphicsBuffer? _dataBuffer;
-
-    private GameEngine? _engine;
     private TonemapType _tonemapType = TonemapType.Reinhard;
     private ReinhardTonemapData _reinhardData = ReinhardTonemapData.Default;
     private Uncharted2TonemapData _uncharted2Data = Uncharted2TonemapData.Default;
@@ -45,7 +24,7 @@ public class PluginHDR : BaseEnginePlugin
     public override int Order => -900;
 
     /// <summary>
-    /// Current tone mapping operator. Changing this will recreate internal resources and re-bind the HDR pass.
+    /// Current tone mapping operator. Changing this switches the operator of the registered stage.
     /// </summary>
     public TonemapType Tonemap
     {
@@ -57,13 +36,16 @@ public class PluginHDR : BaseEnginePlugin
                 return;
             }
             _tonemapType = value;
-            ApplyCurrentTonemap();
+            if (_stage != null)
+            {
+                _stage.Operator = value;
+            }
         }
     }
 
     /// <summary>
-    /// Reinhard tone mapping data. If the current <see cref="Tonemap"/> is <see cref="TonemapType.Reinhard"/>,
-    /// it updates the GPU buffer immediately.
+    /// Reinhard tone mapping data. Uploaded to the GPU immediately while
+    /// <see cref="Tonemap"/> is <see cref="TonemapType.Reinhard"/>.
     /// </summary>
     public ReinhardTonemapData ReinhardData
     {
@@ -71,16 +53,16 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _reinhardData = value;
-            if (_tonemapType == TonemapType.Reinhard)
+            if (_stage != null)
             {
-                _dataBuffer?.UpdateBuffer(_reinhardData);
+                _stage.ReinhardData = value;
             }
         }
     }
 
     /// <summary>
-    /// Filmic tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.Filmic"/>,
-    /// it updates the GPU buffer immediately.
+    /// Filmic tone mapping parameters. Uploaded to the GPU immediately while
+    /// <see cref="Tonemap"/> is <see cref="TonemapType.Filmic"/>.
     /// </summary>
     public FilmicTonemapData FilmicData
     {
@@ -88,16 +70,16 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _filmicData = value;
-            if (_tonemapType == TonemapType.Filmic)
+            if (_stage != null)
             {
-                _dataBuffer?.UpdateBuffer(_filmicData);
+                _stage.FilmicData = value;
             }
         }
     }
 
     /// <summary>
-    /// ACES tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.ACES"/>,
-    /// it updates the GPU buffer immediately.
+    /// ACES tone mapping parameters. Uploaded to the GPU immediately while
+    /// <see cref="Tonemap"/> is <see cref="TonemapType.ACES"/>.
     /// </summary>
     public ACESTonemapData ACESData
     {
@@ -105,16 +87,16 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _acesData = value;
-            if (_tonemapType == TonemapType.ACES)
+            if (_stage != null)
             {
-                _dataBuffer?.UpdateBuffer(_acesData);
+                _stage.ACESData = value;
             }
         }
     }
 
     /// <summary>
-    /// Neutral tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.Neutral"/>,
-    /// it updates the GPU buffer immediately.
+    /// Neutral tone mapping parameters. Uploaded to the GPU immediately while
+    /// <see cref="Tonemap"/> is <see cref="TonemapType.Neutral"/>.
     /// </summary>
     public NeutralTonemapData NeutralData
     {
@@ -122,16 +104,16 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _neutralData = value;
-            if (_tonemapType == TonemapType.Neutral)
+            if (_stage != null)
             {
-                _dataBuffer?.UpdateBuffer(_neutralData);
+                _stage.NeutralData = value;
             }
         }
     }
 
     /// <summary>
-    /// Uncharted 2 filmic tone mapping data. If the current <see cref="Tonemap"/> is <see cref="TonemapType.Uncharted2"/>,
-    /// it updates the GPU buffer immediately.
+    /// Uncharted 2 filmic tone mapping data. Uploaded to the GPU immediately while
+    /// <see cref="Tonemap"/> is <see cref="TonemapType.Uncharted2"/>.
     /// </summary>
     public Uncharted2TonemapData Uncharted2Data
     {
@@ -139,16 +121,16 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _uncharted2Data = value;
-            if (_tonemapType == TonemapType.Uncharted2)
+            if (_stage != null)
             {
-                _dataBuffer?.UpdateBuffer(_uncharted2Data);
+                _stage.Uncharted2Data = value;
             }
         }
     }
 
     /// <summary>
-    /// AgX tone mapping parameters. If the current <see cref="Tonemap"/> is <see cref="TonemapType.AgX"/>,
-    /// it updates the GPU buffer immediately.
+    /// AgX tone mapping parameters. Uploaded to the GPU immediately while
+    /// <see cref="Tonemap"/> is <see cref="TonemapType.AgX"/>.
     /// </summary>
     public AgXTonemapData AgXData
     {
@@ -156,9 +138,9 @@ public class PluginHDR : BaseEnginePlugin
         set
         {
             _agxData = value;
-            if (_tonemapType == TonemapType.AgX)
+            if (_stage != null)
             {
-                _dataBuffer?.UpdateBuffer(_agxData);
+                _stage.AgXData = value;
             }
         }
     }
@@ -170,14 +152,7 @@ public class PluginHDR : BaseEnginePlugin
     public ReinhardTonemapData Data
     {
         get => _reinhardData;
-        set
-        {
-            _reinhardData = value;
-            if (_tonemapType == TonemapType.Reinhard)
-            {
-                _dataBuffer?.UpdateBuffer(_reinhardData);
-            }
-        }
+        set => ReinhardData = value;
     }
 
     public PluginHDR()
@@ -198,87 +173,26 @@ public class PluginHDR : BaseEnginePlugin
     }
 
     /// <summary>
-    /// Called after engine initialization. Sets up the tone mapping material on the main HDR pass.
+    /// Called after engine initialization. Registers the tone mapping stage on the main pipeline.
     /// </summary>
-    public unsafe override void OnPostInitialize(GameEngine engine)
+    public override void OnPostInitialize(GameEngine engine)
     {
-        _engine = engine;
-        ApplyCurrentTonemap();
-    }
-
-    /// <summary>
-    /// Dispose internal GPU resources.
-    /// </summary>
-    public override void Dispose()
-    {
-        _shader?.Dispose();
-        _material?.Dispose();
-        _dataBuffer?.Dispose();
-    }
-
-    private unsafe void ApplyCurrentTonemap()
-    {
-        if (_engine == null)
-        {
-            return;
-        }
-
-        RenderingSystem rendering = _engine.RenderingSystem;
-        _shader = null;
-        _material = null;
-        _dataBuffer = null;
-
-        switch (_tonemapType)
-        {
-            case TonemapType.Reinhard:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ReinhardLuminanceTonemap);
-                _material = rendering.CreateMaterial(_shader);
-                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ReinhardTonemapData), "hdr_tonemap_data");
-                _dataBuffer.UpdateBuffer(_reinhardData);
-                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
-                break;
-            case TonemapType.Uncharted2:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Uncharted2Tonemap);
-                _material = rendering.CreateMaterial(_shader);
-                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(Uncharted2TonemapData), "hdr_tonemap_data");
-                _dataBuffer.UpdateBuffer(_uncharted2Data);
-                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
-                break;
-            case TonemapType.Linear:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Blit);
-                _material = rendering.CreateMaterial(_shader);
-                // No data buffer required for linear blit
-                break;
-            case TonemapType.Filmic:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_FilmicTonemap);
-                _material = rendering.CreateMaterial(_shader);
-                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(FilmicTonemapData), "hdr_tonemap_data");
-                _dataBuffer.UpdateBuffer(_filmicData);
-                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
-                break;
-            case TonemapType.ACES:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_ACESTonemap);
-                _material = rendering.CreateMaterial(_shader);
-                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(ACESTonemapData), "hdr_tonemap_data");
-                _dataBuffer.UpdateBuffer(_acesData);
-                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
-                break;
-            case TonemapType.Neutral:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_NeutralTonemap);
-                _material = rendering.CreateMaterial(_shader);
-                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(NeutralTonemapData), "hdr_tonemap_data");
-                _dataBuffer.UpdateBuffer(_neutralData);
-                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
-                break;
-            case TonemapType.AgX:
-                _shader = _engine.AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_AgXTonemap);
-                _material = rendering.CreateMaterial(_shader);
-                _dataBuffer = rendering.CreateGraphicsBuffer((uint)sizeof(AgXTonemapData), "hdr_tonemap_data");
-                _dataBuffer.UpdateBuffer(_agxData);
-                _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
-                break;
-        }
-
-        _engine.MainRenderTarget.SetAttachmentLayout(rendering.PreferredHDRPass, _material!);
+        BuiltInAssets assets = engine.BuiltInAssets;
+        _stage = new TonemapStage(
+            engine.RenderingSystem,
+            assets.Shader_ReinhardLuminanceTonemap,
+            assets.Shader_Uncharted2Tonemap,
+            assets.Shader_FilmicTonemap,
+            assets.Shader_ACESTonemap,
+            assets.Shader_NeutralTonemap,
+            assets.Shader_AgXTonemap);
+        _stage.Operator = _tonemapType;
+        _stage.ReinhardData = _reinhardData;
+        _stage.Uncharted2Data = _uncharted2Data;
+        _stage.FilmicData = _filmicData;
+        _stage.ACESData = _acesData;
+        _stage.NeutralData = _neutralData;
+        _stage.AgXData = _agxData;
+        engine.MainPipeline.PostProcess.Add(_stage);
     }
 }

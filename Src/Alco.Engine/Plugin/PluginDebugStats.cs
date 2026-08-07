@@ -11,31 +11,35 @@ public class PluginDebugStats : BaseEnginePlugin
     private class DebugStatsSystem : BaseEngineSystem
     {
         private readonly DebugStatsRenderer _renderer;
-        private readonly ViewRenderTarget _renderTarget;
+        private readonly ViewPresenter _presenter;
 
         public override int Order => 2000;
 
-        public DebugStatsSystem(DebugStatsRenderer renderer, ViewRenderTarget renderTarget)
+        public DebugStatsSystem(DebugStatsRenderer renderer, ViewPresenter presenter)
         {
             _renderer = renderer;
-            _renderTarget = renderTarget;
+            _presenter = presenter;
 
-            renderTarget.OnResize += OnRenderTargetResize;
+            _presenter.OnResize += OnViewResize;
         }
 
-        public override void OnEndFrame(float deltaTime)
+        /// <summary>
+        /// Submits the accumulated stats into the scene texture, before the pipeline's
+        /// post-process chain resolves it into the swapchain.
+        /// </summary>
+        public override void OnPostUpdate(float deltaTime)
         {
             DebugStats.CheckAndSubmit();
         }
 
-        private void OnRenderTargetResize(uint2 size)
+        private void OnViewResize(uint2 size)
         {
             _renderer.SetResolution(size.X, size.Y);
         }
 
         public override void Dispose()
         {
-            _renderTarget.OnResize -= OnRenderTargetResize;
+            _presenter.OnResize -= OnViewResize;
             _renderer.Dispose();
             DebugStats.Reset();
         }
@@ -49,10 +53,9 @@ public class PluginDebugStats : BaseEnginePlugin
 
         Shader shaderText = builtInAssets.Shader_Text;
         Shader shaderSprite = builtInAssets.Shader_Sprite;
-        Shader ShaderBlit = builtInAssets.Shader_Blit;
         Font font = builtInAssets.Font_Default;
 
-        DebugStatsRenderer renderer = new(engine.Input, engine.MainView, engine.MainView.Size.X, engine.MainView.Size.Y, engine.MainRenderTarget, engine.RenderingSystem, shaderText, shaderSprite);
+        DebugStatsRenderer renderer = new(engine.Input, engine.MainView, engine.MainView.Size.X, engine.MainView.Size.Y, engine.MainPipeline, engine.RenderingSystem, shaderText, shaderSprite);
         DebugStatsStyle style = new DebugStatsStyle
         {
             Font = font,
@@ -76,6 +79,6 @@ public class PluginDebugStats : BaseEnginePlugin
 
 
         DebugStats.Initialize(renderer, style);
-        engine.AddSystem(new DebugStatsSystem(renderer, engine.MainRenderTarget));
+        engine.AddSystem(new DebugStatsSystem(renderer, engine.MainPresenter));
     }
 }

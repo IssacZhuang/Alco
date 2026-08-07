@@ -101,7 +101,7 @@ public unsafe abstract class View : AutoDisposable
     public abstract GPUSwapchain? Swapchain { get; }
 
     /// <summary>
-    /// The view resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="ViewRenderTarget.OnResize"/> for safe deletion.
+    /// The view resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="ViewPresenter.OnResize"/> for safe deletion.
     /// </summary>
     public event Action<uint2> OnResize
     {
