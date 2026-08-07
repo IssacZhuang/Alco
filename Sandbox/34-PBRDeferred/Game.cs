@@ -65,6 +65,7 @@ public class Game : GameEngine
     // Scene materials owned by the game (created via the pipeline's material factory).
     private GraphicsMaterial? _proceduralMaterial;
     private GraphicsMaterial[]? _bistroMaterials;
+    private GraphicsMaterial[]? _bistroShadowMaterials;
 
     // Static geometry recorded once into render bundles and replayed every frame
     // (re-recorded while Bistro textures stream in, or when baked parameters change).
@@ -266,7 +267,9 @@ public class Game : GameEngine
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
             gbufferTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"),
-            shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"));
+            shadowTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"),
+            shadowCutoutShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthCutout.hlsl"),
+            shadowCutoutTangentShader: AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthCutoutTangent.hlsl"));
 
         // Materials created by the pipeline factory bind this camera; the sandbox
         // drives its own camera (RenderingSystem.MainCamera is not set by sandboxes).
@@ -292,12 +295,17 @@ public class Game : GameEngine
             // One game-owned G-buffer material per glTF material. Textures still
             // streaming in start as the fallbacks and are synced in RenderBistroFrame.
             _bistroMaterials = new GraphicsMaterial[_bistro.Materials.Count];
+            // One cutout shadow material per glTF material so alpha-tested meshes
+            // (foliage, fences, etc.) cast correctly shaped shadows.
+            _bistroShadowMaterials = new GraphicsMaterial[_bistro.Materials.Count];
             for (int i = 0; i < _bistroMaterials.Length; i++)
             {
                 ModelMaterial material = _bistro.Materials[i];
                 _bistroMaterials[i] = _pipeline.CreateGBufferTangentMaterial(
                     material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
                     material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
+                _bistroShadowMaterials[i] = _pipeline.CreateShadowCutoutTangentMaterial(
+                    material.AlbedoTexture, material.DoubleSided, $"bistro_shadow_{material.Name}");
             }
             _bistroStreaming = !_bistro.LoadingCompletion.IsCompleted;
             BuildBistroPointLights();
@@ -955,10 +963,22 @@ public class Game : GameEngine
         if (_bistro != null)
         {
             IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
+            IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
             for (int i = 0; i < drawItems.Count; i++)
             {
                 ModelDrawItem item = drawItems[i];
-                _pipeline.DrawShadowTangent(target, item.Mesh, item.World, cascade);
+                ModelMaterial material = materials[item.MaterialIndex];
+                float cutoff = GetAlphaCutoff(material);
+                if (cutoff > 0.0f)
+                {
+                    _pipeline.DrawShadowCutoutTangent(target, item.Mesh,
+                        _bistroShadowMaterials![item.MaterialIndex], item.World,
+                        cutoff, material.BaseColorFactor.W, cascade);
+                }
+                else
+                {
+                    _pipeline.DrawShadowTangent(target, item.Mesh, item.World, cascade);
+                }
             }
             return;
         }
@@ -1142,6 +1162,7 @@ public class Game : GameEngine
             _pipeline.SetGBufferTangentMaterialTextures(_bistroMaterials![i],
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
+            _pipeline.SetShadowCutoutMaterialTextures(_bistroShadowMaterials![i], material.AlbedoTexture);
         }
     }
 

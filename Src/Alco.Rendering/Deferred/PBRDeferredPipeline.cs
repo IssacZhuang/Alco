@@ -80,12 +80,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <c>Constants</c> struct in ShadowDepth.hlsl exactly. The per-cascade light
     /// view-projection matrices are read from the <c>_data</c> uniform buffer instead,
     /// so the constants stay static for static geometry (render-bundle friendly).
+    /// <para>For the cutout variants (ShadowDepthCutout.hlsl / ShadowDepthCutoutTangent.hlsl),
+    /// <see cref="Params"/>.y carries the alpha cutoff and <see cref="Params"/>.z carries
+    /// the base-color alpha multiplier; both are ignored by the opaque shaders.</para>
     /// </summary>
     public struct ShadowDrawConstants
     {
         /// <summary>The world transform of the mesh.</summary>
         public Matrix4x4 Model;
-        /// <summary>x=the shadow cascade index to project into, yzw are unused.</summary>
+        /// <summary>x=the shadow cascade index, y=alphaCutoff (cutout only), z=baseColorAlpha (cutout only), w unused.</summary>
         public Vector4 Params;
     }
 
@@ -197,6 +200,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     private readonly Shader _gbufferShader;
     private readonly Shader? _gbufferTangentShader;
+    private readonly Shader? _shadowCutoutShader;
+    private readonly Shader? _shadowCutoutTangentShader;
     private readonly GraphicsMaterial _shadowMaterial;
     private readonly GraphicsMaterial? _shadowTangentMaterial;
     private readonly GraphicsMaterial _lightingMaterial;
@@ -503,6 +508,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling <see cref="CreateGBufferTangentMaterial"/> for normal-mapped materials.</param>
     /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="DrawShadowTangent"/> for tangent-bearing meshes.</param>
+    /// <param name="shadowCutoutShader">Optional cutout shadow depth shader (ShadowDepthCutout.hlsl) enabling <see cref="CreateShadowCutoutMaterial"/> and <see cref="DrawShadowCutout"/> for alpha-tested meshes.</param>
+    /// <param name="shadowCutoutTangentShader">Optional tangent-layout cutout shadow depth shader (ShadowDepthCutoutTangent.hlsl) enabling <see cref="CreateShadowCutoutTangentMaterial"/> and <see cref="DrawShadowCutoutTangent"/> for alpha-tested tangent meshes.</param>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
         Shader gbufferShader,
@@ -513,7 +520,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         uint width = 1280,
         uint height = 720,
         Shader? gbufferTangentShader = null,
-        Shader? shadowTangentShader = null)
+        Shader? shadowTangentShader = null,
+        Shader? shadowCutoutShader = null,
+        Shader? shadowCutoutTangentShader = null)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -549,6 +558,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
         _gbufferShader = gbufferShader;
         _gbufferTangentShader = gbufferTangentShader;
+        _shadowCutoutShader = shadowCutoutShader;
+        _shadowCutoutTangentShader = shadowCutoutTangentShader;
 
         _shadowDataBuffer = rendering.CreateGraphicsValueBuffer<ShadowCascadeData>("pbr_shadow_data");
 
@@ -812,6 +823,107 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         }
         target.DrawWithConstant(mesh, _shadowTangentMaterial,
             new ShadowDrawConstants { Model = model, Params = new Vector4(cascadeIndex, 0.0f, 0.0f, 0.0f) });
+    }
+
+    /// <summary>
+    /// Create a caller-owned cutout shadow material (ShadowDepthCutout.hlsl) with the
+    /// given albedo texture. Use <see cref="DrawShadowCutout"/> to draw meshes with this
+    /// material; alpha-tested fragments are discarded so cutout meshes cast correctly
+    /// shaped shadows. The material binds the per-frame shadow data buffer internally.
+    /// </summary>
+    /// <param name="albedoTexture">The albedo texture whose alpha channel drives the cutout; null binds the shared white texture (opaque).</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="name">The material name for debugging.</param>
+    /// <returns>The caller-owned cutout shadow material.</returns>
+    /// <exception cref="InvalidOperationException">The pipeline was created without a cutout shadow shader.</exception>
+    public GraphicsMaterial CreateShadowCutoutMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_material")
+    {
+        if (_shadowCutoutShader == null)
+        {
+            throw new InvalidOperationException(
+                "CreateShadowCutoutMaterial requires the pipeline to be created with a cutout shadow shader.");
+        }
+        var material = _rendering.CreateMaterial(_shadowCutoutShader, name);
+        material.DepthStencilState = DepthStencilState.Write;
+        material.RasterizerState = new RasterizerState(FillMode.Solid,
+            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
+        return material;
+    }
+
+    /// <summary>
+    /// Create a caller-owned tangent-layout cutout shadow material (ShadowDepthCutoutTangent.hlsl).
+    /// Same as <see cref="CreateShadowCutoutMaterial"/> but for meshes with tangent vertex layout.
+    /// </summary>
+    /// <param name="albedoTexture">The albedo texture whose alpha channel drives the cutout; null binds the shared white texture (opaque).</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="name">The material name for debugging.</param>
+    /// <returns>The caller-owned cutout shadow material.</returns>
+    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent cutout shadow shader.</exception>
+    public GraphicsMaterial CreateShadowCutoutTangentMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_tangent_material")
+    {
+        if (_shadowCutoutTangentShader == null)
+        {
+            throw new InvalidOperationException(
+                "CreateShadowCutoutTangentMaterial requires the pipeline to be created with a tangent cutout shadow shader.");
+        }
+        var material = _rendering.CreateMaterial(_shadowCutoutTangentShader, name);
+        material.DepthStencilState = DepthStencilState.Write;
+        material.RasterizerState = new RasterizerState(FillMode.Solid,
+            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
+        return material;
+    }
+
+    /// <summary>
+    /// (Re)bind the albedo texture slot of a cutout shadow material created by
+    /// <see cref="CreateShadowCutoutMaterial"/> or <see cref="CreateShadowCutoutTangentMaterial"/>.
+    /// Use when textures stream in asynchronously after the material was created
+    /// (render bundles recorded with the material must be re-recorded afterwards).
+    /// </summary>
+    /// <param name="material">The material to update.</param>
+    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
+    public void SetShadowCutoutMaterialTextures(GraphicsMaterial material, Texture2D? albedoTexture)
+    {
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+    }
+
+    /// <summary>
+    /// Draw a mesh into the shadow map with alpha testing. Must be recorded into a shadow
+    /// render bundle or called on <see cref="ShadowContext"/> inside the shadow pass.
+    /// </summary>
+    /// <param name="target">The render context to record into or draw with.</param>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The cutout shadow material (created by <see cref="CreateShadowCutoutMaterial"/>, owned by the caller).</param>
+    /// <param name="model">The world transform of the mesh.</param>
+    /// <param name="alphaCutoff">Alpha test threshold; fragments with albedo alpha below this are discarded.</param>
+    /// <param name="baseColorAlpha">The base-color alpha factor multiplied with the texture alpha before testing.</param>
+    /// <param name="cascadeIndex">The cascade whose light view-projection is used.</param>
+    public void DrawShadowCutout(IRenderContext target, in Mesh mesh, GraphicsMaterial material, in Matrix4x4 model,
+        float alphaCutoff, float baseColorAlpha, int cascadeIndex)
+    {
+        target.DrawWithConstant(mesh, material,
+            new ShadowDrawConstants { Model = model, Params = new Vector4(cascadeIndex, alphaCutoff, baseColorAlpha, 0.0f) });
+    }
+
+    /// <summary>
+    /// Draw a tangent-bearing mesh into the shadow map with alpha testing. Must be recorded
+    /// into a shadow render bundle or called on <see cref="ShadowContext"/> inside the shadow pass.
+    /// </summary>
+    /// <param name="target">The render context to record into or draw with.</param>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The cutout shadow material (created by <see cref="CreateShadowCutoutTangentMaterial"/>, owned by the caller).</param>
+    /// <param name="model">The world transform of the mesh.</param>
+    /// <param name="alphaCutoff">Alpha test threshold; fragments with albedo alpha below this are discarded.</param>
+    /// <param name="baseColorAlpha">The base-color alpha factor multiplied with the texture alpha before testing.</param>
+    /// <param name="cascadeIndex">The cascade whose light view-projection is used.</param>
+    public void DrawShadowCutoutTangent(IRenderContext target, in Mesh mesh, GraphicsMaterial material, in Matrix4x4 model,
+        float alphaCutoff, float baseColorAlpha, int cascadeIndex)
+    {
+        target.DrawWithConstant(mesh, material,
+            new ShadowDrawConstants { Model = model, Params = new Vector4(cascadeIndex, alphaCutoff, baseColorAlpha, 0.0f) });
     }
 
     /// <summary>
