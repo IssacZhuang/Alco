@@ -487,7 +487,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// Gets or sets the maximum world-space cone-trace distance. Beyond this
     /// distance, cones return no radiance, limiting artifacts from far geometry.
     /// </summary>
-    public float TraceMaxDistance { get; set; } = 12.0f;
+    public float TraceMaxDistance { get; set; } = 20.0f;
 
     /// <summary>
     /// Gets or sets the sky-light multiplier for voxel GI. Scales the sky

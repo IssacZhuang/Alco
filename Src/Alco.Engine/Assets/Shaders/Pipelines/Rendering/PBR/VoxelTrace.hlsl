@@ -734,9 +734,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Specular reflection: SSR is always active. The voxel specular cone is
     // opt-in via VOXEL_SPECULAR_CONE — when enabled it provides a low-frequency
     // fallback that blends with SSR; when disabled SSR is the sole source.
-    // GGX VNDF importance sampling perturbs the reflection direction per-frame
-    // so the temporal accumulation converges toward a correct glossy lobe.
-    float3 reflectDirection = reflect(-V, detailNormal);  // DEBUG: skip GGX for testing
+    float3 reflectDirection = reflect(-V, detailNormal);
     float3 specular = 0.0;
 
 #ifdef VOXEL_SPECULAR_CONE
@@ -749,8 +747,30 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 ssrAccumulated = float4(0.0, 0.0, 0.0, 0.0);
     if (roughness < 0.65)
     {
+        // GGX VNDF importance sampling: perturb the mirror reflection for SSR
+        // so temporal accumulation converges toward a correct glossy lobe.
+        float3 ssrDirection = reflectDirection;
+        if (roughness > 0.001)
+        {
+            float3 N = detailNormal;
+            float3 up = abs(N.y) < 0.999 ? float3(0, 1, 0) : float3(1, 0, 0);
+            float3 T = normalize(cross(up, N));
+            float3 B = cross(N, T);
+            float3 Ve = float3(dot(V, T), dot(V, B), dot(V, N));
+
+            float alpha = roughness * roughness;
+            uint frameIdx = uint(giFrameParams.x);
+            float2 rand = float2(
+                SsrIGN(gbufferPixel, frameIdx),
+                frac(SsrIGN(gbufferPixel, frameIdx) * 7.1));
+
+            float3 Hh = SampleGGXVNDF(Ve, alpha, alpha, rand.x, rand.y);
+            float3 H = normalize(Hh.x * T + Hh.y * B + Hh.z * N);
+            ssrDirection = reflect(-V, H);
+        }
+
         float4 screenReflection = TraceScreenSpaceReflection(
-            worldPosition, reflectDirection, roughness, gbufferUV);
+            worldPosition, ssrDirection, roughness, gbufferUV);
 
         // Temporal reprojection: find where this surface was last frame.
         float4 ssrHistory = float4(0.0, 0.0, 0.0, 0.0);
