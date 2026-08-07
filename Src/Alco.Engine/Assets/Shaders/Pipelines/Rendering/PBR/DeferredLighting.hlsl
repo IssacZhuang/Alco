@@ -1,5 +1,4 @@
 #include "Shaders/Libs/Core.hlsli"
-#include "Shaders/Libs/Atmosphere.hlsli"
 
 // Deferred lighting pass shader for the PBR pipeline.
 // Samples the G-buffer, evaluates a GGX PBR BRDF with a directional sun
@@ -7,6 +6,7 @@
 // an ambient term (sky/probe baseline modulated by voxel visibility plus
 // traced bounce light) and a physically-based procedural sky (single
 // scattering atmosphere plus sun disc and stars) for empty pixels.
+// Shared PBR functions are in PBRCommon.hlsl (included after declarations).
 
 struct Vertex
 {
@@ -46,13 +46,13 @@ DEFINE_UNIFORM(0, _data)
 
 DEFINE_TEX2D_SAMPLE(1, _albedo);
 
-// Point lights stored in a StructuredBuffer (not cbuffer) so the count is
-// bounded by GPU memory, not by cbuffer size limits. xyz = position, w = range.
+// Point light storage buffer element (defined here before DEFINE_STORAGE).
 struct PointLightData
 {
     float4 positionRange;    // xyz = world-space position, w = cutoff radius
     float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
 };
+
 DEFINE_STORAGE(1, PointLightData, _pointLights);
 
 DEFINE_TEX2D_SAMPLE(1, _normal);
@@ -69,6 +69,10 @@ DEFINE_TEX2D_SAMPLE(1, _giSpecular);
 // Screen-space ambient occlusion from an AO render plugin (full-resolution,
 // white = unoccluded). The pipeline binds white when no AO plugin is active.
 DEFINE_TEX2D_SAMPLE(1, _aoTexture);
+
+// Shared PBR functions (BRDF, shadow sampling, sky, environment). Must come
+// after all DEFINE_* declarations so the globals are visible to the functions.
+#include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsl"
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -98,225 +102,9 @@ float ReconstructLinearDepth(V2F input)
     return abs(rcp(reciprocalClipW));
 }
 
-float DistributionGGX(float NdotH, float roughness)
-{
-    float a = roughness * roughness;
-    float a2 = a * a;
-    float d = NdotH * NdotH * (a2 - 1.0) + 1.0;
-    return a2 / (PI * d * d + 1e-6);
-}
-
-float GeometrySchlickGGX(float NdotX, float roughness)
-{
-    float r = roughness + 1.0;
-    float k = r * r / 8.0;
-    return NdotX / (NdotX * (1.0 - k) + k + 1e-6);
-}
-
-float3 FresnelSchlick(float3 F0, float VdotH)
-{
-    return F0 + (1.0 - F0) * pow(1.0 - VdotH, 5.0);
-}
-
-// Returns (diffuse + specular) * NdotL for one light.
-float3 EvaluatePBR(float3 N, float3 V, float3 L, float3 albedo, float metallic, float roughness)
-{
-    float3 H = normalize(V + L);
-    float NdotL = max(dot(N, L), 0.0);
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotH = max(dot(N, H), 0.0);
-    float VdotH = max(dot(V, H), 0.0);
-
-    float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
-    float3 F = FresnelSchlick(F0, VdotH);
-    float D = DistributionGGX(NdotH, roughness);
-    float G = GeometrySchlickGGX(NdotL, roughness) * GeometrySchlickGGX(NdotV, roughness);
-
-    float3 specular = D * G * F / (4.0 * NdotL * NdotV + 1e-6);
-    float3 diffuse = (1.0 - F) * (1.0 - metallic) * albedo / PI;
-
-    return (diffuse + specular) * NdotL;
-}
-
-// Pick the shadow cascade for a radial camera distance; -1 when beyond the last split.
-int SelectCascade(float viewDistance)
-{
-    if (viewDistance < cascadeSplits.x) return 0;
-    if (viewDistance < cascadeSplits.y) return 1;
-    if (viewDistance < cascadeSplits.z) return 2;
-    if (viewDistance < cascadeSplits.w) return 3;
-    return -1;
-}
-
-// Interleaved Gradient Noise (Jorge Jimenez, "Next Generation Post-Processing
-// in Call of Duty: Advanced Warfare", 2014) — cheap deterministic hash that is
-// temporally stable per-pixel, ideal for per-pixel rotation of the Poisson disk.
-float InterleavedGradientNoise(float2 pix)
-{
-    return frac(52.9829189 * frac(dot(pix, float2(0.06711056, 0.00583715))));
-}
-
-// 4-tap Poisson disk (first four taps of the 16-tap set from GPU Gems Ch. 12),
-// rotated per-pixel by IGN so neighbouring pixels see different arrangements,
-// dithering the regular-grid aliasing of a fixed kernel.
-static const float2 poissonDisk[4] = {
-    float2(-0.94201624, -0.39906216),
-    float2( 0.94558609, -0.76890725),
-    float2(-0.09418410, -0.92938870),
-    float2( 0.34495938,  0.29387733),
-};
-
-// 4-tap rotated Poisson disk PCF against the shadow map cascade atlas.
-// Each SampleCmpLevelZero tap compares (ndc.z - bias) <= texelDepth and, with the
-// linear comparison sampler, already blends the four nearest texels — so 4 taps
-// effectively cover 16 texels, matching the old 9-tap 3×3 grid at half the cost.
-float SampleShadowMap(float3 worldPosition, float3 N, float3 L, float2 screenPos, int cascade)
-{
-    // Normal offset bias: push the receiver along its normal by one world texel
-    // of this cascade, which removes most acne without peter-panning.
-    float texelWorld = cascadeTexelSizes[cascade];
-    float3 biasedWorld = worldPosition + N * texelWorld;
-
-    float4 clip = mul(sunViewProjection[cascade], float4(biasedWorld, 1.0));
-    float3 ndc = clip.xyz / clip.w;
-    if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
-    {
-        return 1.0;
-    }
-
-    // Map the base UV into the cascade's atlas quadrant (cascade c occupies
-    // quadrant ((c%2), (c/2)) of the 2x2 atlas).
-    float2 quadrantOffset = float2((cascade % 2) * 0.5, (cascade / 2) * 0.5);
-    float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
-
-    // Slope-scaled depth bias on top of the normal offset.
-    float NdotL = saturate(dot(N, L));
-    float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
-    float compareDepth = ndc.z - bias;
-
-    // Rotated 4-tap Poisson disk with IGN dithering. Clamp taps inside the
-    // quadrant so they never bleed into a neighbouring cascade.
-    float texelAtlas = 0.5 / pbrParams.z;
-    float2 quadrantMin = quadrantOffset + texelAtlas * 0.5;
-    float2 quadrantMax = quadrantOffset + 0.5 - texelAtlas * 0.5;
-
-    float angle = InterleavedGradientNoise(screenPos) * 6.2831853;
-    float s, c;
-    sincos(angle, s, c);
-    float2x2 rotation = float2x2(c, -s, s, c);
-
-    static const float spread = 1.5; // Poisson disk radius in texels
-    float shadow = 0.0;
-    [unroll]
-    for (int i = 0; i < 4; i++)
-    {
-        float2 offset = mul(rotation, poissonDisk[i]) * texelAtlas * spread;
-        float2 uv = clamp(shadowUV + offset, quadrantMin, quadrantMax);
-        shadow += SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
-    }
-    return shadow * 0.25;
-}
-
-// Sun shadow with cascade blending: within the last fraction of each cascade
-// band the next cascade is cross-faded in (beyond the last split the shadow
-// fades to unshadowed). Splits are radial distances anchored to the camera, so
-// they sweep across the scene when the camera moves; without the blend, a
-// receiver crossing a split hard-switches between two cascades whose texel
-// grids and biases disagree, which looks like the shadow jumping.
-float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 screenPos, float viewDistance, int cascade)
-{
-    if (cascade < 0)
-    {
-        return 1.0;
-    }
-
-    float shadow = SampleShadowMap(worldPosition, N, L, screenPos, cascade);
-
-    float splitEnd = cascadeSplits[cascade];
-    float splitStart = cascade == 0 ? 0.0 : cascadeSplits[cascade - 1];
-    float blendWidth = (splitEnd - splitStart) * 0.1;
-    float blend = saturate((viewDistance - (splitEnd - blendWidth)) / blendWidth);
-    if (blend > 0.0)
-    {
-        float nextShadow = cascade < 3 ? SampleShadowMap(worldPosition, N, L, screenPos, cascade + 1) : 1.0;
-        shadow = lerp(shadow, nextShadow, blend);
-    }
-    return shadow;
-}
-
-// Physically-based procedural sky: single-scattering atmosphere with a sun
-// disc (tinted by the same atmosphere on the C# side) and a star field.
-float3 GetSkyColor(float3 direction)
-{
-    float3 dirToSun = normalize(-sunDirection.xyz);
-    float3 sky = AtmosphereSkyRadiance(direction, dirToSun, skyParams, skyParams2, 16, 8);
-    sky += AtmosphereStars(direction, dirToSun, skyParams2.x);
-
-    if (pbrParams.w > 0.5)
-    {
-        float sunDot = dot(normalize(direction), dirToSun);
-        // Sun disc visual size (params4.x) and brightness (params4.y) are
-        // independent of the scene lighting intensity so the visible sun can
-        // be tuned without affecting PBR shading.
-        float cosRadius = params4.x;
-        float edgeWidth = max((1.0 - cosRadius) * 0.2, 1e-7);
-        // Core disc with a soft anti-aliased edge.
-        float disc = smoothstep(cosRadius - edgeWidth, cosRadius, sunDot);
-        // Faint atmospheric corona extending ~3.5x the disc radius.
-        float coronaRange = (1.0 - cosRadius) * 3.5;
-        float corona = smoothstep(1.0 - coronaRange, cosRadius, sunDot) - disc;
-        sky += sunColorAndIntensity.rgb * params4.y * (disc + corona * 0.08);
-    }
-    return sky;
-}
-
-// sRGB to linear RGB decoding (the albedo target is RGBA8Unorm, manually encoded).
-float3 DecodeSRGB(float3 color)
-{
-    float3 lo = color / 12.92;
-    float3 hi = pow(max((color + 0.055) / 1.055, 0.0), 2.4);
-    return lerp(hi, lo, step(color, float3(0.04045, 0.04045, 0.04045)));
-}
-
-// Geometric specular antialiasing (Karis): the screen-space variance of the
-// G-buffer normal approximates the sub-pixel normal distribution; widening the
-// GGX lobe by the corresponding kernel roughness removes the specular sparkle
-// that appears on normal-mapped surfaces at a distance.
-float GeometricSpecularAA(float3 N, float roughness)
-{
-    float3 dNdx = ddx(N);
-    float3 dNdy = ddy(N);
-    float variance = (dot(dNdx, dNdx) + dot(dNdy, dNdy)) * 0.5;
-    float kernelRoughness2 = min(2.0 * variance, 0.18);
-    return saturate(roughness + sqrt(kernelRoughness2));
-}
-
-// Analytic approximation of the split-sum BRDF integral (Lazarov), used to
-// weight the cone-traced indirect specular without a BRDF LUT texture.
-float3 EnvBRDFApprox(float3 F0, float roughness, float NdotV)
-{
-    const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
-    const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
-    float4 r = roughness * c0 + c1;
-    float a004 = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
-    float2 AB = float2(-1.04, 1.04) * a004 + r.zw;
-    return F0 * AB.x + AB.y;
-}
-
-// Unit-albedo Lambert response for the CPU-filtered sky gradient. The
-// coefficients integrate L(z) = lerp(horizon, zenith, z^0.6) over the visible
-// upper hemisphere and divide by PI. Unlike a raw sky lookup at the normal,
-// this is low frequency and cannot make diffuse normal maps reflect the sky.
-float3 EvaluateDiffuseSky(float3 normal)
-{
-    float3 sideResponse = skyHorizonColor.rgb * 0.218505
-        + skyZenithColor.rgb * 0.281495;
-    float3 upResponse = skyHorizonColor.rgb * 0.230769
-        + skyZenithColor.rgb * 0.769231;
-    float upFacing = saturate(normal.z);
-    float downFacing = saturate(-normal.z);
-    return lerp(sideResponse, upResponse, upFacing) * (1.0 - downFacing);
-}
+// Shared PBR functions (DistributionGGX, EvaluatePBR, shadow sampling, sky,
+// EnvBRDFApprox, EvaluateDiffuseSky, GeometricSpecularAA, EvaluatePointLights)
+// are provided by PBRCommon.hlsl included above.
 
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
@@ -383,41 +171,8 @@ float4 MainPS(V2F input) : SV_TARGET
         return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
 
-    // Point lights (StructuredBuffer with per-light range / smooth attenuation).
-    {
-        uint lightCount = (uint)pbrParams.y;
-        [loop]
-        for (uint i = 0; i < lightCount; i++)
-        {
-            float4 posRange = _pointLights[i].positionRange;
-            float4 colInt   = _pointLights[i].colorIntensity;
-            if (colInt.w <= 0.0)
-            {
-                continue;
-            }
-
-            float3 toLight = posRange.xyz - worldPosition;
-            float dist = length(toLight);
-            if (posRange.w > 0.0 && dist > posRange.w)
-            {
-                continue;
-            }
-
-            // Smooth inverse-square falloff with range-based cutoff.
-            float attenuation = 1.0 / (dist * dist + 1.0);
-            if (posRange.w > 0.0)
-            {
-                float fallOff = saturate(1.0 - dist / posRange.w);
-                attenuation *= fallOff * fallOff;
-            }
-
-            float3 L = toLight / max(dist, 1e-6);
-            Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
-                * colInt.rgb
-                * colInt.w
-                * attenuation;
-        }
-    }
+    // Point lights (shared loop from PBRCommon.hlsl).
+    Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
 
     // Build the diffuse environment baseline independently of voxel GI. This is
     // the diffuse environment-probe accumulation: shadows only remove direct

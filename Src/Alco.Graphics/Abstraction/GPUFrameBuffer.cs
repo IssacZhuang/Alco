@@ -15,7 +15,8 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     public static readonly TextureUsage DepthAttachmentUsage =
     TextureUsage.ColorAttachment |
     TextureUsage.TextureBinding |
-    TextureUsage.Read;
+    TextureUsage.Read |
+    TextureUsage.Write;
 
     //it might be a dynamic frame buffer so the width and height might be changed
 

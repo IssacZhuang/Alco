@@ -460,6 +460,41 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     }
 
+    protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
+    {
+        WebGPUTexture nativeSrc = (WebGPUTexture)src;
+        WebGPUTexture nativeDst = (WebGPUTexture)dst;
+        WGPUTextureAspect wgpuAspect = WebGPUUtility.TextureAspectToWebGPU(aspect);
+
+        WGPUTexelCopyTextureInfo source = new WGPUTexelCopyTextureInfo
+        {
+            texture = nativeSrc.Native,
+            mipLevel = srcMipLevel,
+            origin = new WGPUOrigin3D { x = 0, y = 0, z = 0 },
+            aspect = wgpuAspect
+        };
+
+        WGPUTexelCopyTextureInfo destination = new WGPUTexelCopyTextureInfo
+        {
+            texture = nativeDst.Native,
+            mipLevel = dstMipLevel,
+            origin = new WGPUOrigin3D { x = 0, y = 0, z = 0 },
+            aspect = wgpuAspect
+        };
+
+        // Copy the full mip extent (adjusted for the source mip level).
+        uint mipWidth = nativeSrc.GetMipWidth(srcMipLevel);
+        uint mipHeight = nativeSrc.GetMipHeight(srcMipLevel);
+        WGPUExtent3D copySize = new WGPUExtent3D
+        {
+            width = mipWidth,
+            height = mipHeight,
+            depthOrArrayLayers = 1
+        };
+
+        wgpuCommandEncoderCopyTextureToTexture(_encoder, &source, &destination, &copySize);
+    }
+
     protected override void ExecuteBundleCore(GPURenderBundle bundle)
     {
         WebGPURenderBundle nativeBundle = (WebGPURenderBundle)bundle;

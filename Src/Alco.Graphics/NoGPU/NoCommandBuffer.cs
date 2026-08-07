@@ -174,6 +174,10 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
+    protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
+    {
+    }
+
     protected override void ResolveTimestampsCore(
         GPUTimestampQuerySet querySet,
         uint firstQuery,

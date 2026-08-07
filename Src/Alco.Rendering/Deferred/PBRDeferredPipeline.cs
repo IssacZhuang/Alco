@@ -149,6 +149,16 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private RenderTexture _gbufferRT;
     private readonly RenderTexture _shadowRT;
 
+    // Pipeline-internal forward RT: HDR color + depth. Lighting and forward
+    // transparency both render into here, then a final blit copies the result
+    // to the caller's target. This lets forward glass use hardware depth
+    // testing (the depth is pre-filled from the G-buffer via a native CopyTexture).
+    private readonly GPUAttachmentLayout _forwardLayout;
+    private RenderTexture _forwardRT;
+    private readonly GraphicsMaterial _compositeMaterial;
+    private readonly RenderContext _compositeContext;
+    private readonly GPUCommandBuffer _depthCopyCommand;
+
     private readonly GraphicsMaterial _lightingMaterial;
     private CameraPerspectiveBuffer? _camera;
 
@@ -160,6 +170,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     // and lighting passes. The pipeline binds their output textures to the
     // lighting material automatically after execution.
     private readonly List<IRenderPlugin> _plugins = new();
+
+    /// <summary>
+    /// Called inside <see cref="Render"/> after the G-buffer pass, before AfterGBuffer
+    /// plugins. Use this to submit per-frame dynamic data (e.g. voxel GI instances).
+    /// </summary>
+    public event Action? AfterGBufferCallback;
 
     // Cascade state computed by ComputeShadowCascades and consumed by both the
     // shadow pass and the lighting pass — no longer exposed to the caller.
@@ -195,6 +211,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly RenderContext _shadowContext;
     private readonly RenderContext _gbufferContext;
     private readonly RenderContext _lightingContext;
+    private readonly RenderContext _forwardContext;
 
     /// <summary>
     /// The G-buffer render texture (albedo+packed-roughness /
@@ -302,6 +319,24 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// Passed to <see cref="ShadowRenderer"/> so its materials can bind it.
     /// </summary>
     public GraphicsBuffer ShadowDataBuffer => _shadowDataBuffer;
+
+    /// <summary>
+    /// The deferred lighting data buffer (per-frame sun, sky, cascade and camera
+    /// constants). Shared with the forward renderer so it can evaluate the same PBR.
+    /// </summary>
+    public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer;
+
+    /// <summary>
+    /// The G-buffer render texture (albedo / normal / mrAO / emissive + depth).
+    /// The forward renderer reads its depth attachment for manual depth testing.
+    /// </summary>
+    public RenderTexture GBufferRenderTexture => _gbufferRT;
+
+    /// <summary>
+    /// The cascaded shadow map render texture. The forward renderer reads it for
+    /// shadow comparison sampling.
+    /// </summary>
+    public RenderTexture ShadowRenderTexture => _shadowRT;
 
     /// <summary>
     /// The live G-buffer render context for immediate (per-frame dynamic) draws.
@@ -519,6 +554,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         RenderingSystem rendering,
         string lightingShaderText,
         string lightingShaderName,
+        string blitShaderText,
         uint shadowMapSize = 2048,
         uint width = 1280,
         uint height = 720)
@@ -578,6 +614,28 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _shadowContext = rendering.CreateRenderContext("pbr_shadow_pass");
         _gbufferContext = rendering.CreateRenderContext("pbr_gbuffer_pass");
         _lightingContext = rendering.CreateRenderContext("pbr_lighting_pass");
+        _forwardContext = rendering.CreateRenderContext("pbr_forward_pass");
+
+        // Forward RT: HDR color + Depth32Float (must match the G-buffer depth format
+        // for native CopyTexture, which requires copy-compatible formats).
+        _forwardLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(rendering.PreferredHDRFormat)],
+            new DepthAttachment(PixelFormat.Depth32Float),
+            "pbr_forward_pass"));
+        _forwardRT = rendering.CreateRenderTexture(_forwardLayout, width, height, "pbr_forward");
+
+        // Composite material: blit forward RT color to the caller's target.
+        Shader blitShader = rendering.CreateShader(
+            blitShaderText, "Shaders/Pipelines/Utils/Blit.hlsl");
+        _compositeMaterial = rendering.CreateMaterial(blitShader);
+        _compositeMaterial.DepthStencilState = DepthStencilState.Default;
+        _compositeMaterial.RasterizerState = RasterizerState.CullNone;
+        _compositeMaterial.SetRenderTexture("_texture", _forwardRT, 0);
+
+        // Dedicated command buffer for the native G-buffer → forward RT depth copy.
+        _depthCopyCommand = _device.CreateCommandBuffer("pbr_depth_copy");
+
+        _compositeContext = rendering.CreateRenderContext("pbr_composite");
 
         // Register pipeline-internal counters once; the returned handles are used
         // for zero-allocation PushValue calls on the per-frame hot path.
@@ -636,18 +694,46 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         _gbufferRT.Dispose();
         _gbufferRT = _rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
+
+        // Recreate the pipeline-internal forward RT at the new resolution.
+        _forwardRT.Dispose();
+        _forwardRT = _rendering.CreateRenderTexture(_forwardLayout, width, height, "pbr_forward");
+
         for (int i = 0; i < _plugins.Count; i++)
         {
             _plugins[i].Resize(width, height);
         }
         RebindLightingTargets();
+
+        // Rebind composite material to the new forward RT.
+        _compositeMaterial.SetRenderTexture("_texture", _forwardRT, 0);
+    }
+
+    /// <summary>
+    /// Execute the complete deferred frame in the correct order: shadow cascades →
+    /// G-buffer → <see cref="AfterGBufferCallback"/> → AfterGBuffer plugins → deferred
+    /// lighting → forward transparency. This is the recommended single-call entry
+    /// point; the individual <c>Render*Pass</c> methods remain available for custom
+    /// pipelines or debugging.
+    /// </summary>
+    /// <param name="target">The HDR frame buffer to resolve lighting and blend
+    /// transparent objects into (typically the engine's main frame buffer).</param>
+    public void Render(GPUFrameBuffer target)
+    {
+        RenderShadowPass();
+        RenderGBufferPass();
+        AfterGBufferCallback?.Invoke();
+        ExecutePlugins(RenderInjectionPoint.AfterGBuffer);
+        RenderLighting(_forwardRT.FrameBuffer);
+        RenderForwardPass(_forwardRT.FrameBuffer);
+        CompositeToTarget(target);
     }
 
     /// <summary>
     /// The GPU buffer holding the point light array. Passed to plugins via
     /// <see cref="RenderPluginContext"/> automatically by <see cref="ExecutePlugins"/>.
     /// </summary>
-    internal GraphicsBuffer PointLightBuffer => _pointLightBuffer;
+    public GraphicsBuffer PointLightBuffer => _pointLightBuffer;
 
     /// <summary>
     /// Upload point lights to the GPU StructuredBuffer. Call once per frame before
@@ -942,6 +1028,62 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
+    /// Render transparent objects in a forward pass onto the given target (the
+    /// pipeline-internal forward RT after deferred lighting). First copies the
+    /// G-buffer depth into the forward RT so transparent objects are depth-tested
+    /// against opaque geometry by hardware. The existing color content is preserved.
+    /// Each registered scene renderer's <see cref="ISceneRenderer.OnRenderForward"/>
+    /// is called inside the pass.
+    /// </summary>
+    /// <param name="target">The frame buffer to blend transparent objects onto.</param>
+    public void RenderForwardPass(GPUFrameBuffer target)
+    {
+        // Skip the entire context Begin/End when no scene renderer has forward content.
+        bool hasForward = false;
+        for (int i = 0; i < _sceneRenderers.Count; i++)
+        {
+            if (_sceneRenderers[i].HasForwardContent)
+            {
+                hasForward = true;
+                break;
+            }
+        }
+        if (!hasForward)
+        {
+            return;
+        }
+
+        // Copy G-buffer depth into the forward RT via native CopyTexture so glass
+        // materials can use hardware depth testing (DepthStencilState.Read) instead
+        // of a manual shader-side discard.
+        _depthCopyCommand.Begin();
+        _depthCopyCommand.CopyTexture(
+            _gbufferRT.FrameBuffer.DepthStencil!,
+            target.DepthStencil!,
+            0, 0, TextureAspect.All);
+        _depthCopyCommand.End();
+        _rendering.ScheduleCommandBuffer(_depthCopyCommand);
+
+        _forwardContext.Begin(target);
+        for (int i = 0; i < _sceneRenderers.Count; i++)
+        {
+            _sceneRenderers[i].OnRenderForward(_forwardContext, target.AttachmentLayout);
+        }
+        _forwardContext.End();
+    }
+
+    /// <summary>
+    /// Blit the pipeline-internal forward RT color onto the caller's target frame buffer.
+    /// </summary>
+    /// <param name="target">The caller's frame buffer (e.g. the engine's main HDR target).</param>
+    private void CompositeToTarget(GPUFrameBuffer target)
+    {
+        _compositeContext.Begin(target);
+        _compositeContext.Draw(_fullScreenMesh, _compositeMaterial);
+        _compositeContext.End();
+    }
+
+    /// <summary>
     /// Resolve lighting, shadows and the sky into the target frame buffer
     /// (typically the engine's HDR main target). Assembles the GPU constant buffer
     /// from caller-set properties, camera data and internally tracked cascade state.
@@ -1007,6 +1149,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _shadowContext.Dispose();
             _gbufferContext.Dispose();
             _lightingContext.Dispose();
+            _forwardContext.Dispose();
             _lightingDataBuffer.Dispose();
             _shadowDataBuffer.Dispose();
             _pointLightBuffer.Dispose();

@@ -468,6 +468,23 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         CopyBufferToTextureCore(src, dst, mipLevel, offset, aspect);
     }
 
+    /// <summary>
+    /// Copy a region of one texture to another. Both textures must have a compatible
+    /// pixel format and the copy must be recorded outside any render/compute pass.
+    /// The source texture must have <see cref="TextureUsage.Read"/> (CopySrc) and the
+    /// destination must have <see cref="TextureUsage.Write"/> (CopyDst).
+    /// </summary>
+    /// <param name="src">The source texture.</param>
+    /// <param name="dst">The destination texture.</param>
+    /// <param name="srcMipLevel">The source mip level.</param>
+    /// <param name="dstMipLevel">The destination mip level.</param>
+    /// <param name="aspect">The texture aspect to copy (All / DepthOnly / StencilOnly).</param>
+    public void CopyTexture(GPUTexture src, GPUTexture dst, uint srcMipLevel = 0, uint dstMipLevel = 0, TextureAspect aspect = TextureAspect.All)
+    {
+        AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while CopyTexture, try start recording by calling GPUCommandBuffer.Begin()");
+        CopyTextureCore(src, dst, srcMipLevel, dstMipLevel, aspect);
+    }
+
 
 
     // need to be implemented for each backend
@@ -517,6 +534,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
     protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect);
+    protected abstract void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect);
     protected abstract void ResolveTimestampsCore(
         GPUTimestampQuerySet querySet,
         uint firstQuery,

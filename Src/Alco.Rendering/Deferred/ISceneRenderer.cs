@@ -17,6 +17,13 @@ namespace Alco.Rendering;
 public interface ISceneRenderer
 {
     /// <summary>
+    /// Whether this renderer has any forward-pass content to draw. The pipeline
+    /// uses this to skip the forward pass (and its depth-copy pre-pass) entirely
+    /// when no transparent objects are registered. Default is <c>false</c>.
+    /// </summary>
+    bool HasForwardContent => false;
+
+    /// <summary>
     /// Draw casters into one cascade of the shadow map. Called by the pipeline
     /// between <see cref="PBRDeferredPipeline.BeginShadowPass"/> and
     /// <see cref="PBRDeferredPipeline.EndShadowPass"/>, once per cascade.
@@ -42,8 +49,8 @@ public interface ISceneRenderer
     /// <see cref="PBRDeferredPipeline.BeginForwardPass"/> and
     /// <see cref="PBRDeferredPipeline.EndForwardPass"/>.
     /// <br/>The render target has both color (the lit HDR scene) and depth (copied from
-    /// the G-buffer), so transparent objects depth-test against opaque geometry and blend
-    /// onto the lit result. The G-buffer itself is not available for reading here.
+    /// the G-buffer via native CopyTexture), so transparent objects depth-test against
+    /// opaque geometry and blend onto the lit result.
     /// Default implementation does nothing.
     /// </summary>
     /// <param name="context">The live forward render context.</param>

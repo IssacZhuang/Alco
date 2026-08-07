@@ -128,6 +128,36 @@ public class Game : GameEngine
         float IShadowRenderable.BaseColorAlpha => _material.BaseColorFactor.W;
     }
 
+    /// <summary>
+    /// Adapter that wraps a Bistro <see cref="ModelDrawItem"/> + its glass material
+    /// as an <see cref="IForwardRenderable"/> for the ForwardRenderer registry.
+    /// </summary>
+    private sealed class BistroGlassRenderable : IForwardRenderable
+    {
+        private readonly ModelDrawItem _item;
+        private readonly ModelMaterial _material;
+        private readonly GraphicsMaterial _glassMaterial;
+        private readonly Func<float> _getTransmission;
+
+        public BistroGlassRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial glassMaterial,
+            Func<float> getTransmission)
+        {
+            _item = item;
+            _material = material;
+            _glassMaterial = glassMaterial;
+            _getTransmission = getTransmission;
+        }
+
+        public bool IsStatic => true;
+        Mesh IForwardRenderable.Mesh => _item.Mesh;
+        GraphicsMaterial IForwardRenderable.Material => _glassMaterial;
+        Matrix4x4 IForwardRenderable.WorldMatrix => _item.World;
+        Vector4 IForwardRenderable.BaseColor => _material.BaseColorFactor;
+        Vector4 IForwardRenderable.MetallicRoughnessAO => new(_material.MetallicFactor, _material.RoughnessFactor, 1.0f, 0.0f);
+        Vector3 IForwardRenderable.EmissiveFactor => Vector3.Zero;
+        float IForwardRenderable.TransmissionFactor => _getTransmission();
+    }
+
     private readonly PBRDeferredPipeline _pipeline;
     private readonly GBufferRenderer _gbufferRenderer;
     private readonly ShadowRenderer _shadowRenderer;
@@ -144,6 +174,12 @@ public class Game : GameEngine
     private GraphicsMaterial? _proceduralShadowMaterial;
     private GraphicsMaterial[]? _bistroMaterials;
     private GraphicsMaterial[]? _bistroShadowMaterials;
+    private GraphicsMaterial[]? _bistroGlassMaterials;
+
+    // Forward transparency renderer for glass materials.
+    private ForwardRenderer? _forwardRenderer;
+    private bool _glassEnabled = true;
+    private float _glassTransmission = 0.85f;
 
     private bool _staticShadowBundlesDirty;
     private bool _bistroStreaming;
@@ -331,10 +367,12 @@ public class Game : GameEngine
         _shadowDistance = _sceneRadius * 3.0f;
 
         string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
+        string blitShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_Blit);
         _pipeline = new PBRDeferredPipeline(
             RenderingSystem,
             lightingShaderText,
             BuiltInAssetsPath.Shader_PBRDeferredLighting,
+            blitShaderText,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y);
@@ -373,6 +411,25 @@ public class Game : GameEngine
             _pipeline.RegisterPlugin(_hbaoRenderer);
         }
 
+        // Forward transparency renderer for glass materials (after deferred lighting).
+        _forwardRenderer = new ForwardRenderer(
+            RenderingSystem,
+            AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ForwardGlass.hlsl"),
+            _pipeline.LightingDataBuffer,
+            _pipeline.PointLightBuffer,
+            _pipeline.ShadowRenderTexture);
+        _forwardRenderer.SetCamera(_camera);
+        _pipeline.AddSceneRenderer(_forwardRenderer);
+
+        // Per-frame logic that runs between the G-buffer pass and the plugin pass
+        // (HBAO/GI) is wired into the pipeline via AfterGBufferCallback so that
+        // Render() drives the full frame internally.
+        _pipeline.AfterGBufferCallback += () =>
+        {
+            SubmitDynamicInstances();
+            SyncHbaoParams();
+        };
+
         if (_bistro != null)
         {
             // One game-owned G-buffer material per glTF material. Textures still
@@ -381,6 +438,8 @@ public class Game : GameEngine
             // One cutout shadow material per glTF material so alpha-tested meshes
             // (foliage, fences, etc.) cast correctly shaped shadows.
             _bistroShadowMaterials = new GraphicsMaterial[_bistro.Materials.Count];
+            // Glass materials for transparent BLEND glass (rendered in forward pass).
+            _bistroGlassMaterials = new GraphicsMaterial[_bistro.Materials.Count];
             for (int i = 0; i < _bistroMaterials.Length; i++)
             {
                 ModelMaterial material = _bistro.Materials[i];
@@ -389,10 +448,13 @@ public class Game : GameEngine
                     material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
                 _bistroShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutTangentMaterial(
                     material.AlbedoTexture, material.DoubleSided, $"bistro_shadow_{material.Name}");
+                _bistroGlassMaterials[i] = _forwardRenderer.CreateGlassMaterial(
+                    material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
+                    material.EmissiveTexture, material.DoubleSided, $"bistro_glass_{material.Name}");
             }
             _bistroStreaming = !_bistro.LoadingCompletion.IsCompleted;
 
-            // Register all Bistro draw items as static GBuffer and shadow renderables.
+            // Register Bistro draw items: glass → forward renderer, everything else → GBuffer + shadow.
             {
                 IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
                 IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
@@ -400,9 +462,18 @@ public class Game : GameEngine
                 {
                     ModelDrawItem item = drawItems[i];
                     ModelMaterial material = materials[item.MaterialIndex];
-                    Vector3 emissive = material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f);
-                    _gbufferRenderer.Add(new BistroRenderable(item, material, _bistroMaterials![item.MaterialIndex], emissive));
-                    _shadowRenderer.Add(new BistroShadowRenderable(item, material, _bistroShadowMaterials![item.MaterialIndex]));
+                    if (IsGlassMaterial(material))
+                    {
+                        _forwardRenderer.Add(new BistroGlassRenderable(
+                            item, material, _bistroGlassMaterials![item.MaterialIndex],
+                            () => _glassTransmission));
+                    }
+                    else
+                    {
+                        Vector3 emissive = material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f);
+                        _gbufferRenderer.Add(new BistroRenderable(item, material, _bistroMaterials![item.MaterialIndex], emissive));
+                        _shadowRenderer.Add(new BistroShadowRenderable(item, material, _bistroShadowMaterials![item.MaterialIndex]));
+                    }
                 }
             }
             BuildBistroPointLights();
@@ -949,21 +1020,9 @@ public class Game : GameEngine
             _staticShadowBundlesDirty = false;
         }
 
-        // 1. Shadow map pass: pipeline invokes the registered ShadowRenderer callback
-        // (static bundle replay + dynamic draws) automatically per cascade.
-        _pipeline.RenderShadowPass();
-
-        // 2. G-buffer pass: pipeline invokes the registered GBufferRenderer callback
-        // (static bundle replay + dynamic draws) automatically.
-        _pipeline.RenderGBufferPass();
-
-        // 3. AfterGBuffer plugins (HBAO+, VoxelGI) — pipeline executes them
-        // and auto-binds output textures to the lighting material.
-        SubmitDynamicInstances();
-        ExecuteAfterGBufferPlugins();
-
-        // 4. Deferred lighting into the engine's HDR main target.
-        _pipeline.RenderLighting(MainFrameBuffer);
+        // The pipeline drives the full frame: shadow → G-buffer → callback →
+        // plugins → lighting → forward transparency.
+        _pipeline.Render(MainFrameBuffer);
     }
 
     private void RenderBistroFrame()
@@ -992,14 +1051,9 @@ public class Game : GameEngine
         }
 
         // The Bistro scene is fully static: every pass is a pure bundle replay.
-        _pipeline.RenderShadowPass();
-        _pipeline.RenderGBufferPass();
-
-        // AfterGBuffer plugins (HBAO+, VoxelGI).
-        SubmitDynamicInstances();
-        ExecuteAfterGBufferPlugins();
-
-        _pipeline.RenderLighting(MainFrameBuffer);
+        // The pipeline drives the full frame: shadow → G-buffer → callback →
+        // plugins → lighting → forward transparency.
+        _pipeline.Render(MainFrameBuffer);
     }
 
     /// <summary>An object is static (baked into the render bundles) when it neither spins nor floats.</summary>
@@ -1016,6 +1070,17 @@ public class Game : GameEngine
             GltfAlphaMode.Blend => 0.5f,
             _ => 0.0f,
         };
+    }
+
+    /// <summary>
+    /// Identify whether a glTF material should be rendered as transparent glass
+    /// (forward pass) rather than opaque/cutout (G-buffer pass). Only BLEND-mode
+    /// materials whose name contains "Glass" are treated as glass.
+    /// </summary>
+    private static bool IsGlassMaterial(ModelMaterial material)
+    {
+        return material.AlphaMode == GltfAlphaMode.Blend &&
+               material.Name.Contains("Glass", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Register the scene geometry into the voxel GI clipmap.</summary>
@@ -1119,21 +1184,17 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Fill per-frame plugin data and execute all AfterGBuffer plugins (HBAO+,
-    /// VoxelGI). The pipeline auto-binds the output textures to the lighting material.
+    /// Sync HBAO user-tunable parameters (camera data is read automatically
+    /// from RenderPluginContext).
     /// </summary>
-    private void ExecuteAfterGBufferPlugins()
+    private void SyncHbaoParams()
     {
-        // Sync HBAO user-tunable parameters (camera data is read automatically
-        // from RenderPluginContext).
         if (_hbaoRenderer != null)
         {
             float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
             _hbaoRenderer.Radius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
             _hbaoRenderer.Strength = (_hbaoEnabled ? _hbaoStrength : 0.0f) * ssaoAmount;
         }
-
-        _pipeline.ExecutePlugins(RenderInjectionPoint.AfterGBuffer);
     }
 
     /// <summary>Copy the current (possibly still streaming) Bistro textures into the materials.</summary>
@@ -1147,7 +1208,14 @@ public class Game : GameEngine
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
             _shadowRenderer.SetShadowCutoutMaterialTextures(_bistroShadowMaterials![i], material.AlbedoTexture);
+            if (_bistroGlassMaterials != null)
+            {
+                _forwardRenderer?.SetGlassMaterialTextures(_bistroGlassMaterials[i],
+                    material.AlbedoTexture, material.NormalTexture,
+                    material.MetallicRoughnessTexture, material.EmissiveTexture);
+            }
         }
+        _forwardRenderer?.MarkStaticBundleDirty();
     }
 
     /// <summary>
@@ -1462,6 +1530,18 @@ public class Game : GameEngine
                 ImGui.Text($"{_bistro.DrawItems.Count} draw items, {_bistro.Materials.Count} materials");
                 ImGui.Text($"bounds min {_bistro.BoundsMin}");
                 ImGui.Text($"bounds max {_bistro.BoundsMax}");
+            }
+
+            if (ImGui.CollapsingHeader("Glass Transparency"))
+            {
+                if (ImGui.Checkbox("Glass Enabled", ref _glassEnabled))
+                {
+                    _forwardRenderer?.MarkStaticBundleDirty();
+                }
+                if (ImGui.SliderFloat("Transmission", ref _glassTransmission, 0.0f, 1.0f))
+                {
+                    _forwardRenderer?.MarkStaticBundleDirty();
+                }
             }
         }
         else
