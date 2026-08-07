@@ -1028,14 +1028,26 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             centerLight.X = MathF.Floor(centerLight.X / texel) * texel;
             centerLight.Y = MathF.Floor(centerLight.Y / texel) * texel;
 
-            // Depth range: the sphere plus an extension toward the sun for off-screen
-            // casters, quantized so the depth grid is stable too. Negative near values
-            // are legal for orthographic projections.
-            float zMin = centerLight.Z - radius - casterExtension;
-            float zMax = centerLight.Z + radius;
-            float texelZ = (zMax - zMin) / shadowMapSize;
+            // Depth range: use the actual min/max Z of the 8 frustum-slice
+            // corners in light space instead of the bounding-sphere diameter,
+            // which reclaims wasted depth precision (directly reducing acne
+            // for a given bias). Extend the near plane toward the sun for
+            // off-screen casters (negative values are legal for ortho).
+            float zMin = float.MaxValue;
+            float zMax = float.MinValue;
+            for (int r = 0; r < 8; r++)
+            {
+                Vector3 cornerLight = Vector3.Transform(corners[r], lightView);
+                zMin = Math.Min(zMin, cornerLight.Z);
+                zMax = Math.Max(zMax, cornerLight.Z);
+            }
+            zMin -= casterExtension;
+
+            // Quantize on a grid derived from the (stable) sphere radius so
+            // the depth sampling stays consistent across frames.
+            float texelZ = (radius * 2.0f + casterExtension) / shadowMapSize;
             zMin = MathF.Floor(zMin / texelZ) * texelZ;
-            zMax = zMin + texelZ * shadowMapSize;
+            zMax = zMin + texelZ * (float)Math.Ceiling((zMax - zMin) / texelZ);
 
             Matrix4x4 ortho = Matrix4x4.CreateOrthographicOffCenterLeftHanded(
                 centerLight.X - radius, centerLight.X + radius,

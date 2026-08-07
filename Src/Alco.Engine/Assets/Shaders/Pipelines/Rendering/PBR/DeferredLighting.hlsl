@@ -148,10 +148,29 @@ int SelectCascade(float viewDistance)
     return -1;
 }
 
-// Hardware 3x3 PCF against the shadow map cascade atlas (comparison sampler).
+// Interleaved Gradient Noise (Jorge Jimenez, "Next Generation Post-Processing
+// in Call of Duty: Advanced Warfare", 2014) — cheap deterministic hash that is
+// temporally stable per-pixel, ideal for per-pixel rotation of the Poisson disk.
+float InterleavedGradientNoise(float2 pix)
+{
+    return frac(52.9829189 * frac(dot(pix, float2(0.06711056, 0.00583715))));
+}
+
+// 4-tap Poisson disk (first four taps of the 16-tap set from GPU Gems Ch. 12),
+// rotated per-pixel by IGN so neighbouring pixels see different arrangements,
+// dithering the regular-grid aliasing of a fixed kernel.
+static const float2 poissonDisk[4] = {
+    float2(-0.94201624, -0.39906216),
+    float2( 0.94558609, -0.76890725),
+    float2(-0.09418410, -0.92938870),
+    float2( 0.34495938,  0.29387733),
+};
+
+// 4-tap rotated Poisson disk PCF against the shadow map cascade atlas.
 // Each SampleCmpLevelZero tap compares (ndc.z - bias) <= texelDepth and, with the
-// linear comparison sampler, already blends the four nearest texels.
-float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int cascade)
+// linear comparison sampler, already blends the four nearest texels — so 4 taps
+// effectively cover 16 texels, matching the old 9-tap 3×3 grid at half the cost.
+float SampleShadowMap(float3 worldPosition, float3 N, float3 L, float2 screenPos, int cascade)
 {
     // Normal offset bias: push the receiver along its normal by one world texel
     // of this cascade, which removes most acne without peter-panning.
@@ -175,21 +194,27 @@ float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int cascade)
     float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
     float compareDepth = ndc.z - bias;
 
-    // PCF offsets in atlas UV; clamp taps inside the quadrant so they never
-    // bleed into a neighboring cascade.
+    // Rotated 4-tap Poisson disk with IGN dithering. Clamp taps inside the
+    // quadrant so they never bleed into a neighbouring cascade.
     float texelAtlas = 0.5 / pbrParams.z;
     float2 quadrantMin = quadrantOffset + texelAtlas * 0.5;
     float2 quadrantMax = quadrantOffset + 0.5 - texelAtlas * 0.5;
+
+    float angle = InterleavedGradientNoise(screenPos) * 6.2831853;
+    float s, c;
+    sincos(angle, s, c);
+    float2x2 rotation = float2x2(c, -s, s, c);
+
+    static const float spread = 1.5; // Poisson disk radius in texels
     float shadow = 0.0;
-    for (int dy = -1; dy <= 1; dy++)
+    [unroll]
+    for (int i = 0; i < 4; i++)
     {
-        for (int dx = -1; dx <= 1; dx++)
-        {
-            float2 uv = clamp(shadowUV + float2(dx, dy) * texelAtlas, quadrantMin, quadrantMax);
-            shadow += SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
-        }
+        float2 offset = mul(rotation, poissonDisk[i]) * texelAtlas * spread;
+        float2 uv = clamp(shadowUV + offset, quadrantMin, quadrantMax);
+        shadow += SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
     }
-    return shadow / 9.0;
+    return shadow * 0.25;
 }
 
 // Sun shadow with cascade blending: within the last fraction of each cascade
@@ -198,14 +223,14 @@ float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int cascade)
 // they sweep across the scene when the camera moves; without the blend, a
 // receiver crossing a split hard-switches between two cascades whose texel
 // grids and biases disagree, which looks like the shadow jumping.
-float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float viewDistance, int cascade)
+float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 screenPos, float viewDistance, int cascade)
 {
     if (cascade < 0)
     {
         return 1.0;
     }
 
-    float shadow = SampleShadowMap(worldPosition, N, L, cascade);
+    float shadow = SampleShadowMap(worldPosition, N, L, screenPos, cascade);
 
     float splitEnd = cascadeSplits[cascade];
     float splitStart = cascade == 0 ? 0.0 : cascadeSplits[cascade - 1];
@@ -213,7 +238,7 @@ float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float viewDistan
     float blend = saturate((viewDistance - (splitEnd - blendWidth)) / blendWidth);
     if (blend > 0.0)
     {
-        float nextShadow = cascade < 3 ? SampleShadowMap(worldPosition, N, L, cascade + 1) : 1.0;
+        float nextShadow = cascade < 3 ? SampleShadowMap(worldPosition, N, L, screenPos, cascade + 1) : 1.0;
         shadow = lerp(shadow, nextShadow, blend);
     }
     return shadow;
@@ -337,9 +362,13 @@ float4 MainPS(V2F input) : SV_TARGET
     float sunShadow = 1.0;
     {
         float3 L = normalize(-sunDirection.xyz);
-        if (pbrParams.x > 0.5)
+        // Skip shadow sampling for back-facing pixels: EvaluatePBR already
+        // zeroes their contribution via max(NdotL, 0), so the PCF taps are
+        // pure waste on roughly 30–50 % of screen-space pixels.
+        float sunNdotL = dot(N, L);
+        if (pbrParams.x > 0.5 && sunNdotL > 0.0)
         {
-            sunShadow = SampleSunShadow(worldPosition, N, L, viewDistance, cascade);
+            sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
         }
 
         Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
