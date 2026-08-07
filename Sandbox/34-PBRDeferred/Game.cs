@@ -338,6 +338,7 @@ public class Game : GameEngine
                     Trace = AssetSystem.Load<Shader>(shaderDir + "VoxelTrace.hlsl"),
                     Demosaic = AssetSystem.Load<Shader>(shaderDir + "VoxelDemosaic.hlsl"),
                     Upsample = AssetSystem.Load<Shader>(shaderDir + "VoxelGiUpsample.hlsl"),
+                    SsrDepthDownsample = AssetSystem.Load<Shader>(shaderDir + "SsrDepthDownsample.hlsl"),
                 },
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,

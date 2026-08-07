@@ -540,6 +540,88 @@ public sealed class ShaderParameterSet
         SetTextureValue(ref slot, texture, null, 0, mipLevel, true);
     }
 
+    /// <summary>
+    /// Sets the storage resource group of a single mip level of a 2D texture to a
+    /// storage texture slot by name.
+    /// </summary>
+    /// <param name="name">The shader resource name of the storage texture.</param>
+    /// <param name="texture">The 2D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
+    public void SetTexture2DStorage(string name, Texture2D texture, uint mipLevel)
+    {
+        if (!_reflectionInfo.TryGetResourceId(name, out uint id))
+        {
+            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+        }
+
+        SetTexture2DStorage(id, texture, mipLevel);
+    }
+
+    /// <summary>
+    /// Sets the storage resource group of a single mip level of a 2D texture to a
+    /// storage texture slot by index.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="texture">The 2D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
+    public void SetTexture2DStorage(uint id, Texture2D texture, uint mipLevel)
+    {
+        if (id >= (uint)_slots.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(id), "The resource ID is out of range.");
+        }
+
+        ref Slot slot = ref _slots[id];
+        if (slot.type != ResourceType.TextureStorage)
+        {
+            throw new InvalidOperationException($"The resource {id}({_reflectionInfo.GetResourceName(id)}) is not for a storage texture but {slot.type}.");
+        }
+
+        SetTextureValue(ref slot, texture, null, 0, mipLevel, true);
+    }
+
+    /// <summary>
+    /// Sets the read-only resource group of a single mip level of a 2D texture to a
+    /// read-only texture slot by name. Inside the bound view the mip is rebased to
+    /// mip 0, so shaders load it with mip index 0.
+    /// </summary>
+    /// <param name="name">The shader resource name of the read-only texture.</param>
+    /// <param name="texture">The 2D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
+    public void SetTexture2DRead(string name, Texture2D texture, uint mipLevel)
+    {
+        if (!_reflectionInfo.TryGetResourceId(name, out uint id))
+        {
+            throw new KeyNotFoundException($"Resource '{name}' not found in shader");
+        }
+
+        SetTexture2DRead(id, texture, mipLevel);
+    }
+
+    /// <summary>
+    /// Sets the read-only resource group of a single mip level of a 2D texture to a
+    /// read-only texture slot by index. Inside the bound view the mip is rebased to
+    /// mip 0, so shaders load it with mip index 0.
+    /// </summary>
+    /// <param name="id">The shader resource ID of the resource.</param>
+    /// <param name="texture">The 2D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
+    public void SetTexture2DRead(uint id, Texture2D texture, uint mipLevel)
+    {
+        if (id >= (uint)_slots.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(id), "The resource ID is out of range.");
+        }
+
+        ref Slot slot = ref _slots[id];
+        if (slot.type != ResourceType.TextureRead)
+        {
+            throw new InvalidOperationException($"The resource {id}({_reflectionInfo.GetResourceName(id)}) is not for a read-only texture but {slot.type}.");
+        }
+
+        SetTextureValue(ref slot, texture, null, 0, mipLevel, true);
+    }
+
     #endregion
 
     #region Get Texture
@@ -1089,6 +1171,11 @@ public sealed class ShaderParameterSet
         if (slot.mipView && texture is Texture3D texture3D)
         {
             return texture3D.GetMipView(slot.mipLevel);
+        }
+
+        if (slot.mipView && texture is Texture2D texture2D)
+        {
+            return texture2D.GetMipView(slot.mipLevel);
         }
 
         return texture.View;

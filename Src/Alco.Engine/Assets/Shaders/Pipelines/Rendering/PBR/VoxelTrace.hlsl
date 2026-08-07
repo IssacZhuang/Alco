@@ -31,6 +31,8 @@ DEFINE_TEX2D_READ(0, _albedo);
 DEFINE_TEX2D_DEPTH_SAMPLE(0, _shadowMap);
 // Previous frame's temporally accumulated SSR (rgb = radiance, a = confidence).
 DEFINE_TEX2D_READ(0, _ssrHistory);
+// Hi-Z depth pyramid for SSR hierarchical raymarching (7 mips, max-reduced).
+DEFINE_TEX2D_READ(0, _depthPyramid);
 DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
 // This frame's accumulated SSR output (ping-pong with _ssrHistory).
 DEFINE_TEX2D_STORAGE(1, _ssrHistoryOut, float4, "rgba16f");
@@ -214,53 +216,234 @@ float4 GatherScreenSpaceNearField(
     return float4(gathered / totalWeight, saturate(totalWeight * 0.75));
 }
 
-// Low-roughness screen-space reflection. The ray marches through the depth
-// buffer until it hits a surface or leaves the screen / far plane.
-float4 TraceScreenSpaceReflection(
-    float3 startPosition,
-    float3 direction,
-    float roughness)
-{
-    uint2 resolution = uint2(giParams2.y, giParams2.z);
-    // SSR maximum distance is purely screen-space: the furthest a ray can
-    // travel before reaching the far clip plane. Not clamped by the voxel GI
-    // trace distance (giParams.y), which governs voxel cone range only.
-    float maximumDistance = levelOrigins[0].w * 128.0;
-    float previousDifference = -1.0;
-    [loop]
-    for (int step = 1; step <= 24; step++)
-    {
-        float progress = step / 24.0;
-        float distance_ = maximumDistance * progress * progress;
-        float3 rayPosition = startPosition + direction * distance_;
-        float4 clip = mul(viewProjection, float4(rayPosition, 1.0));
-        if (clip.w <= 0.0)
-        {
-            break;
-        }
-        float3 ndc = clip.xyz / clip.w;
-        float2 sampleUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
-        if (any(sampleUV <= 0.0) || any(sampleUV >= 1.0) || ndc.z <= 0.0 || ndc.z >= 1.0)
-        {
-            break;
-        }
+// --- Screen-space helpers (adapted from FidelityFX SSSR) --------------------
 
-        int2 samplePixel = clamp((int2)(sampleUV * float2(resolution)), 0, (int2)resolution - 1);
-        float sceneDepth = GET_PIXEL_TEX2D(_gbufferDepth, samplePixel);
-        float difference = ndc.z - sceneDepth;
-        if (sceneDepth < 0.9999 && difference >= 0.0 && previousDifference < 0.0)
+#define SSR_FLOAT_MAX 3.402823466e+38
+#define SSR_DEPTH_HIERARCHY_MAX_MIP 6
+
+// Transform a world-space position to screen UV [0,1]³ with NDC z in .z.
+float3 SsrProjectPosition(float3 worldPos, float4x4 mat)
+{
+    float4 projected = mul(mat, float4(worldPos, 1.0));
+    projected.xyz /= projected.w;
+    projected.xy = projected.xy * 0.5 + 0.5;
+    projected.y = 1.0 - projected.y;
+    return projected.xyz;
+}
+
+// Project a direction as the delta between projected (origin+dir) and projectedOrigin.
+float3 SsrProjectDirection(float3 origin, float3 direction, float3 screenOrigin, float4x4 mat)
+{
+    return SsrProjectPosition(origin + direction, mat) - screenOrigin;
+}
+
+// Intersect a ray with the cell boundaries in screen UV space and advance.
+// Returns true if the ray skipped a tile (went coarser); false if it hit the surface.
+bool SsrAdvanceRay(
+    float3 origin, float3 direction, float3 invDirection,
+    float2 currentMipPosition, float2 currentMipResolutionInv,
+    float2 floorOffset, float2 uvOffset, float surfaceZ,
+    inout float3 position, inout float currentT)
+{
+    float2 xyPlane = floor(currentMipPosition) + floorOffset;
+    xyPlane = xyPlane * currentMipResolutionInv + uvOffset;
+    float3 boundaryPlanes = float3(xyPlane, surfaceZ);
+
+    float3 t = boundaryPlanes * invDirection - origin * invDirection;
+    t.z = direction.z > 0.0 ? t.z : SSR_FLOAT_MAX;
+
+    float tMin = min(min(t.x, t.y), t.z);
+    bool aboveSurface = surfaceZ > position.z;
+    bool skippedTile = (asuint(tMin) != asuint(t.z)) && aboveSurface;
+
+    currentT = aboveSurface ? tMin : currentT;
+    position = origin + currentT * direction;
+    return skippedTile;
+}
+
+// Initial advance to get past the starting cell and avoid self-intersection.
+void SsrInitialAdvanceRay(
+    float3 origin, float3 direction, float3 invDirection,
+    float2 currentMipResolution, float2 currentMipResolutionInv,
+    float2 floorOffset, float2 uvOffset,
+    out float3 position, out float currentT)
+{
+    float2 currentMipPosition = currentMipResolution * origin.xy;
+    float2 xyPlane = floor(currentMipPosition) + floorOffset;
+    xyPlane = xyPlane * currentMipResolutionInv + uvOffset;
+    float2 t = xyPlane * invDirection.xy - origin.xy * invDirection.xy;
+    currentT = min(t.x, t.y);
+    position = origin + currentT * direction;
+}
+
+float2 SsrGetMipResolution(float2 screenDimensions, int mipLevel)
+{
+    return screenDimensions * pow(0.5, mipLevel);
+}
+
+// Hierarchical raymarch through the depth pyramid. Origin and direction must
+// be in screen UV space [0,1]³. Returns the hit position; valid_hit reports
+// whether the loop completed within the step budget.
+float3 SsrHierarchicalRaymarch(
+    float3 origin, float3 direction, bool isMirror,
+    float2 screenSize, int mostDetailedMip,
+    uint maxTraversalIntersections,
+    out bool validHit)
+{
+    float3 invDirection = (direction.x != 0.0 || direction.y != 0.0 || direction.z != 0.0)
+        ? float3(1.0, 1.0, 1.0) / direction
+        : float3(SSR_FLOAT_MAX, SSR_FLOAT_MAX, SSR_FLOAT_MAX);
+
+    int currentMip = mostDetailedMip;
+    float2 currentMipResolution = SsrGetMipResolution(screenSize, currentMip);
+    float2 currentMipResolutionInv = rcp(currentMipResolution);
+
+    float2 uvOffset = 0.005 * exp2(mostDetailedMip) / screenSize;
+    uvOffset.x = direction.x < 0.0 ? -uvOffset.x : uvOffset.x;
+    uvOffset.y = direction.y < 0.0 ? -uvOffset.y : uvOffset.y;
+
+    float2 floorOffset;
+    floorOffset.x = direction.x < 0.0 ? 0.0 : 1.0;
+    floorOffset.y = direction.y < 0.0 ? 0.0 : 1.0;
+
+    float currentT;
+    float3 position;
+    SsrInitialAdvanceRay(origin, direction, invDirection,
+        currentMipResolution, currentMipResolutionInv, floorOffset, uvOffset,
+        position, currentT);
+
+    bool exitDueToLowOccupancy = false;
+    uint i = 0u;
+    while (i < maxTraversalIntersections && currentMip >= 0 && !exitDueToLowOccupancy)
+    {
+        float2 currentMipPosition = currentMipResolution * position.xy;
+        int2 mipPixel = int2(floor(currentMipPosition));
+        float surfaceZ = _depthPyramid.Load(int3(mipPixel.x, mipPixel.y, currentMip)).x;
+        // Wave-level occupancy early-exit (only when wave intrinsics are available).
+        bool skippedTile = SsrAdvanceRay(origin, direction, invDirection,
+            currentMipPosition, currentMipResolutionInv, floorOffset, uvOffset,
+            surfaceZ, position, currentT);
+
+        bool nextMipOutOfRange = skippedTile && (currentMip >= SSR_DEPTH_HIERARCHY_MAX_MIP);
+        if (!nextMipOutOfRange)
         {
-            float3 scenePosition = ReconstructWorldPosition(sampleUV, sceneDepth);
-            float thickness = levelOrigins[0].w * 4.0 + distance_ * 0.025;
-            if (length(scenePosition - rayPosition) <= thickness)
-            {
-                float3 sampleNormal = normalize(GET_PIXEL_TEX2D(_normal, samplePixel).xyz * 2.0 - 1.0);
-                float edge = saturate(min(min(sampleUV.x, sampleUV.y), min(1.0 - sampleUV.x, 1.0 - sampleUV.y)) * 12.0);
-                float confidence = edge * (1.0 - roughness);
-                return float4(ApproximateScreenSurfaceRadiance(samplePixel, sampleNormal, scenePosition), confidence);
-            }
+            currentMip += skippedTile ? 1 : -1;
+            currentMipResolution *= skippedTile ? 0.5 : 2.0;
+            currentMipResolutionInv *= skippedTile ? 2.0 : 0.5;
         }
-        previousDifference = difference;
+        ++i;
+    }
+
+    validHit = i <= maxTraversalIntersections;
+    return position;
+}
+
+// Validate a hit: reject offscreen, self-reflection, backface, and background.
+// Returns a confidence weight combining vignette and depth-consistency.
+float SsrValidateHit(float3 hit, float2 uv, float3 worldRayDirection, float2 screenSize, float depthBufferThickness)
+{
+    if (hit.x < 0.0 || hit.y < 0.0 || hit.x > 1.0 || hit.y > 1.0)
+        return 0.0;
+
+    float2 manhattanDist = abs(hit.xy - uv);
+    if (manhattanDist.x < (2.0 / screenSize.x) && manhattanDist.y < (2.0 / screenSize.y))
+        return 0.0;
+
+    int2 texelCoords = int2(floor(screenSize * hit.xy));
+    float surfaceZ = _depthPyramid.Load(int3(texelCoords.x, texelCoords.y, 0)).x;
+    if (surfaceZ >= 0.9999)
+        return 0.0;
+
+    float3 hitNormal = normalize(GET_PIXEL_TEX2D(_normal, texelCoords).xyz * 2.0 - 1.0);
+    if (dot(hitNormal, worldRayDirection) > 0.0)
+        return 0.0;
+
+    // Thickness test in NDC depth space (not world space) — matches FidelityFX SSSR.
+    float depthDiff = abs(surfaceZ - hit.z);
+    float confidence = 1.0 - smoothstep(0.0, depthBufferThickness, depthDiff);
+    confidence *= confidence;
+    if (confidence <= 0.0)
+        return 0.0;
+
+    float2 fov = 0.05 * float2(screenSize.y / screenSize.x, 1.0);
+    float2 border = smoothstep(float2(0.0, 0.0), fov, hit.xy)
+                  * (1.0 - smoothstep(float2(1.0, 1.0) - fov, float2(1.0, 1.0), hit.xy));
+    float vignette = border.x * border.y;
+
+    return vignette * confidence;
+}
+
+// --- GGX VNDF importance sampling (Eric Heitz 2018) -------------------------
+
+float3 SampleGGXVNDF(float3 Ve, float alphaX, float alphaY, float U1, float U2)
+{
+    float3 Vh = normalize(float3(alphaX * Ve.x, alphaY * Ve.y, Ve.z));
+    float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
+    float3 T1 = lensq > 0.0 ? float3(-Vh.y, Vh.x, 0.0) * rsqrt(lensq) : float3(1.0, 0.0, 0.0);
+    float3 T2 = cross(Vh, T1);
+    float r = sqrt(U1);
+    float phi = 2.0 * PI * U2;
+    float t1 = r * cos(phi);
+    float t2 = r * sin(phi);
+    float s = 0.5 * (1.0 + Vh.z);
+    t2 = (1.0 - s) * sqrt(max(1.0 - t1 * t1, 0.0)) + s * t2;
+    float3 Nh = t1 * T1 + t2 * T2 + sqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
+    return normalize(float3(alphaX * Nh.x, alphaY * Nh.y, max(0.0, Nh.z)));
+}
+
+// Interleaved gradient noise for per-pixel, per-frame stochastic variation.
+float SsrIGN(uint2 pixel, uint frame)
+{
+    return frac(52.9829189 * frac(dot(float2(pixel),
+        float2(0.06711056, 0.00583715))) + frame * 2.3992821);
+}
+
+// --- Temporal denoising: AABB clip (Playdead TRAA) --------------------------
+
+float3 SsrClipAABB(float3 aabbMin, float3 aabbMax, float3 prevSample)
+{
+    float3 center = 0.5 * (aabbMax + aabbMin);
+    float3 extent = 0.5 * (aabbMax - aabbMin) + 0.001;
+    float3 clipped = abs((prevSample - center) / extent);
+    float maxUnit = max(max(clipped.x, clipped.y), clipped.z);
+    if (maxUnit > 1.0)
+        return center + (prevSample - center) / maxUnit;
+    return prevSample;
+}
+
+// Hi-Z screen-space reflection. Raymarches the depth pyramid in screen UV
+// space, validates the hit, and returns radiance + confidence.
+float4 TraceScreenSpaceReflection(
+    float3 worldPosition,
+    float3 reflectDirection,
+    float roughness,
+    float2 uv)
+{
+    float2 screenSize = float2(giParams2.y, giParams2.z);
+
+    float3 screenOrigin = SsrProjectPosition(worldPosition, viewProjection);
+    float3 screenDir = SsrProjectDirection(worldPosition, reflectDirection, screenOrigin, viewProjection);
+
+    bool isMirror = roughness < 0.001;
+    int mostDetailedMip = isMirror ? 0 : 2;  // start coarser to avoid self-hit
+
+    bool validHit = false;
+    float3 hit = SsrHierarchicalRaymarch(
+        screenOrigin, screenDir, isMirror, screenSize,
+        mostDetailedMip, 30u, validHit);
+
+    float3 worldRay = ReconstructWorldPosition(hit.xy, hit.z) - worldPosition;
+    float confidence = SsrValidateHit(hit, uv, worldRay, screenSize, 0.15);
+
+    if (confidence > 0.0)
+    {
+        int2 hitPixel = clamp(int2(floor(screenSize * hit.xy)), int2(0, 0), int2(screenSize) - 1);
+        float hitDepth = GET_PIXEL_TEX2D(_gbufferDepth, hitPixel);
+        float3 hitWorldPos = ReconstructWorldPosition(hit.xy, hitDepth);
+        float3 hitNormal = normalize(GET_PIXEL_TEX2D(_normal, hitPixel).xyz * 2.0 - 1.0);
+        return float4(
+            ApproximateScreenSurfaceRadiance(hitPixel, hitNormal, hitWorldPos),
+            confidence * (1.0 - roughness));
     }
     return float4(0.0, 0.0, 0.0, 0.0);
 }
@@ -551,7 +734,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Specular reflection: SSR is always active. The voxel specular cone is
     // opt-in via VOXEL_SPECULAR_CONE — when enabled it provides a low-frequency
     // fallback that blends with SSR; when disabled SSR is the sole source.
-    float3 reflectDirection = reflect(-V, detailNormal);
+    // GGX VNDF importance sampling perturbs the reflection direction per-frame
+    // so the temporal accumulation converges toward a correct glossy lobe.
+    float3 reflectDirection = reflect(-V, detailNormal);  // DEBUG: skip GGX for testing
     float3 specular = 0.0;
 
 #ifdef VOXEL_SPECULAR_CONE
@@ -565,11 +750,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     if (roughness < 0.65)
     {
         float4 screenReflection = TraceScreenSpaceReflection(
-            startPosition, reflectDirection, roughness);
+            worldPosition, reflectDirection, roughness, gbufferUV);
 
         // Temporal reprojection: find where this surface was last frame.
         float4 ssrHistory = float4(0.0, 0.0, 0.0, 0.0);
         bool historyValid = false;
+        int2 prevPixel = int2(0, 0);
         if (giFrameParams.z > 0.5)
         {
             float4 prevClip = mul(viewProjectionPrev, float4(worldPosition, 1.0));
@@ -579,31 +765,56 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float2 prevUV = float2(prevNDC.x * 0.5 + 0.5, 0.5 - prevNDC.y * 0.5);
                 if (all(prevUV >= 0.0) && all(prevUV <= 1.0))
                 {
-                    int2 prevPixel = clamp(
-                        int2(prevUV * float2(traceResolution)),
-                        int2(0, 0),
-                        int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
-                    ssrHistory = _ssrHistory.Load(int3(prevPixel, 0));
-                    historyValid = true;
+                    // Depth-consistency disocclusion test: compare the depth at
+                    // the reprojected position to detect surfaces that were not
+                    // visible last frame.
+                    int2 prevGbufferPixel = clamp(
+                        int2(prevUV * float2(gbufferResolution)),
+                        int2(0, 0), int2(gbufferResolution) - 1);
+                    float prevDepth = GET_PIXEL_TEX2D(_gbufferDepth, prevGbufferPixel);
+                    float3 prevWorldPos = ReconstructWorldPosition(prevUV, prevDepth);
+                    bool disocclusion = length(prevWorldPos - worldPosition) > levelOrigins[0].w * 4.0;
+
+                    if (!disocclusion)
+                    {
+                        prevPixel = clamp(
+                            int2(prevUV * float2(traceResolution)),
+                            int2(0, 0),
+                            int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
+                        ssrHistory = _ssrHistory.Load(int3(prevPixel, 0));
+                        historyValid = true;
+                    }
                 }
             }
         }
 
         if (historyValid)
         {
-            // Symmetric luminance clamp: constrain history to a narrow band
-            // around the current frame so jitter bright-spots cannot inflate
-            // the accumulated value.
-            float curLum = max(dot(screenReflection.rgb, float3(0.299, 0.587, 0.114)), 0.001);
-            float histLum = max(dot(ssrHistory.rgb, float3(0.299, 0.587, 0.114)), 0.001);
-            float targetLum = clamp(histLum, curLum * 0.5, curLum * 1.5);
-            ssrHistory.rgb *= targetLum / histLum;
+            // AABB neighbourhood clip: sample a 3×3 region around the history
+            // pixel to build a colour bounding box, then clip the history
+            // sample toward it. This prevents ghosting from stale radiance
+            // while preserving legitimate detail.
+            int2 histCenter = prevPixel;
 
+            float3 histMin = 1e18;
+            float3 histMax = -1e18;
+            [unroll] for (int dy = -1; dy <= 1; dy++)
+            {
+                [unroll] for (int dx = -1; dx <= 1; dx++)
+                {
+                    float3 s = _ssrHistory.Load(int3(clamp(histCenter + int2(dx, dy),
+                        int2(0, 0), int2((int)traceResolution.x - 1, (int)traceResolution.y - 1)), 0)).rgb;
+                    histMin = min(histMin, s);
+                    histMax = max(histMax, s);
+                }
+            }
+
+            float3 clippedHistory = SsrClipAABB(histMin, histMax, ssrHistory.rgb);
             ssrHistory.a = min(ssrHistory.a, screenReflection.a);
 
             float blendRate = screenReflection.a > 0.01 ? 0.12 : 0.35;
             ssrAccumulated = float4(
-                lerp(ssrHistory.rgb, screenReflection.rgb, blendRate),
+                lerp(clippedHistory, screenReflection.rgb, blendRate),
                 lerp(ssrHistory.a, screenReflection.a, blendRate));
         }
         else

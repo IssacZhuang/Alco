@@ -339,6 +339,33 @@ public class ComputeMaterial
         _parameterSet.SetTexture3DRead(name, texture, mipLevel);
     }
 
+    /// <summary>
+    /// Sets the storage resource group of a single mip level of a 2D texture to a
+    /// storage texture slot by name.
+    /// </summary>
+    /// <param name="name">The shader resource name of the storage texture.</param>
+    /// <param name="texture">The 2D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetTexture2DStorage(string name, Texture2D texture, uint mipLevel)
+    {
+        _parameterSet.SetTexture2DStorage(name, texture, mipLevel);
+    }
+
+    /// <summary>
+    /// Sets the read-only resource group of a single mip level of a 2D texture to a
+    /// read-only texture slot by name. Inside the bound view the mip is rebased to
+    /// mip 0, so shaders load it with mip index 0.
+    /// </summary>
+    /// <param name="name">The shader resource name of the read-only texture.</param>
+    /// <param name="texture">The 2D texture to bind.</param>
+    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetTexture2DRead(string name, Texture2D texture, uint mipLevel)
+    {
+        _parameterSet.SetTexture2DRead(name, texture, mipLevel);
+    }
+
 
     #endregion
 

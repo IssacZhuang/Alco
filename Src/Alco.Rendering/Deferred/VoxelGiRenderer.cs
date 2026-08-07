@@ -144,6 +144,8 @@ public readonly struct VoxelGiShaders
     public required Shader Demosaic { get; init; }
     /// <summary>The full-resolution upsample shader (VoxelGiUpsample.hlsl), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
+    /// <summary>The SSR Hi-Z depth pyramid downsample shader (SsrDepthDownsample.hlsl), or null to disable Hi-Z raymarching.</summary>
+    public Shader? SsrDepthDownsample { get; init; }
 }
 
 /// <summary>
@@ -369,6 +371,10 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private readonly RenderTexture[] _historyGI = new RenderTexture[2];
     private readonly RenderTexture[] _ssrHistory = new RenderTexture[2];
     private int _ssrHistoryReadIndex;
+    /// <summary>Hi-Z depth pyramid (R32Float, 7 mips) for SSR hierarchical raymarching, or null when the downsample shader is not provided.</summary>
+    private Texture2D? _depthPyramid;
+    private ComputeMaterial? _depthDownsampleMaterial;
+    private const int SsrDepthMipCount = 7;
     private uint _gbufferWidth;
     private uint _gbufferHeight;
     private float _traceResolutionScale;
@@ -570,6 +576,10 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _propagateMaterial = rendering.CreateComputeMaterial(shaders.Propagate);
         _traceMaterial = rendering.CreateComputeMaterial(shaders.Trace);
         _demosaicMaterial = rendering.CreateComputeMaterial(shaders.Demosaic);
+        if (shaders.SsrDepthDownsample != null)
+        {
+            _depthDownsampleMaterial = rendering.CreateComputeMaterial(shaders.SsrDepthDownsample);
+        }
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
         if (_device.TimestampQuerySupported)
         {
@@ -590,6 +600,10 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _propagateMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
         _demosaicMaterial.SetBuffer("_data", _dataBuffer);
+        if (_depthDownsampleMaterial != null)
+        {
+            _depthDownsampleMaterial.SetBuffer("_data", _dataBuffer);
+        }
 
         // Attribute voxels are sparse physical 8^3 pages. Static data can fill
         // two complete levels and dynamic data one complete level before the
@@ -663,6 +677,20 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         // SSR temporal history (ping-pong): one trace-resolution RGBA16F plane.
         _ssrHistory[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_a");
         _ssrHistory[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_b");
+            // Hi-Z depth pyramid for SSR hierarchical raymarching (R16Float, 7 mips).
+            // R16Float is WebGPU-filterable; R32Float is not and cannot be bound
+            // as a read-only texture.
+            if (_depthDownsampleMaterial != null)
+            {
+                _depthPyramid = rendering.CreateTexture2D(_gbufferWidth, _gbufferHeight,
+                    new ImageLoadOption
+                    {
+                        Format = PixelFormat.RGBA16Float,
+                        Usage = TextureUsage.ComputeWrite,
+                        MipLevels = SsrDepthMipCount,
+                        Name = "voxel_ssr_depth_pyramid",
+                    });
+            }
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[0], 0);
         _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1], 0);
@@ -948,6 +976,19 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _historyGI[1] = newHistoryB;
         _ssrHistory[0] = newSsrHistoryA!;
         _ssrHistory[1] = newSsrHistoryB!;
+        // Rebuild depth pyramid at the new G-buffer resolution.
+        if (_depthDownsampleMaterial != null)
+        {
+            _depthPyramid?.Dispose();
+            _depthPyramid = _rendering.CreateTexture2D(_gbufferWidth, _gbufferHeight,
+                new ImageLoadOption
+                {
+                    Format = PixelFormat.RGBA16Float,
+                    Usage = TextureUsage.ComputeWrite,
+                    MipLevels = SsrDepthMipCount,
+                    Name = "voxel_ssr_depth_pyramid",
+                });
+        }
         _giDiffuseFullRes = newGiDiffuse;
         _giSpecularFullRes = newGiSpecular;
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
@@ -1272,6 +1313,38 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 // the screen-space tracer) samples correct coarse-mip data.
                 BuildMipChains(computePass, _radiance[writeIndex]);
                 radianceReadIndex = writeIndex;
+            }
+
+            // Build the SSR Hi-Z depth pyramid before tracing so the SSR
+            // raymarch can traverse it hierarchically. Each level is a 2×2
+            // max-reduction (NDC z: larger = farther) of the previous level.
+            if (_depthPyramid != null && _depthDownsampleMaterial != null)
+            {
+                // Bind the G-buffer depth once for all downsample dispatches.
+                _depthDownsampleMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+
+                // Level 0: copy full-res G-buffer depth into mip 0.
+                // _depthSrc is not read on this path but must be bound to
+                // satisfy the pipeline layout.
+                _depthDownsampleMaterial.SetTexture2DRead("_depthSrc", _depthPyramid, (uint)(SsrDepthMipCount - 1));
+                _depthDownsampleMaterial.SetTexture2DStorage("_depthOut", _depthPyramid, 0);
+                _depthDownsampleMaterial.DispatchBySizeWithConstant(computePass,
+                    _gbufferWidth, _gbufferHeight, 1,
+                    new Vector4(0, 1, 0, 0));
+
+                // Levels 1..N-1: 2×2 max-reduction.
+                for (int mip = 0; mip < SsrDepthMipCount - 1; mip++)
+                {
+                    uint dstW = Math.Max(_gbufferWidth >> (mip + 1), 1u);
+                    uint dstH = Math.Max(_gbufferHeight >> (mip + 1), 1u);
+                    _depthDownsampleMaterial.SetTexture2DRead("_depthSrc", _depthPyramid, (uint)mip);
+                    _depthDownsampleMaterial.SetTexture2DStorage("_depthOut", _depthPyramid, (uint)(mip + 1));
+                    _depthDownsampleMaterial.DispatchBySizeWithConstant(computePass,
+                        dstW, dstH, 1,
+                        new Vector4(mip, 0, 0, 0));
+                }
+
+                _traceMaterial.SetTexture("_depthPyramid", _depthPyramid);
             }
 
             // Gather rotation-balanced narrow-cone diffuse and specular from the
@@ -1701,6 +1774,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _historyGI[1].Dispose();
             _ssrHistory[0].Dispose();
             _ssrHistory[1].Dispose();
+            _depthPyramid?.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
             _timestampQueries?.Dispose();
