@@ -62,7 +62,7 @@ public sealed class GpuTimestampSampler : IDisposable
     /// <param name="slotCount">The number of timestamp query slots.</param>
     /// <param name="name">A diagnostic name used for GPU resource labels.</param>
     /// <param name="intervalSeconds">The minimum time between samples (default 0.5s).</param>
-    public GpuTimestampSampler(GPUDevice device, int slotCount, string name, double intervalSeconds = 0.5)
+    public GpuTimestampSampler(GPUDevice device, int slotCount, string name, double intervalSeconds = 1.0)
     {
         _device = device;
         _intervalSeconds = intervalSeconds;

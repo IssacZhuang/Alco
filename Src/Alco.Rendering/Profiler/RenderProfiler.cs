@@ -76,7 +76,7 @@ public sealed class RenderProfiler
 
     // Snapshot publication interval — the UI sees fresh data every 0.5s so the
     // numbers are readable rather than flickering every frame.
-    private const double PublicationIntervalSeconds = 0.5;
+        private const double PublicationIntervalSeconds = 1.0;
 
     // Counter metadata — only grows during RegisterCounter calls (never on the hot path).
     private string[] _groups;
