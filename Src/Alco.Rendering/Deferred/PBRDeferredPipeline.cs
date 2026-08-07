@@ -200,8 +200,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     private readonly Shader _gbufferShader;
     private readonly Shader? _gbufferTangentShader;
-    private readonly Shader? _shadowCutoutShader;
-    private readonly Shader? _shadowCutoutTangentShader;
+    private readonly Shader _shadowShader;
+    private readonly Shader? _shadowTangentShader;
     private readonly GraphicsMaterial _shadowMaterial;
     private readonly GraphicsMaterial? _shadowTangentMaterial;
     private readonly GraphicsMaterial _lightingMaterial;
@@ -507,9 +507,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling <see cref="CreateGBufferTangentMaterial"/> for normal-mapped materials.</param>
-    /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="DrawShadowTangent"/> for tangent-bearing meshes.</param>
-    /// <param name="shadowCutoutShader">Optional cutout shadow depth shader (ShadowDepthCutout.hlsl) enabling <see cref="CreateShadowCutoutMaterial"/> and <see cref="DrawShadowCutout"/> for alpha-tested meshes.</param>
-    /// <param name="shadowCutoutTangentShader">Optional tangent-layout cutout shadow depth shader (ShadowDepthCutoutTangent.hlsl) enabling <see cref="CreateShadowCutoutTangentMaterial"/> and <see cref="DrawShadowCutoutTangent"/> for alpha-tested tangent meshes.</param>
+    /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="DrawShadowTangent"/> for tangent-bearing meshes. Cutout variants of both shadow shaders are produced at runtime via the <c>SHADOW_CUTOUT</c> define.</param>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
         Shader gbufferShader,
@@ -520,9 +518,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         uint width = 1280,
         uint height = 720,
         Shader? gbufferTangentShader = null,
-        Shader? shadowTangentShader = null,
-        Shader? shadowCutoutShader = null,
-        Shader? shadowCutoutTangentShader = null)
+        Shader? shadowTangentShader = null)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -558,8 +554,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
         _gbufferShader = gbufferShader;
         _gbufferTangentShader = gbufferTangentShader;
-        _shadowCutoutShader = shadowCutoutShader;
-        _shadowCutoutTangentShader = shadowCutoutTangentShader;
+        _shadowShader = shadowShader;
+        _shadowTangentShader = shadowTangentShader;
 
         _shadowDataBuffer = rendering.CreateGraphicsValueBuffer<ShadowCascadeData>("pbr_shadow_data");
 
@@ -826,24 +822,23 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Create a caller-owned cutout shadow material (ShadowDepthCutout.hlsl) with the
-    /// given albedo texture. Use <see cref="DrawShadowCutout"/> to draw meshes with this
-    /// material; alpha-tested fragments are discarded so cutout meshes cast correctly
-    /// shaped shadows. The material binds the per-frame shadow data buffer internally.
+    /// Create a caller-owned cutout shadow material — the shadow depth shader
+    /// (ShadowDepth.hlsl) compiled with the <c>SHADOW_CUTOUT</c> define so the
+    /// pixel shader samples _albedoTexture and discards transparent fragments.
+    /// Alpha-tested meshes (foliage, fences, etc.) cast correctly shaped shadows.
+    /// The material binds the per-frame shadow data buffer internally.
     /// </summary>
     /// <param name="albedoTexture">The albedo texture whose alpha channel drives the cutout; null binds the shared white texture (opaque).</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
     /// <param name="name">The material name for debugging.</param>
     /// <returns>The caller-owned cutout shadow material.</returns>
-    /// <exception cref="InvalidOperationException">The pipeline was created without a cutout shadow shader.</exception>
     public GraphicsMaterial CreateShadowCutoutMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_material")
     {
-        if (_shadowCutoutShader == null)
-        {
-            throw new InvalidOperationException(
-                "CreateShadowCutoutMaterial requires the pipeline to be created with a cutout shadow shader.");
-        }
-        var material = _rendering.CreateMaterial(_shadowCutoutShader, name);
+        var material = _rendering.CreateMaterial(_shadowShader, name);
+        material.SetDefines("SHADOW_CUTOUT");
+        // Force the SHADOW_CUTOUT variant to compile and update the reflection so
+        // the _albedoTexture binding is visible before SetTexture is called.
+        material.GetPipelineInfo(_shadowLayout);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
@@ -853,22 +848,26 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Create a caller-owned tangent-layout cutout shadow material (ShadowDepthCutoutTangent.hlsl).
-    /// Same as <see cref="CreateShadowCutoutMaterial"/> but for meshes with tangent vertex layout.
+    /// Create a caller-owned tangent-layout cutout shadow material — the tangent
+    /// shadow depth shader (ShadowDepthTangent.hlsl) compiled with the
+    /// <c>SHADOW_CUTOUT</c> define. Same as <see cref="CreateShadowCutoutMaterial"/>
+    /// but for meshes with tangent vertex layout.
     /// </summary>
     /// <param name="albedoTexture">The albedo texture whose alpha channel drives the cutout; null binds the shared white texture (opaque).</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
     /// <param name="name">The material name for debugging.</param>
     /// <returns>The caller-owned cutout shadow material.</returns>
-    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent cutout shadow shader.</exception>
+    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent shadow shader.</exception>
     public GraphicsMaterial CreateShadowCutoutTangentMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_tangent_material")
     {
-        if (_shadowCutoutTangentShader == null)
+        if (_shadowTangentShader == null)
         {
             throw new InvalidOperationException(
-                "CreateShadowCutoutTangentMaterial requires the pipeline to be created with a tangent cutout shadow shader.");
+                "CreateShadowCutoutTangentMaterial requires the pipeline to be created with a tangent shadow shader.");
         }
-        var material = _rendering.CreateMaterial(_shadowCutoutTangentShader, name);
+        var material = _rendering.CreateMaterial(_shadowTangentShader, name);
+        material.SetDefines("SHADOW_CUTOUT");
+        material.GetPipelineInfo(_shadowLayout);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
