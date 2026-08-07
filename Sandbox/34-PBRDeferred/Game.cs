@@ -1202,9 +1202,7 @@ public class Game : GameEngine
         {
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             Console.WriteLine(
-                $"GI stats: cpu={statistics.CpuRecordMilliseconds:F2}ms, " +
-                $"gpu={(double.IsNaN(statistics.GpuMilliseconds) ? "n/a" : $"{statistics.GpuMilliseconds:F2}ms")}, " +
-                $"static={statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks}, " +
+                $"GI stats: static={statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks}, " +
                 $"dynamic={statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks}, " +
                 $"queued={statistics.PendingStaticBricks}, dropped={statistics.DroppedBricks}, " +
                 $"attribute={statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
@@ -1327,10 +1325,6 @@ public class Game : GameEngine
                 _voxelGI.DebugView = (VoxelGiDebugMode)giDebugInt;
             }
             VoxelGiStatistics statistics = _voxelGI.Statistics;
-            ImGui.Text($"GI CPU encode: {statistics.CpuRecordMilliseconds:F2} ms");
-            ImGui.Text(double.IsNaN(statistics.GpuMilliseconds)
-                ? "GI GPU: unavailable"
-                : $"GI GPU: {statistics.GpuMilliseconds:F2} ms (sampled)");
             ImGui.Text($"Static bricks: {statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks} " +
                 $"({statistics.PendingStaticBricks} queued, {statistics.StaticBricksUpdated} updated)");
             ImGui.Text($"Dynamic bricks: {statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks} " +
@@ -1522,6 +1516,39 @@ public class Game : GameEngine
 
             ImGui.Separator();
             ImGui.Checkbox("Animate Objects", ref _animateObjects);
+        }
+
+        if (ImGui.CollapsingHeader("Render Profiler"))
+        {
+            ref readonly RenderProfileSnapshot snapshot = ref _pipeline.Profiler.GetSnapshot();
+            if (snapshot.Count == 0)
+            {
+                ImGui.TextDisabled("No profiling data yet.");
+            }
+            else
+            {
+                // Group counters by their Group label, rendering each group as
+                // a sub-section. The snapshot arrays are pre-sorted by registration
+                // order (pipeline first, then plugins), so same-group entries are
+                // already contiguous.
+                string currentGroup = null!;
+                for (int i = 0; i < snapshot.Count; i++)
+                {
+                    string group = snapshot.Groups[i];
+                    if (group != currentGroup)
+                    {
+                        if (i > 0)
+                        {
+                            ImGui.Spacing();
+                        }
+                        ImGui.TextDisabled(group);
+                        currentGroup = group;
+                    }
+
+                    double ms = snapshot.Values[i];
+                    ImGui.Text($"  {snapshot.Names[i],-20} {ms,8:F3} ms");
+                }
+            }
         }
 
         ImGui.End();

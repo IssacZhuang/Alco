@@ -18,6 +18,15 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     private readonly List<ICommandListener> _listeners;
     private GPUFrameBuffer? _framebuffer;
 
+    // Optional: when non-null, End() resolves the given timestamp range into
+    // the destination buffer after closing the render pass but before ending
+    // the command buffer — the only valid window for wgpu resolve calls.
+    private GPUTimestampQuerySet? _pendingResolveQuerySet;
+    private GPUBuffer? _pendingResolveDest;
+    private uint _pendingResolveFirst;
+    private uint _pendingResolveCount;
+    private ulong _pendingResolveOffset;
+
     //cached mesh data
     private Mesh? _mesh;
     private int _subMeshIndex;
@@ -103,6 +112,37 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     {
         ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
         Begin(target, clearColors, clearDepth, clearStencil);
+    }
+
+    /// <summary>
+    /// Begin the render context with GPU timestamp writes at pass begin and end.
+    /// Only call this when <see cref="GPUDevice.TimestampQuerySupported"/> is true.
+    /// </summary>
+    /// <param name="target">The framebuffer to render to.</param>
+    /// <param name="clearColors">Attachment clear values.</param>
+    /// <param name="querySet">The destination timestamp query set.</param>
+    /// <param name="beginQueryIndex">The slot written when the pass begins.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends.</param>
+    /// <param name="clearDepth">Optional depth clear value.</param>
+    /// <param name="clearStencil">Optional stencil clear value.</param>
+    public void Begin(
+        GPUFrameBuffer target,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint beginQueryIndex,
+        uint endQueryIndex,
+        float? clearDepth = null,
+        uint? clearStencil = null
+        )
+    {
+        _command.Begin();
+        _renderScope = _command.BeginRender(target, clearColors, querySet, beginQueryIndex, endQueryIndex, clearDepth, clearStencil);
+
+        _framebuffer = target;
+
+        ClearCache();
+
+        InvokeBegin();
     }
 
     /// <summary>
@@ -260,11 +300,51 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         InvokeEnd();
 
         _renderScope.Dispose();
+
+        // Resolve timestamps between the render pass close and the command buffer
+        // end — the only valid window for wgpu resolve calls.
+        if (_pendingResolveQuerySet != null)
+        {
+            _command.ResolveTimestamps(
+                _pendingResolveQuerySet,
+                _pendingResolveFirst,
+                _pendingResolveCount,
+                _pendingResolveDest!,
+                _pendingResolveOffset);
+            _pendingResolveQuerySet = null;
+            _pendingResolveDest = null;
+        }
+
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);
         ClearCache();
 
         _framebuffer = null;
+    }
+
+    /// <summary>
+    /// Schedule a timestamp resolve to run after the current render pass closes but
+    /// before the command buffer ends. Must be called while a pass is active (after
+    /// Begin, before End). The resolve writes the given query range into
+    /// <paramref name="destination"/> at <paramref name="destinationOffset"/>.
+    /// </summary>
+    /// <param name="querySet">The source timestamp query set.</param>
+    /// <param name="firstQuery">The first source query slot.</param>
+    /// <param name="queryCount">The number of slots to resolve.</param>
+    /// <param name="destination">A buffer with QueryResolve usage.</param>
+    /// <param name="destinationOffset">The byte offset in the destination buffer.</param>
+    public void ResolveTimestampsOnEnd(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset = 0)
+    {
+        _pendingResolveQuerySet = querySet;
+        _pendingResolveFirst = firstQuery;
+        _pendingResolveCount = queryCount;
+        _pendingResolveDest = destination;
+        _pendingResolveOffset = destinationOffset;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

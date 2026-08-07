@@ -133,6 +133,29 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             _commandBuffer.ExecuteBundleCore(bundles);
         }
 
+        /// <summary>
+        /// Writes a timestamp inside this open render pass. If the device does not
+        /// support <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>, this
+        /// method is a no-op (the timing is silently disabled) so callers can use it
+        /// unconditionally for maximum device compatibility.
+        /// </summary>
+        /// <param name="querySet">The destination timestamp query set.</param>
+        /// <param name="queryIndex">The slot to write.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteTimestamp(GPUTimestampQuerySet querySet, uint queryIndex)
+        {
+            AssetUtility.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while WriteTimestamp, try start recording by calling GPUCommandBuffer.BeginRender()");
+            if (!_commandBuffer.Device.TimestampQueryInsidePassesSupported)
+            {
+                return;
+            }
+            if (queryIndex >= querySet.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(queryIndex));
+            }
+            _commandBuffer.WriteTimestampInsidePassCore(querySet, queryIndex);
+        }
+
         public void Dispose()
         {
             _commandBuffer.EndRenderCore();
@@ -312,6 +335,44 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         return BeginRender(frameBuffer, ReadOnlySpan<ClearColorData>.Empty, null, null);
     }
 
+    /// <summary>
+    /// Begins a render pass and writes timestamps at its beginning and end.
+    /// </summary>
+    /// <param name="frameBuffer">The target framebuffer.</param>
+    /// <param name="clearColors">Attachment clear values.</param>
+    /// <param name="querySet">The destination timestamp query set.</param>
+    /// <param name="beginningQueryIndex">The slot written when the pass begins.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends.</param>
+    /// <param name="clearDepth">Optional depth clear value.</param>
+    /// <param name="clearStencil">Optional stencil clear value.</param>
+    /// <returns>An RAII render-pass scope.</returns>
+    public RenderPass BeginRender(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex,
+        float? clearDepth = null,
+        uint? clearStencil = null)
+    {
+        if (_isRecordingRender)
+        {
+            throw new InvalidOperationException("Render pass is already recording, try end current Render pass before starting a new one");
+        }
+        if (_isRecordingCompute)
+        {
+            throw new InvalidOperationException("Compute pass is already recording, try end current pass before starting a new one");
+        }
+        if (beginningQueryIndex >= querySet.Count || endQueryIndex >= querySet.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(beginningQueryIndex));
+        }
+
+        BeginRenderTimestampCore(frameBuffer, clearColors, querySet, beginningQueryIndex, endQueryIndex, clearDepth, clearStencil);
+        _isRecordingRender = true;
+        return new RenderPass(this);
+    }
+
     public ComputePass BeginCompute()
     {
         if (_isRecordingRender)
@@ -414,6 +475,14 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void EndCore();
 
     protected abstract void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil);
+    protected abstract void BeginRenderTimestampCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex,
+        float? clearDepth,
+        uint? clearStencil);
     protected abstract void EndRenderCore();
 
     protected abstract void BeginComputeCore();

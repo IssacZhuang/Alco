@@ -19,7 +19,18 @@ internal class NoCommandBuffer : GPUCommandBuffer
 
     protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
     {
-        
+
+    }
+
+    protected override void BeginRenderTimestampCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex,
+        float? clearDepth,
+        uint? clearStencil)
+    {
     }
 
     protected override void EndRenderCore()

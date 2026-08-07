@@ -59,6 +59,14 @@ public sealed class RenderPluginContext
     /// </summary>
     public GraphicsBuffer? PointLightBuffer { get; init; }
 
+    /// <summary>
+    /// The pipeline's render performance profiler. Plugins register named counters
+    /// once (e.g. in their first <see cref="IRenderPlugin.Execute"/> call) and push
+    /// per-frame values via <see cref="RenderProfiler.PushValue"/> using the returned
+    /// <see cref="RenderProfileCounterId"/> handle — zero string allocation on the hot path.
+    /// </summary>
+    public required RenderProfiler Profiler { get; init; }
+
     // ── Outputs set by plugins ──
 
     /// <summary>

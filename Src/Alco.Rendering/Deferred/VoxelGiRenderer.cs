@@ -314,8 +314,17 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private ComputeMaterial? _upsampleMaterial;
     private GraphicsValueBuffer<VoxelGiUpsampleData>? _upsampleDataBuffer;
     private readonly GraphicsValueBuffer<VoxelGiData> _dataBuffer;
-    private readonly GPUTimestampQuerySet? _timestampQueries;
-    private readonly GPUBuffer? _timestampResolveBuffer;
+    private readonly GpuTimestampSampler? _gpuTimestamps;
+
+    /// <summary>
+    /// The number of timestamp slots reserved for per-stage GPU timing.
+    /// Slot 0 = main pass begin, slots 1–6 = in-pass stage boundaries,
+    /// slot 7 = main pass end, slots 8–9 = upsample pass begin/end.
+    /// </summary>
+    private const int TimestampSlotCount = 10;
+
+    /// <summary>Per-stage GPU durations in milliseconds, indexed by stage enum.</summary>
+    private readonly double[] _stageGpuMilliseconds = new double[GiStageCount];
 
     private readonly int _resolution;
     private readonly int _mipCount;
@@ -345,7 +354,15 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private readonly Texture3D _opacity;
     private uint _frameIndex;
     private double _gpuMilliseconds = double.NaN;
-    private bool _hasPendingTimestamps;
+
+    /// <summary>The number of measured GPU stages (matches profiler counters).</summary>
+    private const int GiStageCount = 8;
+
+    // Profiler counter handles — lazily registered on first Execute call.
+    private RenderProfileCounterId _giTotalCounter;
+    private RenderProfileCounterId _giGpuCounter;
+    private readonly RenderProfileCounterId[] _giStageCounters = new RenderProfileCounterId[GiStageCount];
+    private bool _profilerCountersRegistered;
 
     private readonly Dictionary<(Mesh Mesh, uint VertexStrideBytes), MeshGeometry> _geometryByMesh = new();
     private readonly List<MeshGeometry> _geometries = new();
@@ -471,12 +488,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     }
 
     /// <summary>
-    /// Gets or sets the number of frames between blocking GPU timestamp readbacks.
-    /// Zero disables timing; timestamp writes remain unavailable on unsupported adapters.
-    /// </summary>
-    public int GpuTimingSamplePeriod { get; set; } = 60;
-
-    /// <summary>
     /// Gets or sets the emissive scale multiplier for direct-light injection.
     /// Boosts emissive surface contribution to the voxel volume. Zero disables
     /// emissive injection.
@@ -583,13 +594,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
         if (_device.TimestampQuerySupported)
         {
-            _timestampQueries = _device.CreateTimestampQuerySet(2, "voxel_gi_timestamps");
-            _timestampResolveBuffer = _device.CreateBuffer(new BufferDescriptor
-            {
-                Usage = BufferUsage.QueryResolve | BufferUsage.CopySrc,
-                Size = sizeof(ulong) * 2,
-                Name = "voxel_gi_timestamp_resolve",
-            });
+            _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "voxel_gi");
         }
 
         _clearMaterial.SetBuffer("_data", _dataBuffer);
@@ -1108,33 +1113,26 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
 
         uint resolution = (uint)_resolution;
         _dynamicPagePool.Reset();
-        bool measureGpu = _timestampQueries != null
-            && _timestampResolveBuffer != null
-            && GpuTimingSamplePeriod > 0
-            && _frameIndex % (uint)GpuTimingSamplePeriod == 0;
+        bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
 
-        // Read back the previous period's GPU timestamps (non-blocking — the
-        // work is guaranteed complete since at least GpuTimingSamplePeriod
-        // frames have elapsed). This avoids the CPU-GPU synchronization stall
-        // that occurred when reading immediately after Submit.
-        if (_hasPendingTimestamps)
+        // Read back GPU timestamps from the previous sample (0.5s ago — guaranteed
+        // complete). Updates per-stage and total GPU durations.
+        if (measureGpu)
         {
-            var timestamps = new ulong[2];
-            _device.ReadBuffer(_timestampResolveBuffer!, timestamps);
-            if (timestamps[1] >= timestamps[0])
+            ulong[]? timestamps = _gpuTimestamps!.TryReadback();
+            if (timestamps != null)
             {
-                _gpuMilliseconds = (timestamps[1] - timestamps[0])
-                    * _device.TimestampPeriodNanoseconds
-                    / 1_000_000.0;
+                _gpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, 0, 7);
+                ReadStageDurations(timestamps, _gpuTimestamps);
             }
-            _hasPendingTimestamps = false;
         }
 
         _commandBuffer.Begin();
         using (GPUCommandBuffer.ComputePass computePass = measureGpu
-            ? _commandBuffer.BeginCompute(_timestampQueries!, 0, 1)
+            ? _commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 0, 7)
             : _commandBuffer.BeginCompute())
         {
+            bool inPassTimestamps = _gpuTimestamps?.SupportsInPassTimestamps ?? false;
             // Structural voxelization is driven by high-priority edit bricks and
             // lower-priority camera-streaming bricks. The clipmap buffer is toroidal,
             // so retained bricks survive camera movement without being copied.
@@ -1241,6 +1239,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 }
             }
 
+            if (measureGpu && inPassTimestamps)
+            {
+                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 1);
+            }
+
             // Collect resident brick lists for sparse inject/propagate.
             // The buffer layout per level is [resident bricks..., stale bricks...].
             // Inject dispatches over both (stale bricks get zeroed); Propagate
@@ -1272,12 +1275,22 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                     new Vector4(level, 0, 0, 0));
             }
 
+            if (measureGpu && inPassTimestamps)
+            {
+                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 2);
+            }
+
             // Build mip chain after injection so the propagation cones sample
             // correct coarse-mip data instead of stale values from the previous
             // frame. Without this, the first bounce gathers against an empty or
             // outdated radiance volume.
             int radianceReadIndex = 0;
             BuildMipChains(computePass, _radiance[radianceReadIndex]);
+
+            if (measureGpu && inPassTimestamps)
+            {
+                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 3);
+            }
 
             // Multi-bounce light propagation (sparse, double-buffered): each
             // occupied voxel traces a cone set through the source radiance volume
@@ -1315,6 +1328,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 radianceReadIndex = writeIndex;
             }
 
+            if (measureGpu && inPassTimestamps)
+            {
+                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 4);
+            }
+
             // Build the SSR Hi-Z depth pyramid before tracing so the SSR
             // raymarch can traverse it hierarchically. Each level is a 2×2
             // max-reduction (NDC z: larger = farther) of the previous level.
@@ -1347,12 +1365,22 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 _traceMaterial.SetTexture("_depthPyramid", _depthPyramid);
             }
 
+            if (measureGpu && inPassTimestamps)
+            {
+                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 5);
+            }
+
             // Gather rotation-balanced narrow-cone diffuse and specular from the
             // last-written radiance texture (direct + bounce).
             _traceMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
             _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[_ssrHistoryReadIndex], 0);
             _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1 - _ssrHistoryReadIndex], 0);
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
+
+            if (measureGpu && inPassTimestamps)
+            {
+                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 6);
+            }
 
             // Dual-layer diffuse resolve plus specular, one thread per trace
             // pixel writing all three atlas sections, followed by validated
@@ -1376,7 +1404,9 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         // UAV writes are visible as SRV reads.
         if (_upsampleMaterial != null && _upsampleDataBuffer != null)
         {
-            using GPUCommandBuffer.ComputePass upsamplePass = _commandBuffer.BeginCompute();
+            using GPUCommandBuffer.ComputePass upsamplePass = measureGpu
+                ? _commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 8, 9)
+                : _commandBuffer.BeginCompute();
             _upsampleDataBuffer.Value.InvViewProjection = data.InvViewProjection;
             _upsampleDataBuffer.Value.Params = new Vector4(
                 _gbufferWidth, _gbufferHeight,
@@ -1387,8 +1417,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         }
         if (measureGpu)
         {
-            _commandBuffer.ResolveTimestamps(_timestampQueries!, 0, 2, _timestampResolveBuffer!);
-            _hasPendingTimestamps = true;
+            _commandBuffer.ResolveTimestamps(_gpuTimestamps!.QuerySet, 0, TimestampSlotCount, _gpuTimestamps.ResolveBuffer);
+            _gpuTimestamps.EndSample();
         }
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
@@ -1438,12 +1468,62 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             bricksPerLevel * LevelCount);
     }
 
+    /// <summary>
+    /// Compute per-stage GPU durations from the resolved timestamp array and
+    /// store them in <see cref="_stageGpuMilliseconds"/>. Slots 0–7 bracket
+    /// the main compute pass (0=begin, 7=end), slots 8–9 bracket the upsample
+    /// pass. In-pass slots 1–6 are no-ops (read as 0) when the device lacks
+    /// <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>.
+    /// </summary>
+    private void ReadStageDurations(ulong[] timestamps, GpuTimestampSampler ring)
+    {
+        // Stage 0: Voxelize (slots 0 → 1)
+        _stageGpuMilliseconds[0] = ring.DeltaMilliseconds(timestamps, 0, 1);
+        // Stage 1: Inject (slots 1 → 2)
+        _stageGpuMilliseconds[1] = ring.DeltaMilliseconds(timestamps, 1, 2);
+        // Stage 2: Inject MipChain (slots 2 → 3)
+        _stageGpuMilliseconds[2] = ring.DeltaMilliseconds(timestamps, 2, 3);
+        // Stage 3: Propagate (slots 3 → 4)
+        _stageGpuMilliseconds[3] = ring.DeltaMilliseconds(timestamps, 3, 4);
+        // Stage 4: SSR Depth Downsample (slots 4 → 5)
+        _stageGpuMilliseconds[4] = ring.DeltaMilliseconds(timestamps, 4, 5);
+        // Stage 5: Trace (slots 5 → 6)
+        _stageGpuMilliseconds[5] = ring.DeltaMilliseconds(timestamps, 5, 6);
+        // Stage 6: Demosaic (slots 6 → 7)
+        _stageGpuMilliseconds[6] = ring.DeltaMilliseconds(timestamps, 6, 7);
+        // Stage 7: Upsample (slots 8 → 9)
+        _stageGpuMilliseconds[7] = ring.DeltaMilliseconds(timestamps, 8, 9);
+    }
+
     /// <inheritdoc />
     void IRenderPlugin.Execute(RenderPluginContext context)
     {
         Render(context);
         context.GIDiffuse = _giDiffuseFullRes;
         context.GISpecular = _giSpecularFullRes;
+
+        // Lazily register profiler counters on the first Execute call.
+        if (!_profilerCountersRegistered)
+        {
+            _giTotalCounter = context.Profiler.RegisterCounter("VoxelGI", "Total (CPU)");
+            _giGpuCounter = context.Profiler.RegisterCounter("VoxelGI", "GPU");
+            _giStageCounters[0] = context.Profiler.RegisterCounter("VoxelGI", "Voxelize");
+            _giStageCounters[1] = context.Profiler.RegisterCounter("VoxelGI", "Inject");
+            _giStageCounters[2] = context.Profiler.RegisterCounter("VoxelGI", "Inject MipChain");
+            _giStageCounters[3] = context.Profiler.RegisterCounter("VoxelGI", "Propagate");
+            _giStageCounters[4] = context.Profiler.RegisterCounter("VoxelGI", "SSR Depth");
+            _giStageCounters[5] = context.Profiler.RegisterCounter("VoxelGI", "Trace");
+            _giStageCounters[6] = context.Profiler.RegisterCounter("VoxelGI", "Demosaic");
+            _giStageCounters[7] = context.Profiler.RegisterCounter("VoxelGI", "Upsample");
+            _profilerCountersRegistered = true;
+        }
+
+        context.Profiler.PushValue(_giTotalCounter, Statistics.CpuRecordMilliseconds);
+        context.Profiler.PushValue(_giGpuCounter, Statistics.GpuMilliseconds);
+        for (int i = 0; i < GiStageCount; i++)
+        {
+            context.Profiler.PushValue(_giStageCounters[i], _stageGpuMilliseconds[i]);
+        }
     }
 
     private int UpdateStaticResidency(int level, List<VoxelGiDirtyBrick> bricks)
@@ -1777,8 +1857,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _depthPyramid?.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
-            _timestampQueries?.Dispose();
-            _timestampResolveBuffer?.Dispose();
+            _gpuTimestamps?.Dispose();
             _commandBuffer.Dispose();
         }
     }

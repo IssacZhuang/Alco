@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -228,6 +229,26 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private int _pointLightCount;
     private bool _giActive;
 
+    // Render performance profiler — exposes per-stage timing (shadow / G-buffer /
+    // lighting / plugins) to external UI. Counter handles are registered once in
+    // the constructor; per-frame pushes use the int handle, never allocating.
+    private readonly RenderProfiler _profiler = new();
+    private RenderProfileCounterId _shadowCounter;
+    private RenderProfileCounterId _gbufferCounter;
+    private RenderProfileCounterId _lightingCounter;
+    private readonly Stopwatch _frameStopwatch = new();
+    private long _shadowElapsedTicks;
+    private long _stageStartTicks;
+
+    // GPU timestamp ring buffer for per-stage GPU timing. Each stage (G-buffer /
+    // lighting) owns 2 query slots (begin + end) in a shared query set. The ring
+    // buffer provides per-frame readback with a 2-frame latency, no stalls.
+    private const int PipelineTimestampCount = 6; // 3 stages × 2 (begin/end)
+    private const int ShadowQueryBase = 0;
+    private const int GBufferQueryBase = 2;
+    private const int LightingQueryBase = 4;
+    private GpuTimestampSampler? _gpuTimestamps;
+
     private readonly RenderContext _shadowContext;
     private readonly RenderContext _gbufferContext;
     private readonly RenderContext _lightingContext;
@@ -243,6 +264,13 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// The depth-only shadow map render texture (a 2x2 cascade atlas).
     /// </summary>
     public RenderTexture ShadowMap => _shadowRT;
+
+    /// <summary>
+    /// The render performance profiler. Pipeline stages and registered plugins push
+    /// per-frame timing data here. External UI reads snapshots via
+    /// <see cref="RenderProfiler.GetSnapshot"/>.
+    /// </summary>
+    public RenderProfiler Profiler => _profiler;
 
     /// <summary>
     /// The width of one shadow cascade (atlas quadrant) in texels.
@@ -417,6 +445,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             Height = _gbufferRT.Height,
             LightingData = _lightingData,
             PointLightBuffer = _pointLightBuffer,
+            Profiler = Profiler,
         };
 
         for (int i = 0; i < _plugins.Count; i++)
@@ -428,6 +457,39 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             }
         }
         RebindPluginOutputs(context);
+    }
+
+    /// <summary>
+    /// Convert raw <see cref="Stopwatch"/> ticks to milliseconds.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static double TicksToMilliseconds(long ticks)
+    {
+        return (double)ticks / Stopwatch.Frequency * 1000.0;
+    }
+
+    /// <summary>
+    /// Read back GPU timestamps from the previous sample (0.5s ago, guaranteed
+    /// GPU-complete via the throttled timer) and push the values to the profiler.
+    /// Called at the start of each frame's G-buffer pass.
+    /// </summary>
+    private void ReadbackPipelineTimestamps()
+    {
+        if (_gpuTimestamps == null)
+        {
+            return;
+        }
+
+        ulong[]? timestamps = _gpuTimestamps.TryReadback();
+        if (timestamps == null)
+        {
+            return;
+        }
+
+        _profiler.PushValue(_gbufferCounter,
+            _gpuTimestamps.DeltaMilliseconds(timestamps, GBufferQueryBase, GBufferQueryBase + 1));
+        _profiler.PushValue(_lightingCounter,
+            _gpuTimestamps.DeltaMilliseconds(timestamps, LightingQueryBase, LightingQueryBase + 1));
     }
 
     /// <summary>
@@ -592,6 +654,20 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _shadowContext = rendering.CreateRenderContext("pbr_shadow_pass");
         _gbufferContext = rendering.CreateRenderContext("pbr_gbuffer_pass");
         _lightingContext = rendering.CreateRenderContext("pbr_lighting_pass");
+
+        // Register pipeline-internal counters once; the returned handles are used
+        // for zero-allocation PushValue calls on the per-frame hot path.
+        _shadowCounter = _profiler.RegisterCounter("Pipeline", "Shadow");
+        _gbufferCounter = _profiler.RegisterCounter("Pipeline", "GBuffer");
+        _lightingCounter = _profiler.RegisterCounter("Pipeline", "Lighting");
+
+        // Create GPU timestamp ring buffer when the device supports it.
+        // 3 stages × 2 slots (begin/end) = 6 slots, resolved per-frame with
+        // a 3-entry ring buffer for stall-free readback.
+        if (_device.TimestampQuerySupported)
+        {
+            _gpuTimestamps = new GpuTimestampSampler(_device, PipelineTimestampCount, "pbr_pipeline");
+        }
     }
 
     /// <summary>
@@ -755,6 +831,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="cascadeIndex">The cascade to render (0 = nearest .. <see cref="ShadowCascadeCount"/>-1).</param>
     public void BeginShadowPass(int cascadeIndex)
     {
+        // The shadow pass is the first GPU work of each frame; start the profiler
+        // frame here and begin measuring the total shadow duration.
+        if (cascadeIndex == 0)
+        {
+            _profiler.BeginFrame();
+            _shadowElapsedTicks = 0;
+        }
+        _stageStartTicks = Stopwatch.GetTimestamp();
+
         // Fold the atlas quadrant into the projection. The scissor is essential:
         // geometry outside this cascade's orthographic box can otherwise transform
         // into another atlas quadrant and corrupt that cascade's depth values.
@@ -941,6 +1026,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public void EndShadowPass()
     {
         _shadowContext.End();
+        _shadowElapsedTicks += Stopwatch.GetTimestamp() - _stageStartTicks;
     }
 
     /// <summary>
@@ -1067,6 +1153,13 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// </summary>
     public void BeginGBufferPass()
     {
+        _profiler.PushValue(_shadowCounter, TicksToMilliseconds(_shadowElapsedTicks));
+        _stageStartTicks = Stopwatch.GetTimestamp();
+
+        // Read back GPU timestamps from 2 frames ago (ring buffer guarantees
+        // GPU completion) and push them to the profiler.
+        ReadbackPipelineTimestamps();
+
         ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[4]
         {
             new(0, Vector4.Zero),
@@ -1074,7 +1167,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             new(2, Vector4.Zero),
             new(3, Vector4.Zero),
         };
-        _gbufferContext.Begin(_gbufferRT.FrameBuffer, clearColors, 1.0f);
+        if (_gpuTimestamps != null && _gpuTimestamps.ShouldRecord)
+        {
+            _gbufferContext.Begin(_gbufferRT.FrameBuffer, clearColors,
+                _gpuTimestamps.QuerySet, GBufferQueryBase, GBufferQueryBase + 1, 1.0f);
+        }
+        else
+        {
+            _gbufferContext.Begin(_gbufferRT.FrameBuffer, clearColors, 1.0f);
+        }
     }
 
     /// <summary>
@@ -1135,7 +1236,13 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// </summary>
     public void EndGBufferPass()
     {
+        if (_gpuTimestamps != null && _gpuTimestamps.ShouldRecord)
+        {
+            _gbufferContext.ResolveTimestampsOnEnd(
+                _gpuTimestamps.QuerySet, GBufferQueryBase, 2, _gpuTimestamps.ResolveBuffer);
+        }
         _gbufferContext.End();
+        _profiler.PushValue(_gbufferCounter, TicksToMilliseconds(Stopwatch.GetTimestamp() - _stageStartTicks));
     }
 
     /// <summary>
@@ -1152,13 +1259,34 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             throw new InvalidOperationException("RenderLighting requires a camera (call SetCamera first).");
         }
 
+        long lightingStart = Stopwatch.GetTimestamp();
+
         Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
         AssembleLightingData(invViewProjection);
 
         _lightingDataBuffer.UpdateBuffer(_lightingData);
-        _lightingContext.Begin(target);
+        bool recordGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
+        if (recordGpu)
+        {
+            _lightingContext.Begin(target, ReadOnlySpan<ClearColorData>.Empty,
+                _gpuTimestamps!.QuerySet, LightingQueryBase, LightingQueryBase + 1);
+        }
+        else
+        {
+            _lightingContext.Begin(target);
+        }
         _lightingContext.Draw(_fullScreenMesh, _lightingMaterial);
+        if (recordGpu)
+        {
+            _lightingContext.ResolveTimestampsOnEnd(
+                _gpuTimestamps!.QuerySet, LightingQueryBase, 2, _gpuTimestamps.ResolveBuffer);
+        }
         _lightingContext.End();
+
+        _profiler.PushValue(_lightingCounter, TicksToMilliseconds(Stopwatch.GetTimestamp() - lightingStart));
+
+        _gpuTimestamps?.EndSample();
+        _profiler.EndFrame();
     }
 
     private void RebindLightingTargets()
@@ -1194,6 +1322,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _shadowRT.Dispose();
             _gbufferLayout.Dispose();
             _shadowLayout.Dispose();
+            _gpuTimestamps?.Dispose();
         }
     }
 }

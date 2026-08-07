@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 
@@ -49,9 +50,22 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
     private readonly ComputeMaterial _blurMaterial;
     private readonly GraphicsValueBuffer<HbaoData> _dataBuffer;
 
+    // GPU timestamp ring buffer for per-stage timing (slot 0 = pass begin,
+    // slot 1 = after AO before Blur, slot 2 = pass end).
+    private const int TimestampSlotCount = 3;
+    private readonly GpuTimestampSampler? _gpuTimestamps;
+    private double _aoGpuMilliseconds;
+    private double _blurGpuMilliseconds;
+
     private RenderTexture _rawAO;
     private RenderTexture _aoResult;
     private RenderTexture? _boundGBuffer;
+
+    // Profiler counter handles — lazily registered on first Execute call.
+    private RenderProfileCounterId _hbaoCounter;
+    private RenderProfileCounterId _aoCounter;
+    private RenderProfileCounterId _blurCounter;
+    private bool _profilerCounterRegistered;
 
     /// <summary>
     /// Gets or sets the world-space AO sampling radius. Larger radii catch broader
@@ -117,6 +131,11 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
         _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
+
+        if (_device.TimestampQuerySupported)
+        {
+            _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "hbao");
+        }
     }
 
     /// <inheritdoc />
@@ -135,6 +154,8 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
     /// <inheritdoc />
     public void Execute(RenderPluginContext context)
     {
+        long startTimestamp = Stopwatch.GetTimestamp();
+
         // ── Assemble the GPU constant buffer internally ──
         // Camera basis axes are derived from the camera rotation quaternion.
         // The engine camera convention is +X forward, +Y right, +Z up.
@@ -166,16 +187,56 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
             _boundGBuffer = gbuffer;
         }
 
+        bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
+
+        // Read back GPU timestamps from the previous sample (0.5s ago — no stall).
+        if (measureGpu)
+        {
+            ulong[]? timestamps = _gpuTimestamps!.TryReadback();
+            if (timestamps != null)
+            {
+                _aoGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, 0, 1);
+                _blurGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, 1, 2);
+            }
+        }
+
         _commandBuffer.Begin();
-        using (GPUCommandBuffer.ComputePass computePass = _commandBuffer.BeginCompute())
+        using (GPUCommandBuffer.ComputePass computePass = measureGpu
+            ? _commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 0, 2)
+            : _commandBuffer.BeginCompute())
         {
             _hbaoMaterial.DispatchBySize(computePass, gbuffer.Width, gbuffer.Height, 1);
+
+            if (measureGpu && _gpuTimestamps!.SupportsInPassTimestamps)
+            {
+                computePass.WriteTimestamp(_gpuTimestamps.QuerySet, 1);
+            }
+
             _blurMaterial.DispatchBySize(computePass, gbuffer.Width, gbuffer.Height, 1);
+        }
+        if (measureGpu)
+        {
+            _commandBuffer.ResolveTimestamps(_gpuTimestamps!.QuerySet, 0, TimestampSlotCount, _gpuTimestamps.ResolveBuffer);
+            _gpuTimestamps.EndSample();
         }
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
 
         context.AOResult = _aoResult;
+
+        // Lazily register profiler counters on the first Execute call.
+        if (!_profilerCounterRegistered)
+        {
+            _hbaoCounter = context.Profiler.RegisterCounter("HBAO+", "Total");
+            _aoCounter = context.Profiler.RegisterCounter("HBAO+", "AO");
+            _blurCounter = context.Profiler.RegisterCounter("HBAO+", "Blur");
+            _profilerCounterRegistered = true;
+        }
+
+        double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
+        context.Profiler.PushValue(_hbaoCounter, elapsedMs);
+        context.Profiler.PushValue(_aoCounter, _aoGpuMilliseconds);
+        context.Profiler.PushValue(_blurCounter, _blurGpuMilliseconds);
     }
 
     /// <inheritdoc />
@@ -186,6 +247,7 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
             _rawAO.Dispose();
             _aoResult.Dispose();
             _dataBuffer.Dispose();
+            _gpuTimestamps?.Dispose();
             _commandBuffer.Dispose();
         }
     }

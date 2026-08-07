@@ -108,6 +108,34 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
     {
+        BeginRenderInternal(frameBuffer, clearColors, clearDepth, clearStencil, timestampWrites: null);
+    }
+
+    protected override void BeginRenderTimestampCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint beginningQueryIndex,
+        uint endQueryIndex,
+        float? clearDepth,
+        uint? clearStencil)
+    {
+        WGPUPassTimestampWrites timestampWrites = new()
+        {
+            querySet = ((WebGPUTimestampQuerySet)querySet).Native,
+            beginningOfPassWriteIndex = beginningQueryIndex,
+            endOfPassWriteIndex = endQueryIndex,
+        };
+        BeginRenderInternal(frameBuffer, clearColors, clearDepth, clearStencil, &timestampWrites);
+    }
+
+    private void BeginRenderInternal(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil,
+        WGPUPassTimestampWrites* timestampWrites)
+    {
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
 
         TryFinishCurrentRenderPass();
@@ -173,6 +201,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         {
             colorAttachmentCount = nativeFrameBuffer.Native.colorAttachmentCount,
             colorAttachments = _colorAttachmentsCache.Ptr,
+            timestampWrites = timestampWrites,
         };
 
         if (_depthStencilAttachmentCache.HasValue)
@@ -241,6 +270,13 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         {
             wgpuComputePassEncoderWriteTimestamp(
                 _computePass,
+                ((WebGPUTimestampQuerySet)querySet).Native,
+                queryIndex);
+        }
+        else if (_renderPass != WGPURenderPassEncoder.Null)
+        {
+            wgpuRenderPassEncoderWriteTimestamp(
+                _renderPass,
                 ((WebGPUTimestampQuerySet)querySet).Native,
                 queryIndex);
         }
