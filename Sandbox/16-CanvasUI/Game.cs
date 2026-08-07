@@ -23,6 +23,8 @@ public class Game : GameEngine
         VirtualGridList
     }
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGUISystem;
     private readonly Canvas _canvas;
     private readonly Font _font;
 
@@ -68,6 +70,23 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(tonemapStage);
+
         _font = BuiltInAssets.Font_Default;
 
         CavanUIFactoryStyle style = new CavanUIFactoryStyle
@@ -273,6 +292,8 @@ public class Game : GameEngine
         _root.Add(_virtualGridListSlider);
         _intVirtualGridList.Scrollable.SliderVertical = _virtualGridListSlider;
 
+        _imGUISystem = new ImGUISystem(this);
+
         // default display
         UpdateDisplayActive();
     }
@@ -324,6 +345,11 @@ public class Game : GameEngine
         return mask;
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnTick(float delta)
     {
         //just move this to OnUpdate if u want to update UI logic every frame
@@ -332,15 +358,16 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
+        _imGUISystem.BeginFrame(delta);
+        _imGUISystem.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
         }
 
-        DebugStats.Text(FrameRate);
-
         //_canvas.Tick(_root, delta);
-        _canvas.Update(MainFrameBuffer, delta);
+        _canvas.Update(_mainPipeline.SceneFrameBuffer, delta);
 
         // ImGUI Controls
         ImGui.Begin("Canvas UI Controls");
@@ -633,6 +660,12 @@ public class Game : GameEngine
         ImGui.End();
     }
 
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
+    }
+
     private void PopulateIntList(int count)
     {
         // generate sequential integers 0..count-1
@@ -697,6 +730,8 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _canvas.Dispose();
+        _imGUISystem.Dispose();
+        _mainPipeline.Dispose();
     }
 
     private void UpdateDisplayActive()

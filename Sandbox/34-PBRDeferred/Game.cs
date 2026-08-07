@@ -158,7 +158,9 @@ public class Game : GameEngine
         float IForwardRenderable.TransmissionFactor => _getTransmission();
     }
 
+    private readonly RenderPipeline _mainPipeline;
     private readonly PBRDeferredPipeline _pipeline;
+    private ImGUISystem? _imguiSystem;
     private readonly GBufferRenderer _gbufferRenderer;
     private readonly ShadowRenderer _shadowRenderer;
     private readonly CameraPerspectiveBuffer _camera;
@@ -268,8 +270,8 @@ public class Game : GameEngine
     private PBRDeferredPipeline.PointLight[]? _bistroPointLights;         // base lights (unscaled)
     private PBRDeferredPipeline.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
-    // HDR tone mapping (PluginHDR): switchable operator with per-type parameters.
-    private PluginHDR? _hdrPlugin;
+    // HDR tone mapping stage: switchable operator with per-type parameters.
+    private TonemapStage? _tonemapStage;
     private TonemapType _tonemapType;
 
     // Screenshot mode.
@@ -367,9 +369,20 @@ public class Game : GameEngine
             _cameraNear, _sceneRadius * 10.0f);
         _shadowDistance = _sceneRadius * 3.0f;
 
-        // The deferred pipeline is created by CreateMainPipeline (invoked from the
-        // base constructor); grab it to configure cameras, renderers and plugins.
-        _pipeline = ((PBRDeferredRenderPipeline)MainPipeline).Deferred;
+        // Create the PBR deferred pipeline and assign it as the main pipeline.
+        string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
+        var renderPipeline = new PBRDeferredRenderPipeline(
+            RenderingSystem,
+            new PBRDeferredPipeline(
+                RenderingSystem,
+                lightingShaderText,
+                BuiltInAssetsPath.Shader_PBRDeferredLighting,
+                shadowMapSize: 2048,
+                width: (uint)MainView.Size.X,
+                height: (uint)MainView.Size.Y),
+            BuiltInAssets.Shader_Blit);
+        _mainPipeline = renderPipeline;
+        _pipeline = renderPipeline.Deferred;
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
@@ -522,8 +535,8 @@ public class Game : GameEngine
         }
 
         // Bloom is a stage on the main pipeline's post-process chain; its order
-        // places it before PluginHDR's tonemap stage, so boosted emissive surfaces
-        // get a natural glow.
+        // (500) places it before the tonemap stage (1000), so boosted emissive
+        // surfaces get a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
             : 1.0f;
@@ -541,30 +554,25 @@ public class Game : GameEngine
             Threshold = bloomThreshold,
             Intensity = bloomIntensity,
         };
-        MainPipeline.PostProcess.Add(_bloom);
+        _mainPipeline.PostProcess.Add(_bloom);
 
-        MainView.OnResize += OnMainWindowResize;
-    }
-
-    /// <summary>
-    /// Installs the PBR deferred pipeline as the main view's render pipeline: the engine
-    /// drives its passes (shadow → G-buffer → lighting → forward) and the post-process
-    /// chain every frame. Called from the base constructor, so everything it touches
-    /// (asset sources, rendering system, main view) is engine-owned state.
-    /// </summary>
-    protected override RenderPipeline CreateMainPipeline()
-    {
-        string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
-        return new PBRDeferredRenderPipeline(
+        // HDR tone mapping stage (order 1000, after bloom).
+        _tonemapStage = new TonemapStage(
             RenderingSystem,
-            new PBRDeferredPipeline(
-                RenderingSystem,
-                lightingShaderText,
-                BuiltInAssetsPath.Shader_PBRDeferredLighting,
-                shadowMapSize: 2048,
-                width: (uint)MainView.Size.X,
-                height: (uint)MainView.Size.Y),
-            BuiltInAssets.Shader_Blit);
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(_tonemapStage);
+
+        // FXAA anti-aliasing stage (order 900, between bloom and tonemap).
+        _mainPipeline.PostProcess.Add(new FXAAStage(RenderingSystem.CreateFXAA(
+            BuiltInAssets.Shader_FXAA,
+            BuiltInAssets.Shader_Blit)));
+
+        MainPresenter.OnResize += OnMainWindowResize;
     }
 
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
@@ -588,20 +596,29 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
+        _imguiSystem = new ImGUISystem(this);
+
         // Use ACES tone mapping with gamma 2.2.
-        if (TryGetPlugin<PluginHDR>(out var pluginHDR))
+        if (_tonemapStage != null)
         {
-            _hdrPlugin = pluginHDR;
-            _hdrPlugin.Tonemap = TonemapType.ACES;
+            _tonemapStage.Operator = TonemapType.ACES;
             _tonemapType = TonemapType.ACES;
-            var acesData = _hdrPlugin.ACESData;
+            var acesData = _tonemapStage.ACESData;
             acesData.Gamma = 2.2f;
-            _hdrPlugin.ACESData = acesData;
+            _tonemapStage.ACESData = acesData;
         }
+    }
+
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
     }
 
     protected override void OnUpdate(float delta)
     {
+        _imguiSystem?.BeginFrame(delta);
+        _imguiSystem?.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -622,22 +639,20 @@ public class Game : GameEngine
 
         DrawImGuiPanel();
 
-        DebugStats.Text(FrameRate);
-        DebugStats.Text(_flyMode
-            ? "RMB drag: look | WASD: move | E/Q: up/down | Shift: fast | wheel: speed | C: orbit | ESC: exit"
-            : "LMB drag: orbit | wheel: zoom | C: fly | ESC: exit");
-
         _frameCount++;
     }
 
     protected override void OnEndFrame()
     {
-        // Capture here: the engine runs the main pipeline's RenderFrame (deferred
-        // passes, then the post-process chain into the swapchain) after OnEndFrame,
-        // so the scene texture still holds the last completed frame's HDR image.
-        // Bloom is composited into the swapchain by the chain and is not part of
-        // the capture. With --wait-load the capture is held back until the Bistro
-        // scene's asynchronously streaming textures have all arrived.
+        // Resolve the scene texture through the post-process chain into the swapchain.
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        // Draw ImGui on top of the resolved frame (not affected by post-processing).
+        _imguiSystem?.RenderAndDraw(MainPresenter.FrameBuffer);
+
+        // Capture here: after RenderFrame the scene texture still holds the last
+        // completed frame's HDR image. Bloom is composited into the swapchain by the
+        // chain and is not part of the capture. With --wait-load the capture is held
+        // back until the Bistro scene's asynchronously streaming textures have all arrived.
         if (_screenshotPath != null && _frameCount >= _screenshotFrames &&
             (!_waitForStreaming || _bistro == null || _bistro.LoadingCompletion.IsCompleted))
         {
@@ -648,13 +663,15 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
+        _imguiSystem?.Dispose();
+        _mainPipeline.Dispose();
     }
 
     protected void OnMainWindowResize(uint2 size)
     {
         _camera.AspectRatio = (float)size.X / size.Y;
-        // The engine resizes the main pipeline, and with it the deferred pipeline
-        // and its plugins (including VoxelGI).
+        // The pipeline resizes the deferred pipeline and its plugins (including VoxelGI).
+        _mainPipeline.Resize(size.X, size.Y);
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -1246,7 +1263,7 @@ public class Game : GameEngine
     /// </summary>
     private unsafe void CaptureScreenshot(string path)
     {
-        Texture2D color = MainPipeline.SceneRenderTexture.ColorTextures[0];
+        Texture2D color = _mainPipeline.SceneRenderTexture.ColorTextures[0];
         int width = (int)color.Width;
         int height = (int)color.Height;
         int pixelCount = width * height;
@@ -1451,11 +1468,11 @@ public class Game : GameEngine
             ImGui.Text($"Lights: {_bistroPointLights.Length} / {PBRDeferredPipeline.MaxPointLights}");
         }
 
-        if (_hdrPlugin != null && ImGui.CollapsingHeader("Tone Mapping"))
+        if (_tonemapStage != null && ImGui.CollapsingHeader("Tone Mapping"))
         {
             if (ImGui.Combo("Tone Map Type", ref _tonemapType))
             {
-                _hdrPlugin.Tonemap = _tonemapType;
+                _tonemapStage.Operator = _tonemapType;
             }
 
             // Optional parameter controls depending on type
@@ -1463,73 +1480,73 @@ public class Game : GameEngine
             {
                 case TonemapType.Reinhard:
                     {
-                        var d = _hdrPlugin.ReinhardData;
+                        var d = _tonemapStage.ReinhardData;
                         if (ImGui.SliderFloat("Max Luminance", ref d.MaxLuminance, 0.1f, 10f) |
                             ImGui.SliderFloat("Gamma", ref d.Gamma, 0.5f, 3.0f))
                         {
-                            _hdrPlugin.ReinhardData = d;
+                            _tonemapStage.ReinhardData = d;
                         }
                         break;
                     }
                 case TonemapType.Uncharted2:
                     {
-                        var d2 = _hdrPlugin.Uncharted2Data;
+                        var d2 = _tonemapStage.Uncharted2Data;
                         if (ImGui.SliderFloat("Exposure", ref d2.Exposure, 0.1f, 4f) |
                             ImGui.SliderFloat("Gamma", ref d2.Gamma, 0.5f, 3.0f))
                         {
-                            _hdrPlugin.Uncharted2Data = d2;
+                            _tonemapStage.Uncharted2Data = d2;
                         }
                         break;
                     }
                 case TonemapType.Filmic:
                     {
-                        var df = _hdrPlugin.FilmicData;
+                        var df = _tonemapStage.FilmicData;
                         if (ImGui.SliderFloat("Exposure", ref df.Exposure, 0.1f, 4f) |
                             ImGui.SliderFloat("Gamma", ref df.Gamma, 0.5f, 3.0f))
                         {
-                            _hdrPlugin.FilmicData = df;
+                            _tonemapStage.FilmicData = df;
                         }
                         break;
                     }
                 case TonemapType.ACES:
                     {
-                        var da = _hdrPlugin.ACESData;
+                        var da = _tonemapStage.ACESData;
                         if (ImGui.SliderFloat("Exposure", ref da.Exposure, 0.1f, 4f) |
                             ImGui.SliderFloat("Gamma", ref da.Gamma, 0.5f, 3.0f))
                         {
-                            _hdrPlugin.ACESData = da;
+                            _tonemapStage.ACESData = da;
                         }
                         break;
                     }
                 case TonemapType.Neutral:
                     {
-                        var dn = _hdrPlugin.NeutralData;
+                        var dn = _tonemapStage.NeutralData;
                         if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |
                             ImGui.SliderFloat("Gamma", ref dn.Gamma, 0.5f, 3.0f) |
                             ImGui.SliderFloat("StartCompression", ref dn.StartCompression, 0.5f, 1f) |
                             ImGui.SliderFloat("Desaturation", ref dn.Desaturation, 0.0f, 4f))
                         {
-                            _hdrPlugin.NeutralData = dn;
+                            _tonemapStage.NeutralData = dn;
                         }
                         break;
                     }
                 case TonemapType.AgX:
                     {
-                        var dag = _hdrPlugin.AgXData;
+                        var dag = _tonemapStage.AgXData;
                         int look = (int)dag.Look;
                         if (ImGui.SliderFloat("Exposure", ref dag.Exposure, 0.1f, 4f) |
                             ImGui.SliderFloat("Gamma", ref dag.Gamma, 0.5f, 3.0f) |
                             ImGui.Combo("Look", ref look, "Default\0Golden\0Punchy\0"))
                         {
                             dag.Look = look;
-                            _hdrPlugin.AgXData = dag;
+                            _tonemapStage.AgXData = dag;
                         }
                         break;
                     }
             }
         }
 
-        FXAAStage? fxaaStage = MainPipeline.PostProcess.Get<FXAAStage>();
+        FXAAStage? fxaaStage = _mainPipeline.PostProcess.Get<FXAAStage>();
         if (fxaaStage != null && ImGui.CollapsingHeader("FXAA"))
         {
             bool fxaaEnabled = fxaaStage.IsEnabled;

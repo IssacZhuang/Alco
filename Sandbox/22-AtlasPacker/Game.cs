@@ -9,12 +9,18 @@ using Alco.GUI;
 
 public class Game : GameEngine
 {
+    private readonly ForwardPipeline _mainPipeline;
     private readonly TextureAtlas _atlas;
     private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
     private readonly Material _material;
+
+    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+
         FastRandom random = new FastRandom(123456789);
         int spriteCount = 32;
         List<int2> spriteSizes = new List<int2>();
@@ -70,5 +76,15 @@ public class Game : GameEngine
         _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
 
+    }
+
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
     }
 }

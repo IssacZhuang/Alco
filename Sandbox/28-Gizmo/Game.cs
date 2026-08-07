@@ -18,6 +18,9 @@ public class Game : GameEngine
     private Transform3D _camaraParent = Transform3D.Identity;
     private Transform3D _camaraChild = Transform3D.Identity;
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGUISystem;
+
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
     private readonly CameraPerspectiveBuffer _camera;
@@ -33,6 +36,32 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(tonemapStage);
+
+        Bloom bloom = RenderingSystem.CreateBloom(
+            BuiltInAssets.Shader_BloomBlit,
+            BuiltInAssets.Shader_BloomClamp,
+            BuiltInAssets.Shader_BloomDownSample,
+            BuiltInAssets.Shader_BloomUpSample,
+            11);
+        _mainPipeline.PostProcess.Add(new BloomStage(bloom));
+
+        _imGUISystem = new ImGUISystem(this);
 
         _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
@@ -58,6 +87,11 @@ public class Game : GameEngine
         MainView.OnResize += OnMainWindowResize;
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -68,7 +102,7 @@ public class Game : GameEngine
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
 
         _commandClearScreen.Begin();
-        using (var renderPass = _commandClearScreen.BeginRender(MainFrameBuffer, new ColorFloat(0.2f, 0.2f, 0.2f, 1)))
+        using (var renderPass = _commandClearScreen.BeginRender(MainPresenter.FrameBuffer, new ColorFloat(0.2f, 0.2f, 0.2f, 1)))
         {
             // Clear color is handled by BeginRender parameter
         }
@@ -76,7 +110,7 @@ public class Game : GameEngine
         RenderingSystem.ScheduleCommandBuffer(_commandClearScreen);
 
 
-        _renderer.Begin(MainFrameBuffer);
+        _renderer.Begin(MainPresenter.FrameBuffer);
         _cube.OnDraw(_renderer);
         _renderer.End();
 
@@ -88,6 +122,9 @@ public class Game : GameEngine
 
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
+
+        _imGUISystem.BeginFrame(delta);
+        _imGUISystem.UpdateInput();
 
         ImGui.Begin("Transform");
         ImGui.Text("Hold mouse middle button to rotate camera");
@@ -108,7 +145,11 @@ public class Game : GameEngine
         Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _currentOperationEnum, GizmoMode.Local, ref _cube.transform);
     }
 
-
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
+    }
 
     protected void OnMainWindowResize(uint2 size)
     {

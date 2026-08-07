@@ -4,7 +4,7 @@ using Alco.Graphics;
 
 namespace Alco.ImGUI;
 
-public class ImGUISystem: BaseEngineSystem
+public class ImGUISystem
 {
     private readonly GameEngine _engine;
     private readonly Shader _shader;
@@ -27,13 +27,13 @@ public class ImGUISystem: BaseEngineSystem
         _imGUIInputHandler = new ImGUIInputHandler(engine.Input, engine.MainView);
     }
 
-    public override void OnBeginFrame(float deltaTime)
+    public void BeginFrame(float deltaTime)
     {
         uint2 size = _engine.MainView.Size;
         _imGUIRenderer.Begin(size.X, size.Y, deltaTime);
     }
 
-    public override void OnUpdate(float delta)
+    public void UpdateInput()
     {
         _imGUIInputHandler.Update();
     }
@@ -42,18 +42,17 @@ public class ImGUISystem: BaseEngineSystem
     /// Finalizes the ImGui frame and draws it on top of the resolved frame, so the UI
     /// colors are not affected by the pipeline's post-processing.
     /// </summary>
-    public override void OnEndFrame(float deltaTime)
+    public void RenderAndDraw(GPUFrameBuffer? frameBuffer)
     {
         _imGUIRenderer.Render();
 
-        GPUFrameBuffer? frameBuffer = _engine.MainPresenter.FrameBuffer;
         if (frameBuffer != null)
         {
             _imGUIRenderer.Draw(frameBuffer);
         }
     }
 
-    public override void OnStop()
+    public void Dispose()
     {
         _imGUIInputHandler.Dispose();
         _imGUIRenderer.Dispose();

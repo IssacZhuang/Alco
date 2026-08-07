@@ -8,22 +8,53 @@ using Alco.ImGUI;
 
 public class Game : GameEngine
 {
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imguiSystem;
+
     private bool showWindow = true;
     private bool isPicking;
     private string lastPickStatus = "";
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredSDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        _imguiSystem = new ImGUISystem(this);
+    }
+
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
     }
 
     protected override void OnUpdate(float delta)
     {
+        _imguiSystem.BeginFrame(delta);
+        _imguiSystem.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
         }
 
         RenderImGUIContent();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
+    }
+
+    protected override void OnStop()
+    {
+        _imguiSystem.Dispose();
+        _mainPipeline.Dispose();
     }
 
     private void RenderImGUIContent()

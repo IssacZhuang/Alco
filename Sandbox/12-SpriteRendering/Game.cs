@@ -8,6 +8,7 @@ using Alco.Graphics;
 
 public class Game : GameEngine
 {
+    private readonly ForwardPipeline _mainPipeline;
     private int DrawCount = 10000;
     private Camera2DBuffer _camera;
     private Material _materialText;
@@ -26,6 +27,8 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
         _materialText = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Text);
@@ -77,7 +80,7 @@ public class Game : GameEngine
 
         // _spriteRenderer.End();
 
-        _renderContext.Begin(MainFrameBuffer);
+        _renderContext.Begin(_mainPipeline.SceneFrameBuffer);
         _textRenderer.DrawText(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
         
         _spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
@@ -88,6 +91,16 @@ public class Game : GameEngine
         }
         
         _renderContext.End();
+    }
+
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

@@ -18,9 +18,15 @@ public class Game : GameEngine
         Wall
     }
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imguiSystem;
+
     private readonly RenderContext _renderer;
     private readonly Camera2D _camera;
     private readonly Material _blitMaterial;
+
+    public ForwardPipeline MainPipeline => _mainPipeline;
+    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
 
     private readonly Material _surfaceMaterial;
     private readonly Material _cliffMaterial;
@@ -58,6 +64,32 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
+        _imguiSystem = new ImGUISystem(this);
+
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        MainPipeline.PostProcess.Add(tonemapStage);
+
+        var fxaaStage = new FXAAStage(RenderingSystem.CreateFXAA(
+            BuiltInAssets.Shader_FXAA,
+            BuiltInAssets.Shader_Blit));
+        MainPipeline.PostProcess.Add(fxaaStage);
+
         int width = 64;
         int height = 64;
 
@@ -154,9 +186,15 @@ public class Game : GameEngine
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
-        DebugStats.Text(FrameRate);
+        _imguiSystem.BeginFrame(delta);
+        _imguiSystem.UpdateInput();
 
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
@@ -272,8 +310,16 @@ public class Game : GameEngine
         ImGui.End();
     }
 
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
+    }
+
     protected override void OnStop()
     {
+        _imguiSystem?.Dispose();
+        _mainPipeline?.Dispose();
         _lightingManager?.Dispose();
     }
 

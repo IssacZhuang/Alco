@@ -28,6 +28,9 @@ public class Game : GameEngine
 
     private ImGUILogger _logger;
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGuiSystem;
+
     /// <summary>
     /// Parallel noise generation task that extends ReusableBatchTask2D for optimized performance.
     /// </summary>
@@ -69,6 +72,15 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredSDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        _imGuiSystem = new ImGUISystem(this);
+
         // Initialize noise generator with default seed
         _noise = new Noise(1337);
 
@@ -94,8 +106,16 @@ public class Game : GameEngine
         Log.Logger = _logger;
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
+        _imGuiSystem.BeginFrame(delta);
+        _imGuiSystem.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -116,6 +136,12 @@ public class Game : GameEngine
         RenderImGUIContent();
 
         _logger.Draw();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGuiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     // UpdateNoiseSettings method removed - settings are now applied directly via properties

@@ -12,6 +12,9 @@ using Alco.ImGUI;
 public class Game : GameEngine
 {
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGUISystem;
+
     private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
     private readonly Material _material;
@@ -23,6 +26,15 @@ public class Game : GameEngine
     private bool _isShowCompressed = false;
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredSDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        _imGUISystem = new ImGUISystem(this);
+
         _texture = AssetSystem.Load<Texture2D>("test.jpg");
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
@@ -48,6 +60,11 @@ public class Game : GameEngine
     }
 
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -55,7 +72,8 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugStats.Text(FrameRate);
+        _imGUISystem.BeginFrame(delta);
+        _imGUISystem.UpdateInput();
 
         ImGui.Begin("Texture Compression");
         ImGui.Checkbox("Show Compressed", ref _isShowCompressed);
@@ -74,7 +92,7 @@ public class Game : GameEngine
         };
 
         //draw atlas texture
-        _materialRenderer.Begin(MainFrameBuffer);
+        _materialRenderer.Begin(_mainPipeline.SceneFrameBuffer);
         if (_isShowCompressed)
         {
             _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);
@@ -84,7 +102,12 @@ public class Game : GameEngine
             _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
         }
         _materialRenderer.End();
+    }
 
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

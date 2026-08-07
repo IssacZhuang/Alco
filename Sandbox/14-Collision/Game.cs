@@ -22,12 +22,42 @@ public class Game : GameEngine
 
     private readonly Cube _entity;
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imguiSystem;
+
     private Plane3D _plane;
     private Vector3 offset;
+
+    public ForwardPipeline MainPipeline => _mainPipeline;
+    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
 
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        MainPipeline.PostProcess.Add(tonemapStage);
+
+        Bloom bloom = RenderingSystem.CreateBloom(
+            BuiltInAssets.Shader_BloomBlit,
+            BuiltInAssets.Shader_BloomClamp,
+            BuiltInAssets.Shader_BloomDownSample,
+            BuiltInAssets.Shader_BloomUpSample,
+            11);
+        MainPipeline.PostProcess.Add(new BloomStage(bloom));
 
         _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
@@ -48,11 +78,16 @@ public class Game : GameEngine
         _entity.transform.Position = new Vector3(2, 0, 0);
         _entity.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
 
+        _imguiSystem = new ImGUISystem(this);
+
         MainView.OnResize += OnMainWindowResize;
     }
 
     protected override void OnUpdate(float delta)
     {
+        _imguiSystem.BeginFrame(delta);
+        _imguiSystem.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -126,15 +161,28 @@ public class Game : GameEngine
 
 
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
+    }
+
     protected void OnMainWindowResize(uint2 size)
     {
         _camera.AspectRatio = (float)size.X / size.Y;
         _camera.UpdateMatrixToGPU();
+        _mainPipeline.Resize(size.X, size.Y);
     }
 
     protected override void OnStop()
     {
-
+        _imguiSystem.Dispose();
+        _mainPipeline.Dispose();
     }
 
     private Cube CreateCube(ColorFloat color)

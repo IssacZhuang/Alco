@@ -120,38 +120,3 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
         _input.MousePosition = global;
     }
 }
-
-/// <summary>
-/// Engine plugin that installs <see cref="GamepadCursorSystem"/>. The system itself is the unit
-/// the game layer interacts with (retrieved via <see cref="GameEngine.GetSystem{T}"/>); this
-/// plugin only registers it and forwards configuration.
-/// </summary>
-public sealed class PluginGamepadCursor : BaseEnginePlugin
-{
-    /// <summary>
-    /// Run after ImGUI so it can coexist; ordering can be adjusted if needed.
-    /// </summary>
-    public override int Order => 2150;
-
-    /// <summary>
-    /// Gets or sets the dead zone threshold for gamepad axis input to avoid drift.
-    /// Values below this threshold are treated as zero. Default is 0.1.
-    /// </summary>
-    public float DeadZone { get; set; } = 0.1f;
-
-    /// <summary>
-    /// Gets or sets the sensitivity multiplier for cursor movement speed.
-    /// Higher values result in faster cursor movement. Default is 1.0.
-    /// </summary>
-    public float Sensitivity { get; set; } = 1.0f;
-
-    /// <summary>
-    /// Install the gamepad cursor system into the engine.
-    /// </summary>
-    /// <param name="engine">Engine instance.</param>
-    public override void OnPostInitialize(GameEngine engine)
-    {
-        var system = new GamepadCursorSystem(engine.Input, engine.MainView, DeadZone, Sensitivity);
-        engine.AddSystem(system);
-    }
-}

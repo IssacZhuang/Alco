@@ -1,4 +1,4 @@
-﻿using Alco;
+using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 
@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     RunOnce = true,
     Graphics = GraphicsSetting.Default,
     Platform = new ConsolePlatform()
-}.With<PluginDefaultAssets>();
+};
 
 using (Game game = new Game(setting))
 {

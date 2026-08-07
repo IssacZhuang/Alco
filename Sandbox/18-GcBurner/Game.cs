@@ -36,6 +36,9 @@ public class Game : GameEngine
 
     private TestThreadWorkerItem _item = new TestThreadWorkerItem();
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGUISystem;
+
     private readonly ConcurrentPool<GPUCommandBuffer> _gpuCommandBufferPool;
     private readonly List<GPUCommandBuffer> _gpuCommandBufferList = new List<GPUCommandBuffer>();
     private readonly TestParallelTask _task = new TestParallelTask();
@@ -43,6 +46,25 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _gpuCommandBufferPool = new ConcurrentPool<GPUCommandBuffer>(CreateGPUCommandBuffer);
+
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(tonemapStage);
+
+        _imGUISystem = new ImGUISystem(this);
     }
 
     protected override void OnTick(float delta)
@@ -52,10 +74,15 @@ public class Game : GameEngine
         // Parallel.For(0, 100, ParallelCallback);
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     override protected void OnUpdate(float delta)
     {
-
-        DebugStats.Text(FrameRate);
+        _imGUISystem.BeginFrame(delta);
+        _imGUISystem.UpdateInput();
 
         int count = 1000;
         for (int i = 0; i < count; i++)
@@ -129,6 +156,12 @@ public class Game : GameEngine
         ImGui.End();
 
         TestSpanParam("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

@@ -31,6 +31,8 @@ public class Game : GameEngine
 
     #endregion
 
+    private readonly ForwardPipeline _mainPipeline;
+
     private CameraData2D camera;
 
     private GPUCommandBuffer _commandBuffer;
@@ -51,8 +53,12 @@ public class Game : GameEngine
 
     private float _timeMove = 0.0f;
 
+    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
         _pipeline = CreatePipeline();
 
@@ -89,6 +95,11 @@ public class Game : GameEngine
         _transform2.Position.X = 0;
         _transform3.Position.X = 4;
 
+    }
+
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
     }
 
     protected override void OnUpdate(float delta)
@@ -137,8 +148,12 @@ public class Game : GameEngine
         }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
+    }
 
-        DebugStats.Text(FrameRate);
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
     }
 
 

@@ -13,6 +13,7 @@ public class Game : GameEngine
     private readonly View _window2;
     private readonly ViewPresenter _presenter2;
     private readonly ForwardPipeline _pipeline2;
+    private readonly ForwardPipeline _mainPipeline;
 
     private readonly Camera2DBuffer _windowCamera1;
     private readonly Camera2DBuffer _windowCamera2;
@@ -32,6 +33,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
         _shader = BuiltInAssets.Shader_Sprite;
 
 
@@ -67,7 +71,7 @@ public class Game : GameEngine
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        MainPipeline.PostProcess.Add(_tonemapStage1);
+        _mainPipeline.PostProcess.Add(_tonemapStage1);
 
         _tonemapStage2 = new TonemapStage(RenderingSystem,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
@@ -84,7 +88,7 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11));
-        MainPipeline.PostProcess.Add(_bloom1);
+        _mainPipeline.PostProcess.Add(_bloom1);
 
         _bloom2 = new BloomStage(RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
@@ -116,10 +120,7 @@ public class Game : GameEngine
         _windowCamera2.Position = ScreenToWorld(new Vector2(1920, 1080), _window2.Position, _window2.Size);
         _windowCamera2.UpdateBuffer();
 
-        DebugStats.Text(MainView.Position.ToString());
-        DebugStats.Text(_window2.Position.ToString());
-
-        _renderContext.Begin(MainFrameBuffer);
+        _renderContext.Begin(_mainPipeline.SceneFrameBuffer);
         _renderer.Draw(RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
         _renderContext.End();
 
@@ -136,9 +137,20 @@ public class Game : GameEngine
 
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+    }
+
     protected override void OnStop()
     {
         _pipeline2.Dispose();
+        _mainPipeline.Dispose();
         _presenter2.Dispose();
     }
 

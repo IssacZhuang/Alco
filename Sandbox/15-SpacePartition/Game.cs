@@ -2,6 +2,7 @@ using System.Numerics;
 using Alco.Engine;
 using Alco.Rendering;
 using Alco;
+using Alco.ImGUI;
 
 using Random = Alco.FastRandom;
 using Alco.Graphics;
@@ -17,14 +18,36 @@ public class Game : GameEngine
     private readonly DropletSystem _dropletSystem;
     private readonly CubeSystem _cubeSystem;
     private readonly Texture2D _texDroplet;
-    
+
     private readonly CollisionWorld2D _collisionWorld = new CollisionWorld2D();
 
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imguiSystem;
+
     private Plane3D _plane;
+
+    public ForwardPipeline MainPipeline => _mainPipeline;
+    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
 
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(tonemapStage);
+
         _shaderSprite = BuiltInAssets.Shader_Sprite;
         _texDroplet = AssetSystem.Load<Texture2D>("Droplet.png");
 
@@ -35,10 +58,12 @@ public class Game : GameEngine
         _plane = new Plane3D(new Vector3(0, 0, 1), 0);
 
 
-        _dropletSystem = new DropletSystem(MainPipeline, RenderingSystem, _camera, BuiltInAssets.Shader_SpriteInstanced, _texDroplet);
+        _dropletSystem = new DropletSystem(_mainPipeline, RenderingSystem, _camera, BuiltInAssets.Shader_SpriteInstanced, _texDroplet);
         Material cubeMaterial = RenderingSystem.CreateMaterial(_shaderSprite, "Sprite");
         cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _cubeSystem = new CubeSystem(RenderingSystem, cubeMaterial, RenderingSystem.TextureWhite);
+
+        _imguiSystem = new ImGUISystem(this);
     }
 
     protected override void OnTick(float delta)
@@ -53,8 +78,16 @@ public class Game : GameEngine
         _cubeSystem.PerformCollision(_collisionWorld);
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
+        _imguiSystem.BeginFrame(delta);
+        _imguiSystem.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -70,17 +103,20 @@ public class Game : GameEngine
             }
         }
 
-        DebugStats.Text(FrameRate);
-
         _dropletSystem.OnUpdate(delta);
         _cubeSystem.OnUpdate(MainFrameBuffer, delta);
+    }
 
-        
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
         base.OnStop();
+        _imguiSystem.Dispose();
         _dropletSystem.Dispose();
         _cubeSystem.Dispose();
         _texDroplet.Dispose();

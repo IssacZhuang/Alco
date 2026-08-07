@@ -17,6 +17,8 @@ public class Game : GameEngine
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
     private readonly GPUCommandBuffer _command;
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGui;
 
 
     private float _intensity = 1;
@@ -25,6 +27,23 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
 
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(tonemapStage);
+
         Material blitMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("InverserGamma.hlsl"));
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
@@ -40,6 +59,7 @@ public class Game : GameEngine
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.Texture);
 
         _command = GraphicsDevice.CreateCommandBuffer();
+        _imGui = new ImGUISystem(this);
     }
 
     public override IEnumerable<IFileSource> CreateDefaultFileSources()
@@ -52,14 +72,26 @@ public class Game : GameEngine
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGui.RenderAndDraw(MainPresenter.FrameBuffer);
+    }
+
     protected override void OnUpdate(float delta)
     {
+        _imGui.BeginFrame(delta);
+        _imGui.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
         }
-
-        DebugStats.Text(FrameRate);
 
         // ImGUI Controls
         ImGui.Begin("Flood Fill Controls");
@@ -121,7 +153,7 @@ public class Game : GameEngine
         GraphicsDevice.Submit(_command);
 
         //draw atlas texture
-        _materialRenderer.Begin(MainFrameBuffer);
+        _materialRenderer.Begin(_mainPipeline.SceneFrameBuffer);
         _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
         _materialRenderer.End();
     }

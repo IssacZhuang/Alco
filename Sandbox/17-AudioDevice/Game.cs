@@ -4,10 +4,13 @@ using Alco.Audio;
 using Alco;
 using Alco.GUI;
 using Alco.ImGUI;
+using Alco.Rendering;
 
 
 public class Game : GameEngine
 {
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGuiSystem;
     private readonly AudioSource _source;
 
     private float _gain = 1f;
@@ -19,14 +22,39 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
 
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(tonemapStage);
+
+        _imGuiSystem = new ImGUISystem(this);
 
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
+        _imGuiSystem.BeginFrame(delta);
+        _imGuiSystem.UpdateInput();
+
         ImGui.Begin("Audio Controls");
 
         if (ImGui.SliderFloat("Gain", ref _gain, -5, 5))
@@ -170,6 +198,12 @@ public class Game : GameEngine
         }
 
         ImGui.End();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGuiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private async void LoadAudioClipAsync(string filename)

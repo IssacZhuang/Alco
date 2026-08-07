@@ -4,14 +4,26 @@ using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
+using Alco.Rendering;
 
 /// <summary>
 /// Sandbox 32: Gamepad tester that displays state and logs connect/disconnect events.
 /// </summary>
 public class Game : GameEngine
 {
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imGUISystem;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredSDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        _imGUISystem = new ImGUISystem(this);
     }
 
     /// <summary>
@@ -48,6 +60,11 @@ public class Game : GameEngine
         }
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -55,7 +72,16 @@ public class Game : GameEngine
             Stop();
         }
 
+        _imGUISystem.BeginFrame(delta);
+        _imGUISystem.UpdateInput();
+
         RenderImGUI();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private void RenderImGUI()

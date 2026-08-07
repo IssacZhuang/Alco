@@ -29,10 +29,38 @@ public class Game : GameEngine
 
     private readonly GPUCommandBuffer _commandClearScreen;
 
+    private readonly ForwardPipeline _mainPipeline;
+
     private Vector3 _rotationAngles = Vector3.Zero;
+
+    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        var tonemapStage = new TonemapStage(
+            RenderingSystem,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.PostProcess.Add(tonemapStage);
+
+        Bloom bloom = RenderingSystem.CreateBloom(
+            BuiltInAssets.Shader_BloomBlit,
+            BuiltInAssets.Shader_BloomClamp,
+            BuiltInAssets.Shader_BloomDownSample,
+            BuiltInAssets.Shader_BloomUpSample,
+            11);
+        _mainPipeline.PostProcess.Add(new BloomStage(bloom));
 
         _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
@@ -94,8 +122,6 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugStats.Text("Hold mouse middle button to rotate camera");
-
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
 
         _commandClearScreen.Begin();
@@ -123,6 +149,16 @@ public class Game : GameEngine
 
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
+    }
+
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
     }
 
 

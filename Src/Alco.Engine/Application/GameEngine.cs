@@ -40,7 +40,6 @@ IDisposable
     private readonly Input _input;
     private readonly View _mainView;
     private readonly ViewPresenter _mainPresenter;
-    private readonly RenderPipeline _mainPipeline;
 
     #endregion
 
@@ -121,26 +120,6 @@ IDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _mainPresenter;
     }
-
-    /// <summary>
-    /// The render pipeline of the main view: owns the scene render texture and the
-    /// post-process chain that resolves it into the swapchain.
-    /// </summary>
-    public RenderPipeline MainPipeline
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainPipeline;
-    }
-
-    /// <summary>
-    /// The frame buffer of the main pipeline's scene texture — the target for scene rendering.
-    /// </summary>
-    public GPUFrameBuffer MainFrameBuffer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainPipeline.SceneFrameBuffer;
-    }
-
 
     /// <summary>
     /// The asset manager of the game<br/>
@@ -287,11 +266,6 @@ IDisposable
         _mainPresenter = new ViewPresenter(_mainView);
         _mainPresenter.OnResize += OnMainViewResize;
 
-        _mainPipeline = CreateMainPipeline();
-
-
-        InitializePlugins(_setting.Plugins);
-
         _preferenceSerializerOption = new JsonSerializerOptions
         {
             WriteIndented = true
@@ -375,7 +349,7 @@ IDisposable
     }
 
     /// <summary>
-    /// Called before the frame swap buffer. This method is usually used for handle the custom swap chain
+    /// Called at the end of the frame, before present.
     /// </summary>
     protected virtual void OnEndFrame()
     {
@@ -455,9 +429,6 @@ IDisposable
         }
         OnSystemBeginFrame(delta);
 
-        // Clear the scene texture before any rendering of this frame
-        _mainPipeline.BeginFrame();
-
         EventOnUpdate?.Invoke(delta);
 
         OnSystemUpdate(delta);
@@ -485,17 +456,13 @@ IDisposable
             TryErrorStop();
         }
 
-        // Resolve the scene texture through the post-process chain into the swapchain.
-        // Systems drawing overlays (ImGui, debug stats) draw on top of it in OnEndFrame.
-        _mainPipeline.RenderFrame(_mainPresenter.FrameBuffer);
-
         OnSystemEndFrame(delta);
 
+        // Per-frame resource disposal (deferred GPU resource destruction)
         EventOnEndFrame?.Invoke();
 
-        // Present the frame and process the deferred view resize
+        // Present the frame
         _mainPresenter.EndFrame();
-
     }
 
 
@@ -546,8 +513,6 @@ IDisposable
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
         _mainPresenter.OnResize -= OnMainViewResize;
-        _mainPipeline.Dispose();
-        DisposePlugins(_setting.Plugins);
         _mainPresenter.Dispose();
         MainView.Close();
         _platform.Dispose();
@@ -558,57 +523,14 @@ IDisposable
 
     private void OnMainViewResize(uint2 size)
     {
-        _mainPipeline.Resize(size.X, size.Y);
-    }
-
-    private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)
-    {
-        for (int i = 0; i < plugins.Count; i++)
-        {
-            try
-            {
-                plugins[i].OnPostInitialize(this);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when initialize plugin {plugins[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
-    private void DisposePlugins(IReadOnlyList<IEnginePlugin> plugins)
-    {
-        for (int i = 0; i < plugins.Count; i++)
-        {
-            try
-            {
-                plugins[i].Dispose();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when dispose plugin {plugins[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
     }
 
     private void OnSystemStart()
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnStart();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when start system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnStart(); }
+            catch (Exception e) { Log.Error($"Error when start system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -616,16 +538,8 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnTick(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when tick system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnTick(delta); }
+            catch (Exception e) { Log.Error($"Error when tick system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -633,16 +547,8 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnPostTick(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post tick system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnPostTick(delta); }
+            catch (Exception e) { Log.Error($"Error when post tick system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -650,16 +556,8 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnUpdate(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when update system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnUpdate(delta); }
+            catch (Exception e) { Log.Error($"Error when update system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -667,16 +565,8 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnPostUpdate(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post update system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnPostUpdate(delta); }
+            catch (Exception e) { Log.Error($"Error when post update system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -684,16 +574,8 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnBeginFrame(deltaTime);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when pre swap frame system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnBeginFrame(deltaTime); }
+            catch (Exception e) { Log.Error($"Error when begin frame system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -701,34 +583,17 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnEndFrame(deltaTime);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post swap frame system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnEndFrame(deltaTime); }
+            catch (Exception e) { Log.Error($"Error when end frame system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
-
 
     private void OnSystemStop()
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnStop();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when stop system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnStop(); }
+            catch (Exception e) { Log.Error($"Error when stop system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -736,20 +601,10 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].Dispose();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when dispose system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].Dispose(); }
+            catch (Exception e) { Log.Error($"Error when dispose system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
-
-
 
     #endregion
 
@@ -768,23 +623,6 @@ IDisposable
         _systems.Add(system);
     }
 
-    public void RemoveSystem(IEngineSystem system)
-    {
-        _systems.Remove(system);
-    }
-
-    public T GetSystem<T>()
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            if (_systems[i] is T system)
-            {
-                return system;
-            }
-        }
-        throw new Exception($"System {typeof(T).Name} not found");
-    }
-
     public bool TryGetSystem<T>([NotNullWhen(true)] out T? system)
     {
         for (int i = 0; i < _systems.Count; i++)
@@ -797,48 +635,6 @@ IDisposable
         }
         system = default;
         return false;
-    }
-
-    public IEnumerable<T> GetSystems<T>()
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            if (_systems[i] is T system)
-            {
-                yield return system;
-            }
-        }
-        yield break;
-    }
-
-
-    public bool TryGetPlugin<T>([NotNullWhen(true)] out T? plugin)
-    {
-        IReadOnlyList<IEnginePlugin> plugins = Setting.Plugins;
-        for (int i = 0; i < plugins.Count; i++)
-        {
-            if (plugins[i] is T p)
-            {
-                plugin = p;
-                return true;
-            }
-        }
-
-        plugin = default;
-        return false;
-    }
-
-    public IEnumerable<T> GetPlugins<T>()
-    {
-        for (int i = 0; i < Setting.Plugins.Count; i++)
-        {
-            if (Setting.Plugins[i] is T plugin)
-            {
-                yield return plugin;
-            }
-        }
-
-        yield break;
     }
 
     public static void DoGarbageCollection(bool compactLOH = false)

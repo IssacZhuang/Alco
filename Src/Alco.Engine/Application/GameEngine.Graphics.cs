@@ -21,30 +21,6 @@ public partial class GameEngine
         return new ViewPresenter(view);
     }
 
-    /// <summary>
-    /// Creates the render pipeline of the main view. The default is a
-    /// <see cref="ForwardPipeline"/>, HDR when <see cref="PluginHDR"/> is registered.
-    /// Override to use a custom pipeline (e.g. <see cref="PBRDeferredRenderPipeline"/>).
-    /// </summary>
-    protected virtual RenderPipeline CreateMainPipeline()
-    {
-        bool hdr = false;
-        for (int i = 0; i < _setting.Plugins.Count; i++)
-        {
-            if (_setting.Plugins[i] is PluginHDR)
-            {
-                hdr = true;
-                break;
-            }
-        }
-        return new ForwardPipeline(
-            _renderingSystem,
-            hdr ? _renderingSystem.PreferredHDRPass : _renderingSystem.PreferredSDRPass,
-            _builtInAssets.Shader_Blit,
-            _mainView.Size.X,
-            _mainView.Size.Y);
-    }
-
     public virtual IShaderCache? CreateShaderCache(GraphicsSetting setting)
     {
         if (setting.IsShaderCacheEnabled)

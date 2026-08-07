@@ -8,6 +8,8 @@ using Alco.ImGUI;
 
 public class Game : GameEngine
 {
+    private readonly ForwardPipeline _mainPipeline;
+    private readonly ImGUISystem _imguiSystem;
     private readonly Camera2DBuffer _camera;
     private readonly Material _materialParticle;
     private readonly ParticleEmitterBox2D _emitter;
@@ -29,6 +31,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+        _imguiSystem = new ImGUISystem(this);
+
         // Create camera
         _camera = RenderingSystem.CreateCamera2D(64, 36, 100);
 
@@ -75,13 +80,21 @@ public class Game : GameEngine
     {
         // Simulate particles
         _particleSystem.Simulate(delta);
-        _subRenderContext.Begin(MainFrameBuffer.AttachmentLayout);
+        _subRenderContext.Begin(_mainPipeline.SceneFrameBuffer.AttachmentLayout);
         _renderer.Draw(_mesh, _particleSystem.Particles);
         _subRenderContext.End();
     }
 
+    protected override void OnBeginFrame()
+    {
+        _mainPipeline.BeginFrame();
+    }
+
     protected override void OnUpdate(float delta)
     {
+        _imguiSystem.BeginFrame(delta);
+        _imguiSystem.UpdateInput();
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -92,7 +105,7 @@ public class Game : GameEngine
         // Draw particles
         if (_subRenderContext.HasBuffer)
         {
-            _renderContext.Begin(MainFrameBuffer);
+            _renderContext.Begin(_mainPipeline.SceneFrameBuffer);
             _renderContext.ExecuteSubContext(_subRenderContext);
             _renderContext.End();
         }
@@ -288,8 +301,16 @@ public class Game : GameEngine
         ImGui.End();
     }
 
+    protected override void OnEndFrame()
+    {
+        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
+    }
+
     protected override void OnStop()
     {
         _renderContext.Dispose();
+        _imguiSystem.Dispose();
+        _mainPipeline.Dispose();
     }
 }
