@@ -345,7 +345,6 @@ public class Game : GameEngine
                 resolution: 128,
                 baseVoxelSize: baseVoxelSize,
                 traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
-            _voxelGI.TraceMaxDistance = MathF.Min(12.0f, MathF.Max(_sceneRadius, 1.0f));
             _voxelGI.DebugView = giDebugView;
             RegisterVoxelMeshes();
             _pipeline.RegisterPlugin(_voxelGI);
