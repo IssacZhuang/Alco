@@ -11,27 +11,24 @@ namespace Alco.Rendering;
 /// <br/>Owns a G-buffer (albedo / normal / metallic-roughness-ao / emissive + depth), a
 /// depth-only shadow map holding <see cref="ShadowCascadeCount"/> cascades in a 2x2 atlas,
 /// three render contexts (shadow pass, G-buffer pass, lighting pass) and the pass-private
-/// materials (shadow depth, deferred lighting, HBAO). Scene materials are created and
-/// owned by the caller via <see cref="CreateGBufferMaterial"/> /
-/// <see cref="CreateGBufferTangentMaterial"/>.
-/// <br/>The caller drives the frame explicitly: per cascade
-/// <c>BeginShadowPass → draws → EndShadowPass</c>, then
-/// <c>BeginGBufferPass → draws → EndGBufferPass</c>, then
-/// <c>ExecutePlugins(AfterGBuffer)</c> + <c>RenderLighting(target)</c> which resolves
+/// deferred lighting material. G-buffer scene draws and shadow scene draws are handled
+/// by externally owned scene renderers (<see cref="GBufferRenderer"/> /
+/// <see cref="ShadowRenderer"/>) registered via <see cref="AddSceneRenderer"/>; the
+/// pipeline does not know their types — it invokes <see cref="ISceneRenderer"/> methods
+/// inside each pass. The caller can also drive passes manually via Begin/End methods.
+/// <br/>The caller drives the frame by calling the convenience methods
+/// <see cref="RenderShadowPass"/> + <see cref="RenderGBufferPass"/>, then
+/// <see cref="ExecutePlugins"/> + <see cref="RenderLighting(target)"/> which resolves
 /// lighting, sky and shadows into the target frame buffer (typically the engine's HDR
-/// main target).
+/// main target). Each pass can also be driven manually via Begin/End methods.
 /// <br/>Scene properties (sun direction/color, sky params, GI strength, debug flags) are
 /// set directly on the pipeline as properties. Camera, shadow cascades, viewport and
 /// point-light count are managed internally — the caller only calls
 /// <see cref="SetCamera"/>, <see cref="ComputeShadowCascades"/> and
 /// <see cref="UpdatePointLights"/>.
-/// <br/>Every draw method takes an <see cref="IRenderContext"/> target: pass
-/// <see cref="ShadowContext"/> / <see cref="GBufferContext"/> for immediate (per-frame
-/// dynamic) draws, or a <see cref="SubRenderContext"/> to record static geometry into a
-/// reusable render bundle once and replay it every frame via
-/// <see cref="ExecuteShadowSubContext"/> / <see cref="ExecuteGBufferSubContext"/>
-/// (the per-cascade shadow view-projections live in a uniform buffer with reference
-/// semantics, so recorded bundles stay valid while the camera-fitted cascades move).
+/// <br/>The per-cascade shadow view-projections live in a uniform buffer with reference
+/// semantics, so render bundles recorded against <see cref="ShadowLayout"/> stay valid
+/// while the camera-fitted cascades move.
 /// <br/>Cascade splits are computed by <see cref="ComputeShadowCascades"/> (PSSM,
 /// camera-fitted, texel-snapped).
 /// <br/>Pluggable effects (AO, GI, etc.) implementing <see cref="IRenderPlugin"/> can be
@@ -41,58 +38,6 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 {
-    /// <summary>
-    /// Push constant payload for a G-buffer draw. Layout must match the
-    /// <c>Constants</c> struct in GBuffer.hlsl exactly.
-    /// </summary>
-    public struct PBRDrawConstants
-    {
-        /// <summary>The world transform of the object (row-vector convention, compose scale → rotation → translation).</summary>
-        public Matrix4x4 Model;
-        /// <summary>Linear base color (rgb), alpha multiplies the albedo texture alpha.</summary>
-        public Vector4 BaseColor;
-        /// <summary>x=metallic y=roughness z=ambient occlusion, w is unused.</summary>
-        public Vector4 MetallicRoughnessAO;
-        /// <summary>x=alpha cutoff (0 disables alpha testing), yzw are unused.</summary>
-        public Vector4 Params;
-        /// <summary>Linear emissive color (rgb), w is unused.</summary>
-        public Vector4 Emissive;
-
-        /// <summary>
-        /// Create draw constants for a PBR surface.
-        /// </summary>
-        /// <param name="model">The world transform of the object.</param>
-        /// <param name="baseColor">The linear base color.</param>
-        /// <param name="metallic">Metallic value in [0, 1].</param>
-        /// <param name="roughness">Roughness value in [0, 1].</param>
-        /// <param name="ambientOcclusion">Ambient occlusion in [0, 1].</param>
-        public PBRDrawConstants(in Matrix4x4 model, in Vector3 baseColor, float metallic, float roughness, float ambientOcclusion)
-        {
-            Model = model;
-            BaseColor = new Vector4(baseColor, 1.0f);
-            MetallicRoughnessAO = new Vector4(metallic, roughness, ambientOcclusion, 1.0f);
-            Params = Vector4.Zero;
-            Emissive = Vector4.Zero;
-        }
-    }
-
-    /// <summary>
-    /// Push constant payload for a shadow map draw. Layout must match the
-    /// <c>Constants</c> struct in ShadowDepth.hlsl exactly. The per-cascade light
-    /// view-projection matrices are read from the <c>_data</c> uniform buffer instead,
-    /// so the constants stay static for static geometry (render-bundle friendly).
-    /// <para>For the cutout variants (ShadowDepthCutout.hlsl / ShadowDepthCutoutTangent.hlsl),
-    /// <see cref="Params"/>.y carries the alpha cutoff and <see cref="Params"/>.z carries
-    /// the base-color alpha multiplier; both are ignored by the opaque shaders.</para>
-    /// </summary>
-    public struct ShadowDrawConstants
-    {
-        /// <summary>The world transform of the mesh.</summary>
-        public Matrix4x4 Model;
-        /// <summary>x=the shadow cascade index, y=alphaCutoff (cutout only), z=baseColorAlpha (cutout only), w unused.</summary>
-        public Vector4 Params;
-    }
-
     /// <summary>
     /// Per-frame shadow pass data uploaded to the <c>_data</c> uniform buffer of the
     /// shadow depth shaders: the quadrant-folded light view-projection matrix of each
@@ -194,19 +139,17 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly GPUDevice _device;
     private readonly Mesh _fullScreenMesh;
 
+    // External scene renderers (GBufferRenderer, ShadowRenderer, etc.) invoked
+    // inside the pipeline's own passes. Each renderer only overrides the passes
+    // it cares about; unimplemented passes are no-ops via default interface methods.
+    private readonly List<ISceneRenderer> _sceneRenderers = new();
+
     private readonly GPUAttachmentLayout _gbufferLayout;
     private readonly GPUAttachmentLayout _shadowLayout;
     private RenderTexture _gbufferRT;
     private readonly RenderTexture _shadowRT;
 
-    private readonly Shader _gbufferShader;
-    private readonly Shader? _gbufferTangentShader;
-    private readonly Shader _shadowShader;
-    private readonly Shader? _shadowTangentShader;
-    private readonly GraphicsMaterial _shadowMaterial;
-    private readonly GraphicsMaterial? _shadowTangentMaterial;
     private readonly GraphicsMaterial _lightingMaterial;
-    private Texture2D? _flatNormalTexture;
     private CameraPerspectiveBuffer? _camera;
 
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
@@ -353,6 +296,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// (see <see cref="SubRenderContext.Begin(GPUAttachmentLayout)"/>).
     /// </summary>
     public GPUAttachmentLayout ShadowLayout => _shadowLayout;
+
+    /// <summary>
+    /// The cascade VP data buffer (per-cascade light view-projection matrices).
+    /// Passed to <see cref="ShadowRenderer"/> so its materials can bind it.
+    /// </summary>
+    public GraphicsBuffer ShadowDataBuffer => _shadowDataBuffer;
 
     /// <summary>
     /// The live G-buffer render context for immediate (per-frame dynamic) draws.
@@ -558,29 +507,21 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Create the deferred PBR pipeline with the given shaders.
+    /// Create the deferred PBR pipeline.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="gbufferShader">The G-buffer shader (GBuffer.hlsl).</param>
-    /// <param name="shadowShader">The shadow map depth shader (ShadowDepth.hlsl).</param>
     /// <param name="lightingShaderText">The source text of the deferred lighting shader (DeferredLighting.hlsl).</param>
     /// <param name="lightingShaderName">The name of the deferred lighting shader.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
-    /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling <see cref="CreateGBufferTangentMaterial"/> for normal-mapped materials.</param>
-    /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="DrawShadowTangent"/> for tangent-bearing meshes. Cutout variants of both shadow shaders are produced at runtime via the <c>SHADOW_CUTOUT</c> define.</param>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
-        Shader gbufferShader,
-        Shader shadowShader,
         string lightingShaderText,
         string lightingShaderName,
         uint shadowMapSize = 2048,
         uint width = 1280,
-        uint height = 720,
-        Shader? gbufferTangentShader = null,
-        Shader? shadowTangentShader = null)
+        uint height = 720)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -605,34 +546,17 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             new DepthAttachment(PixelFormat.Depth32Float),
             "pbr_gbuffer_pass"));
 
+        _gbufferRT = rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
+
         _shadowLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [],
             new DepthAttachment(PixelFormat.Depth32Float),
             "pbr_shadow_pass"));
 
-        _gbufferRT = rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
         // 2x2 cascade atlas: each cascade renders into one quadrant.
         _shadowRT = rendering.CreateRenderTexture(_shadowLayout, shadowMapSize * 2, shadowMapSize * 2, "pbr_shadow_map");
 
-        _gbufferShader = gbufferShader;
-        _gbufferTangentShader = gbufferTangentShader;
-        _shadowShader = shadowShader;
-        _shadowTangentShader = shadowTangentShader;
-
         _shadowDataBuffer = rendering.CreateGraphicsValueBuffer<ShadowCascadeData>("pbr_shadow_data");
-
-        _shadowMaterial = rendering.CreateMaterial(shadowShader);
-        _shadowMaterial.DepthStencilState = DepthStencilState.Write;
-        _shadowMaterial.RasterizerState = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.Clockwise);
-        _shadowMaterial.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
-
-        if (shadowTangentShader != null)
-        {
-            _shadowTangentMaterial = rendering.CreateMaterial(shadowTangentShader);
-            _shadowTangentMaterial.DepthStencilState = DepthStencilState.Write;
-            _shadowTangentMaterial.RasterizerState = new RasterizerState(FillMode.Solid, CullMode.Back, FrontFace.Clockwise);
-            _shadowTangentMaterial.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
-        }
 
         // IMPORTANT: DepthStencilState.None means depthCompare=Never — with a depth
         // attachment present (the engine's HDR main target), every fragment would be
@@ -683,6 +607,25 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
+    /// Register a scene renderer (e.g. <see cref="GBufferRenderer"/>,
+    /// <see cref="ShadowRenderer"/>) that draws objects into the pipeline's own
+    /// passes. The renderer only overrides the passes it cares about; the pipeline
+    /// invokes it inside each pass between Begin and End.
+    /// </summary>
+    public void AddSceneRenderer(ISceneRenderer renderer)
+    {
+        _sceneRenderers.Add(renderer);
+    }
+
+    /// <summary>
+    /// Unregister a scene renderer previously added via <see cref="AddSceneRenderer"/>.
+    /// </summary>
+    public void RemoveSceneRenderer(ISceneRenderer renderer)
+    {
+        _sceneRenderers.Remove(renderer);
+    }
+
+    /// <summary>
     /// Recreate the G-buffer at a new resolution. Call when the view resizes.
     /// <br/>Render bundles recorded against <see cref="GBufferLayout"/> stay valid:
     /// the layout (attachment formats) does not change, only the textures do.
@@ -698,101 +641,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _plugins[i].Resize(width, height);
         }
         RebindLightingTargets();
-    }
-
-    /// <summary>
-    /// Create a G-buffer material for the non-tangent shader (GBuffer.hlsl). The
-    /// pipeline applies the pass-mandated state (depth write, rasterizer, texture
-    /// slots, camera binding); the caller owns the material and must dispose it.
-    /// </summary>
-    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
-    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
-    /// <param name="name">The material name for debugging.</param>
-    /// <returns>The caller-owned G-buffer material.</returns>
-    public GraphicsMaterial CreateGBufferMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_gbuffer_material")
-    {
-        var material = _rendering.CreateMaterial(_gbufferShader, name);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        if (_camera != null)
-        {
-            material.SetBuffer(ShaderResourceId.Camera, _camera);
-        }
-        return material;
-    }
-
-    /// <summary>
-    /// Create a G-buffer material for the tangent shader (GBufferTangent.hlsl) with
-    /// per-material albedo, normal, metallic-roughness and emissive textures. The
-    /// pipeline applies the pass-mandated state (depth write, rasterizer, texture
-    /// slots, camera binding); the caller owns the material and must dispose it.
-    /// </summary>
-    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
-    /// <param name="normalTexture">The tangent-space normal map; null binds a flat normal texture.</param>
-    /// <param name="metallicRoughnessTexture">The metallic-roughness texture (roughness in G, metallic in B); null binds the shared white texture.</param>
-    /// <param name="emissiveTexture">The emissive texture; null binds the shared black texture.</param>
-    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
-    /// <param name="name">The material name for debugging.</param>
-    /// <returns>The caller-owned G-buffer material.</returns>
-    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent G-buffer shader.</exception>
-    public GraphicsMaterial CreateGBufferTangentMaterial(
-        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
-        Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_gbuffer_tangent_material")
-    {
-        if (_gbufferTangentShader == null)
-        {
-            throw new InvalidOperationException(
-                "CreateGBufferTangentMaterial requires the pipeline to be created with a tangent G-buffer shader.");
-        }
-        var material = _rendering.CreateMaterial(_gbufferTangentShader, name);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        SetGBufferTangentMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
-        if (_camera != null)
-        {
-            material.SetBuffer(ShaderResourceId.Camera, _camera);
-        }
-        return material;
-    }
-
-    /// <summary>
-    /// (Re)bind the texture slots of a tangent G-buffer material created by
-    /// <see cref="CreateGBufferTangentMaterial"/>, applying the same fallback textures.
-    /// Use when textures stream in asynchronously after the material was created
-    /// (render bundles recorded with the material must be re-recorded afterwards).
-    /// </summary>
-    /// <param name="material">The material to update.</param>
-    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
-    /// <param name="normalTexture">The tangent-space normal map; null binds a flat normal texture.</param>
-    /// <param name="metallicRoughnessTexture">The metallic-roughness texture; null binds the shared white texture.</param>
-    /// <param name="emissiveTexture">The emissive texture; null binds the shared black texture.</param>
-    public void SetGBufferTangentMaterialTextures(
-        GraphicsMaterial material, Texture2D? albedoTexture, Texture2D? normalTexture,
-        Texture2D? metallicRoughnessTexture, Texture2D? emissiveTexture)
-    {
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        material.SetTexture("_normalTexture", normalTexture ?? GetOrCreateFlatNormalTexture());
-        material.SetTexture("_mrTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
-        material.SetTexture("_emissiveTexture", emissiveTexture ?? _rendering.TextureBlack);
-    }
-
-    /// <summary>
-    /// Lazily create the 1x1 flat-normal fallback texture: (128,128,255) decodes to the
-    /// identity tangent-space normal. Only the .rg channels are sampled, so the RGBA8
-    /// texture is a valid stand-in for the BC5 normal maps.
-    /// </summary>
-    private Texture2D GetOrCreateFlatNormalTexture()
-    {
-        if (_flatNormalTexture == null)
-        {
-            byte[] data = [128, 128, 255, 255];
-            _flatNormalTexture = _rendering.CreateTexture2D(data, 1, 1,
-                new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "pbr_flat_normal"));
-        }
-        return _flatNormalTexture;
     }
 
     /// <summary>
@@ -870,147 +718,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Draw a mesh into the shadow map. Must be recorded into a shadow render bundle
-    /// or called on <see cref="ShadowContext"/> inside the shadow pass.
-    /// </summary>
-    /// <param name="target">The render context to record into or draw with.</param>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="model">The world transform of the mesh.</param>
-    /// <param name="cascadeIndex">The cascade whose light view-projection is used.</param>
-    public void DrawShadow(IRenderContext target, in Mesh mesh, in Matrix4x4 model, int cascadeIndex)
-    {
-        target.DrawWithConstant(mesh, _shadowMaterial,
-            new ShadowDrawConstants { Model = model, Params = new Vector4(cascadeIndex, 0.0f, 0.0f, 0.0f) });
-    }
-
-    /// <summary>
-    /// Draw a tangent-bearing mesh (<see cref="VertexPositionNormalTextureTangent"/>) into
-    /// the shadow map. Must be recorded into a shadow render bundle or called on
-    /// <see cref="ShadowContext"/> inside the shadow pass. Requires the tangent shadow
-    /// shader (<c>shadowTangentShader</c> constructor argument): a mesh's vertex layout must
-    /// match its shader exactly, so tangent meshes cannot go through <see cref="DrawShadow"/>.
-    /// </summary>
-    /// <param name="target">The render context to record into or draw with.</param>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="model">The world transform of the mesh.</param>
-    /// <param name="cascadeIndex">The cascade whose light view-projection is used.</param>
-    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent shadow shader.</exception>
-    public void DrawShadowTangent(IRenderContext target, in Mesh mesh, in Matrix4x4 model, int cascadeIndex)
-    {
-        if (_shadowTangentMaterial == null)
-        {
-            throw new InvalidOperationException(
-                "DrawShadowTangent requires the pipeline to be created with a tangent shadow shader.");
-        }
-        target.DrawWithConstant(mesh, _shadowTangentMaterial,
-            new ShadowDrawConstants { Model = model, Params = new Vector4(cascadeIndex, 0.0f, 0.0f, 0.0f) });
-    }
-
-    /// <summary>
-    /// Create a caller-owned cutout shadow material — the shadow depth shader
-    /// (ShadowDepth.hlsl) compiled with the <c>SHADOW_CUTOUT</c> define so the
-    /// pixel shader samples _albedoTexture and discards transparent fragments.
-    /// Alpha-tested meshes (foliage, fences, etc.) cast correctly shaped shadows.
-    /// The material binds the per-frame shadow data buffer internally.
-    /// </summary>
-    /// <param name="albedoTexture">The albedo texture whose alpha channel drives the cutout; null binds the shared white texture (opaque).</param>
-    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
-    /// <param name="name">The material name for debugging.</param>
-    /// <returns>The caller-owned cutout shadow material.</returns>
-    public GraphicsMaterial CreateShadowCutoutMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_material")
-    {
-        var material = _rendering.CreateMaterial(_shadowShader, name);
-        material.SetDefines("SHADOW_CUTOUT");
-        // Force the SHADOW_CUTOUT variant to compile and update the reflection so
-        // the _albedoTexture binding is visible before SetTexture is called.
-        material.GetPipelineInfo(_shadowLayout);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
-        return material;
-    }
-
-    /// <summary>
-    /// Create a caller-owned tangent-layout cutout shadow material — the tangent
-    /// shadow depth shader (ShadowDepthTangent.hlsl) compiled with the
-    /// <c>SHADOW_CUTOUT</c> define. Same as <see cref="CreateShadowCutoutMaterial"/>
-    /// but for meshes with tangent vertex layout.
-    /// </summary>
-    /// <param name="albedoTexture">The albedo texture whose alpha channel drives the cutout; null binds the shared white texture (opaque).</param>
-    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
-    /// <param name="name">The material name for debugging.</param>
-    /// <returns>The caller-owned cutout shadow material.</returns>
-    /// <exception cref="InvalidOperationException">The pipeline was created without a tangent shadow shader.</exception>
-    public GraphicsMaterial CreateShadowCutoutTangentMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_tangent_material")
-    {
-        if (_shadowTangentShader == null)
-        {
-            throw new InvalidOperationException(
-                "CreateShadowCutoutTangentMaterial requires the pipeline to be created with a tangent shadow shader.");
-        }
-        var material = _rendering.CreateMaterial(_shadowTangentShader, name);
-        material.SetDefines("SHADOW_CUTOUT");
-        material.GetPipelineInfo(_shadowLayout);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
-        return material;
-    }
-
-    /// <summary>
-    /// (Re)bind the albedo texture slot of a cutout shadow material created by
-    /// <see cref="CreateShadowCutoutMaterial"/> or <see cref="CreateShadowCutoutTangentMaterial"/>.
-    /// Use when textures stream in asynchronously after the material was created
-    /// (render bundles recorded with the material must be re-recorded afterwards).
-    /// </summary>
-    /// <param name="material">The material to update.</param>
-    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
-    public void SetShadowCutoutMaterialTextures(GraphicsMaterial material, Texture2D? albedoTexture)
-    {
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-    }
-
-    /// <summary>
-    /// Draw a mesh into the shadow map with alpha testing. Must be recorded into a shadow
-    /// render bundle or called on <see cref="ShadowContext"/> inside the shadow pass.
-    /// </summary>
-    /// <param name="target">The render context to record into or draw with.</param>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The cutout shadow material (created by <see cref="CreateShadowCutoutMaterial"/>, owned by the caller).</param>
-    /// <param name="model">The world transform of the mesh.</param>
-    /// <param name="alphaCutoff">Alpha test threshold; fragments with albedo alpha below this are discarded.</param>
-    /// <param name="baseColorAlpha">The base-color alpha factor multiplied with the texture alpha before testing.</param>
-    /// <param name="cascadeIndex">The cascade whose light view-projection is used.</param>
-    public void DrawShadowCutout(IRenderContext target, in Mesh mesh, GraphicsMaterial material, in Matrix4x4 model,
-        float alphaCutoff, float baseColorAlpha, int cascadeIndex)
-    {
-        target.DrawWithConstant(mesh, material,
-            new ShadowDrawConstants { Model = model, Params = new Vector4(cascadeIndex, alphaCutoff, baseColorAlpha, 0.0f) });
-    }
-
-    /// <summary>
-    /// Draw a tangent-bearing mesh into the shadow map with alpha testing. Must be recorded
-    /// into a shadow render bundle or called on <see cref="ShadowContext"/> inside the shadow pass.
-    /// </summary>
-    /// <param name="target">The render context to record into or draw with.</param>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The cutout shadow material (created by <see cref="CreateShadowCutoutTangentMaterial"/>, owned by the caller).</param>
-    /// <param name="model">The world transform of the mesh.</param>
-    /// <param name="alphaCutoff">Alpha test threshold; fragments with albedo alpha below this are discarded.</param>
-    /// <param name="baseColorAlpha">The base-color alpha factor multiplied with the texture alpha before testing.</param>
-    /// <param name="cascadeIndex">The cascade whose light view-projection is used.</param>
-    public void DrawShadowCutoutTangent(IRenderContext target, in Mesh mesh, GraphicsMaterial material, in Matrix4x4 model,
-        float alphaCutoff, float baseColorAlpha, int cascadeIndex)
-    {
-        target.DrawWithConstant(mesh, material,
-            new ShadowDrawConstants { Model = model, Params = new Vector4(cascadeIndex, alphaCutoff, baseColorAlpha, 0.0f) });
-    }
-
-    /// <summary>
     /// Replay a recorded shadow render bundle. Must be called inside the shadow pass
     /// (the pass applies its scissor rect, which bundles cannot set themselves).
     /// </summary>
@@ -1027,6 +734,24 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         _shadowContext.End();
         _shadowElapsedTicks += Stopwatch.GetTimestamp() - _stageStartTicks;
+    }
+
+    /// <summary>
+    /// Convenience: run all <see cref="ShadowCascadeCount"/> cascade passes in one
+    /// call, invoking the registered shadow render callback between Begin/End for
+    /// each cascade. When no callback is registered each cascade's pass runs empty.
+    /// </summary>
+    public void RenderShadowPass()
+    {
+        for (int c = 0; c < ShadowCascadeCount; c++)
+        {
+            BeginShadowPass(c);
+            for (int i = 0; i < _sceneRenderers.Count; i++)
+            {
+                _sceneRenderers[i].OnRenderShadow(_shadowContext, c);
+            }
+            EndShadowPass();
+        }
     }
 
     /// <summary>
@@ -1179,50 +904,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Draw a mesh into the G-buffer. Must be recorded into a G-buffer render bundle
-    /// or called on <see cref="GBufferContext"/> inside the G-buffer pass.
-    /// </summary>
-    /// <param name="target">The render context to record into or draw with.</param>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The G-buffer material (created by <see cref="CreateGBufferMaterial"/> or <see cref="CreateGBufferTangentMaterial"/>, owned by the caller).</param>
-    /// <param name="model">The world transform of the mesh.</param>
-    /// <param name="baseColor">The linear base color, multiplied with the albedo texture.</param>
-    /// <param name="metallicRoughnessAO">x=metallic y=roughness z=ambient occlusion; metallic and roughness multiply with the metallic-roughness texture when bound.</param>
-    /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
-    public void DrawGBuffer(IRenderContext target, in Mesh mesh, GraphicsMaterial material, in Matrix4x4 model,
-        in Vector4 baseColor, in Vector4 metallicRoughnessAO, float alphaCutoff = 0.0f)
-    {
-        DrawGBuffer(target, mesh, material, model, baseColor, metallicRoughnessAO, Vector3.Zero, alphaCutoff);
-    }
-
-    /// <summary>
-    /// Draw a mesh into the G-buffer with an emissive factor. Must be recorded into a
-    /// G-buffer render bundle or called on <see cref="GBufferContext"/> inside the
-    /// G-buffer pass.
-    /// </summary>
-    /// <param name="target">The render context to record into or draw with.</param>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The G-buffer material (created by <see cref="CreateGBufferMaterial"/> or <see cref="CreateGBufferTangentMaterial"/>, owned by the caller).</param>
-    /// <param name="model">The world transform of the mesh.</param>
-    /// <param name="baseColor">The linear base color, multiplied with the albedo texture.</param>
-    /// <param name="metallicRoughnessAO">x=metallic y=roughness z=ambient occlusion; metallic and roughness multiply with the metallic-roughness texture when bound.</param>
-    /// <param name="emissiveFactor">The linear emissive color, multiplied with the emissive texture when bound.</param>
-    /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
-    public void DrawGBuffer(IRenderContext target, in Mesh mesh, GraphicsMaterial material, in Matrix4x4 model,
-        in Vector4 baseColor, in Vector4 metallicRoughnessAO, in Vector3 emissiveFactor, float alphaCutoff = 0.0f)
-    {
-        target.DrawWithConstant(mesh, material,
-            new PBRDrawConstants
-            {
-                Model = model,
-                BaseColor = baseColor,
-                MetallicRoughnessAO = metallicRoughnessAO,
-                Params = new Vector4(alphaCutoff, 0.0f, 0.0f, 0.0f),
-                Emissive = new Vector4(emissiveFactor, 1.0f),
-            });
-    }
-
-    /// <summary>
     /// Replay a recorded G-buffer render bundle. Must be called inside the G-buffer pass.
     /// </summary>
     /// <param name="subContext">The recorded sub render context.</param>
@@ -1243,6 +924,21 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         }
         _gbufferContext.End();
         _profiler.PushValue(_gbufferCounter, TicksToMilliseconds(Stopwatch.GetTimestamp() - _stageStartTicks));
+    }
+
+    /// <summary>
+    /// Convenience: begin the G-buffer pass, invoke the registered G-buffer render
+    /// callback (if any), then end the pass — all in one call. When no callback is
+    /// registered this is equivalent to calling Begin/End with nothing in between.
+    /// </summary>
+    public void RenderGBufferPass()
+    {
+        BeginGBufferPass();
+        for (int i = 0; i < _sceneRenderers.Count; i++)
+        {
+            _sceneRenderers[i].OnRenderGBuffer(_gbufferContext, _gbufferLayout);
+        }
+        EndGBufferPass();
     }
 
     /// <summary>
@@ -1291,9 +987,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     private void RebindLightingTargets()
     {
-        _lightingMaterial.SetRenderTexture("_albedo", _gbufferRT, 0);
-        _lightingMaterial.SetRenderTexture("_normal", _gbufferRT, 1);
-        _lightingMaterial.SetRenderTexture("_mrAO", _gbufferRT, 2);
+        _lightingMaterial.SetRenderTexture("_albedo",   _gbufferRT, 0);
+        _lightingMaterial.SetRenderTexture("_normal",   _gbufferRT, 1);
+        _lightingMaterial.SetRenderTexture("_mrAO",     _gbufferRT, 2);
         _lightingMaterial.SetRenderTexture("_emissive", _gbufferRT, 3);
         _lightingMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
         _lightingMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
@@ -1315,9 +1011,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _shadowDataBuffer.Dispose();
             _pointLightBuffer.Dispose();
             _lightingMaterial.Dispose();
-            _flatNormalTexture?.Dispose();
-            _shadowTangentMaterial?.Dispose();
-            _shadowMaterial.Dispose();
             _gbufferRT.Dispose();
             _shadowRT.Dispose();
             _gbufferLayout.Dispose();
