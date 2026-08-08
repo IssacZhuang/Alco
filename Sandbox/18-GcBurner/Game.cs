@@ -37,7 +37,6 @@ public class Game : GameEngine
     private TestThreadWorkerItem _item = new TestThreadWorkerItem();
 
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imGUISystem;
 
     private readonly ConcurrentPool<GPUCommandBuffer> _gpuCommandBufferPool;
     private readonly List<GPUCommandBuffer> _gpuCommandBufferList = new List<GPUCommandBuffer>();
@@ -67,7 +66,7 @@ public class Game : GameEngine
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
-        _imGUISystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
     }
 
     protected override void OnTick(float delta)
@@ -79,9 +78,6 @@ public class Game : GameEngine
 
     override protected void OnUpdate(float delta)
     {
-        _imGUISystem.BeginFrame(delta);
-        _imGUISystem.UpdateInput();
-
         int count = 1000;
         for (int i = 0; i < count; i++)
         {
@@ -159,7 +155,6 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

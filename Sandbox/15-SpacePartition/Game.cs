@@ -22,7 +22,6 @@ public class Game : GameEngine
     private readonly CollisionWorld2D _collisionWorld = new CollisionWorld2D();
 
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imguiSystem;
 
     private Plane3D _plane;
 
@@ -69,7 +68,7 @@ public class Game : GameEngine
         cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _cubeSystem = new CubeSystem(RenderingSystem, cubeMaterial, RenderingSystem.TextureWhite);
 
-        _imguiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
     }
 
     protected override void OnTick(float delta)
@@ -86,9 +85,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        _imguiSystem.BeginFrame(delta);
-        _imguiSystem.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -110,13 +106,11 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
         base.OnStop();
-        _imguiSystem.Dispose();
         _dropletSystem.Dispose();
         _cubeSystem.Dispose();
         _texDroplet.Dispose();

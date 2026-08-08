@@ -10,7 +10,6 @@ using Alco.Rendering;
 public class Game : GameEngine
 {
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imGuiSystem;
     private readonly AudioSource _source;
 
     private float _gain = 1f;
@@ -42,7 +41,7 @@ public class Game : GameEngine
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
-        _imGuiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
@@ -50,9 +49,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        _imGuiSystem.BeginFrame(delta);
-        _imGuiSystem.UpdateInput();
-
         ImGui.Begin("Audio Controls");
 
         if (ImGui.SliderFloat("Gain", ref _gain, -5, 5))
@@ -201,7 +197,6 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imGuiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private async void LoadAudioClipAsync(string filename)

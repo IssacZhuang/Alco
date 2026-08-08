@@ -23,7 +23,6 @@ public class Game : GameEngine
     private readonly Cube _entity;
 
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imguiSystem;
 
     private Plane3D _plane;
     private Vector3 offset;
@@ -80,16 +79,13 @@ public class Game : GameEngine
         _entity.transform.Position = new Vector3(2, 0, 0);
         _entity.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
 
-        _imguiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         MainView.OnResize += OnMainWindowResize;
     }
 
     protected override void OnUpdate(float delta)
     {
-        _imguiSystem.BeginFrame(delta);
-        _imguiSystem.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -161,7 +157,6 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected void OnMainWindowResize(uint2 size)
@@ -173,7 +168,6 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-        _imguiSystem.Dispose();
         _mainPipeline.Dispose();
     }
 

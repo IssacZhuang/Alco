@@ -159,7 +159,6 @@ public class Game : GameEngine
     }
 
     private readonly PBRDeferredPipeline _pipeline;
-    private ImGUISystem? _imguiSystem;
     private readonly GBufferRenderer _gbufferRenderer;
     private readonly ShadowRenderer _shadowRenderer;
     private readonly CameraPerspectiveBuffer _camera;
@@ -595,7 +594,7 @@ public class Game : GameEngine
 
     protected override void OnStart()
     {
-        _imguiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         // Use ACES tone mapping with gamma 2.2.
         if (_tonemapStage != null)
@@ -610,9 +609,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        _imguiSystem?.BeginFrame(delta);
-        _imguiSystem?.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -644,8 +640,6 @@ public class Game : GameEngine
     {
         // Render the frame and resolve it through the forward chain into the swapchain.
         _pipeline.Render(MainPresenter.FrameBuffer);
-        // Draw ImGui on top of the resolved frame (not affected by post-processing).
-        _imguiSystem?.RenderAndDraw(MainPresenter.FrameBuffer);
 
         // Capture here: after Render the forward render texture still holds the last
         // completed frame's HDR image. Bloom is composited into the swapchain by the
@@ -661,7 +655,6 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-        _imguiSystem?.Dispose();
         _pipeline.Dispose();
     }
 

@@ -10,12 +10,11 @@ using Alco.ImGUI;
 /// </summary>
 public class Game : GameEngine
 {
-    private readonly ImGUISystem _imGUISystem;
     private readonly GPUCommandBuffer _commandBuffer;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _imGUISystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
     }
 
@@ -70,15 +69,7 @@ public class Game : GameEngine
             GraphicsDevice.Submit(_commandBuffer);
         }
 
-        _imGUISystem.BeginFrame(delta);
-        _imGUISystem.UpdateInput();
-
         RenderImGUI();
-    }
-
-    protected override void OnEndFrame()
-    {
-        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private void RenderImGUI()

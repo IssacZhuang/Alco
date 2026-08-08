@@ -19,7 +19,6 @@ public class Game : GameEngine
     private Transform3D _camaraChild = Transform3D.Identity;
 
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imGUISystem;
 
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
@@ -66,7 +65,7 @@ public class Game : GameEngine
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
-        _imGUISystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
@@ -108,9 +107,6 @@ public class Game : GameEngine
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
 
-        _imGUISystem.BeginFrame(delta);
-        _imGUISystem.UpdateInput();
-
         ImGui.Begin("Transform");
         ImGui.Text("Hold mouse middle button to rotate camera");
 
@@ -133,7 +129,6 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected void OnMainWindowResize(uint2 size)

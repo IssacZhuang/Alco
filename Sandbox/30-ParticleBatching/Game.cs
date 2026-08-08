@@ -10,7 +10,6 @@ using Alco.ImGUI;
 /// </summary>
 public class Game : GameEngine
 {
-    private readonly ImGUISystem _imguiSystem;
     private readonly Camera2DBuffer _camera;
     private readonly Material _materialParticle;
     private readonly List<ParticleSystem2DCPU> _particleSystems;
@@ -60,7 +59,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _imguiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         // Create camera with larger view for multiple systems
         _camera = RenderingSystem.CreateCamera2D(128, 72, 100);
@@ -170,9 +169,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        _imguiSystem.BeginFrame(delta);
-        _imguiSystem.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -195,11 +191,6 @@ public class Game : GameEngine
         }
 
         ShowControls();
-    }
-
-    protected override void OnEndFrame()
-    {
-        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     /// <summary>
@@ -307,6 +298,5 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _renderContext.Dispose();
-        _imguiSystem.Dispose();
     }
 }

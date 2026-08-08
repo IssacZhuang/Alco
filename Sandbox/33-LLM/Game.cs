@@ -39,8 +39,6 @@ public class Game : GameEngine
     private readonly Dictionary<string, int> _toolMessageIndexByCallId = new();
     private bool _isWaitingForResponse = false;
 
-    private readonly ImGUISystem _imGuiSystem;
-
     // Rendering fields
     private readonly CameraPerspectiveBuffer _camera;
     private readonly Shader _shader;
@@ -51,7 +49,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _imGuiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         _llmSystem = new LLMSystem(this);
         AddSystem(_llmSystem);
@@ -111,9 +109,6 @@ public class Game : GameEngine
             Stop();
         }
 
-        _imGuiSystem.BeginFrame(delta);
-        _imGuiSystem.UpdateInput();
-
         // Rendering logic
         if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _renderer.Begin(frameBuffer, ColorFloat.Black);
@@ -125,11 +120,6 @@ public class Game : GameEngine
 
         RenderConfigWindow();
         RenderChatWindow();
-    }
-
-    protected override void OnEndFrame()
-    {
-        _imGuiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private void OnMainWindowResize(uint2 size)

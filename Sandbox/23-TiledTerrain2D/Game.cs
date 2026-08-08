@@ -19,7 +19,6 @@ public class Game : GameEngine
     }
 
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imguiSystem;
 
     private readonly RenderContext _renderer;
     private readonly Camera2D _camera;
@@ -74,7 +73,7 @@ public class Game : GameEngine
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
-        _imguiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         var fxaaNode = new RenderNode_FXAA(RenderingSystem.CreateFXAA(
             BuiltInAssets.Shader_FXAA,
@@ -190,9 +189,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        _imguiSystem.BeginFrame(delta);
-        _imguiSystem.UpdateInput();
-
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
@@ -296,12 +292,10 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
-        _imguiSystem?.Dispose();
         _mainPipeline?.Dispose();
         _lightingManager?.Dispose();
     }

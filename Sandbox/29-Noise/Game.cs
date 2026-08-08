@@ -28,7 +28,6 @@ public class Game : GameEngine
 
     private ImGUILogger _logger;
 
-    private readonly ImGUISystem _imGuiSystem;
     private readonly GPUCommandBuffer _commandBuffer;
 
     /// <summary>
@@ -72,7 +71,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _imGuiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
 
         // Initialize noise generator with default seed
@@ -112,9 +111,6 @@ public class Game : GameEngine
             GraphicsDevice.Submit(_commandBuffer);
         }
 
-        _imGuiSystem.BeginFrame(delta);
-        _imGuiSystem.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -135,11 +131,6 @@ public class Game : GameEngine
         RenderImGUIContent();
 
         _logger.Draw();
-    }
-
-    protected override void OnEndFrame()
-    {
-        _imGuiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     // UpdateNoiseSettings method removed - settings are now applied directly via properties

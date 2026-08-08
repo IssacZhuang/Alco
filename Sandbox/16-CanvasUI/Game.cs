@@ -24,7 +24,6 @@ public class Game : GameEngine
     }
 
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imGUISystem;
     private readonly Canvas _canvas;
     private readonly Font _font;
 
@@ -300,7 +299,7 @@ public class Game : GameEngine
         _root.Add(_virtualGridListSlider);
         _intVirtualGridList.Scrollable.SliderVertical = _virtualGridListSlider;
 
-        _imGUISystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         // default display
         UpdateDisplayActive();
@@ -361,9 +360,6 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
-        _imGUISystem.BeginFrame(delta);
-        _imGUISystem.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -666,7 +662,6 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private void PopulateIntList(int count)
@@ -733,7 +728,6 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _canvas.Dispose();
-        _imGUISystem.Dispose();
         _mainPipeline.Dispose();
     }
 

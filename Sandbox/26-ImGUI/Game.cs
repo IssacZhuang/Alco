@@ -9,7 +9,6 @@ using Alco.IO;
 
 public class Game : GameEngine
 {
-    private readonly ImGUISystem _imGUISystem;
     private readonly GPUCommandBuffer _commandBuffer;
 
     private bool showDemoWindow = true;
@@ -24,7 +23,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _imGUISystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
 
         _texture = AssetSystem.Load<Texture2D>("Textures/Grid.png");
@@ -55,15 +54,7 @@ public class Game : GameEngine
             GraphicsDevice.Submit(_commandBuffer);
         }
 
-        _imGUISystem.BeginFrame(delta);
-        _imGUISystem.UpdateInput();
-
         RenderImGUIContent();
-    }
-
-    protected override void OnEndFrame()
-    {
-        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private void RenderImGUIContent()

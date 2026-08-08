@@ -18,7 +18,6 @@ public class Game : GameEngine
     private readonly FloodFillLightMap _tileLightMap;
     private readonly GPUCommandBuffer _command;
     private readonly ForwardPipeline _mainPipeline;
-    private readonly ImGUISystem _imGui;
 
 
     private float _intensity = 1;
@@ -64,7 +63,7 @@ public class Game : GameEngine
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.Texture);
 
         _command = GraphicsDevice.CreateCommandBuffer();
-        _imGui = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
     }
 
     public override IEnumerable<IFileSource> CreateDefaultFileSources()
@@ -80,14 +79,10 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imGui.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnUpdate(float delta)
     {
-        _imGui.BeginFrame(delta);
-        _imGui.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();

@@ -18,7 +18,6 @@ using SandboxUtils;
 public class Game : GameEngine
 {
     private readonly ForwardPipeline _mainPipeline;
-    private ImGUISystem? _imguiSystem;
 
     //scence
     private readonly Camera2DBuffer _camera;
@@ -97,7 +96,7 @@ public class Game : GameEngine
     /// </summary>
     protected override void OnStart()
     {
-        _imguiSystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
     }
 
     /// <summary>
@@ -105,10 +104,6 @@ public class Game : GameEngine
     /// </summary>
     protected override void OnUpdate(float delta)
     {
-        // ImGui frame start + input (previously driven by PluginImGUI).
-        _imguiSystem?.BeginFrame(delta);
-        _imguiSystem?.UpdateInput();
-
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
@@ -228,12 +223,10 @@ public class Game : GameEngine
     protected override void OnEndFrame()
     {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
-        _imguiSystem?.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
-        _imguiSystem?.Dispose();
         _mainPipeline.Dispose();
     }
 

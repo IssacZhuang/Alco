@@ -12,8 +12,6 @@ using Alco.ImGUI;
 public class Game : GameEngine
 {
 
-    private readonly ImGUISystem _imGUISystem;
-
     private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
     private readonly Material _material;
@@ -25,7 +23,7 @@ public class Game : GameEngine
     private bool _isShowCompressed = false;
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _imGUISystem = new ImGUISystem(this);
+        AddSystem(new ImGUISystem(this));
 
         _texture = AssetSystem.Load<Texture2D>("test.jpg");
 
@@ -58,9 +56,6 @@ public class Game : GameEngine
             Stop();
         }
 
-        _imGUISystem.BeginFrame(delta);
-        _imGUISystem.UpdateInput();
-
         ImGui.Begin("Texture Compression");
         ImGui.Checkbox("Show Compressed", ref _isShowCompressed);
         ImGui.End();
@@ -89,11 +84,6 @@ public class Game : GameEngine
             _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
         }
         _materialRenderer.End();
-    }
-
-    protected override void OnEndFrame()
-    {
-        _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

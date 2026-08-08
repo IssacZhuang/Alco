@@ -4,13 +4,25 @@ using Alco.Graphics;
 
 namespace Alco.ImGUI;
 
-public class ImGUISystem
+/// <summary>
+/// ImGui engine system. Registered via <see cref="GameEngine.AddSystem"/>; the engine
+/// drives <see cref="OnUpdate"/> (frame begin + input) and <see cref="OnEndFrame"/>
+/// (render + draw) automatically. Game code only needs to call the ImGui content
+/// APIs during its own update phase.
+/// </summary>
+public class ImGUISystem : BaseEngineSystem
 {
     private readonly GameEngine _engine;
     private readonly Shader _shader;
     private readonly Material _material;
     private readonly ImGUIRenderer _imGUIRenderer;
     private readonly ImGUIInputHandler _imGUIInputHandler;
+
+    /// <summary>
+    /// Runs last among all systems so ImGui draws on top of everything,
+    /// including the debug-stats overlay (<see cref="DebugStatsSystem"/>).
+    /// </summary>
+    public override int Order => int.MaxValue;
 
     public ImGUISystem(GameEngine engine)
     {
@@ -27,14 +39,10 @@ public class ImGUISystem
         _imGUIInputHandler = new ImGUIInputHandler(engine.Input, engine.MainView);
     }
 
-    public void BeginFrame(float deltaTime)
+    public override void OnUpdate(float delta)
     {
         uint2 size = _engine.MainView.Size;
-        _imGUIRenderer.Begin(size.X, size.Y, deltaTime);
-    }
-
-    public void UpdateInput()
-    {
+        _imGUIRenderer.Begin(size.X, size.Y, delta);
         _imGUIInputHandler.Update();
     }
 
@@ -42,17 +50,18 @@ public class ImGUISystem
     /// Finalizes the ImGui frame and draws it on top of the resolved frame, so the UI
     /// colors are not affected by the pipeline's post-processing.
     /// </summary>
-    public void RenderAndDraw(GPUFrameBuffer? frameBuffer)
+    public override void OnEndFrame(float deltaTime)
     {
         _imGUIRenderer.Render();
 
+        GPUFrameBuffer? frameBuffer = _engine.MainPresenter.FrameBuffer;
         if (frameBuffer != null)
         {
             _imGUIRenderer.Draw(frameBuffer);
         }
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         _imGUIInputHandler.Dispose();
         _imGUIRenderer.Dispose();
