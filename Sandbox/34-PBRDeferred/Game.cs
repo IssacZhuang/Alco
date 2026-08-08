@@ -380,13 +380,11 @@ public class Game : GameEngine
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
-            BuiltInAssets.Shader_PBRGBuffer,
-            AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/GBufferTangent.hlsl"));
+            BuiltInAssets.Shader_PBRGBuffer);
 
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
             BuiltInAssets.Shader_PBRShadowDepth,
-            AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ShadowDepthTangent.hlsl"),
             _pipeline.ShadowLayout,
             _pipeline.ShadowDataBuffer);
 
@@ -444,10 +442,10 @@ public class Game : GameEngine
             for (int i = 0; i < _bistroMaterials.Length; i++)
             {
                 ModelMaterial material = _bistro.Materials[i];
-                _bistroMaterials[i] = _gbufferRenderer.CreateTangentMaterial(
+                _bistroMaterials[i] = _gbufferRenderer.CreateMaterial(
                     material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
                     material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
-                _bistroShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutTangentMaterial(
+                _bistroShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutMaterial(
                     material.AlbedoTexture, material.DoubleSided, $"bistro_shadow_{material.Name}");
                 _bistroGlassMaterials[i] = _forwardRenderer.CreateGlassMaterial(
                     material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
@@ -485,7 +483,7 @@ public class Game : GameEngine
             _sphereMesh = CreateSphereMesh(48, 24);
             _groundMesh = CreateGroundMesh(40, 10);
             BuildScene();
-            _proceduralMaterial = _gbufferRenderer.CreateMaterial(_checkerTexture, name: "checker");
+            _proceduralMaterial = _gbufferRenderer.CreateMaterial(_checkerTexture, null, null, null, name: "checker");
             _proceduralShadowMaterial = _shadowRenderer.CreateShadowMaterial(name: "checker_shadow");
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
@@ -1133,7 +1131,7 @@ public class Game : GameEngine
                 // runtime cbuffer scale at injection time.
                 int meshHandle = _voxelGI.RegisterMesh(
                     item.Mesh,
-                    (uint)VertexPositionNormalTextureTangent.SizeInBytes,
+                    (uint)VertexPBR.SizeInBytes,
                     new VoxelGiBounds(item.LocalBoundsMin, item.LocalBoundsMax),
                     material.AlbedoTexture,
                     material.EmissiveTexture);
@@ -1188,7 +1186,7 @@ public class Game : GameEngine
                 ? existingHandle
                 : _voxelGI.RegisterMesh(
                     mesh,
-                    (uint)VertexPositionNormalTexture.SizeInBytes,
+                    (uint)VertexPBR.SizeInBytes,
                     GetProceduralBounds(mesh),
                     _checkerTexture,
                     null);
@@ -1234,7 +1232,7 @@ public class Game : GameEngine
         for (int i = 0; i < materials.Count; i++)
         {
             ModelMaterial material = materials[i];
-            _gbufferRenderer.SetTangentMaterialTextures(_bistroMaterials![i],
+            _gbufferRenderer.SetMaterialTextures(_bistroMaterials![i],
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
             _shadowRenderer.SetShadowCutoutMaterialTextures(_bistroShadowMaterials![i], material.AlbedoTexture);
@@ -1781,7 +1779,7 @@ public class Game : GameEngine
     private PrimitiveMesh CreateCubeMesh()
     {
         // 24 vertices, one quad per face, outward normals, CCW winding.
-        Span<VertexPositionNormalTexture> vertices = stackalloc VertexPositionNormalTexture[24];
+        Span<VertexPBR> vertices = stackalloc VertexPBR[24];
         Span<ushort> indices = stackalloc ushort[36];
 
         // face data: normal, tangent axis a, tangent axis b (a x b == normal)
@@ -1826,7 +1824,7 @@ public class Game : GameEngine
 
             for (int i = 0; i < 4; i++)
             {
-                vertices[vertexIndex] = new VertexPositionNormalTexture(corners[i], normal, uvs[i]);
+                vertices[vertexIndex] = new VertexPBR(corners[i], normal, uvs[i], new Vector4(a, 1));
                 vertexIndex++;
             }
 
@@ -1845,7 +1843,7 @@ public class Game : GameEngine
     {
         int vertexCount = (segmentsU + 1) * (segmentsV + 1);
         int indexCount = segmentsU * segmentsV * 6;
-        VertexPositionNormalTexture[] vertices = new VertexPositionNormalTexture[vertexCount];
+        VertexPBR[] vertices = new VertexPBR[vertexCount];
         ushort[] indices = new ushort[indexCount];
 
         int vertexIndex = 0;
@@ -1861,7 +1859,9 @@ public class Game : GameEngine
                     sinPhi * MathF.Cos(theta),
                     sinPhi * MathF.Sin(theta),
                     cosPhi);
-                vertices[vertexIndex++] = new VertexPositionNormalTexture(position, position, new Vector2((float)u / segmentsU, (float)v / segmentsV));
+                // Tangent follows the latitude line (∂P/∂θ), w=1 for standard handedness.
+                Vector3 tangent = new(-sinPhi * MathF.Sin(theta), sinPhi * MathF.Cos(theta), 0.0f);
+                vertices[vertexIndex++] = new VertexPBR(position, position, new Vector2((float)u / segmentsU, (float)v / segmentsV), new Vector4(tangent, 1));
             }
         }
 
@@ -1891,7 +1891,7 @@ public class Game : GameEngine
     {
         int vertexCount = (segments + 1) * (segments + 1);
         int indexCount = segments * segments * 6;
-        VertexPositionNormalTexture[] vertices = new VertexPositionNormalTexture[vertexCount];
+        VertexPBR[] vertices = new VertexPBR[vertexCount];
         ushort[] indices = new ushort[indexCount];
 
         const float uvTiles = 4.0f;
@@ -1902,7 +1902,7 @@ public class Game : GameEngine
             {
                 float x = (float)i / segments * size - size * 0.5f;
                 float y = (float)j / segments * size - size * 0.5f;
-                vertices[vertexIndex++] = new VertexPositionNormalTexture(
+                vertices[vertexIndex++] = new VertexPBR(
                     new Vector3(x, y, 0),
                     Vector3.UnitZ,
                     new Vector2((float)i / segments * uvTiles, (float)j / segments * uvTiles));

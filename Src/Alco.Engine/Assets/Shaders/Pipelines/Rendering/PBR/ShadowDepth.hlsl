@@ -1,8 +1,8 @@
 #include "Shaders/Libs/Core.hlsli"
 
-// Shadow map depth-only pass shader for the deferred PBR pipeline.
-// Renders into a depth-only render texture from the light's point of view.
-// The vertex layout must match Alco.Rendering.VertexPositionNormalTexture exactly.
+// Shadow map depth-only pass shader for the deferred PBR pipeline. Renders into
+// a depth-only render texture from the light's point of view. The vertex layout
+// must match Alco.Rendering.VertexPBR exactly.
 //
 // Compile with SHADOW_CUTOUT defined to enable alpha testing: the pixel shader
 // samples _albedoTexture and discards fragments below the cutoff, so cutout
@@ -14,6 +14,7 @@ struct Vertex
     float3 position : POSITION;
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
+    float4 tangent : TANGENT;
 };
 
 struct V2F

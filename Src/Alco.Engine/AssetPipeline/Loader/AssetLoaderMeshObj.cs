@@ -32,7 +32,7 @@ public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
     {
         var data = context.GetData();
 
-        VertexPositionNormalTexture* vertices = null;
+        VertexPBR* vertices = null;
         uint* indices = null;
 
         try
@@ -42,7 +42,7 @@ public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
             if (vertexCount == 0 || indexCount == 0)
                 throw new InvalidOperationException($"OBJ file '{context.Filename}' contains no valid geometry.");
 
-            var vertexSpan = new ReadOnlySpan<VertexPositionNormalTexture>(vertices, vertexCount);
+            var vertexSpan = new ReadOnlySpan<VertexPBR>(vertices, vertexCount);
             var indexSpan = new ReadOnlySpan<uint>(indices, indexCount);
 
             return _renderingSystem.CreatePrimitiveMesh(vertexSpan, indexSpan, context.Filename);

@@ -1171,16 +1171,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 _plugins[i].Dispose();
             }
             _plugins.Clear();
-
-            for (int i = 0; i < _passNodes.Count; i++)
-            {
-                // Chain nodes are owned (and disposed) by the chain; only dispose
-                // pass-only nodes here.
-                if (_passNodes[i] is not (IForwardRenderNode or IContentProcessorNode) && _passNodes[i] is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-            }
             _passNodes.Clear();
             _chain.Dispose();
             _shadowContext.Dispose();

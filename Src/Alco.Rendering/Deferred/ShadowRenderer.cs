@@ -22,7 +22,7 @@ public interface IShadowRenderable
     Mesh Mesh { get; }
 
     /// <summary>The shadow material (created via <see cref="ShadowRenderer.CreateShadowMaterial"/> /
-    /// <see cref="ShadowRenderer.CreateShadowTangentMaterial"/> / cutout variants).</summary>
+    /// <see cref="ShadowRenderer.CreateShadowCutoutMaterial"/>).</summary>
     GraphicsMaterial Material { get; }
 
     /// <summary>The world transform of the object (read live each frame for dynamic items).</summary>
@@ -68,7 +68,6 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowRenderNode
 
     private readonly RenderingSystem _rendering;
     private readonly Shader _shader;
-    private readonly Shader? _tangentShader;
     private readonly GPUAttachmentLayout _shadowLayout;
     private readonly GraphicsBuffer _shadowDataBuffer;
 
@@ -88,19 +87,16 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowRenderNode
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="shadowShader">The shadow depth shader (ShadowDepth.hlsl).</param>
-    /// <param name="shadowTangentShader">Optional tangent-layout shadow depth shader (ShadowDepthTangent.hlsl) enabling <see cref="CreateShadowTangentMaterial"/> and <see cref="CreateShadowCutoutTangentMaterial"/>.</param>
     /// <param name="shadowLayout">The shadow pass attachment layout (owned by the pipeline, exposed via <see cref="PBRDeferredPipeline.ShadowLayout"/>).</param>
     /// <param name="shadowDataBuffer">The cascade VP data buffer (owned by the pipeline, exposed via <see cref="PBRDeferredPipeline.ShadowDataBuffer"/>).</param>
     public ShadowRenderer(
         RenderingSystem rendering,
         Shader shadowShader,
-        Shader? shadowTangentShader,
         GPUAttachmentLayout shadowLayout,
         GraphicsBuffer shadowDataBuffer)
     {
         _rendering = rendering;
         _shader = shadowShader;
-        _tangentShader = shadowTangentShader;
         _shadowLayout = shadowLayout;
         _shadowDataBuffer = shadowDataBuffer;
 
@@ -218,34 +214,13 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowRenderNode
     // ── Material factory ──
 
     /// <summary>
-    /// Create an opaque shadow depth material for the non-tangent shader
-    /// (ShadowDepth.hlsl). The renderer applies the pass-mandated state (depth write,
-    /// rasterizer, data buffer binding); the caller owns the material and must dispose it.
+    /// Create an opaque shadow depth material (ShadowDepth.hlsl). The renderer applies
+    /// the pass-mandated state (depth write, rasterizer, data buffer binding); the caller
+    /// owns the material and must dispose it.
     /// </summary>
     public GraphicsMaterial CreateShadowMaterial(bool doubleSided = false, string name = "pbr_shadow_material")
     {
         var material = _rendering.CreateMaterial(_shader, name);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
-        return material;
-    }
-
-    /// <summary>
-    /// Create an opaque shadow depth material for the tangent shader
-    /// (ShadowDepthTangent.hlsl). The renderer applies the pass-mandated state;
-    /// the caller owns the material.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The renderer was created without a tangent shadow shader.</exception>
-    public GraphicsMaterial CreateShadowTangentMaterial(bool doubleSided = false, string name = "pbr_shadow_tangent_material")
-    {
-        if (_tangentShader == null)
-        {
-            throw new InvalidOperationException(
-                "CreateShadowTangentMaterial requires the renderer to be created with a tangent shadow shader.");
-        }
-        var material = _rendering.CreateMaterial(_tangentShader, name);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
@@ -280,39 +255,10 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowRenderNode
     }
 
     /// <summary>
-    /// Create a caller-owned tangent-layout cutout shadow material — the tangent
-    /// shadow depth shader (ShadowDepthTangent.hlsl) compiled with the
-    /// <c>SHADOW_CUTOUT</c> define. Same as <see cref="CreateShadowCutoutMaterial"/>
-    /// but for meshes with tangent vertex layout.
-    /// </summary>
-    /// <param name="albedoTexture">The albedo texture whose alpha channel drives the cutout; null binds the shared white texture (opaque).</param>
-    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
-    /// <param name="name">The material name for debugging.</param>
-    /// <returns>The caller-owned cutout shadow material.</returns>
-    /// <exception cref="InvalidOperationException">The renderer was created without a tangent shadow shader.</exception>
-    public GraphicsMaterial CreateShadowCutoutTangentMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_tangent_material")
-    {
-        if (_tangentShader == null)
-        {
-            throw new InvalidOperationException(
-                "CreateShadowCutoutTangentMaterial requires the renderer to be created with a tangent shadow shader.");
-        }
-        var material = _rendering.CreateMaterial(_tangentShader, name);
-        material.SetDefines("SHADOW_CUTOUT");
-        material.GetPipelineInfo(_shadowLayout);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
-        return material;
-    }
-
-    /// <summary>
     /// (Re)bind the albedo texture slot of a cutout shadow material created by
-    /// <see cref="CreateShadowCutoutMaterial"/> or <see cref="CreateShadowCutoutTangentMaterial"/>.
-    /// Use when textures stream in asynchronously after the material was created
-    /// (render bundles recorded with the material must be re-recorded afterwards).
+    /// <see cref="CreateShadowCutoutMaterial"/>. Use when textures stream in
+    /// asynchronously after the material was created (render bundles recorded with
+    /// the material must be re-recorded afterwards).
     /// </summary>
     public void SetShadowCutoutMaterialTextures(GraphicsMaterial material, Texture2D? albedoTexture)
     {

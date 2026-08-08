@@ -25,12 +25,12 @@ internal static unsafe class ObjDecoder
     /// <param name="indexCount">Number of decoded indices.</param>
     /// <returns>Pointer to vertex data. Caller must free via <c>NativeMemory.Free</c>.</returns>
     /// <exception cref="MeshDecodeException">Invalid or unsupported OBJ data.</exception>
-    public static VertexPositionNormalTexture* Decode(ReadOnlySpan<byte> data, out int vertexCount, out uint* indices, out int indexCount)
+    public static VertexPBR* Decode(ReadOnlySpan<byte> data, out int vertexCount, out uint* indices, out int indexCount)
     {
         var positions = new List<Vector3>();
         var uvs = new List<Vector2>();
         var normals = new List<Vector3>();
-        var vertices = new List<VertexPositionNormalTexture>();
+        var vertices = new List<VertexPBR>();
         var indexList = new List<uint>();
         var vertexMap = new Dictionary<VertexKey, int>();
 
@@ -57,13 +57,13 @@ internal static unsafe class ObjDecoder
         indexCount = indexList.Count;
 
         // Allocate native memory for vertices
-        int vertexSize = vertexCount * sizeof(VertexPositionNormalTexture);
-        VertexPositionNormalTexture* vertexPtr = (VertexPositionNormalTexture*)NativeMemory.Alloc((nuint)vertexSize);
+        int vertexSize = vertexCount * sizeof(VertexPBR);
+        VertexPBR* vertexPtr = (VertexPBR*)NativeMemory.Alloc((nuint)vertexSize);
 
         try
         {
             // Copy vertices to native memory
-            var vertexSpan = new Span<VertexPositionNormalTexture>(vertexPtr, vertexCount);
+            var vertexSpan = new Span<VertexPBR>(vertexPtr, vertexCount);
             CollectionsMarshal.AsSpan(vertices).CopyTo(vertexSpan);
 
             // Allocate native memory for indices
@@ -74,6 +74,15 @@ internal static unsafe class ObjDecoder
             {
                 var indexSpan = new Span<uint>(indices, indexCount);
                 CollectionsMarshal.AsSpan(indexList).CopyTo(indexSpan);
+
+                // Compute tangents from triangle UVs now that positions, normals and
+                // UVs are finalized in the native buffer.
+                if (vertexCount > 0 && indexCount > 0)
+                {
+                    MeshDecodeUtility.ComputeTangents(
+                        new Span<VertexPBR>(vertexPtr, vertexCount),
+                        new ReadOnlySpan<uint>(indices, indexCount));
+                }
             }
             catch
             {
@@ -232,7 +241,7 @@ internal static unsafe class ObjDecoder
         List<Vector3> positions,
         List<Vector2> uvs,
         List<Vector3> normals,
-        List<VertexPositionNormalTexture> vertices,
+        List<VertexPBR> vertices,
         List<uint> indexList,
         Dictionary<VertexKey, int> vertexMap)
     {
@@ -373,7 +382,7 @@ internal static unsafe class ObjDecoder
         List<Vector3> positions,
         List<Vector2> uvs,
         List<Vector3> normals,
-        List<VertexPositionNormalTexture> vertices,
+        List<VertexPBR> vertices,
         List<uint> indexList,
         Dictionary<VertexKey, int> vertexMap)
     {
@@ -402,7 +411,7 @@ internal static unsafe class ObjDecoder
             : Vector3.UnitZ;
 
         int newIndex = vertices.Count;
-        vertices.Add(new VertexPositionNormalTexture(position, normal, uv));
+        vertices.Add(new VertexPBR(position, normal, uv));
         vertexMap[key] = newIndex;
         indexList.Add((uint)newIndex);
     }

@@ -55,10 +55,10 @@ public sealed unsafe class GltfModel : AutoDisposable
 
     /// <summary>Get the vertices of a primitive (position/normal/uv/tangent, engine space).</summary>
     /// <param name="primitiveIndex">The global primitive index.</param>
-    public ReadOnlySpan<VertexPositionNormalTextureTangent> GetVertices(int primitiveIndex)
+    public ReadOnlySpan<VertexPBR> GetVertices(int primitiveIndex)
     {
         ref GltfPrimitive primitive = ref _primitives[primitiveIndex];
-        return new ReadOnlySpan<VertexPositionNormalTextureTangent>(primitive.Vertices, primitive.VertexCount);
+        return new ReadOnlySpan<VertexPBR>(primitive.Vertices, primitive.VertexCount);
     }
 
     /// <summary>Get the indices of a primitive.</summary>
@@ -123,7 +123,7 @@ public unsafe struct GltfPrimitive
     public Vector3 BoundsMax;
 
     /// <summary>Native vertex data, owned by the model.</summary>
-    public VertexPositionNormalTextureTangent* Vertices;
+    public VertexPBR* Vertices;
 
     /// <summary>Native index data, owned by the model.</summary>
     public uint* Indices;

@@ -18,7 +18,7 @@ public interface IGBufferRenderable
     /// <summary>The mesh to draw.</summary>
     Mesh Mesh { get; }
 
-    /// <summary>The G-buffer material (created via <see cref="GBufferRenderer.CreateMaterial"/> / <see cref="GBufferRenderer.CreateTangentMaterial"/>).</summary>
+    /// <summary>The G-buffer material (created via <see cref="GBufferRenderer.CreateMaterial"/>).</summary>
     GraphicsMaterial Material { get; }
 
     /// <summary>The world transform of the object (read live each frame for dynamic items).</summary>
@@ -82,7 +82,6 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IGBufferRenderNode
 
     private readonly RenderingSystem _rendering;
     private readonly Shader _shader;
-    private readonly Shader? _tangentShader;
     private Texture2D? _flatNormalTexture;
     private CameraPerspectiveBuffer? _camera;
 
@@ -99,19 +98,16 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IGBufferRenderNode
     private GPUAttachmentLayout? _bundleLayout;
 
     /// <summary>
-    /// Create the G-buffer renderer with the given shaders.
+    /// Create the G-buffer renderer with the given shader.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="gbufferShader">The G-buffer shader (GBuffer.hlsl).</param>
-    /// <param name="gbufferTangentShader">Optional tangent-space G-buffer shader (GBufferTangent.hlsl) enabling <see cref="CreateTangentMaterial"/> for normal-mapped materials.</param>
     public GBufferRenderer(
         RenderingSystem rendering,
-        Shader gbufferShader,
-        Shader? gbufferTangentShader)
+        Shader gbufferShader)
     {
         _rendering = rendering;
         _shader = gbufferShader;
-        _tangentShader = gbufferTangentShader;
         _staticBundle = rendering.CreateSubRenderContext("pbr_gbuffer_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_gbuffer_dynamic");
     }
@@ -228,17 +224,20 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IGBufferRenderNode
     // ── Material factory ──
 
     /// <summary>
-    /// Create a G-buffer material for the non-tangent shader (GBuffer.hlsl). The
-    /// renderer applies the pass-mandated state (depth write, rasterizer, texture
-    /// slots, camera binding); the caller owns the material and must dispose it.
+    /// Create a G-buffer material with per-material albedo, normal, metallic-roughness
+    /// and emissive textures. The renderer applies the pass-mandated state (depth write,
+    /// rasterizer, texture slots, camera binding); the caller owns the material and must
+    /// dispose it.
     /// </summary>
-    public GraphicsMaterial CreateMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_gbuffer_material")
+    public GraphicsMaterial CreateMaterial(
+        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
+        Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_gbuffer_material")
     {
         var material = _rendering.CreateMaterial(_shader, name);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        SetMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
         if (_camera != null)
         {
             material.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -247,37 +246,11 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IGBufferRenderNode
     }
 
     /// <summary>
-    /// Create a G-buffer material for the tangent shader (GBufferTangent.hlsl) with
-    /// per-material albedo, normal, metallic-roughness and emissive textures. The
-    /// renderer applies the pass-mandated state; the caller owns the material.
-    /// </summary>
-    public GraphicsMaterial CreateTangentMaterial(
-        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
-        Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_gbuffer_tangent_material")
-    {
-        if (_tangentShader == null)
-        {
-            throw new InvalidOperationException(
-                "CreateTangentMaterial requires the renderer to be created with a tangent G-buffer shader.");
-        }
-        var material = _rendering.CreateMaterial(_tangentShader, name);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        SetTangentMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
-        if (_camera != null)
-        {
-            material.SetBuffer(ShaderResourceId.Camera, _camera);
-        }
-        return material;
-    }
-
-    /// <summary>
-    /// (Re)bind the texture slots of a tangent G-buffer material created by
-    /// <see cref="CreateTangentMaterial"/>, applying the same fallback textures.
+    /// (Re)bind the texture slots of a G-buffer material created by
+    /// <see cref="CreateMaterial"/>, applying the same fallback textures.
     /// Use when textures stream in asynchronously after the material was created.
     /// </summary>
-    public void SetTangentMaterialTextures(
+    public void SetMaterialTextures(
         GraphicsMaterial material, Texture2D? albedoTexture, Texture2D? normalTexture,
         Texture2D? metallicRoughnessTexture, Texture2D? emissiveTexture)
     {

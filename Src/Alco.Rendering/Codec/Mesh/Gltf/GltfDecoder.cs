@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Decoder for glTF 2.0 scenes (.gltf JSON and .glb binary container).
-/// <br/>Produces GPU-ready <see cref="VertexPositionNormalTextureTangent"/> vertices and uint indices
+/// <br/>Produces GPU-ready <see cref="VertexPBR"/> vertices and uint indices
 /// in native memory, plus materials, images and flattened draw items.
 /// <br/>Supported subset: float32 POSITION/NORMAL/TEXCOORD_0/TANGENT attributes, u8/u16/u32 indices,
 /// TRIANGLES mode, TRS or matrix node transforms, metallic-roughness materials with
@@ -484,7 +484,7 @@ internal static unsafe class GltfDecoder
             throw new MeshDecodeException("glTF TANGENT accessor count does not match POSITION.");
         }
 
-        var vertices = (VertexPositionNormalTextureTangent*)NativeMemory.AllocZeroed((nuint)(vertexCount * sizeof(VertexPositionNormalTextureTangent)));
+        var vertices = (VertexPBR*)NativeMemory.AllocZeroed((nuint)(vertexCount * sizeof(VertexPBR)));
         try
         {
             Vector3 boundsMin = new(float.MaxValue);
@@ -554,11 +554,13 @@ internal static unsafe class GltfDecoder
                 {
                     if (uvs.Pointer != null)
                     {
-                        ComputeTangents(vertices, vertexCount, indices, indexCount);
+                        MeshDecodeUtility.ComputeTangents(
+                            new Span<VertexPBR>(vertices, vertexCount),
+                            new ReadOnlySpan<uint>(indices, indexCount));
                     }
                     else
                     {
-                        SetDefaultTangents(vertices, vertexCount);
+                        MeshDecodeUtility.SetDefaultTangents(new Span<VertexPBR>(vertices, vertexCount));
                     }
                 }
 
@@ -589,7 +591,7 @@ internal static unsafe class GltfDecoder
     /// <summary>
     /// Generate smooth area-weighted normals for primitives that lack a NORMAL attribute.
     /// </summary>
-    private static void GenerateNormals(VertexPositionNormalTextureTangent* vertices, int vertexCount, uint* indices, int indexCount)
+    private static void GenerateNormals(VertexPBR* vertices, int vertexCount, uint* indices, int indexCount)
     {
         for (int t = 0; t < indexCount / 3; t++)
         {
@@ -608,96 +610,6 @@ internal static unsafe class GltfDecoder
             Vector3 normal = vertices[i].Normal;
             vertices[i].Normal = normal.LengthSquared() > 1e-12f ? Vector3.Normalize(normal) : Vector3.UnitZ;
         }
-    }
-
-    /// <summary>
-    /// Compute per-vertex tangents from triangle UVs (Lengyel's method): tangents and
-    /// bitangents accumulate per triangle, then each tangent is orthogonalized against
-    /// the normal and gets its bitangent sign from the accumulated UV handedness.
-    /// </summary>
-    private static void ComputeTangents(VertexPositionNormalTextureTangent* vertices, int vertexCount, uint* indices, int indexCount)
-    {
-        var bitangents = (Vector3*)NativeMemory.AllocZeroed((nuint)(vertexCount * sizeof(Vector3)));
-        try
-        {
-            for (int t = 0; t < indexCount / 3; t++)
-            {
-                uint i0 = indices[t * 3];
-                uint i1 = indices[t * 3 + 1];
-                uint i2 = indices[t * 3 + 2];
-
-                Vector3 edge1 = vertices[i1].Position - vertices[i0].Position;
-                Vector3 edge2 = vertices[i2].Position - vertices[i0].Position;
-                Vector2 duv1 = vertices[i1].UV - vertices[i0].UV;
-                Vector2 duv2 = vertices[i2].UV - vertices[i0].UV;
-
-                float det = duv1.X * duv2.Y - duv2.X * duv1.Y;
-                if (MathF.Abs(det) < 1e-20f)
-                {
-                    continue;
-                }
-                float f = 1.0f / det;
-                Vector3 tangent = (duv2.Y * edge1 - duv1.Y * edge2) * f;
-                Vector3 bitangent = (duv1.X * edge2 - duv2.X * edge1) * f;
-
-                AddTangent(vertices, i0, tangent);
-                AddTangent(vertices, i1, tangent);
-                AddTangent(vertices, i2, tangent);
-                bitangents[i0] += bitangent;
-                bitangents[i1] += bitangent;
-                bitangents[i2] += bitangent;
-            }
-
-            for (int i = 0; i < vertexCount; i++)
-            {
-                Vector3 normal = vertices[i].Normal;
-                Vector3 accumulated = new(vertices[i].Tangent.X, vertices[i].Tangent.Y, vertices[i].Tangent.Z);
-
-                // Gram-Schmidt orthogonalization; fall back to an arbitrary orthogonal
-                // when no usable tangent accumulated (degenerate UVs everywhere).
-                Vector3 tangent = accumulated - normal * Vector3.Dot(normal, accumulated);
-                if (tangent.LengthSquared() > 1e-12f)
-                {
-                    tangent = Vector3.Normalize(tangent);
-                }
-                else
-                {
-                    tangent = ArbitraryOrthogonal(normal);
-                }
-
-                float sign = Vector3.Dot(Vector3.Cross(normal, tangent), bitangents[i]) < 0.0f ? -1.0f : 1.0f;
-                vertices[i].Tangent = new Vector4(tangent, sign);
-            }
-        }
-        finally
-        {
-            NativeMemory.Free(bitangents);
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AddTangent(VertexPositionNormalTextureTangent* vertices, uint index, Vector3 tangent)
-    {
-        ref Vector4 target = ref vertices[index].Tangent;
-        target = new Vector4(target.X + tangent.X, target.Y + tangent.Y, target.Z + tangent.Z, 0.0f);
-    }
-
-    /// <summary>
-    /// Assign an arbitrary orthogonal tangent to every vertex (no UVs to derive one from).
-    /// </summary>
-    private static void SetDefaultTangents(VertexPositionNormalTextureTangent* vertices, int vertexCount)
-    {
-        for (int i = 0; i < vertexCount; i++)
-        {
-            vertices[i].Tangent = new Vector4(ArbitraryOrthogonal(vertices[i].Normal), 1.0f);
-        }
-    }
-
-    private static Vector3 ArbitraryOrthogonal(in Vector3 normal)
-    {
-        Vector3 axis = MathF.Abs(normal.Z) < 0.9f ? Vector3.UnitZ : Vector3.UnitX;
-        Vector3 orthogonal = Vector3.Cross(normal, axis);
-        return orthogonal.LengthSquared() > 1e-12f ? Vector3.Normalize(orthogonal) : Vector3.UnitX;
     }
 
     // ---------- materials and images ----------

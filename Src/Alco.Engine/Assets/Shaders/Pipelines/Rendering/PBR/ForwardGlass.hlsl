@@ -4,7 +4,7 @@
 // Renders semi-transparent glass objects after deferred lighting, blending onto
 // the lit HDR scene. Uses the same PBR functions as DeferredLighting (via
 // PBRCommon.hlsl) but evaluates them per-fragment in forward, with:
-// - Tangent-space normal mapping (same vertex layout as GBufferTangent.hlsl).
+// - Tangent-space normal mapping (same vertex layout as GBuffer.hlsl).
 // - Hardware depth testing (DepthStencilState.Read) against the opaque scene —
 //   the pipeline pre-fills the forward RT's depth from the G-buffer via a copy pass.
 // - Fresnel-weighted sky reflection for grazing-angle reflectivity.
