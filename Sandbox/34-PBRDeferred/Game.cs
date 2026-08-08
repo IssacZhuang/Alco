@@ -416,7 +416,7 @@ public class Game : GameEngine
             AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ForwardGlass.hlsl"),
             _pipeline.LightingDataBuffer,
             _pipeline.PointLightBuffer,
-            _pipeline.ShadowRenderTexture);
+            _pipeline.ShadowMap);
         _forwardRenderer.SetCamera(_camera);
         _pipeline.Use(_forwardRenderer);
 
@@ -1405,6 +1405,11 @@ public class Game : GameEngine
             if (ImGui.Combo("GI Debug", ref giDebugInt, giDebugModes, giDebugModes.Length))
             {
                 _voxelGI.DebugView = (VoxelGiDebugMode)giDebugInt;
+            }
+            float giRefreshRate = _voxelGI.VolumeRefreshRate;
+            if (ImGui.SliderFloat("GI Refresh Rate", ref giRefreshRate, 0.0f, 240.0f, "%.0f Hz (0 = every frame)"))
+            {
+                _voxelGI.VolumeRefreshRate = giRefreshRate;
             }
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             ImGui.Text($"Static bricks: {statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks} " +

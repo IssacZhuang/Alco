@@ -10,7 +10,6 @@ public abstract class Material : AutoDisposable
 
     protected bool _isPipelineDirty = true;
     protected GraphicsPipelineContext _pipelineContext;
-    protected ShaderPipelineInfo _pipelineInfo;
 
     protected readonly Shader _shader;
 
@@ -171,28 +170,21 @@ public abstract class Material : AutoDisposable
     }
 
     /// <summary>
-    /// Get the shader pipeline.
+    /// Get the pipeline context, updating the cached pipeline for the given attachment layout when dirty.
     /// </summary>
     /// <param name="attachmentLayout">The attachment layout.</param>
-    /// <returns>The shader pipeline.</returns>
-    public ShaderPipelineInfo GetPipelineInfo(GPUAttachmentLayout attachmentLayout)
+    /// <returns>The up-to-date pipeline context.</returns>
+    public GraphicsPipelineContext GetPipelineContext(GPUAttachmentLayout attachmentLayout)
     {
         if (_shader.TryUpdatePipelineContext(ref _pipelineContext, attachmentLayout, _isPipelineDirty))
         {
             _parameters.SetReflectionInfo(_pipelineContext.ReflectionInfo!);
             UpdateSlotResources(_pipelineContext.ReflectionInfo!);
-            _pipelineInfo = new ShaderPipelineInfo
-            {
-                Pipeline = _pipelineContext.Pipeline!,
-                ReflectionInfo = _pipelineContext.ReflectionInfo!,
-                PushConstantsStages = _pipelineContext.ReflectionInfo!.PushConstantsStages,
-                PushConstantsSize = _pipelineContext.ReflectionInfo!.PushConstantsSize
-            };
             _isPipelineDirty = false;
             IncreaseVersion();
         }
 
-        return _pipelineInfo;
+        return _pipelineContext;
     }
 
     #region Set buffer

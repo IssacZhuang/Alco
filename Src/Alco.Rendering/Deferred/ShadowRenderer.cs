@@ -245,7 +245,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowRenderNode
         material.SetDefines("SHADOW_CUTOUT");
         // Force the SHADOW_CUTOUT variant to compile and update the reflection so
         // the _albedoTexture binding is visible before SetTexture is called.
-        material.GetPipelineInfo(_shadowLayout);
+        material.GetPipelineContext(_shadowLayout);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);

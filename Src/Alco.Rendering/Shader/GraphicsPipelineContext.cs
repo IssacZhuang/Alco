@@ -4,7 +4,7 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The state cache for the GPu pipeline.
+/// The state cache for the GPU pipeline.
 /// Must be used with <see cref="Shader.TryUpdatePipelineContext"/> to set the pipeline. Otherwise, the pipeline will be null.
 /// </summary>
 public struct GraphicsPipelineContext
@@ -18,6 +18,16 @@ public struct GraphicsPipelineContext
     public PrimitiveTopology PrimitiveTopology;
     public string[] Defines;
     public uint Version;
+
+    /// <summary>
+    /// The stages that consume push constants, or <see cref="ShaderStage.None"/> when the pipeline is not set.
+    /// </summary>
+    public readonly ShaderStage PushConstantsStages => ReflectionInfo?.PushConstantsStages ?? ShaderStage.None;
+
+    /// <summary>
+    /// The size in bytes of the push constants block, or 0 when the pipeline is not set.
+    /// </summary>
+    public readonly int PushConstantsSize => ReflectionInfo?.PushConstantsSize ?? 0;
 
     public static readonly GraphicsPipelineContext Default = new GraphicsPipelineContext();
 

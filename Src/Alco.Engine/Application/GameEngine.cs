@@ -264,7 +264,6 @@ IDisposable
         //main view
         _mainView = CreateView(_setting.View);
         _mainPresenter = new ViewPresenter(_mainView);
-        _mainPresenter.OnResize += OnMainViewResize;
 
         // Auto-initialize debug stats overlay as an engine-managed system.
         AddSystem(new DebugStatsSystem(this));
@@ -288,14 +287,14 @@ IDisposable
     [STAThread]
     public void Run()
     {
-        InternaleRun();
+        InternalRun();
     }
 
 
     /// <summary>
     /// The loop with graphics, which is used for the client
     /// </summary>
-    private void InternaleRun()
+    private void InternalRun()
     {
         try
         {
@@ -421,8 +420,6 @@ IDisposable
             TryErrorStop();
         }
 
-        EventOnHandleAssetLoaded?.Invoke();
-
         OnSystemEndFrame(delta);
 
         // Per-frame resource disposal (deferred GPU resource destruction)
@@ -479,17 +476,12 @@ IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
-        _mainPresenter.OnResize -= OnMainViewResize;
         _mainPresenter.Dispose();
         MainView.Close();
         _platform.Dispose();
 
         EventOnDispose?.Invoke();
         GC.SuppressFinalize(this);
-    }
-
-    private void OnMainViewResize(uint2 size)
-    {
     }
 
     private void OnSystemStart()

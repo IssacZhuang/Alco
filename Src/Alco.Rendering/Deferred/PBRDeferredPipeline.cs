@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
@@ -351,18 +352,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer;
 
     /// <summary>
-    /// The G-buffer render texture (albedo / normal / mrAO / emissive + depth).
-    /// The forward renderer reads its depth attachment for manual depth testing.
-    /// </summary>
-    public RenderTexture GBufferRenderTexture => _gbufferRT;
-
-    /// <summary>
-    /// The cascaded shadow map render texture. The forward renderer reads it for
-    /// shadow comparison sampling.
-    /// </summary>
-    public RenderTexture ShadowRenderTexture => _shadowRT;
-
-    /// <summary>
     /// The live G-buffer render context for immediate (per-frame dynamic) draws.
     /// Only valid between <see cref="BeginGBufferPass"/> and <see cref="EndGBufferPass"/>.
     /// </summary>
@@ -453,6 +442,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             Height = _gbufferRT.Height,
             LightingData = _lightingData,
             PointLightBuffer = _pointLightBuffer,
+            DeltaTime = _rendering.GlobalRenderDataBuffer.Value.DeltaTime,
             Profiler = Profiler,
         };
 
@@ -806,12 +796,23 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <summary>
     /// Upload point lights to the GPU StructuredBuffer. Call once per frame before
     /// <see cref="RenderLighting"/>; the active count is tracked internally.
+    /// An upload identical to the current contents is skipped (no GPU upload).
     /// </summary>
     /// <param name="lights">Active point lights; excess lights beyond
     /// <see cref="MaxPointLights"/> are silently dropped.</param>
     public void UpdatePointLights(ReadOnlySpan<PointLight> lights)
     {
         int count = Math.Min(lights.Length, MaxPointLights);
+        // Compare against the currently uploaded data: identical light arrays
+        // skip the GPU upload entirely.
+        bool unchanged = count == _pointLightCount
+            && MemoryMarshal.AsBytes(lights.Slice(0, count))
+                .SequenceEqual(MemoryMarshal.AsBytes(_pointLightBuffer.AsSpan().Slice(0, count)));
+        if (unchanged)
+        {
+            return;
+        }
+
         var span = _pointLightBuffer.AsSpan();
         for (int i = 0; i < count; i++)
         {

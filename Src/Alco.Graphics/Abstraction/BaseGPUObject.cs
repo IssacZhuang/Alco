@@ -10,7 +10,7 @@ public abstract class BaseGPUObject : IDisposable
     // Dispose() only schedules a deferred native release; Destroy() can also be reached from
     // multiple paths (deferred queue, device shutdown, finalizer) and must release exactly once.
     private volatile uint _destroyed;
-    //used for deffered disposal
+    //used for deferred disposal
     protected abstract GPUDevice Device { get; }
 
     public bool IsDisposed => _disposed != 0;

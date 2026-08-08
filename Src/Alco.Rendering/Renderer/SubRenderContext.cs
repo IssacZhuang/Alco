@@ -82,8 +82,8 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void Draw(in Mesh mesh, in Material material, in int subMeshIndex = 0)
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
-        _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_attachmentLayout!);
+        _renderBundle.SetGraphicsPipeline(pipelineContext.Pipeline!);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
         _renderBundle.DrawIndexed(_indexCount, 1, 0, 0, 0);
@@ -111,8 +111,8 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
-        _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_attachmentLayout!);
+        _renderBundle.SetGraphicsPipeline(pipelineContext.Pipeline!);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
         _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
@@ -145,11 +145,11 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public unsafe void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
-        _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_attachmentLayout!);
+        _renderBundle.SetGraphicsPipeline(pipelineContext.Pipeline!);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
+        PushConstantSafe(pipelineContext.PushConstantsStages, constant, pipelineContext.PushConstantsSize);
         _renderBundle.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
@@ -163,11 +163,11 @@ public sealed class SubRenderContext : AutoDisposable, IRenderContext
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
-        ShaderPipelineInfo pipelineInfo = material.GetPipelineInfo(_attachmentLayout!);
-        _renderBundle.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_attachmentLayout!);
+        _renderBundle.SetGraphicsPipeline(pipelineContext.Pipeline!);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderBundle);
-        PushConstantSafe(pipelineInfo.PushConstantsStages, constant, pipelineInfo.PushConstantsSize);
+        PushConstantSafe(pipelineContext.PushConstantsStages, constant, pipelineContext.PushConstantsSize);
         _renderBundle.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 

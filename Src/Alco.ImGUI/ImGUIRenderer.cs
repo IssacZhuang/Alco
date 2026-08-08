@@ -164,7 +164,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         drawData.ScaleClipRects(ImGui.GetIO().DisplayFramebufferScale);
 
-        ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(target.AttachmentLayout);
+        GraphicsPipelineContext pipelineContext = _material.GetPipelineContext(target.AttachmentLayout);
         float targetWidth = target.Width;
         float targetHeight = target.Height;
 
@@ -172,7 +172,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         using (var renderPass = _commandBuffer.BeginRender(target))
         {
-            renderPass.SetPipeline(pipelineInfo.Pipeline);
+            renderPass.SetPipeline(pipelineContext.Pipeline!);
             renderPass.SetVertexBuffer(0, _mesh.VertexBuffer);
             renderPass.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
             _material.PushResources(renderPass);

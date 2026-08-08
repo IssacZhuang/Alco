@@ -14,7 +14,6 @@ namespace Alco.Engine
         /// </summary>
         public GameEngineSetting()
         {
-            GametTickRate = 60;
             View = ViewSetting.Default;
             Graphics = GraphicsSetting.Default;
             Audio = AudioSetting.Default;
@@ -36,11 +35,6 @@ namespace Alco.Engine
         {
             get => Audio.Backend != AudioBackend.None;
         }
-
-        /// <summary>
-        /// The rate of game logic tick
-        /// </summary>
-        public int GametTickRate;
 
         /// <summary>
         /// Gets or sets the main-loop frame-rate limit. A value less than or equal to zero disables frame limiting.
@@ -95,7 +89,6 @@ namespace Alco.Engine
         {
             return new GameEngineSetting
             {
-                GametTickRate = 60,
                 Graphics = GraphicsSetting.NoGPU,
                 Audio = AudioSetting.NoAudio,
                 Assets = AssetsSetting.Default,
@@ -111,7 +104,6 @@ namespace Alco.Engine
         {
             return new GameEngineSetting
             {
-                GametTickRate = 60,
                 Graphics = GraphicsSetting.Default,
                 Assets = AssetsSetting.Default,
                 Platform = new ConsolePlatform()

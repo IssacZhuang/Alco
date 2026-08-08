@@ -13,7 +13,6 @@ IAudioDeviceHost
 {
     #region Host Interface
     private event Action? EventOnEndFrame;
-    private event Action? EventOnHandleAssetLoaded;
     private event Action? EventOnDispose;
     private event Action<float>? EventOnUpdate;
 

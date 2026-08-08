@@ -31,14 +31,4 @@ public class Game : GameEngine
         }
 
     }
-
-    override protected void OnUpdate(float delta)
-    {
-
-    }
-
-    protected override void OnStop()
-    {
-
-    }
 }

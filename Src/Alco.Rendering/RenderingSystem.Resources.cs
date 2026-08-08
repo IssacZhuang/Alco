@@ -154,7 +154,7 @@ public partial class RenderingSystem
     private Mesh? _mesh9SliceSprite;
     private Mesh? _meshMidUpSprite;
     private Mesh? _meshTrueType;
-    private Mesh? _mehsFullScreen;
+    private Mesh? _meshFullScreen;
     private Mesh? _meshCube;
 
 
@@ -214,11 +214,11 @@ public partial class RenderingSystem
     {
         get
         {
-            if (_mehsFullScreen == null)
+            if (_meshFullScreen == null)
             {
-                _mehsFullScreen = CreatePrimitiveMesh<Vertex>(VerticesFullScreenQuad, IndicesFullScreenQuad, "full_screen_mesh");
+                _meshFullScreen = CreatePrimitiveMesh<Vertex>(VerticesFullScreenQuad, IndicesFullScreenQuad, "full_screen_mesh");
             }
-            return _mehsFullScreen;
+            return _meshFullScreen;
         }
     }
 

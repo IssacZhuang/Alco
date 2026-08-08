@@ -381,6 +381,17 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private readonly int[] _staleCounts = new int[LevelCount];
     private readonly bool[] _staticNeedsFullClear = new bool[LevelCount];
 
+    // ── Rate-limited volume update ──
+    // The movable-geometry rebuild, inject, mip-chain and propagate stages
+    // run at most VolumeRefreshRate times per second. On skipped frames
+    // the trace stage samples the persistent final radiance texture; the
+    // diffuse temporal resolve (~5-frame window) smooths the quantized
+    // updates, so the only visible effect is indirect light from moving
+    // objects and lights lagging by up to the refresh interval.
+    private bool _volumeInitialized;
+    private float _volumeUpdateElapsedSeconds;
+    private float _volumeRefreshRate = 30.0f;
+
     private RenderTexture _traceRaw;
     private RenderTexture _indirectAtlas;
     private RenderTexture _giDiffuseFullRes;
@@ -510,6 +521,24 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// Gets or sets the debug visualization mode.
     /// </summary>
     public VoxelGiDebugMode DebugView { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum refresh rate of the voxel radiance volume
+    /// (movable-geometry rebuild + inject + mip chain + propagate) in updates
+    /// per second. 0 updates every frame; values above 0 cap the rate — the
+    /// default 30 keeps the volume at 30 Hz regardless of the frame rate,
+    /// reducing the update cost of scenes with per-frame movable instances
+    /// proportionally. The volume has no cross-frame feedback and the diffuse
+    /// temporal resolve (~5-frame window) low-passes the quantized updates,
+    /// so the only visible effect is indirect light from moving objects and
+    /// lights lagging by up to 1/rate seconds. Invalid values (negative or
+    /// non-finite) are clamped to 0.
+    /// </summary>
+    public float VolumeRefreshRate
+    {
+        get => _volumeRefreshRate;
+        set => _volumeRefreshRate = float.IsFinite(value) ? MathF.Max(value, 0.0f) : 0.0f;
+    }
 
     /// <summary>Gets the most recently completed frame's GI diagnostics.</summary>
     public VoxelGiStatistics Statistics { get; private set; }
@@ -1029,7 +1058,24 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         int staticBricksUpdated = 0;
         int dynamicBricksUpdated = 0;
         int droppedBricks = 0;
-        _clipmap.UpdateOrigins(context.CameraTransform.Position);
+
+        // Rate-limited volume update: the clipmap origins, structural
+        // voxelization, movable-geometry rebuild, injection, mip-chain rebuild
+        // and propagation only advance VolumeRefreshRate times per second, so
+        // the radiance volume content and the cbuffer origins used to sample
+        // it always stay in lockstep. On skipped frames everything the trace
+        // stage reads is frozen and mutually consistent — advancing the
+        // origins every frame while the content lagged shifted the whole
+        // indirect field by whole bricks between refreshes (visible as
+        // flicker while the camera moves).
+        _volumeUpdateElapsedSeconds += context.DeltaTime;
+        bool updateVolume = !_volumeInitialized
+            || VolumeRefreshRate <= 0.0f
+            || _volumeUpdateElapsedSeconds >= 1.0f / VolumeRefreshRate;
+        if (updateVolume)
+        {
+            _clipmap.UpdateOrigins(context.CameraTransform.Position);
+        }
 
         // ── Assemble the GPU constant buffer internally ──
         VoxelGiData data = new()
@@ -1111,8 +1157,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _boundShadowMap = shadowMap;
         }
 
-        uint resolution = (uint)_resolution;
-        _dynamicPagePool.Reset();
         bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
 
         // Read back GPU timestamps from the previous sample (0.5s ago — guaranteed
@@ -1133,204 +1177,43 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             : _commandBuffer.BeginCompute())
         {
             bool inPassTimestamps = _gpuTimestamps?.SupportsInPassTimestamps ?? false;
-            // Structural voxelization is driven by high-priority edit bricks and
-            // lower-priority camera-streaming bricks. The clipmap buffer is toroidal,
-            // so retained bricks survive camera movement without being copied.
-            for (int level = 0; level < LevelCount; level++)
+            int radianceReadIndex;
+            if (!updateVolume)
             {
-                bool fullReset = _staticNeedsFullClear[level] || _clipmap.ConsumeFullReset(level);
-                if (fullReset)
+                // Bracket the skipped stages with back-to-back timestamps so
+                // the profiler reports ~0 ms for them.
+                if (measureGpu && inPassTimestamps)
                 {
-                    _staticPagePool.ResetLevel(level);
-                    _staticNeedsFullClear[level] = false;
+                    computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 1);
+                    computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 2);
+                    computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 3);
+                    computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 4);
                 }
 
-                int maximumBricks = Math.Clamp(
-                    StaticBrickBudgetPerLevel,
-                    0,
-                    _clipmap.BricksPerAxis * _clipmap.BricksPerAxis * _clipmap.BricksPerAxis);
-                int dirtyBrickCount = _clipmap.DrainDirtyBricks(level, maximumBricks, _dirtyBricks);
-                if (dirtyBrickCount == 0)
-                {
-                    if (fullReset)
-                    {
-                        UploadPageTable(_pageTableStatic[level], _staticPagePool, level);
-                    }
-                    continue;
-                }
-
-                staticBricksUpdated += dirtyBrickCount;
-                droppedBricks += UpdateStaticResidency(level, _dirtyBricks);
-                UploadPageTable(_pageTableStatic[level], _staticPagePool, level);
-                _dirtyBrickCoordinates[level].UpdateBuffer(CollectionsMarshal.AsSpan(_dirtyBricks));
-                DispatchClearBricks(
-                    computePass,
-                    _attrStatic,
-                    _pageTableStatic[level],
-                    _dirtyBrickCoordinates[level],
-                    level,
-                    dirtyBrickCount);
-
-                VoxelGiBounds dirtyBounds = GetDirtyBounds(level, _dirtyBricks);
-                VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
-                for (int i = 0; i < _staticInstances.Count; i++)
-                {
-                    StaticInstance? instance = _staticInstances[i];
-                    if (instance == null
-                        || !instance.Active
-                        || !instance.WorldBounds.Intersects(dirtyBounds)
-                        || !instance.WorldBounds.Intersects(levelBounds))
-                    {
-                        continue;
-                    }
-                    DispatchVoxelize(computePass, instance.Registration, _attrStatic, _pageTableStatic[level], level,
-                        instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
-                }
+                // The final radiance texture is deterministic for a fixed
+                // bounce count: inject targets texture 0, each bounce flips.
+                radianceReadIndex = Math.Max(0, BounceCount) & 1;
             }
-
-            // Movable geometry is rebuilt in a separate sparse pool each frame
-            // and limited to the nearest configured clipmap levels.
-            int dynamicLevelCount = Math.Clamp(DynamicLevelCount, 0, LevelCount);
-            for (int level = 0; level < LevelCount; level++)
+            else
             {
-                bool active = level < dynamicLevelCount;
-                if (!active)
+                RunStaticVoxelize(computePass, ref staticBricksUpdated, ref droppedBricks);
+                radianceReadIndex = RunVolumeUpdate(
+                    computePass, measureGpu, inPassTimestamps,
+                    ref dynamicBricksUpdated, ref droppedBricks);
+                _volumeInitialized = true;
+                // Carry the overshoot so non-divisor rates keep their average
+                // (e.g. 45 Hz at 60 fps), clamped so a long frame causes at
+                // most one immediately-follow-up update instead of a burst.
+                if (VolumeRefreshRate > 0.0f)
                 {
-                    UploadPageTable(_pageTableDynamic[level], _dynamicPagePool, level);
-                    continue;
+                    float interval = 1.0f / VolumeRefreshRate;
+                    _volumeUpdateElapsedSeconds = MathF.Min(
+                        _volumeUpdateElapsedSeconds - interval, interval);
                 }
-
-                CollectDynamicBricks(level);
-                dynamicBricksUpdated += _dirtyBricks.Count;
-                for (int brickIndex = 0; brickIndex < _dirtyBricks.Count; brickIndex++)
+                else
                 {
-                    if (!_dynamicPagePool.TrySetResident(
-                        level,
-                        _dirtyBricks[brickIndex],
-                        _clipmap.GetRingOffset(level),
-                        true))
-                    {
-                        droppedBricks++;
-                    }
+                    _volumeUpdateElapsedSeconds = 0.0f;
                 }
-                UploadPageTable(_pageTableDynamic[level], _dynamicPagePool, level);
-                if (_dirtyBricks.Count > 0)
-                {
-                    _dirtyBrickCoordinates[level].UpdateBuffer(CollectionsMarshal.AsSpan(_dirtyBricks));
-                    DispatchClearBricks(
-                        computePass,
-                        _attrDynamic,
-                        _pageTableDynamic[level],
-                        _dirtyBrickCoordinates[level],
-                        level,
-                        _dirtyBricks.Count);
-                }
-
-                VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
-                for (int i = 0; i < _instances.Count; i++)
-                {
-                    DynamicInstance instance = _instances[i];
-                    if (!instance.WorldBounds.Intersects(levelBounds))
-                    {
-                        continue;
-                    }
-                    DispatchVoxelize(computePass, instance.Registration, _attrDynamic, _pageTableDynamic[level], level,
-                        instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
-                }
-            }
-
-            if (measureGpu && inPassTimestamps)
-            {
-                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 1);
-            }
-
-            // Collect resident brick lists for sparse inject/propagate.
-            // The buffer layout per level is [resident bricks..., stale bricks...].
-            // Inject dispatches over both (stale bricks get zeroed); Propagate
-            // only over the resident portion.
-            for (int level = 0; level < LevelCount; level++)
-            {
-                CollectResidentBricks(level);
-                if (_residentBricks.Count > 0)
-                {
-                    _residentBrickCoordinates[level].UpdateBuffer(
-                        CollectionsMarshal.AsSpan(_residentBricks));
-                }
-            }
-
-            // Direct lighting injection into radiance mip 0 (sparse).
-            for (int level = 0; level < LevelCount; level++)
-            {
-                int injectCount = _residentCounts[level] + _staleCounts[level];
-                if (injectCount == 0)
-                {
-                    continue;
-                }
-                _injectMaterial.SetBuffer("_attrStatic", _attrStatic);
-                _injectMaterial.SetBuffer("_attrDynamic", _attrDynamic);
-                _injectMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
-                _injectMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
-                _injectMaterial.DispatchBySizeWithConstant(
-                    computePass, BrickSize, BrickSize, (uint)(BrickSize * injectCount),
-                    new Vector4(level, 0, 0, 0));
-            }
-
-            if (measureGpu && inPassTimestamps)
-            {
-                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 2);
-            }
-
-            // Build mip chain after injection so the propagation cones sample
-            // correct coarse-mip data instead of stale values from the previous
-            // frame. Without this, the first bounce gathers against an empty or
-            // outdated radiance volume.
-            int radianceReadIndex = 0;
-            BuildMipChains(computePass, _radiance[radianceReadIndex]);
-
-            if (measureGpu && inPassTimestamps)
-            {
-                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 3);
-            }
-
-            // Multi-bounce light propagation (sparse, double-buffered): each
-            // occupied voxel traces a cone set through the source radiance volume
-            // to gather indirect light, multiplies by albedo and adds to existing
-            // direct radiance, then writes directly into the alternate radiance
-            // texture's mip 0. No separate copy-back pass is needed. Iterated
-            // BounceCount times, alternating read/write textures each bounce so
-            // bounce N+1 sees bounce N's results.
-            int bounceCount = Math.Max(0, BounceCount);
-            for (int bounce = 0; bounce < bounceCount; bounce++)
-            {
-                int writeIndex = 1 - radianceReadIndex;
-                _propagateMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
-                _propagateMaterial.SetTexture3DStorage("_propagateOut", _radiance[writeIndex], 0);
-
-                for (int level = 0; level < LevelCount; level++)
-                {
-                    int residentCount = _residentCounts[level];
-                    if (residentCount == 0)
-                    {
-                        continue;
-                    }
-                    _propagateMaterial.SetBuffer("_attrStatic", _attrStatic);
-                    _propagateMaterial.SetBuffer("_attrDynamic", _attrDynamic);
-                    _propagateMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
-                    _propagateMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
-                    _propagateMaterial.DispatchBySizeWithConstant(
-                        computePass, BrickSize, BrickSize, (uint)(BrickSize * residentCount),
-                        new Vector4(level, BounceStrength, bounce, 0));
-                }
-
-                // Build mip chain on the write texture so the next bounce (or
-                // the screen-space tracer) samples correct coarse-mip data.
-                BuildMipChains(computePass, _radiance[writeIndex]);
-                radianceReadIndex = writeIndex;
-            }
-
-            if (measureGpu && inPassTimestamps)
-            {
-                computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 4);
             }
 
             // Build the SSR Hi-Z depth pyramid before tracing so the SSR
@@ -1466,6 +1349,235 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _gpuMilliseconds,
             sparseBrickTotal,
             bricksPerLevel * LevelCount);
+    }
+
+    /// <summary>
+    /// Structural voxelization, driven by high-priority edit bricks and
+    /// lower-priority camera-streaming bricks. Runs only on volume-update
+    /// frames: its output is consumed solely by the inject/propagate stages,
+    /// so per-frame execution between refreshes is wasted work. The clipmap
+    /// buffer is toroidal, so retained bricks survive camera movement without
+    /// being copied.
+    /// </summary>
+    private void RunStaticVoxelize(
+        GPUCommandBuffer.ComputePass computePass,
+        ref int staticBricksUpdated,
+        ref int droppedBricks)
+    {
+        for (int level = 0; level < LevelCount; level++)
+        {
+            bool fullReset = _staticNeedsFullClear[level] || _clipmap.ConsumeFullReset(level);
+            if (fullReset)
+            {
+                _staticPagePool.ResetLevel(level);
+                _staticNeedsFullClear[level] = false;
+            }
+
+            int maximumBricks = Math.Clamp(
+                StaticBrickBudgetPerLevel,
+                0,
+                _clipmap.BricksPerAxis * _clipmap.BricksPerAxis * _clipmap.BricksPerAxis);
+            int dirtyBrickCount = _clipmap.DrainDirtyBricks(level, maximumBricks, _dirtyBricks);
+            if (dirtyBrickCount == 0)
+            {
+                if (fullReset)
+                {
+                    UploadPageTable(_pageTableStatic[level], _staticPagePool, level);
+                }
+                continue;
+            }
+
+            staticBricksUpdated += dirtyBrickCount;
+            droppedBricks += UpdateStaticResidency(level, _dirtyBricks);
+            UploadPageTable(_pageTableStatic[level], _staticPagePool, level);
+            _dirtyBrickCoordinates[level].UpdateBuffer(CollectionsMarshal.AsSpan(_dirtyBricks));
+            DispatchClearBricks(
+                computePass,
+                _attrStatic,
+                _pageTableStatic[level],
+                _dirtyBrickCoordinates[level],
+                level,
+                dirtyBrickCount);
+
+            VoxelGiBounds dirtyBounds = GetDirtyBounds(level, _dirtyBricks);
+            VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+            for (int i = 0; i < _staticInstances.Count; i++)
+            {
+                StaticInstance? instance = _staticInstances[i];
+                if (instance == null
+                    || !instance.Active
+                    || !instance.WorldBounds.Intersects(dirtyBounds)
+                    || !instance.WorldBounds.Intersects(levelBounds))
+                {
+                    continue;
+                }
+                DispatchVoxelize(computePass, instance.Registration, _attrStatic, _pageTableStatic[level], level,
+                    instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds the movable-geometry pages, collects resident bricks, injects
+    /// direct lighting, rebuilds the radiance mip chain and runs multi-bounce
+    /// propagation (the Voxelize-tail through Propagate GPU stages). Returns
+    /// the index into <see cref="_radiance"/> of the texture holding the final
+    /// direct + bounce result for the trace stage.
+    /// </summary>
+    private int RunVolumeUpdate(
+        GPUCommandBuffer.ComputePass computePass,
+        bool measureGpu,
+        bool inPassTimestamps,
+        ref int dynamicBricksUpdated,
+        ref int droppedBricks)
+    {
+        // Movable geometry is rebuilt in a separate sparse pool each frame
+        // and limited to the nearest configured clipmap levels.
+        _dynamicPagePool.Reset();
+        int dynamicLevelCount = Math.Clamp(DynamicLevelCount, 0, LevelCount);
+        for (int level = 0; level < LevelCount; level++)
+        {
+            bool active = level < dynamicLevelCount;
+            if (!active)
+            {
+                UploadPageTable(_pageTableDynamic[level], _dynamicPagePool, level);
+                continue;
+            }
+
+            CollectDynamicBricks(level);
+            dynamicBricksUpdated += _dirtyBricks.Count;
+            for (int brickIndex = 0; brickIndex < _dirtyBricks.Count; brickIndex++)
+            {
+                if (!_dynamicPagePool.TrySetResident(
+                    level,
+                    _dirtyBricks[brickIndex],
+                    _clipmap.GetRingOffset(level),
+                    true))
+                {
+                    droppedBricks++;
+                }
+            }
+            UploadPageTable(_pageTableDynamic[level], _dynamicPagePool, level);
+            if (_dirtyBricks.Count > 0)
+            {
+                _dirtyBrickCoordinates[level].UpdateBuffer(CollectionsMarshal.AsSpan(_dirtyBricks));
+                DispatchClearBricks(
+                    computePass,
+                    _attrDynamic,
+                    _pageTableDynamic[level],
+                    _dirtyBrickCoordinates[level],
+                    level,
+                    _dirtyBricks.Count);
+            }
+
+            VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+            for (int i = 0; i < _instances.Count; i++)
+            {
+                DynamicInstance instance = _instances[i];
+                if (!instance.WorldBounds.Intersects(levelBounds))
+                {
+                    continue;
+                }
+                DispatchVoxelize(computePass, instance.Registration, _attrDynamic, _pageTableDynamic[level], level,
+                    instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
+            }
+        }
+
+        if (measureGpu && inPassTimestamps)
+        {
+            computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 1);
+        }
+
+        // Collect resident brick lists for sparse inject/propagate.
+        // The buffer layout per level is [resident bricks..., stale bricks...].
+        // Inject dispatches over both (stale bricks get zeroed); Propagate
+        // only over the resident portion.
+        for (int level = 0; level < LevelCount; level++)
+        {
+            CollectResidentBricks(level);
+            if (_residentBricks.Count > 0)
+            {
+                _residentBrickCoordinates[level].UpdateBuffer(
+                    CollectionsMarshal.AsSpan(_residentBricks));
+            }
+        }
+
+        // Direct lighting injection into radiance mip 0 (sparse).
+        for (int level = 0; level < LevelCount; level++)
+        {
+            int injectCount = _residentCounts[level] + _staleCounts[level];
+            if (injectCount == 0)
+            {
+                continue;
+            }
+            _injectMaterial.SetBuffer("_attrStatic", _attrStatic);
+            _injectMaterial.SetBuffer("_attrDynamic", _attrDynamic);
+            _injectMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
+            _injectMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
+            _injectMaterial.DispatchBySizeWithConstant(
+                computePass, BrickSize, BrickSize, (uint)(BrickSize * injectCount),
+                new Vector4(level, 0, 0, 0));
+        }
+
+        if (measureGpu && inPassTimestamps)
+        {
+            computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 2);
+        }
+
+        // Build mip chain after injection so the propagation cones sample
+        // correct coarse-mip data instead of stale values from the previous
+        // frame. Without this, the first bounce gathers against an empty or
+        // outdated radiance volume.
+        int radianceReadIndex = 0;
+        BuildMipChains(computePass, _radiance[radianceReadIndex]);
+
+        if (measureGpu && inPassTimestamps)
+        {
+            computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 3);
+        }
+
+        // Multi-bounce light propagation (sparse, double-buffered): each
+        // occupied voxel traces a cone set through the source radiance volume
+        // to gather indirect light, multiplies by albedo and adds to existing
+        // direct radiance, then writes directly into the alternate radiance
+        // texture's mip 0. No separate copy-back pass is needed. Iterated
+        // BounceCount times, alternating read/write textures each bounce so
+        // bounce N+1 sees bounce N's results.
+        int bounceCount = Math.Max(0, BounceCount);
+        for (int bounce = 0; bounce < bounceCount; bounce++)
+        {
+            int writeIndex = 1 - radianceReadIndex;
+            _propagateMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
+            _propagateMaterial.SetTexture3DStorage("_propagateOut", _radiance[writeIndex], 0);
+
+            for (int level = 0; level < LevelCount; level++)
+            {
+                int residentCount = _residentCounts[level];
+                if (residentCount == 0)
+                {
+                    continue;
+                }
+                _propagateMaterial.SetBuffer("_attrStatic", _attrStatic);
+                _propagateMaterial.SetBuffer("_attrDynamic", _attrDynamic);
+                _propagateMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
+                _propagateMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
+                _propagateMaterial.DispatchBySizeWithConstant(
+                    computePass, BrickSize, BrickSize, (uint)(BrickSize * residentCount),
+                    new Vector4(level, BounceStrength, bounce, 0));
+            }
+
+            // Build mip chain on the write texture so the next bounce (or
+            // the screen-space tracer) samples correct coarse-mip data.
+            BuildMipChains(computePass, _radiance[writeIndex]);
+            radianceReadIndex = writeIndex;
+        }
+
+        if (measureGpu && inPassTimestamps)
+        {
+            computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 4);
+        }
+
+        return radianceReadIndex;
     }
 
     /// <summary>

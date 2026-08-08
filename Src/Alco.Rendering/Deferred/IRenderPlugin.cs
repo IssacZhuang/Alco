@@ -40,6 +40,13 @@ public sealed class RenderPluginContext
     /// <summary>World-space camera transform (position + rotation + scale) for this frame.</summary>
     public required Transform3D CameraTransform { get; init; }
 
+    /// <summary>
+    /// The frame delta time in seconds, from the same source as
+    /// <see cref="RenderingSystem.GlobalRenderDataBuffer"/>. Plugins use it to
+    /// drive time-based update schedules (e.g. rate-limited GI volume updates).
+    /// </summary>
+    public float DeltaTime { get; init; }
+
     /// <summary>G-buffer width in pixels.</summary>
     public uint Width { get; init; }
 

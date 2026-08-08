@@ -85,9 +85,9 @@ public sealed class TextureAtlasPacker: AutoDisposable
 
         Mesh mesh = _renderingSystem.MeshCenteredSprite;
 
-        ShaderPipelineInfo pipelineInfo = _blitMaterial.GetPipelineInfo(atlasTexture.AttachmentLayout);
-        uint shaderId_texture = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Texture);
-        uint shaderId_camera = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Camera);
+        GraphicsPipelineContext pipelineContext = _blitMaterial.GetPipelineContext(atlasTexture.AttachmentLayout);
+        uint shaderId_texture = pipelineContext.GetResourceId(ShaderResourceId.Texture);
+        uint shaderId_camera = pipelineContext.GetResourceId(ShaderResourceId.Camera);
 
         SpriteConstant constant = new SpriteConstant
         {
@@ -102,7 +102,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
 
         // _commandBuffer.SetFrameBuffer(atlasTexture);
         // _commandBuffer.ClearColor(ColorFloat.Black);
-        // _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
+        // _commandBuffer.SetGraphicsPipeline(pipelineContext.Pipeline);
         // uint indexCount = _commandBuffer.SetMesh(mesh);
 
         // _commandBuffer.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
@@ -116,13 +116,13 @@ public sealed class TextureAtlasPacker: AutoDisposable
         //     constant.Model = transform.Matrix;
 
         //     _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
-        //     _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
+        //     _commandBuffer.PushGraphicsConstants(pipelineContext.PushConstantsStages, constant);
         //     _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
         // }
 
         using (var renderPass = _commandBuffer.BeginRender(atlasTexture.FrameBuffer, [new ClearColorData(0, ColorFloat.Black)]))
         {
-            renderPass.SetPipeline(pipelineInfo.Pipeline);
+            renderPass.SetPipeline(pipelineContext.Pipeline!);
             uint indexCount = renderPass.SetMesh(mesh);
 
             renderPass.SetResources(shaderId_camera, _camera.EntryReadonly);
@@ -136,7 +136,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
                 constant.Model = transform.Matrix;
 
                 renderPass.SetResources(shaderId_texture, item.Data.Texture.EntrySample);
-                renderPass.PushConstants(pipelineInfo.PushConstantsStages, constant);
+                renderPass.PushConstants(pipelineContext.PushConstantsStages, constant);
                 renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
 
