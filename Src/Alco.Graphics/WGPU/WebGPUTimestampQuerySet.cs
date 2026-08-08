@@ -38,7 +38,10 @@ internal sealed unsafe class WebGPUTimestampQuerySet : GPUTimestampQuerySet
         {
             return;
         }
-        wgpuQuerySetDestroy(_querySet);
+        // wgpu 29 has no separate query-set destroy: both wgpuQuerySetDestroy and
+        // wgpuQuerySetRelease map to query_set_drop, which unregisters the query set.
+        // Calling both removes the same registry entry twice ("Cannot remove a vacant
+        // resource" panic), so only release here.
         wgpuQuerySetRelease(_querySet);
     }
 }
