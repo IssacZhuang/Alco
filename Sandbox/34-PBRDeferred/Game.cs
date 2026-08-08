@@ -82,14 +82,15 @@ public class Game : GameEngine
         private readonly ModelDrawItem _item;
         private readonly ModelMaterial _material;
         private readonly GraphicsMaterial _gbufferMaterial;
-        private readonly Vector3 _emissiveFactor;
+        private readonly Func<Vector3> _getEmissiveFactor;
 
-        public BistroRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial gbufferMaterial, Vector3 emissiveFactor)
+        public BistroRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial gbufferMaterial,
+            Func<Vector3> getEmissiveFactor)
         {
             _item = item;
             _material = material;
             _gbufferMaterial = gbufferMaterial;
-            _emissiveFactor = emissiveFactor;
+            _getEmissiveFactor = getEmissiveFactor;
         }
 
         public bool IsStatic => true;
@@ -98,7 +99,7 @@ public class Game : GameEngine
         Matrix4x4 IGBufferRenderable.WorldMatrix => _item.World;
         Vector4 IGBufferRenderable.BaseColor => _material.BaseColorFactor;
         Vector4 IGBufferRenderable.MetallicRoughnessAO => new(_material.MetallicFactor, _material.RoughnessFactor, 1.0f, 0.0f);
-        Vector3 IGBufferRenderable.EmissiveFactor => _emissiveFactor;
+        Vector3 IGBufferRenderable.EmissiveFactor => _getEmissiveFactor();
         float IGBufferRenderable.AlphaCutoff => GetAlphaCutoff(_material);
     }
 
@@ -469,8 +470,11 @@ public class Game : GameEngine
                     }
                     else
                     {
-                        Vector3 emissive = material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f);
-                        _gbufferRenderer.Add(new BistroRenderable(item, material, _bistroMaterials![item.MaterialIndex], emissive));
+                        // The emissive boost is resolved at bundle record time so
+                        // the Point Lights toggle / Emissive Boost slider take
+                        // effect on the next re-record (MarkStaticBundleDirty).
+                        _gbufferRenderer.Add(new BistroRenderable(item, material, _bistroMaterials![item.MaterialIndex],
+                            () => material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
                         _shadowRenderer.Add(new BistroShadowRenderable(item, material, _bistroShadowMaterials![item.MaterialIndex]));
                     }
                 }
