@@ -1415,6 +1415,22 @@ public class Game : GameEngine
             {
                 _voxelGI.VolumeRefreshRate = giRefreshRate;
             }
+            int giStaticBrickBudget = _voxelGI.StaticBrickBudgetPerLevel;
+            if (ImGui.SliderInt("GI Static Brick Budget/Level", ref giStaticBrickBudget, 0, 256))
+            {
+                _voxelGI.StaticBrickBudgetPerLevel = giStaticBrickBudget;
+            }
+            ImGui.SameLine();
+            ImGui.TextDisabled("(?)");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Max structural bricks voxelized per clipmap level per frame.\n" +
+                    "Dirty bricks beyond the budget stay queued and are amortized over\n" +
+                    "subsequent frames (watch 'queued/updated' in the stats below).\n" +
+                    "Lower values smooth frame spikes when the camera crosses brick\n" +
+                    "boundaries; higher values voxelize newly-exposed geometry sooner.\n" +
+                    "0 pauses structural voxelization (the queue keeps growing).");
+            }
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             ImGui.Text($"Static bricks: {statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks} " +
                 $"({statistics.PendingStaticBricks} queued, {statistics.StaticBricksUpdated} updated)");
