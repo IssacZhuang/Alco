@@ -1415,21 +1415,31 @@ public class Game : GameEngine
             {
                 _voxelGI.VolumeRefreshRate = giRefreshRate;
             }
-            int giStaticBrickBudget = _voxelGI.StaticBrickBudgetPerLevel;
-            if (ImGui.SliderInt("GI Static Brick Budget/Level", ref giStaticBrickBudget, 0, 256))
+            for (int giLevel = 0; giLevel < 4; giLevel++)
             {
-                _voxelGI.StaticBrickBudgetPerLevel = giStaticBrickBudget;
+                int giStaticBrickBudget = _voxelGI.GetStaticBrickBudget(giLevel);
+                string budgetLabel = giLevel == 0
+                    ? "GI Brick Budget L0 (finest)"
+                    : giLevel == 3
+                        ? "GI Brick Budget L3 (coarsest)"
+                        : $"GI Brick Budget L{giLevel}";
+                if (ImGui.SliderInt(budgetLabel, ref giStaticBrickBudget, 0, 256))
+                {
+                    _voxelGI.SetStaticBrickBudget(giLevel, giStaticBrickBudget);
+                }
             }
             ImGui.SameLine();
             ImGui.TextDisabled("(?)");
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Max structural bricks voxelized per clipmap level per frame.\n" +
+                ImGui.SetTooltip("Max structural bricks voxelized per frame, per clipmap level.\n" +
                     "Dirty bricks beyond the budget stay queued and are amortized over\n" +
                     "subsequent frames (watch 'queued/updated' in the stats below).\n" +
                     "Lower values smooth frame spikes when the camera crosses brick\n" +
                     "boundaries; higher values voxelize newly-exposed geometry sooner.\n" +
-                    "0 pauses structural voxelization (the queue keeps growing).");
+                    "Coarser levels cover much more world space per brick, so they\n" +
+                    "usually want a smaller budget than the fine levels.\n" +
+                    "0 pauses structural voxelization for that level (its queue keeps growing).");
             }
             VoxelGiStatistics statistics = _voxelGI.Statistics;
             ImGui.Text($"Static bricks: {statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks} " +

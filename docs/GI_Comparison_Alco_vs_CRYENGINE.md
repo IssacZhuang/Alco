@@ -439,7 +439,7 @@ CE5 将整个八叉树结构编码在 `brickPool_Tree` 纹理中——每个节�
 | `resolution` | 128 | `VoxelGiRenderer.cs:431` |
 | `baseVoxelSize` | 0.1 world units | `VoxelGiRenderer.cs:432` |
 | `_mipCount` | `log2(128)+1 = 8` | `VoxelGiRenderer.cs:444` |
-| `StaticBrickBudgetPerLevel` | 128 bricks/frame/level | `VoxelGiRenderer.cs:317` |
+| `Get/SetStaticBrickBudget(level)` | 32/16/8/4 bricks/frame（L0→L3，可按层分别调节） | `VoxelGiRenderer.cs:444` |
 | `DynamicLevelCount` | 2（仅最近 2 个 level 处理动态几何） | `VoxelGiRenderer.cs:323` |
 | `BounceCount` | 1 | `VoxelGiRenderer.cs:329` |
 | `TraceResolutionScale` | 0.5（半分辨率） | `VoxelGiRenderer.cs:433` |

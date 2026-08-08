@@ -6,6 +6,8 @@
 // splitting the triangle's voxel-space AABB along z). Writes packed attribute
 // voxels as 16-bit fixed-point sums. Contributions from overlapping triangles
 // are merged with commutative atomic additions and averaged during injection.
+// The voxel-space AABB is additionally clamped to the brick range dirtied this
+// frame (params2.yz), so retained bricks are not re-scanned or re-accumulated.
 //
 // Vertex data is read as raw uints from a copy of the mesh's vertex buffer;
 // the layout must be position(3) / normal(3) / uv(2) floats at the head of
@@ -17,7 +19,7 @@ struct VoxelizeConstants
     float4 baseColor;      // linear rgb, a multiplies the albedo texture alpha
     float4 emissive;       // rgb emissive factor (multiplies the emissive texture)
     float4 params;         // x=levelIndex, y=indexIs16Bit, z=vertexStrideUints, w=alphaCutoff
-    float4 params2;        // x=triangleCount, yzw=unused
+    float4 params2;        // x=triangleCount, yz=packed voxel-space dirty range lo/hi (x|y<<8|z<<16), w=unused
 };
 
 DEFINE_STORAGE(1, uint, _vertices);
@@ -140,6 +142,26 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
+    // Voxel-space AABB clamped to the grid, then to this frame's dirty range
+    // (packed voxel coordinates in params2.yz). Only bricks queued for rebuild
+    // are (re)voxelized: a triangle missing the dirty region skips all
+    // remaining per-triangle work, and retained bricks are neither re-scanned
+    // nor re-accumulated when the camera scrolls the clipmap.
+    float3 gridMin = (worldMin - originAndSize.xyz) / voxelSize;
+    float3 gridMax = (worldMax - originAndSize.xyz) / voxelSize;
+    int3 lo = clamp((int3)floor(gridMin), 0, (int)resolution - 1);
+    int3 hi = clamp((int3)floor(gridMax), 0, (int)resolution - 1);
+    uint dirtyLoPacked = asuint(constants.params2.y);
+    uint dirtyHiPacked = asuint(constants.params2.z);
+    int3 dirtyLo = int3(dirtyLoPacked & 0xFFu, (dirtyLoPacked >> 8) & 0xFFu, (dirtyLoPacked >> 16) & 0xFFu);
+    int3 dirtyHi = int3(dirtyHiPacked & 0xFFu, (dirtyHiPacked >> 8) & 0xFFu, (dirtyHiPacked >> 16) & 0xFFu);
+    lo = max(lo, dirtyLo);
+    hi = min(hi, dirtyHi);
+    if (any(lo > hi))
+    {
+        return;
+    }
+
     // Albedo and emissive textures are sampled per-voxel at the point where the
     // voxel center projects onto the triangle (barycentric UV), not at the
     // triangle centroid. This preserves texture detail across large triangles
@@ -166,12 +188,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     float alphaCutoff = constants.params.w;
 
-    // Voxel-space AABB clamped to the grid, z-split into 8 slabs across threads.
-    float3 gridMin = (worldMin - originAndSize.xyz) / voxelSize;
-    float3 gridMax = (worldMax - originAndSize.xyz) / voxelSize;
-    int3 lo = clamp((int3)floor(gridMin), 0, (int)resolution - 1);
-    int3 hi = clamp((int3)floor(gridMax), 0, (int)resolution - 1);
-
+    // z-split into 8 slabs across threads.
     float3 boxHalf = voxelSize * 0.5;
     for (int z = lo.z + (int)dispatchId.y; z <= hi.z; z += 8)
     {

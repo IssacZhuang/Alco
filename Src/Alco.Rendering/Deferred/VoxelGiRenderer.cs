@@ -247,7 +247,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// <summary>
     /// Push constant payload for one voxelize dispatch. Layout must match the
     /// <c>VoxelizeConstants</c> struct in Voxelize.hlsl exactly (128 bytes, the
-    /// device push-constant limit).
+    /// device push-constant limit — the dirty-brick range is bit-packed into
+    /// Params2 to keep the payload at that size).
     /// </summary>
     private struct VoxelizeConstants
     {
@@ -255,7 +256,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         public Vector4 BaseColor;
         public Vector4 Emissive;
         public Vector4 Params;  // x=levelIndex, y=indexIs16Bit, z=vertexStrideUints, w=alphaCutoff
-        public Vector4 Params2; // x=triangleCount
+        public Vector4 Params2; // x=triangleCount, y/z=packed voxel-space dirty range lo/hi (x|y<<8|z<<16), w=unused
     }
 
     /// <summary>GPU-resident geometry shared by all GI material registrations of one mesh.</summary>
@@ -427,15 +428,37 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private const int LevelCount = 4;
     private const int BrickSize = 8;
 
+    private readonly int[] _staticBrickBudgets = [32, 16, 8, 4];
+
     /// <summary>
-    /// Gets or sets the maximum number of structural bricks rebuilt per clipmap level and frame.
-    /// High-priority edit bricks are processed before camera-streaming bricks.
-    /// The budget caps the voxelization work of any single frame when the
-    /// camera crosses a brick boundary (all levels get dirty simultaneously);
-    /// the trade-off of lower values is that newly-exposed geometry takes more
-    /// frames to fully voxelize.
+    /// Gets the maximum number of structural bricks rebuilt per frame for one
+    /// clipmap level. High-priority edit bricks are processed before
+    /// camera-streaming bricks. The budget caps the voxelization work of any
+    /// single frame when the camera crosses a brick boundary (all levels get
+    /// dirty simultaneously); the trade-off of lower values is that
+    /// newly-exposed geometry takes more frames to fully voxelize. Coarser
+    /// levels cover much more world space per brick, so giving them a smaller
+    /// budget than the fine levels smooths frame spikes better than a uniform
+    /// value.
     /// </summary>
-    public int StaticBrickBudgetPerLevel { get; set; } = 32;
+    public int GetStaticBrickBudget(int level)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(level);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(level, LevelCount);
+        return _staticBrickBudgets[level];
+    }
+
+    /// <summary>
+    /// Sets the per-frame structural brick budget for one clipmap level. Zero
+    /// pauses structural voxelization for that level (its queue keeps growing);
+    /// negative values are clamped to zero.
+    /// </summary>
+    public void SetStaticBrickBudget(int level, int budget)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(level);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(level, LevelCount);
+        _staticBrickBudgets[level] = Math.Max(budget, 0);
+    }
 
     /// <summary>
     /// Gets or sets how many nearest clipmap levels receive per-frame movable geometry.
@@ -1405,7 +1428,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             }
 
             int maximumBricks = Math.Clamp(
-                StaticBrickBudgetPerLevel,
+                _staticBrickBudgets[level],
                 0,
                 _clipmap.BricksPerAxis * _clipmap.BricksPerAxis * _clipmap.BricksPerAxis);
             int dirtyBrickCount = _clipmap.DrainDirtyBricks(level, maximumBricks, _dirtyBricks);
@@ -1431,6 +1454,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 dirtyBrickCount);
 
             VoxelGiBounds dirtyBounds = GetDirtyBounds(level, _dirtyBricks);
+            (uint dirtyRangeLo, uint dirtyRangeHi) = PackDirtyVoxelRange(_dirtyBricks);
             VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
             for (int i = 0; i < _staticInstances.Count; i++)
             {
@@ -1443,7 +1467,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                     continue;
                 }
                 DispatchVoxelize(computePass, instance.Registration, _attrStatic, _pageTableStatic[level], level,
-                    instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
+                    instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff,
+                    dirtyRangeLo, dirtyRangeHi);
             }
         }
     }
@@ -1499,18 +1524,23 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                     _dirtyBrickCoordinates[level],
                     level,
                     _dirtyBricks.Count);
-            }
 
-            VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
-            for (int i = 0; i < _instances.Count; i++)
-            {
-                DynamicInstance instance = _instances[i];
-                if (!instance.WorldBounds.Intersects(levelBounds))
+                // No collected bricks means no resident pages at all, so the
+                // instance scan is skipped entirely instead of dispatching full
+                // triangle counts that can write nowhere.
+                (uint dirtyRangeLo, uint dirtyRangeHi) = PackDirtyVoxelRange(_dirtyBricks);
+                VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+                for (int i = 0; i < _instances.Count; i++)
                 {
-                    continue;
+                    DynamicInstance instance = _instances[i];
+                    if (!instance.WorldBounds.Intersects(levelBounds))
+                    {
+                        continue;
+                    }
+                    DispatchVoxelize(computePass, instance.Registration, _attrDynamic, _pageTableDynamic[level], level,
+                        instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff,
+                        dirtyRangeLo, dirtyRangeHi);
                 }
-                DispatchVoxelize(computePass, instance.Registration, _attrDynamic, _pageTableDynamic[level], level,
-                    instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff);
             }
         }
 
@@ -1921,7 +1951,9 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         in Matrix4x4 world,
         in Vector4 baseColor,
         in Vector3 emissive,
-        float alphaCutoff)
+        float alphaCutoff,
+        uint dirtyRangeLo,
+        uint dirtyRangeHi)
     {
         MeshGeometry geometry = registration.Geometry;
         if (geometry.TriangleCount == 0)
@@ -1941,7 +1973,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             BaseColor = baseColor,
             Emissive = new Vector4(emissive, 0.0f),
             Params = new Vector4(level, geometry.Index16Bit ? 1.0f : 0.0f, geometry.VertexStrideUints, alphaCutoff),
-            Params2 = new Vector4(geometry.TriangleCount, 0.0f, 0.0f, 0.0f),
+            Params2 = new Vector4(
+                geometry.TriangleCount,
+                BitConverter.Int32BitsToSingle((int)dirtyRangeLo),
+                BitConverter.Int32BitsToSingle((int)dirtyRangeHi),
+                0.0f),
         });
     }
 
@@ -1991,6 +2027,32 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             bounds = bounds.Union(_clipmap.GetBrickBounds(level, bricks[i]));
         }
         return bounds;
+    }
+
+    /// <summary>
+    /// Packs the inclusive voxel-space range covered by the dirty brick list into
+    /// two words (x | y&lt;&lt;8 | z&lt;&lt;16 each) for the voxelize shader's loop
+    /// clamp. Voxel coordinates fit in 8 bits per axis (clipmap resolution ≤ 256).
+    /// </summary>
+    private static (uint Lo, uint Hi) PackDirtyVoxelRange(List<VoxelGiDirtyBrick> bricks)
+    {
+        uint minX = uint.MaxValue, minY = uint.MaxValue, minZ = uint.MaxValue;
+        uint maxX = 0, maxY = 0, maxZ = 0;
+        for (int i = 0; i < bricks.Count; i++)
+        {
+            VoxelGiDirtyBrick brick = bricks[i];
+            minX = Math.Min(minX, brick.X);
+            minY = Math.Min(minY, brick.Y);
+            minZ = Math.Min(minZ, brick.Z);
+            maxX = Math.Max(maxX, brick.X);
+            maxY = Math.Max(maxY, brick.Y);
+            maxZ = Math.Max(maxZ, brick.Z);
+        }
+        uint lo = minX * BrickSize | (minY * BrickSize << 8) | (minZ * BrickSize << 16);
+        uint hi = (maxX * BrickSize + BrickSize - 1)
+            | ((maxY * BrickSize + BrickSize - 1) << 8)
+            | ((maxZ * BrickSize + BrickSize - 1) << 16);
+        return (lo, hi);
     }
 
     /// <inheritdoc />
