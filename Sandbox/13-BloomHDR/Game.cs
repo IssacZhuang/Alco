@@ -30,8 +30,8 @@ public class Game : GameEngine
     private ColorFloat _color = new ColorFloat(4, 2, 2, 1);
     private bool _enabled = true;
 
-    private BloomStage? _bloomSystem;
-    private TonemapStage? _tonemapStage;
+    private readonly RenderNode_Bloom _bloomNode;
+    private readonly RenderNode_Tonemap _tonemapNode;
     private TonemapType _toneMapType;
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -43,16 +43,8 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        var tonemapStage = new TonemapStage(
-            RenderingSystem,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_ACESTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgXTonemap);
-        _mainPipeline.PostProcess.Add(tonemapStage);
-        _tonemapStage = tonemapStage;
+        // The node chain: scene content first, then bloom, then tone mapping.
+        _mainPipeline.Use(new SceneNode(this));
 
         Bloom bloom = RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
@@ -60,13 +52,26 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        _mainPipeline.PostProcess.Add(new BloomStage(bloom));
+        _bloomNode = new RenderNode_Bloom(RenderingSystem, bloom, BuiltInAssets.Shader_Blit);
+        _mainPipeline.Use(_bloomNode);
+
+        _tonemapNode = new RenderNode_Tonemap(
+            RenderingSystem,
+            BuiltInAssets.Shader_Blit,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.Use(_tonemapNode);
+        _toneMapType = _tonemapNode.Operator;
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         //scence
         _spriteShader = BuiltInAssets.Shader_Sprite;
-       
+
         _quad = RenderingSystem.CreateTexture2D(4,4, 0xffffff);
 
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
@@ -93,24 +98,10 @@ public class Game : GameEngine
     protected override void OnStart()
     {
         _imguiSystem = new ImGUISystem(this);
-
-        // Get BloomStage reference after the pipeline is initialized
-        _bloomSystem = _mainPipeline.PostProcess.Get<BloomStage>();
-
-        // Get TonemapStage reference for tone map control
-        if (_tonemapStage != null)
-        {
-            _toneMapType = _tonemapStage.Operator;
-        }
-    }
-
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
     }
 
     /// <summary>
-    /// Per-frame update. Handles input, draws scene, and renders ImGui controls.
+    /// Per-frame update. Handles input, updates scene state, and renders ImGui controls.
     /// </summary>
     protected override void OnUpdate(float delta)
     {
@@ -125,20 +116,6 @@ public class Game : GameEngine
 
         // removed intensity hotkeys; color is controlled via ImGui
 
-        Vector2 normalizedMousePosition = Input.MousePosition / new Vector2(1280, 720);
-        Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
-        spritePosition.Y = -spritePosition.Y;
-
-        _renderContext.Begin(_mainPipeline.SceneFrameBuffer);
-        //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
-
-        if(_enabled){
-            _renderer.Draw(_quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, _color);
-        }
-       
-
-        _renderContext.End();
-
         // ImGUI Controls
         ImGui.Begin("Bloom HDR Controls");
 
@@ -147,109 +124,102 @@ public class Game : GameEngine
         ImGui.Checkbox("Enabled", ref _enabled);
 
         // Bloom System Controls
-        if (_bloomSystem != null)
+        ImGui.Separator();
+        ImGui.Text("Bloom System Controls");
+
+        bool bloomEnabled = _bloomNode.IsEnabled;
+        if (ImGui.Checkbox("Bloom Enabled", ref bloomEnabled))
         {
-            ImGui.Separator();
-            ImGui.Text("Bloom System Controls");
-
-
-            bool bloomEnabled = _bloomSystem.IsEnabled;
-            if (ImGui.Checkbox("Bloom Enabled", ref bloomEnabled))
-            {
-                _bloomSystem.IsEnabled = bloomEnabled;
-            }
-
-            float threshold = _bloomSystem.Threshold;
-            if (ImGui.SliderFloat("Bloom Threshold", ref threshold, 0.0f, 3.0f))
-            {
-                _bloomSystem.Threshold = threshold;
-            }
-
-            float spread = _bloomSystem.Spread;
-            if (ImGui.SliderFloat("Bloom Spread", ref spread, 0.0f, 5.0f))
-            {
-                _bloomSystem.Spread = spread;
-            }
-
-            float bloomIntensity = _bloomSystem.Intensity;
-            if (ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0.0f, 5.0f))
-            {
-                _bloomSystem.Intensity = bloomIntensity;
-            }
-
-            float gamma = _bloomSystem.Gamma;
-            if (ImGui.SliderFloat("Bloom Gamma", ref gamma, 0.5f, 4.0f))
-            {
-                _bloomSystem.Gamma = gamma;
-            }
+            _bloomNode.IsEnabled = bloomEnabled;
         }
 
-        // Tone map controls (TonemapStage)
-        if (_tonemapStage != null)
+        float threshold = _bloomNode.Threshold;
+        if (ImGui.SliderFloat("Bloom Threshold", ref threshold, 0.0f, 3.0f))
         {
-            ImGui.Separator();
-            ImGui.Text("Tone Mapping");
-            if (ImGui.Combo("Tone Map Type", ref _toneMapType))
-            {
-                _tonemapStage.Operator = _toneMapType;
-            }
+            _bloomNode.Threshold = threshold;
+        }
 
-            // Optional parameter controls depending on type
-            switch (_toneMapType)
-            {
-                case TonemapType.Reinhard:
+        float spread = _bloomNode.Spread;
+        if (ImGui.SliderFloat("Bloom Spread", ref spread, 0.0f, 5.0f))
+        {
+            _bloomNode.Spread = spread;
+        }
+
+        float bloomIntensity = _bloomNode.Intensity;
+        if (ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0.0f, 5.0f))
+        {
+            _bloomNode.Intensity = bloomIntensity;
+        }
+
+        float gamma = _bloomNode.Gamma;
+        if (ImGui.SliderFloat("Bloom Gamma", ref gamma, 0.5f, 4.0f))
+        {
+            _bloomNode.Gamma = gamma;
+        }
+
+        // Tone map controls
+        ImGui.Separator();
+        ImGui.Text("Tone Mapping");
+        if (ImGui.Combo("Tone Map Type", ref _toneMapType))
+        {
+            _tonemapNode.Operator = _toneMapType;
+        }
+
+        // Optional parameter controls depending on type
+        switch (_toneMapType)
+        {
+            case TonemapType.Reinhard:
+                {
+                    var d = _tonemapNode.ReinhardData;
+                    if (ImGui.SliderFloat("Max Luminance", ref d.MaxLuminance, 0.1f, 10f) |
+                        ImGui.SliderFloat("Gamma", ref d.Gamma, 0.5f, 3.0f))
                     {
-                        var d = _tonemapStage.ReinhardData;
-                        if (ImGui.SliderFloat("Max Luminance", ref d.MaxLuminance, 0.1f, 10f) |
-                            ImGui.SliderFloat("Gamma", ref d.Gamma, 0.5f, 3.0f))
-                        {
-                            _tonemapStage.ReinhardData = d;
-                        }
-                        break;
+                        _tonemapNode.ReinhardData = d;
                     }
-                case TonemapType.Uncharted2:
+                    break;
+                }
+            case TonemapType.Uncharted2:
+                {
+                    var d2 = _tonemapNode.Uncharted2Data;
+                    if (ImGui.SliderFloat("Exposure", ref d2.Exposure, 0.1f, 4f) |
+                        ImGui.SliderFloat("Gamma", ref d2.Gamma, 0.5f, 3.0f))
                     {
-                        var d2 = _tonemapStage.Uncharted2Data;
-                        if (ImGui.SliderFloat("Exposure", ref d2.Exposure, 0.1f, 4f) |
-                            ImGui.SliderFloat("Gamma", ref d2.Gamma, 0.5f, 3.0f))
-                        {
-                            _tonemapStage.Uncharted2Data = d2;
-                        }
-                        break;
+                        _tonemapNode.Uncharted2Data = d2;
                     }
-                case TonemapType.Filmic:
+                    break;
+                }
+            case TonemapType.Filmic:
+                {
+                    var df = _tonemapNode.FilmicData;
+                    if (ImGui.SliderFloat("Exposure", ref df.Exposure, 0.1f, 4f) |
+                        ImGui.SliderFloat("Gamma", ref df.Gamma, 0.5f, 3.0f))
                     {
-                        var df = _tonemapStage.FilmicData;
-                        if (ImGui.SliderFloat("Exposure", ref df.Exposure, 0.1f, 4f) |
-                            ImGui.SliderFloat("Gamma", ref df.Gamma, 0.5f, 3.0f))
-                        {
-                            _tonemapStage.FilmicData = df;
-                        }
-                        break;
+                        _tonemapNode.FilmicData = df;
                     }
-                case TonemapType.ACES:
+                    break;
+                }
+            case TonemapType.ACES:
+                {
+                    var da = _tonemapNode.ACESData;
+                    if (ImGui.SliderFloat("Exposure", ref da.Exposure, 0.1f, 4f) |
+                        ImGui.SliderFloat("Gamma", ref da.Gamma, 0.5f, 3.0f))
                     {
-                        var da = _tonemapStage.ACESData;
-                        if (ImGui.SliderFloat("Exposure", ref da.Exposure, 0.1f, 4f) |
-                            ImGui.SliderFloat("Gamma", ref da.Gamma, 0.5f, 3.0f))
-                        {
-                            _tonemapStage.ACESData = da;
-                        }
-                        break;
+                        _tonemapNode.ACESData = da;
                     }
-                case TonemapType.Neutral:
+                    break;
+                }
+            case TonemapType.Neutral:
+                {
+                    var dn = _tonemapNode.NeutralData;
+                    if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |
+                        ImGui.SliderFloat("Gamma", ref dn.Gamma, 0.5f, 3.0f) |
+                        ImGui.SliderFloat("StartCompression", ref dn.StartCompression, 0.5f, 1f) |
+                        ImGui.SliderFloat("Desaturation", ref dn.Desaturation, 0.0f, 4f))
                     {
-                        var dn = _tonemapStage.NeutralData;
-                        if (ImGui.SliderFloat("Exposure", ref dn.Exposure, 0.1f, 4f) |
-                            ImGui.SliderFloat("Gamma", ref dn.Gamma, 0.5f, 3.0f) |
-                            ImGui.SliderFloat("StartCompression", ref dn.StartCompression, 0.5f, 1f) |
-                            ImGui.SliderFloat("Desaturation", ref dn.Desaturation, 0.0f, 4f))
-                        {
-                            _tonemapStage.NeutralData = dn;
-                        }
-                        break;
+                        _tonemapNode.NeutralData = dn;
                     }
-            }
+                    break;
+                }
         }
 
         ImGui.End();
@@ -257,12 +227,42 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
         _imguiSystem?.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
         _imguiSystem?.Dispose();
+        _mainPipeline.Dispose();
+    }
+
+    /// <summary>
+    /// Content node drawing the HDR sprite into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : IForwardRenderNode
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game)
+        {
+            _game = game;
+        }
+
+        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            Vector2 normalizedMousePosition = _game.Input.MousePosition / new Vector2(1280, 720);
+            Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
+            spritePosition.Y = -spritePosition.Y;
+
+            _game._renderContext.Begin(target);
+
+            if (_game._enabled)
+            {
+                _game._renderer.Draw(_game._quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, _game._color);
+            }
+
+            _game._renderContext.End();
+        }
     }
 }

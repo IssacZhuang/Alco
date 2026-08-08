@@ -8,7 +8,6 @@ using Alco.IO;
 public class Game : GameEngine
 {
 
-    private readonly ForwardPipeline _mainPipeline;
     private Camera2DBuffer _camera;
     private Shader _shader;
 
@@ -20,13 +19,8 @@ public class Game : GameEngine
     private float _fontSize = 16;
     private float _angle = 0;
 
-    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
-
-
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
-
         _shader = BuiltInAssets.Shader_Text;
         _font = BuiltInAssets.Font_Default;
 
@@ -38,11 +32,6 @@ public class Game : GameEngine
         _material.DepthStencilState = DepthStencilState.Read;
         _renderContext = RenderingSystem.CreateRenderContext();
         _textRenderer = RenderingSystem.CreateTextRenderer(_renderContext, _material);
-    }
-
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
     }
 
     protected override void OnUpdate(float delta)
@@ -63,10 +52,13 @@ public class Game : GameEngine
         }
 
         _angle += delta * 45;
+
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+
         Rotation2D rotation = new Rotation2D(_angle);
 
 
-        _renderContext.Begin(MainFrameBuffer);
+        _renderContext.Begin(frameBuffer, ColorFloat.Black);
 
         _textRenderer.DrawText(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
         _textRenderer.DrawText(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
@@ -82,16 +74,10 @@ public class Game : GameEngine
         _renderContext.End();
     }
 
-    protected override void OnEndFrame()
-    {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
-    }
-
     protected override void OnStop()
     {
         _renderContext.Dispose();
         _material.Dispose();
         _textRenderer.Dispose();
-        _mainPipeline.Dispose();
     }
 }

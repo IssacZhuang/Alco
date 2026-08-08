@@ -26,7 +26,6 @@ public class Game : GameEngine
     private readonly Material _blitMaterial;
 
     public ForwardPipeline MainPipeline => _mainPipeline;
-    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
 
     private readonly Material _surfaceMaterial;
     private readonly Material _cliffMaterial;
@@ -71,24 +70,27 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
+        _mainPipeline.Use(new SceneNode(this));
+
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _imguiSystem = new ImGUISystem(this);
 
-        var tonemapStage = new TonemapStage(
+        var fxaaNode = new RenderNode_FXAA(RenderingSystem.CreateFXAA(
+            BuiltInAssets.Shader_FXAA,
+            BuiltInAssets.Shader_Blit));
+        MainPipeline.Use(fxaaNode);
+
+        var tonemapNode = new RenderNode_Tonemap(
             RenderingSystem,
+            BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        MainPipeline.PostProcess.Add(tonemapStage);
-
-        var fxaaStage = new FXAAStage(RenderingSystem.CreateFXAA(
-            BuiltInAssets.Shader_FXAA,
-            BuiltInAssets.Shader_Blit));
-        MainPipeline.PostProcess.Add(fxaaStage);
+        MainPipeline.Use(tonemapNode);
 
         int width = 64;
         int height = 64;
@@ -186,11 +188,6 @@ public class Game : GameEngine
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnUpdate(float delta)
     {
         _imguiSystem.BeginFrame(delta);
@@ -253,13 +250,6 @@ public class Game : GameEngine
         // Render lighting using internal command buffer
         _lightingManager.Render();
 
-        _renderer.Begin(MainFrameBuffer);
-        _surfaceBlock.Render();
-        _wallManager.Render(_renderer);
-
-        _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialLightOverlay, _lightOverlayConstant);
-
-
         ImGuiIOPtr io = ImGui.GetIO();
 
         if (TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
@@ -275,12 +265,6 @@ public class Game : GameEngine
                 }
                 int2 pos = _brushCells[i] + tilePosition;
 
-                _brushTransform.Position = new Vector3(pos.X, pos.Y, 0);
-                Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
-                _brushConstant.Model = tmp.Matrix;
-                _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _brushMaterial, _brushConstant);
-
-
                 if (Input.IsMousePressing(Mouse.Left))
                 {
                     if (_editMode == EditMode.Surface)
@@ -295,14 +279,13 @@ public class Game : GameEngine
 
             }
         }
-        _renderer.End();
 
-        if (MainPipeline.PostProcess.Get<FXAAStage>() is { } fxaaStage)
+        if (MainPipeline.Get<RenderNode_FXAA>() is { } fxaaNode)
         {
-            bool isFXAAEnabled = fxaaStage.IsEnabled;
+            bool isFXAAEnabled = fxaaNode.IsEnabled;
             if (ImGui.Checkbox("FXAA", ref isFXAAEnabled))
             {
-                fxaaStage.IsEnabled = isFXAAEnabled;
+                fxaaNode.IsEnabled = isFXAAEnabled;
             }
         }
 
@@ -312,7 +295,7 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
         _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
@@ -411,5 +394,46 @@ public class Game : GameEngine
         items.Add(item4);
 
         return new TileSet(items.ToArray());
+    }
+
+    private sealed class SceneNode : IForwardRenderNode
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game)
+        {
+            _game = game;
+        }
+
+        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            _game._renderer.Begin(target);
+            _game._surfaceBlock.Render();
+            _game._wallManager.Render(_game._renderer);
+
+            _game._renderer.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._materialLightOverlay, _game._lightOverlayConstant);
+
+            Ray3D cameraRay = CameraMathUtility.ScreenPointToRay2D(_game.MainView.MousePosition, _game.MainView.Size, _game._camera.ViewProjectionMatrix, -100, 100);
+
+            ImGuiIOPtr io = ImGui.GetIO();
+
+            if (_game.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+            {
+                for (int i = 0; i < _game._brushCells.Count; i++)
+                {
+                    if (io.WantCaptureMouse)
+                    {
+                        continue;
+                    }
+                    int2 pos = _game._brushCells[i] + tilePosition;
+
+                    _game._brushTransform.Position = new Vector3(pos.X, pos.Y, 0);
+                    Transform3D tmp = math.transform(_game._surfaceBlock.Transform, _game._brushTransform);
+                    _game._brushConstant.Model = tmp.Matrix;
+                    _game._renderer.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._brushMaterial, _game._brushConstant);
+                }
+            }
+            _game._renderer.End();
+        }
     }
 }

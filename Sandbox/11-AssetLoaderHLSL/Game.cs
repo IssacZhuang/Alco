@@ -84,10 +84,11 @@ public class Game : GameEngine
 
         _timer += delta;
 
-        _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.AttachmentLayout);
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+        _shader.TryUpdatePipelineContext(ref _pipelineInfo, frameBuffer.AttachmentLayout);
 
         _commandBuffer.Begin();
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_pipelineInfo);
             renderPass.SetVertexBuffer(0, _vertexBuffer);

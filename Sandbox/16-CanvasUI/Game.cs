@@ -52,6 +52,8 @@ public class Game : GameEngine
 
     private Display _display = Display.Button;
 
+    private float _delta;
+
 
     private float _alignHorizontal = TextAlign.Left;
     private float _alignVertical = TextAlign.Top;
@@ -77,15 +79,21 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        var tonemapStage = new TonemapStage(
+        // The node chain: scene content first, then tone mapping.
+        _mainPipeline.Use(new SceneNode(this));
+
+        var tonemapNode = new RenderNode_Tonemap(
             RenderingSystem,
+            BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        _mainPipeline.PostProcess.Add(tonemapStage);
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _font = BuiltInAssets.Font_Default;
 
@@ -345,11 +353,6 @@ public class Game : GameEngine
         return mask;
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnTick(float delta)
     {
         //just move this to OnUpdate if u want to update UI logic every frame
@@ -367,7 +370,7 @@ public class Game : GameEngine
         }
 
         //_canvas.Tick(_root, delta);
-        _canvas.Update(_mainPipeline.SceneFrameBuffer, delta);
+        _delta = delta;
 
         // ImGUI Controls
         ImGui.Begin("Canvas UI Controls");
@@ -662,7 +665,7 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
         _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
@@ -808,6 +811,24 @@ public class Game : GameEngine
                 _intVirtualGridList.IsEnable = true;
                 if (_virtualGridListSlider != null) _virtualGridListSlider.IsEnable = true;
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Content node updating and drawing the canvas UI into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : IForwardRenderNode
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game)
+        {
+            _game = game;
+        }
+
+        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            _game._canvas.Update(target, _game._delta);
         }
     }
 }

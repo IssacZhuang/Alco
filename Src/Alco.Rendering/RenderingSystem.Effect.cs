@@ -1,6 +1,6 @@
 namespace Alco.Rendering;
 
-// post process factory
+// texture processor factory (bloom, FXAA, blur, SDF)
 
 public partial class RenderingSystem
 {

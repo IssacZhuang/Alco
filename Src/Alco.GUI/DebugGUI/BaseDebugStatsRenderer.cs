@@ -22,21 +22,25 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
     private readonly SpriteRenderer _spriteRenderer;
     private readonly Mesh _mesh;
 
-    private IRenderTarget _renderTarget;
+    private bool _isBegun;
+
+    /// <summary>
+    /// The frame buffer the stats overlay draws into (typically the swapchain).
+    /// Set every frame before drawing; when null all drawing is skipped.
+    /// </summary>
+    public GPUFrameBuffer? Target { get; set; }
 
     public abstract Vector2 MousePosition { get; }
     public abstract bool IsMouseClicked { get; }
     public abstract bool IsMousePressing { get; }
 
 
-    protected BaseDebugStatsRenderer(float width, float height, IRenderTarget renderTarget,RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
+    protected BaseDebugStatsRenderer(float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
     {
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
         //external resources
         _textureWhite = renderingSystem.TextureWhite;
-
-        _renderTarget = renderTarget;
 
         //internal resources
         _camera = renderingSystem.CreateCamera2D(width, height, 100, "debug_gui_camera_2d");
@@ -69,29 +73,50 @@ public abstract class BaseDebugStatsRenderer : IDebugStatsRenderer, IDisposable
 
     public void Begin()
     {
-        _rendererContent.Begin(_renderTarget.RenderTexture.FrameBuffer);//tranparent background
+        //tranparent background; skipped entirely while no target is set
+        _isBegun = Target != null;
+        if (_isBegun)
+        {
+            _rendererContent.Begin(Target);
+        }
     }
 
     public void End()
     {
-        _rendererContent.End();
+        if (_isBegun)
+        {
+            _rendererContent.End();
+            _isBegun = false;
+        }
     }
 
 
     public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
     {
+        if (!_isBegun)
+        {
+            return;
+        }
         Matrix4x4 matrix = GetTransformMatrix(position, size);
         _spriteRenderer.Draw(_textureWhite, matrix, color);
     }
 
     public unsafe float DrawText(ReadOnlySpan<char> str, Vector2 position, Font font, float fontSize, ColorFloat color, Pivot pivot)
     {
+        if (!_isBegun)
+        {
+            return 0f;
+        }
         Matrix4x4 matrix = GetTransformMatrix(position, Vector2.One* fontSize);
         return _textRenderer.DrawText(font, str, matrix, pivot, color, 1.0f);
     }
 
     public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
     {
+        if (!_isBegun)
+        {
+            return;
+        }
         Matrix4x4 matrix = GetTransformMatrix(position, size);
         _spriteRenderer.Draw(texture, matrix, color);
     }

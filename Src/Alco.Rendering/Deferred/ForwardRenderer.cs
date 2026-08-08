@@ -41,14 +41,14 @@ public interface IForwardRenderable
 }
 
 /// <summary>
-/// Drawing middleware for the forward transparency pass of the deferred PBR
+/// A forward render node drawing the transparency pass of the deferred PBR
 /// pipeline. Holds the glass shader, material factory methods and a registry of
 /// <see cref="IForwardRenderable"/> objects. Static objects are baked into an
 /// internal render bundle; dynamic objects are drawn immediately each frame.
-/// The pipeline calls <see cref="OnRenderForward"/> automatically between
-/// <c>BeginForwardPass</c> and <c>EndForwardPass</c>.
+/// The node owns its render pass: it begins and ends its own context on the
+/// target assigned by the pipeline's forward chain.
 /// </summary>
-public sealed unsafe class ForwardRenderer : AutoDisposable, ISceneRenderer
+public sealed unsafe class ForwardRenderer : AutoDisposable, IForwardRenderNode
 {
     /// <summary>
     /// Push constant payload for a forward glass draw. Layout must match the
@@ -99,6 +99,8 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, ISceneRenderer
     // Dynamic render bundle — re-recorded every frame.
     private readonly SubRenderContext _dynamicBundle;
     private GPUAttachmentLayout? _bundleLayout;
+    // The node's own forward pass on the chain-assigned target.
+    private readonly RenderContext _forwardContext;
 
     /// <summary>
     /// Create the forward renderer with the glass shader and shared pipeline resources.
@@ -122,6 +124,7 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, ISceneRenderer
         _shadowRT = shadowRT;
         _staticBundle = rendering.CreateSubRenderContext("pbr_forward_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_forward_dynamic");
+        _forwardContext = rendering.CreateRenderContext("pbr_forward_pass");
     }
 
     /// <summary>
@@ -176,14 +179,15 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, ISceneRenderer
     /// <summary>Whether any renderable is registered (static or dynamic).</summary>
     public bool HasContent => _staticItems.Count > 0 || _dynamicItems.Count > 0;
 
-    /// <inheritdoc/>
-    public bool HasForwardContent => HasContent;
+    /// <inheritdoc />
+    public bool IsEnabled { get; set; } = true;
 
     /// <summary>
-    /// Draw all registered renderables in the forward transparency pass. Called by
-    /// the pipeline automatically between <c>BeginForwardPass</c> and <c>EndForwardPass</c>.
+    /// Draw all registered renderables onto <paramref name="target"/> (the pipeline's
+    /// forward RT after deferred lighting, pre-filled with the G-buffer depth).
+    /// Called by the pipeline's forward chain automatically.
     /// </summary>
-    public void OnRenderForward(RenderContext context, GPUAttachmentLayout layout)
+    public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
     {
         if (_staticItems.Count == 0 && _dynamicItems.Count == 0)
         {
@@ -192,22 +196,18 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, ISceneRenderer
 
         _bundleLayout = layout;
 
-        if (_staticItems.Count > 0)
+        if (_staticItems.Count > 0 && _staticBundleDirty)
         {
-            if (_staticBundleDirty)
+            _staticBundle.Begin(layout);
+            for (int i = 0; i < _staticItems.Count; i++)
             {
-                _staticBundle.Begin(layout);
-                for (int i = 0; i < _staticItems.Count; i++)
-                {
-                    DrawItem(_staticItems[i], _staticBundle);
-                }
-                _staticBundle.End();
-                _staticBundleDirty = false;
+                DrawItem(_staticItems[i], _staticBundle);
             }
-
-            context.ExecuteSubContext(_staticBundle);
+            _staticBundle.End();
+            _staticBundleDirty = false;
         }
 
+        SubRenderContext? dynamicBundle = null;
         if (_dynamicItems.Count > 0)
         {
             _dynamicBundle.Begin(layout);
@@ -216,8 +216,19 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, ISceneRenderer
                 DrawItem(_dynamicItems[i], _dynamicBundle);
             }
             _dynamicBundle.End();
-            context.ExecuteSubContext(_dynamicBundle);
+            dynamicBundle = _dynamicBundle;
         }
+
+        _forwardContext.Begin(target);
+        if (_staticItems.Count > 0)
+        {
+            _forwardContext.ExecuteSubContext(_staticBundle);
+        }
+        if (dynamicBundle != null)
+        {
+            _forwardContext.ExecuteSubContext(dynamicBundle);
+        }
+        _forwardContext.End();
     }
 
     /// <summary>
@@ -305,6 +316,7 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, ISceneRenderer
         {
             _staticBundle.Dispose();
             _dynamicBundle.Dispose();
+            _forwardContext.Dispose();
             _flatNormalTexture?.Dispose();
         }
     }

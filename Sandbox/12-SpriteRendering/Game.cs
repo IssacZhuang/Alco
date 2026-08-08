@@ -8,7 +8,6 @@ using Alco.Graphics;
 
 public class Game : GameEngine
 {
-    private readonly ForwardPipeline _mainPipeline;
     private int DrawCount = 10000;
     private Camera2DBuffer _camera;
     private Material _materialText;
@@ -27,8 +26,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
-
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
         _materialText = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Text);
@@ -66,21 +63,9 @@ public class Game : GameEngine
             Stop();
         }
 
-        // _textRenderer.Begin(MainFrameBuffer);
-        // _textRenderer.DrawString(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        // _textRenderer.End();
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
 
-        // _spriteRenderer.Begin(MainFrameBuffer);
-        // //_spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
-
-        // for (int i = 0; i < DrawCount; i++)
-        // {
-        //     _spriteRenderer.Draw(_star, _positions[i], Rotation2D.Identity, _size, _colors[i]);
-        // }
-
-        // _spriteRenderer.End();
-
-        _renderContext.Begin(_mainPipeline.SceneFrameBuffer);
+        _renderContext.Begin(frameBuffer, ColorFloat.Black);
         _textRenderer.DrawText(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
         
         _spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
@@ -91,16 +76,6 @@ public class Game : GameEngine
         }
         
         _renderContext.End();
-    }
-
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
-    protected override void OnEndFrame()
-    {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

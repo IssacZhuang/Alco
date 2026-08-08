@@ -12,15 +12,16 @@ namespace Alco.Rendering;
 /// depth-only shadow map holding <see cref="ShadowCascadeCount"/> cascades in a 2x2 atlas,
 /// three render contexts (shadow pass, G-buffer pass, lighting pass) and the pass-private
 /// deferred lighting material. G-buffer scene draws and shadow scene draws are handled
-/// by externally owned scene renderers (<see cref="GBufferRenderer"/> /
-/// <see cref="ShadowRenderer"/>) registered via <see cref="AddSceneRenderer"/>; the
-/// pipeline does not know their types — it invokes <see cref="ISceneRenderer"/> methods
-/// inside each pass. The caller can also drive passes manually via Begin/End methods.
-/// <br/>The frame is driven by <see cref="RenderFrame"/>: shadow cascades → G-buffer →
-/// AfterGBuffer plugins → deferred lighting → forward transparency, resolving into the
-/// pipeline-internal <see cref="ForwardRenderTexture"/> (HDR + depth). The owner of the
-/// pipeline (e.g. an engine render pipeline) runs its post-process chain from there
-/// straight to the final destination — no intermediate engine render target is involved.
+/// by render nodes (<see cref="GBufferRenderer"/> / <see cref="ShadowRenderer"/>)
+/// registered via <see cref="Use"/>; the pipeline does not know their types — it invokes
+/// <see cref="IGBufferRenderNode"/> / <see cref="IShadowRenderNode"/> inside each pass.
+/// The caller can also drive passes manually via Begin/End methods.
+/// <br/>The frame is driven by <see cref="Render"/>: shadow cascades → G-buffer →
+/// AfterGBuffer plugins → deferred lighting, resolving into the pipeline-internal
+/// <see cref="ForwardRenderTexture"/> (HDR + depth); then the pipeline's forward
+/// <see cref="RenderNodeChain"/> runs — forward content nodes (transparency) draw onto
+/// it, content processors transform it, and the chain blits the result into the final
+/// destination.
 /// Each pass can also be driven manually via Begin/End methods.
 /// <br/>Scene properties (sun direction/color, sky params, GI strength, debug flags) are
 /// set directly on the pipeline as properties. Camera, shadow cascades, viewport and
@@ -140,10 +141,14 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly GPUDevice _device;
     private readonly Mesh _fullScreenMesh;
 
-    // External scene renderers (GBufferRenderer, ShadowRenderer, etc.) invoked
-    // inside the pipeline's own passes. Each renderer only overrides the passes
-    // it cares about; unimplemented passes are no-ops via default interface methods.
-    private readonly List<ISceneRenderer> _sceneRenderers = new();
+    // Pass nodes (GBufferRenderer, ShadowRenderer, ...) invoked inside the pipeline's
+    // own passes, dispatched by the node interfaces they implement.
+    private readonly List<IRenderNode> _passNodes = new();
+
+    // The forward resolve chain: forward content nodes (transparency) draw onto the
+    // forward RT after lighting, content processors transform it, and the chain blits
+    // the result into the final destination. Owned by the pipeline.
+    private readonly RenderNodeChain _chain;
 
     private readonly GPUAttachmentLayout _gbufferLayout;
     private readonly GPUAttachmentLayout _shadowLayout;
@@ -231,7 +236,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly RenderContext _shadowContext;
     private readonly RenderContext _gbufferContext;
     private readonly RenderContext _lightingContext;
-    private readonly RenderContext _forwardContext;
 
     /// <summary>
     /// The G-buffer render texture (albedo+packed-roughness /
@@ -567,6 +571,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="lightingShaderText">The source text of the deferred lighting shader (DeferredLighting.hlsl).</param>
     /// <param name="lightingShaderName">The name of the deferred lighting shader.</param>
+    /// <param name="blitShader">The shader the forward resolve chain uses for plain copies.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
@@ -574,6 +579,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         RenderingSystem rendering,
         string lightingShaderText,
         string lightingShaderName,
+        Shader blitShader,
         uint shadowMapSize = 2048,
         uint width = 1280,
         uint height = 720)
@@ -582,6 +588,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _device = rendering.GraphicsDevice;
         _fullScreenMesh = rendering.MeshFullScreen;
         ShadowMapSize = shadowMapSize;
+        _chain = new RenderNodeChain(rendering, blitShader);
 
         // The lighting shader declares its depth textures with the DEFINE_TEX2D_DEPTH*
         // macros, so the reflection already carries the Depth sample type and the
@@ -633,7 +640,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _shadowContext = rendering.CreateRenderContext("pbr_shadow_pass");
         _gbufferContext = rendering.CreateRenderContext("pbr_gbuffer_pass");
         _lightingContext = rendering.CreateRenderContext("pbr_lighting_pass");
-        _forwardContext = rendering.CreateRenderContext("pbr_forward_pass");
 
         // Forward RT: HDR color + Depth32Float (must match the G-buffer depth format
         // for native CopyTexture, which requires copy-compatible formats).
@@ -674,22 +680,60 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Register a scene renderer (e.g. <see cref="GBufferRenderer"/>,
-    /// <see cref="ShadowRenderer"/>) that draws objects into the pipeline's own
-    /// passes. The renderer only overrides the passes it cares about; the pipeline
-    /// invokes it inside each pass between Begin and End.
+    /// Register a render node, dispatched by the interfaces it implements:
+    /// <see cref="IGBufferRenderNode"/> / <see cref="IShadowRenderNode"/> nodes are
+    /// invoked inside the pipeline's own passes; <see cref="IForwardRenderNode"/> /
+    /// <see cref="IContentProcessorNode"/> nodes join the forward resolve chain in
+    /// registration order. A node may implement both kinds.
+    /// The pipeline takes ownership: nodes implementing <see cref="System.IDisposable"/>
+    /// are disposed with the pipeline.
     /// </summary>
-    public void AddSceneRenderer(ISceneRenderer renderer)
+    /// <exception cref="ArgumentException">The node implements no render node pass interface.</exception>
+    public void Use(IRenderNode node)
     {
-        _sceneRenderers.Add(renderer);
+        ArgumentNullException.ThrowIfNull(node);
+        bool isPassNode = node is IGBufferRenderNode or IShadowRenderNode;
+        bool isChainNode = node is IForwardRenderNode or IContentProcessorNode;
+        if (!isPassNode && !isChainNode)
+        {
+            throw new ArgumentException(
+                $"Render node {node.GetType().Name} implements none of {nameof(IForwardRenderNode)}, {nameof(IContentProcessorNode)}, {nameof(IGBufferRenderNode)}, {nameof(IShadowRenderNode)}.",
+                nameof(node));
+        }
+        if (isPassNode)
+        {
+            _passNodes.Add(node);
+        }
+        if (isChainNode)
+        {
+            _chain.Use(node);
+        }
     }
 
     /// <summary>
-    /// Unregister a scene renderer previously added via <see cref="AddSceneRenderer"/>.
+    /// Unregister a node previously added via <see cref="Use"/>. The node is not disposed.
     /// </summary>
-    public void RemoveSceneRenderer(ISceneRenderer renderer)
+    public bool Remove(IRenderNode node)
     {
-        _sceneRenderers.Remove(renderer);
+        bool removed = _passNodes.Remove(node);
+        removed |= _chain.Remove(node);
+        return removed;
+    }
+
+    /// <summary>
+    /// Get the first registered node of the given type (pass nodes first, then the
+    /// forward chain), or null when the pipeline has none.
+    /// </summary>
+    public T? Get<T>() where T : class, IRenderNode
+    {
+        for (int i = 0; i < _passNodes.Count; i++)
+        {
+            if (_passNodes[i] is T node)
+            {
+                return node;
+            }
+        }
+        return _chain.Get<T>();
     }
 
     /// <summary>
@@ -713,24 +757,44 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _plugins[i].Resize(width, height);
         }
         RebindLightingTargets();
+        _chain.Resize(width, height);
     }
 
     /// <summary>
     /// Execute the complete deferred frame in the correct order: shadow cascades →
     /// G-buffer → <see cref="AfterGBufferCallback"/> → AfterGBuffer plugins → deferred
-    /// lighting → forward transparency. The result is resolved into
-    /// <see cref="ForwardRenderTexture"/>; the owning render pipeline runs its
-    /// post-process chain from there to the final destination. The individual
+    /// lighting, resolved into <see cref="ForwardRenderTexture"/>; then the forward
+    /// node chain runs from there — when it has enabled content nodes the G-buffer
+    /// depth is copied into the forward RT first (hardware depth testing for
+    /// transparency) — ending in <paramref name="destination"/>. The individual
     /// <c>Render*Pass</c> methods remain available for custom pipelines or debugging.
     /// </summary>
-    public void RenderFrame()
+    /// <param name="destination">The final output frame buffer (e.g. the swapchain).
+    /// When null, the passes and forward content nodes still run but processors are
+    /// skipped (minimized or headless view).</param>
+    public void Render(GPUFrameBuffer? destination)
     {
         RenderShadowPass();
         RenderGBufferPass();
         AfterGBufferCallback?.Invoke();
         ExecutePlugins(RenderInjectionPoint.AfterGBuffer);
         RenderLighting(_forwardRT.FrameBuffer);
-        RenderForwardPass(_forwardRT.FrameBuffer);
+
+        if (_chain.HasEnabledContentNodes)
+        {
+            // Copy G-buffer depth into the forward RT via native CopyTexture so glass
+            // materials can use hardware depth testing (DepthStencilState.Read) instead
+            // of a manual shader-side discard.
+            _depthCopyCommand.Begin();
+            _depthCopyCommand.CopyTexture(
+                _gbufferRT.FrameBuffer.DepthStencil!,
+                _forwardRT.FrameBuffer.DepthStencil!,
+                0, 0, TextureAspect.All);
+            _depthCopyCommand.End();
+            _rendering.ScheduleCommandBuffer(_depthCopyCommand);
+        }
+
+        _chain.Execute(_forwardRT, destination);
     }
 
     /// <summary>
@@ -828,17 +892,20 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Convenience: run all <see cref="ShadowCascadeCount"/> cascade passes in one
-    /// call, invoking the registered shadow render callback between Begin/End for
-    /// each cascade. When no callback is registered each cascade's pass runs empty.
+    /// call, invoking every enabled <see cref="IShadowRenderNode"/> between Begin/End
+    /// for each cascade. With no registered nodes each cascade's pass runs empty.
     /// </summary>
     public void RenderShadowPass()
     {
         for (int c = 0; c < ShadowCascadeCount; c++)
         {
             BeginShadowPass(c);
-            for (int i = 0; i < _sceneRenderers.Count; i++)
+            for (int i = 0; i < _passNodes.Count; i++)
             {
-                _sceneRenderers[i].OnRenderShadow(_shadowContext, c);
+                if (_passNodes[i].IsEnabled && _passNodes[i] is IShadowRenderNode shadowNode)
+                {
+                    shadowNode.OnRenderShadow(_shadowContext, c);
+                }
             }
             EndShadowPass();
         }
@@ -1017,63 +1084,22 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Convenience: begin the G-buffer pass, invoke the registered G-buffer render
-    /// callback (if any), then end the pass — all in one call. When no callback is
-    /// registered this is equivalent to calling Begin/End with nothing in between.
+    /// Convenience: begin the G-buffer pass, invoke every enabled
+    /// <see cref="IGBufferRenderNode"/>, then end the pass — all in one call.
+    /// With no registered nodes this is equivalent to calling Begin/End with
+    /// nothing in between.
     /// </summary>
     public void RenderGBufferPass()
     {
         BeginGBufferPass();
-        for (int i = 0; i < _sceneRenderers.Count; i++)
+        for (int i = 0; i < _passNodes.Count; i++)
         {
-            _sceneRenderers[i].OnRenderGBuffer(_gbufferContext, _gbufferLayout);
-        }
-        EndGBufferPass();
-    }
-
-    /// <summary>
-    /// Render transparent objects in a forward pass onto the given target (the
-    /// pipeline-internal forward RT after deferred lighting). First copies the
-    /// G-buffer depth into the forward RT so transparent objects are depth-tested
-    /// against opaque geometry by hardware. The existing color content is preserved.
-    /// Each registered scene renderer's <see cref="ISceneRenderer.OnRenderForward"/>
-    /// is called inside the pass.
-    /// </summary>
-    /// <param name="target">The frame buffer to blend transparent objects onto.</param>
-    public void RenderForwardPass(GPUFrameBuffer target)
-    {
-        // Skip the entire context Begin/End when no scene renderer has forward content.
-        bool hasForward = false;
-        for (int i = 0; i < _sceneRenderers.Count; i++)
-        {
-            if (_sceneRenderers[i].HasForwardContent)
+            if (_passNodes[i].IsEnabled && _passNodes[i] is IGBufferRenderNode gbufferNode)
             {
-                hasForward = true;
-                break;
+                gbufferNode.OnRenderGBuffer(_gbufferContext, _gbufferLayout);
             }
         }
-        if (!hasForward)
-        {
-            return;
-        }
-
-        // Copy G-buffer depth into the forward RT via native CopyTexture so glass
-        // materials can use hardware depth testing (DepthStencilState.Read) instead
-        // of a manual shader-side discard.
-        _depthCopyCommand.Begin();
-        _depthCopyCommand.CopyTexture(
-            _gbufferRT.FrameBuffer.DepthStencil!,
-            target.DepthStencil!,
-            0, 0, TextureAspect.All);
-        _depthCopyCommand.End();
-        _rendering.ScheduleCommandBuffer(_depthCopyCommand);
-
-        _forwardContext.Begin(target);
-        for (int i = 0; i < _sceneRenderers.Count; i++)
-        {
-            _sceneRenderers[i].OnRenderForward(_forwardContext, target.AttachmentLayout);
-        }
-        _forwardContext.End();
+        EndGBufferPass();
     }
 
     /// <summary>
@@ -1140,10 +1166,20 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         if (disposing)
         {
+            for (int i = 0; i < _passNodes.Count; i++)
+            {
+                // Chain nodes are owned (and disposed) by the chain; only dispose
+                // pass-only nodes here.
+                if (_passNodes[i] is not (IForwardRenderNode or IContentProcessorNode) && _passNodes[i] is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+            _passNodes.Clear();
+            _chain.Dispose();
             _shadowContext.Dispose();
             _gbufferContext.Dispose();
             _lightingContext.Dispose();
-            _forwardContext.Dispose();
             _lightingDataBuffer.Dispose();
             _shadowDataBuffer.Dispose();
             _pointLightBuffer.Dispose();

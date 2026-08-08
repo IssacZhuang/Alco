@@ -12,7 +12,6 @@ using Alco.ImGUI;
 public class Game : GameEngine
 {
 
-    private readonly ForwardPipeline _mainPipeline;
     private readonly ImGUISystem _imGUISystem;
 
     private readonly RenderContext _materialRenderer;
@@ -26,13 +25,6 @@ public class Game : GameEngine
     private bool _isShowCompressed = false;
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
-            RenderingSystem,
-            RenderingSystem.PreferredSDRPass,
-            BuiltInAssets.Shader_Blit,
-            MainView.Size.X,
-            MainView.Size.Y);
-
         _imGUISystem = new ImGUISystem(this);
 
         _texture = AssetSystem.Load<Texture2D>("test.jpg");
@@ -59,12 +51,6 @@ public class Game : GameEngine
         _materialCompressed.SetTexture(ShaderResourceId.Texture, _compressedTexture);
     }
 
-
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -79,6 +65,7 @@ public class Game : GameEngine
         ImGui.Checkbox("Show Compressed", ref _isShowCompressed);
         ImGui.End();
 
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
 
         Transform2D transform = Transform2D.Identity;
         transform.Scale = new Vector2(_texture.Width, _texture.Height);
@@ -92,7 +79,7 @@ public class Game : GameEngine
         };
 
         //draw atlas texture
-        _materialRenderer.Begin(_mainPipeline.SceneFrameBuffer);
+        _materialRenderer.Begin(frameBuffer, ColorFloat.Black);
         if (_isShowCompressed)
         {
             _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);
@@ -106,7 +93,6 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
         _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 

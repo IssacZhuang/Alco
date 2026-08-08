@@ -117,8 +117,9 @@ public class Game : GameEngine
         _timer += delta;
 
         //draw
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_pipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
@@ -133,7 +134,7 @@ public class Game : GameEngine
 
         _modelBuffer.UpdateBuffer(_transform2.Matrix);
         _commandBuffer.Begin();
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_pipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
@@ -148,7 +149,7 @@ public class Game : GameEngine
 
         _modelBuffer.UpdateBuffer(_transform3.Matrix);
         _commandBuffer.Begin();
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_pipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
@@ -204,7 +205,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = MainFrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
 
         GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
             bindGroups,

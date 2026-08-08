@@ -158,7 +158,6 @@ public class Game : GameEngine
         float IForwardRenderable.TransmissionFactor => _getTransmission();
     }
 
-    private readonly RenderPipeline _mainPipeline;
     private readonly PBRDeferredPipeline _pipeline;
     private ImGUISystem? _imguiSystem;
     private readonly GBufferRenderer _gbufferRenderer;
@@ -256,11 +255,11 @@ public class Game : GameEngine
     private int _selectedObject;
     private bool _animateObjects = true;
 
-    // Bloom post-processing (a stage on the main pipeline's post-process chain)
-    // and the emissive boost feeding it.
+    // Bloom post-processing (a content processor node on the pipeline's forward
+    // chain) and the emissive boost feeding it.
     // The Bistro emissive factors are all 1.0 and its emissive textures are LDR,
     // so without a boost nothing crosses the bloom threshold next to the sun.
-    private BloomStage? _bloom;
+    private RenderNode_Bloom? _bloom;
     private float _emissiveBoost = 4.0f;
 
     // Point lights auto-generated from Bistro emissive surfaces.
@@ -270,8 +269,8 @@ public class Game : GameEngine
     private PBRDeferredPipeline.PointLight[]? _bistroPointLights;         // base lights (unscaled)
     private PBRDeferredPipeline.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
-    // HDR tone mapping stage: switchable operator with per-type parameters.
-    private TonemapStage? _tonemapStage;
+    // HDR tone mapping node: switchable operator with per-type parameters.
+    private RenderNode_Tonemap? _tonemapStage;
     private TonemapType _tonemapType;
 
     // Screenshot mode.
@@ -369,20 +368,16 @@ public class Game : GameEngine
             _cameraNear, _sceneRadius * 10.0f);
         _shadowDistance = _sceneRadius * 3.0f;
 
-        // Create the PBR deferred pipeline and assign it as the main pipeline.
+        // Create the PBR deferred pipeline that drives the whole frame.
         string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
-        var renderPipeline = new PBRDeferredRenderPipeline(
+        _pipeline = new PBRDeferredPipeline(
             RenderingSystem,
-            new PBRDeferredPipeline(
-                RenderingSystem,
-                lightingShaderText,
-                BuiltInAssetsPath.Shader_PBRDeferredLighting,
-                shadowMapSize: 2048,
-                width: (uint)MainView.Size.X,
-                height: (uint)MainView.Size.Y),
-            BuiltInAssets.Shader_Blit);
-        _mainPipeline = renderPipeline;
-        _pipeline = renderPipeline.Deferred;
+            lightingShaderText,
+            BuiltInAssetsPath.Shader_PBRDeferredLighting,
+            BuiltInAssets.Shader_Blit,
+            shadowMapSize: 2048,
+            width: (uint)MainView.Size.X,
+            height: (uint)MainView.Size.Y);
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
@@ -400,8 +395,8 @@ public class Game : GameEngine
         // drives its own camera (RenderingSystem.MainCamera is not set by sandboxes).
         _pipeline.SetCamera(_camera);
         _gbufferRenderer.SetCamera(_camera);
-        _pipeline.AddSceneRenderer(_gbufferRenderer);
-        _pipeline.AddSceneRenderer(_shadowRenderer);
+        _pipeline.Use(_gbufferRenderer);
+        _pipeline.Use(_shadowRenderer);
         _pipeline.ShadowCasterExtension = _sceneRadius;
         _pipeline.CascadeDebug = cascadeDebug;
         _pipeline.ShadowDebug = shadowDebug;
@@ -426,7 +421,7 @@ public class Game : GameEngine
             _pipeline.PointLightBuffer,
             _pipeline.ShadowRenderTexture);
         _forwardRenderer.SetCamera(_camera);
-        _pipeline.AddSceneRenderer(_forwardRenderer);
+        _pipeline.Use(_forwardRenderer);
 
         // Per-frame logic that runs between the G-buffer pass and the plugin pass
         // (HBAO/GI) is wired into the pipeline via AfterGBufferCallback so that
@@ -534,43 +529,47 @@ public class Game : GameEngine
             _pipeline.RegisterPlugin(_voxelGI);
         }
 
-        // Bloom is a stage on the main pipeline's post-process chain; its order
-        // (500) places it before the tonemap stage (1000), so boosted emissive
-        // surfaces get a natural glow.
+        // Bloom is a content processor node on the pipeline's forward chain;
+        // registered before FXAA and tonemap, so boosted emissive surfaces get
+        // a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
             : 1.0f;
         float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
             ? parsedBloomIntensity
             : 1.0f;
-        _bloom = new BloomStage(RenderingSystem.CreateBloom(
-            BuiltInAssets.Shader_BloomBlit,
-            BuiltInAssets.Shader_BloomClamp,
-            BuiltInAssets.Shader_BloomDownSample,
-            BuiltInAssets.Shader_BloomUpSample,
-            11))
+        _bloom = new RenderNode_Bloom(
+            RenderingSystem,
+            RenderingSystem.CreateBloom(
+                BuiltInAssets.Shader_BloomBlit,
+                BuiltInAssets.Shader_BloomClamp,
+                BuiltInAssets.Shader_BloomDownSample,
+                BuiltInAssets.Shader_BloomUpSample,
+                11),
+            BuiltInAssets.Shader_Blit)
         {
             IsEnabled = !args.Contains("--no-bloom"),
             Threshold = bloomThreshold,
             Intensity = bloomIntensity,
         };
-        _mainPipeline.PostProcess.Add(_bloom);
+        _pipeline.Use(_bloom);
 
-        // HDR tone mapping stage (order 1000, after bloom).
-        _tonemapStage = new TonemapStage(
+        // FXAA anti-aliasing node (registered between bloom and tonemap).
+        _pipeline.Use(new RenderNode_FXAA(RenderingSystem.CreateFXAA(
+            BuiltInAssets.Shader_FXAA,
+            BuiltInAssets.Shader_Blit)));
+
+        // HDR tone mapping node (registered last, after bloom and FXAA).
+        _tonemapStage = new RenderNode_Tonemap(
             RenderingSystem,
+            BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        _mainPipeline.PostProcess.Add(_tonemapStage);
-
-        // FXAA anti-aliasing stage (order 900, between bloom and tonemap).
-        _mainPipeline.PostProcess.Add(new FXAAStage(RenderingSystem.CreateFXAA(
-            BuiltInAssets.Shader_FXAA,
-            BuiltInAssets.Shader_Blit)));
+        _pipeline.Use(_tonemapStage);
 
         MainPresenter.OnResize += OnMainWindowResize;
     }
@@ -609,11 +608,6 @@ public class Game : GameEngine
         }
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnUpdate(float delta)
     {
         _imguiSystem?.BeginFrame(delta);
@@ -640,16 +634,20 @@ public class Game : GameEngine
         DrawImGuiPanel();
 
         _frameCount++;
+
+        // Disable the forward renderer when no glass is registered, so the
+        // pipeline skips the G-buffer → forward depth copy.
+        _forwardRenderer!.IsEnabled = _forwardRenderer.HasContent;
     }
 
     protected override void OnEndFrame()
     {
-        // Resolve the scene texture through the post-process chain into the swapchain.
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        // Render the frame and resolve it through the forward chain into the swapchain.
+        _pipeline.Render(MainPresenter.FrameBuffer);
         // Draw ImGui on top of the resolved frame (not affected by post-processing).
         _imguiSystem?.RenderAndDraw(MainPresenter.FrameBuffer);
 
-        // Capture here: after RenderFrame the scene texture still holds the last
+        // Capture here: after Render the forward render texture still holds the last
         // completed frame's HDR image. Bloom is composited into the swapchain by the
         // chain and is not part of the capture. With --wait-load the capture is held
         // back until the Bistro scene's asynchronously streaming textures have all arrived.
@@ -664,14 +662,14 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _imguiSystem?.Dispose();
-        _mainPipeline.Dispose();
+        _pipeline.Dispose();
     }
 
     protected void OnMainWindowResize(uint2 size)
     {
         _camera.AspectRatio = (float)size.X / size.Y;
-        // The pipeline resizes the deferred pipeline and its plugins (including VoxelGI).
-        _mainPipeline.Resize(size.X, size.Y);
+        // The pipeline resizes its own targets and its plugins (including VoxelGI).
+        _pipeline.Resize(size.X, size.Y);
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -1263,7 +1261,7 @@ public class Game : GameEngine
     /// </summary>
     private unsafe void CaptureScreenshot(string path)
     {
-        Texture2D color = _mainPipeline.SceneRenderTexture.ColorTextures[0];
+        Texture2D color = _pipeline.ForwardRenderTexture.ColorTextures[0];
         int width = (int)color.Width;
         int height = (int)color.Height;
         int pixelCount = width * height;
@@ -1546,7 +1544,7 @@ public class Game : GameEngine
             }
         }
 
-        FXAAStage? fxaaStage = _mainPipeline.PostProcess.Get<FXAAStage>();
+        RenderNode_FXAA? fxaaStage = _pipeline.Get<RenderNode_FXAA>();
         if (fxaaStage != null && ImGui.CollapsingHeader("FXAA"))
         {
             bool fxaaEnabled = fxaaStage.IsEnabled;

@@ -100,6 +100,7 @@ public class Game : GameEngine
         //     _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
         // }
 
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
 
         using (var computePass = _commandBuffer.BeginCompute())
@@ -110,7 +111,7 @@ public class Game : GameEngine
             computePass.DispatchCompute((500 / 8) + 1, 1, 1);
         }
 
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_graphicsPipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
@@ -156,7 +157,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = MainFrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
 
         GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
             bindGroups,

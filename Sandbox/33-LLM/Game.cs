@@ -39,7 +39,6 @@ public class Game : GameEngine
     private readonly Dictionary<string, int> _toolMessageIndexByCallId = new();
     private bool _isWaitingForResponse = false;
 
-    private readonly ForwardPipeline _mainPipeline;
     private readonly ImGUISystem _imGuiSystem;
 
     // Rendering fields
@@ -52,7 +51,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
         _imGuiSystem = new ImGUISystem(this);
 
         _llmSystem = new LLMSystem(this);
@@ -89,11 +87,6 @@ public class Game : GameEngine
         MainView.OnResize += OnMainWindowResize;
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnStart()
     {
         _modelId = _preference.ModelId;
@@ -122,7 +115,8 @@ public class Game : GameEngine
         _imGuiSystem.UpdateInput();
 
         // Rendering logic
-        _renderer.Begin(_mainPipeline.SceneFrameBuffer);
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+        _renderer.Begin(frameBuffer, ColorFloat.Black);
         foreach (var cube in _entities.Values)
         {
             cube.OnDraw(_renderer);
@@ -131,13 +125,11 @@ public class Game : GameEngine
 
         RenderConfigWindow();
         RenderChatWindow();
-
-        _imGuiSystem.RenderAndDraw(_mainPipeline.SceneFrameBuffer);
     }
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _imGuiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     private void OnMainWindowResize(uint2 size)

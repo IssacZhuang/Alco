@@ -31,8 +31,6 @@ public class Game : GameEngine
 
     #endregion
 
-    private readonly ForwardPipeline _mainPipeline;
-
     private CameraData2D camera;
 
     private GPUCommandBuffer _commandBuffer;
@@ -53,12 +51,8 @@ public class Game : GameEngine
 
     private float _timeMove = 0.0f;
 
-    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
-
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
-
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
         _pipeline = CreatePipeline();
 
@@ -97,11 +91,6 @@ public class Game : GameEngine
 
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnUpdate(float delta)
     {
         _timer += delta;
@@ -126,8 +115,9 @@ public class Game : GameEngine
         _timer += delta;
 
         //draw
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
         {
             renderPass.SetPipeline(_pipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
@@ -148,12 +138,6 @@ public class Game : GameEngine
         }
         _commandBuffer.End();
         GraphicsDevice.Submit(_commandBuffer);
-    }
-
-
-    protected override void OnEndFrame()
-    {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
     }
 
 
@@ -199,7 +183,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = MainFrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
 
         GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
             bindGroups,

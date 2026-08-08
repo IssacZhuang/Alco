@@ -5,15 +5,16 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Post-process stage that resolves the HDR scene texture into the destination with a tone
-/// mapping operator. Supports switching between operators at runtime; the
+/// Content processor node that resolves the HDR input into its target with a tone mapping
+/// operator. Supports switching between operators at runtime; the
 /// <see cref="TonemapType.Linear"/> operator is a plain copy (no tone mapping).
 /// </summary>
-public sealed class TonemapStage : PostProcessStage
+public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
 {
     private readonly RenderingSystem _rendering;
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
+    private readonly Material _blitMaterial;
     private readonly Shader _reinhardShader;
     private readonly Shader _uncharted2Shader;
     private readonly Shader _filmicShader;
@@ -24,7 +25,6 @@ public sealed class TonemapStage : PostProcessStage
     private TonemapType _operator = TonemapType.Reinhard;
     private Material? _material;
     private GraphicsBuffer? _dataBuffer;
-    private RenderTexture? _boundSource;
 
     private ReinhardTonemapData _reinhardData = ReinhardTonemapData.Default;
     private Uncharted2TonemapData _uncharted2Data = Uncharted2TonemapData.Default;
@@ -34,7 +34,7 @@ public sealed class TonemapStage : PostProcessStage
     private AgXTonemapData _agxData = AgXTonemapData.Default;
 
     /// <inheritdoc />
-    public override int Order => 1000;
+    public bool IsEnabled { get; set; } = true;
 
     /// <summary>
     /// The active tone mapping operator. Switching recreates the internal material and
@@ -151,11 +151,15 @@ public sealed class TonemapStage : PostProcessStage
     }
 
     /// <summary>
-    /// Creates the stage with the default Reinhard operator. The shaders stay owned by the
-    /// caller; the stage creates its materials and buffers lazily per operator.
+    /// Creates the node with the default Reinhard operator. The shaders stay owned by the
+    /// caller; the node creates its materials and buffers lazily per operator.
     /// </summary>
-    public TonemapStage(
+    /// <param name="rendering">The rendering system.</param>
+    /// <param name="blitShader">The shader used for the plain copy of the
+    /// <see cref="TonemapType.Linear"/> operator.</param>
+    public RenderNode_Tonemap(
         RenderingSystem rendering,
+        Shader blitShader,
         Shader reinhardShader,
         Shader uncharted2Shader,
         Shader filmicShader,
@@ -166,6 +170,7 @@ public sealed class TonemapStage : PostProcessStage
         _rendering = rendering;
         _renderContext = rendering.CreateRenderContext();
         _fullScreenMesh = rendering.MeshFullScreen;
+        _blitMaterial = rendering.CreateMaterial(blitShader);
 
         _reinhardShader = reinhardShader;
         _uncharted2Shader = uncharted2Shader;
@@ -178,22 +183,12 @@ public sealed class TonemapStage : PostProcessStage
     }
 
     /// <inheritdoc />
-    public override void Apply(PostProcessContext context)
+    public void OnRenderForward(RenderTexture input, RenderTexture target)
     {
-        if (_operator == TonemapType.Linear || _material == null)
-        {
-            context.Chain.Blit(context.Source, context.Destination);
-            return;
-        }
-
-        if (!ReferenceEquals(_boundSource, context.Source))
-        {
-            _material.SetRenderTexture(ShaderResourceId.Texture, context.Source);
-            _boundSource = context.Source;
-        }
-
-        _renderContext.Begin(context.Destination);
-        _renderContext.Draw(_fullScreenMesh, _material);
+        Material material = _operator == TonemapType.Linear || _material == null ? _blitMaterial : _material;
+        material.SetRenderTexture(ShaderResourceId.Texture, input);
+        _renderContext.Begin(target.FrameBuffer);
+        _renderContext.Draw(_fullScreenMesh, material);
         _renderContext.End();
     }
 
@@ -203,7 +198,6 @@ public sealed class TonemapStage : PostProcessStage
         _dataBuffer?.Dispose();
         _material = null;
         _dataBuffer = null;
-        _boundSource = null;
 
         switch (_operator)
         {
@@ -232,7 +226,7 @@ public sealed class TonemapStage : PostProcessStage
                 _dataBuffer!.UpdateBuffer(_agxData);
                 break;
             case TonemapType.Linear:
-                // No resources: Apply falls back to a plain blit.
+                // No resources: OnRenderForward falls back to a plain blit.
                 break;
         }
     }
@@ -251,6 +245,7 @@ public sealed class TonemapStage : PostProcessStage
         {
             _material?.Dispose();
             _dataBuffer?.Dispose();
+            _blitMaterial.Dispose();
             _renderContext.Dispose();
         }
     }

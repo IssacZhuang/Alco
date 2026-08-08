@@ -34,15 +34,20 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        var tonemapStage = new TonemapStage(
+        _mainPipeline.Use(new SceneNode(this));
+
+        var tonemapNode = new RenderNode_Tonemap(
             RenderingSystem,
+            BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        _mainPipeline.PostProcess.Add(tonemapStage);
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         Material blitMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("InverserGamma.hlsl"));
 
@@ -72,14 +77,9 @@ public class Game : GameEngine
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
         _imGui.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
@@ -129,18 +129,6 @@ public class Game : GameEngine
         _camera.ViewSize = MainView.Size;
         _camera.UpdateMatrixToGPU();
 
-        Transform2D transform = Transform2D.Identity;
-        float scale = MainView.Width / _tileLightMap.Width;
-        scale = math.min(scale, MainView.Height / _tileLightMap.Height);
-        transform.Scale = new Vector2(_tileLightMap.Width * scale, _tileLightMap.Height * scale);
-
-        SpriteConstant constant = new SpriteConstant
-        {
-            Model = transform.Matrix,
-            Color = new ColorFloat(1, 1, 1, 1),
-            UvRect = new Rect(0, 0, 1, 1)
-        };
-
         _tileLightMap.SetLight((int)_size.X / 2, (int)_size.Y / 2, new Half4(_intensity, _intensity, _intensity, 1));
         _tileLightMap.SetDirty();
 
@@ -151,15 +139,41 @@ public class Game : GameEngine
         }
         _command.End();
         GraphicsDevice.Submit(_command);
-
-        //draw atlas texture
-        _materialRenderer.Begin(_mainPipeline.SceneFrameBuffer);
-        _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
-        _materialRenderer.End();
     }
 
     protected override void OnStop()
     {
         _tileLightMap.Dispose();
+        _mainPipeline.Dispose();
+    }
+
+    private sealed class SceneNode : IForwardRenderNode
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game)
+        {
+            _game = game;
+        }
+
+        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            Transform2D transform = Transform2D.Identity;
+            float scale = _game.MainView.Width / _game._tileLightMap.Width;
+            scale = math.min(scale, _game.MainView.Height / _game._tileLightMap.Height);
+            transform.Scale = new Vector2(_game._tileLightMap.Width * scale, _game._tileLightMap.Height * scale);
+
+            SpriteConstant constant = new SpriteConstant
+            {
+                Model = transform.Matrix,
+                Color = new ColorFloat(1, 1, 1, 1),
+                UvRect = new Rect(0, 0, 1, 1)
+            };
+
+            //draw atlas texture
+            _game._materialRenderer.Begin(target);
+            _game._materialRenderer.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._material, constant);
+            _game._materialRenderer.End();
+        }
     }
 }

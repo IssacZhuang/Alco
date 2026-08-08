@@ -1,15 +1,14 @@
 using System.Numerics;
 using System.Threading.Tasks;
 using Alco.Engine;
-using Alco.Rendering;
 using Alco;
 using Alco.Graphics;
 using Alco.ImGUI;
 
 public class Game : GameEngine
 {
-    private readonly ForwardPipeline _mainPipeline;
     private readonly ImGUISystem _imguiSystem;
+    private readonly GPUCommandBuffer _commandBuffer;
 
     private bool showWindow = true;
     private bool isPicking;
@@ -17,23 +16,22 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
-            RenderingSystem,
-            RenderingSystem.PreferredSDRPass,
-            BuiltInAssets.Shader_Blit,
-            MainView.Size.X,
-            MainView.Size.Y);
-
         _imguiSystem = new ImGUISystem(this);
-    }
-
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
+        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
     }
 
     protected override void OnUpdate(float delta)
     {
+        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        {
+            _commandBuffer.Begin();
+            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            {
+            }
+            _commandBuffer.End();
+            GraphicsDevice.Submit(_commandBuffer);
+        }
+
         _imguiSystem.BeginFrame(delta);
         _imguiSystem.UpdateInput();
 
@@ -47,14 +45,12 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
         _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
         _imguiSystem.Dispose();
-        _mainPipeline.Dispose();
     }
 
     private void RenderImGUIContent()

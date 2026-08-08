@@ -95,7 +95,7 @@ public class CubeSystem : IDisposable
         }
     }
 
-    public void OnUpdate(GPUFrameBuffer frame, float delta)
+    public void OnRender(GPUFrameBuffer frame)
     {
         _renderContext.Begin(frame);
         for (int i = 0; i < _activeList.Count; i++)

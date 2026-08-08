@@ -29,25 +29,23 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        var tonemapStage = new TonemapStage(
+        var tonemapNode = new RenderNode_Tonemap(
             RenderingSystem,
+            BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        _mainPipeline.PostProcess.Add(tonemapStage);
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _imGuiSystem = new ImGUISystem(this);
 
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
-    }
-
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
     }
 
     protected override void OnUpdate(float delta)
@@ -202,7 +200,7 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
         _imGuiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
@@ -215,7 +213,7 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-        
+        _mainPipeline.Dispose();
     }
 
     private static byte[] LoadFile(string path)

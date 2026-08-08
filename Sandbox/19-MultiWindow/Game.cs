@@ -23,17 +23,18 @@ public class Game : GameEngine
     private readonly SpriteRenderer _renderer;
 
     //hdr
-    private readonly TonemapStage _tonemapStage1;
-    private readonly TonemapStage _tonemapStage2;
+    private readonly RenderNode_Tonemap _tonemapNode1;
+    private readonly RenderNode_Tonemap _tonemapNode2;
 
     //bloom
-    private readonly BloomStage _bloom1;
-    private readonly BloomStage _bloom2;
+    private readonly RenderNode_Bloom _bloomNode1;
+    private readonly RenderNode_Bloom _bloomNode2;
 
 
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+        _mainPipeline.Use(new SceneNode(this));
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _shader = BuiltInAssets.Shader_Sprite;
@@ -50,6 +51,7 @@ public class Game : GameEngine
 
         _presenter2 = CreateViewPresenter(_window2);
         _pipeline2 = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, _window2.Size.X, _window2.Size.Y);
+        _pipeline2.Use(new SceneNode(this));
         _presenter2.OnResize += size => _pipeline2.Resize(size.X, size.Y);
 
         _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);
@@ -64,39 +66,41 @@ public class Game : GameEngine
         MainView.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
 
-        _tonemapStage1 = new TonemapStage(RenderingSystem,
+        _bloomNode1 = new RenderNode_Bloom(RenderingSystem, RenderingSystem.CreateBloom(
+            BuiltInAssets.Shader_BloomBlit,
+            BuiltInAssets.Shader_BloomClamp,
+            BuiltInAssets.Shader_BloomDownSample,
+            BuiltInAssets.Shader_BloomUpSample,
+            11), BuiltInAssets.Shader_Blit);
+        _mainPipeline.Use(_bloomNode1);
+
+        _bloomNode2 = new RenderNode_Bloom(RenderingSystem, RenderingSystem.CreateBloom(
+            BuiltInAssets.Shader_BloomBlit,
+            BuiltInAssets.Shader_BloomClamp,
+            BuiltInAssets.Shader_BloomDownSample,
+            BuiltInAssets.Shader_BloomUpSample,
+            11), BuiltInAssets.Shader_Blit);
+        _pipeline2.Use(_bloomNode2);
+
+        _tonemapNode1 = new RenderNode_Tonemap(RenderingSystem,
+            BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        _mainPipeline.PostProcess.Add(_tonemapStage1);
+        _mainPipeline.Use(_tonemapNode1);
 
-        _tonemapStage2 = new TonemapStage(RenderingSystem,
+        _tonemapNode2 = new RenderNode_Tonemap(RenderingSystem,
+            BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        _pipeline2.PostProcess.Add(_tonemapStage2);
-
-        _bloom1 = new BloomStage(RenderingSystem.CreateBloom(
-            BuiltInAssets.Shader_BloomBlit,
-            BuiltInAssets.Shader_BloomClamp,
-            BuiltInAssets.Shader_BloomDownSample,
-            BuiltInAssets.Shader_BloomUpSample,
-            11));
-        _mainPipeline.PostProcess.Add(_bloom1);
-
-        _bloom2 = new BloomStage(RenderingSystem.CreateBloom(
-            BuiltInAssets.Shader_BloomBlit,
-            BuiltInAssets.Shader_BloomClamp,
-            BuiltInAssets.Shader_BloomDownSample,
-            BuiltInAssets.Shader_BloomUpSample,
-            11));
-        _pipeline2.PostProcess.Add(_bloom2);
+        _pipeline2.Use(_tonemapNode2);
 
         
     }
@@ -120,31 +124,16 @@ public class Game : GameEngine
         _windowCamera2.Position = ScreenToWorld(new Vector2(1920, 1080), _window2.Position, _window2.Size);
         _windowCamera2.UpdateBuffer();
 
-        _renderContext.Begin(_mainPipeline.SceneFrameBuffer);
-        _renderer.Draw(RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
-        _renderContext.End();
-
         _presenter2.BeginFrame();
-        _pipeline2.BeginFrame();
-
-        _renderContext.Begin(_pipeline2.SceneFrameBuffer);
-        _renderer.Draw(RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
-        _renderContext.End();
-
-        _pipeline2.RenderFrame(_presenter2.FrameBuffer);
+        _pipeline2.Render(_presenter2.FrameBuffer);
         _presenter2.EndFrame();
 
 
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
@@ -159,5 +148,22 @@ public class Game : GameEngine
         float x = windowPos.X + windowSize.X * 0.5f - minotorSize.X * 0.5f;
         float y = minotorSize.Y * 0.5f - windowPos.Y - windowSize.Y * 0.5f;
         return new Vector2(x, y);
+    }
+
+    private sealed class SceneNode : IForwardRenderNode
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game)
+        {
+            _game = game;
+        }
+
+        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            _game._renderContext.Begin(target);
+            _game._renderer.Draw(_game.RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
+            _game._renderContext.End();
+        }
     }
 }

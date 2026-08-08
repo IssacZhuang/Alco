@@ -28,8 +28,6 @@ public class Game : GameEngine
 
     private readonly Cube _cube;
 
-    private readonly GPUCommandBuffer _commandClearScreen;
-
     private GizmoOperation _currentOperationEnum = GizmoOperation.Translate;
 
     private Vector3 _rotationAngles = Vector3.Zero;
@@ -42,16 +40,10 @@ public class Game : GameEngine
             BuiltInAssets.Shader_Blit,
             MainView.Size.X,
             MainView.Size.Y);
+        _mainPipeline.ClearColor = new ColorFloat(0.2f, 0.2f, 0.2f, 1);
 
-        var tonemapStage = new TonemapStage(
-            RenderingSystem,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_ACESTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgXTonemap);
-        _mainPipeline.PostProcess.Add(tonemapStage);
+        // The node chain: scene content first, then bloom, then tone mapping.
+        _mainPipeline.Use(new SceneNode(this));
 
         Bloom bloom = RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
@@ -59,7 +51,20 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        _mainPipeline.PostProcess.Add(new BloomStage(bloom));
+        _mainPipeline.Use(new RenderNode_Bloom(RenderingSystem, bloom, BuiltInAssets.Shader_Blit));
+
+        var tonemapNode = new RenderNode_Tonemap(
+            RenderingSystem,
+            BuiltInAssets.Shader_Blit,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _imGUISystem = new ImGUISystem(this);
 
@@ -82,14 +87,7 @@ public class Game : GameEngine
         _cube.Color = Color2;
         _cube.transform.Position = new Vector3(0, 0, 0);
 
-        _commandClearScreen = GraphicsDevice.CreateCommandBuffer();
-
         MainView.OnResize += OnMainWindowResize;
-    }
-
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
     }
 
     protected override void OnUpdate(float delta)
@@ -100,19 +98,6 @@ public class Game : GameEngine
         }
 
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
-
-        _commandClearScreen.Begin();
-        using (var renderPass = _commandClearScreen.BeginRender(MainPresenter.FrameBuffer, new ColorFloat(0.2f, 0.2f, 0.2f, 1)))
-        {
-            // Clear color is handled by BeginRender parameter
-        }
-        _commandClearScreen.End();
-        RenderingSystem.ScheduleCommandBuffer(_commandClearScreen);
-
-
-        _renderer.Begin(MainPresenter.FrameBuffer);
-        _cube.OnDraw(_renderer);
-        _renderer.End();
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
@@ -147,7 +132,7 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
         _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
@@ -158,7 +143,26 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-
+        _mainPipeline.Dispose();
     }
 
+    /// <summary>
+    /// Content node drawing the cube into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : IForwardRenderNode
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game)
+        {
+            _game = game;
+        }
+
+        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            _game._renderer.Begin(target);
+            _game._cube.OnDraw(_game._renderer);
+            _game._renderer.End();
+        }
+    }
 }

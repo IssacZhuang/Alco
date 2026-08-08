@@ -1,16 +1,18 @@
 
+using Alco.Graphics;
+
 namespace Alco.Rendering;
 
 /// <summary>
-/// Post-process stage that applies FXAA (Fast Approximate Anti-Aliasing) to the scene.
+/// Content processor node that applies FXAA (Fast Approximate Anti-Aliasing) to the input.
 /// </summary>
-public sealed class FXAAStage : PostProcessStage
+public sealed class RenderNode_FXAA : AutoDisposable, IContentProcessorNode
 {
     private readonly FXAA _fxaa;
-    private RenderTexture? _lastInput;
+    private RenderTexture? _input;
 
     /// <inheritdoc />
-    public override int Order => 900;
+    public bool IsEnabled { get; set; } = true;
 
     /// <summary>
     /// The FXAA quality preset. Changing it recompiles the shader variant.
@@ -32,23 +34,22 @@ public sealed class FXAAStage : PostProcessStage
     }
 
     /// <summary>
-    /// Creates the stage wrapping the FXAA effect. The stage takes ownership.
+    /// Creates the node wrapping the FXAA effect. The node takes ownership.
     /// </summary>
-    public FXAAStage(FXAA fxaa)
+    public RenderNode_FXAA(FXAA fxaa)
     {
         _fxaa = fxaa;
     }
 
     /// <inheritdoc />
-    public override void Apply(PostProcessContext context)
+    public void OnRenderForward(RenderTexture input, RenderTexture target)
     {
-        if (!ReferenceEquals(_lastInput, context.Source))
+        if (!ReferenceEquals(_input, input))
         {
-            _fxaa.SetInput(context.Source);
-            _lastInput = context.Source;
+            _input = input;
+            _fxaa.SetInput(input);
         }
-
-        _fxaa.Blit(context.Destination);
+        _fxaa.Blit(target.FrameBuffer);
     }
 
     /// <inheritdoc />

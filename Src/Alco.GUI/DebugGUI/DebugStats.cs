@@ -75,7 +75,11 @@ public static partial class DebugStats
         }
     }
 
-    internal static bool CheckAndSubmit()
+    /// <summary>
+    /// Ends the stats frame if anything was drawn since the last submit, flushing the
+    /// overlay to the renderer's current target. Returns whether a frame was submitted.
+    /// </summary>
+    public static bool CheckAndSubmit()
     {
         ResetPosition();
 

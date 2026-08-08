@@ -46,7 +46,7 @@ public class BenchmarkRenderer
     [Benchmark]
     public void OldSpriteRenderer()
     {
-        _renderer1.Begin(_engine.MainFrameBuffer);
+        _renderer1.Begin(_target.FrameBuffer);
         for (int i = 0; i < count; i++)
         {
             _renderer1.Draw(_texture, Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);
@@ -57,7 +57,7 @@ public class BenchmarkRenderer
     [Benchmark]
     public void NewSpriteRenderer()
     {
-        _context.Begin(_engine.MainFrameBuffer);
+        _context.Begin(_target.FrameBuffer);
         for (int i = 0; i < count; i++)
         {
             _renderer2.Draw(_texture, Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);

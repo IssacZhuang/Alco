@@ -33,7 +33,7 @@ public enum FXAAQuality
 /// Fast Approximate Anti-Aliasing (FXAA) post-processing effect.
 /// Provides screen-space anti-aliasing with minimal performance cost.
 /// </summary>
-public class FXAA : PostProcess
+public class FXAA : TextureProcessor
 {
     /// <summary>
     /// Shader data structure for FXAA parameters

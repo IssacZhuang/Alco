@@ -5,22 +5,21 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Post-process stage that applies procedural color grading to the scene. Falls back to a
-/// plain copy while the parameters are at identity.
+/// Content processor node that applies procedural color grading to the input. Falls back
+/// to a plain copy while the parameters are at identity.
 /// </summary>
-public sealed class ColorGradingStage : PostProcessStage
+public sealed class RenderNode_ColorGrading : AutoDisposable, IContentProcessorNode
 {
-    private readonly RenderingSystem _rendering;
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _gradingMaterial;
+    private readonly Material _blitMaterial;
     private readonly GraphicsBuffer _dataBuffer;
 
     private ColorGradingData _data;
-    private RenderTexture? _boundSource;
 
     /// <inheritdoc />
-    public override int Order => 100;
+    public bool IsEnabled { get; set; } = true;
 
     /// <summary>
     /// The color grading parameters. Updating this property immediately uploads to the GPU.
@@ -42,17 +41,18 @@ public sealed class ColorGradingStage : PostProcessStage
     public GraphicsBuffer DataBuffer => _dataBuffer;
 
     /// <summary>
-    /// Creates the stage. The shader stays owned by the caller.
+    /// Creates the node. The shaders stay owned by the caller.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
     /// <param name="gradingShader">The color grading shader.</param>
-    public ColorGradingStage(RenderingSystem rendering, Shader gradingShader)
+    /// <param name="blitShader">The shader used for the plain copy at identity parameters.</param>
+    public RenderNode_ColorGrading(RenderingSystem rendering, Shader gradingShader, Shader blitShader)
     {
-        _rendering = rendering;
         _renderContext = rendering.CreateRenderContext();
         _fullScreenMesh = rendering.MeshFullScreen;
 
         _gradingMaterial = rendering.CreateMaterial(gradingShader);
+        _blitMaterial = rendering.CreateMaterial(blitShader);
 
         _data = ColorGradingData.Default;
         _dataBuffer = rendering.CreateGraphicsBuffer((uint)Unsafe.SizeOf<ColorGradingData>(), "color_grading_data");
@@ -61,22 +61,12 @@ public sealed class ColorGradingStage : PostProcessStage
     }
 
     /// <inheritdoc />
-    public override void Apply(PostProcessContext context)
+    public void OnRenderForward(RenderTexture input, RenderTexture target)
     {
-        if (_data.IsIdentity)
-        {
-            context.Chain.Blit(context.Source, context.Destination);
-            return;
-        }
-
-        if (!ReferenceEquals(_boundSource, context.Source))
-        {
-            _gradingMaterial.SetRenderTexture(ShaderResourceId.Texture, context.Source);
-            _boundSource = context.Source;
-        }
-
-        _renderContext.Begin(context.Destination);
-        _renderContext.Draw(_fullScreenMesh, _gradingMaterial);
+        Material material = _data.IsIdentity ? _blitMaterial : _gradingMaterial;
+        material.SetRenderTexture(ShaderResourceId.Texture, input);
+        _renderContext.Begin(target.FrameBuffer);
+        _renderContext.Draw(_fullScreenMesh, material);
         _renderContext.End();
     }
 
@@ -86,6 +76,7 @@ public sealed class ColorGradingStage : PostProcessStage
         if (disposing)
         {
             _gradingMaterial.Dispose();
+            _blitMaterial.Dispose();
             _dataBuffer.Dispose();
             _renderContext.Dispose();
         }

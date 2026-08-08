@@ -36,7 +36,7 @@ public interface IShadowRenderable
 }
 
 /// <summary>
-/// Drawing middleware for the cascaded shadow map pass. Holds the shadow depth
+/// A shadow render node of the deferred PBR pipeline. Holds the shadow depth
 /// shaders, material factory methods and a registry of <see cref="IShadowRenderable"/>
 /// objects. Static objects are baked into internal per-cascade render bundles; dynamic
 /// objects are drawn immediately each frame. The pipeline calls <see cref="OnRenderShadow"/>
@@ -45,8 +45,10 @@ public interface IShadowRenderable
 /// render context or cascade VP data buffer — those are owned by
 /// <see cref="PBRDeferredPipeline"/>.
 /// </summary>
-public sealed unsafe class ShadowRenderer : AutoDisposable, ISceneRenderer
+public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowRenderNode
 {
+    /// <inheritdoc />
+    public bool IsEnabled { get; set; } = true;
     /// <summary>
     /// Push constant payload for a shadow map draw. Layout must match the
     /// <c>Constants</c> struct in ShadowDepth.hlsl exactly. The per-cascade light

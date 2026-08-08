@@ -262,7 +262,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
             WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
 
-            wgpuQueueSubmit(Queue, 1, &commandBuffer);
+            ulong submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
 
             wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size,
                 new WGPUBufferMapCallbackInfo()
@@ -272,7 +272,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                     userdata1 = null,
                     userdata2 = null,
                 });
-            wgpuDevicePoll(Device, WGPUBool.True, null);
+            wgpuDevicePoll(Device, WGPUBool.True, &submissionIndex);
             wasMapped = true;
 
             void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
@@ -370,7 +370,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &layout.CopySize);
 
             commandBuffer = wgpuCommandEncoderFinish(encoder, null);
-            wgpuQueueSubmit(Queue, 1, &commandBuffer);
+            ulong submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
 
             wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)layout.StagingDataSize,
                 new WGPUBufferMapCallbackInfo()
@@ -380,7 +380,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                     userdata1 = null,
                     userdata2 = null,
             });
-            wgpuDevicePoll(Device, WGPUBool.True, null);
+            wgpuDevicePoll(Device, WGPUBool.True, &submissionIndex);
 
             wasMapped = true;
             void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, (nuint)layout.StagingDataSize);

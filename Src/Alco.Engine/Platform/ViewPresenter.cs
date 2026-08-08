@@ -6,8 +6,8 @@ namespace Alco.Engine;
 /// <summary>
 /// Engine infrastructure that owns the presentation lifecycle of a <see cref="View"/>:
 /// swapchain surface acquisition, present and resize. It holds no render texture and knows
-/// nothing about post-processing — a <see cref="RenderPipeline"/> renders the frame content
-/// into <see cref="FrameBuffer"/>, and overlay systems (ImGui, canvas UI, debug stats) draw
+/// nothing about post-processing — a <see cref="ForwardPipeline"/> renders the frame content
+/// into <see cref="FrameBuffer"/>, and overlay systems (ImGui, debug stats) draw
 /// on top of it afterwards.
 /// <br/>The engine drives the presenter explicitly at the frame boundaries:
 /// <see cref="BeginFrame"/> before any rendering, <see cref="EndFrame"/> after all drawing.
@@ -40,6 +40,13 @@ public sealed class ViewPresenter : AutoDisposable
     /// case the frame's final output is skipped.
     /// </summary>
     public GPUFrameBuffer? FrameBuffer { get; private set; }
+
+    /// <summary>
+    /// The attachment layout of the swapchain frame buffer, for creating GPU resources
+    /// compatible with <see cref="FrameBuffer"/> before the first frame begins. Null when
+    /// the view has no swapchain (headless view).
+    /// </summary>
+    public GPUAttachmentLayout? AttachmentLayout => _swapchain?.FrameBuffer.AttachmentLayout;
 
     /// <summary>
     /// Creates a presenter for the given view.

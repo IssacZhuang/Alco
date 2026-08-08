@@ -34,8 +34,6 @@ public class Game : GameEngine
 
     #endregion
 
-    private readonly ForwardPipeline _mainPipeline;
-
     private GPUCommandBuffer _commandBuffer;
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
@@ -54,7 +52,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
         _vertexBuffer = CreateVertexBuffer();
         _indexBuffer = CreateIndexBuffer();
@@ -82,11 +79,6 @@ public class Game : GameEngine
 
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -101,6 +93,7 @@ public class Game : GameEngine
 
 
         //_iterationBuffer.Value = 16;
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
 
         using (var computePass = _commandBuffer.BeginCompute())
@@ -112,7 +105,7 @@ public class Game : GameEngine
             computePass.DispatchCompute(_image.Width / 8, _image.Height / 8, 1);
         }
 
-        using (var renderPass = _commandBuffer.BeginRender(_mainPipeline.SceneFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_graphicsPipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
@@ -126,11 +119,6 @@ public class Game : GameEngine
         GraphicsDevice.Submit(_commandBuffer);
     }
 
-    protected override void OnEndFrame()
-    {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
-    }
-
     protected override void OnStop()
     {
         _vertexBuffer.Dispose();
@@ -141,7 +129,6 @@ public class Game : GameEngine
         _image.Dispose();
         _renderTarget.Dispose();
         _iterationBuffer.Dispose();
-        _mainPipeline.Dispose();
     }
 
     private GPUBuffer CreateIndexBuffer()
@@ -186,7 +173,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = _mainPipeline.SceneFrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },

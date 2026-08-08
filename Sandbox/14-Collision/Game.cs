@@ -29,7 +29,6 @@ public class Game : GameEngine
     private Vector3 offset;
 
     public ForwardPipeline MainPipeline => _mainPipeline;
-    public GPUFrameBuffer MainFrameBuffer => _mainPipeline.SceneFrameBuffer;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -41,15 +40,7 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        var tonemapStage = new TonemapStage(
-            RenderingSystem,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_ACESTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgXTonemap);
-        MainPipeline.PostProcess.Add(tonemapStage);
+        _mainPipeline.Use(new SceneNode(this));
 
         Bloom bloom = RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
@@ -57,7 +48,18 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        MainPipeline.PostProcess.Add(new BloomStage(bloom));
+        MainPipeline.Use(new RenderNode_Bloom(RenderingSystem, bloom, BuiltInAssets.Shader_Blit));
+
+        var tonemapNode = new RenderNode_Tonemap(
+            RenderingSystem,
+            BuiltInAssets.Shader_Blit,
+            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+            BuiltInAssets.Shader_Uncharted2Tonemap,
+            BuiltInAssets.Shader_FilmicTonemap,
+            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_NeutralTonemap,
+            BuiltInAssets.Shader_AgXTonemap);
+        MainPipeline.Use(tonemapNode);
 
         _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
 
@@ -93,11 +95,6 @@ public class Game : GameEngine
             Stop();
         }
         
-
-        _renderer.Begin(MainFrameBuffer);
-        _entity.OnDraw(_renderer);
-
-        _renderer.End();
 
         Vector2 localMousePosition = MainView.MousePosition;
 
@@ -161,14 +158,9 @@ public class Game : GameEngine
 
 
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
         _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
@@ -183,6 +175,26 @@ public class Game : GameEngine
     {
         _imguiSystem.Dispose();
         _mainPipeline.Dispose();
+    }
+
+    /// <summary>
+    /// Content node drawing the collision scene into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : IForwardRenderNode
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game)
+        {
+            _game = game;
+        }
+
+        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            _game._renderer.Begin(target);
+            _game._entity.OnDraw(_game._renderer);
+            _game._renderer.End();
+        }
     }
 
     private Cube CreateCube(ColorFloat color)

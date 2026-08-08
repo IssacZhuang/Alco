@@ -9,8 +9,8 @@ using Alco.IO;
 
 public class Game : GameEngine
 {
-    private readonly ForwardPipeline _mainPipeline;
     private readonly ImGUISystem _imGUISystem;
+    private readonly GPUCommandBuffer _commandBuffer;
 
     private bool showDemoWindow = true;
     private bool showCustomWindow = true;
@@ -24,14 +24,8 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
-            RenderingSystem,
-            RenderingSystem.PreferredSDRPass,
-            BuiltInAssets.Shader_Blit,
-            MainView.Size.X,
-            MainView.Size.Y);
-
         _imGUISystem = new ImGUISystem(this);
+        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
 
         _texture = AssetSystem.Load<Texture2D>("Textures/Grid.png");
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
@@ -44,16 +38,21 @@ public class Game : GameEngine
         }
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
+        }
+
+        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        {
+            _commandBuffer.Begin();
+            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            {
+            }
+            _commandBuffer.End();
+            GraphicsDevice.Submit(_commandBuffer);
         }
 
         _imGUISystem.BeginFrame(delta);
@@ -64,7 +63,6 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
         _imGUISystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 

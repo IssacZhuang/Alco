@@ -38,7 +38,7 @@ public interface IGBufferRenderable
 }
 
 /// <summary>
-/// Drawing middleware for the deferred PBR G-buffer pass. Holds the G-buffer
+/// A G-buffer render node of the deferred PBR pipeline. Holds the G-buffer
 /// shaders, material factory methods and a registry of <see cref="IGBufferRenderable"/>
 /// objects. Static objects are baked into an internal render bundle; dynamic objects
 /// are drawn immediately each frame. The pipeline calls <see cref="OnRenderGBuffer"/>
@@ -46,8 +46,10 @@ public interface IGBufferRenderable
 /// <br/>The renderer does <b>not</b> own the G-buffer render texture, attachment layout
 /// or render context — those are owned by <see cref="PBRDeferredPipeline"/>.
 /// </summary>
-public sealed unsafe class GBufferRenderer : AutoDisposable, ISceneRenderer
+public sealed unsafe class GBufferRenderer : AutoDisposable, IGBufferRenderNode
 {
+    /// <inheritdoc />
+    public bool IsEnabled { get; set; } = true;
     /// <summary>
     /// Push constant payload for a G-buffer draw. Layout must match the
     /// <c>Constants</c> struct in GBuffer.hlsl exactly.

@@ -14,7 +14,7 @@ public partial class GameEngine
     /// <summary>
     /// Creates a presenter for an additional view. The caller drives it manually
     /// (<see cref="ViewPresenter.BeginFrame"/>/<see cref="ViewPresenter.EndFrame"/>) and pairs
-    /// it with a <see cref="RenderPipeline"/> that resolves into the presenter's frame buffer.
+    /// it with a <see cref="ForwardPipeline"/> that resolves into the presenter's frame buffer.
     /// </summary>
     public ViewPresenter CreateViewPresenter(View view)
     {

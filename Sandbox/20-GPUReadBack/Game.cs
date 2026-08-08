@@ -1,15 +1,10 @@
 using Alco.Engine;
 using Alco.Graphics;
-using Alco.Rendering;
 
 public class Game : GameEngine
 {
-    private readonly ForwardPipeline _mainPipeline;
-
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
-
         uint length = 1024 * 1024 * 50;
 
         float[] data = new float[length];
@@ -37,19 +32,9 @@ public class Game : GameEngine
 
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     override protected void OnUpdate(float delta)
     {
 
-    }
-
-    protected override void OnEndFrame()
-    {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

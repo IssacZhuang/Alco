@@ -10,7 +10,6 @@ using Alco.ImGUI;
 /// </summary>
 public class Game : GameEngine
 {
-    private readonly ForwardPipeline _mainPipeline;
     private readonly ImGUISystem _imguiSystem;
     private readonly Camera2DBuffer _camera;
     private readonly Material _materialParticle;
@@ -61,7 +60,6 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredSDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
         _imguiSystem = new ImGUISystem(this);
 
         // Create camera with larger view for multiple systems
@@ -154,7 +152,7 @@ public class Game : GameEngine
     {
         // Simulate all particle systems
         // Batch render all particles using EnqueueInstances
-        _subRenderContext.Begin(_mainPipeline.SceneFrameBuffer.AttachmentLayout);
+        _subRenderContext.Begin(MainPresenter.AttachmentLayout!);
         
         // Enqueue particles from each system - the InstanceRenderer will batch them automatically
         foreach (var system in _particleSystems)
@@ -170,11 +168,6 @@ public class Game : GameEngine
         _subRenderContext.End();
     }
 
-    protected override void OnBeginFrame()
-    {
-        _mainPipeline.BeginFrame();
-    }
-
     protected override void OnUpdate(float delta)
     {
         _imguiSystem.BeginFrame(delta);
@@ -186,9 +179,11 @@ public class Game : GameEngine
         }
 
         // Render particles
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+
         if (_subRenderContext.HasBuffer)
         {
-            _renderContext.Begin(_mainPipeline.SceneFrameBuffer);
+            _renderContext.Begin(frameBuffer, ColorFloat.Black);
             _renderContext.ExecuteSubContext(_subRenderContext);
             _renderContext.End();
         }
@@ -204,7 +199,6 @@ public class Game : GameEngine
 
     protected override void OnEndFrame()
     {
-        _mainPipeline.RenderFrame(MainPresenter.FrameBuffer);
         _imguiSystem.RenderAndDraw(MainPresenter.FrameBuffer);
     }
 
@@ -314,6 +308,5 @@ public class Game : GameEngine
     {
         _renderContext.Dispose();
         _imguiSystem.Dispose();
-        _mainPipeline.Dispose();
     }
 }
