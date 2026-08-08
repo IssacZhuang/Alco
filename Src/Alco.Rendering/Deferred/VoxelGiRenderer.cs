@@ -419,11 +419,12 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// <summary>
     /// Gets or sets the maximum number of structural bricks rebuilt per clipmap level and frame.
     /// High-priority edit bricks are processed before camera-streaming bricks.
-    /// Lower values smooth out the voxelization burst when the camera crosses a
-    /// brick boundary (all levels get dirty simultaneously); the trade-off is
-    /// that newly-exposed geometry takes more frames to fully voxelize.
+    /// The budget caps the voxelization work of any single frame when the
+    /// camera crosses a brick boundary (all levels get dirty simultaneously);
+    /// the trade-off of lower values is that newly-exposed geometry takes more
+    /// frames to fully voxelize.
     /// </summary>
-    public int StaticBrickBudgetPerLevel { get; set; } = 128;
+    public int StaticBrickBudgetPerLevel { get; set; } = 32;
 
     /// <summary>
     /// Gets or sets how many nearest clipmap levels receive per-frame movable geometry.
@@ -1059,11 +1060,14 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         int dynamicBricksUpdated = 0;
         int droppedBricks = 0;
 
-        // Rate-limited volume update: the clipmap origins, structural
-        // voxelization, movable-geometry rebuild, injection, mip-chain rebuild
-        // and propagation only advance VolumeRefreshRate times per second, so
-        // the radiance volume content and the cbuffer origins used to sample
-        // it always stay in lockstep. On skipped frames everything the trace
+        // Rate-limited volume update: the clipmap origins, movable-geometry
+        // rebuild, injection, mip-chain rebuild and propagation only advance
+        // VolumeRefreshRate times per second, so the radiance volume content
+        // and the cbuffer origins used to sample it always stay in lockstep.
+        // Structural voxelization is exempt: it runs every frame at a small
+        // budget (see RunStaticVoxelize) and only fills attribute pages inside
+        // the current window, which stays consistent because the origins only
+        // advance on update frames. On skipped frames everything the trace
         // stage reads is frozen and mutually consistent — advancing the
         // origins every frame while the content lagged shifted the whole
         // indirect field by whole bricks between refreshes (visible as
@@ -1178,6 +1182,15 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         {
             bool inPassTimestamps = _gpuTimestamps?.SupportsInPassTimestamps ?? false;
             int radianceReadIndex;
+
+            // Structural voxelization is decoupled from the volume refresh
+            // rate and runs every frame: draining the dirty-brick backlog at a
+            // small per-frame budget spreads the cost of camera-scroll
+            // invalidation across frames instead of bursting it all into the
+            // update frame. Its output (attribute pages) is only consumed by
+            // the inject stage on update frames, so this preserves the
+            // origin/content lockstep documented above.
+            RunStaticVoxelize(computePass, ref staticBricksUpdated, ref droppedBricks);
             if (!updateVolume)
             {
                 // Bracket the skipped stages with back-to-back timestamps so
@@ -1196,7 +1209,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             }
             else
             {
-                RunStaticVoxelize(computePass, ref staticBricksUpdated, ref droppedBricks);
                 radianceReadIndex = RunVolumeUpdate(
                     computePass, measureGpu, inPassTimestamps,
                     ref dynamicBricksUpdated, ref droppedBricks);
@@ -1353,11 +1365,12 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
 
     /// <summary>
     /// Structural voxelization, driven by high-priority edit bricks and
-    /// lower-priority camera-streaming bricks. Runs only on volume-update
-    /// frames: its output is consumed solely by the inject/propagate stages,
-    /// so per-frame execution between refreshes is wasted work. The clipmap
-    /// buffer is toroidal, so retained bricks survive camera movement without
-    /// being copied.
+    /// lower-priority camera-streaming bricks. Runs every frame with a small
+    /// per-level budget so camera-scroll invalidation is amortized across
+    /// frames instead of bursting inside the rate-limited volume update; its
+    /// output (attribute pages) is consumed solely by the inject stage on the
+    /// next volume-update frame. The clipmap buffer is toroidal, so retained
+    /// bricks survive camera movement without being copied.
     /// </summary>
     private void RunStaticVoxelize(
         GPUCommandBuffer.ComputePass computePass,
