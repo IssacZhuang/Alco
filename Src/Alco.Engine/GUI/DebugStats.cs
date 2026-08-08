@@ -1,7 +1,5 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Alco.Graphics;
-using Alco.Rendering;
 
 namespace Alco.Engine;
 
@@ -15,7 +13,6 @@ public static partial class DebugStats
     private static int _stringBufferLength = 0;
 
     private static bool _isSameLine = false;
-    private static bool _isBegin = false;
     private static Vector2 _currentPosition = Vector2.Zero;
     private static Vector2 _nextOffset = Vector2.Zero;
 
@@ -53,42 +50,19 @@ public static partial class DebugStats
         _nextOffset = new Vector2(offset.X, math.max(_nextOffset.Y, offset.Y));
     }
 
-    private static void ResetPosition()
-    {
-        _currentPosition = new Vector2(_style.Margin.X, _style.Margin.Z + _style.FontSize * 0.5f);
-        _nextOffset = Vector2.Zero;
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void ResetSameLine()
     {
         _isSameLine = false;
     }
 
-    private static void CheckBegin()
-    {
-        if (!_isBegin && _renderer != null)
-        {
-            _renderer.Begin();
-            _isBegin = true;
-        }
-    }
-
     /// <summary>
-    /// Ends the stats frame if anything was drawn since the last submit, flushing the
-    /// overlay to the renderer's current target. Returns whether a frame was submitted.
+    /// Resets the layout cursor to the top-left corner. The system calls this at
+    /// the start of each frame before any draw calls.
     /// </summary>
-    public static bool CheckAndSubmit()
+    public static void ResetPosition()
     {
-        ResetPosition();
-
-        if (_isBegin)
-        {
-            _renderer!.End();
-            _isBegin = false;
-            return true;
-        }
-
-        return false;
+        _currentPosition = new Vector2(_style.Margin.X, _style.Margin.Z + _style.FontSize * 0.5f);
+        _nextOffset = Vector2.Zero;
     }
 }

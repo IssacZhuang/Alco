@@ -1,12 +1,13 @@
 using System.Numerics;
+using Alco.Graphics;
 
 namespace Alco.Engine;
 
 /// <summary>
 /// Engine system that owns the <see cref="DebugStatsRenderer"/> and drives the
 /// debug-stats overlay lifecycle automatically. Producers call <see cref="DebugStats.Text"/>
-/// etc. from anywhere during the frame; this system handles begin (lazy), target
-/// assignment, and end-of-frame submission without any manual calls from game code.
+/// etc. from anywhere during the frame; this system handles begin and end-of-frame
+/// submission without any manual calls from game code.
 /// </summary>
 public class DebugStatsSystem : BaseEngineSystem
 {
@@ -57,10 +58,19 @@ public class DebugStatsSystem : BaseEngineSystem
         engine.MainPresenter.OnResize += _resizeHandler;
     }
 
+    public override void OnUpdate(float deltaTime)
+    {
+        GPUFrameBuffer? target = _engine.MainPresenter.FrameBuffer;
+        if (target != null)
+        {
+            _renderer.Begin(target);
+        }
+        DebugStats.ResetPosition();
+    }
+
     public override void OnEndFrame(float deltaTime)
     {
-        _renderer.Target = _engine.MainPresenter.FrameBuffer;
-        DebugStats.CheckAndSubmit();
+        _renderer.End();
     }
 
     public override void Dispose()

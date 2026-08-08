@@ -25,12 +25,6 @@ public class DebugStatsRenderer : IDisposable
 
     private bool _isBegun;
 
-    /// <summary>
-    /// The frame buffer the stats overlay draws into (typically the swapchain).
-    /// Set every frame before drawing; when null all drawing is skipped.
-    /// </summary>
-    public GPUFrameBuffer? Target { get; set; }
-
     public Vector2 MousePosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -85,14 +79,10 @@ public class DebugStatsRenderer : IDisposable
         _camera.UpdateMatrixToGPU();
     }
 
-    public void Begin()
+    public void Begin(GPUFrameBuffer target)
     {
-        //transparent background; skipped entirely while no target is set
-        _isBegun = Target != null;
-        if (_isBegun)
-        {
-            _rendererContent.Begin(Target!);
-        }
+        _isBegun = true;
+        _rendererContent.Begin(target);
     }
 
     public void End()
