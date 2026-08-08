@@ -2,7 +2,7 @@ using System.Numerics;
 using Alco.Graphics;
 using Alco.Rendering;
 
-namespace Alco.GUI;
+namespace Alco.Engine;
 
 #pragma warning disable CS8618
 

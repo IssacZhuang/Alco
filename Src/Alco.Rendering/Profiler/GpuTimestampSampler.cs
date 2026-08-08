@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Alco;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
@@ -17,7 +18,7 @@ namespace Alco.Rendering;
 /// null if none are available or this isn't a sample frame).
 /// </para>
 /// </summary>
-public sealed class GpuTimestampSampler : IDisposable
+public sealed class GpuTimestampSampler : AutoDisposable
 {
     private readonly GPUDevice _device;
     private readonly GPUTimestampQuerySet _querySet;
@@ -128,9 +129,12 @@ public sealed class GpuTimestampSampler : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        _querySet.Dispose();
-        _resolveBuffer.Dispose();
+        if (disposing)
+        {
+            _querySet.Dispose();
+            _resolveBuffer.Dispose();
+        }
     }
 }

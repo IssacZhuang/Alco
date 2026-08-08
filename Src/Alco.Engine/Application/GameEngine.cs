@@ -41,6 +41,9 @@ IDisposable
     private readonly View _mainView;
     private readonly ViewPresenter _mainPresenter;
 
+    // Debug stats overlay renderer, auto-initialized by the engine.
+    private readonly DebugStatsRenderer _debugStatsRenderer;
+
     #endregion
 
 
@@ -266,6 +269,34 @@ IDisposable
         _mainPresenter = new ViewPresenter(_mainView);
         _mainPresenter.OnResize += OnMainViewResize;
 
+        // Auto-initialize debug stats overlay.
+        _debugStatsRenderer = new DebugStatsRenderer(
+            _input, _mainView, _mainView.Size.X, _mainView.Size.Y,
+            _renderingSystem,
+            _builtInAssets.Shader_Text, _builtInAssets.Shader_Sprite);
+        DebugStatsStyle debugStatsStyle = new DebugStatsStyle
+        {
+            Font = _builtInAssets.Font_Default,
+            FontSize = 16,
+            SliderWidth = 140,
+            SliderThumbWidth = 16,
+            SliderColor = 0x2a2a2a,
+            SliderThumbColor = 0x373737,
+            SliderThumbHoverColor = 0x525252,
+            SliderThumbDragColor = 0x234A6C,
+            TextColor = 0xf1f1f1,
+            ButtonColor = 0x2a2a2a,
+            ButtonHoverColor = 0x3a3a3a,
+            ButtonPressedColor = 0x234A6C,
+            CheckBoxColor = 0x2a2a2a,
+            CheckBoxHoverColor = 0x3a3a3a,
+            CheckBoxCheckColor = 0x007ACC,
+            Margin = new Vector4(2, 2, 2, 2),
+            Padding = new Vector2(10, 4)
+        };
+        DebugStats.Initialize(_debugStatsRenderer, debugStatsStyle);
+        _mainPresenter.OnResize += size => _debugStatsRenderer.SetResolution(size.X, size.Y);
+
         _preferenceSerializerOption = new JsonSerializerOptions
         {
             WriteIndented = true
@@ -418,6 +449,9 @@ IDisposable
         // Acquire the swapchain surface for this frame
         _mainPresenter.BeginFrame();
 
+        // Point the debug stats overlay at the current frame buffer.
+        _debugStatsRenderer.Target = _mainPresenter.FrameBuffer;
+
         try
         {
             OnBeginFrame();
@@ -512,6 +546,7 @@ IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
+        _debugStatsRenderer.Dispose();
         _mainPresenter.OnResize -= OnMainViewResize;
         _mainPresenter.Dispose();
         MainView.Close();

@@ -1166,6 +1166,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         if (disposing)
         {
+            for (int i = 0; i < _plugins.Count; i++)
+            {
+                _plugins[i].Dispose();
+            }
+            _plugins.Clear();
+
             for (int i = 0; i < _passNodes.Count; i++)
             {
                 // Chain nodes are owned (and disposed) by the chain; only dispose

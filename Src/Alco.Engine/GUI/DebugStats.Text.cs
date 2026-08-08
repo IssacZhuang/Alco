@@ -1,10 +1,9 @@
-using System.Net.Http.Headers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 using Alco.Rendering;
 
-namespace Alco.GUI;
+namespace Alco.Engine;
 
 public static partial class DebugStats
 {
@@ -19,7 +18,7 @@ public static partial class DebugStats
         arg1.TryFormat(_stringBuffer, out _stringBufferLength, textFormat, null);
 
         Text(_stringBuffer.AsSpan(0, _stringBufferLength));
-        
+
     }
 
     /// <summary>
@@ -72,7 +71,7 @@ public static partial class DebugStats
         Vector2 drawPos = ProcessPosition();
         drawPos.Y = -drawPos.Y;
 
-        float normalizedTextLength = _renderer.DrawText(str, drawPos, _style.Font, _style.FontSize, color, Pivot.LeftCenter);
+        float normalizedTextLength = _renderer!.DrawText(str, drawPos, _style.Font, _style.FontSize, color, Pivot.LeftCenter);
 
         float fontSize = _style.FontSize;
         SetNextOffset(new Vector2(normalizedTextLength * fontSize, fontSize + _style.Margin.W));
