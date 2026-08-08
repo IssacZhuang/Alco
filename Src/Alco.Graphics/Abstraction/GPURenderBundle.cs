@@ -104,22 +104,22 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
         DrawIndexedIndirectCore(indirectBuffer, offset);
     }
 
-    public void PushGraphicsConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    public void PushGraphicsConstants(uint bufferOffset, byte* data, uint size)
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while PushGraphicsConstants, try start recording by calling GPUCommandBuffer.Begin(GPUAttachmentLayout)");
-        PushGraphicsConstantsCore(stage, bufferOffset, data, size);
+        PushGraphicsConstantsCore(bufferOffset, data, size);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void PushGraphicsConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+    public unsafe void PushGraphicsConstants<T>(uint bufferOffset, T data) where T : unmanaged
     {
-        PushGraphicsConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
+        PushGraphicsConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void PushGraphicsConstants<T>(ShaderStage stage, T data) where T : unmanaged
+    public unsafe void PushGraphicsConstants<T>(T data) where T : unmanaged
     {
-        PushGraphicsConstants(stage, 0, data);
+        PushGraphicsConstants(0, data);
     }
 
 
@@ -149,5 +149,5 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
     protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup);
-    protected abstract void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
+    protected abstract void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size);
 }

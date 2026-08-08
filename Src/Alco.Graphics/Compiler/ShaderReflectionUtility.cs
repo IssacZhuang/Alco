@@ -103,28 +103,17 @@ public static class ShaderReflectionUtility
             }
         }
 
-        IReadOnlyList<PushConstantsRange> maxRangesList;
-        IReadOnlyList<PushConstantsRange> minRangesList;
-        if (vertex.PushConstantsRanges.Count >= fragment.PushConstantsRanges.Count)
-        {
-            maxRangesList = vertex.PushConstantsRanges;
-            minRangesList = fragment.PushConstantsRanges;
-        }
-        else
-        {
-            maxRangesList = fragment.PushConstantsRanges;
-            minRangesList = vertex.PushConstantsRanges;
-        }
+        // Each stage reflects its own push constant blocks; keep the larger of the two
+        // stage lists (ShaderReflectionInfo aggregates the total size from the ranges).
+        IReadOnlyList<PushConstantsRange> maxRangesList =
+            vertex.PushConstantsRanges.Count >= fragment.PushConstantsRanges.Count
+                ? vertex.PushConstantsRanges
+                : fragment.PushConstantsRanges;
 
         PushConstantsRange[] ranges = new PushConstantsRange[maxRangesList.Count];
         for (int i = 0; i < maxRangesList.Count; i++)
         {
             ranges[i] = maxRangesList[i];
-        }
-
-        for (int i = 0; i < minRangesList.Count; i++)
-        {
-            ranges[i].Stage |= minRangesList[i].Stage;
         }
 
         KeyValuePair<uint, BindGroupLayout>[] bindGroupsArray = bindGroups.ToArray();

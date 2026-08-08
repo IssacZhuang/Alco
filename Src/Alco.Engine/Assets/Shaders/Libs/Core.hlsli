@@ -1,3 +1,6 @@
+#ifndef CORE_HLSLI
+#define CORE_HLSLI
+
 #define PI 3.141592
 #define TAU 6.283185
 #define EULER 2.718281
@@ -65,3 +68,5 @@ float OutputDither8Bit(float2 pixelPos)
 // Hardware depth comparison sampling (comparison sampler paired by DEFINE_TEX2D_DEPTH_SAMPLE):
 // returns 1.0 when compareDepth <= texel depth (lit), 0.0 otherwise, filtered by the sampler.
 #define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
+
+#endif // CORE_HLSLI

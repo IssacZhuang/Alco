@@ -19,7 +19,7 @@ internal static class SpirvReflector
         return new ShaderReflectionInfo(
             [GetVertexInputLayout(module)],
             GetBindGroupLayouts(module, effectiveStage),
-            GetPushConstants(module, stage),
+            GetPushConstants(module),
             GetThreadGroupSize(module));
     }
 
@@ -353,7 +353,7 @@ internal static class SpirvReflector
 
     // ─── Push Constants ─────────────────────────────────────────────
 
-    private static PushConstantsRange[] GetPushConstants(SpirvModule module, ShaderStage stage)
+    private static PushConstantsRange[] GetPushConstants(SpirvModule module)
     {
         List<PushConstantsRange> ranges = new();
 
@@ -374,7 +374,7 @@ internal static class SpirvReflector
             uint structTypeId = pointerType[3];
             uint size = ComputeStructSize(module, structTypeId);
 
-            ranges.Add(new PushConstantsRange(stage, 0, size));
+            ranges.Add(new PushConstantsRange(0, size));
         }
 
         return ranges.ToArray();

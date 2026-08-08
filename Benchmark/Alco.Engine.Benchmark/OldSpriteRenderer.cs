@@ -166,7 +166,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
         };
 
         _renderPass.SetResources(_shaderId_texture, texture.EntrySample);
-        _renderPass.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _renderPass.PushConstants(constant);
         _renderPass.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 

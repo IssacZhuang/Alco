@@ -20,11 +20,6 @@ public struct GraphicsPipelineContext
     public uint Version;
 
     /// <summary>
-    /// The stages that consume push constants, or <see cref="ShaderStage.None"/> when the pipeline is not set.
-    /// </summary>
-    public readonly ShaderStage PushConstantsStages => ReflectionInfo?.PushConstantsStages ?? ShaderStage.None;
-
-    /// <summary>
     /// The size in bytes of the push constants block, or 0 when the pipeline is not set.
     /// </summary>
     public readonly int PushConstantsSize => ReflectionInfo?.PushConstantsSize ?? 0;

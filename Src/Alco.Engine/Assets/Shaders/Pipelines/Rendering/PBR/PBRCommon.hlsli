@@ -1,3 +1,7 @@
+#ifndef PBR_COMMON_HLSLI
+#define PBR_COMMON_HLSLI
+
+#include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Libs/Atmosphere.hlsli"
 
 // Shared PBR functions used by both DeferredLighting.hlsl and ForwardGlass.hlsl.
@@ -6,6 +10,38 @@
 // (DEFINE_STORAGE(1, PointLightData, _pointLights)), and the _shadowMap depth
 // texture (DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap)) BEFORE including this file,
 // so the globals referenced below are visible.
+
+DEFINE_UNIFORM(0, _data)
+{
+    float4x4 invViewProjection;
+    float4x4 sunViewProjection[4];
+    float4 cameraPosition;
+    float4 sunDirection;         // normalized direction the sun light travels
+    float4 sunColorAndIntensity; // rgb + intensity
+    // Atmosphere parameters, see Shaders/Libs/Atmosphere.hlsli.
+    float4 skyParams;            // x=rayleighScale y=mieScale z=miePhaseG w=exposure
+    float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=ambientFloor
+    float4 skyHorizonColor;      // azimuthally filtered physical sky at the horizon
+    float4 skyZenithColor;       // filtered physical sky at the zenith
+    float4 pbrParams;            // x=shadowEnabled y=numPointLights z=shadowMapSize w=sunDiscEnabled
+    float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
+    float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
+    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
+    float4 viewportSize;         // xy = render target size in pixels
+    float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
+    float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
+};
+
+// Point light storage buffer element.
+struct PointLightData
+{
+    float4 positionRange;    // xyz = world-space position, w = cutoff radius
+    float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
+};
+
+DEFINE_STORAGE(1, PointLightData, _pointLights);
+
+DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap);
 
 float DistributionGGX(float NdotH, float roughness)
 {
@@ -234,3 +270,5 @@ float3 EvaluatePointLights(float3 N, float3 V, float3 worldPosition,
     }
     return Lo;
 }
+
+#endif // PBR_COMMON_HLSLI

@@ -88,10 +88,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+        public unsafe void PushConstants(uint bufferOffset, byte* data, uint size)
         {
             AssetUtility.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while PushConstants, try start recording by calling GPUCommandBuffer.BeginRender()");
-            _commandBuffer.PushGraphicsConstantsCore(stage, bufferOffset, data, size);
+            _commandBuffer.PushGraphicsConstantsCore(bufferOffset, data, size);
         }
 
         // polymorphism overloads
@@ -108,15 +108,15 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+        public unsafe void PushConstants<T>(uint bufferOffset, T data) where T : unmanaged
         {
-            PushConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
+            PushConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
+        public unsafe void PushConstants<T>(T data) where T : unmanaged
         {
-            PushConstants(stage, 0, data);
+            PushConstants(0, data);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -526,7 +526,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup);
     protected abstract void DispatchComputeCore(uint x, uint y, uint z);
     protected abstract void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset);
-    protected abstract unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size);
     protected abstract unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size);
 
     protected abstract void ExecuteBundleCore(GPURenderBundle bundle);

@@ -204,7 +204,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _renderScope.SetPipeline(pipelineContext.Pipeline!);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        PushConstantSafe(pipelineContext.PushConstantsStages, constant, pipelineContext.PushConstantsSize);
+        PushConstantSafe(constant, pipelineContext.PushConstantsSize);
         _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 
@@ -270,7 +270,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         _renderScope.SetPipeline(pipelineContext.Pipeline!);
         SetMesh(mesh, subMeshIndex);
         material.PushResources(_renderScope);
-        PushConstantSafe(pipelineContext.PushConstantsStages, constant, pipelineContext.PushConstantsSize);
+        PushConstantSafe(constant, pipelineContext.PushConstantsSize);
         _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
     }
 
@@ -363,7 +363,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe void PushConstantSafe<T>(ShaderStage stage, in T data, int pushConstantSize) where T : unmanaged
+    private unsafe void PushConstantSafe<T>(in T data, int pushConstantSize) where T : unmanaged
     {
         if (pushConstantSize != sizeof(T))
         {
@@ -372,7 +372,7 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
 
         fixed (T* ptr = &data)
         {
-            _renderScope.PushConstants(stage, 0, (byte*)ptr, (uint)pushConstantSize);
+            _renderScope.PushConstants(0, (byte*)ptr, (uint)pushConstantSize);
         }
     }
 

@@ -6,7 +6,8 @@
 // an ambient term (sky/probe baseline modulated by voxel visibility plus
 // traced bounce light) and a physically-based procedural sky (single
 // scattering atmosphere plus sun disc and stars) for empty pixels.
-// Shared PBR functions are in PBRCommon.hlsl (included after declarations).
+// Shared PBR functions, cbuffer, point-light buffer and shadow map are in
+// PBRCommon.hlsli (included after the pass-specific declarations below).
 
 struct Vertex
 {
@@ -20,45 +21,12 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-// Bind groups: set 0 is the per-frame lighting constants; set 1 packs every
-// per-pass input of the lighting pass (G-buffer, shadow map, GI atlas) at
-// distinct bindings, so the pass needs two of the eight available sets.
-DEFINE_UNIFORM(0, _data)
-{
-    float4x4 invViewProjection;
-    float4x4 sunViewProjection[4];
-    float4 cameraPosition;
-    float4 sunDirection;         // normalized direction the sun light travels
-    float4 sunColorAndIntensity; // rgb + intensity
-    // Atmosphere parameters, see Shaders/Libs/Atmosphere.hlsli.
-    float4 skyParams;            // x=rayleighScale y=mieScale z=miePhaseG w=exposure
-    float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=ambientFloor
-    float4 skyHorizonColor;      // azimuthally filtered physical sky at the horizon
-    float4 skyZenithColor;       // filtered physical sky at the zenith
-    float4 pbrParams;            // x=shadowEnabled y=numPointLights z=shadowMapSize w=sunDiscEnabled
-    float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
-    float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
-    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
-    float4 viewportSize;         // xy = render target size in pixels
-    float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
-    float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
-};
-
+// Pass-specific G-buffer textures (set 1). The shared _data cbuffer,
+// _pointLights buffer and _shadowMap texture live in PBRCommon.hlsli.
 DEFINE_TEX2D_SAMPLE(1, _albedo);
-
-// Point light storage buffer element (defined here before DEFINE_STORAGE).
-struct PointLightData
-{
-    float4 positionRange;    // xyz = world-space position, w = cutoff radius
-    float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
-};
-
-DEFINE_STORAGE(1, PointLightData, _pointLights);
-
 DEFINE_TEX2D_SAMPLE(1, _normal);
 DEFINE_TEX2D_SAMPLE(1, _mrAO);
 DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
-DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap);
 DEFINE_TEX2D_SAMPLE(1, _emissive);
 // Indirect GI textures from the GI render plugin (full-resolution):
 // diffuse irradiance with ALD directional modulation pre-applied, and
@@ -70,9 +38,7 @@ DEFINE_TEX2D_SAMPLE(1, _giSpecular);
 // white = unoccluded). The pipeline binds white when no AO plugin is active.
 DEFINE_TEX2D_SAMPLE(1, _aoTexture);
 
-// Shared PBR functions (BRDF, shadow sampling, sky, environment). Must come
-// after all DEFINE_* declarations so the globals are visible to the functions.
-#include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsl"
+#include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli"
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -104,7 +70,7 @@ float ReconstructLinearDepth(V2F input)
 
 // Shared PBR functions (DistributionGGX, EvaluatePBR, shadow sampling, sky,
 // EnvBRDFApprox, EvaluateDiffuseSky, GeometricSpecularAA, EvaluatePointLights)
-// are provided by PBRCommon.hlsl included above.
+// are provided by PBRCommon.hlsli included above.
 
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
@@ -171,7 +137,7 @@ float4 MainPS(V2F input) : SV_TARGET
         return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
 
-    // Point lights (shared loop from PBRCommon.hlsl).
+    // Point lights (shared loop from PBRCommon.hlsli).
     Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
 
     // Build the diffuse environment baseline independently of voxel GI. This is

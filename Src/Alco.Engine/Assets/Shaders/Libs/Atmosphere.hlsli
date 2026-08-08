@@ -1,6 +1,11 @@
+#ifndef ATMOSPHERE_HLSLI
+#define ATMOSPHERE_HLSLI
+
+#include "Shaders/Libs/Core.hlsli"
+
 // Physically-based procedural sky: single-scattering atmosphere (Rayleigh +
 // Mie) over a spherical earth, plus a hash-based procedural star field for the
-// night. Include after Shaders/Libs/Core.hlsli (uses PI).
+// night. Uses PI from Core.hlsli (included above).
 //
 // The model follows the classic GPU Gems 2 / Hillaire formulation: density
 // falls off exponentially with height (separate scale heights for Rayleigh
@@ -179,3 +184,5 @@ float3 AtmosphereStars(float3 rayDir, float3 dirToSun, float intensity)
     float3 tint = lerp(float3(0.65, 0.8, 1.0), float3(1.0, 0.85, 0.65), AtmosphereHash13(cell + 3.77));
     return tint * brightness * intensity * night * extinction * 2.0;
 }
+
+#endif // ATMOSPHERE_HLSLI

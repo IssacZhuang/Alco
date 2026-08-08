@@ -1,19 +1,28 @@
 namespace Alco.Graphics;
 
+/// <summary>
+/// A byte range of the push constants (immediates) block used by a shader.
+/// </summary>
 public struct PushConstantsRange
 {
-    public PushConstantsRange(ShaderStage stage, uint start, uint end)
+    public PushConstantsRange(uint start, uint end)
     {
-        Stage = stage;
         Start = start;
         End = end;
     }
-    public ShaderStage Stage;
+
+    /// <summary>
+    /// The start offset of the range in bytes.
+    /// </summary>
     public uint Start { get; init; }
+
+    /// <summary>
+    /// The end offset of the range in bytes.
+    /// </summary>
     public uint End { get; init; }
 
     public override string ToString()
     {
-        return $"Stage: {Stage}, Start: {Start}, End: {End}";
+        return $"Start: {Start}, End: {End}";
     }
 }

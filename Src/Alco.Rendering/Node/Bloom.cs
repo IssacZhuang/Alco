@@ -223,7 +223,7 @@ public class Bloom : TextureProcessor
                 Spread = Spread,
                 Intensity = Intensity
             };
-            renderPass.PushConstants(ShaderStage.Fragment, clampShaderData);
+            renderPass.PushConstants(clampShaderData);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
@@ -247,7 +247,7 @@ public class Bloom : TextureProcessor
                     InvTextureSize = invFrameSize,
                     Spread = Spread
                 };
-                renderPass.PushConstants(ShaderStage.Fragment, downSampleConstants);
+                renderPass.PushConstants(downSampleConstants);
                 renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
         }
@@ -273,7 +273,7 @@ public class Bloom : TextureProcessor
                 InvTextureSize = new Vector2(1f) / new Vector2(_upSampleTextures[0].Width, _upSampleTextures[0].Height),
                 Spread = Spread
             };
-            renderPass.PushConstants(ShaderStage.Fragment, upSampleConstants);
+            renderPass.PushConstants(upSampleConstants);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
@@ -293,7 +293,7 @@ public class Bloom : TextureProcessor
                     InvTextureSize = new Vector2(1f) / new Vector2(_upSampleTextures[i].Width, _upSampleTextures[i].Height),
                     Spread = Spread
                 };
-                renderPass.PushConstants(ShaderStage.Fragment, upSampleConstants);
+                renderPass.PushConstants(upSampleConstants);
                 renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
         }
@@ -315,7 +315,7 @@ public class Bloom : TextureProcessor
             {
                 Gamma = Gamma
             };
-            renderPass.PushConstants(ShaderStage.Fragment, blitConstants);
+            renderPass.PushConstants(blitConstants);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 

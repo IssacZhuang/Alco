@@ -125,15 +125,15 @@ public class Game : GameEngine
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
 
             renderPass.SetResources(1, _texGreen.EntrySample);
-            renderPass.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderPass.PushConstants(_transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
             renderPass.SetResources(1, _texRed.EntrySample);
-            renderPass.PushConstants(ShaderStage.Vertex, _transform2.Matrix);
+            renderPass.PushConstants(_transform2.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
             renderPass.SetResources(1, _texBlue.EntrySample);
-            renderPass.PushConstants(ShaderStage.Vertex, _transform3.Matrix);
+            renderPass.PushConstants(_transform3.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();

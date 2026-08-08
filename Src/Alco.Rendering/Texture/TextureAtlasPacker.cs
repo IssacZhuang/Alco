@@ -116,7 +116,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
         //     constant.Model = transform.Matrix;
 
         //     _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
-        //     _commandBuffer.PushGraphicsConstants(pipelineContext.PushConstantsStages, constant);
+        //     _commandBuffer.PushGraphicsConstants(constant);
         //     _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
         // }
 
@@ -136,7 +136,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
                 constant.Model = transform.Matrix;
 
                 renderPass.SetResources(shaderId_texture, item.Data.Texture.EntrySample);
-                renderPass.PushConstants(pipelineContext.PushConstantsStages, constant);
+                renderPass.PushConstants(constant);
                 renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
             }
 

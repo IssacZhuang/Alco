@@ -372,10 +372,8 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
 
 
-    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
-        // wgpu v29 immediates form a single block shared by all stages; the stage parameter
-        // is abstraction-level metadata and is not needed by the native call.
         wgpuRenderPassEncoderSetImmediates(_renderPass, bufferOffset, data, size);
     }
 

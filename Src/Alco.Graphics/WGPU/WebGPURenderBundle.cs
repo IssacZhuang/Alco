@@ -152,12 +152,10 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         wgpuRenderBundleEncoderDrawIndexedIndirect(_renderBundleEncoder, nativeBuffer.Native, offset);
     }
 
-    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         ValidateGraphicsPipeline();
 
-        // wgpu v29 immediates form a single block shared by all stages; the stage parameter
-        // is abstraction-level metadata and is not needed by the native call.
         wgpuRenderBundleEncoderSetImmediates(_renderBundleEncoder, bufferOffset, data, size);
     }
 

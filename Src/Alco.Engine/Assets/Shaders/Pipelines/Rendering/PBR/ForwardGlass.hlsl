@@ -3,7 +3,7 @@
 // Forward-lit glass shader for the PBR deferred pipeline's transparency pass.
 // Renders semi-transparent glass objects after deferred lighting, blending onto
 // the lit HDR scene. Uses the same PBR functions as DeferredLighting (via
-// PBRCommon.hlsl) but evaluates them per-fragment in forward, with:
+// PBRCommon.hlsli) but evaluates them per-fragment in forward, with:
 // - Tangent-space normal mapping (same vertex layout as GBuffer.hlsl).
 // - Hardware depth testing (DepthStencilState.Read) against the opaque scene —
 //   the pipeline pre-fills the forward RT's depth from the G-buffer via a copy pass.
@@ -41,43 +41,13 @@ DEFINE_UNIFORM(0, _camera)
     float4x4 viewProjection;
 };
 
-DEFINE_UNIFORM(0, _data)
-{
-    float4x4 invViewProjection;
-    float4x4 sunViewProjection[4];
-    float4 cameraPosition;
-    float4 sunDirection;
-    float4 sunColorAndIntensity;
-    float4 skyParams;
-    float4 skyParams2;
-    float4 skyHorizonColor;
-    float4 skyZenithColor;
-    float4 pbrParams;
-    float4 cascadeSplits;
-    float4 cascadeTexelSizes;
-    float4 params2;
-    float4 viewportSize;
-    float4 params3;
-    float4 params4;
-};
-
+// Pass-specific textures (set 1). The shared _data cbuffer, _pointLights
+// buffer and _shadowMap texture live in PBRCommon.hlsli.
 DEFINE_TEX2D_SAMPLE(1, _albedoTexture);
 DEFINE_TEX2D_SAMPLE(1, _normalTexture);
 DEFINE_TEX2D_SAMPLE(1, _mrTexture);
-DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap);
 
-// Point light storage buffer element.
-struct PointLightData
-{
-    float4 positionRange;
-    float4 colorIntensity;
-};
-
-DEFINE_STORAGE(1, PointLightData, _pointLights);
-
-// Shared PBR functions (BRDF, shadow sampling, sky, environment). Must come
-// after all DEFINE_* declarations so the globals are visible to the functions.
-#include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsl"
+#include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli"
 
 PUSH_CONSTANT Constants constants;
 
@@ -147,7 +117,7 @@ float4 MainPS(V2F input) : SV_TARGET
             * sunShadow;
     }
 
-    // Point lights (shared loop from PBRCommon.hlsl).
+    // Point lights (shared loop from PBRCommon.hlsli).
     Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
 
     // Ambient / environment lighting.
