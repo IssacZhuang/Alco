@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// A throttled GPU timestamp sampler that records timestamps, resolves, and
-/// readbacks only once per configurable interval (default 0.5s). Between samples,
+/// readbacks only once per configurable interval (default 1s). Between samples,
 /// zero GPU timestamp work is performed — no command-buffer overhead, no CPU
 /// readback stalls. The readback always reads data from the previous sample
 /// (≥ interval seconds ago), so the GPU work is guaranteed complete.
@@ -62,7 +62,7 @@ public sealed class GpuTimestampSampler : AutoDisposable
     /// <param name="device">The GPU device (must support timestamp queries).</param>
     /// <param name="slotCount">The number of timestamp query slots.</param>
     /// <param name="name">A diagnostic name used for GPU resource labels.</param>
-    /// <param name="intervalSeconds">The minimum time between samples (default 0.5s).</param>
+    /// <param name="intervalSeconds">The minimum time between samples (default 1s).</param>
     public GpuTimestampSampler(GPUDevice device, int slotCount, string name, double intervalSeconds = 1.0)
     {
         _device = device;

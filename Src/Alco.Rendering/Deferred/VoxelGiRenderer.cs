@@ -34,7 +34,7 @@ public readonly struct VoxelGiStatistics
     public long RadianceMemoryBytes { get; }
     /// <summary>Gets CPU time spent preparing, encoding and submitting the GI work.</summary>
     public double CpuRecordMilliseconds { get; }
-    /// <summary>Gets the last sampled GPU duration, or NaN when unavailable.</summary>
+    /// <summary>Gets the averaged GPU duration of volume-update frames, or NaN before the first sample.</summary>
     public double GpuMilliseconds { get; }
     /// <summary>
     /// Gets the total number of resident bricks dispatched this frame across all
@@ -323,7 +323,14 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// </summary>
     private const int TimestampSlotCount = 10;
 
-    /// <summary>Per-stage GPU durations in milliseconds, indexed by stage enum.</summary>
+    /// <summary>
+    /// Per-stage GPU durations in milliseconds, indexed by stage enum. These are
+    /// exponential moving averages over sampled volume-update frames only: on
+    /// skipped frames the update stages are bracketed by back-to-back
+    /// timestamps (~0 ms), so folding those in would alias the counters between
+    /// ~0 and the true cost at the beat of the ~1 Hz sampler against the
+    /// volume refresh rate.
+    /// </summary>
     private readonly double[] _stageGpuMilliseconds = new double[GiStageCount];
 
     private readonly int _resolution;
@@ -354,6 +361,10 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private readonly Texture3D _opacity;
     private uint _frameIndex;
     private double _gpuMilliseconds = double.NaN;
+    /// <summary>False until the first sampled update frame seeds the GPU averages directly (avoids a zero-dragged warm-up).</summary>
+    private bool _gpuAveragesPrimed;
+    /// <summary>Whether the sample frame whose timestamps are pending readback ran the volume update.</summary>
+    private bool _sampledVolumeUpdate;
 
     /// <summary>The number of measured GPU stages (matches profiler counters).</summary>
     private const int GiStageCount = 8;
@@ -1163,16 +1174,23 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
 
         bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
 
-        // Read back GPU timestamps from the previous sample (0.5s ago — guaranteed
-        // complete). Updates per-stage and total GPU durations.
+        // Read back GPU timestamps from the previous sample (~1s ago — guaranteed
+        // complete) and fold them into the running averages, but only when the
+        // sampled frame ran the volume update: on skipped frames the update
+        // stages are bracketed by back-to-back timestamps (~0 ms) and the pass
+        // total shrinks by the update cost, so averaging those in would make
+        // the counters oscillate at the beat of the 1 Hz sampler against the
+        // refresh rate.
         if (measureGpu)
         {
             ulong[]? timestamps = _gpuTimestamps!.TryReadback();
-            if (timestamps != null)
+            if (timestamps != null && _sampledVolumeUpdate)
             {
-                _gpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, 0, 7);
-                ReadStageDurations(timestamps, _gpuTimestamps);
+                AccumulateGpuDurations(timestamps);
             }
+            // Remember whether this sample frame ran the volume update; the
+            // timestamps recorded below are read back on the next sample frame.
+            _sampledVolumeUpdate = updateVolume;
         }
 
         _commandBuffer.Begin();
@@ -1594,31 +1612,58 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     }
 
     /// <summary>
-    /// Compute per-stage GPU durations from the resolved timestamp array and
-    /// store them in <see cref="_stageGpuMilliseconds"/>. Slots 0–7 bracket
-    /// the main compute pass (0=begin, 7=end), slots 8–9 bracket the upsample
-    /// pass. In-pass slots 1–6 are no-ops (read as 0) when the device lacks
+    /// Fold the GPU durations of one sampled volume-update frame into the
+    /// exponential moving averages backing the profiler counters
+    /// (<see cref="_gpuMilliseconds"/>, <see cref="_stageGpuMilliseconds"/>).
+    /// Only update frames contribute — skipped frames record back-to-back
+    /// timestamps (~0 ms) for the update stages. Slots 0–7 bracket the main
+    /// compute pass (0=begin, 7=end), slots 8–9 bracket the upsample pass.
+    /// In-pass slots 1–6 are no-ops (read as 0) when the device lacks
     /// <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>.
     /// </summary>
-    private void ReadStageDurations(ulong[] timestamps, GpuTimestampSampler ring)
+    private void AccumulateGpuDurations(ulong[] timestamps)
     {
-        // Stage 0: Voxelize (slots 0 → 1)
-        _stageGpuMilliseconds[0] = ring.DeltaMilliseconds(timestamps, 0, 1);
-        // Stage 1: Inject (slots 1 → 2)
-        _stageGpuMilliseconds[1] = ring.DeltaMilliseconds(timestamps, 1, 2);
-        // Stage 2: Inject MipChain (slots 2 → 3)
-        _stageGpuMilliseconds[2] = ring.DeltaMilliseconds(timestamps, 2, 3);
-        // Stage 3: Propagate (slots 3 → 4)
-        _stageGpuMilliseconds[3] = ring.DeltaMilliseconds(timestamps, 3, 4);
-        // Stage 4: SSR Depth Downsample (slots 4 → 5)
-        _stageGpuMilliseconds[4] = ring.DeltaMilliseconds(timestamps, 4, 5);
-        // Stage 5: Trace (slots 5 → 6)
-        _stageGpuMilliseconds[5] = ring.DeltaMilliseconds(timestamps, 5, 6);
-        // Stage 6: Demosaic (slots 6 → 7)
-        _stageGpuMilliseconds[6] = ring.DeltaMilliseconds(timestamps, 6, 7);
-        // Stage 7: Upsample (slots 8 → 9)
-        _stageGpuMilliseconds[7] = ring.DeltaMilliseconds(timestamps, 8, 9);
+        GpuTimestampSampler ring = _gpuTimestamps!;
+        // Blend factor per sample; samples arrive at the sampler's ~1 Hz
+        // cadence, so the averages track changes over a few seconds.
+        const double alpha = 0.25;
+        double total = ring.DeltaMilliseconds(timestamps, 0, 7);
+        if (!_gpuAveragesPrimed)
+        {
+            _gpuMilliseconds = total;
+            for (int i = 0; i < GiStageCount; i++)
+            {
+                _stageGpuMilliseconds[i] = StageGpuDuration(ring, timestamps, i);
+            }
+            _gpuAveragesPrimed = true;
+            return;
+        }
+        _gpuMilliseconds += (total - _gpuMilliseconds) * alpha;
+        for (int i = 0; i < GiStageCount; i++)
+        {
+            double duration = StageGpuDuration(ring, timestamps, i);
+            _stageGpuMilliseconds[i] += (duration - _stageGpuMilliseconds[i]) * alpha;
+        }
     }
+
+    /// <summary>
+    /// Returns the GPU duration of one stage in milliseconds from a resolved
+    /// timestamp array: 0=Voxelize (0→1), 1=Inject (1→2), 2=Inject MipChain
+    /// (2→3), 3=Propagate (3→4), 4=SSR Depth Downsample (4→5), 5=Trace (5→6),
+    /// 6=Demosaic (6→7), 7=Upsample (8→9).
+    /// </summary>
+    private static double StageGpuDuration(GpuTimestampSampler ring, ulong[] timestamps, int stage)
+        => stage switch
+        {
+            0 => ring.DeltaMilliseconds(timestamps, 0, 1),
+            1 => ring.DeltaMilliseconds(timestamps, 1, 2),
+            2 => ring.DeltaMilliseconds(timestamps, 2, 3),
+            3 => ring.DeltaMilliseconds(timestamps, 3, 4),
+            4 => ring.DeltaMilliseconds(timestamps, 4, 5),
+            5 => ring.DeltaMilliseconds(timestamps, 5, 6),
+            6 => ring.DeltaMilliseconds(timestamps, 6, 7),
+            _ => ring.DeltaMilliseconds(timestamps, 8, 9),
+        };
 
     /// <inheritdoc />
     void IRenderPlugin.Execute(RenderPluginContext context)

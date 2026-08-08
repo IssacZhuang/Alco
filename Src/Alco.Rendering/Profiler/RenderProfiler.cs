@@ -74,7 +74,7 @@ public sealed class RenderProfiler
     // Initial capacity for counter arrays; grows on demand (registration phase only).
     private const int InitialCapacity = 32;
 
-    // Snapshot publication interval — the UI sees fresh data every 0.5s so the
+    // Snapshot publication interval — the UI sees fresh data every 1s so the
     // numbers are readable rather than flickering every frame.
         private const double PublicationIntervalSeconds = 1.0;
 
@@ -155,7 +155,7 @@ public sealed class RenderProfiler
 
     /// <summary>
     /// Publish the current-frame buffer into the snapshot slot if the publication
-    /// interval (0.5s) has elapsed. Called by the pipeline at the end of each
+    /// interval (1s) has elapsed. Called by the pipeline at the end of each
     /// frame. Between publications, <see cref="GetSnapshot"/> returns the last
     /// published data so the UI shows stable numbers instead of per-frame jitter.
     /// </summary>
