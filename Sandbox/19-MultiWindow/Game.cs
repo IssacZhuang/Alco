@@ -128,11 +128,6 @@ public class Game : GameEngine
         _pipeline2.Render(_presenter2.FrameBuffer);
         _presenter2.EndFrame();
 
-
-    }
-
-    protected override void OnEndFrame()
-    {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 

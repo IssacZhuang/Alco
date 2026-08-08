@@ -57,13 +57,9 @@ public class DebugStatsSystem : BaseEngineSystem
         engine.MainPresenter.OnResize += _resizeHandler;
     }
 
-    public override void OnBeginFrame(float deltaTime)
-    {
-        _renderer.Target = _engine.MainPresenter.FrameBuffer;
-    }
-
     public override void OnEndFrame(float deltaTime)
     {
+        _renderer.Target = _engine.MainPresenter.FrameBuffer;
         DebugStats.CheckAndSubmit();
     }
 

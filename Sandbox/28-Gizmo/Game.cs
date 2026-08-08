@@ -124,10 +124,7 @@ public class Game : GameEngine
         ImGui.End();
 
         Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _currentOperationEnum, GizmoMode.Local, ref _cube.transform);
-    }
 
-    protected override void OnEndFrame()
-    {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 

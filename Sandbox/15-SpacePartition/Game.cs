@@ -101,10 +101,7 @@ public class Game : GameEngine
         }
 
         _dropletSystem.OnUpdate(delta);
-    }
 
-    protected override void OnEndFrame()
-    {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 

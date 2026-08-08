@@ -287,10 +287,7 @@ public class Game : GameEngine
 
 
         ImGui.End();
-    }
 
-    protected override void OnEndFrame()
-    {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 

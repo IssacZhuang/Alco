@@ -346,19 +346,6 @@ IDisposable
 
     }
 
-    protected virtual void OnBeginFrame()
-    {
-
-    }
-
-    /// <summary>
-    /// Called at the end of the frame, before present.
-    /// </summary>
-    protected virtual void OnEndFrame()
-    {
-
-    }
-
     /// <summary>
     /// Called when player exit the game
     /// </summary>
@@ -405,7 +392,6 @@ IDisposable
             Log.Error("[Tick Error]", e);
             TryErrorStop();
         }
-        OnSystemPostTick(delta);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -421,17 +407,6 @@ IDisposable
         // Acquire the swapchain surface for this frame
         _mainPresenter.BeginFrame();
 
-        try
-        {
-            OnBeginFrame();
-        }
-        catch (Exception e)
-        {
-            Log.Error("[Begin Frame Error]", e);
-            TryErrorStop();
-        }
-        OnSystemBeginFrame(delta);
-
         EventOnUpdate?.Invoke(delta);
 
         OnSystemUpdate(delta);
@@ -446,18 +421,7 @@ IDisposable
             TryErrorStop();
         }
 
-        OnSystemPostUpdate(delta);
-
         EventOnHandleAssetLoaded?.Invoke();
-        try
-        {
-            OnEndFrame();
-        }
-        catch (Exception e)
-        {
-            Log.Error("[End Frame Error]", e);
-            TryErrorStop();
-        }
 
         OnSystemEndFrame(delta);
 
@@ -546,39 +510,12 @@ IDisposable
         }
     }
 
-    private void OnSystemPostTick(float delta)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try { _systems[i].OnPostTick(delta); }
-            catch (Exception e) { Log.Error($"Error when post tick system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
-        }
-    }
-
     private void OnSystemUpdate(float delta)
     {
         for (int i = 0; i < _systems.Count; i++)
         {
             try { _systems[i].OnUpdate(delta); }
             catch (Exception e) { Log.Error($"Error when update system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
-        }
-    }
-
-    private void OnSystemPostUpdate(float delta)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try { _systems[i].OnPostUpdate(delta); }
-            catch (Exception e) { Log.Error($"Error when post update system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
-        }
-    }
-
-    private void OnSystemBeginFrame(float deltaTime)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try { _systems[i].OnBeginFrame(deltaTime); }
-            catch (Exception e) { Log.Error($"Error when begin frame system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 

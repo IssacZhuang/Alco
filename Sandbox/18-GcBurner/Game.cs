@@ -150,10 +150,7 @@ public class Game : GameEngine
         ImGui.End();
 
         TestSpanParam("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
-    }
 
-    protected override void OnEndFrame()
-    {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 

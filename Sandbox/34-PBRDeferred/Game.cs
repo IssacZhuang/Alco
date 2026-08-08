@@ -629,15 +629,14 @@ public class Game : GameEngine
 
         DrawImGuiPanel();
 
+        DebugStats.Text(FrameRate);
+
         _frameCount++;
 
         // Disable the forward renderer when no glass is registered, so the
         // pipeline skips the G-buffer → forward depth copy.
         _forwardRenderer!.IsEnabled = _forwardRenderer.HasContent;
-    }
 
-    protected override void OnEndFrame()
-    {
         // Render the frame and resolve it through the forward chain into the swapchain.
         _pipeline.Render(MainPresenter.FrameBuffer);
 

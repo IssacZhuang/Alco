@@ -133,14 +133,9 @@ public class Game : GameEngine
 
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
-    }
 
-    protected override void OnEndFrame()
-    {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
-
-
 
     protected void OnMainWindowResize(uint2 size)
     {

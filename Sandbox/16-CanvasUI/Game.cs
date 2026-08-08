@@ -657,10 +657,7 @@ public class Game : GameEngine
         ImGui.Begin("UI Tree Inspector");
         _root.DrawDebugTreeWithInspector(ref _selectedNode);
         ImGui.End();
-    }
 
-    protected override void OnEndFrame()
-    {
         _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 

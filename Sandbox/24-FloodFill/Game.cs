@@ -76,11 +76,6 @@ public class Game : GameEngine
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
-    protected override void OnEndFrame()
-    {
-        _mainPipeline.Render(MainPresenter.FrameBuffer);
-    }
-
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -134,6 +129,8 @@ public class Game : GameEngine
         }
         _command.End();
         GraphicsDevice.Submit(_command);
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()

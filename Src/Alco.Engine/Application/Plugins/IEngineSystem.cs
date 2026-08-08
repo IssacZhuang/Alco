@@ -25,24 +25,9 @@ namespace Alco.Engine
         void OnTick(float delta);
 
         /// <summary>
-        /// Called after all <see cref="OnTick"/> systems have run.
-        /// </summary>
-        void OnPostTick(float delta);
-
-        /// <summary>
         /// Called each frame.
         /// </summary>
         void OnUpdate(float delta);
-
-        /// <summary>
-        /// Called after all <see cref="OnUpdate"/> systems have run.
-        /// </summary>
-        void OnPostUpdate(float delta);
-
-        /// <summary>
-        /// Called at the beginning of each frame, before scene rendering.
-        /// </summary>
-        void OnBeginFrame(float deltaTime);
 
         /// <summary>
         /// Called at the end of each frame, after scene rendering and before present.
