@@ -823,6 +823,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         RenderLighting(_forwardRT.FrameBuffer);
         RenderVolumetricLight(_forwardRT.FrameBuffer);
 
+        // Finalize the GPU timestamp sample after all pipeline stages (including
+        // volumetric light) have recorded their timestamps.
+        _gpuTimestamps?.EndSample();
+        _profiler.EndFrame();
+
         if (_chain.HasEnabledContentNodes)
         {
             // Copy G-buffer depth into the forward RT via native CopyTexture so glass
@@ -1189,9 +1194,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingContext.End();
 
         _profiler.PushValue(_lightingCounter, TicksToMilliseconds(Stopwatch.GetTimestamp() - lightingStart));
-
-        _gpuTimestamps?.EndSample();
-        _profiler.EndFrame();
     }
 
     private void RebindLightingTargets()
