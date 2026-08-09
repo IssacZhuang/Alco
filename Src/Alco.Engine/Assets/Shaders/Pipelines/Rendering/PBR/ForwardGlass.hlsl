@@ -7,8 +7,10 @@
 // - Tangent-space normal mapping (same vertex layout as GBuffer.hlsl).
 // - Hardware depth testing (DepthStencilState.Read) against the opaque scene —
 //   the pipeline pre-fills the forward RT's depth from the G-buffer via a copy pass.
-// - Fresnel-weighted sky reflection for grazing-angle reflectivity.
 // - Alpha blending with AlphaBlendNoAccumulation (Max on alpha, no sorting).
+//   Opacity is driven by the transmission factor (texture alpha only raises
+//   it further), so glass stays visible even when the albedo texture's alpha
+//   channel is zero.
 
 struct Vertex
 {
@@ -72,11 +74,6 @@ float4 MainPS(V2F input) : SV_TARGET
     float alpha = albedoTex.a * constants.baseColor.a;
 
     float transmission = constants.params_.x;
-    // Discard nearly-fully-opaque texels — they contribute nothing as glass.
-    if (alpha < 0.01)
-    {
-        discard;
-    }
 
     float4 mrTex = SAMPLE_TEX2D(_mrTexture, input.uv);
     float metallic = constants.metallicRoughnessAO.x * mrTex.b;
@@ -95,7 +92,6 @@ float4 MainPS(V2F input) : SV_TARGET
 
     float3 worldPosition = input.worldPosition;
     float3 V = normalize(cameraPosition.xyz - worldPosition);
-    float NdotV = max(dot(N, V), 0.0);
 
     float3 Lo = 0.0;
 
@@ -129,20 +125,16 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 diffuseIrradiance = skyAmbient + ambientFloor;
     float3 ambient = diffuseIrradiance * albedo * (1.0 - metallic) * ao;
 
-    // Fresnel reflection: glass is more reflective at grazing angles.
-    float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
-    float3 fresnel = FresnelSchlick(F0, NdotV);
-    float3 reflectDir = reflect(-V, N);
-    float3 skyReflection = GetSkyColor(reflectDir) * fresnel;
-
     // Emissive.
     float3 emissive = constants.emissive.rgb;
 
-    float3 color = Lo + ambient + skyReflection + emissive;
+    float3 color = Lo + ambient + emissive;
 
-    // Output alpha: blend factor onto the lit scene.
-    // Higher transmission → lower alpha → more of the background shows through.
-    float outputAlpha = saturate(alpha * (1.0 - transmission));
+    // Output alpha: blend factor onto the lit scene. Opacity comes from the
+    // transmission factor and the texture alpha (whichever is larger — the
+    // Bistro glass textures carry a zero alpha channel, so transmission must
+    // not rely on it).
+    float outputAlpha = saturate(max(alpha, 1.0 - transmission));
 
     return float4(color, outputAlpha);
 }
