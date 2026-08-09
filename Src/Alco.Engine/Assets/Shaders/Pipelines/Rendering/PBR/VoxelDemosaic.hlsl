@@ -48,6 +48,33 @@ DEFINE_TEX2D_STORAGE(1, _historyOut, float4, "rgba16f");
 
 PUSH_CONSTANT VoxelDemosaicConstants constants;
 
+// The spatial resolve works on an 8x8 output group. Diffuse/ALD need a four-
+// pixel halo (16x16 tile), while specular only needs a one-pixel halo (10x10).
+// Keeping the tiles separate holds workgroup storage below WebGPU's guaranteed
+// 16 KiB limit:
+//   diffuse + ALD  = 2 * 16 * 16 * float4 = 8.0 KiB
+//   surface data   = 4 * 16 * 16 * float  = 4.0 KiB
+//   specular       =     10 * 10 * float4 = 1.6 KiB
+// Surface data stores precomputed linear depth and decoded geometry normal, so
+// the expensive G-buffer loads and reconstruction happen once per tile texel.
+static const uint DEMOSAIC_GROUP_SIZE = 8u;
+static const uint DEMOSAIC_DIFFUSE_RADIUS = 4u;
+static const uint DEMOSAIC_DIFFUSE_TILE_SIZE = 16u;
+static const uint DEMOSAIC_DIFFUSE_TILE_COUNT = 256u;
+static const uint DEMOSAIC_SPECULAR_RADIUS = 1u;
+static const uint DEMOSAIC_SPECULAR_TILE_SIZE = 10u;
+static const uint DEMOSAIC_SPECULAR_TILE_COUNT = 100u;
+static const uint DEMOSAIC_GROUP_THREAD_COUNT = 64u;
+
+groupshared float4 gsDiffuse[DEMOSAIC_DIFFUSE_TILE_COUNT];
+groupshared float4 gsAld[DEMOSAIC_DIFFUSE_TILE_COUNT];
+groupshared float4 gsSpecular[DEMOSAIC_SPECULAR_TILE_COUNT];
+groupshared float gsLinearDepth[DEMOSAIC_DIFFUSE_TILE_COUNT];
+groupshared float gsGeometryNormalX[DEMOSAIC_DIFFUSE_TILE_COUNT];
+groupshared float gsGeometryNormalY[DEMOSAIC_DIFFUSE_TILE_COUNT];
+groupshared float gsGeometryNormalZ[DEMOSAIC_DIFFUSE_TILE_COUNT];
+groupshared uint gsHasGeometry;
+
 float3 ClampRadianceLuminance(float3 radiance, float maximumLuminance)
 {
     radiance = max(radiance, 0.0);
@@ -109,51 +136,175 @@ float4 AccumulateDiffuseLayer(
     return lerp(history, current, blendRate);
 }
 
+void WriteZeroOutputs(int2 tracePixel, int halfWidth)
+{
+    _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+    _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _indirectGI[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _indirectGI[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+    _historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _historyOut[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _historyOut[tracePixel + int2(halfWidth * 5, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+}
+
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void MainCS(uint3 dispatchId : SV_DispatchThreadID)
+void MainCS(
+    uint3 dispatchId : SV_DispatchThreadID,
+    uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint groupIndex : SV_GroupIndex)
 {
     uint2 traceResolution = uint2(giParams.z, giParams.w);
-    if (any(dispatchId.xy >= traceResolution))
+    uint2 gbufferRes = uint2(giParams2.y, giParams2.z);
+    int halfWidth = (int)giParams.z;
+    bool validDispatch = all(dispatchId.xy < traceResolution);
+    int2 traceMax = int2(traceResolution) - 1;
+    int2 gbufferMax = int2(gbufferRes) - 1;
+    int2 groupOrigin = int2(groupId.xy * DEMOSAIC_GROUP_SIZE);
+
+    // Populate the 16x16 surface tile first. Besides eliminating repeated
+    // G-buffer reads, this lets an all-sky workgroup skip every trace-atlas load.
+    for (uint tileIndex = groupIndex;
+        tileIndex < DEMOSAIC_DIFFUSE_TILE_COUNT;
+        tileIndex += DEMOSAIC_GROUP_THREAD_COUNT)
+    {
+        uint2 tileCoord = uint2(
+            tileIndex % DEMOSAIC_DIFFUSE_TILE_SIZE,
+            tileIndex / DEMOSAIC_DIFFUSE_TILE_SIZE);
+        int2 sampleTracePixel = clamp(
+            groupOrigin + int2(tileCoord) - int(DEMOSAIC_DIFFUSE_RADIUS),
+            int2(0, 0),
+            traceMax);
+        float2 sampleTraceUV =
+            (float2(sampleTracePixel) + 0.5) / float2(traceResolution);
+        int2 sampleGbufferPixel = clamp(
+            int2(sampleTraceUV * float2(gbufferRes)),
+            int2(0, 0),
+            gbufferMax);
+        float sampleDepth = GET_PIXEL_TEX2D(_gbufferDepth, sampleGbufferPixel);
+
+        float linearDepth = -1.0;
+        float3 geometryNormal = float3(0.0, 0.0, 1.0);
+        if (sampleDepth < 0.9999)
+        {
+            float2 sampleGbufferUV =
+                (float2(sampleGbufferPixel) + 0.5) / float2(gbufferRes);
+            linearDepth = ReconstructLinearDepth(
+                sampleGbufferUV, sampleDepth, invViewProjection);
+            float4 packedNormal = GET_PIXEL_TEX2D(_normal, sampleGbufferPixel);
+            float packedGeometryY = GET_PIXEL_TEX2D(_emissive, sampleGbufferPixel).a;
+            geometryNormal = DecodeGeometryNormal(
+                float2(packedNormal.a, packedGeometryY));
+        }
+
+        gsLinearDepth[tileIndex] = linearDepth;
+        gsGeometryNormalX[tileIndex] = geometryNormal.x;
+        gsGeometryNormalY[tileIndex] = geometryNormal.y;
+        gsGeometryNormalZ[tileIndex] = geometryNormal.z;
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (groupIndex == 0u)
+    {
+        gsHasGeometry = 0u;
+        [unroll]
+        for (uint centerY = 0u; centerY < DEMOSAIC_GROUP_SIZE; centerY++)
+        {
+            [unroll]
+            for (uint centerX = 0u; centerX < DEMOSAIC_GROUP_SIZE; centerX++)
+            {
+                uint centerIndex =
+                    (centerY + DEMOSAIC_DIFFUSE_RADIUS) * DEMOSAIC_DIFFUSE_TILE_SIZE
+                    + centerX + DEMOSAIC_DIFFUSE_RADIUS;
+                gsHasGeometry |= gsLinearDepth[centerIndex] > 0.0 ? 1u : 0u;
+            }
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (gsHasGeometry == 0u)
+    {
+        if (validDispatch)
+        {
+            WriteZeroOutputs(int2(dispatchId.xy), halfWidth);
+        }
+        return;
+    }
+
+    // Diffuse and ALD share the 16x16 footprint.
+    for (uint tileIndex = groupIndex;
+        tileIndex < DEMOSAIC_DIFFUSE_TILE_COUNT;
+        tileIndex += DEMOSAIC_GROUP_THREAD_COUNT)
+    {
+        uint2 tileCoord = uint2(
+            tileIndex % DEMOSAIC_DIFFUSE_TILE_SIZE,
+            tileIndex / DEMOSAIC_DIFFUSE_TILE_SIZE);
+        int2 sampleTracePixel = clamp(
+            groupOrigin + int2(tileCoord) - int(DEMOSAIC_DIFFUSE_RADIUS),
+            int2(0, 0),
+            traceMax);
+        gsDiffuse[tileIndex] = _traceInput.Load(int3(sampleTracePixel, 0));
+        gsAld[tileIndex] = _traceInput.Load(
+            int3(sampleTracePixel + int2(halfWidth * 2, 0), 0));
+    }
+
+    // Specular only needs the tighter 10x10 footprint.
+    for (uint tileIndex = groupIndex;
+        tileIndex < DEMOSAIC_SPECULAR_TILE_COUNT;
+        tileIndex += DEMOSAIC_GROUP_THREAD_COUNT)
+    {
+        uint2 tileCoord = uint2(
+            tileIndex % DEMOSAIC_SPECULAR_TILE_SIZE,
+            tileIndex / DEMOSAIC_SPECULAR_TILE_SIZE);
+        int2 sampleTracePixel = clamp(
+            groupOrigin + int2(tileCoord) - int(DEMOSAIC_SPECULAR_RADIUS),
+            int2(0, 0),
+            traceMax);
+        gsSpecular[tileIndex] = _traceInput.Load(
+            int3(sampleTracePixel + int2(halfWidth, 0), 0));
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // Threads outside a non-multiple-of-eight dispatch must participate in all
+    // barriers above, but produce no output.
+    if (!validDispatch)
     {
         return;
     }
 
     int2 tracePixel = int2(dispatchId.xy);
-    int halfWidth = (int)giParams.z;
-
-    uint2 gbufferRes = uint2(giParams2.y, giParams2.z);
     float2 traceUV = (float2(tracePixel) + 0.5) / float2(traceResolution);
     int2 gbufferPixel = int2(traceUV * float2(gbufferRes));
-    gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
+    gbufferPixel = clamp(gbufferPixel, int2(0, 0), gbufferMax);
     float2 gbufferUV = (float2(gbufferPixel) + 0.5) / float2(gbufferRes);
 
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
     if (depth >= 0.9999)
     {
-        _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-        _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _indirectGI[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _indirectGI[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-        _historyOut[tracePixel + int2(halfWidth * 5, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+        WriteZeroOutputs(tracePixel, halfWidth);
         return;
     }
 
+    uint centerDiffuseIndex =
+        (groupThreadId.y + DEMOSAIC_DIFFUSE_RADIUS) * DEMOSAIC_DIFFUSE_TILE_SIZE
+        + groupThreadId.x + DEMOSAIC_DIFFUSE_RADIUS;
+    uint centerSpecularIndex =
+        (groupThreadId.y + DEMOSAIC_SPECULAR_RADIUS) * DEMOSAIC_SPECULAR_TILE_SIZE
+        + groupThreadId.x + DEMOSAIC_SPECULAR_RADIUS;
     float3 worldPos = ReconstructWorldPosition(gbufferUV, depth, invViewProjection);
-    float4 packedNormal = GET_PIXEL_TEX2D(_normal, gbufferPixel);
-    float packedGeometryY = GET_PIXEL_TEX2D(_emissive, gbufferPixel).a;
-    float3 geometryNormal = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
-    float3 detailNormal = normalize(packedNormal.xyz * 2.0 - 1.0);
+    float3 geometryNormal = float3(
+        gsGeometryNormalX[centerDiffuseIndex],
+        gsGeometryNormalY[centerDiffuseIndex],
+        gsGeometryNormalZ[centerDiffuseIndex]);
     float currentLinearDepth = abs(mul(viewProjection, float4(worldPos, 1.0)).w);
-    float4 centerDiffuse = _traceInput.Load(int3(tracePixel, 0));
-    float4 centerSpecular = _traceInput.Load(int3(tracePixel + int2(halfWidth, 0), 0));
-    float4 centerAld = _traceInput.Load(int3(tracePixel + int2(halfWidth * 2, 0), 0));
+    float4 centerDiffuse = gsDiffuse[centerDiffuseIndex];
+    float4 centerSpecular = gsSpecular[centerSpecularIndex];
+    float4 centerAld = gsAld[centerDiffuseIndex];
 
     // Developer view: expose the cone-trace atlas before spatial/temporal
     // reconstruction. This makes it possible to distinguish a tracing issue
@@ -264,22 +415,17 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             // 9x9 footprint is tighter than the previous sparse 13x13
             // footprint even though it reconstructs many more directions.
             int2 filterOffset = int2(dx, dy);
-            int2 np = clamp(
-                tracePixel + filterOffset,
-                int2(0, 0),
-                int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
+            uint tileIndex =
+                (uint)((int)groupThreadId.y + int(DEMOSAIC_DIFFUSE_RADIUS) + dy)
+                    * DEMOSAIC_DIFFUSE_TILE_SIZE
+                + (uint)((int)groupThreadId.x + int(DEMOSAIC_DIFFUSE_RADIUS) + dx);
 
-            // G-buffer depth at the neighbour for layer assignment.
-            float2 nTraceUV = (float2(np) + 0.5) / float2(traceResolution);
-            int2 nGbufPixel = int2(nTraceUV * float2(gbufferRes));
-            nGbufPixel = clamp(nGbufPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
-            float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
-
-            float4 diffuseTap = _traceInput.Load(int3(np, 0));
+            float nLinearDepth = gsLinearDepth[tileIndex];
+            float4 diffuseTap = gsDiffuse[tileIndex];
             // ALD accumulates with the same bilateral weights as RGB. ALD is
             // a direction-weighted value, not HDR color, so no luminance
             // clamping is applied.
-            float4 aldTap = _traceInput.Load(int3(np + int2(halfWidth * 2, 0), 0));
+            float4 aldTap = gsAld[tileIndex];
 
             float phaseWeightX = abs(dx) == 4 ? 0.5 : 1.0;
             float phaseWeightY = abs(dy) == 4 ? 0.5 : 1.0;
@@ -287,16 +433,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
             float weightMin = 0.0;
             float weightMax = 0.0;
-            if (nDepth < 0.9999)
+            if (nLinearDepth > 0.0)
             {
-                float2 nGbufferUV =
-                    (float2(nGbufPixel) + 0.5) / float2(gbufferRes);
-                float nLinearDepth = ReconstructLinearDepth(
-                    nGbufferUV, nDepth, invViewProjection);
-                float4 nPackedNormal = GET_PIXEL_TEX2D(_normal, nGbufPixel);
-                float nPackedGeometryY = GET_PIXEL_TEX2D(_emissive, nGbufPixel).a;
-                float3 nGeometryNormal = DecodeGeometryNormal(
-                    float2(nPackedNormal.a, nPackedGeometryY));
+                float3 nGeometryNormal = float3(
+                    gsGeometryNormalX[tileIndex],
+                    gsGeometryNormalY[tileIndex],
+                    gsGeometryNormalZ[tileIndex]);
                 // Orthogonal architecture still contributes at a 0.25 floor
                 // so concave corners do not starve the kernel; coplanar taps
                 // keep full weight.
@@ -358,28 +500,24 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 continue;
             }
             int2 filterOffset = int2(sx, sy);
-            int2 np = clamp(
-                tracePixel + filterOffset,
-                int2(0, 0),
-                int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
-
-            float2 nTraceUV = (float2(np) + 0.5) / float2(traceResolution);
-            int2 nGbufPixel = int2(nTraceUV * float2(gbufferRes));
-            nGbufPixel = clamp(nGbufPixel, int2(0, 0), int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
-            float nDepth = GET_PIXEL_TEX2D(_gbufferDepth, nGbufPixel);
+            uint surfaceTileIndex =
+                (uint)((int)groupThreadId.y + int(DEMOSAIC_DIFFUSE_RADIUS) + sy)
+                    * DEMOSAIC_DIFFUSE_TILE_SIZE
+                + (uint)((int)groupThreadId.x + int(DEMOSAIC_DIFFUSE_RADIUS) + sx);
+            uint specularTileIndex =
+                (uint)((int)groupThreadId.y + int(DEMOSAIC_SPECULAR_RADIUS) + sy)
+                    * DEMOSAIC_SPECULAR_TILE_SIZE
+                + (uint)((int)groupThreadId.x + int(DEMOSAIC_SPECULAR_RADIUS) + sx);
+            float nLinearDepth = gsLinearDepth[surfaceTileIndex];
 
             float surfaceW = 0.0;
             float3 nGeometryNormal = geometryNormal;
-            if (nDepth < 0.9999)
+            if (nLinearDepth > 0.0)
             {
-                float2 nGbufferUV =
-                    (float2(nGbufPixel) + 0.5) / float2(gbufferRes);
-                float nLinearDepth = ReconstructLinearDepth(
-                    nGbufferUV, nDepth, invViewProjection);
-                float4 nPackedNormal = GET_PIXEL_TEX2D(_normal, nGbufPixel);
-                float nPackedGeometryY = GET_PIXEL_TEX2D(_emissive, nGbufPixel).a;
-                nGeometryNormal = DecodeGeometryNormal(
-                    float2(nPackedNormal.a, nPackedGeometryY));
+                nGeometryNormal = float3(
+                    gsGeometryNormalX[surfaceTileIndex],
+                    gsGeometryNormalY[surfaceTileIndex],
+                    gsGeometryNormalZ[surfaceTileIndex]);
                 float depthTolerance = max(
                     0.035, currentLinearDepth * 0.002)
                     * (1.0 + length(float2(filterOffset)) * 0.08);
@@ -394,8 +532,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             float normalW = pow(max(dot(geometryNormal, nGeometryNormal), 0.0), 16.0);
 
             float w = surfaceW * spatialW_neighbour * normalW;
-            float4 specularTap = _traceInput.Load(
-                int3(np + int2(halfWidth, 0), 0));
+            float4 specularTap = gsSpecular[specularTileIndex];
             specularTap.rgb = ClampRadianceLuminance(
                 specularTap.rgb, diffuseMaximumLuminance);
             specularSum += specularTap * w;
