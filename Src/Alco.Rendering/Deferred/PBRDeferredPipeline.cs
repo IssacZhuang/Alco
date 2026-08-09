@@ -997,26 +997,19 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             centerLight.X = MathF.Floor(centerLight.X / texel) * texel;
             centerLight.Y = MathF.Floor(centerLight.Y / texel) * texel;
 
-            // Depth range: use the actual min/max Z of the 8 frustum-slice
-            // corners in light space instead of the bounding-sphere diameter,
-            // which reclaims wasted depth precision (directly reducing acne
-            // for a given bias). Extend the near plane toward the sun for
-            // off-screen casters (negative values are legal for ortho).
-            float zMin = float.MaxValue;
-            float zMax = float.MinValue;
-            for (int r = 0; r < 8; r++)
-            {
-                Vector3 cornerLight = Vector3.Transform(corners[r], lightView);
-                zMin = Math.Min(zMin, cornerLight.Z);
-                zMax = Math.Max(zMax, cornerLight.Z);
-            }
-            zMin -= casterExtension;
-
-            // Quantize on a grid derived from the (stable) sphere radius so
-            // the depth sampling stays consistent across frames.
-            float texelZ = (radius * 2.0f + casterExtension) / shadowMapSize;
+            // Depth range: the bounding sphere's Z extent. Do NOT tighten this to the
+            // 8 slice corners' min/max Z — the radial-split slice is a spherical shell
+            // whose Z extent exceeds the corner hull whenever the light travel direction
+            // falls inside the view cone: receivers near the split then project past the
+            // ortho far plane, hit the ndc.z > 1 early-out in the lighting shader and
+            // are treated as fully lit (a lit band of missing shadow before each split).
+            // The near plane extends toward the sun for off-screen casters (negative
+            // values are legal for ortho).
+            float zMin = centerLight.Z - radius - casterExtension;
+            float zMax = centerLight.Z + radius;
+            float texelZ = (zMax - zMin) / shadowMapSize;
             zMin = MathF.Floor(zMin / texelZ) * texelZ;
-            zMax = zMin + texelZ * (float)Math.Ceiling((zMax - zMin) / texelZ);
+            zMax = zMin + texelZ * shadowMapSize;
 
             Matrix4x4 ortho = Matrix4x4.CreateOrthographicOffCenterLeftHanded(
                 centerLight.X - radius, centerLight.X + radius,
