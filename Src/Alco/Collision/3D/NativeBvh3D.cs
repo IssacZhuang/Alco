@@ -162,6 +162,7 @@ namespace Alco
         {
             int* stack = stackalloc int[_treeDepth];
             int stackCount = 0;
+            stack[stackCount++] = rootIndex;
             RayCastResult3D result = RayCastResult3D.none;
 
             BoundingBox3D rayBox = ray.GetBoundingBox();
