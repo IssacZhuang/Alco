@@ -67,6 +67,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_PBRShadowDepth = "Shaders/Pipelines/Rendering/PBR/ShadowDepth.hlsl";
 
+   public const string Shader_PBRVolumetricLight = "Shaders/Pipelines/Rendering/PBR/VolumetricLight.hlsl";
+
    public const string Shader_Sprite = "Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl";
 
    public const string Shader_SpriteInstanced = "Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl";

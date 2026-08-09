@@ -135,6 +135,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         public Vector4 Params3;
         /// <summary>x=sunDiscSize (cosine angular threshold, higher = smaller disc), y=sunDiscBrightness (HDR visual brightness independent of lighting intensity), z=1/GI trace width, w=1/GI trace height (filled by the pipeline, 0 when GI is off).</summary>
         public Vector4 Params4;
+        /// <summary>Volumetric light params: x=enabled(&gt;0), y=fogDensity, z=heightScaleHeight (height-falloff model, ignored for constant), w=phaseG (Henyey-Greenstein anisotropy).</summary>
+        public Vector4 VLParams;
 
     }
 
@@ -166,6 +168,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly GPUCommandBuffer _depthCopyCommand;
 
     private readonly GraphicsMaterial _lightingMaterial;
+    private GraphicsMaterial? _volumetricLightMaterial;
+    private readonly RenderContext _volumetricLightContext;
     private CameraPerspectiveBuffer? _camera;
 
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
@@ -221,6 +225,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private RenderProfileCounterId _shadowCounter;
     private RenderProfileCounterId _gbufferCounter;
     private RenderProfileCounterId _lightingCounter;
+    private RenderProfileCounterId _volumetricLightCounter;
     private readonly Stopwatch _frameStopwatch = new();
     private long _shadowElapsedTicks;
     private long _stageStartTicks;
@@ -326,6 +331,25 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>GI debug view mode (0=off 1=diffuse 2=specular 3=visibility).</summary>
     public int GiDebugView { get; set; }
+
+    /// <summary>Whether volumetric light (god rays) contributes to the frame.</summary>
+    public bool VolumetricLightEnabled { get; set; } = false;
+
+    /// <summary>Volumetric light intensity multiplier (overall brightness of light shafts).</summary>
+    public float VolumetricLightIntensity { get; set; } = 0.5f;
+
+    /// <summary>Volumetric fog density (extinction coefficient; higher = thicker fog).</summary>
+    public float VolumetricLightDensity { get; set; } = 0.01f;
+
+    /// <summary>
+    /// Scale height for the height-falloff density model. Fog density decays
+    /// exponentially above ground level with this height constant. Only used
+    /// when the shader is compiled with VL_DENSITY_HEIGHT_FALLOFF.
+    /// </summary>
+    public float VolumetricLightHeightScale { get; set; } = 5.0f;
+
+    /// <summary>Henyey-Greenstein phase anisotropy g (0=isotropic, >0=forward scattering).</summary>
+    public float VolumetricLightPhaseG { get; set; } = 0.9f;
 
     /// <summary>
     /// The attachment layout of the G-buffer pass, used to record render bundles
@@ -530,6 +554,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             GiSpecularStrength,
             GiDebugView);
         _lightingData.Params4 = new Vector4(SunDiscSize, SunDiscBrightness, 0.0f, 0.0f);
+        _lightingData.VLParams = new Vector4(
+            VolumetricLightEnabled ? 1.0f : 0.0f,
+            VolumetricLightDensity,
+            VolumetricLightHeightScale,
+            VolumetricLightPhaseG);
     }
 
     private void RebindPluginOutputs(RenderPluginContext context)
@@ -565,6 +594,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
+    /// <param name="volumetricLightShader">Optional volumetric light (god rays) shader.
+    /// When non-null the pipeline creates an additive blend pass that runs after
+    /// deferred lighting. Pass null to skip volumetric light entirely.</param>
     public PBRDeferredPipeline(
         RenderingSystem rendering,
         string lightingShaderText,
@@ -572,7 +604,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         Shader blitShader,
         uint shadowMapSize = 2048,
         uint width = 1280,
-        uint height = 720)
+        uint height = 720,
+        Shader? volumetricLightShader = null)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -630,6 +663,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _shadowContext = rendering.CreateRenderContext("pbr_shadow_pass");
         _gbufferContext = rendering.CreateRenderContext("pbr_gbuffer_pass");
         _lightingContext = rendering.CreateRenderContext("pbr_lighting_pass");
+        _volumetricLightContext = rendering.CreateRenderContext("pbr_volumetric_light_pass");
 
         // Forward RT: HDR color + Depth32Float (must match the G-buffer depth format
         // for native CopyTexture, which requires copy-compatible formats).
@@ -647,6 +681,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _shadowCounter = _profiler.RegisterCounter("Pipeline", "Shadow");
         _gbufferCounter = _profiler.RegisterCounter("Pipeline", "GBuffer");
         _lightingCounter = _profiler.RegisterCounter("Pipeline", "Lighting");
+        _volumetricLightCounter = _profiler.RegisterCounter("Pipeline", "VolumetricLight");
 
         // Create GPU timestamp ring buffer when the device supports it.
         // 3 stages × 2 slots (begin/end) = 6 slots, resolved per-frame with
@@ -654,6 +689,20 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         if (_device.TimestampQuerySupported)
         {
             _gpuTimestamps = new GpuTimestampSampler(_device, PipelineTimestampCount, "pbr_pipeline");
+        }
+
+        // Volumetric light pass (optional). Created eagerly so no runtime
+        // recompilation is needed; controlled at runtime via VolumetricLightEnabled.
+        if (volumetricLightShader != null)
+        {
+            _volumetricLightMaterial = rendering.CreateMaterial(volumetricLightShader);
+            _volumetricLightMaterial.DepthStencilState = DepthStencilState.Default;
+            _volumetricLightMaterial.RasterizerState = RasterizerState.CullNone;
+            _volumetricLightMaterial.BlendState = BlendState.Additive;
+            _volumetricLightMaterial.SetBuffer(ShaderResourceId.Data, _lightingDataBuffer);
+            _volumetricLightMaterial.SetBuffer(ShaderResourceId.PointLights, _pointLightBuffer);
+            _volumetricLightMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
+            _volumetricLightMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
         }
     }
 
@@ -769,6 +818,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         AfterGBufferCallback?.Invoke();
         ExecutePlugins(RenderInjectionPoint.AfterGBuffer);
         RenderLighting(_forwardRT.FrameBuffer);
+        RenderVolumetricLight(_forwardRT.FrameBuffer);
 
         if (_chain.HasEnabledContentNodes)
         {
@@ -1155,6 +1205,33 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingMaterial.SetTexture("_giSpecular", _rendering.TextureBlack);
     }
 
+    /// <summary>
+    /// Render the volumetric light (god rays) pass. Additively blends in-scattered
+    /// atmospheric radiance into the HDR target. Should be called after
+    /// <see cref="RenderLighting"/> and before the forward/post-process chain.
+    /// The lighting data buffer must already be uploaded (done by RenderLighting).
+    /// </summary>
+    /// <param name="target">The HDR frame buffer to blend into (typically
+    /// <see cref="ForwardRenderTexture"/>'s frame buffer).</param>
+    public void RenderVolumetricLight(GPUFrameBuffer target)
+    {
+        if (_volumetricLightMaterial == null || !VolumetricLightEnabled)
+        {
+            return;
+        }
+
+        long vlStart = Stopwatch.GetTimestamp();
+
+        // The lighting data buffer was already uploaded by RenderLighting, which
+        // contains the vlParams the VL shader needs. No re-upload necessary.
+        _volumetricLightContext.Begin(target);
+        _volumetricLightContext.Draw(_fullScreenMesh, _volumetricLightMaterial);
+        _volumetricLightContext.End();
+
+        _profiler.PushValue(_volumetricLightCounter,
+            TicksToMilliseconds(Stopwatch.GetTimestamp() - vlStart));
+    }
+
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
@@ -1170,10 +1247,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _shadowContext.Dispose();
             _gbufferContext.Dispose();
             _lightingContext.Dispose();
+            _volumetricLightContext.Dispose();
             _lightingDataBuffer.Dispose();
             _shadowDataBuffer.Dispose();
             _pointLightBuffer.Dispose();
             _lightingMaterial.Dispose();
+            _volumetricLightMaterial?.Dispose();
             _gbufferRT.Dispose();
             _shadowRT.Dispose();
             _forwardRT.Dispose();

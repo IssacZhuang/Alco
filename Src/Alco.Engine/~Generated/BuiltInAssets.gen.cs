@@ -72,6 +72,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_PBRShadowDepth => GetShader("Shaders/Pipelines/Rendering/PBR/ShadowDepth.hlsl");
 
+    public Shader Shader_PBRVolumetricLight => GetShader("Shaders/Pipelines/Rendering/PBR/VolumetricLight.hlsl");
+
     public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
 
     public Shader Shader_SpriteInstanced => GetShader("Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl");
