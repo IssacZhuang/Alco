@@ -88,11 +88,19 @@ float3 AtmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyParams, f
 {
     float3 origin = float3(0.0, 0.0, ATM_EARTH_RADIUS + ATM_VIEW_HEIGHT);
 
-    float2 earthHit = AtmosphereRaySphere(origin, rayDir, ATM_EARTH_RADIUS);
-    float2 atmHit = AtmosphereRaySphere(origin, rayDir, ATM_ATMOSPHERE_RADIUS);
+    // March along the view ray clamped to the horizon. A horizon-clamped ray
+    // from ATM_VIEW_HEIGHT always misses the earth, so the march runs to the
+    // atmosphere exit and the radiance is continuous in view direction. The
+    // raw ground-hit branch used to make the optical path jump from the
+    // ~875 km tangent traversal to ~25 km at the earth limb (~0.45 deg below
+    // the horizon), which drew as a hard line; the below-horizon appearance
+    // is instead shaped by the ground blend at the end of this function
+    // (Complementary Unbound style).
+    float3 marchDir = normalize(float3(rayDir.x, rayDir.y, max(rayDir.z, 0.0)));
+
+    float2 atmHit = AtmosphereRaySphere(origin, marchDir, ATM_ATMOSPHERE_RADIUS);
     float tStart = max(atmHit.x, 0.0);
-    // Rays that hit the earth still scatter in front of the ground (haze).
-    float tEnd = earthHit.x > 0.0 ? earthHit.x : atmHit.y;
+    float tEnd = atmHit.y;
 
     float cosTheta = dot(rayDir, dirToSun);
     float phaseRayleigh = 3.0 / (16.0 * PI) * (1.0 + cosTheta * cosTheta);
@@ -109,7 +117,7 @@ float3 AtmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyParams, f
     float2 viewDensity = 0.0;
     for (int i = 0; i < viewSamples; i++)
     {
-        float3 p = origin + rayDir * (tStart + ((float)i + 0.5) * dt);
+        float3 p = origin + marchDir * (tStart + ((float)i + 0.5) * dt);
         float height = length(p) - ATM_EARTH_RADIUS;
         float2 dLocal = float2(exp(-height / ATM_H_RAYLEIGH), exp(-height / ATM_H_MIE)) * dt;
         viewDensity += dLocal;
@@ -129,6 +137,18 @@ float3 AtmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyParams, f
 
     float3 radiance = skyParams2.z
         * (rayleighSum * betaRayleigh * phaseRayleigh + mieSum * betaMie * phaseMie);
+
+    // Below the horizon, blend the (now constant) horizon radiance toward a
+    // darkened ground haze over a smooth window that straddles the horizon
+    // (view Z +0.08 .. -0.27). The smoothstep has zero slope at both ends and
+    // the per-channel mix rates fake wavelength-dependent ground scattering,
+    // so no seam can appear at the horizon line.
+    float groundT = smoothstep(0.0, 1.0, saturate((-rayDir.z + 0.08) / 0.35));
+    float3 groundColor = radiance * 0.55;
+    float3 groundMix = float3(groundT * groundT,
+                              groundT * (2.0 - groundT),
+                              1.0 - pow(1.0 - groundT, 3.0));
+    radiance = lerp(radiance, groundColor, lerp(groundT.xxx, groundMix, 0.75));
 
     // Night floor: a faint blue ambient so the sky never goes fully black.
     float night = 1.0 - smoothstep(-0.08, 0.06, dirToSun.z);

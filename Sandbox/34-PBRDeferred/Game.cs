@@ -997,6 +997,7 @@ public class Game : GameEngine
         _pipeline.SunIntensity = _sunIntensity * sunScale;
         _pipeline.SkyHorizonColor = skyHorizonColor;
         _pipeline.SkyZenithColor = skyZenithColor;
+        _pipeline.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
         _pipeline.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
 
         // Fit the shadow distance to the view: when the camera is far from the

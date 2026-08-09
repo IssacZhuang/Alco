@@ -186,7 +186,13 @@ float3 GetSkyColor(float3 direction)
         float disc = smoothstep(cosRadius - edgeWidth, cosRadius, sunDot);
         float coronaRange = (1.0 - cosRadius) * 3.5;
         float corona = smoothstep(1.0 - coronaRange, cosRadius, sunDot) - disc;
-        sky += sunColorAndIntensity.rgb * params4.y * (disc + corona * 0.08);
+        // Fade the disc out as the sun sets (0 at 0.1 below the horizon,
+        // smoothstepped to 1 at the horizon) so it never clips through the
+        // ground haze (Complementary Unbound's GetHorizonFactor).
+        float horizon = saturate((dirToSun.z + 0.1) * 10.0);
+        horizon *= horizon;
+        horizon = horizon * horizon * (3.0 - 2.0 * horizon);
+        sky += sunColorAndIntensity.rgb * params4.y * (disc + corona * 0.08) * horizon;
     }
     return sky;
 }
