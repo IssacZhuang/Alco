@@ -29,7 +29,8 @@ public sealed class ForwardPipeline : AutoDisposable
 
     /// <summary>
     /// The scene render texture the chain's content nodes draw into (via the chain, never
-    /// directly). Recreated when the pipeline is resized.
+    /// directly). Resized in place when the pipeline is resized; the object identity
+    /// stays stable across resizes.
     /// </summary>
     public RenderTexture SceneTexture => _sceneRenderTexture;
 
@@ -109,13 +110,12 @@ public sealed class ForwardPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Recreates the scene render texture and the resolution-dependent node resources
-    /// at a new size.
+    /// Resizes the scene render texture in place and notifies the node chain. The scene
+    /// texture keeps its object identity, so materials referencing it need no rebinding.
     /// </summary>
     public void Resize(uint width, uint height)
     {
-        _sceneRenderTexture.Dispose();
-        _sceneRenderTexture = CreateSceneRenderTexture(width, height);
+        _sceneRenderTexture.Resize(width, height);
         _chain.Resize(width, height);
     }
 

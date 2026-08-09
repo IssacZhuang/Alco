@@ -727,7 +727,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Recreate the G-buffer at a new resolution. Call when the view resizes.
+    /// Resizes the G-buffer and the forward resolve target in place. Call when the view
+    /// resizes. Both targets keep their object identity, so the lighting material needs
+    /// no rebinding: the affected bind groups are rebuilt automatically on next use
+    /// through the render texture version check.
     /// <br/>Render bundles recorded against <see cref="GBufferLayout"/> stay valid:
     /// the layout (attachment formats) does not change, only the textures do.
     /// </summary>
@@ -735,18 +738,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="height">The new G-buffer height in pixels.</param>
     public void Resize(uint width, uint height)
     {
-        _gbufferRT.Dispose();
-        _gbufferRT = _rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
+        _gbufferRT.Resize(width, height);
 
-        // Recreate the pipeline-internal forward RT at the new resolution.
-        _forwardRT.Dispose();
-        _forwardRT = _rendering.CreateRenderTexture(_forwardLayout, width, height, "pbr_forward");
+        // Resize the pipeline-internal forward RT at the new resolution.
+        _forwardRT.Resize(width, height);
 
         for (int i = 0; i < _plugins.Count; i++)
         {
             _plugins[i].Resize(width, height);
         }
-        RebindLightingTargets();
         _chain.Resize(width, height);
     }
 

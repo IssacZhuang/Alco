@@ -69,7 +69,6 @@ public class FXAA : TextureProcessor
 
     private readonly GraphicsValueBuffer<FXAAShaderData> _fxaaShaderData;
 
-    protected RenderTexture? _input;
     private RenderTexture? _intermediateTexture;
     private GPUAttachmentLayout? _intermediateLayout;
 
@@ -142,39 +141,46 @@ public class FXAA : TextureProcessor
         _commandFXAA = _device.CreateCommandBuffer("fxaa_command_buffer");
     }
 
-    /// <summary>
-    /// Sets the input render texture for FXAA processing.
-    /// </summary>
-    /// <param name="input">The input render texture</param>
-    public override void SetInput(RenderTexture input)
+    // Keeps the intermediate texture matching the input's size and pixel format,
+    // recreating or resizing it lazily when either changed since the last blit.
+    private void EnsureIntermediate(RenderTexture input)
     {
-        base.SetInput(input);
-        _input = input;
-
-        // Dispose old intermediate texture if it exists
-        _intermediateTexture?.Dispose();
-
         // The intermediate texture must keep the input's pixel format: rendering through
         // an 8-bit SDR target here would quantize the linear HDR image before tone
         // mapping and produce severe banding in dark areas.
         PixelFormat inputFormat = input.AttachmentLayout.Colors[0].Format;
-        if (_intermediateLayout == null || _intermediateLayout.Colors[0].Format != inputFormat)
+        if (_intermediateTexture != null && _intermediateLayout!.Colors[0].Format == inputFormat)
         {
-            _intermediateLayout?.Dispose();
-            _intermediateLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
-                [new ColorAttachment(inputFormat)],
-                null,
-                "fxaa_intermediate"
-            ));
-        }
+            if (_intermediateTexture.Width == input.Width && _intermediateTexture.Height == input.Height)
+            {
+                return;
+            }
 
-        // Create intermediate texture with same size and format as input
-        _intermediateTexture = _renderingSystem.CreateRenderTexture(
-            _intermediateLayout,
-            input.Width,
-            input.Height,
-            "fxaa_intermediate"
-        );
+            // Same format, new size: resize in place (the wrapper identity is stable).
+            _intermediateTexture.Resize(input.Width, input.Height);
+        }
+        else
+        {
+            _intermediateTexture?.Dispose();
+
+            if (_intermediateLayout == null || _intermediateLayout.Colors[0].Format != inputFormat)
+            {
+                _intermediateLayout?.Dispose();
+                _intermediateLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+                    [new ColorAttachment(inputFormat)],
+                    null,
+                    "fxaa_intermediate"
+                ));
+            }
+
+            // Create intermediate texture with same size and format as input
+            _intermediateTexture = _renderingSystem.CreateRenderTexture(
+                _intermediateLayout,
+                input.Width,
+                input.Height,
+                "fxaa_intermediate"
+            );
+        }
 
         // Update frame size for shader
         var data = _fxaaShaderData.Value;
@@ -186,17 +192,16 @@ public class FXAA : TextureProcessor
     /// <summary>
     /// Applies FXAA anti-aliasing to the input and renders to the target framebuffer.
     /// </summary>
+    /// <param name="input">The input render texture to anti-alias.</param>
     /// <param name="target">The target framebuffer to render to</param>
-    public override void Blit(GPUFrameBuffer target)
+    public override void Blit(RenderTexture input, GPUFrameBuffer target)
     {
-        if (_input == null || _intermediateTexture == null)
-        {
-            throw new InvalidOperationException("Input render texture is not set. Call SetInput() first.");
-        }
+        EnsureIntermediate(input);
 
         Mesh fullScreenMesh = FullScreenMesh;
 
-        if (_fxaaShader.TryUpdatePipelineContext(ref _fxaaPipelineInfo, _intermediateTexture.FrameBuffer.AttachmentLayout))
+        // EnsureIntermediate guarantees the intermediate texture exists.
+        if (_fxaaShader.TryUpdatePipelineContext(ref _fxaaPipelineInfo, _intermediateTexture!.FrameBuffer.AttachmentLayout))
         {
             _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
             _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
@@ -213,7 +218,7 @@ public class FXAA : TextureProcessor
         {
             renderPass.SetPipeline(_fxaaPipelineInfo.Pipeline!);
             uint indexCount = renderPass.SetMesh(fullScreenMesh);
-            renderPass.SetResources(_fxaaShaderId_texture, _input.ColorTextures[0].EntrySample);
+            renderPass.SetResources(_fxaaShaderId_texture, input.ColorTextures[0].EntrySample);
             renderPass.SetResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }

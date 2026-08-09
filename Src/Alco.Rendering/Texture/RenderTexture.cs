@@ -4,16 +4,20 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The high level encapsulation of a GPUFrameBuffer with its entries of GPUTextureView
+/// The high level encapsulation of a GPUFrameBuffer with its entries of GPUTextureView.
+/// <br/>The wrapper identity is stable across <see cref="Resize"/>: the internal GPU
+/// resources (frame buffer, textures, views) are recreated in place, so materials and
+/// render nodes referencing this object never need to be rebound after a resize.
 /// </summary>
 public sealed class RenderTexture : AutoDisposable
 {
-    private readonly GPUDevice _device;
+    private readonly RenderingSystem _rendering;
     private readonly GPUSampler _sampler;
-    private readonly GPUFrameBuffer _frameBuffer;
+    private GPUFrameBuffer _frameBuffer;
     private GPUResourceGroup? _groupDepthSample;
     private GPUResourceGroup? _groupDepthComparison;
     private readonly Texture2D[] _colorTextures;
+    private uint _version;
 
     /// <summary>
     /// The internal GPUFrameBuffer object.
@@ -158,7 +162,7 @@ public sealed class RenderTexture : AutoDisposable
         GPUSampler sampler
         )
     {
-        _device = renderingSystem.GraphicsDevice;
+        _rendering = renderingSystem;
         _frameBuffer = frameBuffer;
         _sampler = sampler;
 
@@ -173,29 +177,100 @@ public sealed class RenderTexture : AutoDisposable
         }
     }
 
+    /// <summary>
+    /// The content version of the render texture, incremented by every
+    /// <see cref="Resize"/>. The material system compares the version recorded at bind
+    /// time against the current one to detect the recreated GPU resources and rebuild
+    /// the affected bind groups automatically. The value wraps around on overflow: it
+    /// is only ever compared for equality.
+    /// </summary>
+    public uint Version
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _version;
+    }
+
+    /// <summary>
+    /// Recreates the internal GPU resources at a new size in place. The wrapper identity
+    /// (and therefore every material and render node referencing it) stays valid; the
+    /// affected bind groups are rebuilt automatically on next use through the
+    /// <see cref="Version"/> check of the material system. A call with the current size
+    /// is a no-op.
+    /// </summary>
+    /// <param name="width">The new width in pixels.</param>
+    /// <param name="height">The new height in pixels.</param>
+    /// <exception cref="ObjectDisposedException">The render texture has been disposed.</exception>
+    public void Resize(uint width, uint height)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        if (width == Width && height == Height)
+        {
+            return;
+        }
+
+        // Capture the recreation inputs before releasing the current frame buffer:
+        // the attachment layout is a standalone object and outlives it.
+        GPUAttachmentLayout layout = _frameBuffer.AttachmentLayout;
+        string name = _frameBuffer.Name;
+
+        // The cached depth sample groups reference the old depth view; they are
+        // recreated lazily from the new frame buffer on next access.
+        _groupDepthSample?.Dispose();
+        _groupDepthSample = null;
+        _groupDepthComparison?.Dispose();
+        _groupDepthComparison = null;
+
+        for (int i = 0; i < _colorTextures.Length; i++)
+        {
+            _colorTextures[i].Dispose();
+        }
+
+        // Deferred destruction (one frame) keeps in-flight GPU work on the old
+        // textures valid.
+        _frameBuffer.Dispose();
+        _frameBuffer = _rendering.GraphicsDevice.CreateFrameBuffer(new FrameBufferDescriptor(layout, width, height, name));
+
+        for (int i = 0; i < _colorTextures.Length; i++)
+        {
+            _colorTextures[i] = _rendering.CreateTexture2D(
+                _frameBuffer.Colors[i],
+                _frameBuffer.ColorViews[i],
+                _sampler
+                );
+        }
+
+        // Wraps around on overflow instead of throwing: the version is only ever
+        // compared for equality.
+        unchecked
+        {
+            _version++;
+        }
+    }
+
     private GPUResourceGroup CreateGroupDepthRead(GPUTextureView view)
     {
         ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTextureDepthRead,
+            _rendering.GraphicsDevice.BindGroupTextureDepthRead,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, view),
             }
         );
 
-        return _device.CreateResourceGroup(groupDescriptor);
+        return _rendering.GraphicsDevice.CreateResourceGroup(groupDescriptor);
     }
 
     private GPUResourceGroup CreateGroupDepthComparison(GPUTextureView view)
     {
         ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTextureDepthComparison,
+            _rendering.GraphicsDevice.BindGroupTextureDepthComparison,
             new ResourceBindingEntry[]{
                 new ResourceBindingEntry(0, view),
-                new ResourceBindingEntry(1, _device.SamplerDepthComparison),
+                new ResourceBindingEntry(1, _rendering.GraphicsDevice.SamplerDepthComparison),
             }
         );
 
-        return _device.CreateResourceGroup(groupDescriptor);
+        return _rendering.GraphicsDevice.CreateResourceGroup(groupDescriptor);
     }
 
     protected override void Dispose(bool disposing)

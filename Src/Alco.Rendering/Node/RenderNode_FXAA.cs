@@ -9,7 +9,6 @@ namespace Alco.Rendering;
 public sealed class RenderNode_FXAA : AutoDisposable, IContentProcessorNode
 {
     private readonly FXAA _fxaa;
-    private RenderTexture? _input;
 
     /// <inheritdoc />
     public bool IsEnabled { get; set; } = true;
@@ -44,12 +43,7 @@ public sealed class RenderNode_FXAA : AutoDisposable, IContentProcessorNode
     /// <inheritdoc />
     public void OnRenderForward(RenderTexture input, RenderTexture target)
     {
-        if (!ReferenceEquals(_input, input))
-        {
-            _input = input;
-            _fxaa.SetInput(input);
-        }
-        _fxaa.Blit(target.FrameBuffer);
+        _fxaa.Blit(input, target.FrameBuffer);
     }
 
     /// <inheritdoc />

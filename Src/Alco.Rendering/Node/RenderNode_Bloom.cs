@@ -13,7 +13,6 @@ public sealed class RenderNode_Bloom : AutoDisposable, IContentProcessorNode
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _blitMaterial;
-    private RenderTexture? _input;
 
     /// <inheritdoc />
     public bool IsEnabled { get; set; } = true;
@@ -69,19 +68,16 @@ public sealed class RenderNode_Bloom : AutoDisposable, IContentProcessorNode
     /// <inheritdoc />
     public void OnRenderForward(RenderTexture input, RenderTexture target)
     {
-        if (!ReferenceEquals(_input, input))
-        {
-            _input = input;
-            _bloom.SetInput(input);
-            _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, input);
-        }
+        // Setting the same texture is a no-op; an in-place resize of the input is
+        // picked up by the material system's version check.
+        _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, input);
 
         // The bloom blit is additive: the target must already hold the scene image.
         _renderContext.Begin(target.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, _blitMaterial);
         _renderContext.End();
 
-        _bloom.Blit(target.FrameBuffer);
+        _bloom.Blit(input, target.FrameBuffer);
     }
 
     /// <inheritdoc />

@@ -44,7 +44,10 @@ public class Bloom : TextureProcessor
     private GraphicsPipelineContext _blitPipelineInfo;
     private uint _blitShaderId_texture;
 
-    protected RenderTexture? _input;
+    // The input size the current pyramid was built for; a size mismatch on the next
+    // blit rebuilds the pyramid lazily.
+    private uint _builtWidth;
+    private uint _builtHeight;
 
     private Vector2 _clampInvFrameSize;
 
@@ -135,11 +138,18 @@ public class Bloom : TextureProcessor
         _command = _device.CreateCommandBuffer();
     }
 
-    public override void SetInput(RenderTexture input)
+    // Rebuilds the down/up sample pyramid when the input size changed since the last
+    // blit. The pyramid textures are bound directly per pass (resolved fresh from the
+    // current objects every frame), so recreating them needs no other notification.
+    private void EnsurePyramid(RenderTexture input)
     {
-        base.SetInput(input);
+        if (_downSampleTextures != null && _builtWidth == input.Width && _builtHeight == input.Height)
+        {
+            return;
+        }
 
-        _input = input;
+        _builtWidth = input.Width;
+        _builtHeight = input.Height;
 
         TryDisposeFrames();
 
@@ -188,15 +198,11 @@ public class Bloom : TextureProcessor
                 _upSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
             }
         }
-
     }
 
-    public override void Blit(GPUFrameBuffer target)
+    public override void Blit(RenderTexture input, GPUFrameBuffer target)
     {
-        if (_input == null)
-        {
-            throw new InvalidOperationException("Input is not set.");
-        }
+        EnsurePyramid(input);
 
         Mesh mesh = FullScreenMesh;
 
@@ -214,7 +220,7 @@ public class Bloom : TextureProcessor
         {
             renderPass.SetPipeline(_clampPipelineInfo);
             uint indexCount = renderPass.SetMesh(mesh);
-            renderPass.SetResources(_clampShaderId_texture, _input!.ColorTextures[0].EntrySample);
+            renderPass.SetResources(_clampShaderId_texture, input.ColorTextures[0].EntrySample);
 
             var clampShaderData = new ClampConstant
             {

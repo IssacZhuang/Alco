@@ -43,6 +43,10 @@ public sealed class ShaderParameterSet
         public int renderTextureIndex;
         public uint mipLevel;
         public bool mipView;
+        // The RenderTexture.Version recorded when the slot value was written (or when a
+        // version drift was last detected), used by FlushResourceGroups to rebuild groups
+        // whose render texture recreated its GPU resources in place.
+        public uint renderTextureVersion;
     }
 
     private enum EntryKind : byte
@@ -66,6 +70,9 @@ public sealed class ShaderParameterSet
         public GPUBindGroup? layout;
         public EntryPlan[] plans = [];
         public bool dirty = true;
+        // Whether any slot of this group is a texture slot; groups without one skip the
+        // render texture version validation in FlushResourceGroups entirely.
+        public bool hasTextureSlots;
         // The fallback chain version at the time this group was last assembled.
         public int fallbackVersion;
         public GPUResourceGroup? current;
@@ -193,6 +200,7 @@ public sealed class ShaderParameterSet
             newSlot.renderTextureIndex = oldSlot.renderTextureIndex;
             newSlot.mipLevel = oldSlot.mipLevel;
             newSlot.mipView = oldSlot.mipView;
+            newSlot.renderTextureVersion = oldSlot.renderTextureVersion;
         }
     }
 
@@ -994,6 +1002,12 @@ public sealed class ShaderParameterSet
     /// <br/>A group is skipped entirely when neither its own slots (dirty flag) nor
     /// any value of the fallback chain (version sum) changed, which makes the steady
     /// state a few integer comparisons per group with no allocation.
+    /// <br/>Groups with texture slots additionally validate the recorded
+    /// <see cref="RenderTexture.Version"/> of their render textures: an in-place
+    /// <see cref="RenderTexture.Resize"/> keeps the slot reference intact but replaces
+    /// the underlying GPU textures, which is detected here and marks the group dirty
+    /// (bumping this set's version, so dependent sets re-resolve through the fallback
+    /// chain as with any other value change).
     /// </summary>
     public void FlushResourceGroups()
     {
@@ -1008,6 +1022,26 @@ public sealed class ShaderParameterSet
         for (int i = 0; i < _groups.Length; i++)
         {
             GroupState group = _groups[i];
+
+            // A render texture resized in place keeps its object identity, so the slot
+            // values look unchanged; the recorded version is the only signal that the
+            // assembled group still references the destroyed textures.
+            if (!group.dirty && group.hasTextureSlots)
+            {
+                EntryPlan[] plans = group.plans;
+                for (int p = 0; p < plans.Length; p++)
+                {
+                    ref Slot slot = ref _slots[plans[p].slotIndex];
+                    RenderTexture? renderTexture = slot.renderTexture;
+                    if (renderTexture != null && renderTexture.Version != slot.renderTextureVersion)
+                    {
+                        slot.renderTextureVersion = renderTexture.Version;
+                        MarkDirty(i);
+                        break;
+                    }
+                }
+            }
+
             if (!group.dirty && group.fallbackVersion == fallbackVersion)
             {
                 continue;
@@ -1212,6 +1246,7 @@ public sealed class ShaderParameterSet
         slot.renderTextureIndex = renderTextureIndex;
         slot.mipLevel = mipLevel;
         slot.mipView = mipView;
+        slot.renderTextureVersion = renderTexture?.Version ?? 0;
         MarkDirty(slot.groupIndex);
     }
 
@@ -1319,7 +1354,17 @@ public sealed class ShaderParameterSet
                 }
             }
 
-            _groups[groupIndex] = new GroupState { plans = plans, dirty = true };
+            bool hasTextureSlots = false;
+            for (int i = 0; i < plans.Length; i++)
+            {
+                if (IsTextureSlot(_slots[plans[i].slotIndex].type))
+                {
+                    hasTextureSlots = true;
+                    break;
+                }
+            }
+
+            _groups[groupIndex] = new GroupState { plans = plans, dirty = true, hasTextureSlots = hasTextureSlots };
         }
     }
 

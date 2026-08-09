@@ -25,18 +25,19 @@ public abstract class TextureProcessor : AutoDisposable
         _mesh = renderingSystem.MeshFullScreen;
     }
 
-    public virtual void SetInput(RenderTexture input)
-    {
-
-    }
-
-    public abstract void Blit(GPUFrameBuffer target);
+    /// <summary>
+    /// Processes <paramref name="input"/> and renders the result into
+    /// <paramref name="target"/>. Implementations rebuild their resolution-dependent
+    /// resources lazily from the input's current size, so an in-place resized input
+    /// needs no other notification.
+    /// </summary>
+    public abstract void Blit(RenderTexture input, GPUFrameBuffer target);
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Blit(RenderTexture renderTexture)
+    public void Blit(RenderTexture input, RenderTexture target)
     {
-        Blit(renderTexture.FrameBuffer);
+        Blit(input, target.FrameBuffer);
     }
 
 

@@ -141,13 +141,10 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin
     /// <inheritdoc />
     public void Resize(uint width, uint height)
     {
-        _rawAO.Dispose();
-        _aoResult.Dispose();
-        _rawAO = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width, height, "hbao_raw");
-        _aoResult = _rendering.CreateRenderTexture(_rendering.PreferredLightMapPass, width, height, "hbao_result");
-        _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
+        // In-place resize: the materials keep referencing the same wrappers, the bind
+        // groups are rebuilt automatically through the render texture version check.
+        _rawAO.Resize(width, height);
+        _aoResult.Resize(width, height);
         _boundGBuffer = null;
     }
 
