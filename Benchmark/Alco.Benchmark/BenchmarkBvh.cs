@@ -14,6 +14,9 @@ public class BenchmarkBvh
     NativeArrayList<ColliderRef3D> colliders3D;
     NativeBvh3D bvh3D;
 
+    private MortonBvhBuilder3D _mortonBuilder3D;
+    NativeBvh3D bvh3DMorton;
+
     NativeArrayList<ColliderBox2D> boxs2D;
     NativeArrayList<ColliderSphere2D> spheres2D;
     NativeArrayList<Ray2D> rays2D;
@@ -22,6 +25,7 @@ public class BenchmarkBvh
 
     private CastRayTask _castRayTask;
     private CastRayTask3D _castRayTask3D;
+    private CastRayTask3D _castRayTask3DMorton;
 
     [GlobalSetup]
     public unsafe void Setup()
@@ -90,6 +94,27 @@ public class BenchmarkBvh
         _castRayTask3D = new CastRayTask3D(bvh3D);
 
         bvh3D.BuildTree(colliders3D.AsSpan());
+
+        _mortonBuilder3D = new MortonBvhBuilder3D();
+        bvh3DMorton = new NativeBvh3D();
+        _castRayTask3DMorton = new CastRayTask3D(bvh3DMorton);
+        bvh3DMorton.BuildTree(colliders3D.AsSpan(), _mortonBuilder3D);
+
+        PrintTreeQuality(bvh3D, "Pairing");
+        PrintTreeQuality(bvh3DMorton, "Morton");
+    }
+
+    private void PrintTreeQuality(NativeBvh3D bvh, string name)
+    {
+        bvh.CollectStats = true;
+        bvh.ResetStats();
+        for (int i = 0; i < rays3D.Length; i++)
+        {
+            bvh.CastRayClosestHit(rays3D[i]);
+        }
+        Console.WriteLine($"[BvhQuality] {name}: nodes={bvh.Size}, avg nodes visited/ray = {bvh.NodesVisited / (double)rays3D.Length:F1}");
+        bvh.ResetStats();
+        bvh.CollectStats = false;
     }
 
     private unsafe void Setup2D()
@@ -162,6 +187,9 @@ public class BenchmarkBvh
         colliders3D.Dispose();
         bvh3D.Dispose();
         _castRayTask3D.Dispose();
+        bvh3DMorton.Dispose();
+        _castRayTask3DMorton.Dispose();
+        _mortonBuilder3D.Dispose();
 
         boxs2D.Dispose();
         spheres2D.Dispose();
@@ -182,6 +210,19 @@ public class BenchmarkBvh
     {
         _castRayTask3D.rays = rays3D;
         _castRayTask3D.RunParallel(rays3D.Length, 16);
+    }
+
+    [Benchmark(Description = "BVH 3D (Morton) Build tree: ")]
+    public void BuildBvh3DMorton()
+    {
+        bvh3DMorton.BuildTree(colliders3D.AsSpan(), _mortonBuilder3D);
+    }
+
+    [Benchmark(Description = "BVH 3D (Morton) Cast ray: ")]
+    public void CastRay3DMorton()
+    {
+        _castRayTask3DMorton.rays = rays3D;
+        _castRayTask3DMorton.RunParallel(rays3D.Length, 16);
     }
 
     [Benchmark(Description = "BVH 2D Build tree: ")]
