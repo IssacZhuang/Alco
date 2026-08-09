@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 
 namespace Alco
@@ -22,8 +21,6 @@ namespace Alco
         private int _treeDepth;
         private bool _isDisposed;
 
-        private long _nodesVisited;
-
         /// <summary>
         /// Gets the current number of nodes in the BVH.
         /// </summary>
@@ -35,30 +32,11 @@ namespace Alco
         public int Capacity => _nodes.Length;
 
         /// <summary>
-        /// Gets or sets a value indicating whether traversal statistics are collected.
-        /// </summary>
-        public bool CollectStats { get; set; }
-
-        /// <summary>
-        /// Gets the number of nodes visited by queries since the last <see cref="ResetStats"/>.
-        /// Intended as a tree quality diagnostic for build algorithm comparisons.
-        /// </summary>
-        public long NodesVisited => Interlocked.CompareExchange(ref _nodesVisited, 0, 0);
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="NativeBvh3D"/> class.
         /// </summary>
         public NativeBvh3D()
         {
             _isDisposed = false;
-        }
-
-        /// <summary>
-        /// Resets the traversal statistics counters.
-        /// </summary>
-        public void ResetStats()
-        {
-            Interlocked.Exchange(ref _nodesVisited, 0);
         }
 
         /// <summary>
@@ -176,15 +154,6 @@ namespace Alco
             return _nodes.UnsafePointer[index];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CountNodeVisit()
-        {
-            if (CollectStats)
-            {
-                Interlocked.Increment(ref _nodesVisited);
-            }
-        }
-
 
         // cast collider implementation
 
@@ -193,7 +162,6 @@ namespace Alco
         {
             int* stack = stackalloc int[_treeDepth];
             int stackCount = 0;
-            stack[stackCount++] = rootIndex;
             RayCastResult3D result = RayCastResult3D.none;
 
             BoundingBox3D rayBox = ray.GetBoundingBox();
@@ -201,7 +169,6 @@ namespace Alco
             while (stackCount > 0)
             {
                 BvhNode3D top = GetNode(stack[--stackCount]);
-                CountNodeVisit();
 
                 if (!rayBox.Intersects(top.Bounds)) continue;
 
@@ -247,7 +214,6 @@ namespace Alco
             while (stackCount > 0)
             {
                 BvhNode3D top = GetNode(stack[--stackCount]);
-                CountNodeVisit();
 
                 if (!rayBox.Intersects(top.Bounds)) continue;
 
@@ -291,7 +257,6 @@ namespace Alco
             while (stackCount > 0)
             {
                 BvhNode3D top = GetNode(stack[--stackCount]);
-                CountNodeVisit();
 
                 if (!aabb.Intersects(top.Bounds)) continue;
 
@@ -334,7 +299,6 @@ namespace Alco
             while (stackCount > 0)
             {
                 BvhNode3D top = GetNode(stack[--stackCount]);
-                CountNodeVisit();
 
                 if (!aabb.Intersects(top.Bounds)) continue;
 
@@ -376,7 +340,6 @@ namespace Alco
             while (stackCount > 0)
             {
                 BvhNode3D top = GetNode(stack[--stackCount]);
-                CountNodeVisit();
 
                 if (!top.Bounds.Contains(point)) continue;
 

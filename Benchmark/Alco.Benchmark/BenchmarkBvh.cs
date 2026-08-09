@@ -3,6 +3,9 @@ using BenchmarkDotNet.Running;
 using System.Collections.Generic;
 using System.Numerics;
 using Alco;
+using BepuPhysics.Trees;
+using BepuUtilities;
+using BepuUtilities.Memory;
 
 namespace Alco.Benchmark;
 
@@ -26,6 +29,14 @@ public class BenchmarkBvh
     private CastRayTask _castRayTask;
     private CastRayTask3D _castRayTask3D;
     private CastRayTask3D _castRayTask3DMorton;
+
+    // bepuphysics2 bare tree comparison: same collider AABBs, same rays, precise leaf tests via callback
+    private BufferPool _bepuPool;
+    private Tree _bepuTreeAdd;
+    private Tree _bepuTreeBinned;
+    private Buffer<NodeChild> _bepuSubtrees;
+    private CastRayTaskBepu _castRayTaskBepuAdd;
+    private CastRayTaskBepu _castRayTaskBepuBinned;
 
     [GlobalSetup]
     public unsafe void Setup()
@@ -100,21 +111,145 @@ public class BenchmarkBvh
         _castRayTask3DMorton = new CastRayTask3D(bvh3DMorton);
         bvh3DMorton.BuildTree(colliders3D.AsSpan(), _mortonBuilder3D);
 
-        PrintTreeQuality(bvh3D, "Pairing");
-        PrintTreeQuality(bvh3DMorton, "Morton");
-    }
+        _bepuPool = new BufferPool();
 
-    private void PrintTreeQuality(NativeBvh3D bvh, string name)
-    {
-        bvh.CollectStats = true;
-        bvh.ResetStats();
+        _bepuTreeAdd = new Tree(_bepuPool, colliderCount);
+        BuildBepuAdd();
+
+        _bepuTreeBinned = new Tree(_bepuPool, colliderCount);
+        _bepuPool.Take(colliderCount, out _bepuSubtrees);
+        BuildBepuBinned();
+
+        _castRayTaskBepuAdd = new CastRayTaskBepu(this, 0);
+        _castRayTaskBepuBinned = new CastRayTaskBepu(this, 1);
+
+        // sanity check: bepu tree queries must agree with the pairing baseline
+        int mismatches = 0;
         for (int i = 0; i < rays3D.Length; i++)
         {
-            bvh.CastRayClosestHit(rays3D[i]);
+            RayCastResult3D expected = bvh3D.CastRayClosestHit(rays3D[i]);
+            RayCastResult3D add = BepuCastRayClosestHit(ref _bepuTreeAdd, rays3D[i]);
+            RayCastResult3D binned = BepuCastRayClosestHit(ref _bepuTreeBinned, rays3D[i]);
+            if (expected.Hit != add.Hit || (expected.Hit && expected.HitInfo.Fraction != add.HitInfo.Fraction)) mismatches++;
+            if (expected.Hit != binned.Hit || (expected.Hit && expected.HitInfo.Fraction != binned.HitInfo.Fraction)) mismatches++;
         }
-        Console.WriteLine($"[BvhQuality] {name}: nodes={bvh.Size}, avg nodes visited/ray = {bvh.NodesVisited / (double)rays3D.Length:F1}");
-        bvh.ResetStats();
-        bvh.CollectStats = false;
+        Console.WriteLine($"[BepuCheck] ray result mismatches: {mismatches}");
+
+        // work measurement: count precise leaf tests per ray on both sides
+        long bepuAddLeafTests = MeasureBepuLeafTests(ref _bepuTreeAdd);
+        long bepuBinnedLeafTests = MeasureBepuLeafTests(ref _bepuTreeBinned);
+        Console.WriteLine($"[BepuQuality] Add: precise leaf tests/ray = {bepuAddLeafTests / (double)rays3D.Length:F1}");
+        Console.WriteLine($"[BepuQuality] Binned: precise leaf tests/ray = {bepuBinnedLeafTests / (double)rays3D.Length:F1}");
+    }
+
+    private long MeasureBepuLeafTests(ref Tree tree)
+    {
+        _bepuLeafTestCount = 0;
+        for (int i = 0; i < rays3D.Length; i++)
+        {
+            var tester = new CountingLeafTester { Colliders = colliders3D.UnsafePointer, Ray = rays3D[i], Owner = this };
+            float maximumT = 1f;
+            tree.RayCast(rays3D[i].Origin, rays3D[i].Displacement, ref maximumT, _bepuPool, ref tester);
+        }
+        return _bepuLeafTestCount;
+    }
+
+    internal long _bepuLeafTestCount;
+
+    private unsafe struct CountingLeafTester : IRayLeafTester
+    {
+        public ColliderRef3D* Colliders;
+        public Ray3D Ray;
+        public BenchmarkBvh Owner;
+
+        public void TestLeaf(int leafIndex, RayData* rayData, float* maximumT, BufferPool pool)
+        {
+            Owner._bepuLeafTestCount++;
+            Colliders[leafIndex].IntersectRay(Ray, out _);
+        }
+    }
+
+    private void BuildBepuAdd()
+    {
+        _bepuTreeAdd.Clear();
+        for (int i = 0; i < colliders3D.Length; i++)
+        {
+            BoundingBox3D bounds = colliders3D[i].GetBoundingBox();
+            _bepuTreeAdd.Add(new BoundingBox { Min = bounds.Min, Max = bounds.Max }, _bepuPool);
+        }
+    }
+
+    private void BuildBepuBinned()
+    {
+        int n = colliders3D.Length;
+        for (int i = 0; i < n; i++)
+        {
+            BoundingBox3D bounds = colliders3D[i].GetBoundingBox();
+            _bepuSubtrees[i] = new NodeChild { Min = bounds.Min, Max = bounds.Max, Index = Tree.Encode(i), LeafCount = 1 };
+        }
+        Tree.BinnedBuild(_bepuSubtrees, _bepuTreeBinned.Nodes, _bepuTreeBinned.Metanodes, _bepuTreeBinned.Leaves, _bepuPool);
+        _bepuTreeBinned.NodeCount = n - 1;
+        _bepuTreeBinned.LeafCount = n;
+    }
+
+    private unsafe RayCastResult3D BepuCastRayClosestHit(ref Tree tree, Ray3D ray)
+    {
+        var tester = new ClosestHitLeafTester
+        {
+            Colliders = colliders3D.UnsafePointer,
+            Ray = ray,
+            Result = RayCastResult3D.none
+        };
+        // our rays are segments: Origin + Displacement * t, t in [0, 1]
+        float maximumT = 1f;
+        tree.RayCast(ray.Origin, ray.Displacement, ref maximumT, _bepuPool, ref tester);
+        return tester.Result;
+    }
+
+    private unsafe struct ClosestHitLeafTester : IRayLeafTester
+    {
+        public ColliderRef3D* Colliders;
+        public Ray3D Ray;
+        public RayCastResult3D Result;
+
+        public void TestLeaf(int leafIndex, RayData* rayData, float* maximumT, BufferPool pool)
+        {
+            ColliderRef3D collider = Colliders[leafIndex];
+            if (collider.IntersectRay(Ray, out RaycastHit3D hitInfo))
+            {
+                if (!Result.Hit || hitInfo.Fraction < Result.HitInfo.Fraction)
+                {
+                    Result.Hit = true;
+                    Result.HitInfo = hitInfo;
+                    Result.Collider = collider;
+                }
+            }
+        }
+    }
+
+    private class CastRayTaskBepu : ReusableBatchTask
+    {
+        private readonly BenchmarkBvh _owner;
+        private readonly int _treeIndex; // 0 = incremental Add tree, 1 = BinnedBuild tree
+        public NativeArrayList<Ray3D> rays;
+
+        public CastRayTaskBepu(BenchmarkBvh owner, int treeIndex)
+        {
+            _owner = owner;
+            _treeIndex = treeIndex;
+        }
+
+        protected override void ExecuteCore(int index)
+        {
+            if (_treeIndex == 0)
+            {
+                _owner.BepuCastRayClosestHit(ref _owner._bepuTreeAdd, rays[index]);
+            }
+            else
+            {
+                _owner.BepuCastRayClosestHit(ref _owner._bepuTreeBinned, rays[index]);
+            }
+        }
     }
 
     private unsafe void Setup2D()
@@ -191,6 +326,13 @@ public class BenchmarkBvh
         _castRayTask3DMorton.Dispose();
         _mortonBuilder3D.Dispose();
 
+        _bepuTreeAdd.Dispose(_bepuPool);
+        _bepuTreeBinned.Dispose(_bepuPool);
+        _bepuPool.Return(ref _bepuSubtrees);
+        _bepuPool.Clear();
+        _castRayTaskBepuAdd.Dispose();
+        _castRayTaskBepuBinned.Dispose();
+
         boxs2D.Dispose();
         spheres2D.Dispose();
         rays2D.Dispose();
@@ -223,6 +365,32 @@ public class BenchmarkBvh
     {
         _castRayTask3DMorton.rays = rays3D;
         _castRayTask3DMorton.RunParallel(rays3D.Length, 16);
+    }
+
+    [Benchmark(Description = "Bepu (Add) Build tree: ")]
+    public void BuildBepuAddBench()
+    {
+        BuildBepuAdd();
+    }
+
+    [Benchmark(Description = "Bepu (BinnedBuild) Build tree: ")]
+    public void BuildBepuBinnedBench()
+    {
+        BuildBepuBinned();
+    }
+
+    [Benchmark(Description = "Bepu (Add) Cast ray: ")]
+    public void CastRayBepuAdd()
+    {
+        _castRayTaskBepuAdd.rays = rays3D;
+        _castRayTaskBepuAdd.RunParallel(rays3D.Length, 16);
+    }
+
+    [Benchmark(Description = "Bepu (Binned) Cast ray: ")]
+    public void CastRayBepuBinned()
+    {
+        _castRayTaskBepuBinned.rays = rays3D;
+        _castRayTaskBepuBinned.RunParallel(rays3D.Length, 16);
     }
 
     [Benchmark(Description = "BVH 2D Build tree: ")]
