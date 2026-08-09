@@ -26,7 +26,11 @@ public class BenchmarkBvh
     NativeArrayList<ColliderRef2D> colliders2D;
     NativeBvh2D bvh2D;
 
+    private MortonBvhBuilder2D _mortonBuilder2D;
+    NativeBvh2D bvh2DMorton;
+
     private CastRayTask _castRayTask;
+    private CastRayTask _castRayTask2DMorton;
     private CastRayTask3D _castRayTask3D;
     private CastRayTask3D _castRayTask3DMorton;
 
@@ -311,6 +315,11 @@ public class BenchmarkBvh
         _castRayTask = new CastRayTask(bvh2D);
 
         bvh2D.BuildTree(colliders2D.AsSpan());
+
+        _mortonBuilder2D = new MortonBvhBuilder2D();
+        bvh2DMorton = new NativeBvh2D();
+        _castRayTask2DMorton = new CastRayTask(bvh2DMorton);
+        bvh2DMorton.BuildTree(colliders2D.AsSpan(), _mortonBuilder2D);
     }
 
     [GlobalCleanup]
@@ -339,6 +348,9 @@ public class BenchmarkBvh
         colliders2D.Dispose();
         bvh2D.Dispose();
         _castRayTask.Dispose();
+        bvh2DMorton.Dispose();
+        _castRayTask2DMorton.Dispose();
+        _mortonBuilder2D.Dispose();
     }
 
     [Benchmark(Description = "BVH 3D Build tree: ")]
@@ -445,5 +457,18 @@ public class BenchmarkBvh
     {
         _castRayTask.rays = rays2D;
         _castRayTask.RunParallel(rays2D.Length, 16);
+    }
+
+    [Benchmark(Description = "BVH 2D (Morton) Build tree: ")]
+    public void BuildBvh2DMorton()
+    {
+        bvh2DMorton.BuildTree(colliders2D.AsSpan(), _mortonBuilder2D);
+    }
+
+    [Benchmark(Description = "BVH 2D (Morton) Cast ray: ")]
+    public void CastRay2DMorton()
+    {
+        _castRayTask2DMorton.rays = rays2D;
+        _castRayTask2DMorton.RunParallel(rays2D.Length, 16);
     }
 }

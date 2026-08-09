@@ -160,5 +160,86 @@ namespace Alco.Test
             colliders.Dispose();
             bvh.Dispose();
         }
+
+        [Test(Description = "Morton builder produces query results identical to the pairing baseline (2D)")]
+        public unsafe void TestMortonBuilderEquivalence()
+        {
+            FastRandom random = new FastRandom(12345);
+
+            NativeArrayList<ColliderBox2D> boxs = new NativeArrayList<ColliderBox2D>(8);
+            NativeArrayList<ColliderSphere2D> spheres = new NativeArrayList<ColliderSphere2D>(8);
+            NativeArrayList<ColliderRef2D> colliders = new NativeArrayList<ColliderRef2D>();
+
+            for (int i = 0; i < 500; i++)
+            {
+                boxs.Add(new ColliderBox2D
+                {
+                    Shape = new ShapeBox2D(random.NextVector2(-100, 100), random.NextVector2(1, 10), random.NextRotation2D())
+                });
+                spheres.Add(new ColliderSphere2D
+                {
+                    Shape = new ShapeSphere2D(random.NextVector2(-100, 100), random.NextFloat(1, 10))
+                });
+            }
+
+            for (int i = 0; i < boxs.Length; i++)
+            {
+                colliders.Add(ColliderRef2D.Create(boxs.UnsafePointer + i));
+            }
+            for (int i = 0; i < spheres.Length; i++)
+            {
+                colliders.Add(ColliderRef2D.Create(spheres.UnsafePointer + i));
+            }
+
+            NativeBvh2D pairing = new NativeBvh2D();
+            pairing.BuildTree(colliders.AsSpan());
+
+            MortonBvhBuilder2D mortonBuilder = new MortonBvhBuilder2D();
+            NativeBvh2D morton = new NativeBvh2D();
+            morton.BuildTree(colliders.AsSpan(), mortonBuilder);
+
+            // random rays: closest hit must be identical, including the hit collider identity
+            for (int i = 0; i < 2000; i++)
+            {
+                Vector2 start = random.NextVector2(-125, 125);
+                Ray2D ray = Ray2D.CreateWithStartAndEnd(start, start + random.NextVector2(-6, 6));
+
+                RayCastResult2D expected = pairing.CastRayClosestHit(ray);
+                RayCastResult2D actual = morton.CastRayClosestHit(ray);
+
+                Assert.AreEqual(expected.Hit, actual.Hit);
+                if (expected.Hit)
+                {
+                    Assert.AreEqual(expected.HitInfo.Fraction, actual.HitInfo.Fraction);
+                    Assert.IsTrue(expected.Collider.UnsafePointer == actual.Collider.UnsafePointer);
+                }
+            }
+
+            // box casts: the same set of colliders must be collected
+            for (int i = 0; i < 200; i++)
+            {
+                ShapeBox2D shape = new ShapeBox2D(random.NextVector2(-100, 100), random.NextVector2(1, 5), random.NextRotation2D());
+
+                NativeArrayList<ColliderCastResult2D> expectedHits = new NativeArrayList<ColliderCastResult2D>(8);
+                NativeListCollector expectedCollector = new NativeListCollector(&expectedHits);
+                pairing.CastBox(shape, ref expectedCollector);
+
+                NativeArrayList<ColliderCastResult2D> actualHits = new NativeArrayList<ColliderCastResult2D>(8);
+                NativeListCollector actualCollector = new NativeListCollector(&actualHits);
+                morton.CastBox(shape, ref actualCollector);
+
+                Assert.AreEqual(expectedHits.Length, actualHits.Length);
+
+                expectedHits.Dispose();
+                actualHits.Dispose();
+            }
+
+            boxs.Dispose();
+            spheres.Dispose();
+            colliders.Dispose();
+            pairing.Dispose();
+            morton.Dispose();
+            mortonBuilder.Dispose();
+        }
     }
 }
