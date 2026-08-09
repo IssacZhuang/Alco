@@ -233,10 +233,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     // GPU timestamp ring buffer for per-stage GPU timing. Each stage (G-buffer /
     // lighting) owns 2 query slots (begin + end) in a shared query set. The ring
     // buffer provides per-frame readback with a 2-frame latency, no stalls.
-    private const int PipelineTimestampCount = 6; // 3 stages × 2 (begin/end)
+    private const int PipelineTimestampCount = 8; // 4 stages × 2 (begin/end)
     private const int ShadowQueryBase = 0;
     private const int GBufferQueryBase = 2;
     private const int LightingQueryBase = 4;
+    private const int VolumetricLightQueryBase = 6;
     private GpuTimestampSampler? _gpuTimestamps;
 
     private readonly RenderContext _shadowContext;
@@ -512,6 +513,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _gpuTimestamps.DeltaMilliseconds(timestamps, GBufferQueryBase, GBufferQueryBase + 1));
         _profiler.PushValue(_lightingCounter,
             _gpuTimestamps.DeltaMilliseconds(timestamps, LightingQueryBase, LightingQueryBase + 1));
+        _profiler.PushValue(_volumetricLightCounter,
+            _gpuTimestamps.DeltaMilliseconds(timestamps, VolumetricLightQueryBase, VolumetricLightQueryBase + 1));
     }
 
     /// <summary>
@@ -1224,8 +1227,22 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
         // The lighting data buffer was already uploaded by RenderLighting, which
         // contains the vlParams the VL shader needs. No re-upload necessary.
-        _volumetricLightContext.Begin(target);
+        bool recordGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
+        if (recordGpu)
+        {
+            _volumetricLightContext.Begin(target, ReadOnlySpan<ClearColorData>.Empty,
+                _gpuTimestamps!.QuerySet, VolumetricLightQueryBase, VolumetricLightQueryBase + 1);
+        }
+        else
+        {
+            _volumetricLightContext.Begin(target);
+        }
         _volumetricLightContext.Draw(_fullScreenMesh, _volumetricLightMaterial);
+        if (recordGpu)
+        {
+            _volumetricLightContext.ResolveTimestampsOnEnd(
+                _gpuTimestamps!.QuerySet, VolumetricLightQueryBase, 2, _gpuTimestamps.ResolveBuffer);
+        }
         _volumetricLightContext.End();
 
         _profiler.PushValue(_volumetricLightCounter,

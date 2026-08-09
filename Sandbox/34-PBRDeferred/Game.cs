@@ -269,13 +269,6 @@ public class Game : GameEngine
     private PBRDeferredPipeline.PointLight[]? _bistroPointLights;         // base lights (unscaled)
     private PBRDeferredPipeline.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
-    // Volumetric light (god rays): shadow-map-based atmospheric scattering.
-    private bool _volumetricLightEnabled = true;
-    private float _vlIntensity = 0.5f;
-    private float _vlDensity = 0.02f;
-    private float _vlHeightScale = 50.0f;
-    private float _vlPhaseG = 0.6f;
-
     // HDR tone mapping node: switchable operator with per-type parameters.
     private RenderNode_Tonemap? _tonemapStage;
     private TonemapType _tonemapType;
@@ -341,24 +334,6 @@ public class Game : GameEngine
             _giSpecularStrength = giSpecular;
         }
 
-        // Volumetric light CLI overrides.
-        _volumetricLightEnabled = !args.Contains("--no-vl");
-        if (float.TryParse(GetArgValue(args, "--vl-intensity="), out float vlIntensity))
-        {
-            _vlIntensity = vlIntensity;
-        }
-        if (float.TryParse(GetArgValue(args, "--vl-fog="), out float vlFog))
-        {
-            _vlDensity = vlFog;
-        }
-        if (float.TryParse(GetArgValue(args, "--vl-height="), out float vlHeight))
-        {
-            _vlHeightScale = vlHeight;
-        }
-        if (float.TryParse(GetArgValue(args, "--vl-phase="), out float vlPhase))
-        {
-            _vlPhaseG = vlPhase;
-        }
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
         bool interior = args.Contains("--interior");
@@ -405,7 +380,7 @@ public class Game : GameEngine
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
             volumetricLightShader: BuiltInAssets.Shader_PBRVolumetricLight);
-        _pipeline.VolumetricLightEnabled = _volumetricLightEnabled;
+        _pipeline.VolumetricLightEnabled = true;
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
@@ -1022,14 +997,7 @@ public class Game : GameEngine
         _pipeline.SunIntensity = _sunIntensity * sunScale;
         _pipeline.SkyHorizonColor = skyHorizonColor;
         _pipeline.SkyZenithColor = skyZenithColor;
-        _pipeline.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
         _pipeline.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
-
-        // Volumetric light parameters (only active when VL is initialized).
-        _pipeline.VolumetricLightIntensity = _vlIntensity;
-        _pipeline.VolumetricLightDensity = _vlDensity;
-        _pipeline.VolumetricLightHeightScale = _vlHeightScale;
-        _pipeline.VolumetricLightPhaseG = _vlPhaseG;
 
         // Fit the shadow distance to the view: when the camera is far from the
         // scene (e.g. aerial views), extend past the configured base so visible
@@ -1395,10 +1363,18 @@ public class Game : GameEngine
             if (ImGui.Checkbox("Enabled", ref vlEnabled))
                 _pipeline.VolumetricLightEnabled = vlEnabled;
 
-            ImGui.SliderFloat("Intensity", ref _vlIntensity, 0.0f, 4.0f);
-            ImGui.SliderFloat("Fog Density", ref _vlDensity, 0.0f, 0.2f, "%.4f");
-            ImGui.SliderFloat("Height Scale", ref _vlHeightScale, 5.0f, 500.0f, "%.0f");
-            ImGui.SliderFloat("Phase G", ref _vlPhaseG, 0.0f, 0.95f);
+            float vlIntensity = _pipeline.VolumetricLightIntensity;
+            if (ImGui.SliderFloat("Intensity", ref vlIntensity, 0.0f, 4.0f))
+                _pipeline.VolumetricLightIntensity = vlIntensity;
+            float vlDensity = _pipeline.VolumetricLightDensity;
+            if (ImGui.SliderFloat("Fog Density", ref vlDensity, 0.0f, 0.2f, "%.4f"))
+                _pipeline.VolumetricLightDensity = vlDensity;
+            float vlHeightScale = _pipeline.VolumetricLightHeightScale;
+            if (ImGui.SliderFloat("Height Scale", ref vlHeightScale, 5.0f, 500.0f, "%.0f"))
+                _pipeline.VolumetricLightHeightScale = vlHeightScale;
+            float vlPhaseG = _pipeline.VolumetricLightPhaseG;
+            if (ImGui.SliderFloat("Phase G", ref vlPhaseG, 0.0f, 0.95f))
+                _pipeline.VolumetricLightPhaseG = vlPhaseG;
         }
 
         if (_hbaoRenderer != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
