@@ -273,6 +273,10 @@ public class Game : GameEngine
     private RenderNode_Tonemap? _tonemapStage;
     private TonemapType _tonemapType;
 
+    // Shader hot-reload notification (brief on-screen message).
+    private string? _shaderReloadNotice;
+    private float _shaderReloadNoticeTimer;
+
     // Screenshot mode.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
@@ -576,6 +580,8 @@ public class Game : GameEngine
         _pipeline.Use(_tonemapStage);
 
         MainPresenter.OnResize += OnMainWindowResize;
+
+        AssetSystem.OnHotReload += OnShaderHotReload;
     }
 
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
@@ -620,6 +626,10 @@ public class Game : GameEngine
         }
 
         _time += delta;
+        if (_shaderReloadNoticeTimer > 0)
+        {
+            _shaderReloadNoticeTimer -= delta;
+        }
         _timeOfDay = (_timeOfDay + delta * _timeSpeed) % 24.0f;
 
         UpdateCamera(delta);
@@ -659,7 +669,32 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
+        AssetSystem.OnHotReload -= OnShaderHotReload;
         _pipeline.Dispose();
+    }
+
+    /// <summary>
+    /// Called when any asset is hot-reloaded. For shaders, marks the static
+    /// render bundles dirty so G-buffer / shadow / forward passes re-record
+    /// with the freshly compiled pipeline on the next frame. Without this,
+    /// only dynamic draws pick up the new shader (static bundles replay the
+    /// old pipeline captured at record time).
+    /// </summary>
+    private void OnShaderHotReload(string filename, object cachedAsset)
+    {
+        if (cachedAsset is not Shader)
+        {
+            return;
+        }
+
+        _gbufferRenderer.MarkStaticBundleDirty();
+        _shadowRenderer.MarkStaticBundleDirty();
+        _forwardRenderer?.MarkStaticBundleDirty();
+
+        string shaderName = Path.GetFileName(filename);
+        _shaderReloadNotice = $"Shader reloaded: {shaderName}";
+        _shaderReloadNoticeTimer = 3.0f;
+        Console.WriteLine($"[Hot Reload] {shaderName}");
     }
 
     protected void OnMainWindowResize(uint2 size)
@@ -1302,6 +1337,12 @@ public class Game : GameEngine
     private void DrawImGuiPanel()
     {
         ImGui.Begin("PBR Deferred");
+
+        if (_shaderReloadNoticeTimer > 0 && _shaderReloadNotice != null)
+        {
+            ImGui.TextColored(new Vector4(0.4f, 1.0f, 0.4f, 1.0f), _shaderReloadNotice);
+            ImGui.Separator();
+        }
 
         // Keep an exact camera description visible so visual GI regressions can
         // be reproduced with the existing --pos / --look screenshot arguments.
