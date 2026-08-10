@@ -78,13 +78,15 @@ float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
     return SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, shadowUV, compareDepth);
 }
 
-// Fog density at a world-space point: exponential height falloff.
-// sigma(h) = sigma0 * exp(-h / H). Scale height H in world units (tune via vlParams.z).
+// Fog density at a world-space point: exponential falloff relative to the
+// camera height. This keeps volumetric light visible regardless of terrain
+// elevation — the density profile follows the camera rather than the world
+// origin. sigma = sigma0 * exp(-|dh| / H) where dh = samplePos.z - cameraPos.z.
 float VolumetricDensity(float3 worldPos)
 {
-    float heightAboveGround = max(worldPos.z, 0.0);
+    float heightAboveCamera = worldPos.z - cameraPosition.z;
     float scaleHeight = vlParams.z;
-    return vlParams.y * exp(-heightAboveGround / max(scaleHeight, 1e-4));
+    return vlParams.y * exp(-abs(heightAboveCamera) / max(scaleHeight, 1e-4));
 }
 
 [shader("pixel")]
