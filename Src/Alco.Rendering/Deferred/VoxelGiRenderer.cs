@@ -382,6 +382,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private readonly List<MeshRegistration> _meshes = new();
     private readonly List<StaticInstance?> _staticInstances = new();
     private readonly Stack<int> _freeStaticInstanceHandles = new();
+    private readonly BvhAabb3D _staticBvh = new();
+    private readonly List<BoundingBox3D> _staticBvhBounds = new();
+    private readonly List<StaticInstance> _staticBvhInstances = new();
+    private readonly List<int> _staticBvhResults = new();
+    private bool _staticBvhDirty = true;
     private readonly List<DynamicInstance> _instances = new();
     private readonly List<VoxelGiDirtyBrick> _dirtyBricks = new();
     private readonly List<VoxelGiDirtyBrick> _candidateBricks = new();
@@ -884,6 +889,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _staticInstances.Add(instance);
         }
         InvalidateStatic(worldBounds);
+        _staticBvhDirty = true;
         return handle;
     }
 
@@ -909,6 +915,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         instance.WorldBounds = instance.Registration.Geometry.LocalBounds.Transform(world);
         InvalidateStatic(previousBounds);
         InvalidateStatic(instance.WorldBounds);
+        _staticBvhDirty = true;
     }
 
     /// <summary>Removes one structural instance and schedules its occupied bricks for repair.</summary>
@@ -920,6 +927,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         instance.Active = false;
         _staticInstances[instanceHandle] = null;
         _freeStaticInstanceHandles.Push(instanceHandle);
+        _staticBvhDirty = true;
     }
 
     /// <summary>
@@ -950,6 +958,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     {
         _staticInstances.Clear();
         _freeStaticInstanceHandles.Clear();
+        _staticBvhDirty = true;
         for (int level = 0; level < LevelCount; level++)
         {
             _staticNeedsFullClear[level] = true;
@@ -1352,6 +1361,31 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     }
 
     /// <summary>
+    /// Rebuilds the static-instance BVH when instances have been added, removed
+    /// or updated since the last build. Compacts the sparse <see cref="_staticInstances"/>
+    /// list (which has null slots for recycled handles) into a contiguous array of
+    /// active bounds + references so <see cref="BvhAabb3D"/> leaf indices map
+    /// directly to <see cref="_staticBvhInstances"/>.
+    /// </summary>
+    private void RebuildStaticBvhIfNeeded()
+    {
+        if (!_staticBvhDirty)
+            return;
+        _staticBvhDirty = false;
+        _staticBvhBounds.Clear();
+        _staticBvhInstances.Clear();
+        for (int i = 0; i < _staticInstances.Count; i++)
+        {
+            StaticInstance? instance = _staticInstances[i];
+            if (instance == null || !instance.Active)
+                continue;
+            _staticBvhBounds.Add(new BoundingBox3D(instance.WorldBounds.Min, instance.WorldBounds.Max));
+            _staticBvhInstances.Add(instance);
+        }
+        _staticBvh.Build(CollectionsMarshal.AsSpan(_staticBvhBounds));
+    }
+
+    /// <summary>
     /// Structural voxelization, driven by high-priority edit bricks and
     /// lower-priority camera-streaming bricks. Runs every frame with a small
     /// per-level budget so camera-scroll invalidation is amortized across
@@ -1365,6 +1399,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         ref int staticBricksUpdated,
         ref int droppedBricks)
     {
+        RebuildStaticBvhIfNeeded();
         for (int level = 0; level < LevelCount; level++)
         {
             bool fullReset = _staticNeedsFullClear[level] || _clipmap.ConsumeFullReset(level);
@@ -1403,16 +1438,13 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             VoxelGiBounds dirtyBounds = GetDirtyBounds(level, _dirtyBricks);
             (uint dirtyRangeLo, uint dirtyRangeHi) = PackDirtyVoxelRange(_dirtyBricks);
             VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
-            for (int i = 0; i < _staticInstances.Count; i++)
+            _staticBvhResults.Clear();
+            _staticBvh.OverlapAabb(new BoundingBox3D(dirtyBounds.Min, dirtyBounds.Max), _staticBvhResults);
+            for (int ri = 0; ri < _staticBvhResults.Count; ri++)
             {
-                StaticInstance? instance = _staticInstances[i];
-                if (instance == null
-                    || !instance.Active
-                    || !instance.WorldBounds.Intersects(dirtyBounds)
-                    || !instance.WorldBounds.Intersects(levelBounds))
-                {
+                StaticInstance instance = _staticBvhInstances[_staticBvhResults[ri]];
+                if (!instance.WorldBounds.Intersects(levelBounds))
                     continue;
-                }
                 DispatchVoxelize(computePass, instance.Registration, _attrStatic, _pageTableStatic[level], level,
                     instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff,
                     dirtyRangeLo, dirtyRangeHi);
@@ -1691,15 +1723,9 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
 
     private bool HasStaticGeometry(in VoxelGiBounds bounds)
     {
-        for (int i = 0; i < _staticInstances.Count; i++)
-        {
-            StaticInstance? instance = _staticInstances[i];
-            if (instance != null && instance.Active && instance.WorldBounds.Intersects(bounds))
-            {
-                return true;
-            }
-        }
-        return false;
+        _staticBvhResults.Clear();
+        _staticBvh.OverlapAabb(new BoundingBox3D(bounds.Min, bounds.Max), _staticBvhResults);
+        return _staticBvhResults.Count > 0;
     }
 
     private void CollectDynamicBricks(int level)
@@ -2033,6 +2059,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
             _gpuTimestamps?.Dispose();
+            _staticBvh.Dispose();
             _commandBuffer.Dispose();
         }
     }
