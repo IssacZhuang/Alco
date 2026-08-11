@@ -242,6 +242,7 @@ public class Game : GameEngine
 
     // Voxel global illumination (sparse clipmap + cone tracing).
     private readonly VoxelGiRenderer? _voxelGI;
+    private readonly ScreenSpaceReflectionRenderer? _ssrRenderer;
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
     private float _giSpecularStrength = 1f;
@@ -525,7 +526,6 @@ public class Game : GameEngine
                     Trace = AssetSystem.Load<Shader>(shaderDir + "VoxelTrace.hlsl"),
                     Demosaic = AssetSystem.Load<Shader>(shaderDir + "VoxelDemosaic.hlsl"),
                     Upsample = AssetSystem.Load<Shader>(shaderDir + "VoxelGiUpsample.hlsl"),
-                    SsrDepthDownsample = AssetSystem.Load<Shader>(shaderDir + "SsrDepthDownsample.hlsl"),
                 },
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
@@ -533,8 +533,24 @@ public class Game : GameEngine
                 baseVoxelSize: baseVoxelSize,
                 traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
             _voxelGI.DebugView = giDebugView;
+            _voxelGI.SsrOnly = args.Contains("--ssr-only");
             RegisterVoxelMeshes();
             _pipeline.RegisterPlugin(_voxelGI);
+
+            // Complementary-style SSR runs after deferred lighting and forward
+            // transparency, so its hit color is the actual completed HDR scene.
+            _ssrRenderer = new ScreenSpaceReflectionRenderer(
+                RenderingSystem,
+                _pipeline,
+                _voxelGI,
+                _camera,
+                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionTrace.hlsl"),
+                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionResolve.hlsl"),
+                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionComposite.hlsl"),
+                BuiltInAssets.Shader_Blit,
+                (uint)MainView.Size.X,
+                (uint)MainView.Size.Y);
+            _pipeline.Use(_ssrRenderer);
         }
 
         // Bloom is a content processor node on the pipeline's forward chain;
@@ -1070,8 +1086,18 @@ public class Game : GameEngine
             _pipeline.GiEnabled = _giEnabled;
             _pipeline.GiDiffuseStrength = _giDiffuseStrength;
             _pipeline.GiSpecularStrength = _giSpecularStrength;
-            _pipeline.GiDebugView = (int)_voxelGI.DebugView;
+            // Post-lighting SSR needs the normally shaded scene as its source.
+            // Its own two debug modes are therefore resolved by the SSR node,
+            // while the pre-lighting deferred debug mode stays disabled.
+            _pipeline.GiDebugView = _voxelGI.DebugView is
+                VoxelGiDebugMode.IndirectSpecular or VoxelGiDebugMode.SsrConfidence
+                ? 0
+                : (int)_voxelGI.DebugView;
             _voxelGI.EmissiveScale = _pointLightsEnabled ? _emissiveBoost : 0.0f;
+            if (_ssrRenderer != null)
+            {
+                _ssrRenderer.IsEnabled = _giEnabled;
+            }
         }
     }
 
@@ -1441,6 +1467,20 @@ public class Game : GameEngine
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
+            bool giSsrOnly = _voxelGI.SsrOnly;
+            if (ImGui.Checkbox("SSR Only", ref giSsrOnly))
+                _voxelGI.SsrOnly = giSsrOnly;
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Disable the voxel specular-cone fallback so indirect specular contains only screen-space reflections.");
+            if (_ssrRenderer != null)
+            {
+                float ssrMaxDistance = _ssrRenderer.MaxTraceDistance;
+                if (ImGui.SliderFloat("SSR Max Trace Distance", ref ssrMaxDistance, 1.0f, 300.0f))
+                    _ssrRenderer.MaxTraceDistance = ssrMaxDistance;
+                float ssrRoughnessCutoff = _ssrRenderer.RoughnessCutoff;
+                if (ImGui.SliderFloat("SSR Roughness Cutoff", ref ssrRoughnessCutoff, 0.05f, 1.0f))
+                    _ssrRenderer.RoughnessCutoff = ssrRoughnessCutoff;
+            }
             float giSkyIntensity = _voxelGI.SkyIntensity;
             if (ImGui.SliderFloat("GI Sky Intensity", ref giSkyIntensity, 0.0f, 10.0f))
                 _voxelGI.SkyIntensity = giSkyIntensity;
@@ -1467,7 +1507,7 @@ public class Game : GameEngine
             ImGui.Text($"GI trace resolution: {_voxelGI.IndirectTexture.Width / 3}x{_voxelGI.IndirectTexture.Height}");
             string[] giDebugModes = [
                 "Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility",
-                "Raw Diffuse Trace",
+                "Raw Diffuse Trace", "SSR Hit Confidence",
             ];
             int giDebugInt = (int)_voxelGI.DebugView;
             if (ImGui.Combo("GI Debug", ref giDebugInt, giDebugModes, giDebugModes.Length))

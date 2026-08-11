@@ -118,6 +118,8 @@ public enum VoxelGiDebugMode
     Visibility = 3,
     /// <summary>Show the raw diffuse trace before temporal accumulation.</summary>
     RawDiffuseTrace = 4,
+    /// <summary>Show SSR hit confidence independently of reflected radiance.</summary>
+    SsrConfidence = 5,
 }
 
 /// <summary>
@@ -144,8 +146,6 @@ public readonly struct VoxelGiShaders
     public required Shader Demosaic { get; init; }
     /// <summary>The full-resolution upsample shader (VoxelGiUpsample.hlsl), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
-    /// <summary>The SSR Hi-Z depth pyramid downsample shader (SsrDepthDownsample.hlsl), or null to disable Hi-Z raymarching.</summary>
-    public Shader? SsrDepthDownsample { get; init; }
 }
 
 /// <summary>
@@ -153,7 +153,8 @@ public readonly struct VoxelGiShaders
 /// voxel clipmap (4 levels, each a cube of <c>resolution</c>^3 voxels at twice
 /// the previous level's voxel size, following the camera) with compute
 /// voxelization, direct-light injection, deterministic rotation-balanced
-/// diffuse cone tracing and hybrid screen-space/voxel-cone reflections.
+/// diffuse cone tracing and the off-screen voxel-cone reflection fallback used
+/// by the post-lighting screen-space reflection renderer.
 /// <br/>Mesh geometry is registered once through <see cref="RegisterMesh"/> and
 /// shared by persistent structural instances and per-frame movable instances.
 /// Structural bricks are rebuilt incrementally after edits or camera scrolling.
@@ -220,7 +221,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         public Vector4 CascadeSplits;
         /// <summary>World units per shadow texel of each cascade.</summary>
         public Vector4 CascadeTexelSizes;
-        /// <summary>x=level resolution y=level count z=mip count (filled by the renderer).</summary>
+        /// <summary>x=level resolution y=level count z=mip count w=voxel specular enabled (filled by the renderer).</summary>
         public Vector4 ClipmapParams;
         /// <summary>x=shadowEnabled y=numPointLights z=shadowMapSize w=unused.</summary>
         public Vector4 LightingParams;
@@ -368,7 +369,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private bool _sampledVolumeUpdate;
 
     /// <summary>The number of measured GPU stages (matches profiler counters).</summary>
-    private const int GiStageCount = 8;
+    private const int GiStageCount = 7;
 
     // Profiler counter handles — lazily registered on first Execute call.
     private RenderProfileCounterId _giTotalCounter;
@@ -413,17 +414,12 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private RenderTexture _giDiffuseFullRes;
     private RenderTexture _giSpecularFullRes;
     private readonly RenderTexture[] _historyGI = new RenderTexture[2];
-    private readonly RenderTexture[] _ssrHistory = new RenderTexture[2];
-    private int _ssrHistoryReadIndex;
-    /// <summary>Hi-Z depth pyramid (R32Float, 7 mips) for SSR hierarchical raymarching, or null when the downsample shader is not provided.</summary>
-    private Texture2D? _depthPyramid;
-    private ComputeMaterial? _depthDownsampleMaterial;
-    private const int SsrDepthMipCount = 7;
     private uint _gbufferWidth;
     private uint _gbufferHeight;
     private float _traceResolutionScale;
     private int _historyReadIndex;
     private bool _historyValid;
+    private bool _ssrOnly;
     private Matrix4x4 _viewProjectionPrev = Matrix4x4.Identity;
     private RenderTexture? _boundGBuffer;
     private RenderTexture? _boundShadowMap;
@@ -550,6 +546,27 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     public float TraceMaxDistance { get; set; } = 20.0f;
 
     /// <summary>
+    /// Gets or sets whether the post-lighting reflection path runs without its
+    /// voxel specular-cone fallback. Diffuse voxel GI remains active.
+    /// </summary>
+    public bool SsrOnly
+    {
+        get => _ssrOnly;
+        set
+        {
+            if (value == _ssrOnly)
+            {
+                return;
+            }
+
+            _ssrOnly = value;
+            // Do not let the demosaic history retain the previously selected
+            // reflection source during an SSR/voxel A/B comparison.
+            _historyValid = false;
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the sky-light multiplier for voxel GI. Scales the sky
     /// radiance injected into the voxel volume.
     /// </summary>
@@ -654,10 +671,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _propagateMaterial = rendering.CreateComputeMaterial(shaders.Propagate);
         _traceMaterial = rendering.CreateComputeMaterial(shaders.Trace);
         _demosaicMaterial = rendering.CreateComputeMaterial(shaders.Demosaic);
-        if (shaders.SsrDepthDownsample != null)
-        {
-            _depthDownsampleMaterial = rendering.CreateComputeMaterial(shaders.SsrDepthDownsample);
-        }
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
         if (_device.TimestampQuerySupported)
         {
@@ -672,10 +685,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _propagateMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
         _demosaicMaterial.SetBuffer("_data", _dataBuffer);
-        if (_depthDownsampleMaterial != null)
-        {
-            _depthDownsampleMaterial.SetBuffer("_data", _dataBuffer);
-        }
 
         // Attribute voxels are sparse physical 8^3 pages. Static data can fill
         // two complete levels and dynamic data one complete level before the
@@ -747,28 +756,9 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         // traceRaw.Width / 3 (one segment width).
         _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_a");
         _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_b");
-        // SSR temporal history (ping-pong): one trace-resolution RGBA16F plane.
-        _ssrHistory[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_a");
-        _ssrHistory[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_b");
-            // Hi-Z depth pyramid for SSR hierarchical raymarching (R16Float, 7 mips).
-            // R16Float is WebGPU-filterable; R32Float is not and cannot be bound
-            // as a read-only texture.
-            if (_depthDownsampleMaterial != null)
-            {
-                _depthPyramid = rendering.CreateTexture2D(_gbufferWidth, _gbufferHeight,
-                    new ImageLoadOption
-                    {
-                        Format = PixelFormat.RGBA16Float,
-                        Usage = TextureUsage.ComputeWrite,
-                        MipLevels = SsrDepthMipCount,
-                        Name = "voxel_ssr_depth_pyramid",
-                    });
-            }
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
         _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[0], 0);
-        _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[0], 0);
-        _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1], 0);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
 
@@ -1004,8 +994,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         RenderTexture? newTraceHistory = null;
         RenderTexture? newHistoryA = null;
         RenderTexture? newHistoryB = null;
-        RenderTexture? newSsrHistoryA = null;
-        RenderTexture? newSsrHistoryB = null;
         try
         {
             newIndirectAtlas = _rendering.CreateRenderTexture(
@@ -1018,10 +1006,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 _rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_a");
             newHistoryB = _rendering.CreateRenderTexture(
                 _rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_b");
-            newSsrHistoryA = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_a");
-            newSsrHistoryB = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, traceWidth, traceHeight, "voxel_ssr_history_b");
         }
         catch
         {
@@ -1030,8 +1014,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             newTraceHistory?.Dispose();
             newHistoryA?.Dispose();
             newHistoryB?.Dispose();
-            newSsrHistoryA?.Dispose();
-            newSsrHistoryB?.Dispose();
             throw;
         }
 
@@ -1040,8 +1022,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _traceHistory.Dispose();
         _historyGI[0].Dispose();
         _historyGI[1].Dispose();
-        _ssrHistory[0].Dispose();
-        _ssrHistory[1].Dispose();
         _giDiffuseFullRes.Dispose();
         _giSpecularFullRes.Dispose();
 
@@ -1055,28 +1035,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _traceHistory = newTraceHistory;
         _historyGI[0] = newHistoryA;
         _historyGI[1] = newHistoryB;
-        _ssrHistory[0] = newSsrHistoryA!;
-        _ssrHistory[1] = newSsrHistoryB!;
-        // Rebuild depth pyramid at the new G-buffer resolution.
-        if (_depthDownsampleMaterial != null)
-        {
-            _depthPyramid?.Dispose();
-            _depthPyramid = _rendering.CreateTexture2D(_gbufferWidth, _gbufferHeight,
-                new ImageLoadOption
-                {
-                    Format = PixelFormat.RGBA16Float,
-                    Usage = TextureUsage.ComputeWrite,
-                    MipLevels = SsrDepthMipCount,
-                    Name = "voxel_ssr_depth_pyramid",
-                });
-        }
         _giDiffuseFullRes = newGiDiffuse;
         _giSpecularFullRes = newGiSpecular;
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
         _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[0], 0);
-        _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[0], 0);
-        _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1], 0);
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
         if (_upsampleMaterial != null)
@@ -1086,7 +1049,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
         }
         _historyReadIndex = 0;
-        _ssrHistoryReadIndex = 0;
         _historyValid = false;
         _boundGBuffer = null;
     }
@@ -1159,6 +1121,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         if (context.PointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, context.PointLightBuffer))
         {
             _injectMaterial.SetBuffer(ShaderResourceId.PointLights, context.PointLightBuffer);
+            _traceMaterial.SetBuffer(ShaderResourceId.PointLights, context.PointLightBuffer);
             _boundPointLightBuffer = context.PointLightBuffer;
         }
 
@@ -1177,7 +1140,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         data.LevelRingOffset1 = _clipmap.GetRingOffset(1);
         data.LevelRingOffset2 = _clipmap.GetRingOffset(2);
         data.LevelRingOffset3 = _clipmap.GetRingOffset(3);
-        data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, 0.0f);
+        data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, SsrOnly ? 0.0f : 1.0f);
         uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
         data.GiParams = new Vector4(EmissiveScale, TraceMaxDistance, traceWidth, _traceRaw.Height);
         data.GiParams2 = new Vector4((int)DebugView, gbuffer.Width, gbuffer.Height, SkyIntensity);
@@ -1283,38 +1246,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 }
             }
 
-            // Build the SSR Hi-Z depth pyramid before tracing so the SSR
-            // raymarch can traverse it hierarchically. Each level is a 2×2
-            // max-reduction (NDC z: larger = farther) of the previous level.
-            if (_depthPyramid != null && _depthDownsampleMaterial != null)
-            {
-                // Bind the G-buffer depth once for all downsample dispatches.
-                _depthDownsampleMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-
-                // Level 0: copy full-res G-buffer depth into mip 0.
-                // _depthSrc is not read on this path but must be bound to
-                // satisfy the pipeline layout.
-                _depthDownsampleMaterial.SetTexture2DRead("_depthSrc", _depthPyramid, (uint)(SsrDepthMipCount - 1));
-                _depthDownsampleMaterial.SetTexture2DStorage("_depthOut", _depthPyramid, 0);
-                _depthDownsampleMaterial.DispatchBySizeWithConstant(computePass,
-                    _gbufferWidth, _gbufferHeight, 1,
-                    new Vector4(0, 1, 0, 0));
-
-                // Levels 1..N-1: 2×2 max-reduction.
-                for (int mip = 0; mip < SsrDepthMipCount - 1; mip++)
-                {
-                    uint dstW = Math.Max(_gbufferWidth >> (mip + 1), 1u);
-                    uint dstH = Math.Max(_gbufferHeight >> (mip + 1), 1u);
-                    _depthDownsampleMaterial.SetTexture2DRead("_depthSrc", _depthPyramid, (uint)mip);
-                    _depthDownsampleMaterial.SetTexture2DStorage("_depthOut", _depthPyramid, (uint)(mip + 1));
-                    _depthDownsampleMaterial.DispatchBySizeWithConstant(computePass,
-                        dstW, dstH, 1,
-                        new Vector4(mip, 0, 0, 0));
-                }
-
-                _traceMaterial.SetTexture("_depthPyramid", _depthPyramid);
-            }
-
             if (measureGpu && inPassTimestamps)
             {
                 computePass.WriteTimestamp(_gpuTimestamps!.QuerySet, 5);
@@ -1326,8 +1257,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
             _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[_historyReadIndex], 0);
             _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
-            _traceMaterial.SetRenderTexture("_ssrHistory", _ssrHistory[_ssrHistoryReadIndex], 0);
-            _traceMaterial.SetRenderTexture("_ssrHistoryOut", _ssrHistory[1 - _ssrHistoryReadIndex], 0);
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
             if (measureGpu && inPassTimestamps)
@@ -1380,7 +1309,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _instances.Clear();
         _viewProjectionPrev = data.ViewProjection;
         _historyReadIndex = 1 - _historyReadIndex;
-        _ssrHistoryReadIndex = 1 - _ssrHistoryReadIndex;
         (_traceRaw, _traceHistory) = (_traceHistory, _traceRaw);
         _historyValid = true;
         _frameIndex++;
@@ -1698,8 +1626,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     /// <summary>
     /// Returns the GPU duration of one stage in milliseconds from a resolved
     /// timestamp array: 0=Voxelize (0→1), 1=Inject (1→2), 2=Inject MipChain
-    /// (2→3), 3=Propagate (3→4), 4=SSR Depth Downsample (4→5), 5=Trace (5→6),
-    /// 6=Demosaic (6→7), 7=Upsample (8→9).
+    /// (2→3), 3=Propagate (3→4), 4=Trace (5→6),
+    /// 5=Demosaic (6→7), 6=Upsample (8→9).
     /// </summary>
     private static double StageGpuDuration(GpuTimestampSampler ring, ulong[] timestamps, int stage)
         => stage switch
@@ -1708,9 +1636,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             1 => ring.DeltaMilliseconds(timestamps, 1, 2),
             2 => ring.DeltaMilliseconds(timestamps, 2, 3),
             3 => ring.DeltaMilliseconds(timestamps, 3, 4),
-            4 => ring.DeltaMilliseconds(timestamps, 4, 5),
-            5 => ring.DeltaMilliseconds(timestamps, 5, 6),
-            6 => ring.DeltaMilliseconds(timestamps, 6, 7),
+            4 => ring.DeltaMilliseconds(timestamps, 5, 6),
+            5 => ring.DeltaMilliseconds(timestamps, 6, 7),
             _ => ring.DeltaMilliseconds(timestamps, 8, 9),
         };
 
@@ -1730,10 +1657,9 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _giStageCounters[1] = context.Profiler.RegisterCounter("VoxelGI", "Inject");
             _giStageCounters[2] = context.Profiler.RegisterCounter("VoxelGI", "Inject MipChain");
             _giStageCounters[3] = context.Profiler.RegisterCounter("VoxelGI", "Propagate");
-            _giStageCounters[4] = context.Profiler.RegisterCounter("VoxelGI", "SSR Depth");
-            _giStageCounters[5] = context.Profiler.RegisterCounter("VoxelGI", "Trace");
-            _giStageCounters[6] = context.Profiler.RegisterCounter("VoxelGI", "Demosaic");
-            _giStageCounters[7] = context.Profiler.RegisterCounter("VoxelGI", "Upsample");
+            _giStageCounters[4] = context.Profiler.RegisterCounter("VoxelGI", "Trace");
+            _giStageCounters[5] = context.Profiler.RegisterCounter("VoxelGI", "Demosaic");
+            _giStageCounters[6] = context.Profiler.RegisterCounter("VoxelGI", "Upsample");
             _profilerCountersRegistered = true;
         }
 
@@ -2104,9 +2030,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _giSpecularFullRes.Dispose();
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
-            _ssrHistory[0].Dispose();
-            _ssrHistory[1].Dispose();
-            _depthPyramid?.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
             _gpuTimestamps?.Dispose();

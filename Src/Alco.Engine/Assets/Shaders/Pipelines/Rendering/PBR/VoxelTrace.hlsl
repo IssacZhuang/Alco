@@ -2,11 +2,6 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
-// When defined, a voxel specular cone is traced along the reflection vector
-// and blended with SSR as a fallback for off-screen / occluded reflection
-// paths. Undefine to make SSR the sole specular source.
-#define VOXEL_SPECULAR_CONE
-
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the configured
 // screen-space trace resolution. Reconstructs world position and normal from the
 // G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
@@ -14,10 +9,9 @@
 // a 2x2 depth-weighted averaged geometry normal so cone directions stay stable
 // across edges and tessellated relief. Every pixel visits the complete
 // 64-direction kernel over time and accumulates it before spatial demosaic.
-// The result is written into the output atlas (twice the
-// trace width): total diffuse irradiance (visible sky plus bounced radiance)
-// and diagnostic visibility in the left half, specular radiance in the right
-// half.
+// The result is written into a three-segment output atlas: total diffuse
+// irradiance plus diagnostic visibility, voxel specular fallback, and average
+// light direction data.
 
 // Bind groups: set 0 packs the per-dispatch inputs together with the shared
 // uniform (binding 0, from VoxelCommon.hlsli); set 1 is the output atlas, so the
@@ -29,18 +23,20 @@ DEFINE_TEX2D_READ(0, _emissive);
 DEFINE_TEX3D_SAMPLE(0, _opacity);
 DEFINE_TEX2D_READ(0, _albedo);
 DEFINE_TEX2D_DEPTH_SAMPLE(0, _shadowMap);
-// Previous frame's temporally accumulated SSR (rgb = radiance, a = confidence).
-DEFINE_TEX2D_READ(0, _ssrHistory);
 // Previous frame's raw trace atlas. Diffuse and ALD are accumulated here
 // before spatial demosaic so every trace pixel integrates its own directions.
 DEFINE_TEX2D_READ(0, _traceHistory);
 // Previous demosaic metadata, segment 5: x = linear depth, yzw = world normal.
 DEFINE_TEX2D_READ(0, _giHistoryMetadata);
-// Hi-Z depth pyramid for SSR hierarchical raymarching (7 mips, max-reduced).
-DEFINE_TEX2D_READ(0, _depthPyramid);
+// Point lights are included in the compact screen-space near-field diffuse
+// gather below.
+struct PointLightData
+{
+    float4 positionRange;
+    float4 colorIntensity;
+};
+DEFINE_STORAGE(0, PointLightData, _pointLights);
 DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
-// This frame's accumulated SSR output (ping-pong with _ssrHistory).
-DEFINE_TEX2D_STORAGE(1, _ssrHistoryOut, float4, "rgba16f");
 
 // A large cosine-hemisphere kernel starts with a different direction at each
 // 8x8 screen phase, then every pixel traverses all 64 members through raw
@@ -110,7 +106,7 @@ float ReconstructLinearDepth(float2 uv, float depth)
     return abs(rcp(reciprocalClipW));
 }
 
-// Sun shadow for SSR / near-field hit points: single-tap CSM lookup with
+// Sun shadow for near-field hit points: single-tap CSM lookup with
 // slope-scaled bias. Matches the inject pass's shadow logic so reflected
 // surfaces respect the same shadow cascades as the lit scene.
 float SampleSunShadowScreen(float3 worldPosition, float3 N)
@@ -148,12 +144,43 @@ float SampleSunShadowScreen(float3 worldPosition, float3 N)
 float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3 worldPosition)
 {
     float3 albedo = DecodeSRGB(GET_PIXEL_TEX2D(_albedo, pixel).rgb);
+    float3 emissive = GET_PIXEL_TEX2D(_emissive, pixel).rgb;
     float3 sky = VoxelSkyColor(normal);
     float3 L = normalize(-sunDirection.xyz);
     float sunAmount = max(dot(normal, L), 0.0) / PI;
     float shadow = SampleSunShadowScreen(worldPosition, normal);
-    float3 sun = sunColorAndIntensity.rgb * sunColorAndIntensity.w * sunAmount * shadow;
-    return albedo * (sky + sun);
+    float3 direct = sunColorAndIntensity.rgb * sunColorAndIntensity.w * sunAmount * shadow;
+
+    uint lightCount = (uint)lightingParams.y;
+    [loop]
+    for (uint i = 0; i < lightCount; i++)
+    {
+        float4 posRange = _pointLights[i].positionRange;
+        float4 colInt = _pointLights[i].colorIntensity;
+        if (colInt.w <= 0.0)
+        {
+            continue;
+        }
+
+        float3 toLight = posRange.xyz - worldPosition;
+        float distanceToLight = length(toLight);
+        if (posRange.w > 0.0 && distanceToLight > posRange.w)
+        {
+            continue;
+        }
+
+        float attenuation = 1.0 / (distanceToLight * distanceToLight + 1.0);
+        if (posRange.w > 0.0)
+        {
+            float falloff = saturate(1.0 - distanceToLight / posRange.w);
+            attenuation *= falloff * falloff;
+        }
+
+        float pointNdotL = max(dot(normal, toLight / max(distanceToLight, 1e-6)), 0.0);
+        direct += colInt.rgb * colInt.w * attenuation * (pointNdotL / PI);
+    }
+
+    return emissive + albedo * (sky + direct);
 }
 
 // A compact screen-space near-field gather. Coplanar samples reject naturally;
@@ -220,12 +247,6 @@ float4 GatherScreenSpaceNearField(
     }
     return float4(gathered / totalWeight, saturate(totalWeight * 0.75));
 }
-
-// --- Screen-space reflection (Hi-Z raymarch + GGX VNDF + temporal AABB) -----
-// All SSR functions and bindings live in SsrCommon.hlsli. This include must
-// come after ReconstructWorldPosition and ApproximateScreenSurfaceRadiance are
-// defined, since TraceScreenSpaceReflection depends on them.
-#include "Shaders/Pipelines/Rendering/PBR/SsrCommon.hlsli"
 
 // Hardware trilinear sample of the radiance volume at a (fractional) mip;
 // rgb = radiance, a = occupancy. All levels share the one Texture3D, stacked
@@ -429,7 +450,6 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
-        _ssrHistoryOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -505,132 +525,19 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance, tracePixel, diffuseWorldDir);
     float3 diffuse = diffuseResult.rgb;
 
-    // Specular reflection: SSR is always active. The voxel specular cone is
-    // opt-in via VOXEL_SPECULAR_CONE — when enabled it provides a low-frequency
-    // fallback that blends with SSR; when disabled SSR is the sole source.
+    // Voxel specular is now only the off-screen/occluded fallback. Screen-space
+    // reflection runs after deferred lighting in ScreenSpaceReflectionRenderer,
+    // where it can sample the actual completed HDR scene color.
     float3 reflectDirection = reflect(-V, detailNormal);
     float3 specular = 0.0;
+    bool voxelSpecularEnabled = clipmapParams.w > 0.5;
 
-#ifdef VOXEL_SPECULAR_CONE
-    float specularApertureTan = max(roughness * roughness, 0.06);
-    specular = TraceCone(
-        startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5).rgb;
-#endif
-
-    // Screen-space reflection with dedicated temporal accumulation.
-    float4 ssrAccumulated = float4(0.0, 0.0, 0.0, 0.0);
-    if (roughness < 0.65)
+    if (voxelSpecularEnabled)
     {
-        // GGX VNDF importance sampling: perturb the mirror reflection for SSR
-        // so temporal accumulation converges toward a correct glossy lobe.
-        float3 ssrDirection = reflectDirection;
-        if (roughness > 0.001)
-        {
-            float3 N = detailNormal;
-            float3 up = abs(N.y) < 0.999 ? float3(0, 1, 0) : float3(1, 0, 0);
-            float3 T = normalize(cross(up, N));
-            float3 B = cross(N, T);
-            float3 Ve = float3(dot(V, T), dot(V, B), dot(V, N));
-
-            float alpha = roughness * roughness;
-            uint frameIdx = uint(giFrameParams.x);
-            float2 rand = float2(
-                SsrIGN(gbufferPixel, frameIdx),
-                frac(SsrIGN(gbufferPixel, frameIdx) * 7.1));
-
-            float3 Hh = SampleGGXVNDF(Ve, alpha, alpha, rand.x, rand.y);
-            float3 H = normalize(Hh.x * T + Hh.y * B + Hh.z * N);
-            ssrDirection = reflect(-V, H);
-        }
-
-        float4 screenReflection = TraceScreenSpaceReflection(
-            worldPosition, ssrDirection, roughness, gbufferUV);
-
-        // Temporal reprojection: find where this surface was last frame.
-        float4 ssrHistory = float4(0.0, 0.0, 0.0, 0.0);
-        bool historyValid = false;
-        int2 prevPixel = int2(0, 0);
-        if (giFrameParams.z > 0.5)
-        {
-            float4 prevClip = mul(viewProjectionPrev, float4(worldPosition, 1.0));
-            if (prevClip.w > 0.0)
-            {
-                float2 prevNDC = float2(prevClip.x / prevClip.w, prevClip.y / prevClip.w);
-                float2 prevUV = float2(prevNDC.x * 0.5 + 0.5, 0.5 - prevNDC.y * 0.5);
-                if (all(prevUV >= 0.0) && all(prevUV <= 1.0))
-                {
-                    // Depth-consistency disocclusion test: compare the depth at
-                    // the reprojected position to detect surfaces that were not
-                    // visible last frame.
-                    int2 prevGbufferPixel = clamp(
-                        int2(prevUV * float2(gbufferResolution)),
-                        int2(0, 0), int2(gbufferResolution) - 1);
-                    float prevDepth = GET_PIXEL_TEX2D(_gbufferDepth, prevGbufferPixel);
-                    float3 prevWorldPos = ReconstructWorldPosition(prevUV, prevDepth);
-                    bool disocclusion = length(prevWorldPos - worldPosition) > levelOrigins[0].w * 4.0;
-
-                    if (!disocclusion)
-                    {
-                        prevPixel = clamp(
-                            int2(prevUV * float2(traceResolution)),
-                            int2(0, 0),
-                            int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
-                        ssrHistory = _ssrHistory.Load(int3(prevPixel, 0));
-                        historyValid = true;
-                    }
-                }
-            }
-        }
-
-        if (historyValid)
-        {
-            // AABB neighbourhood clip: sample a 3×3 region around the history
-            // pixel to build a colour bounding box, then clip the history
-            // sample toward it. This prevents ghosting from stale radiance
-            // while preserving legitimate detail.
-            int2 histCenter = prevPixel;
-
-            float3 histMin = 1e18;
-            float3 histMax = -1e18;
-            [unroll] for (int dy = -1; dy <= 1; dy++)
-            {
-                [unroll] for (int dx = -1; dx <= 1; dx++)
-                {
-                    float3 s = _ssrHistory.Load(int3(clamp(histCenter + int2(dx, dy),
-                        int2(0, 0), int2((int)traceResolution.x - 1, (int)traceResolution.y - 1)), 0)).rgb;
-                    histMin = min(histMin, s);
-                    histMax = max(histMax, s);
-                }
-            }
-
-            float3 clippedHistory = SsrClipAABB(histMin, histMax, ssrHistory.rgb);
-            ssrHistory.a = min(ssrHistory.a, screenReflection.a);
-
-            float blendRate = screenReflection.a > 0.01 ? 0.12 : 0.35;
-            ssrAccumulated = float4(
-                lerp(clippedHistory, screenReflection.rgb, blendRate),
-                lerp(ssrHistory.a, screenReflection.a, blendRate));
-        }
-        else
-        {
-            ssrAccumulated = screenReflection;
-        }
-
-        _ssrHistoryOut[tracePixel] = ssrAccumulated;
-
-#ifdef VOXEL_SPECULAR_CONE
-        float gateFade = saturate((0.65 - roughness) * 10.0);
-        specular = lerp(specular, ssrAccumulated.rgb,
-            ssrAccumulated.a * (1.0 - roughness) * gateFade);
-#else
-        specular = ssrAccumulated.rgb * ssrAccumulated.a;
-#endif
+        float specularApertureTan = max(roughness * roughness, 0.06);
+        specular = TraceCone(
+            startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5).rgb;
     }
-    else
-    {
-        _ssrHistoryOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-    }
-
     // ALD (Average Light Direction): direction-weighted accumulation of cone
     // brightness. xyz = worldDir * brightness, w = brightness. The deferred
     // lighting pass normalises this to derive the dominant indirect light
