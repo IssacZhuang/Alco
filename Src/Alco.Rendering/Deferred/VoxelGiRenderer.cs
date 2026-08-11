@@ -166,7 +166,7 @@ public readonly struct VoxelGiShaders
 /// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
 /// cone-traced with hardware trilinear filtering.
 /// </summary>
-public sealed class VoxelGiRenderer : AutoDisposable, IGlobalIlluminationPlugin
+public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
 {
     /// <summary>
     /// Per-frame data uploaded to every voxel GI shader. Layout must match the
