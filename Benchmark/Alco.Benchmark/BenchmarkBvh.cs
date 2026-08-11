@@ -34,6 +34,15 @@ public class BenchmarkBvh
     private CastRayTask3D _castRayTask3D;
     private CastRayTask3D _castRayTask3DMorton;
 
+    // AABB-only BVH: same AABBs, no collider pointers
+    private BvhAabb3D _bvhAabb3D;
+    private BoundingBox3D[] _aabbs3D;
+    private CastRayTaskAabb3D _castRayTaskAabb3D;
+
+    private BvhAabb2D _bvhAabb2D;
+    private BoundingBox2D[] _aabbs2D;
+    private CastRayTaskAabb2D _castRayTaskAabb2D;
+
     // bepuphysics2 bare tree comparison: same collider AABBs, same rays, precise leaf tests via callback
     private BufferPool _bepuPool;
     private Tree _bepuTreeAdd;
@@ -114,6 +123,27 @@ public class BenchmarkBvh
         bvh3DMorton = new NativeBvh3D();
         _castRayTask3DMorton = new CastRayTask3D(bvh3DMorton);
         bvh3DMorton.BuildTree(colliders3D.AsSpan(), _mortonBuilder3D);
+
+        // AABB-only BVH: extract AABBs from the same colliders, build once
+        _aabbs3D = new BoundingBox3D[colliders3D.Length];
+        for (int i = 0; i < colliders3D.Length; i++)
+        {
+            _aabbs3D[i] = colliders3D[i].GetBoundingBox();
+        }
+        _bvhAabb3D = new BvhAabb3D();
+        _bvhAabb3D.Build(_aabbs3D);
+        _castRayTaskAabb3D = new CastRayTaskAabb3D(_bvhAabb3D);
+
+        // sanity check: AABB BVH ray hits should agree with the Morton collider BVH
+        int aabbMismatches = 0;
+        for (int i = 0; i < rays3D.Length; i++)
+        {
+            RayCastResult3D colliderResult = bvh3DMorton.CastRayClosestHit(rays3D[i]);
+            bool aabbHit = _bvhAabb3D.RayCastClosest(rays3D[i].Origin, rays3D[i].Displacement, out _, out _);
+            if (colliderResult.Hit != aabbHit)
+                aabbMismatches++;
+        }
+        Console.WriteLine($"[AabbCheck] ray hit/miss mismatches vs collider (Morton) BVH: {aabbMismatches}");
 
         _bepuPool = new BufferPool();
 
@@ -320,6 +350,16 @@ public class BenchmarkBvh
         bvh2DMorton = new NativeBvh2D();
         _castRayTask2DMorton = new CastRayTask(bvh2DMorton);
         bvh2DMorton.BuildTree(colliders2D.AsSpan(), _mortonBuilder2D);
+
+        // AABB-only BVH 2D: extract AABBs from the same colliders, build once
+        _aabbs2D = new BoundingBox2D[colliders2D.Length];
+        for (int i = 0; i < colliders2D.Length; i++)
+        {
+            _aabbs2D[i] = colliders2D[i].GetBoundingBox();
+        }
+        _bvhAabb2D = new BvhAabb2D();
+        _bvhAabb2D.Build(_aabbs2D);
+        _castRayTaskAabb2D = new CastRayTaskAabb2D(_bvhAabb2D);
     }
 
     [GlobalCleanup]
@@ -334,6 +374,9 @@ public class BenchmarkBvh
         bvh3DMorton.Dispose();
         _castRayTask3DMorton.Dispose();
         _mortonBuilder3D.Dispose();
+
+        _bvhAabb3D.Dispose();
+        _castRayTaskAabb3D.Dispose();
 
         _bepuTreeAdd.Dispose(_bepuPool);
         _bepuTreeBinned.Dispose(_bepuPool);
@@ -351,6 +394,9 @@ public class BenchmarkBvh
         bvh2DMorton.Dispose();
         _castRayTask2DMorton.Dispose();
         _mortonBuilder2D.Dispose();
+
+        _bvhAabb2D.Dispose();
+        _castRayTaskAabb2D.Dispose();
     }
 
     [Benchmark(Description = "BVH 3D Build tree: ")]
@@ -377,6 +423,19 @@ public class BenchmarkBvh
     {
         _castRayTask3DMorton.rays = rays3D;
         _castRayTask3DMorton.RunParallel(rays3D.Length, 16);
+    }
+
+    [Benchmark(Description = "BVH 3D AABB (Morton) Build tree: ")]
+    public void BuildBvhAabb3D()
+    {
+        _bvhAabb3D.Build(_aabbs3D);
+    }
+
+    [Benchmark(Description = "BVH 3D AABB (Morton) Cast ray: ")]
+    public void CastRayAabb3D()
+    {
+        _castRayTaskAabb3D.rays = rays3D;
+        _castRayTaskAabb3D.RunParallel(rays3D.Length, 16);
     }
 
     [Benchmark(Description = "Bepu (Add) Build tree: ")]
@@ -436,6 +495,40 @@ public class BenchmarkBvh
         }
     }
 
+    private class CastRayTaskAabb3D : ReusableBatchTask
+    {
+        private BvhAabb3D _bvh;
+        public NativeArrayList<Ray3D> rays;
+
+        public CastRayTaskAabb3D(BvhAabb3D bvh)
+        {
+            _bvh = bvh;
+        }
+
+        protected override void ExecuteCore(int index)
+        {
+            Ray3D ray = rays[index];
+            _bvh.RayCastClosest(ray.Origin, ray.Displacement, out _, out _);
+        }
+    }
+
+    private class CastRayTaskAabb2D : ReusableBatchTask
+    {
+        private BvhAabb2D _bvh;
+        public NativeArrayList<Ray2D> rays;
+
+        public CastRayTaskAabb2D(BvhAabb2D bvh)
+        {
+            _bvh = bvh;
+        }
+
+        protected override void ExecuteCore(int index)
+        {
+            Ray2D ray = rays[index];
+            _bvh.RayCastClosest(ray.Origin, ray.Displacement, out _, out _);
+        }
+    }
+
     private class CastRayTask : ReusableBatchTask
     {
         private NativeBvh2D _bvh;
@@ -470,5 +563,18 @@ public class BenchmarkBvh
     {
         _castRayTask2DMorton.rays = rays2D;
         _castRayTask2DMorton.RunParallel(rays2D.Length, 16);
+    }
+
+    [Benchmark(Description = "BVH 2D AABB (Morton) Build tree: ")]
+    public void BuildBvhAabb2D()
+    {
+        _bvhAabb2D.Build(_aabbs2D);
+    }
+
+    [Benchmark(Description = "BVH 2D AABB (Morton) Cast ray: ")]
+    public void CastRayAabb2D()
+    {
+        _castRayTaskAabb2D.rays = rays2D;
+        _castRayTaskAabb2D.RunParallel(rays2D.Length, 16);
     }
 }
