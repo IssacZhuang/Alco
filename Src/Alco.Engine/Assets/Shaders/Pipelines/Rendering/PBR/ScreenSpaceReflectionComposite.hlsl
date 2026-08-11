@@ -31,7 +31,6 @@ float4 SsrPostGeometryAwareUpsample(
     }
 
     float receiverDistance = length(receiverWorld - ssrCameraPosition.xyz);
-    float distanceScale = 0.04 + receiverDistance * 0.003;
     float planeScale = 0.025 + receiverDistance * 0.002;
     float2 requestedTracePosition = uv * float2(traceExtent);
     float3 radianceSum = 0.0;
@@ -64,12 +63,6 @@ float4 SsrPostGeometryAwareUpsample(
                 continue;
             }
 
-            float radialError = abs(metadata.z - receiverDistance);
-            if (radialError > distanceScale * 2.0)
-            {
-                continue;
-            }
-
             float2 candidateUV = (float2(candidate) + 0.5) / float2(traceExtent);
             int2 candidateFullPixel = clamp(
                 int2(candidateUV * float2(fullExtent)),
@@ -82,6 +75,20 @@ float4 SsrPostGeometryAwareUpsample(
 
             float3 candidateWorld = SsrPostReconstructWorldPosition(
                 candidateUV, candidateDepth);
+            // metadata.z describes the candidate receiver, not the full-resolution
+            // receiver being reconstructed. Comparing it to receiverDistance rejects
+            // valid samples along a grazing plane, where radial distance changes by
+            // metres between adjacent screen rows. Validate the metadata against its
+            // own current G-buffer sample instead.
+            float candidateDistance = length(
+                candidateWorld - ssrCameraPosition.xyz);
+            float metadataDistanceScale = 0.04 + candidateDistance * 0.003;
+            float metadataDistanceError = abs(metadata.z - candidateDistance);
+            if (metadataDistanceError > metadataDistanceScale * 2.0)
+            {
+                continue;
+            }
+
             float planeDistance = abs(dot(
                 candidateWorld - receiverWorld, receiverNormal));
             if (planeDistance > planeScale * 2.0)
@@ -93,7 +100,8 @@ float4 SsrPostGeometryAwareUpsample(
                 - requestedTracePosition;
             float spatialWeight = exp(-dot(traceOffset, traceOffset) * 1.25);
             float geometryWeight = pow(saturate(normalSimilarity), 24.0)
-                * exp(-radialError / distanceScale - planeDistance / planeScale);
+                * exp(-metadataDistanceError / metadataDistanceScale
+                    - planeDistance / planeScale);
             float weight = spatialWeight * geometryWeight;
 
             radianceSum += reflection.rgb * reflection.a * weight;

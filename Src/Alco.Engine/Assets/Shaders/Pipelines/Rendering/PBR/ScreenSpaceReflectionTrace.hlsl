@@ -15,7 +15,11 @@ static const float2 SSR_BLUR_OFFSETS[9] = {
     float2(-1.0, -0.2), float2( 0.5,  0.9), float2(-0.6,  0.9),
 };
 
-float3 SsrSampleShadedScene(float2 hitUV, float roughness, float rayDistance, float dither)
+float3 SsrSampleShadedScene(
+    float2 hitUV,
+    float roughness,
+    float rayDistance,
+    float rotationSample)
 {
     float blurPixels = roughness * roughness
         * lerp(1.0, 22.0, saturate(rayDistance / 45.0));
@@ -24,7 +28,7 @@ float3 SsrSampleShadedScene(float2 hitUV, float roughness, float rayDistance, fl
         return SAMPLE_TEX2D(_sceneColor, hitUV).rgb;
     }
 
-    float angle = dither * TAU;
+    float angle = rotationSample * TAU;
     float s, c;
     sincos(angle, s, c);
     float2x2 rotation = float2x2(c, -s, s, c);
@@ -60,26 +64,35 @@ float4 MainPS(V2F input) : SV_TARGET
         return 0.0;
     }
 
+    // input.uv is the canonical receiver location of this trace texel. Keeping
+    // reconstruction on that grid makes a stationary reprojection land exactly
+    // on the corresponding history texel instead of introducing a fixed
+    // quarter-texel bilinear bias at half resolution.
     float3 worldPosition = SsrPostReconstructWorldPosition(input.uv, depth);
     float3 normal = normalize(GET_PIXEL_TEX2D(_normal, pixel).xyz * 2.0 - 1.0);
     float3 viewDirection = normalize(worldPosition - ssrCameraPosition.xyz);
     float viewDistance = length(worldPosition - ssrCameraPosition.xyz);
     float fresnel = saturate(1.0 + dot(normal, viewDirection));
 
-    // Complementary-style temporally changing rough normal. It turns one
-    // deterministic mirror ray into a glossy lobe that the resolve pass can
-    // accumulate without permanently banding on a fixed sample pattern.
-    float dither = frac(SsrPostHash(float2(pixel))
-        + ssrParams.x * 0.61803398875);
-    float radialDither = frac(SsrPostHash(float2(pixel.yx) + 37.17)
-        + ssrParams.x * 0.75487766625);
+    // Give every pixel and stochastic dimension an independently scrambled
+    // temporal sequence. The previous additive golden-ratio phases advanced
+    // every pixel in the same angular direction, so the glossy lobe and blur
+    // kernel appeared to flow coherently across stationary surfaces.
+    uint2 randomPixel = uint2(pixel);
+    uint frameIndex = (uint)ssrParams.x;
+    float angleSample = SsrPostRandom(randomPixel, frameIndex, 0u);
+    float radialSample = SsrPostRandom(randomPixel, frameIndex, 1u);
+    float stepSample = SsrPostRandom(randomPixel, frameIndex, 2u);
+    // Keep the spatial blur kernel stable; only the traced glossy ray needs to
+    // vary over time for temporal integration.
+    float blurRotationSample = SsrPostRandom(randomPixel, 0u, 3u);
     float3 up = abs(normal.z) < 0.999 ? float3(0.0, 0.0, 1.0) : float3(0.0, 1.0, 0.0);
     float3 tangent = normalize(cross(up, normal));
     float3 bitangent = cross(normal, tangent);
-    float noiseAngle = dither * TAU;
+    float noiseAngle = angleSample * TAU;
     // Sample a disk rather than a fixed-radius ring. The old ring pattern kept
     // jumping between equally distant rays and produced persistent bright dots.
-    float noiseRadius = sqrt(radialDither) * roughness * roughness * 0.30;
+    float noiseRadius = sqrt(radialSample) * roughness * roughness * 0.30;
     float3 rayNormal = normalize(normal
         + (cos(noiseAngle) * tangent + sin(noiseAngle) * bitangent) * noiseRadius);
     float3 rayDirection = normalize(reflect(viewDirection, rayNormal));
@@ -138,7 +151,7 @@ float4 MainPS(V2F input) : SV_TARGET
         }
 
         vector *= 2.0;
-        travelVector += vector * (0.95 + 0.1 * dither);
+        travelVector += vector * (0.95 + 0.1 * stepSample);
         if (length(travelVector) > ssrRayParams.x)
         {
             break;
@@ -179,6 +192,7 @@ float4 MainPS(V2F input) : SV_TARGET
         return 0.0;
     }
 
-    float3 reflectedColor = SsrSampleShadedScene(hitUV, roughness, rayDistance, dither);
+    float3 reflectedColor = SsrSampleShadedScene(
+        hitUV, roughness, rayDistance, blurRotationSample);
     return float4(max(reflectedColor, 0.0), confidence);
 }

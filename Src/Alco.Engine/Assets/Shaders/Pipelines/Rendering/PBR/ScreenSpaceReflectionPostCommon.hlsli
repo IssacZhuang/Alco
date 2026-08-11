@@ -86,9 +86,23 @@ bool SsrPostProjectWorldPosition(float3 worldPosition, out float3 screenPosition
         && screenPosition.z >= 0.0 && screenPosition.z <= 1.0;
 }
 
-float SsrPostHash(float2 p)
+uint SsrPostHashUint(uint value)
 {
-    return frac(52.9829189 * frac(dot(p, float2(0.06711056, 0.00583715))));
+    value ^= value >> 16;
+    value *= 0x7FEB352Du;
+    value ^= value >> 15;
+    value *= 0x846CA68Bu;
+    value ^= value >> 16;
+    return value;
+}
+
+float SsrPostRandom(uint2 pixel, uint frameIndex, uint dimension)
+{
+    uint seed = pixel.x * 0x9E3779B9u;
+    seed ^= pixel.y * 0x85EBCA6Bu;
+    seed ^= frameIndex * 0xC2B2AE35u;
+    seed ^= dimension * 0x27D4EB2Fu;
+    return float(SsrPostHashUint(seed) >> 8) * (1.0 / 16777216.0);
 }
 
 float3 SsrPostDecodeSRGB(float3 color)

@@ -26,6 +26,8 @@ void MainPS(
 
     float3 centerNormal = normalize(
         GET_PIXEL_TEX2D(_normal, centerPixel).xyz * 2.0 - 1.0);
+    // Resolve and history share the trace grid, so input.uv must remain the
+    // canonical receiver coordinate used by temporal reprojection.
     float3 centerWorld = SsrPostReconstructWorldPosition(input.uv, centerDepth);
     float centerDistance = length(centerWorld - ssrCameraPosition.xyz);
 
