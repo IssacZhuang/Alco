@@ -387,6 +387,9 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private readonly List<StaticInstance> _staticBvhInstances = new();
     private readonly List<int> _staticBvhResults = new();
     private bool _staticBvhDirty = true;
+    private readonly BvhAabb3D _dynamicBvh = new();
+    private readonly List<BoundingBox3D> _dynamicBvhBounds = new();
+    private readonly List<int> _dynamicBvhResults = new();
     private readonly List<DynamicInstance> _instances = new();
     private readonly List<VoxelGiDirtyBrick> _dirtyBricks = new();
     private readonly List<VoxelGiDirtyBrick> _candidateBricks = new();
@@ -1466,6 +1469,17 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         ref int dynamicBricksUpdated,
         ref int droppedBricks)
     {
+        // Build the dynamic-instance BVH once per frame; all per-level queries
+        // (CollectDynamicBricks and voxelize dispatch) share this tree. Morton
+        // LBVH rebuild is sub-millisecond for typical instance counts.
+        _dynamicBvhBounds.Clear();
+        for (int i = 0; i < _instances.Count; i++)
+        {
+            VoxelGiBounds wb = _instances[i].WorldBounds;
+            _dynamicBvhBounds.Add(new BoundingBox3D(wb.Min, wb.Max));
+        }
+        _dynamicBvh.Build(CollectionsMarshal.AsSpan(_dynamicBvhBounds));
+
         // Movable geometry is rebuilt in a separate sparse pool each frame
         // and limited to the nearest configured clipmap levels.
         _dynamicPagePool.Reset();
@@ -1509,13 +1523,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
                 // triangle counts that can write nowhere.
                 (uint dirtyRangeLo, uint dirtyRangeHi) = PackDirtyVoxelRange(_dirtyBricks);
                 VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
-                for (int i = 0; i < _instances.Count; i++)
+                _dynamicBvhResults.Clear();
+                _dynamicBvh.OverlapAabb(new BoundingBox3D(levelBounds.Min, levelBounds.Max), _dynamicBvhResults);
+                for (int ri = 0; ri < _dynamicBvhResults.Count; ri++)
                 {
-                    DynamicInstance instance = _instances[i];
-                    if (!instance.WorldBounds.Intersects(levelBounds))
-                    {
-                        continue;
-                    }
+                    DynamicInstance instance = _instances[_dynamicBvhResults[ri]];
                     DispatchVoxelize(computePass, instance.Registration, _attrDynamic, _pageTableDynamic[level], level,
                         instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff,
                         dirtyRangeLo, dirtyRangeHi);
@@ -1733,13 +1745,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
         _dirtyBricks.Clear();
         _brickKeys.Clear();
         VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
-        for (int instanceIndex = 0; instanceIndex < _instances.Count; instanceIndex++)
+        _dynamicBvhResults.Clear();
+        _dynamicBvh.OverlapAabb(new BoundingBox3D(levelBounds.Min, levelBounds.Max), _dynamicBvhResults);
+        for (int ri = 0; ri < _dynamicBvhResults.Count; ri++)
         {
-            DynamicInstance instance = _instances[instanceIndex];
-            if (!instance.WorldBounds.Intersects(levelBounds))
-            {
-                continue;
-            }
+            DynamicInstance instance = _instances[_dynamicBvhResults[ri]];
 
             _candidateBricks.Clear();
             _clipmap.AppendIntersectingBricks(level, instance.WorldBounds, _candidateBricks);
@@ -2060,6 +2070,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
             _upsampleDataBuffer?.Dispose();
             _gpuTimestamps?.Dispose();
             _staticBvh.Dispose();
+            _dynamicBvh.Dispose();
             _commandBuffer.Dispose();
         }
     }
