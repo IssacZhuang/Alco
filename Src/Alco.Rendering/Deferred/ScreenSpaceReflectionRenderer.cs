@@ -22,6 +22,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         public Matrix4x4 ViewProjection;
         public Matrix4x4 PreviousViewProjection;
         public Vector4 CameraPosition;
+        public Vector4 PreviousCameraPosition;
         public Vector4 RenderSize;
         public Vector4 Params;
         public Vector4 RayParams;
@@ -38,6 +39,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
     private readonly Material _resolveMaterial;
     private readonly Material _compositeMaterial;
     private readonly GraphicsValueBuffer<SsrData> _dataBuffer;
+    private readonly GPUAttachmentLayout _historyLayout;
 
     private RenderTexture _sceneCopy;
     private RenderTexture _reflectionRaw;
@@ -48,6 +50,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
     private bool _isEnabled = true;
     private uint _frameIndex;
     private Matrix4x4 _previousViewProjection = Matrix4x4.Identity;
+    private Vector3 _previousCameraPosition;
 
     /// <inheritdoc />
     public bool IsEnabled
@@ -97,13 +100,21 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         _resolveMaterial = rendering.CreateMaterial(resolveShader, "ssr_resolve");
         _compositeMaterial = rendering.CreateMaterial(compositeShader, "ssr_composite");
         _dataBuffer = rendering.CreateGraphicsValueBuffer<SsrData>("ssr_post_data");
+        _historyLayout = rendering.GraphicsDevice.CreateAttachmentLayout(
+            new AttachmentLayoutDescriptor(
+                [
+                    new ColorAttachment(PixelFormat.RGBA16Float),
+                    new ColorAttachment(PixelFormat.RGBA16Float),
+                ],
+                null,
+                "ssr_history_pass"));
 
         _sceneCopy = CreateTexture(Math.Max(width, 1), Math.Max(height, 1), "ssr_scene_copy");
         uint traceWidth = TraceDimension(width);
         uint traceHeight = TraceDimension(height);
         _reflectionRaw = CreateTexture(traceWidth, traceHeight, "ssr_raw");
-        _reflectionHistory[0] = CreateTexture(traceWidth, traceHeight, "ssr_history_a");
-        _reflectionHistory[1] = CreateTexture(traceWidth, traceHeight, "ssr_history_b");
+        _reflectionHistory[0] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_a");
+        _reflectionHistory[1] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_b");
 
         _lastSsrOnly = voxelGi.SsrOnly;
         BindPersistentResources();
@@ -120,6 +131,11 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
             _rendering.PreferredLightMapPass, width, height, name);
     }
 
+    private RenderTexture CreateHistoryTexture(uint width, uint height, string name)
+    {
+        return _rendering.CreateRenderTexture(_historyLayout, width, height, name);
+    }
+
     private void BindPersistentResources()
     {
         _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, _pipeline.ForwardRenderTexture);
@@ -133,14 +149,14 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
 
         _resolveMaterial.SetBuffer("_ssrData", _dataBuffer);
         _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
-        _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0]);
-        _resolveMaterial.SetRenderTexture("_albedo", _pipeline.GBuffer, 0);
+        _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0], 0);
+        _resolveMaterial.SetRenderTexture("_historyMetadata", _reflectionHistory[0], 1);
         _resolveMaterial.SetRenderTexture("_normal", _pipeline.GBuffer, 1);
         _resolveMaterial.SetRenderTextureDepth("_gbufferDepth", _pipeline.GBuffer);
 
         _compositeMaterial.SetBuffer("_ssrData", _dataBuffer);
         _compositeMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
-        _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1]);
+        _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1], 0);
         _compositeMaterial.SetRenderTexture("_albedo", _pipeline.GBuffer, 0);
         _compositeMaterial.SetRenderTexture("_normal", _pipeline.GBuffer, 1);
         _compositeMaterial.SetRenderTexture("_mrAO", _pipeline.GBuffer, 2);
@@ -165,8 +181,8 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         _reflectionHistory[1].Dispose();
         _sceneCopy = CreateTexture(width, height, "ssr_scene_copy");
         _reflectionRaw = CreateTexture(traceWidth, traceHeight, "ssr_raw");
-        _reflectionHistory[0] = CreateTexture(traceWidth, traceHeight, "ssr_history_a");
-        _reflectionHistory[1] = CreateTexture(traceWidth, traceHeight, "ssr_history_b");
+        _reflectionHistory[0] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_a");
+        _reflectionHistory[1] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_b");
         _historyReadIndex = 0;
         _historyValid = false;
         BindPersistentResources();
@@ -197,6 +213,9 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
             ViewProjection = viewProjection,
             PreviousViewProjection = _historyValid ? _previousViewProjection : viewProjection,
             CameraPosition = new Vector4(_camera.Transform.Position, 1.0f),
+            PreviousCameraPosition = new Vector4(
+                _historyValid ? _previousCameraPosition : _camera.Transform.Position,
+                1.0f),
             RenderSize = new Vector4(scene.Width, scene.Height,
                 _reflectionRaw.Width, _reflectionRaw.Height),
             Params = new Vector4(_frameIndex, _historyValid ? 1.0f : 0.0f,
@@ -217,13 +236,15 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
 
         int historyWriteIndex = 1 - _historyReadIndex;
         _resolveMaterial.SetRenderTexture(
-            "_reflectionHistory", _reflectionHistory[_historyReadIndex]);
+            "_reflectionHistory", _reflectionHistory[_historyReadIndex], 0);
+        _resolveMaterial.SetRenderTexture(
+            "_historyMetadata", _reflectionHistory[_historyReadIndex], 1);
         _renderContext.Begin(_reflectionHistory[historyWriteIndex].FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, _resolveMaterial);
         _renderContext.End();
 
         _compositeMaterial.SetRenderTexture(
-            "_reflection", _reflectionHistory[historyWriteIndex]);
+            "_reflection", _reflectionHistory[historyWriteIndex], 0);
         _renderContext.Begin(target);
         _renderContext.Draw(_fullScreenMesh, _compositeMaterial);
         _renderContext.End();
@@ -231,6 +252,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         _historyReadIndex = historyWriteIndex;
         _historyValid = true;
         _previousViewProjection = viewProjection;
+        _previousCameraPosition = _camera.Transform.Position;
         _frameIndex++;
     }
 
@@ -254,6 +276,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
             _reflectionRaw.Dispose();
             _reflectionHistory[0].Dispose();
             _reflectionHistory[1].Dispose();
+            _historyLayout.Dispose();
             _renderContext.Dispose();
         }
     }

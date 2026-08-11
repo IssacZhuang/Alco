@@ -71,11 +71,15 @@ float4 MainPS(V2F input) : SV_TARGET
     // accumulate without permanently banding on a fixed sample pattern.
     float dither = frac(SsrPostHash(float2(pixel))
         + ssrParams.x * 0.61803398875);
+    float radialDither = frac(SsrPostHash(float2(pixel.yx) + 37.17)
+        + ssrParams.x * 0.75487766625);
     float3 up = abs(normal.z) < 0.999 ? float3(0.0, 0.0, 1.0) : float3(0.0, 1.0, 0.0);
     float3 tangent = normalize(cross(up, normal));
     float3 bitangent = cross(normal, tangent);
-    float noiseAngle = frac(dither * 7.13) * TAU;
-    float noiseRadius = roughness * roughness * 0.30;
+    float noiseAngle = dither * TAU;
+    // Sample a disk rather than a fixed-radius ring. The old ring pattern kept
+    // jumping between equally distant rays and produced persistent bright dots.
+    float noiseRadius = sqrt(radialDither) * roughness * roughness * 0.30;
     float3 rayNormal = normalize(normal
         + (cos(noiseAngle) * tangent + sin(noiseAngle) * bitangent) * noiseRadius);
     float3 rayDirection = normalize(reflect(viewDirection, rayNormal));

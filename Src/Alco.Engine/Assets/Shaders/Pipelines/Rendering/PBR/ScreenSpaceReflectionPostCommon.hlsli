@@ -11,6 +11,7 @@ DEFINE_UNIFORM(0, _ssrData)
     float4x4 ssrViewProjection;
     float4x4 ssrPreviousViewProjection;
     float4 ssrCameraPosition;
+    float4 ssrPreviousCameraPosition;
     float4 ssrRenderSize; // xy = full resolution, zw = trace resolution
     float4 ssrParams;     // x = frame index, y = history valid, z = debug mode, w = strength
     float4 ssrRayParams;  // x = max distance, y = roughness cutoff, zw = unused
@@ -42,6 +43,32 @@ float3 SsrPostReconstructWorldPosition(float2 uv, float depth)
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
     float4 world = mul(ssrInvViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
+}
+
+float2 SsrPostEncodeNormal(float3 normal)
+{
+    normal /= abs(normal.x) + abs(normal.y) + abs(normal.z);
+    float2 encoded = normal.xy;
+    if (normal.z < 0.0)
+    {
+        encoded = (1.0 - abs(encoded.yx))
+            * float2(encoded.x >= 0.0 ? 1.0 : -1.0,
+                     encoded.y >= 0.0 ? 1.0 : -1.0);
+    }
+    return encoded * 0.5 + 0.5;
+}
+
+float3 SsrPostDecodeNormal(float2 encoded)
+{
+    float2 oct = encoded * 2.0 - 1.0;
+    float3 normal = float3(oct, 1.0 - abs(oct.x) - abs(oct.y));
+    if (normal.z < 0.0)
+    {
+        normal.xy = (1.0 - abs(normal.yx))
+            * float2(normal.x >= 0.0 ? 1.0 : -1.0,
+                     normal.y >= 0.0 ? 1.0 : -1.0);
+    }
+    return normalize(normal);
 }
 
 bool SsrPostProjectWorldPosition(float3 worldPosition, out float3 screenPosition)

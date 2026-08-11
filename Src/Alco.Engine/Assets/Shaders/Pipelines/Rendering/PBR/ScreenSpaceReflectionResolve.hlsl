@@ -2,30 +2,41 @@
 
 DEFINE_TEX2D_SAMPLE(1, _reflectionRaw);
 DEFINE_TEX2D_SAMPLE(1, _reflectionHistory);
-DEFINE_TEX2D_READ(1, _albedo);
+DEFINE_TEX2D_SAMPLE(1, _historyMetadata);
 DEFINE_TEX2D_READ(1, _normal);
 DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
 
 [shader("pixel")]
-float4 MainPS(V2F input) : SV_TARGET
+void MainPS(
+    V2F input,
+    out float4 reflectionOut : SV_TARGET0,
+    out float4 metadataOut : SV_TARGET1)
 {
     float2 fullSize = ssrRenderSize.xy;
     float2 traceSize = ssrRenderSize.zw;
-    int2 centerPixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
+    int2 centerPixel = clamp(
+        int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float centerDepth = GET_PIXEL_TEX2D(_gbufferDepth, centerPixel);
     if (centerDepth >= 0.9999)
     {
-        return 0.0;
+        reflectionOut = 0.0;
+        metadataOut = 0.0;
+        return;
     }
 
-    float3 centerNormal = normalize(GET_PIXEL_TEX2D(_normal, centerPixel).xyz * 2.0 - 1.0);
+    float3 centerNormal = normalize(
+        GET_PIXEL_TEX2D(_normal, centerPixel).xyz * 2.0 - 1.0);
     float3 centerWorld = SsrPostReconstructWorldPosition(input.uv, centerDepth);
     float centerDistance = length(centerWorld - ssrCameraPosition.xyz);
 
-    // Complementary-style normal-aware 5x5 spatial reflection filter.
+    // Bilateral 5x5 filter. Plane distance is used instead of full world-space
+    // distance so neighbouring samples on a floor remain eligible at grazing
+    // angles while samples across geometry edges are still rejected.
     float3 colorSum = 0.0;
     float confidenceSum = 0.0;
     float weightSum = 0.0;
+    float3 neighborhoodMin = float3(65504.0, 65504.0, 65504.0);
+    float3 neighborhoodMax = 0.0;
     float2 traceTexel = rcp(traceSize);
     [loop]
     for (int y = -2; y <= 2; y++)
@@ -33,26 +44,38 @@ float4 MainPS(V2F input) : SV_TARGET
         [loop]
         for (int x = -2; x <= 2; x++)
         {
-            float2 sampleUV = clamp(input.uv + float2(x, y) * traceTexel, 0.0, 1.0);
+            float2 sampleUV = clamp(
+                input.uv + float2(x, y) * traceTexel, 0.0, 1.0);
             float4 sampleReflection = SAMPLE_TEX2D(_reflectionRaw, sampleUV);
-            int2 samplePixel = clamp(int2(sampleUV * fullSize), int2(0, 0), int2(fullSize) - 1);
+            int2 samplePixel = clamp(
+                int2(sampleUV * fullSize), int2(0, 0), int2(fullSize) - 1);
             float sampleDepth = GET_PIXEL_TEX2D(_gbufferDepth, samplePixel);
             if (sampleDepth >= 0.9999)
             {
                 continue;
             }
 
-            float3 sampleNormal = normalize(GET_PIXEL_TEX2D(_normal, samplePixel).xyz * 2.0 - 1.0);
-            float3 sampleWorld = SsrPostReconstructWorldPosition(sampleUV, sampleDepth);
-            float normalWeight = pow(saturate(dot(centerNormal, sampleNormal)), 24.0);
-            float depthScale = 0.08 + centerDistance * 0.015;
-            float depthWeight = exp(-length(sampleWorld - centerWorld) / depthScale);
+            float3 sampleNormal = normalize(
+                GET_PIXEL_TEX2D(_normal, samplePixel).xyz * 2.0 - 1.0);
+            float3 sampleWorld = SsrPostReconstructWorldPosition(
+                sampleUV, sampleDepth);
+            float normalWeight = pow(
+                saturate(dot(centerNormal, sampleNormal)), 24.0);
+            float planeDistance = abs(dot(
+                sampleWorld - centerWorld, centerNormal));
+            float planeScale = 0.025 + centerDistance * 0.003;
+            float depthWeight = exp(-planeDistance / planeScale);
             float spatialWeight = exp(-float(x * x + y * y) / 8.0);
             float weight = normalWeight * depthWeight * spatialWeight;
 
             colorSum += sampleReflection.rgb * sampleReflection.a * weight;
             confidenceSum += sampleReflection.a * weight;
             weightSum += weight;
+            if (sampleReflection.a > 0.01 && weight > 0.01)
+            {
+                neighborhoodMin = min(neighborhoodMin, sampleReflection.rgb);
+                neighborhoodMax = max(neighborhoodMax, sampleReflection.rgb);
+            }
         }
     }
 
@@ -60,30 +83,97 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 color = confidenceSum > 1e-5
         ? colorSum / confidenceSum
         : 0.0;
+    bool currentHit = confidence > 0.01;
 
+    float previousSampleCount = 0.0;
+    float historyMotion = 0.0;
+    float4 history = 0.0;
+    bool historyValid = false;
     if (ssrParams.y > 0.5)
     {
-        float4 previousClip = mul(ssrPreviousViewProjection, float4(centerWorld, 1.0));
+        float4 previousClip = mul(
+            ssrPreviousViewProjection, float4(centerWorld, 1.0));
         if (previousClip.w > 0.0)
         {
-            float2 previousNdc = previousClip.xy / previousClip.w;
-            float2 previousUV = float2(previousNdc.x * 0.5 + 0.5, 0.5 - previousNdc.y * 0.5);
-            if (all(previousUV >= 0.0) && all(previousUV <= 1.0))
+            float3 previousNdc = previousClip.xyz / previousClip.w;
+            float2 previousUV = float2(
+                previousNdc.x * 0.5 + 0.5,
+                0.5 - previousNdc.y * 0.5);
+            if (all(previousUV >= 0.0) && all(previousUV <= 1.0)
+                && previousNdc.z >= 0.0 && previousNdc.z <= 1.0)
             {
-                float4 history = SAMPLE_TEX2D(_reflectionHistory, previousUV);
-                float roughness = GET_PIXEL_TEX2D(_albedo, centerPixel).a;
-                float smoothness = 1.0 - roughness;
-                float minimumBlend = 0.035 + 0.09 * pow(smoothness, 8.0);
-                bool currentHit = confidence > 0.01;
-                float colorBlend = currentHit
-                    ? max(minimumBlend, 1.0 - history.a)
-                    : 0.0;
-                float confidenceBlend = currentHit ? 0.20 : 0.35;
-                color = lerp(history.rgb, color, colorBlend);
-                confidence = lerp(history.a, confidence, confidenceBlend);
+                history = SAMPLE_TEX2D(_reflectionHistory, previousUV);
+                float4 previousMetadata = SAMPLE_TEX2D(
+                    _historyMetadata, previousUV);
+                float3 previousNormal = SsrPostDecodeNormal(
+                    previousMetadata.xy);
+                // Metadata stores linear receiver distance. R16F preserves this
+                // far more accurately than non-linear NDC depth, whose half-float
+                // quantisation was invalidating history on distant surfaces.
+                float expectedPreviousDistance = length(
+                    centerWorld - ssrPreviousCameraPosition.xyz);
+                float positionTolerance = 0.04
+                    + expectedPreviousDistance * 0.005;
+                historyValid = previousMetadata.w > 0.5
+                    && dot(centerNormal, previousNormal) > 0.96
+                    && abs(previousMetadata.z - expectedPreviousDistance)
+                        < positionTolerance;
+                if (historyValid)
+                {
+                    previousSampleCount = previousMetadata.w;
+                    float receiverMotionPixels = length(
+                        (previousUV - input.uv) * fullSize);
+                    float cameraMotion = length(
+                        ssrCameraPosition.xyz
+                        - ssrPreviousCameraPosition.xyz);
+                    historyMotion = saturate(
+                        receiverMotionPixels * 0.15 + cameraMotion * 1.5);
+                }
             }
         }
     }
 
-    return float4(max(color, 0.0), saturate(confidence));
+    float nextSampleCount = currentHit ? 1.0 : 0.0;
+    if (historyValid)
+    {
+        if (currentHit)
+        {
+            // Clip reprojected radiance to a relaxed current neighbourhood to
+            // prevent disocclusion ghosts without destroying glossy variance.
+            if (neighborhoodMin.x < 65503.0)
+            {
+                float3 extent = max(
+                    neighborhoodMax - neighborhoodMin, 0.02);
+                history.rgb = clamp(
+                    history.rgb,
+                    neighborhoodMin - extent * 0.35,
+                    neighborhoodMax + extent * 0.35);
+            }
+
+            // Stationary pixels keep integrating to 256 samples. Motion lowers
+            // the effective history length and raises the current-frame weight
+            // so reflections respond promptly instead of leaving trails.
+            float maximumSamples = lerp(256.0, 8.0, historyMotion);
+            nextSampleCount = min(
+                previousSampleCount + 1.0, maximumSamples);
+            float currentWeight = max(
+                rcp(nextSampleCount),
+                lerp(1.0 / 256.0, 0.125, historyMotion));
+            color = lerp(history.rgb, color, currentWeight);
+            confidence = lerp(history.a, confidence, currentWeight);
+        }
+        else
+        {
+            // A stochastic miss must not punch a bright one-frame hole. Retain
+            // valid history briefly, but decay it so real lost intersections
+            // disappear in a bounded number of frames.
+            color = history.rgb;
+            confidence = history.a * 0.94;
+            nextSampleCount = max(previousSampleCount - 1.0, 1.0);
+        }
+    }
+
+    reflectionOut = float4(max(color, 0.0), saturate(confidence));
+    metadataOut = float4(
+        SsrPostEncodeNormal(centerNormal), centerDistance, nextSampleCount);
 }
