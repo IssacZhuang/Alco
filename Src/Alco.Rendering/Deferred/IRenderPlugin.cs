@@ -122,3 +122,12 @@ public interface IRenderPlugin : IDisposable
     /// <summary>Recreate resolution-dependent resources.</summary>
     void Resize(uint width, uint height);
 }
+
+/// <summary>
+/// Marks a render plugin as a global-illumination provider. The deferred
+/// pipeline uses this marker to enable its GI texture path without depending
+/// on a concrete GI implementation.
+/// </summary>
+public interface IGlobalIlluminationPlugin : IRenderPlugin
+{
+}

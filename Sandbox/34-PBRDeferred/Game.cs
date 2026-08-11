@@ -14,9 +14,9 @@ using SandboxUtils;
 /// cascaded shadow maps (4 cascades in a 2x2 atlas), up to four point
 /// lights, emissive surfaces with HDR bloom, a physically-based procedural
 /// sky (single-scattering atmosphere driven by the time of day, with a sun
-/// disc and a star field) and voxel global illumination (a camera-following
-/// sparse brick clipmap with compute voxelization, rotation-balanced diffuse
-/// tracing and hybrid reflections).
+/// disc and a star field) and switchable global illumination: the default
+/// screen-seeded cascaded radiance cache, or the existing sparse voxel cone
+/// tracer selected with <c>--gi=voxel</c>.
 /// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
 /// G-buffer pass) and replayed every frame; the game owns the scene materials
@@ -27,7 +27,7 @@ using SandboxUtils;
 /// <br/>Controls: in fly mode hold the right mouse button to look around,
 /// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--gi-resolution=50|75|100] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi=radiance|voxel] [--gi-debug=N] [--gi-resolution=50|75|100] [--gi-offscreen-test] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -240,8 +240,10 @@ public class Game : GameEngine
     private float _hbaoStrength = 1.0f;
     private HbaoRenderer? _hbaoRenderer;
 
-    // Voxel global illumination (sparse clipmap + cone tracing).
+    // Independent GI implementations. Radiance Cache is the Sandbox default;
+    // --gi=voxel keeps the existing sparse voxel cone tracer available.
     private readonly VoxelGiRenderer? _voxelGI;
+    private readonly RadianceCacheRenderer? _radianceCacheGI;
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
     private float _giSpecularStrength = 1f;
@@ -283,6 +285,7 @@ public class Game : GameEngine
     private readonly bool _waitForStreaming;
     private readonly Vector3? _fixedCameraPosition;
     private readonly Vector3? _fixedCameraLook;
+    private readonly bool _giOffscreenTest;
     private int _frameCount;
 
     private float _time;
@@ -297,11 +300,18 @@ public class Game : GameEngine
         _hbaoEnabled = !args.Contains("--no-hbao");
         bool hbaoDebugView = args.Contains("--hbao-debug");
         _giEnabled = !args.Contains("--no-gi");
-        VoxelGiDebugMode giDebugView = default;
-        if (Enum.TryParse<VoxelGiDebugMode>(GetArgValue(args, "--gi-debug="), ignoreCase: true, out var parsedDebug))
+        int giDebugView = 0;
+        string? giDebugArgument = GetArgValue(args, "--gi-debug=");
+        if (Enum.TryParse<RadianceCacheDebugMode>(giDebugArgument, ignoreCase: true, out var parsedCacheDebug))
         {
-            giDebugView = parsedDebug;
+            giDebugView = (int)parsedCacheDebug;
         }
+        else if (Enum.TryParse<VoxelGiDebugMode>(giDebugArgument, ignoreCase: true, out var parsedVoxelDebug))
+        {
+            giDebugView = (int)parsedVoxelDebug;
+        }
+        string giImplementation = GetArgValue(args, "--gi=") ?? "radiance";
+        bool useVoxelGi = giImplementation.Equals("voxel", StringComparison.OrdinalIgnoreCase);
         if (int.TryParse(GetArgValue(args, "--gi-resolution="), out int giResolutionPercent))
         {
             _giResolutionPreset = giResolutionPercent switch
@@ -340,6 +350,7 @@ public class Game : GameEngine
 
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
+        _giOffscreenTest = args.Contains("--gi-offscreen-test");
         bool interior = args.Contains("--interior");
         bool procedural = args.Contains("--procedural");
 
@@ -506,12 +517,10 @@ public class Game : GameEngine
             }
         }
 
-        // Voxel global illumination: a 4-level clipmap whose coarsest level
-        // covers roughly 4x the scene radius (128^3 voxels per level).
-        if (_giEnabled)
+        string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
+        if (_giEnabled && useVoxelGi)
         {
             float baseVoxelSize = MathF.Max(_sceneRadius * 4.0f / 1024.0f, 0.02f);
-            string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
             _voxelGI = new VoxelGiRenderer(
                 RenderingSystem,
                 new VoxelGiShaders
@@ -532,9 +541,34 @@ public class Game : GameEngine
                 resolution: 128,
                 baseVoxelSize: baseVoxelSize,
                 traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
-            _voxelGI.DebugView = giDebugView;
+            _voxelGI.DebugView = (VoxelGiDebugMode)giDebugView;
             RegisterVoxelMeshes();
             _pipeline.RegisterPlugin(_voxelGI);
+        }
+        else if (_giEnabled)
+        {
+            // Three 32^3 cascades. The finest covers roughly one scene radius;
+            // the coarsest covers four radii and retains lighting after its
+            // source leaves the screen.
+            float baseCellSize = MathF.Max(_sceneRadius / 32.0f, 0.15f);
+            _radianceCacheGI = new RadianceCacheRenderer(
+                RenderingSystem,
+                new RadianceCacheShaders
+                {
+                    Clear = AssetSystem.Load<Shader>(shaderDir + "RadianceCacheClear.hlsl"),
+                    Inject = AssetSystem.Load<Shader>(shaderDir + "RadianceCacheInject.hlsl"),
+                    Update = AssetSystem.Load<Shader>(shaderDir + "RadianceCacheUpdate.hlsl"),
+                    Propagate = AssetSystem.Load<Shader>(shaderDir + "RadianceCachePropagate.hlsl"),
+                    Trace = AssetSystem.Load<Shader>(shaderDir + "RadianceCacheTrace.hlsl"),
+                    Resolve = AssetSystem.Load<Shader>(shaderDir + "RadianceCacheResolve.hlsl"),
+                },
+                width: (uint)MainView.Size.X,
+                height: (uint)MainView.Size.Y,
+                gridResolution: 32,
+                baseCellSize: baseCellSize,
+                traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
+            _radianceCacheGI.DebugView = (RadianceCacheDebugMode)giDebugView;
+            _pipeline.RegisterPlugin(_radianceCacheGI);
         }
 
         // Bloom is a content processor node on the pipeline's forward chain;
@@ -735,6 +769,22 @@ public class Game : GameEngine
 
     private void UpdateCamera(float delta)
     {
+        // Deterministic validation path: warm the world cache while the scene is
+        // visible, look away for most of the run, then return on the capture
+        // frame. The returned frame therefore consumes retained off-screen
+        // radiance before the screen-space seed can converge again.
+        if (_giOffscreenTest)
+        {
+            Vector3 testCameraDirection = Direction(_pitch, _yaw);
+            Vector3 testCameraPosition = _sceneCenter + testCameraDirection * _distance;
+            int warmupFrames = Math.Max(_screenshotFrames / 3, 10);
+            bool showScene = _frameCount < warmupFrames || _frameCount >= _screenshotFrames - 1;
+            Vector3 testLookDirection = showScene ? -testCameraDirection : testCameraDirection;
+            _camera.Transform = new Transform3D(testCameraPosition, LookRotation(testLookDirection, Vector3.UnitZ));
+            _camera.UpdateMatrixToGPU();
+            return;
+        }
+
         // Fixed camera from CLI args (--pos / --look) bypasses orbiting.
         if (_fixedCameraPosition.HasValue && _fixedCameraLook.HasValue)
         {
@@ -1064,14 +1114,23 @@ public class Game : GameEngine
                 ? _pointLightUploadBuffer.AsSpan(0, pointLightCount)
                 : ReadOnlySpan<PBRDeferredPipeline.PointLight>.Empty);
 
-        // GI state on the pipeline.
-        if (_voxelGI != null)
+        // GI state on the pipeline. Both implementations expose the same
+        // full-resolution output contract but own completely separate caches.
+        if (_voxelGI != null || _radianceCacheGI != null)
         {
             _pipeline.GiEnabled = _giEnabled;
             _pipeline.GiDiffuseStrength = _giDiffuseStrength;
             _pipeline.GiSpecularStrength = _giSpecularStrength;
-            _pipeline.GiDebugView = (int)_voxelGI.DebugView;
-            _voxelGI.EmissiveScale = _pointLightsEnabled ? _emissiveBoost : 0.0f;
+            if (_voxelGI != null)
+            {
+                _pipeline.GiDebugView = (int)_voxelGI.DebugView;
+                _voxelGI.EmissiveScale = _pointLightsEnabled ? _emissiveBoost : 0.0f;
+            }
+            else
+            {
+                _pipeline.GiDebugView = (int)_radianceCacheGI!.DebugView;
+                _radianceCacheGI.EmissiveScale = _pointLightsEnabled ? _emissiveBoost : 0.0f;
+            }
         }
     }
 
@@ -1261,7 +1320,9 @@ public class Game : GameEngine
     {
         if (_hbaoRenderer != null)
         {
-            float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
+            float ssaoAmount = _giEnabled && (_voxelGI != null || _radianceCacheGI != null)
+                ? _giSsaoAmount
+                : 1.0f;
             _hbaoRenderer.Radius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
             _hbaoRenderer.Strength = (_hbaoEnabled ? _hbaoStrength : 0.0f) * ssaoAmount;
         }
@@ -1331,6 +1392,14 @@ public class Game : GameEngine
                 $"queued={statistics.PendingStaticBricks}, dropped={statistics.DroppedBricks}, " +
                 $"attribute={statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
                 $"radiance={statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1}MiB");
+        }
+        else if (_radianceCacheGI != null)
+        {
+            RadianceCacheStatistics statistics = _radianceCacheGI.Statistics;
+            Console.WriteLine(
+                $"Radiance cache GI stats: cells={statistics.CacheCellCount}, " +
+                $"memory={statistics.MemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
+                $"record={statistics.CpuRecordMilliseconds:F3}ms");
         }
     }
 
@@ -1434,6 +1503,54 @@ public class Game : GameEngine
             bool aoDebugView = _pipeline.AoDebugView;
             if (ImGui.Checkbox("AO Debug View", ref aoDebugView))
                 _pipeline.AoDebugView = aoDebugView;
+        }
+
+        if (_radianceCacheGI != null && ImGui.CollapsingHeader("Global Illumination (Radiance Cache)"))
+        {
+            ImGui.Checkbox("GI Enabled", ref _giEnabled);
+            ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
+            ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
+
+            float skyIntensity = _radianceCacheGI.SkyIntensity;
+            if (ImGui.SliderFloat("GI Sky Intensity", ref skyIntensity, 0.0f, 4.0f))
+                _radianceCacheGI.SkyIntensity = skyIntensity;
+            float bounceStrength = _radianceCacheGI.BounceStrength;
+            if (ImGui.SliderFloat("Bounce Strength", ref bounceStrength, 0.0f, 2.0f))
+                _radianceCacheGI.BounceStrength = bounceStrength;
+            float cacheHysteresis = _radianceCacheGI.CacheHysteresis;
+            if (ImGui.SliderFloat("Cache Hysteresis", ref cacheHysteresis, 0.0f, 0.99f, "%.3f"))
+                _radianceCacheGI.CacheHysteresis = cacheHysteresis;
+            float offscreenRetention = _radianceCacheGI.OffscreenRetention;
+            if (ImGui.SliderFloat("Off-screen Retention", ref offscreenRetention, 0.9f, 1.0f, "%.4f"))
+                _radianceCacheGI.OffscreenRetention = offscreenRetention;
+            float propagation = _radianceCacheGI.PropagationStrength;
+            if (ImGui.SliderFloat("Cache Propagation", ref propagation, 0.0f, 1.0f, "%.3f"))
+                _radianceCacheGI.PropagationStrength = propagation;
+            float maxTraceDistance = _radianceCacheGI.TraceMaxDistance;
+            if (ImGui.SliderFloat("Near-field Distance", ref maxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius)))
+                _radianceCacheGI.TraceMaxDistance = maxTraceDistance;
+
+            if (ImGui.Combo(
+                "GI Resolution",
+                ref _giResolutionPreset,
+                GiTraceResolutionModes,
+                GiTraceResolutionModes.Length))
+            {
+                _radianceCacheGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
+            }
+            ImGui.Text($"GI trace resolution: {_radianceCacheGI.DiffuseTexture.Width * _radianceCacheGI.TraceResolutionScale:F0}x" +
+                $"{_radianceCacheGI.DiffuseTexture.Height * _radianceCacheGI.TraceResolutionScale:F0}");
+            string[] cacheDebugModes = ["Off", "Diffuse Irradiance", "Indirect Specular", "Cache Confidence"];
+            int cacheDebug = (int)_radianceCacheGI.DebugView;
+            if (ImGui.Combo("GI Debug", ref cacheDebug, cacheDebugModes, cacheDebugModes.Length))
+            {
+                _radianceCacheGI.DebugView = (RadianceCacheDebugMode)cacheDebug;
+            }
+
+            RadianceCacheStatistics statistics = _radianceCacheGI.Statistics;
+            ImGui.Text($"World cache: {statistics.CacheCellCount:N0} cells");
+            ImGui.Text($"GI memory: {statistics.MemoryBytes / (1024.0 * 1024.0):F1} MiB");
+            ImGui.Text($"CPU record: {statistics.CpuRecordMilliseconds:F3} ms");
         }
 
         if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))

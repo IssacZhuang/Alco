@@ -401,7 +401,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _plugins.Add(plugin);
         // Track whether any GI plugin is registered so the lighting shader can
         // gate the GI code path. The flag is updated on register/unregister.
-        if (plugin is VoxelGiRenderer)
+        if (plugin is IGlobalIlluminationPlugin)
         {
             _giActive = true;
         }
@@ -413,9 +413,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public void UnregisterPlugin(IRenderPlugin plugin)
     {
         _plugins.Remove(plugin);
-        if (plugin is VoxelGiRenderer)
+        if (plugin is IGlobalIlluminationPlugin)
         {
-            _giActive = _plugins.Any(p => p is VoxelGiRenderer);
+            _giActive = _plugins.Any(p => p is IGlobalIlluminationPlugin);
         }
     }
 
