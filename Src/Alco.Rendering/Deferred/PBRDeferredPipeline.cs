@@ -295,13 +295,13 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public bool SunDiscEnabled { get; set; } = true;
 
     /// <summary>Sun disc cosine angular threshold (higher = smaller disc).</summary>
-    public float SunDiscSize { get; set; } = 0.9998f;
+    public float SunDiscSize { get; set; } = 0.9995f;
 
     /// <summary>Sun disc HDR visual brightness (independent of lighting intensity).</summary>
     public float SunDiscBrightness { get; set; } = 18.0f;
 
     /// <summary>Atmosphere params: x=rayleighScale, y=mieScale, z=miePhaseG, w=exposure.</summary>
-    public Vector4 SkyParams { get; set; } = new(1.0f, 1.0f, 0.8f, 1.0f);
+    public Vector4 SkyParams { get; set; } = new(1.0f, 0.3f, 0.9f, 1.0f);
 
     /// <summary>Atmosphere params: x=starIntensity, y=nightFloor, z=sunRadianceScale, w=ambientFloor.</summary>
     public Vector4 SkyParams2 { get; set; } = new(1.0f, 0.05f, 20.0f, 0.25f);
@@ -340,7 +340,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public float VolumetricLightIntensity { get; set; } = 0.5f;
 
     /// <summary>Volumetric fog density (extinction coefficient; higher = thicker fog).</summary>
-    public float VolumetricLightDensity { get; set; } = 0.01f;
+    public float VolumetricLightDensity { get; set; } = 0.2f;
 
     /// <summary>
     /// Scale height for the height-falloff density model. Fog density decays

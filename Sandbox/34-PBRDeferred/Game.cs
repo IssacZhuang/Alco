@@ -227,8 +227,11 @@ public class Game : GameEngine
     private float _timeSpeed = 0.5f;
     private float _skyExposure = 1.0f;
     private float _rayleighScale = 1.0f;
-    private float _mieScale = 1.0f;
-    private float _miePhaseG = 0.8f;
+    // A narrower, lower-energy Mie lobe keeps the sun visible without washing
+    // the daylight sky toward white.  These values are intentionally paired:
+    // raising g alone would make the forward peak much brighter.
+    private float _mieScale = 0.3f;
+    private float _miePhaseG = 0.9f;
     private float _starIntensity = 1.0f;
     private float _sunRadianceScale = 20.0f;
     private float _nightFloor = 0.05f;
@@ -560,10 +563,10 @@ public class Game : GameEngine
         // a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
-            : 1.0f;
+            : 1.5f;
         float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
             ? parsedBloomIntensity
-            : 1.0f;
+            : 0.35f;
         _bloom = new RenderNode_Bloom(
             RenderingSystem,
             RenderingSystem.CreateBloom(

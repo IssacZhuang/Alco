@@ -192,7 +192,10 @@ float3 GetSkyColor(float3 direction)
         float horizon = saturate((dirToSun.z + 0.1) * 10.0);
         horizon *= horizon;
         horizon = horizon * horizon * (3.0 - 2.0 * horizon);
-        sky += sunColorAndIntensity.rgb * params4.y * (disc + corona * 0.08) * horizon;
+        // Keep the disc clearly separated from the atmospheric glare.  The old
+        // 8% corona was already 1.44 HDR at the default disc brightness, so it
+        // clipped together with the Mie lobe before bloom was even applied.
+        sky += sunColorAndIntensity.rgb * params4.y * (disc + corona * 0.025) * horizon;
     }
     return sky;
 }
