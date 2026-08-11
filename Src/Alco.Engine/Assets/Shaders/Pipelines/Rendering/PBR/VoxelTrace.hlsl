@@ -648,7 +648,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 temporalAld = ald;
     float previousSampleCount = 0.0;
     bool rawHistoryValid = false;
-    int2 previousTracePixel = int2(0, 0);
+    float4 previousDiffuse = 0.0;
+    float4 previousAld = 0.0;
 
     if (giFrameParams.z > 0.5)
     {
@@ -662,46 +663,114 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 0.5 - previousNdc.y * 0.5);
             if (all(previousUv >= 0.0) && all(previousUv <= 1.0))
             {
-                previousTracePixel = clamp(
-                    int2(previousUv * float2(traceResolution)),
-                    int2(0, 0),
-                    int2(traceResolution) - 1);
-                float4 previousMetadata = _giHistoryMetadata.Load(int3(
-                    previousTracePixel
-                        + int2((int)traceResolution.x * 5, 0),
-                    0));
+                // Reconstruct the previous-frame history with a custom 2x2
+                // bilinear footprint. Each tap receives an independent
+                // depth/normal validity weight before normalization, so a
+                // foreground tap cannot invalidate (or contaminate) valid
+                // background history during sub-pixel camera motion.
+                float2 previousTexel =
+                    previousUv * float2(traceResolution) - 0.5;
+                int2 previousBasePixel = int2(floor(previousTexel));
+                float2 previousFraction = frac(previousTexel);
                 float expectedPreviousDepth = abs(previousClip.w);
-                float depthRatio = abs(
-                    expectedPreviousDepth
-                        / max(previousMetadata.x, 0.0001)
-                    - 1.0);
-                float3 previousNormal = normalize(
-                    previousMetadata.yzw * 2.0 - 1.0);
-                float normalAgreement = dot(
-                    geometryNormal, previousNormal);
+                float3 previousViewDirection = normalize(
+                    cameraPosition.xyz - worldPosition);
+                float previousViewFacing = abs(dot(
+                    previousViewDirection, geometryNormal));
+                // Face-on receivers use a tight threshold; grazing surfaces
+                // need more room because one trace pixel spans a much larger
+                // view-depth interval there.
+                float depthThreshold = lerp(
+                    0.08, 0.02, previousViewFacing);
+                float historyWeight = 0.0;
+                float sampleCountSum = 0.0;
 
-                float4 previousRawSpecular = _traceHistory.Load(int3(
-                    previousTracePixel
-                        + int2((int)traceResolution.x, 0),
-                    0));
-                previousSampleCount =
-                    saturate(previousRawSpecular.a) * 64.0;
-                rawHistoryValid = previousMetadata.x > 0.0
-                    && previousSampleCount > 0.5
-                    && depthRatio < 0.08
-                    && normalAgreement > 0.8;
+                [unroll]
+                for (int historyY = 0; historyY < 2; historyY++)
+                {
+                    [unroll]
+                    for (int historyX = 0; historyX < 2; historyX++)
+                    {
+                        int2 historyPixel = previousBasePixel
+                            + int2(historyX, historyY);
+                        bool historyInBounds = all(historyPixel >= int2(0, 0))
+                            && all(historyPixel < int2(traceResolution));
+                        if (!historyInBounds)
+                        {
+                            continue;
+                        }
+
+                        float bilinearWeight =
+                            (historyX != 0
+                                ? previousFraction.x
+                                : 1.0 - previousFraction.x)
+                            * (historyY != 0
+                                ? previousFraction.y
+                                : 1.0 - previousFraction.y);
+                        float4 previousMetadata = _giHistoryMetadata.Load(int3(
+                            historyPixel
+                                + int2((int)traceResolution.x * 5, 0),
+                            0));
+                        if (previousMetadata.x <= 0.0)
+                        {
+                            continue;
+                        }
+
+                        float depthRatio = abs(
+                            expectedPreviousDepth
+                                / max(previousMetadata.x, 0.0001)
+                            - 1.0);
+                        float depthWeight = 1.0 - smoothstep(
+                            depthThreshold * 0.5,
+                            depthThreshold,
+                            depthRatio);
+                        float3 previousNormal = normalize(
+                            previousMetadata.yzw * 2.0 - 1.0);
+                        float normalWeight = smoothstep(
+                            0.75, 0.95,
+                            dot(geometryNormal, previousNormal));
+
+                        float4 previousRawSpecular = _traceHistory.Load(int3(
+                            historyPixel
+                                + int2((int)traceResolution.x, 0),
+                            0));
+                        float sampleCount =
+                            saturate(previousRawSpecular.a) * 64.0;
+                        float tapWeight = bilinearWeight
+                            * depthWeight
+                            * normalWeight
+                            * (sampleCount > 0.5 ? 1.0 : 0.0);
+                        if (tapWeight <= 0.0)
+                        {
+                            continue;
+                        }
+
+                        previousDiffuse += _traceHistory.Load(int3(
+                            historyPixel, 0)) * tapWeight;
+                        previousAld += _traceHistory.Load(int3(
+                            historyPixel
+                                + int2((int)traceResolution.x * 2, 0),
+                            0)) * tapWeight;
+                        sampleCountSum += sampleCount * tapWeight;
+                        historyWeight += tapWeight;
+                    }
+                }
+
+                rawHistoryValid = historyWeight > 0.0001;
+                if (rawHistoryValid)
+                {
+                    float inverseHistoryWeight = rcp(historyWeight);
+                    previousDiffuse *= inverseHistoryWeight;
+                    previousAld *= inverseHistoryWeight;
+                    previousSampleCount =
+                        sampleCountSum * inverseHistoryWeight;
+                }
             }
         }
     }
 
     if (rawHistoryValid)
     {
-        float4 previousDiffuse = _traceHistory.Load(int3(
-            previousTracePixel, 0));
-        float4 previousAld = _traceHistory.Load(int3(
-            previousTracePixel
-                + int2((int)traceResolution.x * 2, 0),
-            0));
         // Bootstrap with an exact running average for the first complete
         // 64-direction cycle. Afterwards a small EMA keeps dynamic lighting
         // responsive while strongly attenuating the residual sampling period.
