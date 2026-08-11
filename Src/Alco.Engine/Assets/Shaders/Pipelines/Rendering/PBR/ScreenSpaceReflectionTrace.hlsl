@@ -110,8 +110,6 @@ float4 MainPS(V2F input) : SV_TARGET
     float hitDepth = 1.0;
     int refinementCount = 0;
     bool geometryHit = false;
-    bool backgroundHit = false;
-    float2 backgroundUV = input.uv;
 
     // Port of Complementary Unbound's exponentially growing screen-space ray
     // with decimal refinement after approaching a depth surface.
@@ -128,12 +126,13 @@ float4 MainPS(V2F input) : SV_TARGET
         int2 hitPixel = clamp(int2(hitUV * fullSize), int2(0, 0), int2(fullSize) - 1);
         hitDepth = GET_PIXEL_TEX2D(_gbufferDepth, hitPixel);
 
-        if (hitDepth >= 0.9999)
-        {
-            backgroundHit = true;
-            backgroundUV = hitUV;
-        }
-        else
+        // Empty depth is not a verified reflection hit. The shaded background
+        // contains the procedural sun disc, but screen-space depth cannot tell
+        // whether hidden geometry blocks it from the receiver. Keep marching
+        // for screen-visible geometry and leave sky misses to the occlusion-aware
+        // voxel specular fallback. Direct sun specular is already shadowed in the
+        // deferred lighting pass.
+        if (hitDepth < 0.9999)
         {
             hitWorldPosition = SsrPostReconstructWorldPosition(hitUV, hitDepth);
             hitError = length(rayPosition - hitWorldPosition);
@@ -177,14 +176,6 @@ float4 MainPS(V2F input) : SV_TARGET
             confidence = border * foregroundFade;
         }
     }
-    else if (backgroundHit)
-    {
-        // Screen-visible sky/background is a valid screen-space source too.
-        hitUV = backgroundUV;
-        float2 edgeDistance = abs(hitUV - 0.5) / float2(0.525, 0.525);
-        confidence = saturate(1.0 - pow(max(edgeDistance.x, edgeDistance.y), 50.0)) * 0.75;
-    }
-
     float roughnessFade = saturate((ssrRayParams.y - roughness) / 0.25);
     confidence *= roughnessFade;
     if (confidence <= 0.001)
