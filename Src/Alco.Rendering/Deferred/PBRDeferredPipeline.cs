@@ -340,7 +340,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public float VolumetricLightIntensity { get; set; } = 0.5f;
 
     /// <summary>Volumetric fog density (extinction coefficient; higher = thicker fog).</summary>
-    public float VolumetricLightDensity { get; set; } = 0.2f;
+    public float VolumetricLightDensity { get; set; } = 0.002f;
 
     /// <summary>
     /// Scale height for the height-falloff density model. Fog density decays
