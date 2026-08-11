@@ -436,7 +436,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin
     private const int LevelCount = 4;
     private const int BrickSize = 8;
 
-    private readonly int[] _staticBrickBudgets = [32, 16, 8, 4];
+    private readonly int[] _staticBrickBudgets = [256, 128, 64, 32];
 
     /// <summary>
     /// Gets the maximum number of structural bricks rebuilt per frame for one
