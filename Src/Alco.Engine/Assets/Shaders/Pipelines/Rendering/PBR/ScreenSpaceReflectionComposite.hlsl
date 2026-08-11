@@ -1,29 +1,129 @@
 #include "Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionPostCommon.hlsli"
 
 DEFINE_TEX2D_SAMPLE(1, _sceneColor);
-DEFINE_TEX2D_SAMPLE(1, _reflection);
+DEFINE_TEX2D_READ(1, _reflection);
+DEFINE_TEX2D_READ(1, _reflectionMetadata);
 DEFINE_TEX2D_READ(1, _albedo);
 DEFINE_TEX2D_READ(1, _normal);
 DEFINE_TEX2D_READ(1, _mrAO);
 DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
 
+// Upsample the trace-resolution history without allowing hardware bilinear
+// filtering to mix unrelated receivers across a foreground/background edge.
+// The resolve pass stores the receiver normal and linear camera distance beside
+// every reflection texel, so the full-resolution receiver can reject samples
+// that came from a different surface.
+float4 SsrPostGeometryAwareUpsample(
+    float2 uv,
+    float3 receiverNormal,
+    float3 receiverWorld)
+{
+    int2 fullExtent = max(int2(ssrRenderSize.xy), int2(1, 1));
+    int2 traceExtent = max(int2(ssrRenderSize.zw), int2(1, 1));
+    int2 traceCenter = clamp(
+        int2(uv * float2(traceExtent)), int2(0, 0), traceExtent - 1);
+
+    // Full resolution has a one-to-one receiver mapping and needs no recovery
+    // neighbourhood. An exact load also avoids a half-texel blur here.
+    if (all(traceExtent == fullExtent))
+    {
+        return GET_PIXEL_TEX2D(_reflection, traceCenter);
+    }
+
+    float receiverDistance = length(receiverWorld - ssrCameraPosition.xyz);
+    float distanceScale = 0.04 + receiverDistance * 0.003;
+    float planeScale = 0.025 + receiverDistance * 0.002;
+    float2 requestedTracePosition = uv * float2(traceExtent);
+    float3 radianceSum = 0.0;
+    float confidenceSum = 0.0;
+    float weightSum = 0.0;
+
+    [unroll]
+    for (int y = -1; y <= 1; y++)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; x++)
+        {
+            int2 candidate = traceCenter + int2(x, y);
+            if (any(candidate < int2(0, 0)) || any(candidate >= traceExtent))
+            {
+                continue;
+            }
+
+            float4 metadata = GET_PIXEL_TEX2D(_reflectionMetadata, candidate);
+            float4 reflection = GET_PIXEL_TEX2D(_reflection, candidate);
+            if (metadata.w < 0.5 || reflection.a <= 0.001)
+            {
+                continue;
+            }
+
+            float3 candidateNormal = SsrPostDecodeNormal(metadata.xy);
+            float normalSimilarity = dot(receiverNormal, candidateNormal);
+            if (normalSimilarity < 0.96)
+            {
+                continue;
+            }
+
+            float radialError = abs(metadata.z - receiverDistance);
+            if (radialError > distanceScale * 2.0)
+            {
+                continue;
+            }
+
+            float2 candidateUV = (float2(candidate) + 0.5) / float2(traceExtent);
+            int2 candidateFullPixel = clamp(
+                int2(candidateUV * float2(fullExtent)),
+                int2(0, 0), fullExtent - 1);
+            float candidateDepth = GET_PIXEL_TEX2D(_gbufferDepth, candidateFullPixel);
+            if (candidateDepth >= 0.9999)
+            {
+                continue;
+            }
+
+            float3 candidateWorld = SsrPostReconstructWorldPosition(
+                candidateUV, candidateDepth);
+            float planeDistance = abs(dot(
+                candidateWorld - receiverWorld, receiverNormal));
+            if (planeDistance > planeScale * 2.0)
+            {
+                continue;
+            }
+
+            float2 traceOffset = float2(candidate) + 0.5
+                - requestedTracePosition;
+            float spatialWeight = exp(-dot(traceOffset, traceOffset) * 1.25);
+            float geometryWeight = pow(saturate(normalSimilarity), 24.0)
+                * exp(-radialError / distanceScale - planeDistance / planeScale);
+            float weight = spatialWeight * geometryWeight;
+
+            radianceSum += reflection.rgb * reflection.a * weight;
+            confidenceSum += reflection.a * weight;
+            weightSum += weight;
+        }
+    }
+
+    // A sub-pixel receiver may have no representation in the reduced trace.
+    // Returning no SSR is preferable to borrowing a bright background sample.
+    if (confidenceSum <= 1e-5 || weightSum <= 1e-5)
+    {
+        return 0.0;
+    }
+
+    return float4(
+        radianceSum / confidenceSum,
+        saturate(confidenceSum / weightSum));
+}
+
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
 {
     float4 scene = SAMPLE_TEX2D(_sceneColor, input.uv);
-    float4 reflection = SAMPLE_TEX2D(_reflection, input.uv);
 
     // These two views are produced here instead of in deferred lighting so
     // the ray always samples the normal fully-lit scene color first.
-    if (ssrParams.z > 1.5 && ssrParams.z < 2.5)
-    {
-        return float4(reflection.rgb * reflection.a, 1.0);
-    }
-    if (ssrParams.z > 4.5 && ssrParams.z < 5.5)
-    {
-        return float4(reflection.aaa, 1.0);
-    }
-    if (ssrParams.z > 0.5)
+    bool debugSpecular = ssrParams.z > 1.5 && ssrParams.z < 2.5;
+    bool debugConfidence = ssrParams.z > 4.5 && ssrParams.z < 5.5;
+    if (ssrParams.z > 0.5 && !debugSpecular && !debugConfidence)
     {
         return scene;
     }
@@ -31,7 +131,28 @@ float4 MainPS(V2F input) : SV_TARGET
     float2 fullSize = ssrRenderSize.xy;
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, pixel);
-    if (depth >= 0.9999 || reflection.a <= 0.001)
+    if (depth >= 0.9999)
+    {
+        if (debugSpecular || debugConfidence)
+        {
+            return float4(0.0, 0.0, 0.0, 1.0);
+        }
+        return scene;
+    }
+
+    float3 normal = normalize(GET_PIXEL_TEX2D(_normal, pixel).xyz * 2.0 - 1.0);
+    float3 worldPosition = SsrPostReconstructWorldPosition(input.uv, depth);
+    float4 reflection = SsrPostGeometryAwareUpsample(
+        input.uv, normal, worldPosition);
+    if (debugSpecular)
+    {
+        return float4(reflection.rgb * reflection.a, 1.0);
+    }
+    if (debugConfidence)
+    {
+        return float4(reflection.aaa, 1.0);
+    }
+    if (reflection.a <= 0.001)
     {
         return scene;
     }
@@ -40,8 +161,6 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 albedo = SsrPostDecodeSRGB(packedAlbedo.rgb);
     float roughness = packedAlbedo.a;
     float metallic = GET_PIXEL_TEX2D(_mrAO, pixel).x;
-    float3 normal = normalize(GET_PIXEL_TEX2D(_normal, pixel).xyz * 2.0 - 1.0);
-    float3 worldPosition = SsrPostReconstructWorldPosition(input.uv, depth);
     float3 V = normalize(ssrCameraPosition.xyz - worldPosition);
     float NdotV = saturate(dot(normal, V));
     float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);

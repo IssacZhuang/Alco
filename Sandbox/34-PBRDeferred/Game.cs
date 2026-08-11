@@ -248,6 +248,7 @@ public class Game : GameEngine
     private float _giSpecularStrength = 1f;
     private float _giSsaoAmount = 1f;
     private int _giResolutionPreset = 0;
+    private int _ssrResolutionPreset = 0;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
     private static readonly string[] GiTraceResolutionModes =
         ["Performance (50%)", "Balanced (75%)", "Quality (100%)"];
@@ -265,8 +266,8 @@ public class Game : GameEngine
 
     // Point lights auto-generated from Bistro emissive surfaces.
     private bool _pointLightsEnabled = false;
-    private float _pointLightIntensity = 1.0f;   // global multiplier on per-light base intensity
-    private float _pointLightRangeScale = 1.0f;   // global multiplier on per-light range
+    private float _pointLightIntensity = 0.5f;   // global multiplier on per-light base intensity
+    private float _pointLightRangeScale = 3.0f;   // global multiplier on per-light range
     private PBRDeferredPipeline.PointLight[]? _bistroPointLights;         // base lights (unscaled)
     private PBRDeferredPipeline.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
@@ -549,7 +550,8 @@ public class Game : GameEngine
                 AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionComposite.hlsl"),
                 BuiltInAssets.Shader_Blit,
                 (uint)MainView.Size.X,
-                (uint)MainView.Size.Y);
+                (uint)MainView.Size.Y,
+                traceResolutionScale: GiTraceResolutionScales[_ssrResolutionPreset]);
             _pipeline.Use(_ssrRenderer);
         }
 
@@ -1480,6 +1482,16 @@ public class Game : GameEngine
                 float ssrRoughnessCutoff = _ssrRenderer.RoughnessCutoff;
                 if (ImGui.SliderFloat("SSR Roughness Cutoff", ref ssrRoughnessCutoff, 0.05f, 1.0f))
                     _ssrRenderer.RoughnessCutoff = ssrRoughnessCutoff;
+                if (ImGui.Combo(
+                    "SSR Resolution",
+                    ref _ssrResolutionPreset,
+                    GiTraceResolutionModes,
+                    GiTraceResolutionModes.Length))
+                {
+                    _ssrRenderer.TraceResolutionScale =
+                        GiTraceResolutionScales[_ssrResolutionPreset];
+                }
+                ImGui.Text($"SSR trace resolution: {_ssrRenderer.TraceWidth}x{_ssrRenderer.TraceHeight}");
             }
             float giSkyIntensity = _voxelGI.SkyIntensity;
             if (ImGui.SliderFloat("GI Sky Intensity", ref giSkyIntensity, 0.0f, 10.0f))

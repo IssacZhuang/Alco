@@ -48,6 +48,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
     private bool _historyValid;
     private bool _lastSsrOnly;
     private bool _isEnabled = true;
+    private float _traceResolutionScale;
     private uint _frameIndex;
     private Matrix4x4 _previousViewProjection = Matrix4x4.Identity;
     private Vector3 _previousCameraPosition;
@@ -74,6 +75,32 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
     public float RoughnessCutoff { get; set; } = 0.85f;
 
     /// <summary>
+    /// Screen-space reflection trace resolution relative to the G-buffer.
+    /// This is intentionally independent from the voxel GI trace resolution.
+    /// </summary>
+    public float TraceResolutionScale
+    {
+        get => _traceResolutionScale;
+        set
+        {
+            ValidateTraceResolutionScale(value);
+            if (MathF.Abs(value - _traceResolutionScale) < 0.0001f)
+            {
+                return;
+            }
+
+            _traceResolutionScale = value;
+            _historyValid = false;
+        }
+    }
+
+    /// <summary>Current SSR trace width in pixels.</summary>
+    public uint TraceWidth => _reflectionRaw.Width;
+
+    /// <summary>Current SSR trace height in pixels.</summary>
+    public uint TraceHeight => _reflectionRaw.Height;
+
+    /// <summary>
     /// Creates the post-lighting SSR node. Shader objects and the pipeline remain
     /// owned by their callers; the node owns its materials and intermediate textures.
     /// </summary>
@@ -87,8 +114,10 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         Shader compositeShader,
         Shader blitShader,
         uint width,
-        uint height)
+        uint height,
+        float traceResolutionScale = 0.5f)
     {
+        ValidateTraceResolutionScale(traceResolutionScale);
         _rendering = rendering;
         _pipeline = pipeline;
         _voxelGi = voxelGi;
@@ -100,6 +129,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         _resolveMaterial = rendering.CreateMaterial(resolveShader, "ssr_resolve");
         _compositeMaterial = rendering.CreateMaterial(compositeShader, "ssr_composite");
         _dataBuffer = rendering.CreateGraphicsValueBuffer<SsrData>("ssr_post_data");
+        _traceResolutionScale = traceResolutionScale;
         _historyLayout = rendering.GraphicsDevice.CreateAttachmentLayout(
             new AttachmentLayoutDescriptor(
                 [
@@ -122,7 +152,17 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
 
     private uint TraceDimension(uint fullDimension)
     {
-        return Math.Max((uint)MathF.Ceiling(fullDimension * _voxelGi.TraceResolutionScale), 1u);
+        return Math.Max((uint)MathF.Ceiling(fullDimension * _traceResolutionScale), 1u);
+    }
+
+    private static void ValidateTraceResolutionScale(float scale)
+    {
+        if (!float.IsFinite(scale) || scale < 0.25f || scale > 1.0f)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(scale), scale,
+                "The SSR trace-resolution scale must be between 0.25 and 1.0.");
+        }
     }
 
     private RenderTexture CreateTexture(uint width, uint height, string name)
@@ -157,6 +197,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         _compositeMaterial.SetBuffer("_ssrData", _dataBuffer);
         _compositeMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
         _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1], 0);
+        _compositeMaterial.SetRenderTexture("_reflectionMetadata", _reflectionHistory[1], 1);
         _compositeMaterial.SetRenderTexture("_albedo", _pipeline.GBuffer, 0);
         _compositeMaterial.SetRenderTexture("_normal", _pipeline.GBuffer, 1);
         _compositeMaterial.SetRenderTexture("_mrAO", _pipeline.GBuffer, 2);
@@ -245,6 +286,8 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
 
         _compositeMaterial.SetRenderTexture(
             "_reflection", _reflectionHistory[historyWriteIndex], 0);
+        _compositeMaterial.SetRenderTexture(
+            "_reflectionMetadata", _reflectionHistory[historyWriteIndex], 1);
         _renderContext.Begin(target);
         _renderContext.Draw(_fullScreenMesh, _compositeMaterial);
         _renderContext.End();
