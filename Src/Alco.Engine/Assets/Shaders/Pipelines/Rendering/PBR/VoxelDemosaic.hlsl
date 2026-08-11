@@ -2,12 +2,11 @@
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
 
-// Min/Max dual-layer spatial resolve and temporal accumulation for
-// voxel GI. One thread per trace pixel: every tap of the 8x8 direction-tile
-// footprint is accumulated into a near (depthMin) and a far (depthMax) surface
-// layer using soft relative depth tests, so a geometry edge keeps a nearly
-// complete directional kernel on both of its sides instead of a rejected,
-// degenerate one. The two layers are written to separate atlas sections with
+// Min/Max dual-layer spatial resolve for temporally integrated raw voxel GI.
+// One thread per trace pixel: a geometry-aware 9x9 filter reduces the small
+// residual variance between independently converged pixels and accumulates it
+// into near (depthMin) and far (depthMax) surface layers. The two layers are
+// written to separate atlas sections with
 // their layer linear depths in alpha; the deferred lighting pass then blends
 // the layers at full-resolution depth (the upscale pass), so occlusion
 // boundaries stay sharp at every trace resolution. Validated reprojection
@@ -379,10 +378,10 @@ void MainCS(
     float depthRangeRatio = 0.12 + 0.08 * (1.0 - viewFacing);
 
     // --- Dual-layer diffuse gather on the trace input ---
-    // The symmetric 9-tap weights [0.5 1 1 1 1 1 1 1 0.5] integrate each
-    // phase of the 8x8 direction tile with exactly equal total weight; an
-    // ordinary Gaussian exposes the tile as fine bands. Every tap contributes
-    // to both the near and the far layer with independent soft depth tests.
+    // The symmetric 9-tap weights [0.5 1 1 1 1 1 1 1 0.5] give every legacy
+    // 8x8 start phase equal total weight while smoothing the residual variance
+    // of the per-pixel temporal integrals. Every tap contributes to both the
+    // near and the far layer with independent soft depth tests.
     float4 layerSumMin = 0.0;
     float4 layerSumMax = 0.0;
     float layerWeightMin = 0.0;
@@ -411,9 +410,7 @@ void MainCS(
         [unroll]
         for (int dx = -4; dx <= 4; dx++)
         {
-            // Diffuse gathers one complete, contiguous direction tile. Its
-            // 9x9 footprint is tighter than the previous sparse 13x13
-            // footprint even though it reconstructs many more directions.
+            // Diffuse gathers a compact 9x9 geometry-aware denoising footprint.
             int2 filterOffset = int2(dx, dy);
             uint tileIndex =
                 (uint)((int)groupThreadId.y + int(DEMOSAIC_DIFFUSE_RADIUS) + dy)

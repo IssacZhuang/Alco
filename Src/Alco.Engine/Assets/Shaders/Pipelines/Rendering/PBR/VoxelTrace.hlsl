@@ -12,9 +12,9 @@
 // G-buffer, traces a deterministic rotation-balanced set of narrow diffuse
 // cones plus one specular cone through the radiance volume. Diffuse cones use
 // a 2x2 depth-weighted averaged geometry normal so cone directions stay stable
-// across edges and tessellated relief. The kernel azimuth is mirrored on a
-// four-frame cycle, letting the temporal resolve average out per-direction
-// voxel quantization. The result is written into the output atlas (twice the
+// across edges and tessellated relief. Every pixel visits the complete
+// 64-direction kernel over time and accumulates it before spatial demosaic.
+// The result is written into the output atlas (twice the
 // trace width): total diffuse irradiance (visible sky plus bounced radiance)
 // and diagnostic visibility in the left half, specular radiance in the right
 // half.
@@ -31,16 +31,21 @@ DEFINE_TEX2D_READ(0, _albedo);
 DEFINE_TEX2D_DEPTH_SAMPLE(0, _shadowMap);
 // Previous frame's temporally accumulated SSR (rgb = radiance, a = confidence).
 DEFINE_TEX2D_READ(0, _ssrHistory);
+// Previous frame's raw trace atlas. Diffuse and ALD are accumulated here
+// before spatial demosaic so every trace pixel integrates its own directions.
+DEFINE_TEX2D_READ(0, _traceHistory);
+// Previous demosaic metadata, segment 5: x = linear depth, yzw = world normal.
+DEFINE_TEX2D_READ(0, _giHistoryMetadata);
 // Hi-Z depth pyramid for SSR hierarchical raymarching (7 mips, max-reduced).
 DEFINE_TEX2D_READ(0, _depthPyramid);
 DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
 // This frame's accumulated SSR output (ping-pong with _ssrHistory).
 DEFINE_TEX2D_STORAGE(1, _ssrHistoryOut, float4, "rgba16f");
 
-// A large cosine-hemisphere kernel is distributed across a screen tile and
-// resolved as a complete tile. Trace one direction at each 8x8 screen phase;
-// the resolve integrates all 64 directions. This is both more complete and
-// cheaper than tracing four directions chosen from a two-polar-angle kernel.
+// A large cosine-hemisphere kernel starts with a different direction at each
+// 8x8 screen phase, then every pixel traverses all 64 members through raw
+// temporal accumulation. This keeps the first frames spatially stratified
+// while making the converged integral independent of neighbouring geometry.
 static const float DIFFUSE_CONE_APERTURE = 1.0 / 24.0;
 
 static const uint DIFFUSE_DIRECTION_TILE[64] = {
@@ -351,13 +356,9 @@ float4 TraceCone(
     return float4(color, alpha);
 }
 
-// Trace one member of the tiled diffuse kernel per pixel. The demosaic pass
-// gathers the complete 8x8 tile, so temporal history remains a denoising aid
-// rather than being required for angular convergence. The assignment rotates
-// per frame: the kernel azimuth is mirrored on a four-frame cycle, so the
-// temporal accumulation integrates several direction sets per pixel instead
-// of converging onto the voxel-quantization pattern of one static direction
-// (visible as teeth along occlusion boundaries).
+// Trace one member of the diffuse kernel per pixel. The assignment cycles over
+// the complete 64-direction set and is accumulated in raw trace history before
+// demosaic, so angular convergence no longer depends on neighbouring geometry.
 //
 // ALD (Average Light Direction) is accumulated alongside RGB:
 //   ald.xyz += direction * brightness
@@ -375,18 +376,17 @@ float4 TraceDiffuseCones(
 {
     float3x3 tbn = GetTangentBasis(normal);
     uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
-    // The kernel assignment rotates per frame so the temporal accumulation
-    // integrates several direction sets per pixel instead of converging onto
-    // one static direction's voxel-quantization pattern (visible as teeth
-    // along occlusion boundaries). Only the azimuth is mirrored, on a
-    // four-frame cycle: swapping in the complementary half of the kernel
-    // trades the elevation stratum of every pixel each frame, which
-    // oscillates the accumulated value at occlusion terminators faster than
-    // the history window can settle.
     uint frameIndex = uint(giFrameParams.x);
-    float3 kernelDirection = GetDiffuseKernelDirection(DIFFUSE_DIRECTION_TILE[tileIndex]);
-    if ((frameIndex & 1u) != 0u) kernelDirection.x = -kernelDirection.x;
-    if ((frameIndex & 2u) != 0u) kernelDirection.y = -kernelDirection.y;
+    uint sequenceIndex = DIFFUSE_DIRECTION_TILE[tileIndex];
+    // Visit the complete 64-direction kernel at every pixel. Multiplication by
+    // an odd number permutes all six-bit frame phases, and XOR applies that
+    // permutation without changing the complete direction set present on any
+    // individual frame. After 64 valid history samples the pixel therefore
+    // owns the same hemisphere integral that previously had to be borrowed
+    // from an 8x8 screen neighbourhood.
+    uint temporalPhase = (frameIndex * 37u) & 63u;
+    sequenceIndex ^= temporalPhase;
+    float3 kernelDirection = GetDiffuseKernelDirection(sequenceIndex);
 
     // Dual-kernel approach: an "opacity" kernel lowers the cone elevation
     // toward the surface tangent, gathering more near-field occlusion for
@@ -640,7 +640,87 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float diffuseBrightness = length(diffuse);
     float4 ald = float4(diffuseWorldDir * diffuseBrightness, diffuseBrightness);
 
-    _indirectGI[tracePixel] = float4(diffuse, diffuseResult.a);
-    _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(specular, 1.0);
-    _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] = ald;
+    // Per-pixel raw temporal integration. Unlike the old post-demosaic
+    // history, this runs before any neighbouring screen phase is gathered, so
+    // a narrow face accumulates its own angular samples and never needs the
+    // orthogonal face beside it to complete the direction kernel.
+    float4 temporalDiffuse = float4(diffuse, diffuseResult.a);
+    float4 temporalAld = ald;
+    float previousSampleCount = 0.0;
+    bool rawHistoryValid = false;
+    int2 previousTracePixel = int2(0, 0);
+
+    if (giFrameParams.z > 0.5)
+    {
+        float4 previousClip = mul(
+            viewProjectionPrev, float4(worldPosition, 1.0));
+        if (previousClip.w > 0.0)
+        {
+            float2 previousNdc = previousClip.xy / previousClip.w;
+            float2 previousUv = float2(
+                previousNdc.x * 0.5 + 0.5,
+                0.5 - previousNdc.y * 0.5);
+            if (all(previousUv >= 0.0) && all(previousUv <= 1.0))
+            {
+                previousTracePixel = clamp(
+                    int2(previousUv * float2(traceResolution)),
+                    int2(0, 0),
+                    int2(traceResolution) - 1);
+                float4 previousMetadata = _giHistoryMetadata.Load(int3(
+                    previousTracePixel
+                        + int2((int)traceResolution.x * 5, 0),
+                    0));
+                float expectedPreviousDepth = abs(previousClip.w);
+                float depthRatio = abs(
+                    expectedPreviousDepth
+                        / max(previousMetadata.x, 0.0001)
+                    - 1.0);
+                float3 previousNormal = normalize(
+                    previousMetadata.yzw * 2.0 - 1.0);
+                float normalAgreement = dot(
+                    geometryNormal, previousNormal);
+
+                float4 previousRawSpecular = _traceHistory.Load(int3(
+                    previousTracePixel
+                        + int2((int)traceResolution.x, 0),
+                    0));
+                previousSampleCount =
+                    saturate(previousRawSpecular.a) * 64.0;
+                rawHistoryValid = previousMetadata.x > 0.0
+                    && previousSampleCount > 0.5
+                    && depthRatio < 0.08
+                    && normalAgreement > 0.8;
+            }
+        }
+    }
+
+    if (rawHistoryValid)
+    {
+        float4 previousDiffuse = _traceHistory.Load(int3(
+            previousTracePixel, 0));
+        float4 previousAld = _traceHistory.Load(int3(
+            previousTracePixel
+                + int2((int)traceResolution.x * 2, 0),
+            0));
+        // Bootstrap with an exact running average for the first complete
+        // 64-direction cycle. Afterwards a small EMA keeps dynamic lighting
+        // responsive while strongly attenuating the residual sampling period.
+        float temporalBlend = previousSampleCount < 63.5
+            ? rcp(previousSampleCount + 1.0)
+            : 0.015625;
+        temporalDiffuse = lerp(
+            previousDiffuse, temporalDiffuse, temporalBlend);
+        temporalAld = lerp(previousAld, temporalAld, temporalBlend);
+    }
+
+    float nextSampleCount = rawHistoryValid
+        ? min(previousSampleCount + 1.0, 64.0)
+        : 1.0;
+    float rawHistoryAge = nextSampleCount / 64.0;
+
+    _indirectGI[tracePixel] = temporalDiffuse;
+    _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] =
+        float4(specular, rawHistoryAge);
+    _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] =
+        temporalAld;
 }
