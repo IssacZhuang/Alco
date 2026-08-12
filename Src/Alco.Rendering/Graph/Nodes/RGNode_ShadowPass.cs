@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// pass. Only the first cascade's pass clears the atlas.
 /// <br/>The per-frame camera-space cascade view-projection matrices are shared with
 /// the caller through the array passed at construction (e.g. filled by
-/// <see cref="PBRDeferredPipeline.ComputeShadowCascades"/>); the node folds them into
+/// <see cref="PBRSceneEnvironment.ComputeShadowCascades"/>); the node folds them into
 /// atlas quadrants and uploads the data buffer once, before recording the passes.
 /// </summary>
 public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode

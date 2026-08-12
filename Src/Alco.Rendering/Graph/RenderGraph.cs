@@ -74,7 +74,9 @@ public sealed class RenderGraph : AutoDisposable
     /// <summary>The registered nodes, in execution (registration) order.</summary>
     public IReadOnlyList<IRenderGraphNode> Nodes => _nodes;
 
-    /// <summary>The profiler exposed to nodes through the execution context, or null.</summary>
+    /// <summary>The profiler exposed to nodes through the execution context, or null.
+    /// When set, <see cref="Execute"/> brackets the frame with
+    /// <see cref="RenderProfiler.BeginFrame"/> / <see cref="RenderProfiler.EndFrame"/>.</summary>
     public RenderProfiler? Profiler { get; set; }
 
     /// <summary>The current viewport width in pixels.</summary>
@@ -287,6 +289,7 @@ public sealed class RenderGraph : AutoDisposable
         ThrowIfInFrame();
         _inFrame = true;
         HasDestinationThisFrame = destination != null;
+        Profiler?.BeginFrame();
         try
         {
             // Setup: capture this frame's declarations in registration order.
@@ -333,6 +336,7 @@ public sealed class RenderGraph : AutoDisposable
         }
         finally
         {
+            Profiler?.EndFrame();
             _inFrame = false;
         }
     }

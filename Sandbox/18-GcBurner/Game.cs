@@ -36,7 +36,7 @@ public class Game : GameEngine
 
     private TestThreadWorkerItem _item = new TestThreadWorkerItem();
 
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
 
     private readonly ConcurrentPool<GPUCommandBuffer> _gpuCommandBufferPool;
     private readonly List<GPUCommandBuffer> _gpuCommandBufferList = new List<GPUCommandBuffer>();
@@ -46,7 +46,7 @@ public class Game : GameEngine
     {
         _gpuCommandBufferPool = new ConcurrentPool<GPUCommandBuffer>(CreateGPUCommandBuffer);
 
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

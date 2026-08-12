@@ -18,13 +18,13 @@ public class Game : GameEngine
         Wall
     }
 
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
 
     private readonly RenderContext _renderer;
     private readonly Camera2D _camera;
     private readonly Material _blitMaterial;
 
-    public ForwardPipeline MainPipeline => _mainPipeline;
+    public RenderPipeline MainPipeline => _mainPipeline;
 
     private readonly Material _surfaceMaterial;
     private readonly Material _cliffMaterial;
@@ -62,7 +62,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

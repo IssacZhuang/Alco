@@ -6,7 +6,7 @@ namespace Alco.Engine;
 /// <summary>
 /// Engine infrastructure that owns the presentation lifecycle of a <see cref="View"/>:
 /// swapchain surface acquisition, present and resize. It holds no render texture and knows
-/// nothing about post-processing — a <see cref="ForwardPipeline"/> renders the frame content
+/// nothing about post-processing — a <see cref="RenderPipeline"/> renders the frame content
 /// into <see cref="FrameBuffer"/>, and overlay systems (ImGui, debug stats) draw
 /// on top of it afterwards.
 /// <br/>The engine drives the presenter explicitly at the frame boundaries:

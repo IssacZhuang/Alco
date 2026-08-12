@@ -18,7 +18,7 @@ public class Game : GameEngine
     private Transform3D _camaraParent = Transform3D.Identity;
     private Transform3D _camaraChild = Transform3D.Identity;
 
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
 
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
@@ -33,7 +33,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

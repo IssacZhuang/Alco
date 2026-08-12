@@ -12,8 +12,8 @@ public class Game : GameEngine
 {
     private readonly View _window2;
     private readonly ViewPresenter _presenter2;
-    private readonly ForwardPipeline _pipeline2;
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _pipeline2;
+    private readonly RenderPipeline _mainPipeline;
 
     private readonly Camera2DBuffer _windowCamera1;
     private readonly Camera2DBuffer _windowCamera2;
@@ -33,7 +33,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+        _mainPipeline = new RenderPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
         _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
@@ -50,7 +50,7 @@ public class Game : GameEngine
 
 
         _presenter2 = CreateViewPresenter(_window2);
-        _pipeline2 = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, _window2.Size.X, _window2.Size.Y);
+        _pipeline2 = new RenderPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, _window2.Size.X, _window2.Size.Y);
         _pipeline2.Use(new SceneNode(this, _pipeline2.Graph, _pipeline2.Chain));
         _presenter2.OnResize += size => _pipeline2.Resize(size.X, size.Y);
 

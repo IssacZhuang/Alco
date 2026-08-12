@@ -41,7 +41,7 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
     /// <param name="blitDepthShaderText">The source text of the depth blit shader.</param>
     /// <param name="blitDepthShaderName">The name of the depth blit shader.</param>
     /// <param name="blitShader">The plain blit shader. Stays owned by the caller.</param>
-    public RGNode_DepthDebug(RenderingSystem rendering, ForwardPipeline pipeline, string blitDepthShaderText, string blitDepthShaderName, Shader blitShader)
+    public RGNode_DepthDebug(RenderingSystem rendering, RenderPipeline pipeline, string blitDepthShaderText, string blitDepthShaderName, Shader blitShader)
         : base(pipeline.Graph, pipeline.Chain, pipeline.PostProcessLayout, name: "depth_debug")
     {
         _graph = pipeline.Graph;

@@ -17,7 +17,7 @@ using SandboxUtils;
 /// </summary>
 public class Game : GameEngine
 {
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
 
     //scence
     private readonly Camera2DBuffer _camera;
@@ -35,7 +35,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

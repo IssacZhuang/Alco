@@ -27,13 +27,13 @@ public class Game : GameEngine
     private readonly Cube _cubeStencilTest1;
     private readonly Cube _cubeStencilTest2;
 
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
 
     private Vector3 _rotationAngles = Vector3.Zero;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

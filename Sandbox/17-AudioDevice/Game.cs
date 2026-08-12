@@ -9,7 +9,7 @@ using Alco.Rendering;
 
 public class Game : GameEngine
 {
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
     private readonly AudioSource _source;
 
     private float _gain = 1f;
@@ -21,7 +21,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

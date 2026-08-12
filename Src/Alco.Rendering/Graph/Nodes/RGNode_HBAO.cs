@@ -5,17 +5,17 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// HBAO+ (horizon-based ambient occlusion) renderer for the deferred PBR pipeline.
+/// HBAO+ (horizon-based ambient occlusion) renderer for deferred PBR compositions.
 /// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
 /// horizon rays in a compute pass (HBAO.hlsl) and filters the noisy result with a
 /// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blur pass writes the
 /// filtered AO to a full-resolution texture (<see cref="AOResult"/>),
 /// which the deferred lighting material samples through its _aoTexture slot.
-/// <br/>Attach the renderer to a pipeline via <see cref="Attach"/>: it creates its
-/// graph transient resources, registers itself as a direct
-/// <see cref="IRenderGraphNode"/> before the pipeline's lighting node and wires its
-/// output to <see cref="RGNode_DeferredLighting.AoInput"/> — all through the pipeline's
-/// public composition surface. The raw intermediate is pooled/aliased by the graph.
+/// <br/>Attach the renderer to a deferred composition via <see cref="Attach"/>: it
+/// creates its graph transient resources, registers itself as a direct
+/// <see cref="IRenderGraphNode"/> before the lighting node and wires its
+/// output to <see cref="RGNode_DeferredLighting.AoInput"/>. The raw intermediate is
+/// pooled/aliased by the graph.
 /// </summary>
 public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
 {
@@ -65,7 +65,10 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     // Graph-owned transient resources. _rawAO/_aoResult are facades of the
     // transients below; they are not disposed here and are rematerialized by
     // the graph on resize.
-    private PBRDeferredPipeline? _pipeline;
+    private RenderGraph? _graph;
+    private RGNode_DeferredLighting? _lighting;
+    private RenderGraphTexture? _gbufferResource;
+    private PBRSceneEnvironment? _environment;
     private RenderGraphTexture? _rawAOResource;
     private RenderGraphTexture? _aoResource;
 
@@ -141,27 +144,34 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Attaches the renderer to a pipeline as a direct <see cref="IRenderGraphNode"/>
-    /// in the pipeline's render graph: creates the transient AO result and raw-AO
-    /// intermediate, registers itself immediately before the pipeline's lighting
+    /// Attaches the renderer to a deferred composition as a direct
+    /// <see cref="IRenderGraphNode"/> in the graph: creates the transient AO result
+    /// and raw-AO intermediate, registers itself immediately before the lighting
     /// node, and wires the result to <see cref="RGNode_DeferredLighting.AoInput"/> and
     /// the lighting material's _aoTexture slot. The constructor-created standalone
     /// textures are released and the materials are rebound once here — the facades
     /// keep their object identity from then on. After attachment the graph drives
     /// execution and resize.
     /// </summary>
-    /// <param name="pipeline">The pipeline to attach to (camera, G-buffer and graph
-    /// access through its public composition surface).</param>
+    /// <param name="graph">The render graph driving the frame.</param>
+    /// <param name="lighting">The deferred lighting node the AO output feeds.</param>
+    /// <param name="gbuffer">The G-buffer resource read by the AO passes.</param>
+    /// <param name="environment">The shared scene environment (camera access).</param>
     /// <exception cref="InvalidOperationException">The renderer is already attached.</exception>
-    public void Attach(PBRDeferredPipeline pipeline)
+    public void Attach(RenderGraph graph, RGNode_DeferredLighting lighting, RenderGraphTexture gbuffer, PBRSceneEnvironment environment)
     {
-        ArgumentNullException.ThrowIfNull(pipeline);
-        if (_pipeline != null)
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(lighting);
+        ArgumentNullException.ThrowIfNull(gbuffer);
+        ArgumentNullException.ThrowIfNull(environment);
+        if (_graph != null)
         {
-            throw new InvalidOperationException("The HBAO renderer is already attached to a pipeline (call Detach first).");
+            throw new InvalidOperationException("The HBAO renderer is already attached to a graph (call Detach first).");
         }
-        _pipeline = pipeline;
-        RenderGraph graph = pipeline.Graph;
+        _graph = graph;
+        _lighting = lighting;
+        _gbufferResource = gbuffer;
+        _environment = environment;
         _rawAO.Dispose();
         _aoResult.Dispose();
         _aoResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
@@ -173,37 +183,42 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
-        graph.InsertBefore(pipeline.LightingNode, this);
-        pipeline.LightingNode.AoInput = _aoResource;
-        pipeline.LightingNode.Material.SetRenderTexture("_aoTexture", _aoResult);
+        graph.InsertBefore(lighting, this);
+        lighting.AoInput = _aoResource;
+        lighting.Material.SetRenderTexture("_aoTexture", _aoResult);
     }
 
     /// <summary>
-    /// Detaches the renderer from the pipeline: unregisters it from the graph,
-    /// destroys its transient resources and restores the lighting material's
-    /// _aoTexture fallback. The renderer can be re-attached afterwards.
+    /// Detaches the renderer from the graph: unregisters it, destroys its transient
+    /// resources and restores the lighting material's _aoTexture fallback. The
+    /// renderer can be re-attached afterwards.
     /// </summary>
     public void Detach()
     {
-        if (_pipeline == null)
+        if (_graph == null)
         {
             return;
         }
-        RenderGraph graph = _pipeline.Graph;
-        graph.Remove(this);
+        _graph.Remove(this);
         if (_rawAOResource != null)
         {
-            graph.DestroyTransient(_rawAOResource);
+            _graph.DestroyTransient(_rawAOResource);
             _rawAOResource = null;
         }
         if (_aoResource != null)
         {
-            graph.DestroyTransient(_aoResource);
+            _graph.DestroyTransient(_aoResource);
             _aoResource = null;
         }
-        _pipeline.LightingNode.AoInput = null;
-        _pipeline.LightingNode.Material.SetTexture("_aoTexture", _rendering.TextureWhite);
-        _pipeline = null;
+        if (_lighting != null)
+        {
+            _lighting.AoInput = null;
+            _lighting.Material.SetTexture("_aoTexture", _rendering.TextureWhite);
+        }
+        _graph = null;
+        _lighting = null;
+        _gbufferResource = null;
+        _environment = null;
     }
 
     /// <inheritdoc />
@@ -217,7 +232,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Setup(RenderGraphBuilder builder)
     {
-        builder.Read(_pipeline!.GBufferResource);
+        builder.Read(_gbufferResource!);
         builder.Write(_rawAOResource!);
         builder.Write(_aoResource!);
     }
@@ -225,14 +240,14 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        CameraPerspectiveBuffer? camera = _pipeline!.Camera;
+        CameraPerspectiveBuffer? camera = _environment!.Camera;
         if (camera == null)
         {
-            throw new InvalidOperationException("HBAO requires a camera (call SetCamera first).");
+            throw new InvalidOperationException("HBAO requires a camera (set the environment's Camera first).");
         }
         Matrix4x4.Invert(camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
-        RenderTexture gbuffer = _pipeline.GBufferResource.Texture;
-        ExecuteCore(camera.Data.ProjectionMatrix, invViewProjection, camera.Transform, gbuffer, _pipeline.Profiler);
+        RenderTexture gbuffer = _gbufferResource!.Texture;
+        ExecuteCore(camera.Data.ProjectionMatrix, invViewProjection, camera.Transform, gbuffer, _graph?.Profiler);
     }
 
     // Shared body of the execute path: assembles the per-frame constants, records
@@ -242,7 +257,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         in Matrix4x4 invViewProjection,
         Transform3D cameraTransform,
         RenderTexture gbuffer,
-        RenderProfiler profiler)
+        RenderProfiler? profiler)
     {
         long startTimestamp = Stopwatch.GetTimestamp();
 
@@ -311,18 +326,21 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         _rendering.ScheduleCommandBuffer(_commandBuffer);
 
         // Lazily register profiler counters on the first Execute call.
-        if (!_profilerCounterRegistered)
+        if (profiler != null)
         {
-            _hbaoCounter = profiler.RegisterCounter("HBAO+", "Total");
-            _aoCounter = profiler.RegisterCounter("HBAO+", "AO");
-            _blurCounter = profiler.RegisterCounter("HBAO+", "Blur");
-            _profilerCounterRegistered = true;
-        }
+            if (!_profilerCounterRegistered)
+            {
+                _hbaoCounter = profiler.RegisterCounter("HBAO+", "Total");
+                _aoCounter = profiler.RegisterCounter("HBAO+", "AO");
+                _blurCounter = profiler.RegisterCounter("HBAO+", "Blur");
+                _profilerCounterRegistered = true;
+            }
 
-        double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
-        profiler.PushValue(_hbaoCounter, elapsedMs);
-        profiler.PushValue(_aoCounter, _aoGpuMilliseconds);
-        profiler.PushValue(_blurCounter, _blurGpuMilliseconds);
+            double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
+            profiler.PushValue(_hbaoCounter, elapsedMs);
+            profiler.PushValue(_aoCounter, _aoGpuMilliseconds);
+            profiler.PushValue(_blurCounter, _blurGpuMilliseconds);
+        }
     }
 
     /// <inheritdoc />

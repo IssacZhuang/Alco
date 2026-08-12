@@ -12,7 +12,7 @@ namespace Alco.Rendering.Test;
 /// <item>A user can compose a complete rendering pipeline from scratch — graph,
 /// transient targets, clear / content / transform / blit nodes.</item>
 /// <item>A user can replace a pipeline stage with their own implementation
-/// (here: the deferred lighting pass of <see cref="PBRDeferredPipeline"/>).</item>
+/// (here: the deferred lighting pass of <see cref="RenderPipelines"/>).</item>
 /// <item>A user can insert custom post-process effects into an existing pipeline,
 /// reorder and toggle them, and remove them again at runtime.</item>
 /// </list>
@@ -20,7 +20,7 @@ namespace Alco.Rendering.Test;
 [TestFixture]
 public sealed class TestRenderGraphExtensibility
 {
-    // Same minimal deferred lighting shader as TestPBRDeferredPipeline: declares every
+    // Same minimal deferred lighting shader as TestPBRDeferredPreset: declares every
     // resource the pipeline binds by name (the cbuffer layout itself is irrelevant to
     // the NoGPU backend).
     private const string LightingShaderText = @"
@@ -168,6 +168,7 @@ float4 MainPS(V2F input) : SV_TARGET
     private RenderingSystem _rendering;
     private GPUDevice _device;
     private Shader _blitShader;
+    private Shader _lightingShader;
     private GPUAttachmentLayout _destinationLayout;
     private GPUAttachmentLayout _postProcessLayout;
 
@@ -178,6 +179,7 @@ float4 MainPS(V2F input) : SV_TARGET
         _rendering = _host.RenderingSystem;
         _device = _rendering.GraphicsDevice;
         _blitShader = _rendering.CreateShader(BlitShaderText, "test_blit");
+        _lightingShader = _rendering.CreateShader(LightingShaderText, "test_lighting");
         _destinationLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "test_destination"));
         _postProcessLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
@@ -188,17 +190,17 @@ float4 MainPS(V2F input) : SV_TARGET
     public void TearDown()
     {
         _blitShader.Dispose();
+        _lightingShader.Dispose();
         _destinationLayout.Dispose();
         _postProcessLayout.Dispose();
         _host.Dispose();
     }
 
-    private PBRDeferredPipeline CreatePipeline()
+    private PBRDeferredPreset CreatePreset()
     {
-        return new PBRDeferredPipeline(
+        return RenderPipelines.CreatePBRDeferred(
             _rendering,
-            LightingShaderText,
-            "test_lighting",
+            _lightingShader,
             _blitShader,
             shadowMapSize: 64,
             width: 64,
@@ -240,59 +242,59 @@ float4 MainPS(V2F input) : SV_TARGET
     [Test(Description = "The engine's deferred lighting node can be swapped for a user implementation")]
     public void UserCanReplaceTheDeferredLightingStage()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = _rendering.CreateRenderTexture(_destinationLayout, 64, 64, "test_destination_rt");
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        var replacement = new CustomLightingNode(_rendering, pipeline.SceneColorResource);
-        Assert.That(pipeline.Graph.Remove(pipeline.LightingNode), Is.True);
-        pipeline.Graph.InsertAfter(pipeline.GBufferPass, replacement);
+        var replacement = new CustomLightingNode(_rendering, preset.SceneColorResource);
+        Assert.That(preset.Graph.Remove(preset.Lighting), Is.True);
+        preset.Graph.InsertAfter(preset.GBufferPass, replacement);
 
-        Assert.DoesNotThrow(() => pipeline.Render(destination.FrameBuffer));
+        Assert.DoesNotThrow(() => preset.Pipeline.Render(destination.FrameBuffer));
         Assert.That(replacement.Log, Is.EqualTo(new[] { "custom_lighting" }));
-        Assert.That(pipeline.Graph.Nodes, Does.Not.Contain(pipeline.LightingNode));
+        Assert.That(preset.Graph.Nodes, Does.Not.Contain(preset.Lighting));
     }
 
     [Test(Description = "Custom post-process effects insert into the pipeline's chain, run in order, and cull when disabled")]
     public void UserCanInsertOrderAndToggleCustomPostEffects()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = _rendering.CreateRenderTexture(_destinationLayout, 64, 64, "test_destination_rt");
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
         var log = new List<string>(4);
-        var effectA = new CustomEffectNode(pipeline.Graph, pipeline.PostChain, pipeline.PostProcessLayout, "a") { Log = log };
-        var effectB = new CustomEffectNode(pipeline.Graph, pipeline.PostChain, pipeline.PostProcessLayout, "b") { Log = log };
-        pipeline.Use(effectA);
-        pipeline.Use(effectB);
+        var effectA = new CustomEffectNode(preset.Graph, preset.PostChain, preset.PostProcessLayout, "a") { Log = log };
+        var effectB = new CustomEffectNode(preset.Graph, preset.PostChain, preset.PostProcessLayout, "b") { Log = log };
+        preset.Pipeline.Use(effectA);
+        preset.Pipeline.Use(effectB);
 
-        pipeline.Render(destination.FrameBuffer);
+        preset.Pipeline.Render(destination.FrameBuffer);
         Assert.That(log, Is.EqualTo(new[] { "a", "b" }));
 
         // Disabling a transform rewires the chain automatically: the next effect
         // reads the previous enabled node's output.
         effectA.IsEnabled = false;
-        pipeline.Render(destination.FrameBuffer);
+        preset.Pipeline.Render(destination.FrameBuffer);
         Assert.That(log, Is.EqualTo(new[] { "a", "b", "b" }));
     }
 
     [Test(Description = "A node can be removed at runtime and its transient destroyed with it")]
     public void UserCanRemoveANodeAndDestroyItsTransient()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = _rendering.CreateRenderTexture(_destinationLayout, 64, 64, "test_destination_rt");
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        var effect = new CustomEffectNode(pipeline.Graph, pipeline.PostChain, pipeline.PostProcessLayout, "fx");
-        pipeline.Use(effect);
-        pipeline.Render(destination.FrameBuffer);
+        var effect = new CustomEffectNode(preset.Graph, preset.PostChain, preset.PostProcessLayout, "fx");
+        preset.Pipeline.Use(effect);
+        preset.Pipeline.Render(destination.FrameBuffer);
         Assert.That(effect.Log, Has.Count.EqualTo(1));
 
-        Assert.That(pipeline.Remove(effect), Is.True);
+        Assert.That(preset.Pipeline.Remove(effect), Is.True);
         // Disposing tears down the node's private transient symmetrically.
         effect.Dispose();
 
-        Assert.DoesNotThrow(() => pipeline.Render(destination.FrameBuffer));
+        Assert.DoesNotThrow(() => preset.Pipeline.Render(destination.FrameBuffer));
         Assert.That(effect.Log, Has.Count.EqualTo(1));
     }
 }

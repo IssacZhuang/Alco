@@ -159,7 +159,8 @@ public class Game : GameEngine
         float IForwardRenderable.TransmissionFactor => _getTransmission();
     }
 
-    private readonly PBRDeferredPipeline _pipeline;
+    private readonly PBRDeferredPreset _preset;
+    private readonly PBRSceneEnvironment _environment;
     private readonly GBufferRenderer _gbufferRenderer;
     private readonly ShadowRenderer _shadowRenderer;
     private readonly CameraPerspectiveBuffer _camera;
@@ -271,8 +272,8 @@ public class Game : GameEngine
     private bool _pointLightsEnabled = false;
     private float _pointLightIntensity = 0.5f;   // global multiplier on per-light base intensity
     private float _pointLightRangeScale = 3.0f;   // global multiplier on per-light range
-    private PBRDeferredPipeline.PointLight[]? _bistroPointLights;         // base lights (unscaled)
-    private PBRDeferredPipeline.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
+    private PBRSceneEnvironment.PointLight[]? _bistroPointLights;         // base lights (unscaled)
+    private PBRSceneEnvironment.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
     // HDR tone mapping node: switchable operator with per-type parameters.
     private RGNode_Tonemap? _tonemapStage;
@@ -378,18 +379,17 @@ public class Game : GameEngine
             _cameraNear, _sceneRadius * 10.0f);
         _shadowDistance = _sceneRadius * 3.0f;
 
-        // Create the PBR deferred pipeline that drives the whole frame.
-        string lightingShaderText = AssetSystem.Load<string>(BuiltInAssetsPath.Shader_PBRDeferredLighting);
-        _pipeline = new PBRDeferredPipeline(
+        // Create the PBR deferred pipeline preset that drives the whole frame.
+        _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            lightingShaderText,
-            BuiltInAssetsPath.Shader_PBRDeferredLighting,
+            AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_PBRDeferredLighting),
             BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
             volumetricLightShader: BuiltInAssets.Shader_PBRVolumetricLight);
-        _pipeline.VolumetricLightEnabled = true;
+        _environment = _preset.Environment;
+        _environment.VolumetricLightEnabled = true;
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
@@ -398,19 +398,19 @@ public class Game : GameEngine
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
             BuiltInAssets.Shader_PBRShadowDepth,
-            _pipeline.ShadowLayout,
-            _pipeline.ShadowDataBuffer);
+            _preset.ShadowLayout,
+            _environment.ShadowDataBuffer);
 
         // Materials created by the renderer bind this camera; the sandbox
         // drives its own camera (RenderingSystem.MainCamera is not set by sandboxes).
-        _pipeline.SetCamera(_camera);
+        _environment.Camera = _camera;
         _gbufferRenderer.SetCamera(_camera);
-        _pipeline.GBufferPass.Content.Add(_gbufferRenderer);
-        _pipeline.ShadowPass.Content.Add(_shadowRenderer);
-        _pipeline.ShadowCasterExtension = _sceneRadius;
-        _pipeline.CascadeDebug = cascadeDebug;
-        _pipeline.ShadowDebug = shadowDebug;
-        _pipeline.AoDebugView = hbaoDebugView;
+        _preset.GBufferPass.Content.Add(_gbufferRenderer);
+        _preset.ShadowPass.Content.Add(_shadowRenderer);
+        _environment.ShadowCasterExtension = _sceneRadius;
+        _environment.CascadeDebug = cascadeDebug;
+        _environment.ShadowDebug = shadowDebug;
+        _environment.AoDebugView = hbaoDebugView;
 
         // HBAO+ as a render plugin (decoupled from the pipeline): Attach wires its
         // graph node and the lighting AO input itself.
@@ -421,25 +421,25 @@ public class Game : GameEngine
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"),
                 (uint)MainView.Size.X, (uint)MainView.Size.Y);
-            _hbaoRenderer.Attach(_pipeline);
+            _hbaoRenderer.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
         }
 
         // Forward transparency renderer for glass materials (after deferred lighting).
         _forwardRenderer = new RGNode_Forward(
             RenderingSystem,
-            _pipeline.Graph,
-            _pipeline.PostChain,
+            _preset.Graph,
+            _preset.PostChain,
             AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ForwardGlass.hlsl"),
-            _pipeline.LightingDataBuffer,
-            _pipeline.PointLightBuffer,
-            _pipeline.ShadowMap);
+            _environment.LightingDataBuffer,
+            _environment.PointLightBuffer,
+            _preset.ShadowMap);
         _forwardRenderer.SetCamera(_camera);
-        _pipeline.Use(_forwardRenderer);
+        _preset.Pipeline.Use(_forwardRenderer);
 
         // Per-frame logic that runs between the G-buffer pass and the plugin pass
         // (HBAO/GI) is wired into the pipeline via AfterGBufferCallback so that
         // Render() drives the full frame internally.
-        _pipeline.AfterGBufferCallback += () =>
+        _preset.AfterGBuffer += () =>
         {
             SubmitDynamicInstances();
             SyncHbaoParams();
@@ -542,15 +542,19 @@ public class Game : GameEngine
             _voxelGI.DebugView = giDebugView;
             _voxelGI.SsrOnly = args.Contains("--ssr-only");
             RegisterVoxelMeshes();
-            _voxelGI.Attach(_pipeline);
+            _voxelGI.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _preset.ShadowMapResource, _environment);
 
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
             _ssrRenderer = new RGNode_SSR(
                 RenderingSystem,
-                _pipeline,
+                _preset.Graph,
+                _preset.PostChain,
+                _preset.GBufferResource,
+                _preset.SceneColorResource,
                 _voxelGI,
                 _camera,
+                _environment,
                 AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionTrace.hlsl"),
                 AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionResolve.hlsl"),
                 AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionComposite.hlsl"),
@@ -558,7 +562,7 @@ public class Game : GameEngine
                 (uint)MainView.Size.X,
                 (uint)MainView.Size.Y,
                 traceResolutionScale: GiTraceResolutionScales[_ssrResolutionPreset]);
-            _ssrRenderer.Attach();
+            _ssrRenderer.Attach(_preset.FinalBlit);
         }
 
         // Bloom is a chain transform node on the pipeline's post chain;
@@ -572,9 +576,9 @@ public class Game : GameEngine
             : 0.35f;
         _bloom = new RGNode_Bloom(
             RenderingSystem,
-            _pipeline.Graph,
-            _pipeline.PostChain,
-            _pipeline.PostProcessLayout,
+            _preset.Graph,
+            _preset.PostChain,
+            _preset.PostProcessLayout,
             RenderingSystem.CreateBloom(
                 BuiltInAssets.Shader_BloomBlit,
                 BuiltInAssets.Shader_BloomClamp,
@@ -587,13 +591,13 @@ public class Game : GameEngine
             Threshold = bloomThreshold,
             Intensity = bloomIntensity,
         };
-        _pipeline.Use(_bloom);
+        _preset.Pipeline.Use(_bloom);
 
         // FXAA anti-aliasing node (registered between bloom and tonemap).
-        _pipeline.Use(new RGNode_FXAA(
-            _pipeline.Graph,
-            _pipeline.PostChain,
-            _pipeline.PostProcessLayout,
+        _preset.Pipeline.Use(new RGNode_FXAA(
+            _preset.Graph,
+            _preset.PostChain,
+            _preset.PostProcessLayout,
             RenderingSystem.CreateFXAA(
                 BuiltInAssets.Shader_FXAA,
                 BuiltInAssets.Shader_Blit)));
@@ -601,9 +605,9 @@ public class Game : GameEngine
         // HDR tone mapping node (registered last, after bloom and FXAA).
         _tonemapStage = new RGNode_Tonemap(
             RenderingSystem,
-            _pipeline.Graph,
-            _pipeline.PostChain,
-            _pipeline.PostProcessLayout,
+            _preset.Graph,
+            _preset.PostChain,
+            _preset.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -611,7 +615,7 @@ public class Game : GameEngine
             BuiltInAssets.Shader_ACESTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
             BuiltInAssets.Shader_AgXTonemap);
-        _pipeline.Use(_tonemapStage);
+        _preset.Pipeline.Use(_tonemapStage);
 
         MainPresenter.OnResize += OnMainWindowResize;
 
@@ -687,7 +691,7 @@ public class Game : GameEngine
         _forwardRenderer!.IsEnabled = _forwardRenderer.HasContent;
 
         // Render the frame and resolve it through the forward chain into the swapchain.
-        _pipeline.Render(MainPresenter.FrameBuffer);
+        _preset.Pipeline.Render(MainPresenter.FrameBuffer);
 
         // Capture here: after Render the forward render texture still holds the last
         // completed frame's HDR image. Bloom is composited into the swapchain by the
@@ -704,7 +708,7 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         AssetSystem.OnHotReload -= OnShaderHotReload;
-        _pipeline.Dispose();
+        _preset.Dispose();
     }
 
     /// <summary>
@@ -735,7 +739,7 @@ public class Game : GameEngine
     {
         _camera.AspectRatio = (float)size.X / size.Y;
         // The pipeline resizes its own targets and its plugins (including VoxelGI).
-        _pipeline.Resize(size.X, size.Y);
+        _preset.Pipeline.Resize(size.X, size.Y);
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -938,7 +942,7 @@ public class Game : GameEngine
             return;
         }
 
-        var lights = new List<PBRDeferredPipeline.PointLight>();
+        var lights = new List<PBRSceneEnvironment.PointLight>();
         IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
         IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
 
@@ -956,16 +960,16 @@ public class Game : GameEngine
             Vector3 worldCenter = Vector3.Transform(localCenter, item.World);
 
             GetEmissiveLightParams(mat.Name, out Vector3 color, out float range, out float intensity);
-            lights.Add(new PBRDeferredPipeline.PointLight(worldCenter, color, intensity, range));
+            lights.Add(new PBRSceneEnvironment.PointLight(worldCenter, color, intensity, range));
 
-            if (lights.Count >= PBRDeferredPipeline.MaxPointLights)
+            if (lights.Count >= PBRSceneEnvironment.MaxPointLights)
             {
                 break;
             }
         }
 
         _bistroPointLights = lights.ToArray();
-        _pointLightUploadBuffer = new PBRDeferredPipeline.PointLight[lights.Count];
+        _pointLightUploadBuffer = new PBRSceneEnvironment.PointLight[lights.Count];
     }
 
     /// <summary>
@@ -1061,23 +1065,23 @@ public class Game : GameEngine
             out Vector3 skyZenithColor);
 
         // Scene-level lighting properties on the pipeline.
-        _pipeline.SunDirection = sunDirection;
-        _pipeline.SunColor = sunTint;
-        _pipeline.SunIntensity = _sunIntensity * sunScale;
-        _pipeline.SkyHorizonColor = skyHorizonColor;
-        _pipeline.SkyZenithColor = skyZenithColor;
-        _pipeline.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
-        _pipeline.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
+        _environment.SunDirection = sunDirection;
+        _environment.SunColor = sunTint;
+        _environment.SunIntensity = _sunIntensity * sunScale;
+        _environment.SkyHorizonColor = skyHorizonColor;
+        _environment.SkyZenithColor = skyZenithColor;
+        _environment.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
+        _environment.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
 
         // Fit the shadow distance to the view: when the camera is far from the
         // scene (e.g. aerial views), extend past the configured base so visible
         // geometry never crosses the shadow range boundary — shadows would
         // otherwise fade/pop out at _shadowDistance while still on screen.
-        _pipeline.ShadowDistance = Math.Max(_shadowDistance,
+        _environment.ShadowDistance = Math.Max(_shadowDistance,
             Vector3.Distance(_camera.Transform.Position, _sceneCenter) + _sceneRadius);
 
         // Fit the shadow cascades to the camera frustum (PSSM splits).
-        _pipeline.ComputeShadowCascades(_cameraNear);
+        _environment.ComputeShadowCascades(_cameraNear);
 
         // Scale and upload point lights generated from Bistro emissive surfaces.
         int pointLightCount = 0;
@@ -1093,21 +1097,21 @@ public class Game : GameEngine
             }
             pointLightCount = _bistroPointLights.Length;
         }
-        _pipeline.UpdatePointLights(
+        _environment.UpdatePointLights(
             _pointLightUploadBuffer != null
                 ? _pointLightUploadBuffer.AsSpan(0, pointLightCount)
-                : ReadOnlySpan<PBRDeferredPipeline.PointLight>.Empty);
+                : ReadOnlySpan<PBRSceneEnvironment.PointLight>.Empty);
 
         // GI state on the pipeline.
         if (_voxelGI != null)
         {
-            _pipeline.GiEnabled = _giEnabled;
-            _pipeline.GiDiffuseStrength = _giDiffuseStrength;
-            _pipeline.GiSpecularStrength = _giSpecularStrength;
+            _environment.GiEnabled = _giEnabled;
+            _environment.GiDiffuseStrength = _giDiffuseStrength;
+            _environment.GiSpecularStrength = _giSpecularStrength;
             // Post-lighting SSR needs the normally shaded scene as its source.
             // Its own two debug modes are therefore resolved by the SSR node,
             // while the pre-lighting deferred debug mode stays disabled.
-            _pipeline.GiDebugView = _voxelGI.DebugView is
+            _environment.GiDebugView = _voxelGI.DebugView is
                 VoxelGiDebugMode.IndirectSpecular or VoxelGiDebugMode.SsrConfidence
                 ? 0
                 : (int)_voxelGI.DebugView;
@@ -1337,7 +1341,7 @@ public class Game : GameEngine
     /// </summary>
     private unsafe void CaptureScreenshot(string path)
     {
-        Texture2D color = _pipeline.ForwardRenderTexture.ColorTextures[0];
+        Texture2D color = _preset.ForwardRenderTexture.ColorTextures[0];
         int width = (int)color.Width;
         int height = (int)color.Height;
         int pixelCount = width * height;
@@ -1406,25 +1410,25 @@ public class Game : GameEngine
         {
             ImGui.SliderFloat("Intensity", ref _sunIntensity, 0.0f, 30.0f);
             ImGui.SliderFloat("Sun Warmth", ref _sunWarmth, 0.0f, 1.0f);
-            bool shadowEnabled = _pipeline.ShadowEnabled;
+            bool shadowEnabled = _environment.ShadowEnabled;
             if (ImGui.Checkbox("Shadows", ref shadowEnabled))
-                _pipeline.ShadowEnabled = shadowEnabled;
+                _environment.ShadowEnabled = shadowEnabled;
             ImGui.SliderFloat("Shadow Distance", ref _shadowDistance, _sceneRadius * 0.5f, _sceneRadius * 8.0f);
-            bool cascadeDebug = _pipeline.CascadeDebug;
+            bool cascadeDebug = _environment.CascadeDebug;
             if (ImGui.Checkbox("Cascade Debug", ref cascadeDebug))
-                _pipeline.CascadeDebug = cascadeDebug;
-            bool shadowDebug = _pipeline.ShadowDebug;
+                _environment.CascadeDebug = cascadeDebug;
+            bool shadowDebug = _environment.ShadowDebug;
             if (ImGui.Checkbox("Shadow Debug", ref shadowDebug))
-                _pipeline.ShadowDebug = shadowDebug;
-            bool sunDiscEnabled = _pipeline.SunDiscEnabled;
+                _environment.ShadowDebug = shadowDebug;
+            bool sunDiscEnabled = _environment.SunDiscEnabled;
             if (ImGui.Checkbox("Sun disc", ref sunDiscEnabled))
-                _pipeline.SunDiscEnabled = sunDiscEnabled;
-            float sunDiscSize = _pipeline.SunDiscSize;
+                _environment.SunDiscEnabled = sunDiscEnabled;
+            float sunDiscSize = _environment.SunDiscSize;
             if (ImGui.SliderFloat("Sun Disc Size", ref sunDiscSize, 0.9990f, 0.99999f, "%.5f"))
-                _pipeline.SunDiscSize = sunDiscSize;
-            float sunDiscBrightness = _pipeline.SunDiscBrightness;
+                _environment.SunDiscSize = sunDiscSize;
+            float sunDiscBrightness = _environment.SunDiscBrightness;
             if (ImGui.SliderFloat("Sun Disc Brightness", ref sunDiscBrightness, 0.0f, 60.0f))
-                _pipeline.SunDiscBrightness = sunDiscBrightness;
+                _environment.SunDiscBrightness = sunDiscBrightness;
         }
 
         if (ImGui.CollapsingHeader("Sky & Time"))
@@ -1445,22 +1449,22 @@ public class Game : GameEngine
 
         if (ImGui.CollapsingHeader("Volumetric Light"))
         {
-            bool vlEnabled = _pipeline.VolumetricLightEnabled;
+            bool vlEnabled = _environment.VolumetricLightEnabled;
             if (ImGui.Checkbox("Enabled", ref vlEnabled))
-                _pipeline.VolumetricLightEnabled = vlEnabled;
+                _environment.VolumetricLightEnabled = vlEnabled;
 
-            float vlIntensity = _pipeline.VolumetricLightIntensity;
+            float vlIntensity = _environment.VolumetricLightIntensity;
             if (ImGui.SliderFloat("Intensity", ref vlIntensity, 0.0f, 4.0f))
-                _pipeline.VolumetricLightIntensity = vlIntensity;
-            float vlDensity = _pipeline.VolumetricLightDensity;
+                _environment.VolumetricLightIntensity = vlIntensity;
+            float vlDensity = _environment.VolumetricLightDensity;
             if (ImGui.SliderFloat("Fog Density", ref vlDensity, 0.0f, 0.2f, "%.4f"))
-                _pipeline.VolumetricLightDensity = vlDensity;
-            float vlHeightScale = _pipeline.VolumetricLightHeightScale;
+                _environment.VolumetricLightDensity = vlDensity;
+            float vlHeightScale = _environment.VolumetricLightHeightScale;
             if (ImGui.SliderFloat("Height Scale", ref vlHeightScale, 5.0f, 500.0f, "%.0f"))
-                _pipeline.VolumetricLightHeightScale = vlHeightScale;
-            float vlPhaseG = _pipeline.VolumetricLightPhaseG;
+                _environment.VolumetricLightHeightScale = vlHeightScale;
+            float vlPhaseG = _environment.VolumetricLightPhaseG;
             if (ImGui.SliderFloat("Phase G", ref vlPhaseG, 0.0f, 0.95f))
-                _pipeline.VolumetricLightPhaseG = vlPhaseG;
+                _environment.VolumetricLightPhaseG = vlPhaseG;
         }
 
         if (_hbaoRenderer != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
@@ -1475,9 +1479,9 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("AO Bias", ref bias, 0.0f, 0.2f))
                 _hbaoRenderer.Bias = bias;
             ImGui.SliderFloat("SSAO Amount With GI", ref _giSsaoAmount, 0.0f, 1.0f);
-            bool aoDebugView = _pipeline.AoDebugView;
+            bool aoDebugView = _environment.AoDebugView;
             if (ImGui.Checkbox("AO Debug View", ref aoDebugView))
-                _pipeline.AoDebugView = aoDebugView;
+                _environment.AoDebugView = aoDebugView;
         }
 
         if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))
@@ -1620,7 +1624,7 @@ public class Game : GameEngine
             }
             ImGui.SliderFloat("Light Intensity", ref _pointLightIntensity, 0.0f, 5.0f);
             ImGui.SliderFloat("Light Range", ref _pointLightRangeScale, 0.1f, 3.0f);
-            ImGui.Text($"Lights: {_bistroPointLights.Length} / {PBRDeferredPipeline.MaxPointLights}");
+            ImGui.Text($"Lights: {_bistroPointLights.Length} / {PBRSceneEnvironment.MaxPointLights}");
         }
 
         if (_tonemapStage != null && ImGui.CollapsingHeader("Tone Mapping"))
@@ -1701,7 +1705,7 @@ public class Game : GameEngine
             }
         }
 
-        RGNode_FXAA? fxaaStage = _pipeline.Get<RGNode_FXAA>();
+        RGNode_FXAA? fxaaStage = _preset.Pipeline.Get<RGNode_FXAA>();
         if (fxaaStage != null && ImGui.CollapsingHeader("FXAA"))
         {
             bool fxaaEnabled = fxaaStage.IsEnabled;
@@ -1780,7 +1784,7 @@ public class Game : GameEngine
 
         if (ImGui.CollapsingHeader("Render Profiler"))
         {
-            ref readonly RenderProfileSnapshot snapshot = ref _pipeline.Profiler.GetSnapshot();
+            ref readonly RenderProfileSnapshot snapshot = ref _preset.Profiler.GetSnapshot();
             if (snapshot.Count == 0)
             {
                 ImGui.TextDisabled("No profiling data yet.");

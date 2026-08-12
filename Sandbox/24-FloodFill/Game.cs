@@ -17,7 +17,7 @@ public class Game : GameEngine
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
     private readonly GPUCommandBuffer _command;
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
 
 
     private float _intensity = 1;
@@ -26,7 +26,7 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
 
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

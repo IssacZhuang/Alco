@@ -29,7 +29,11 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     }
 
     private readonly RenderingSystem _rendering;
-    private readonly PBRDeferredPipeline _pipeline;
+    private readonly RenderGraph _graph;
+    private readonly RenderChain _chain;
+    private readonly RenderGraphTexture _gbuffer;
+    private readonly RenderGraphTexture _sceneColor;
+    private readonly PBRSceneEnvironment _environment;
     private readonly RGNode_VoxelGI _voxelGi;
     private readonly CameraPerspectiveBuffer _camera;
     private readonly RenderContext _renderContext;
@@ -53,11 +57,10 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private Matrix4x4 _previousViewProjection = Matrix4x4.Identity;
     private Vector3 _previousCameraPosition;
 
-    // Graph attachment state (AttachGraph). While attached, _sceneCopy/_reflectionRaw
+    // Graph attachment state (Attach). While attached, _sceneCopy/_reflectionRaw
     // are graph-owned facades of the transient resources below (not disposed here and
     // resized by the graph), and the node executes directly in the graph. The
     // reflection history stays persistent (cross-frame feedback never enters the graph).
-    private RenderGraph? _graph;
     private RenderGraphTexture? _sceneCopyResource;
     private RenderGraphTexture? _rawResource;
     private bool _graphAttached;
@@ -104,7 +107,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 
             _traceResolutionScale = value;
             _historyValid = false;
-            if (_graphAttached && _graph != null && _rawResource != null)
+            if (_graphAttached && _rawResource != null)
             {
                 // The raw trace target is a graph transient: recreate it at the new
                 // scale and rebind (the facade object identity changes here). The
@@ -125,14 +128,36 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     public uint TraceHeight => _reflectionRaw.Height;
 
     /// <summary>
-    /// Creates the post-lighting SSR node. Shader objects and the pipeline remain
-    /// owned by their callers; the node owns its materials and intermediate textures.
+    /// Creates the post-lighting SSR node. Shader objects and the graph resources
+    /// remain owned by their callers; the node owns its materials and intermediate
+    /// textures.
     /// </summary>
+    /// <param name="rendering">The rendering system.</param>
+    /// <param name="graph">The render graph the node will attach to.</param>
+    /// <param name="chain">The content chain whose tail the node composites into.</param>
+    /// <param name="gbuffer">The G-buffer resource the trace/resolve passes read.</param>
+    /// <param name="sceneColor">The scene color resource the node copies and
+    /// composites into.</param>
+    /// <param name="voxelGi">The voxel GI renderer providing the fallback reflection
+    /// and the debug view mode.</param>
+    /// <param name="camera">The camera the reflection tracing runs from.</param>
+    /// <param name="environment">The shared scene environment (specular GI strength).</param>
+    /// <param name="traceShader">The SSR trace shader.</param>
+    /// <param name="resolveShader">The temporal/spatial resolve shader.</param>
+    /// <param name="compositeShader">The composite shader.</param>
+    /// <param name="blitShader">The plain blit shader (scene copy).</param>
+    /// <param name="width">The initial viewport width in pixels.</param>
+    /// <param name="height">The initial viewport height in pixels.</param>
+    /// <param name="traceResolutionScale">The trace resolution relative to the viewport.</param>
     public RGNode_SSR(
         RenderingSystem rendering,
-        PBRDeferredPipeline pipeline,
+        RenderGraph graph,
+        RenderChain chain,
+        RenderGraphTexture gbuffer,
+        RenderGraphTexture sceneColor,
         RGNode_VoxelGI voxelGi,
         CameraPerspectiveBuffer camera,
+        PBRSceneEnvironment environment,
         Shader traceShader,
         Shader resolveShader,
         Shader compositeShader,
@@ -143,9 +168,13 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     {
         ValidateTraceResolutionScale(traceResolutionScale);
         _rendering = rendering;
-        _pipeline = pipeline;
+        _graph = graph;
+        _chain = chain;
+        _gbuffer = gbuffer;
+        _sceneColor = sceneColor;
         _voxelGi = voxelGi;
         _camera = camera;
+        _environment = environment;
         _renderContext = rendering.CreateRenderContext("post_lighting_ssr");
         _fullScreenMesh = rendering.MeshFullScreen;
         _copyMaterial = rendering.CreateMaterial(blitShader, "ssr_scene_copy");
@@ -202,73 +231,75 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 
     private void BindPersistentResources()
     {
-        _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, _pipeline.ForwardRenderTexture);
+        RenderTexture sceneColorTexture = _sceneColor.Texture;
+        RenderTexture gbufferTexture = _gbuffer.Texture;
+        _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, sceneColorTexture);
 
         _traceMaterial.SetBuffer("_ssrData", _dataBuffer);
         _traceMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
-        _traceMaterial.SetRenderTexture("_albedo", _pipeline.GBuffer, 0);
-        _traceMaterial.SetRenderTexture("_normal", _pipeline.GBuffer, 1);
-        _traceMaterial.SetRenderTexture("_mrAO", _pipeline.GBuffer, 2);
-        _traceMaterial.SetRenderTextureDepth("_gbufferDepth", _pipeline.GBuffer);
+        _traceMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
+        _traceMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
+        _traceMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
+        _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
 
         _resolveMaterial.SetBuffer("_ssrData", _dataBuffer);
         _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
         _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0], 0);
         _resolveMaterial.SetRenderTexture("_historyMetadata", _reflectionHistory[0], 1);
-        _resolveMaterial.SetRenderTexture("_normal", _pipeline.GBuffer, 1);
-        _resolveMaterial.SetRenderTextureDepth("_gbufferDepth", _pipeline.GBuffer);
+        _resolveMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
+        _resolveMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
 
         _compositeMaterial.SetBuffer("_ssrData", _dataBuffer);
         _compositeMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
         _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1], 0);
         _compositeMaterial.SetRenderTexture("_reflectionMetadata", _reflectionHistory[1], 1);
-        _compositeMaterial.SetRenderTexture("_albedo", _pipeline.GBuffer, 0);
-        _compositeMaterial.SetRenderTexture("_normal", _pipeline.GBuffer, 1);
-        _compositeMaterial.SetRenderTexture("_mrAO", _pipeline.GBuffer, 2);
-        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", _pipeline.GBuffer);
+        _compositeMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
+        _compositeMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
+        _compositeMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
+        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
     }
 
     /// <summary>
-    /// Attaches the node to the pipeline's render graph as a direct
-    /// <see cref="IRenderGraphNode"/> registered immediately before the pipeline's
-    /// final blit: creates the scene-copy (graph-relative ×1.0) and raw-trace
-    /// (×<see cref="TraceResolutionScale"/>) transient resources and rebinds the
-    /// materials once — the constructor-created standalone textures are released.
+    /// Attaches the node to the render graph as a direct <see cref="IRenderGraphNode"/>
+    /// registered immediately before <paramref name="insertBefore"/> (usually the
+    /// composition's final blit): creates the scene-copy (graph-relative ×1.0) and
+    /// raw-trace (×<see cref="TraceResolutionScale"/>) transient resources and rebinds
+    /// the materials once — the constructor-created standalone textures are released.
     /// The temporal reflection history stays persistent (cross-frame feedback never
     /// enters the graph). After attachment the graph drives execution and resize.
     /// </summary>
+    /// <param name="insertBefore">The registered node before which this node runs.</param>
     /// <exception cref="InvalidOperationException">The node is already attached.</exception>
-    public void Attach()
+    public void Attach(IRenderGraphNode insertBefore)
     {
+        ArgumentNullException.ThrowIfNull(insertBefore);
         if (_graphAttached)
         {
-            throw new InvalidOperationException("The SSR renderer is already attached to a pipeline (call Detach first).");
+            throw new InvalidOperationException("The SSR renderer is already attached to a graph (call Detach first).");
         }
-        RenderGraph graph = _pipeline.Graph;
-        _graph = graph;
         _graphAttached = true;
         _sceneCopy.Dispose();
         _reflectionRaw.Dispose();
-        _sceneCopyResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
+        _sceneCopyResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, name: "ssr_scene_copy"));
-        _rawResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
+        _rawResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, resolutionScale: _traceResolutionScale, name: "ssr_raw"));
         _sceneCopy = _sceneCopyResource.Texture;
         _reflectionRaw = _rawResource.Texture;
         _traceMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
         _compositeMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
         _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
-        graph.InsertBefore(_pipeline.FinalBlit, this);
+        _graph.InsertBefore(insertBefore, this);
     }
 
     /// <summary>
-    /// Detaches the node from the pipeline: unregisters it from the graph and
-    /// destroys its private transient resources. A later <see cref="Attach"/>
-    /// recreates and re-registers them.
+    /// Detaches the node from the graph: unregisters it and destroys its private
+    /// transient resources. A later <see cref="Attach"/> recreates and re-registers
+    /// them.
     /// </summary>
     public void Detach()
     {
-        if (!_graphAttached || _graph == null)
+        if (!_graphAttached)
         {
             return;
         }
@@ -344,7 +375,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     /// composites the result in place.
     private void Render(GPUFrameBuffer target)
     {
-        RenderTexture scene = _pipeline.ForwardRenderTexture;
+        RenderTexture scene = _sceneColor.Texture;
         EnsureTextures(scene.Width, scene.Height);
 
         bool ssrOnly = _voxelGi.SsrOnly;
@@ -372,7 +403,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             RenderSize = new Vector4(scene.Width, scene.Height,
                 _reflectionRaw.Width, _reflectionRaw.Height),
             Params = new Vector4(_frameIndex, _historyValid ? 1.0f : 0.0f,
-                (int)_voxelGi.DebugView, _pipeline.GiSpecularStrength),
+                (int)_voxelGi.DebugView, _environment.GiSpecularStrength),
             RayParams = new Vector4(MaxTraceDistance, RoughnessCutoff, 0.0f, 0.0f),
         };
         _dataBuffer.UpdateBuffer(data);
@@ -424,9 +455,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         {
             return;
         }
-        _input = _pipeline.PostChain.Current!;
-        builder.Read(_pipeline.GBufferResource);
-        if (ReferenceEquals(_input, _pipeline.SceneColorResource))
+        _input = _chain.Current!;
+        builder.Read(_gbuffer);
+        if (ReferenceEquals(_input, _sceneColor))
         {
             // The usual case: the copy source and the composite target are both the
             // scene color target.
@@ -434,12 +465,12 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         }
         else
         {
-            builder.Read(_pipeline.SceneColorResource);
+            builder.Read(_sceneColor);
             builder.ReadWrite(_input);
         }
         builder.Write(_sceneCopyResource);
         builder.Write(_rawResource);
-        if (!_graph!.HasDestinationThisFrame)
+        if (!_graph.HasDestinationThisFrame)
         {
             builder.ProducesOutput();
         }
@@ -450,7 +481,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     {
         if (!_graphAttached)
         {
-            throw new InvalidOperationException("RGNode_SSR is not attached to a pipeline (call Attach first).");
+            throw new InvalidOperationException("RGNode_SSR is not attached to a render graph (call Attach first).");
         }
         Render(_input!.Texture.FrameBuffer);
     }

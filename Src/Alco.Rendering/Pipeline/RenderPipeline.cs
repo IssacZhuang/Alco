@@ -4,14 +4,18 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The forward pipeline: a minimal <see cref="RenderGraph"/> composition — a clear
-/// node, user content nodes drawing into the scene content target
-/// (<see cref="RGNode_SceneContent"/>), chain transform nodes
-/// (<see cref="RGNode_ChainTransform"/>: color grading, bloom, tone mapping, ...), and a
-/// final blit into the destination. The owner composes the frame purely by ordering
-/// nodes via <see cref="Use"/> — there is no separate post-processing concept.
-/// <br/>The pipeline is a plain object, created and driven manually by its owner (the
-/// engine for the main view, game code for additional views):
+/// The universal render pipeline shell: owns a <see cref="RenderGraph"/>, a
+/// <see cref="RenderChain"/> rooted at the scene color resource and a final blit
+/// node, and drives the frame (<see cref="Render"/>) through the graph.
+/// <br/>There is no forward/deferred pipeline type distinction: a pipeline is
+/// nothing but a shell plus the nodes composed into its graph. A plain forward
+/// pipeline is just this shell with content and chain transform nodes added via
+/// <see cref="Use"/>; a deferred PBR pipeline is this shell with shadow, G-buffer,
+/// deferred lighting and overlay nodes — assembled by the preset factory
+/// (<see cref="RenderPipelines.CreatePBRDeferred"/>) or by hand from the same
+/// public building blocks.
+/// <br/>The pipeline is a plain object, created and driven manually by its owner
+/// (the engine for the main view, game code for additional views):
 /// <list type="number">
 /// <item><see cref="Use"/> the nodes in the order they should execute.</item>
 /// <item><see cref="Render"/>: clears the scene texture, then runs the graph into the
@@ -20,19 +24,81 @@ namespace Alco.Rendering;
 /// </list>
 /// Everything the pipeline does is public API: the same frame can be composed by hand
 /// from <see cref="RenderGraph"/>, <see cref="RGNode_Clear"/>, <see cref="RenderChain"/>
-/// and <see cref="RGNode_Blit"/>, and any stage of this pipeline can be replaced or
+/// and <see cref="RGNode_Blit"/>, and any stage of a pipeline can be replaced or
 /// reordered through <see cref="Graph"/>.
 /// </summary>
-public sealed class ForwardPipeline : AutoDisposable
+public sealed class RenderPipeline : AutoDisposable
 {
-    private readonly RenderingSystem _rendering;
     private readonly GPUAttachmentLayout _sceneLayout;
     private readonly GPUAttachmentLayout _postProcessLayout;
     private readonly RenderGraph _graph;
-    private readonly RenderChain _chain = new();
+    private readonly RenderChain _chain;
     private readonly RenderGraphTexture _sceneResource;
-    private readonly RGNode_Clear _clearNode;
+    private readonly RGNode_Clear? _clearNode;
     private readonly RGNode_Blit _blitNode;
+
+    /// <summary>
+    /// Creates a minimal pipeline: a graph, a scene render texture, a clear node
+    /// and the final blit. Content, overlay and post-process nodes are added by
+    /// the owner via <see cref="Use"/>.
+    /// </summary>
+    /// <param name="rendering">The rendering system.</param>
+    /// <param name="sceneLayout">The attachment layout of the scene render texture
+    /// (e.g. <see cref="RenderingSystem.PreferredSDRPass"/> or
+    /// <see cref="RenderingSystem.PreferredHDRPass"/> for HDR content processors).
+    /// Stays owned by the caller.</param>
+    /// <param name="blitShader">The shader the final blit uses for the plain copy.</param>
+    /// <param name="width">The initial scene texture width in pixels.</param>
+    /// <param name="height">The initial scene texture height in pixels.</param>
+    /// <param name="name">A diagnostic name prefix for the graph and its resources.</param>
+    public RenderPipeline(RenderingSystem rendering, GPUAttachmentLayout sceneLayout, Shader blitShader, uint width, uint height, string name = "render_pipeline")
+    {
+        _sceneLayout = sceneLayout;
+
+        // Color-only sibling of the scene layout for chain transform outputs.
+        _postProcessLayout = CreatePostProcessLayout(rendering, sceneLayout);
+
+        _graph = new RenderGraph(rendering, width, height, name);
+        _chain = new RenderChain();
+        _sceneResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+            sceneLayout, name: name + "_scene"));
+
+        _clearNode = new RGNode_Clear(rendering, _sceneResource,
+            [new ClearColorData(0, ColorFloat.Black)], clearDepth: 1.0f, name: name + "_clear");
+        _blitNode = new RGNode_Blit(rendering, _graph, _chain, blitShader);
+
+        _graph.Use(_clearNode);
+        _graph.Use(_blitNode);
+    }
+
+    /// <summary>
+    /// Creates a shell over an already-composed graph: the graph, its scene color
+    /// resource, content chain and final blit were built by the caller (a preset
+    /// factory — see <see cref="RenderPipelines"/>) and are adopted by the shell,
+    /// which owns and disposes the graph (and through it the nodes and transients)
+    /// from this point on. There is no clear node; the composed passes clear their
+    /// own targets.
+    /// </summary>
+    internal RenderPipeline(RenderingSystem rendering, RenderGraph graph, RenderGraphTexture sceneColor, RenderChain chain, RGNode_Blit finalBlit)
+    {
+        _graph = graph;
+        _chain = chain;
+        _sceneResource = sceneColor;
+        _sceneLayout = sceneColor.Layout!;
+        _clearNode = null;
+        _blitNode = finalBlit;
+        _postProcessLayout = CreatePostProcessLayout(rendering, _sceneLayout);
+    }
+
+    /// <summary>The color-only sibling layout of a scene layout, for the output
+    /// transients of chain transform nodes (post-process effects).</summary>
+    private static GPUAttachmentLayout CreatePostProcessLayout(RenderingSystem rendering, GPUAttachmentLayout sceneLayout)
+    {
+        return rendering.GraphicsDevice.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(sceneLayout.Colors[0].Format)],
+            null,
+            "render_pipeline_post_process"));
+    }
 
     /// <summary>
     /// The scene render texture the chain's content nodes draw into (via the chain,
@@ -73,44 +139,19 @@ public sealed class ForwardPipeline : AutoDisposable
     /// The color the scene texture is cleared to at the start of <see cref="Render"/>.
     /// Depth and stencil are always cleared to 1 and 0.
     /// </summary>
+    /// <exception cref="InvalidOperationException">The pipeline was composed without a
+    /// clear node (e.g. by a preset whose passes clear their own targets).</exception>
     public ColorFloat ClearColor
     {
-        get => _clearNode.ClearColor;
-        set => _clearNode.ClearColor = value;
-    }
-
-    /// <summary>
-    /// Creates a forward pipeline with its scene render texture.
-    /// </summary>
-    /// <param name="rendering">The rendering system.</param>
-    /// <param name="sceneLayout">The attachment layout of the scene render texture
-    /// (e.g. <see cref="RenderingSystem.PreferredSDRPass"/> or
-    /// <see cref="RenderingSystem.PreferredHDRPass"/> for HDR content processors).
-    /// Stays owned by the caller.</param>
-    /// <param name="blitShader">The shader the final blit uses for the plain copy.</param>
-    /// <param name="width">The initial scene texture width in pixels.</param>
-    /// <param name="height">The initial scene texture height in pixels.</param>
-    public ForwardPipeline(RenderingSystem rendering, GPUAttachmentLayout sceneLayout, Shader blitShader, uint width, uint height)
-    {
-        _rendering = rendering;
-        _sceneLayout = sceneLayout;
-
-        // Color-only sibling of the scene layout for chain transform outputs.
-        _postProcessLayout = rendering.GraphicsDevice.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
-            [new ColorAttachment(sceneLayout.Colors[0].Format)],
-            null,
-            "forward_post_process"));
-
-        _graph = new RenderGraph(rendering, width, height, "forward");
-        _sceneResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-            sceneLayout, name: "forward_scene"));
-
-        _clearNode = new RGNode_Clear(rendering, _sceneResource,
-            [new ClearColorData(0, ColorFloat.Black)], clearDepth: 1.0f, name: "forward_clear");
-        _blitNode = new RGNode_Blit(rendering, _graph, _chain, blitShader);
-
-        _graph.Use(_clearNode);
-        _graph.Use(_blitNode);
+        get => (_clearNode ?? throw new InvalidOperationException("This pipeline has no clear node.")).ClearColor;
+        set
+        {
+            if (_clearNode == null)
+            {
+                throw new InvalidOperationException("This pipeline has no clear node.");
+            }
+            _clearNode.ClearColor = value;
+        }
     }
 
     /// <summary>
@@ -158,10 +199,10 @@ public sealed class ForwardPipeline : AutoDisposable
     public IReadOnlyList<IRenderGraphNode> Nodes => _graph.Nodes;
 
     /// <summary>
-    /// Renders the frame through the graph: the clear node clears the scene texture,
-    /// content nodes draw into it, chain transforms process it, and the final blit
-    /// lands the image in <paramref name="destination"/>. Disabled nodes and unconsumed
-    /// work are culled by the graph automatically.
+    /// Renders the frame through the graph: the composed nodes produce the scene
+    /// content, chain transforms process it, and the final blit lands the image in
+    /// <paramref name="destination"/>. Disabled nodes and unconsumed work are culled
+    /// by the graph automatically.
     /// </summary>
     /// <param name="destination">The final output frame buffer (e.g. the swapchain frame
     /// buffer). When null, content nodes still render into the scene texture and all

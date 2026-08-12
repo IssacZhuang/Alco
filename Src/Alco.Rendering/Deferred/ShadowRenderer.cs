@@ -88,8 +88,8 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="shadowShader">The shadow depth shader (ShadowDepth.hlsl).</param>
-    /// <param name="shadowLayout">The shadow pass attachment layout (owned by the pipeline, exposed via <see cref="PBRDeferredPipeline.ShadowLayout"/>).</param>
-    /// <param name="shadowDataBuffer">The cascade VP data buffer (owned by the pipeline, exposed via <see cref="PBRDeferredPipeline.ShadowDataBuffer"/>).</param>
+    /// <param name="shadowLayout">The shadow pass attachment layout (owned by the composition, e.g. <see cref="PBRDeferredPreset.ShadowLayout"/>).</param>
+    /// <param name="shadowDataBuffer">The cascade VP data buffer (owned by the scene environment, see <see cref="PBRSceneEnvironment.ShadowDataBuffer"/>).</param>
     public ShadowRenderer(
         RenderingSystem rendering,
         Shader shadowShader,
@@ -101,7 +101,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
         _shadowLayout = shadowLayout;
         _shadowDataBuffer = shadowDataBuffer;
 
-        int cascadeCount = PBRDeferredPipeline.ShadowCascadeCount;
+        int cascadeCount = RGNode_ShadowPass.CascadeCount;
         _staticBundles = new SubRenderContext[cascadeCount];
         for (int i = 0; i < cascadeCount; i++)
         {
@@ -166,7 +166,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
         // to avoid redundant work).
         if (cascadeIndex == 0 && _staticItems.Count > 0 && _staticBundleDirty)
         {
-            int cascadeCount = PBRDeferredPipeline.ShadowCascadeCount;
+            int cascadeCount = RGNode_ShadowPass.CascadeCount;
             for (int c = 0; c < cascadeCount; c++)
             {
                 _staticBundles[c].Begin(_shadowLayout);

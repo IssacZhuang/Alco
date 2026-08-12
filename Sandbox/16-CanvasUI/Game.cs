@@ -23,7 +23,7 @@ public class Game : GameEngine
         VirtualGridList
     }
 
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
     private readonly Canvas _canvas;
     private readonly Font _font;
 
@@ -71,7 +71,7 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

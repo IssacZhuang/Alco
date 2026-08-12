@@ -21,16 +21,16 @@ public class Game : GameEngine
 
     private readonly CollisionWorld2D _collisionWorld = new CollisionWorld2D();
 
-    private readonly ForwardPipeline _mainPipeline;
+    private readonly RenderPipeline _mainPipeline;
 
     private Plane3D _plane;
 
-    public ForwardPipeline MainPipeline => _mainPipeline;
+    public RenderPipeline MainPipeline => _mainPipeline;
 
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new ForwardPipeline(
+        _mainPipeline = new RenderPipeline(
             RenderingSystem,
             RenderingSystem.PreferredHDRPass,
             BuiltInAssets.Shader_Blit,

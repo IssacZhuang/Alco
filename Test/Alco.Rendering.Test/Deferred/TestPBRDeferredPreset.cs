@@ -5,7 +5,7 @@ using Alco.Rendering;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// End-to-end tests of <see cref="PBRDeferredPipeline"/> driven by the NoGPU backend:
+/// End-to-end tests of the <see cref="RenderPipelines.CreatePBRDeferred"/> preset driven by the NoGPU backend:
 /// node dispatch order and counts, feature gating (shadow / headless destination),
 /// facade identity and version stability, resize and the no-camera guard.
 /// The fake nodes use only the public composition API: pass content lists
@@ -13,7 +13,7 @@ namespace Alco.Rendering.Test;
 /// chain nodes (<see cref="RGNode_SceneContent"/> / <see cref="RGNode_ChainTransform"/>).
 /// </summary>
 [TestFixture]
-public sealed class TestPBRDeferredPipeline
+public sealed class TestPBRDeferredPreset
 {
     // Minimal deferred lighting shader declaring every resource the pipeline binds
     // by name (the cbuffer layout itself is irrelevant to the NoGPU backend). The
@@ -111,8 +111,8 @@ float4 MainPS(V2F input) : SV_TARGET
         public int ResizeCount;
         public List<string> Log = new();
 
-        public FakeForwardNode(PBRDeferredPipeline pipeline)
-            : base(pipeline.Graph, pipeline.PostChain)
+        public FakeForwardNode(PBRDeferredPreset preset)
+            : base(preset.Graph, preset.PostChain)
         {
         }
 
@@ -132,8 +132,8 @@ float4 MainPS(V2F input) : SV_TARGET
         public int ResizeCount;
         public List<string> Log = new();
 
-        public FakeProcessorNode(PBRDeferredPipeline pipeline)
-            : base(pipeline.Graph, pipeline.PostChain, pipeline.PostProcessLayout, name: "fake_processor")
+        public FakeProcessorNode(PBRDeferredPreset preset)
+            : base(preset.Graph, preset.PostChain, preset.PostProcessLayout, name: "fake_processor")
         {
         }
 
@@ -152,6 +152,7 @@ float4 MainPS(V2F input) : SV_TARGET
     private RenderingSystem _rendering;
     private GPUDevice _device;
     private Shader _blitShader;
+    private Shader _lightingShader;
     private GPUAttachmentLayout _destinationLayout;
 
     [SetUp]
@@ -161,6 +162,7 @@ float4 MainPS(V2F input) : SV_TARGET
         _rendering = _host.RenderingSystem;
         _device = _rendering.GraphicsDevice;
         _blitShader = _rendering.CreateShader(BlitShaderText, "test_blit");
+        _lightingShader = _rendering.CreateShader(LightingShaderText, "test_lighting");
         _destinationLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "test_destination"));
     }
@@ -169,16 +171,16 @@ float4 MainPS(V2F input) : SV_TARGET
     public void TearDown()
     {
         _blitShader.Dispose();
+        _lightingShader.Dispose();
         _destinationLayout.Dispose();
         _host.Dispose();
     }
 
-    private PBRDeferredPipeline CreatePipeline(uint width = 64, uint height = 64)
+    private PBRDeferredPreset CreatePreset(uint width = 64, uint height = 64)
     {
-        return new PBRDeferredPipeline(
+        return RenderPipelines.CreatePBRDeferred(
             _rendering,
-            LightingShaderText,
-            "test_lighting",
+            _lightingShader,
             _blitShader,
             shadowMapSize: 64,
             width: width,
@@ -193,20 +195,20 @@ float4 MainPS(V2F input) : SV_TARGET
     [Test(Description = "All registered nodes are invoked in registration order with the expected per-pass counts")]
     public void RenderInvokesAllNodesInOrder()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = CreateDestination();
         var log = new List<string>(8);
         var shadow = new FakeShadowContent { Log = log };
         var gbuffer = new FakeGBufferContent { Log = log };
-        var forward = new FakeForwardNode(pipeline) { Log = log };
-        var processor = new FakeProcessorNode(pipeline) { Log = log };
-        pipeline.ShadowPass.Content.Add(shadow);
-        pipeline.GBufferPass.Content.Add(gbuffer);
-        pipeline.Use(forward);
-        pipeline.Use(processor);
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        var forward = new FakeForwardNode(preset) { Log = log };
+        var processor = new FakeProcessorNode(preset) { Log = log };
+        preset.ShadowPass.Content.Add(shadow);
+        preset.GBufferPass.Content.Add(gbuffer);
+        preset.Pipeline.Use(forward);
+        preset.Pipeline.Use(processor);
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        pipeline.Render(destination.FrameBuffer);
+        preset.Pipeline.Render(destination.FrameBuffer);
 
         Assert.That(log, Is.EqualTo(new[]
         {
@@ -220,21 +222,21 @@ float4 MainPS(V2F input) : SV_TARGET
     [Test(Description = "ShadowEnabled=false culls the whole shadow pass; every other node still runs")]
     public void ShadowDisabledSkipsShadowPass()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = CreateDestination();
-        pipeline.ShadowEnabled = false;
+        preset.Environment.ShadowEnabled = false;
         var log = new List<string>(8);
         var shadow = new FakeShadowContent { Log = log };
         var gbuffer = new FakeGBufferContent { Log = log };
-        var forward = new FakeForwardNode(pipeline) { Log = log };
-        var processor = new FakeProcessorNode(pipeline) { Log = log };
-        pipeline.ShadowPass.Content.Add(shadow);
-        pipeline.GBufferPass.Content.Add(gbuffer);
-        pipeline.Use(forward);
-        pipeline.Use(processor);
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        var forward = new FakeForwardNode(preset) { Log = log };
+        var processor = new FakeProcessorNode(preset) { Log = log };
+        preset.ShadowPass.Content.Add(shadow);
+        preset.GBufferPass.Content.Add(gbuffer);
+        preset.Pipeline.Use(forward);
+        preset.Pipeline.Use(processor);
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        pipeline.Render(destination.FrameBuffer);
+        preset.Pipeline.Render(destination.FrameBuffer);
 
         Assert.That(log, Is.EqualTo(new[] { "gbuffer", "forward", "processor" }));
     }
@@ -242,19 +244,19 @@ float4 MainPS(V2F input) : SV_TARGET
     [Test(Description = "A null destination (headless view) skips chain transforms but still runs content nodes")]
     public void NullDestinationSkipsProcessorsButKeepsContent()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         var log = new List<string>(8);
         var shadow = new FakeShadowContent { Log = log };
         var gbuffer = new FakeGBufferContent { Log = log };
-        var forward = new FakeForwardNode(pipeline) { Log = log };
-        var processor = new FakeProcessorNode(pipeline) { Log = log };
-        pipeline.ShadowPass.Content.Add(shadow);
-        pipeline.GBufferPass.Content.Add(gbuffer);
-        pipeline.Use(forward);
-        pipeline.Use(processor);
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        var forward = new FakeForwardNode(preset) { Log = log };
+        var processor = new FakeProcessorNode(preset) { Log = log };
+        preset.ShadowPass.Content.Add(shadow);
+        preset.GBufferPass.Content.Add(gbuffer);
+        preset.Pipeline.Use(forward);
+        preset.Pipeline.Use(processor);
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        pipeline.Render(null);
+        preset.Pipeline.Render(null);
 
         Assert.That(log, Is.EqualTo(new[]
         {
@@ -267,62 +269,62 @@ float4 MainPS(V2F input) : SV_TARGET
     [Test(Description = "The GBuffer and ForwardRenderTexture facades keep identity and version across steady-state frames")]
     public void FacadesKeepIdentityAndVersionAcrossFrames()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = CreateDestination();
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        RenderTexture gbuffer = pipeline.GBuffer;
-        RenderTexture forward = pipeline.ForwardRenderTexture;
+        RenderTexture gbuffer = preset.GBuffer;
+        RenderTexture forward = preset.ForwardRenderTexture;
 
-        pipeline.Render(destination.FrameBuffer);
-        pipeline.Render(destination.FrameBuffer);
+        preset.Pipeline.Render(destination.FrameBuffer);
+        preset.Pipeline.Render(destination.FrameBuffer);
 
-        uint gbufferVersion = pipeline.GBuffer.Version;
-        uint forwardVersion = pipeline.ForwardRenderTexture.Version;
+        uint gbufferVersion = preset.GBuffer.Version;
+        uint forwardVersion = preset.ForwardRenderTexture.Version;
 
-        pipeline.Render(destination.FrameBuffer);
+        preset.Pipeline.Render(destination.FrameBuffer);
 
-        Assert.That(ReferenceEquals(pipeline.GBuffer, gbuffer), Is.True);
-        Assert.That(ReferenceEquals(pipeline.ForwardRenderTexture, forward), Is.True);
-        Assert.That(pipeline.GBuffer.Version, Is.EqualTo(gbufferVersion));
-        Assert.That(pipeline.ForwardRenderTexture.Version, Is.EqualTo(forwardVersion));
+        Assert.That(ReferenceEquals(preset.GBuffer, gbuffer), Is.True);
+        Assert.That(ReferenceEquals(preset.ForwardRenderTexture, forward), Is.True);
+        Assert.That(preset.GBuffer.Version, Is.EqualTo(gbufferVersion));
+        Assert.That(preset.ForwardRenderTexture.Version, Is.EqualTo(forwardVersion));
     }
 
     [Test(Description = "Resize keeps facade identity, updates sizes and notifies chain nodes")]
     public void ResizeUpdatesFacadesAndNotifiesNodes()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = CreateDestination();
-        var forward = new FakeForwardNode(pipeline);
-        var processor = new FakeProcessorNode(pipeline);
-        pipeline.Use(forward);
-        pipeline.Use(processor);
-        pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
+        var forward = new FakeForwardNode(preset);
+        var processor = new FakeProcessorNode(preset);
+        preset.Pipeline.Use(forward);
+        preset.Pipeline.Use(processor);
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        RenderTexture gbuffer = pipeline.GBuffer;
-        RenderTexture forwardRT = pipeline.ForwardRenderTexture;
+        RenderTexture gbuffer = preset.GBuffer;
+        RenderTexture forwardRT = preset.ForwardRenderTexture;
 
-        pipeline.Resize(128, 96);
+        preset.Pipeline.Resize(128, 96);
 
-        Assert.That(ReferenceEquals(pipeline.GBuffer, gbuffer), Is.True);
-        Assert.That(ReferenceEquals(pipeline.ForwardRenderTexture, forwardRT), Is.True);
-        Assert.That(pipeline.GBuffer.Width, Is.EqualTo(128));
-        Assert.That(pipeline.GBuffer.Height, Is.EqualTo(96));
-        Assert.That(pipeline.ForwardRenderTexture.Width, Is.EqualTo(128));
-        Assert.That(pipeline.ForwardRenderTexture.Height, Is.EqualTo(96));
+        Assert.That(ReferenceEquals(preset.GBuffer, gbuffer), Is.True);
+        Assert.That(ReferenceEquals(preset.ForwardRenderTexture, forwardRT), Is.True);
+        Assert.That(preset.GBuffer.Width, Is.EqualTo(128));
+        Assert.That(preset.GBuffer.Height, Is.EqualTo(96));
+        Assert.That(preset.ForwardRenderTexture.Width, Is.EqualTo(128));
+        Assert.That(preset.ForwardRenderTexture.Height, Is.EqualTo(96));
         Assert.That(forward.ResizeCount, Is.EqualTo(1));
         Assert.That(processor.ResizeCount, Is.EqualTo(1));
 
         // The pipeline still renders after the resize.
-        Assert.DoesNotThrow(() => pipeline.Render(destination.FrameBuffer));
+        Assert.DoesNotThrow(() => preset.Pipeline.Render(destination.FrameBuffer));
     }
 
     [Test(Description = "Render without a camera throws InvalidOperationException")]
     public void RenderWithoutCameraThrows()
     {
-        using PBRDeferredPipeline pipeline = CreatePipeline();
+        using PBRDeferredPreset preset = CreatePreset();
         using RenderTexture destination = CreateDestination();
 
-        Assert.Throws<InvalidOperationException>(() => pipeline.Render(destination.FrameBuffer));
+        Assert.Throws<InvalidOperationException>(() => preset.Pipeline.Render(destination.FrameBuffer));
     }
 }
