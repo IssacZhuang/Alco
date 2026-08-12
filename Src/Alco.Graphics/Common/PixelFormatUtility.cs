@@ -39,6 +39,18 @@ public static class PixelFormatUtility
     }
 
     /// <summary>
+    /// Whether the pixel format is a depth or depth-stencil format.
+    /// </summary>
+    public static bool IsDepthFormat(PixelFormat format)
+    {
+        return format is PixelFormat.Depth16Unorm
+            or PixelFormat.Depth24Plus
+            or PixelFormat.Depth24PlusStencil8
+            or PixelFormat.Depth32Float
+            or PixelFormat.Depth32FloatStencil8;
+    }
+
+    /// <summary>
     /// Try get pixel size in bytes, return 
     /// </summary>
     /// <param name="format"></param>

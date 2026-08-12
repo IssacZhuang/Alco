@@ -331,6 +331,21 @@ public abstract class GPUDevice
 
 
     /// <summary>
+    /// Creates a GPU frame buffer composed of externally owned textures and views.
+    /// The frame buffer does not take ownership of the textures and views;
+    /// the caller is responsible for keeping them alive and disposing them.
+    /// </summary>
+    /// <param name="descriptor">The descriptor for the external GPU frame buffer.</param>
+    /// <returns>The created GPU frame buffer.</returns>
+    /// <exception cref="GraphicsException">The textures or views do not match the attachment layout or the frame buffer size.</exception>
+    public GPUFrameBuffer CreateExternalFrameBuffer(in ExternalFrameBufferDescriptor descriptor)
+    {
+        descriptor.Validate();
+        return CreateExternalFrameBufferCore(descriptor);
+    }
+
+
+    /// <summary>
     /// Creates a GPU graphics pipeline with the descriptor.
     /// </summary>
     /// <param name="descriptor">The descriptor for the GPU graphics pipeline.</param>
@@ -488,6 +503,30 @@ public abstract class GPUDevice
         }
 
         SubmitCore(commandBuffer);
+    }
+
+    /// <summary>
+    /// Submits a batch of GPU command buffers to the GPU for execution in a single queue submission.
+    /// The command buffers execute in the order of the span.
+    /// </summary>
+    /// <param name="commandBuffers">The GPU command buffers to submit. An empty span is a no-op.</param>
+    public void Submit(ReadOnlySpan<GPUCommandBuffer> commandBuffers)
+    {
+        if (commandBuffers.IsEmpty)
+        {
+            return;
+        }
+        for (int i = 0; i < commandBuffers.Length; i++)
+        {
+            GPUCommandBuffer commandBuffer = commandBuffers[i];
+            AssetUtility.IsTrue(commandBuffer != null, "The command buffer to submit must not be null.");
+            if (!commandBuffer.HasBuffer)
+            {
+                throw new GraphicsException($"Command buffer:{commandBuffer.Name} is empty, try use GPUCommandBuffer.Begin() and GPUCommandBuffer.End() to record commands.");
+            }
+        }
+
+        SubmitCore(commandBuffers);
     }
 
     /// <summary>
@@ -750,6 +789,9 @@ public abstract class GPUDevice
     protected abstract GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor);
 
     /// <exclude />
+    protected abstract GPUFrameBuffer CreateExternalFrameBufferCore(in ExternalFrameBufferDescriptor descriptor);
+
+    /// <exclude />
     protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);
 
     /// <exclude />
@@ -772,6 +814,9 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
+
+    /// <exclude />
+    protected abstract void SubmitCore(ReadOnlySpan<GPUCommandBuffer> commandBuffers);
 
     /// <exclude />
     protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);

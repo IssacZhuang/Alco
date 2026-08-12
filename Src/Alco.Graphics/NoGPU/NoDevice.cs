@@ -214,6 +214,11 @@ internal class NoDevice : GPUDevice
         return new NoFrameBuffer(descriptor);
     }
 
+    protected override GPUFrameBuffer CreateExternalFrameBufferCore(in ExternalFrameBufferDescriptor descriptor)
+    {
+        return new NoFrameBuffer(descriptor);
+    }
+
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
     {
         return new NoPipeline(descriptor);
@@ -275,6 +280,11 @@ internal class NoDevice : GPUDevice
     protected override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
         
+    }
+
+    protected override void SubmitCore(ReadOnlySpan<GPUCommandBuffer> commandBuffers)
+    {
+
     }
 
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)

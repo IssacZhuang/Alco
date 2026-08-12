@@ -214,6 +214,36 @@ public sealed class RenderTexture : AutoDisposable
         GPUAttachmentLayout layout = _frameBuffer.AttachmentLayout;
         string name = _frameBuffer.Name;
 
+        ReplaceFrameBuffer(_rendering.GraphicsDevice.CreateFrameBuffer(new FrameBufferDescriptor(layout, width, height, name)));
+    }
+
+    /// <summary>
+    /// Rebinds the wrapper to a different frame buffer in place. Used by
+    /// <see cref="RenderGraph"/> to swap the pooled backing of a transient resource:
+    /// the wrapper identity stays valid, the affected bind groups are rebuilt
+    /// automatically on next use through the <see cref="Version"/> check.
+    /// <br/>Ownership of <paramref name="frameBuffer"/> transfers to the wrapper (it
+    /// is disposed on the next rebind or on <see cref="Dispose"/>); for external
+    /// frame buffers disposal only releases the composed descriptor, never the pooled
+    /// textures.
+    /// </summary>
+    /// <param name="frameBuffer">The new backing frame buffer.</param>
+    internal void Rebind(GPUFrameBuffer frameBuffer)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ArgumentNullException.ThrowIfNull(frameBuffer);
+
+        ReplaceFrameBuffer(frameBuffer);
+    }
+
+    /// <summary>
+    /// Swaps the backing frame buffer: releases the depth sample groups and color
+    /// texture wrappers of the old one, disposes it (deferred destruction keeps
+    /// in-flight GPU work valid), wraps the new one's attachments and bumps
+    /// <see cref="Version"/>.
+    /// </summary>
+    private void ReplaceFrameBuffer(GPUFrameBuffer frameBuffer)
+    {
         // The cached depth sample groups reference the old depth view; they are
         // recreated lazily from the new frame buffer on next access.
         _groupDepthSample?.Dispose();
@@ -226,10 +256,8 @@ public sealed class RenderTexture : AutoDisposable
             _colorTextures[i].Dispose();
         }
 
-        // Deferred destruction (one frame) keeps in-flight GPU work on the old
-        // textures valid.
         _frameBuffer.Dispose();
-        _frameBuffer = _rendering.GraphicsDevice.CreateFrameBuffer(new FrameBufferDescriptor(layout, width, height, name));
+        _frameBuffer = frameBuffer;
 
         for (int i = 0; i < _colorTextures.Length; i++)
         {

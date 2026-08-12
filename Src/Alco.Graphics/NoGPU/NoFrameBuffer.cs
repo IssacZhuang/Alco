@@ -5,8 +5,8 @@ internal class NoFrameBuffer : GPUFrameBuffer
 {
 
     protected override GPUDevice Device => NoDevice.noDevice;
-    private readonly NoTexture[] NoColors;
-    private readonly NoTextureView[] NoColorViews;
+    private readonly GPUTexture[] NoColors;
+    private readonly GPUTextureView[] NoColorViews;
     public override GPUAttachmentLayout AttachmentLayout { get; }
 
     public override ReadOnlySpan<GPUTexture> Colors => NoColors; // at least one element to prevent out of range exception
@@ -31,29 +31,38 @@ internal class NoFrameBuffer : GPUFrameBuffer
         Width = descriptor.Width;
         Height = descriptor.Height;
 
-        NoTexture texture = new(new TextureDescriptor(
-            TextureDimension.Texture2D,
-            PixelFormat.RGBA8Unorm,
-            Width,
-            Height,
-            1,
-            1,
-            ColorAttachmentUsage,
-            1,
-            "no_gpu_frame_buffer_color_texture"
-        )); 
-
-        NoColors = [texture];
-
-        NoColorViews = [new(new TextureViewDescriptor(
-            texture,
-            TextureViewDimension.Texture2D))];
+        // One stub texture per color attachment of the layout (at least one element
+        // to prevent out of range exceptions on color-less layouts).
+        int colorCount = Math.Max(AttachmentLayout.Colors.Length, 1);
+        NoColors = new GPUTexture[colorCount];
+        NoColorViews = new GPUTextureView[colorCount];
+        for (int i = 0; i < colorCount; i++)
+        {
+            PixelFormat format = i < AttachmentLayout.Colors.Length
+                ? AttachmentLayout.Colors[i].Format
+                : PixelFormat.RGBA8Unorm;
+            NoTexture texture = new(new TextureDescriptor(
+                TextureDimension.Texture2D,
+                format,
+                Width,
+                Height,
+                1,
+                1,
+                ColorAttachmentUsage,
+                1,
+                "no_gpu_frame_buffer_color_texture"
+            ));
+            NoColors[i] = texture;
+            NoColorViews[i] = new NoTextureView(new TextureViewDescriptor(
+                texture,
+                TextureViewDimension.Texture2D));
+        }
 
         if (AttachmentLayout.Depth != null)
         {
             NoTexture depthTexture = new(new TextureDescriptor(
                 TextureDimension.Texture2D,
-                PixelFormat.Depth32Float,
+                AttachmentLayout.Depth.Value.Format,
                 Width,
                 Height,
                 1,
@@ -82,6 +91,20 @@ internal class NoFrameBuffer : GPUFrameBuffer
                 aspect: TextureAspect.StencilOnly
                 ));
         }
+    }
+
+    public NoFrameBuffer(in ExternalFrameBufferDescriptor descriptor): base(descriptor.Name)
+    {
+        AttachmentLayout = descriptor.AttachmentLayout;
+        Width = descriptor.Width;
+        Height = descriptor.Height;
+
+        NoColors = descriptor.Colors;
+        NoColorViews = descriptor.ColorViews;
+        DepthStencil = descriptor.DepthStencil;
+        DepthStencilView = descriptor.DepthStencilView;
+        DepthView = descriptor.DepthView;
+        StencilView = descriptor.StencilView;
     }
 
     protected override void Dispose(bool disposing)

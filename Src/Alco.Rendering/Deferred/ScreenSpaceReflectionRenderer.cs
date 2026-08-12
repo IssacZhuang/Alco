@@ -14,7 +14,7 @@ namespace Alco.Rendering;
 /// It intentionally runs after deferred lighting so a hit samples the real shaded
 /// scene color instead of attempting to reconstruct lighting from the G-buffer.
 /// </remarks>
-public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRenderNode
+public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRenderNode, IRenderGraphNode, IChainAdapterNode
 {
     private struct SsrData
     {
@@ -52,6 +52,19 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
     private uint _frameIndex;
     private Matrix4x4 _previousViewProjection = Matrix4x4.Identity;
     private Vector3 _previousCameraPosition;
+
+    // Graph attachment state (AttachGraph). While attached, _sceneCopy/_reflectionRaw
+    // are graph-owned facades of the transient resources below (not disposed here and
+    // resized by the graph), and the node executes directly in the graph. The
+    // reflection history stays persistent (cross-frame feedback never enters the graph).
+    private RenderGraph? _graph;
+    private RenderGraphTexture? _sceneCopyResource;
+    private RenderGraphTexture? _rawResource;
+    private bool _graphAttached;
+
+    // The resource this node composites into, captured during Setup (the post chain
+    // tail at this node's position — the scene color target in the usual case).
+    private RenderGraphTexture? _input;
 
     /// <inheritdoc />
     public bool IsEnabled
@@ -91,6 +104,17 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
 
             _traceResolutionScale = value;
             _historyValid = false;
+            if (_graphAttached && _graph != null && _rawResource != null)
+            {
+                // The raw trace target is a graph transient: recreate it at the new
+                // scale and rebind (the facade object identity changes here). The
+                // persistent history follows on the next frame's EnsureHistoryTextures.
+                _graph.DestroyTransient(_rawResource);
+                _rawResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                    _rendering.PreferredLightMapPass, resolutionScale: value, name: "ssr_raw"));
+                _reflectionRaw = _rawResource.Texture;
+                _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
+            }
         }
     }
 
@@ -204,8 +228,89 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", _pipeline.GBuffer);
     }
 
+    /// <summary>
+    /// Attaches the node to the pipeline's render graph as a direct
+    /// <see cref="IRenderGraphNode"/> (called by <see cref="PBRDeferredPipeline.Use"/>):
+    /// creates the scene-copy (graph-relative ×1.0) and raw-trace
+    /// (×<see cref="TraceResolutionScale"/>) transient resources and rebinds the
+    /// materials once — the constructor-created standalone textures are released.
+    /// The temporal reflection history stays persistent (cross-frame feedback never
+    /// enters the graph). After attachment the graph drives execution and resize.
+    /// </summary>
+    /// <param name="graph">The pipeline's render graph.</param>
+    public void AttachGraph(RenderGraph graph)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        _graph = graph;
+        if (!_graphAttached)
+        {
+            _sceneCopy.Dispose();
+            _reflectionRaw.Dispose();
+            _graphAttached = true;
+        }
+        else
+        {
+            // Re-attachment: tombstone the previous transients (their facades are
+            // replaced below) so they free their pooled textures.
+            if (_sceneCopyResource != null)
+            {
+                graph.DestroyTransient(_sceneCopyResource);
+            }
+            if (_rawResource != null)
+            {
+                graph.DestroyTransient(_rawResource);
+            }
+        }
+        _sceneCopyResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
+            _rendering.PreferredLightMapPass, name: "ssr_scene_copy"));
+        _rawResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
+            _rendering.PreferredLightMapPass, resolutionScale: _traceResolutionScale, name: "ssr_raw"));
+        _sceneCopy = _sceneCopyResource.Texture;
+        _reflectionRaw = _rawResource.Texture;
+        _traceMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
+        _compositeMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
+        _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
+    }
+
+    /// <summary>Whether the node is attached to a render graph.</summary>
+    internal bool IsGraphAttached => _graphAttached;
+
+    /// <inheritdoc />
+    IRenderNode IChainAdapterNode.Source => this;
+
+    /// <summary>
+    /// Drops the node's private graph resources (called by <see cref="PBRDeferredPipeline.Remove"/>
+    /// after the node was removed from the graph). The node stays attached — a later
+    /// <see cref="AttachGraph"/> recreates them.
+    /// </summary>
+    internal void DetachGraph()
+    {
+        if (_graph != null)
+        {
+            if (_sceneCopyResource != null)
+            {
+                _graph.DestroyTransient(_sceneCopyResource);
+            }
+            if (_rawResource != null)
+            {
+                _graph.DestroyTransient(_rawResource);
+            }
+        }
+        _sceneCopyResource = null;
+        _rawResource = null;
+    }
+
     private void EnsureTextures(uint width, uint height)
     {
+        if (_graphAttached)
+        {
+            // Attached: the graph owns and resizes the scene copy and the raw trace
+            // target; only the persistent history (sized off the trace facade) is
+            // maintained here.
+            EnsureHistoryTextures();
+            return;
+        }
+
         width = Math.Max(width, 1);
         height = Math.Max(height, 1);
         uint traceWidth = TraceDimension(width);
@@ -227,6 +332,25 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
         _historyReadIndex = 0;
         _historyValid = false;
         BindPersistentResources();
+    }
+
+    // Recreates the persistent temporal history when the trace resolution changed
+    // (graph viewport resize or a TraceResolutionScale change). The per-frame
+    // history bindings in OnRenderForward pick up the new textures before use.
+    private void EnsureHistoryTextures()
+    {
+        uint traceWidth = _reflectionRaw.Width;
+        uint traceHeight = _reflectionRaw.Height;
+        if (_reflectionHistory[0].Width == traceWidth && _reflectionHistory[0].Height == traceHeight)
+        {
+            return;
+        }
+        _reflectionHistory[0].Dispose();
+        _reflectionHistory[1].Dispose();
+        _reflectionHistory[0] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_a");
+        _reflectionHistory[1] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_b");
+        _historyReadIndex = 0;
+        _historyValid = false;
     }
 
     /// <inheritdoc />
@@ -306,6 +430,44 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
     }
 
     /// <inheritdoc />
+    public void Setup(RenderGraphBuilder builder)
+    {
+        if (!_graphAttached || _sceneCopyResource == null || _rawResource == null)
+        {
+            return;
+        }
+        _input = _pipeline.PostChain.Current!;
+        builder.Read(_pipeline.GBufferResource);
+        if (ReferenceEquals(_input, _pipeline.SceneColorResource))
+        {
+            // The usual case: the copy source and the composite target are both the
+            // scene color target.
+            builder.ReadWrite(_input);
+        }
+        else
+        {
+            builder.Read(_pipeline.SceneColorResource);
+            builder.ReadWrite(_input);
+        }
+        builder.Write(_sceneCopyResource);
+        builder.Write(_rawResource);
+        if (_pipeline.FrameDestinationNull)
+        {
+            builder.ProducesOutput();
+        }
+    }
+
+    /// <inheritdoc />
+    public void Execute(in RenderGraphContext context)
+    {
+        if (!_graphAttached)
+        {
+            throw new InvalidOperationException("ScreenSpaceReflectionRenderer is not attached to a render graph (call AttachGraph first).");
+        }
+        OnRenderForward(_input!.Texture.FrameBuffer, _input.Texture.AttachmentLayout);
+    }
+
+    /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -315,8 +477,12 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IForwardRend
             _resolveMaterial.Dispose();
             _compositeMaterial.Dispose();
             _dataBuffer.Dispose();
-            _sceneCopy.Dispose();
-            _reflectionRaw.Dispose();
+            if (!_graphAttached)
+            {
+                // Attached textures are graph-owned facades, disposed with the graph.
+                _sceneCopy.Dispose();
+                _reflectionRaw.Dispose();
+            }
             _reflectionHistory[0].Dispose();
             _reflectionHistory[1].Dispose();
             _historyLayout.Dispose();

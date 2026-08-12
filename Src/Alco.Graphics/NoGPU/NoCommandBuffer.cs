@@ -17,7 +17,13 @@ internal class NoCommandBuffer : GPUCommandBuffer
         _hasBuffer = false;
     }
 
-    protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
+    protected override void BeginRenderCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps)
     {
 
     }
@@ -29,7 +35,9 @@ internal class NoCommandBuffer : GPUCommandBuffer
         uint beginningQueryIndex,
         uint endQueryIndex,
         float? clearDepth,
-        uint? clearStencil)
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps)
     {
     }
 

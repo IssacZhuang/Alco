@@ -287,7 +287,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
         float? clearDepth = null,
-        uint? clearStencil = null
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null
         )
     {
         if (_isRecordingRender)
@@ -300,7 +302,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             throw new InvalidOperationException("Compute pass is already recording, try end current Compute pass before starting a new one");
         }
 
-        BeginRenderCore(frameBuffer, clearColors, clearDepth, clearStencil);
+        BeginRenderCore(frameBuffer, clearColors, clearDepth, clearStencil, colorOps, depthOps);
         _isRecordingRender = true;
         return new RenderPass(this);
     }
@@ -309,7 +311,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         GPUFrameBuffer frameBuffer,
         Vector4 clearColor,
         float? clearDepth = null,
-        uint? clearStencil = null
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null
         )
     {
         if (_isRecordingRender)
@@ -323,7 +327,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         ReadOnlySpan<ClearColorData> clearColorsSpan = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
-        BeginRenderCore(frameBuffer, clearColorsSpan, clearDepth, clearStencil);
+        BeginRenderCore(frameBuffer, clearColorsSpan, clearDepth, clearStencil, colorOps, depthOps);
         _isRecordingRender = true;
         return new RenderPass(this);
     }
@@ -345,6 +349,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     /// <param name="endQueryIndex">The slot written when the pass ends.</param>
     /// <param name="clearDepth">Optional depth clear value.</param>
     /// <param name="clearStencil">Optional stencil clear value.</param>
+    /// <param name="colorOps">Optional per-color-attachment load/store ops, indexed by attachment. A clear specified through <paramref name="clearColors"/> takes precedence over the load op.</param>
+    /// <param name="depthOps">Optional depth/stencil load/store ops. <paramref name="clearDepth"/> and <paramref name="clearStencil"/> take precedence over the corresponding load/store ops.</param>
     /// <returns>An RAII render-pass scope.</returns>
     public RenderPass BeginRender(
         GPUFrameBuffer frameBuffer,
@@ -353,7 +359,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         uint beginningQueryIndex,
         uint endQueryIndex,
         float? clearDepth = null,
-        uint? clearStencil = null)
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null)
     {
         if (_isRecordingRender)
         {
@@ -368,7 +376,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             throw new ArgumentOutOfRangeException(nameof(beginningQueryIndex));
         }
 
-        BeginRenderTimestampCore(frameBuffer, clearColors, querySet, beginningQueryIndex, endQueryIndex, clearDepth, clearStencil);
+        BeginRenderTimestampCore(frameBuffer, clearColors, querySet, beginningQueryIndex, endQueryIndex, clearDepth, clearStencil, colorOps, depthOps);
         _isRecordingRender = true;
         return new RenderPass(this);
     }
@@ -491,7 +499,13 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void BeginCore();
     protected abstract void EndCore();
 
-    protected abstract void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil);
+    protected abstract void BeginRenderCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps);
     protected abstract void BeginRenderTimestampCore(
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
@@ -499,7 +513,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         uint beginningQueryIndex,
         uint endQueryIndex,
         float? clearDepth,
-        uint? clearStencil);
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps);
     protected abstract void EndRenderCore();
 
     protected abstract void BeginComputeCore();

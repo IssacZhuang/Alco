@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -8,22 +7,26 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A deferred PBR rendering pipeline built on the engine's WebGPU resources.
-/// <br/>Owns a G-buffer (albedo / normal / metallic-roughness-ao / emissive + depth), a
-/// depth-only shadow map holding <see cref="ShadowCascadeCount"/> cascades in a 2x2 atlas,
-/// three render contexts (shadow pass, G-buffer pass, lighting pass) and the pass-private
-/// deferred lighting material. G-buffer scene draws and shadow scene draws are handled
-/// by render nodes (<see cref="GBufferRenderer"/> / <see cref="ShadowRenderer"/>)
-/// registered via <see cref="Use"/>; the pipeline does not know their types — it invokes
-/// <see cref="IGBufferRenderNode"/> / <see cref="IShadowRenderNode"/> inside each pass.
-/// The caller can also drive passes manually via Begin/End methods.
-/// <br/>The frame is driven by <see cref="Render"/>: shadow cascades → G-buffer →
-/// AfterGBuffer plugins → deferred lighting, resolving into the pipeline-internal
-/// <see cref="ForwardRenderTexture"/> (HDR + depth); then the pipeline's forward
-/// <see cref="RenderNodeChain"/> runs — forward content nodes (transparency) draw onto
-/// it, content processors transform it, and the chain blits the result into the final
-/// destination.
-/// Each pass can also be driven manually via Begin/End methods.
+/// A deferred PBR rendering pipeline built on the engine's WebGPU resources, driven
+/// internally by a <see cref="RenderGraph"/>.
+/// <br/>Owns the graph's transient targets — a G-buffer (albedo / normal /
+/// metallic-roughness-ao / emissive + depth), a depth-only shadow map holding
+/// <see cref="ShadowCascadeCount"/> cascades in a 2x2 atlas and the scene color
+/// target (HDR color sharing the G-buffer's depth attachment) — plus the pass
+/// render contexts and the pass-private deferred lighting material. G-buffer scene
+/// draws and shadow scene draws are handled by render nodes
+/// (<see cref="GBufferRenderer"/> / <see cref="ShadowRenderer"/>) registered via
+/// <see cref="Use"/>; the pipeline does not know their types — it invokes
+/// <see cref="IGBufferRenderNode"/> / <see cref="IShadowRenderNode"/> inside the
+/// owning graph nodes.
+/// <br/>The frame is driven by <see cref="Render"/>, which executes the graph:
+/// shadow cascades → G-buffer → AfterGBuffer plugins → deferred lighting into the
+/// scene color target → volumetric light → forward content nodes (transparency,
+/// hardware depth-tested against the shared G-buffer depth — no depth copy) →
+/// content processors → final blit into the destination. Transient targets are
+/// pooled and aliased by the graph, unused work is culled automatically (disabled
+/// shadows, disabled volumetric light, processors on headless frames) and the
+/// whole frame is submitted as a single command batch.
 /// <br/>Scene properties (sun direction/color, sky params, GI strength, debug flags) are
 /// set directly on the pipeline as properties. Camera, shadow cascades, viewport and
 /// point-light count are managed internally — the caller only calls
@@ -36,8 +39,8 @@ namespace Alco.Rendering;
 /// camera-fitted, texel-snapped).
 /// <br/>Pluggable effects (AO, GI, etc.) implementing <see cref="IRenderPlugin"/> can be
 /// registered via <see cref="RegisterPlugin"/>; they execute at their declared
-/// <see cref="RenderInjectionPoint"/> and their output textures are bound to the
-/// lighting material automatically.
+/// <see cref="RenderInjectionPoint"/> inside the graph's plugin adapter node and
+/// their output textures are bound to the lighting material automatically.
 /// </summary>
 public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 {
@@ -148,24 +151,48 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     // own passes, dispatched by the node interfaces they implement.
     private readonly List<IRenderNode> _passNodes = new();
 
-    // The forward resolve chain: forward content nodes (transparency) draw onto the
-    // forward RT after lighting, content processors transform it, and the chain blits
-    // the result into the final destination. Owned by the pipeline.
-    private readonly RenderNodeChain _chain;
+    // The render graph driving the frame, plus its transient targets. The scene
+    // color shares the G-buffer's depth attachment (created with DepthSource), so
+    // the forward pass depth-tests directly against the G-buffer depth and the
+    // historical per-frame depth copy is gone.
+    private readonly RenderGraph _graph;
+    private readonly RenderGraphTexture _gbufferResource;
+    private readonly RenderGraphTexture _shadowMapResource;
+    private readonly RenderGraphTexture _sceneColorResource;
+
+    // Post-chain threading state: reset to the scene color resource at the start of
+    // every frame, advanced by each enabled post-process node during graph Setup.
+    private readonly PostChainState _postChain = new();
+
+    // The fixed graph nodes, in execution order. The blit node is re-registered
+    // last whenever a chain node is added via Use.
+    private readonly ShadowPassNode _shadowNode;
+    private readonly GBufferPassNode _gbufferNode;
+    private readonly CallbackNode _callbackNode;
+    private readonly PluginAdapterNode _pluginAdapterNode;
+    private readonly LightingNode _lightingNode;
+    private readonly VolumetricLightNode _volumetricLightNode;
+    private readonly BlitNode _blitNode;
+
+    // The graph adapters of the chain-registered nodes (IForwardRenderNode /
+    // IContentProcessorNode), in registration order.
+    private readonly List<IChainAdapterNode> _chainAdapters = new();
+
+    // Plugin output transients created by the graph (HBAO / VoxelGI full-resolution
+    // results), or null when the corresponding plugin is not registered.
+    private RenderGraphTexture? _aoImport;
+    private RenderGraphTexture? _giDiffuseImport;
+    private RenderGraphTexture? _giSpecularImport;
+    private bool _hasUnknownPlugins;
+
+    // Whether the current frame has no final destination; set at the start of
+    // Render and read by the nodes' Setup.
+    private bool _frameDestinationNull;
 
     private readonly GPUAttachmentLayout _gbufferLayout;
     private readonly GPUAttachmentLayout _shadowLayout;
-    private RenderTexture _gbufferRT;
-    private readonly RenderTexture _shadowRT;
-
-    // Pipeline-internal forward RT: HDR color + depth. Lighting and forward
-    // transparency both render into here; the owning render pipeline then runs its
-    // post-process chain from this texture straight to the final destination.
-    // This lets forward glass use hardware depth testing (the depth is pre-filled
-    // from the G-buffer via a native CopyTexture).
     private readonly GPUAttachmentLayout _forwardLayout;
-    private RenderTexture _forwardRT;
-    private readonly GPUCommandBuffer _depthCopyCommand;
+    private readonly GPUAttachmentLayout _postProcessLayout;
 
     private readonly GraphicsMaterial _lightingMaterial;
     private GraphicsMaterial? _volumetricLightMaterial;
@@ -182,20 +209,22 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly List<IRenderPlugin> _plugins = new();
 
     /// <summary>
-    /// Called inside <see cref="RenderFrame"/> after the G-buffer pass, before AfterGBuffer
+    /// Called by <see cref="Render"/> after the G-buffer pass, before AfterGBuffer
     /// plugins. Use this to submit per-frame dynamic data (e.g. voxel GI instances).
     /// </summary>
     public event Action? AfterGBufferCallback;
 
     /// <summary>
     /// The pipeline-internal forward render texture (HDR color + depth) holding the
-    /// resolved lighting and forward transparency — the output of <see cref="RenderFrame"/>.
-    /// Recreated by <see cref="Resize"/>.
+    /// resolved lighting and forward transparency — the output of <see cref="Render"/>.
+    /// This is a stable facade: the backing graph textures change across frames
+    /// (pooling / aliasing / resize), but the object identity never does and material
+    /// bindings follow automatically through the version check.
     /// </summary>
     public RenderTexture ForwardRenderTexture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _forwardRT;
+        get => _sceneColorResource.Texture;
     }
 
     /// <summary>
@@ -226,18 +255,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private RenderProfileCounterId _gbufferCounter;
     private RenderProfileCounterId _lightingCounter;
     private RenderProfileCounterId _volumetricLightCounter;
-    private readonly Stopwatch _frameStopwatch = new();
-    private long _shadowElapsedTicks;
-    private long _stageStartTicks;
 
     // GPU timestamp ring buffer for per-stage GPU timing. Each stage (G-buffer /
     // lighting) owns 2 query slots (begin + end) in a shared query set. The ring
     // buffer provides per-frame readback with a 2-frame latency, no stalls.
     private const int PipelineTimestampCount = 8; // 4 stages × 2 (begin/end)
-    private const int ShadowQueryBase = 0;
-    private const int GBufferQueryBase = 2;
-    private const int LightingQueryBase = 4;
-    private const int VolumetricLightQueryBase = 6;
+    internal const int ShadowQueryBase = 0;
+    internal const int GBufferQueryBase = 2;
+    internal const int LightingQueryBase = 4;
+    internal const int VolumetricLightQueryBase = 6;
     private GpuTimestampSampler? _gpuTimestamps;
 
     private readonly RenderContext _shadowContext;
@@ -247,14 +273,16 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <summary>
     /// The G-buffer render texture (albedo+packed-roughness /
     /// detail+packed-geometric normal / metallic-roughness-ao /
-    /// emissive+packed-geometric normal / depth).
+    /// emissive+packed-geometric normal / depth). This is a stable facade over the
+    /// graph's transient G-buffer: the object identity never changes.
     /// </summary>
-    public RenderTexture GBuffer => _gbufferRT;
+    public RenderTexture GBuffer => _gbufferResource.Texture;
 
     /// <summary>
-    /// The depth-only shadow map render texture (a 2x2 cascade atlas).
+    /// The depth-only shadow map render texture (a 2x2 cascade atlas). This is a
+    /// stable facade over the graph's transient shadow map.
     /// </summary>
-    public RenderTexture ShadowMap => _shadowRT;
+    public RenderTexture ShadowMap => _shadowMapResource.Texture;
 
     /// <summary>
     /// The render performance profiler. Pipeline stages and registered plugins push
@@ -378,13 +406,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// The live G-buffer render context for immediate (per-frame dynamic) draws.
-    /// Only valid between <see cref="BeginGBufferPass"/> and <see cref="EndGBufferPass"/>.
+    /// Only valid while the pipeline's G-buffer pass is recording (inside
+    /// <see cref="IGBufferRenderNode.OnRenderGBuffer"/>).
     /// </summary>
     public IRenderContext GBufferContext => _gbufferContext;
 
     /// <summary>
     /// The live shadow render context for immediate (per-frame dynamic) draws.
-    /// Only valid between <see cref="BeginShadowPass"/> and <see cref="EndShadowPass"/>.
+    /// Only valid while the pipeline's shadow pass is recording (inside
+    /// <see cref="IShadowRenderNode.OnRenderShadow"/>).
     /// </summary>
     public IRenderContext ShadowContext => _shadowContext;
 
@@ -400,22 +430,107 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         _plugins.Add(plugin);
         // Track whether any GI plugin is registered so the lighting shader can
-        // gate the GI code path. The flag is updated on register/unregister.
-        if (plugin is VoxelGiRenderer)
+        // gate the GI code path. Known plugin types (HBAO, VoxelGI) are registered
+        // as direct graph nodes with transient outputs; unknown plugins stay on
+        // the PluginAdapterNode conservative path.
+        if (plugin is VoxelGiRenderer gi)
         {
             _giActive = true;
+            _giDiffuseImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                _rendering.PreferredLightMapPass, name: "gi_diffuse"));
+            _giSpecularImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                _rendering.PreferredLightMapPass, name: "gi_specular"));
+            gi.AttachGraph(this, _giDiffuseImport, _giSpecularImport);
+            _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)gi);
+        }
+        else if (plugin is HbaoRenderer hbao)
+        {
+            _aoImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                _rendering.PreferredLightMapPass, name: "hbao_ao"));
+            hbao.AttachGraph(this, _aoImport);
+            _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)hbao);
+        }
+        else
+        {
+            _hasUnknownPlugins = true;
         }
     }
 
     /// <summary>
-    /// Unregister a previously registered render plugin.
+    /// Unregister a previously registered render plugin. The plugin's graph imports
+    /// are dropped from the pipeline (the inert entries stay registered on the
+    /// graph at zero cost — nothing declares them anymore).
     /// </summary>
     public void UnregisterPlugin(IRenderPlugin plugin)
     {
         _plugins.Remove(plugin);
-        if (plugin is VoxelGiRenderer)
+        if (plugin is VoxelGiRenderer giRemoved)
         {
-            _giActive = _plugins.Any(p => p is VoxelGiRenderer);
+            if (giRemoved.IsGraphAttached)
+            {
+                _graph.Remove((IRenderGraphNode)giRemoved);
+                giRemoved.DetachGraph();
+                if (_giDiffuseImport != null)
+                {
+                    _graph.DestroyTransient(_giDiffuseImport);
+                }
+                if (_giSpecularImport != null)
+                {
+                    _graph.DestroyTransient(_giSpecularImport);
+                }
+            }
+            _giActive = false;
+            _giDiffuseImport = null;
+            _giSpecularImport = null;
+            // Re-register the first remaining VoxelGI, if any.
+            for (int i = 0; i < _plugins.Count; i++)
+            {
+                if (_plugins[i] is VoxelGiRenderer gi)
+                {
+                    _giActive = true;
+                    _giDiffuseImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                        _rendering.PreferredLightMapPass, name: "gi_diffuse"));
+                    _giSpecularImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                        _rendering.PreferredLightMapPass, name: "gi_specular"));
+                    gi.AttachGraph(this, _giDiffuseImport, _giSpecularImport);
+                    _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)gi);
+                    break;
+                }
+            }
+        }
+        else if (plugin is HbaoRenderer hbaoRemoved)
+        {
+            if (hbaoRemoved.IsGraphAttached)
+            {
+                _graph.Remove((IRenderGraphNode)hbaoRemoved);
+                hbaoRemoved.DetachGraph();
+                if (_aoImport != null)
+                {
+                    _graph.DestroyTransient(_aoImport);
+                }
+            }
+            _aoImport = null;
+            // Re-register the first remaining HBAO, if any.
+            for (int i = 0; i < _plugins.Count; i++)
+            {
+                if (_plugins[i] is HbaoRenderer hbao)
+                {
+                    _aoImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                        _rendering.PreferredLightMapPass, name: "hbao_ao"));
+                    hbao.AttachGraph(this, _aoImport);
+                    _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)hbao);
+                    break;
+                }
+            }
+        }
+        _hasUnknownPlugins = false;
+        for (int i = 0; i < _plugins.Count; i++)
+        {
+            if (_plugins[i] is not (VoxelGiRenderer or HbaoRenderer))
+            {
+                _hasUnknownPlugins = true;
+                break;
+            }
         }
     }
 
@@ -435,165 +550,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Execute all plugins registered at the given injection point and bind
-    /// their output textures to the lighting material. Called by the caller
-    /// between <see cref="EndGBufferPass"/> and <see cref="RenderLighting"/>.
-    /// The context (camera, G-buffer, shadow map, lighting data, point-light
-    /// buffer) is assembled internally from pipeline state.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">No camera is set.</exception>
-    public void ExecutePlugins(RenderInjectionPoint point)
-    {
-        if (_camera == null)
-        {
-            throw new InvalidOperationException("ExecutePlugins requires a camera (call SetCamera first).");
-        }
-
-        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
-
-        // Pre-populate the lighting data for plugins that need it (GI reads sun
-        // direction, cascades, sky colors from here).
-        AssembleLightingData(invViewProjection);
-
-        RenderPluginContext context = new()
-        {
-            Rendering = _rendering,
-            GBuffer = _gbufferRT,
-            ShadowMap = _shadowRT,
-            InvViewProjection = invViewProjection,
-            ProjectionMatrix = _camera.Data.ProjectionMatrix,
-            CameraTransform = _camera.Transform,
-            Width = _gbufferRT.Width,
-            Height = _gbufferRT.Height,
-            LightingData = _lightingData,
-            PointLightBuffer = _pointLightBuffer,
-            DeltaTime = _rendering.GlobalRenderDataBuffer.Value.DeltaTime,
-            Profiler = Profiler,
-        };
-
-        for (int i = 0; i < _plugins.Count; i++)
-        {
-            IRenderPlugin plugin = _plugins[i];
-            if (plugin.InjectionPoint == point)
-            {
-                plugin.Execute(context);
-            }
-        }
-        RebindPluginOutputs(context);
-    }
-
-    /// <summary>
-    /// Convert raw <see cref="Stopwatch"/> ticks to milliseconds.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static double TicksToMilliseconds(long ticks)
-    {
-        return (double)ticks / Stopwatch.Frequency * 1000.0;
-    }
-
-    /// <summary>
-    /// Read back GPU timestamps from the previous sample (0.5s ago, guaranteed
-    /// GPU-complete via the throttled timer) and push the values to the profiler.
-    /// Called at the start of each frame's G-buffer pass.
-    /// </summary>
-    private void ReadbackPipelineTimestamps()
-    {
-        if (_gpuTimestamps == null)
-        {
-            return;
-        }
-
-        ulong[]? timestamps = _gpuTimestamps.TryReadback();
-        if (timestamps == null)
-        {
-            return;
-        }
-
-        _profiler.PushValue(_gbufferCounter,
-            _gpuTimestamps.DeltaMilliseconds(timestamps, GBufferQueryBase, GBufferQueryBase + 1));
-        _profiler.PushValue(_lightingCounter,
-            _gpuTimestamps.DeltaMilliseconds(timestamps, LightingQueryBase, LightingQueryBase + 1));
-        _profiler.PushValue(_volumetricLightCounter,
-            _gpuTimestamps.DeltaMilliseconds(timestamps, VolumetricLightQueryBase, VolumetricLightQueryBase + 1));
-    }
-
-    /// <summary>
-    /// Assemble <see cref="_lightingData"/> from pipeline properties, camera and
-    /// cascade state. Called by both <see cref="ExecutePlugins"/> (so plugins see
-    /// current data) and <see cref="RenderLighting"/> (for the final GPU upload).
-    /// </summary>
-    private void AssembleLightingData(Matrix4x4 invViewProjection)
-    {
-        _lightingData.InvViewProjection = invViewProjection;
-        _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
-        _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
-        _lightingData.SunViewProjection2 = _cascadeViewProjections[2];
-        _lightingData.SunViewProjection3 = _cascadeViewProjections[3];
-        _lightingData.CameraPosition = new Vector4(_camera!.Transform.Position, 1.0f);
-        _lightingData.SunDirection = new Vector4(SunDirection, 0);
-        _lightingData.SunColorAndIntensity = new Vector4(SunColor, SunIntensity);
-        _lightingData.SkyParams = SkyParams;
-        _lightingData.SkyParams2 = SkyParams2;
-        _lightingData.SkyHorizonColor = new Vector4(SkyHorizonColor, 0.0f);
-        _lightingData.SkyZenithColor = new Vector4(SkyZenithColor, 0.0f);
-        _lightingData.Params = new Vector4(
-            ShadowEnabled ? 1.0f : 0.0f,
-            _pointLightCount,
-            ShadowMapSize,
-            SunDiscEnabled ? 1.0f : 0.0f);
-        _lightingData.CascadeSplits = new Vector4(
-            _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
-        _lightingData.CascadeTexelSizes = new Vector4(
-            _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
-        _lightingData.Params2 = new Vector4(
-            CascadeDebug ? 1.0f : 0.0f,
-            ShadowDebug ? 1.0f : 0.0f,
-            0.0f,
-            AoDebugView ? 1.0f : 0.0f);
-        _lightingData.ViewportSize = new Vector4(_gbufferRT.Width, _gbufferRT.Height, 0, 0);
-        _lightingData.Params3 = new Vector4(
-            (_giActive && GiEnabled) ? 1.0f : 0.0f,
-            GiDiffuseStrength,
-            GiSpecularStrength,
-            GiDebugView);
-        _lightingData.Params4 = new Vector4(SunDiscSize, SunDiscBrightness, 0.0f, 0.0f);
-        _lightingData.VLParams = new Vector4(
-            VolumetricLightEnabled ? 1.0f : 0.0f,
-            VolumetricLightDensity,
-            VolumetricLightHeightScale,
-            VolumetricLightPhaseG);
-    }
-
-    private void RebindPluginOutputs(RenderPluginContext context)
-    {
-        if (context.AOResult != null)
-        {
-            _lightingMaterial.SetRenderTexture("_aoTexture", context.AOResult);
-        }
-        else
-        {
-            _lightingMaterial.SetTexture("_aoTexture", _rendering.TextureWhite);
-        }
-
-        if (context.GIDiffuse != null)
-        {
-            _lightingMaterial.SetRenderTexture("_giDiffuse", context.GIDiffuse);
-            _lightingMaterial.SetRenderTexture("_giSpecular", context.GISpecular!);
-        }
-        else
-        {
-            _lightingMaterial.SetTexture("_giDiffuse", _rendering.TextureBlack);
-            _lightingMaterial.SetTexture("_giSpecular", _rendering.TextureBlack);
-        }
-    }
-
-    /// <summary>
     /// Create the deferred PBR pipeline.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="lightingShaderText">The source text of the deferred lighting shader (DeferredLighting.hlsl).</param>
     /// <param name="lightingShaderName">The name of the deferred lighting shader.</param>
-    /// <param name="blitShader">The shader the forward resolve chain uses for plain copies.</param>
+    /// <param name="blitShader">The shader the final blit uses for plain copies.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
@@ -614,7 +576,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _device = rendering.GraphicsDevice;
         _fullScreenMesh = rendering.MeshFullScreen;
         ShadowMapSize = shadowMapSize;
-        _chain = new RenderNodeChain(rendering, blitShader);
 
         // The lighting shader declares its depth textures with the DEFINE_TEX2D_DEPTH*
         // macros, so the reflection already carries the Depth sample type and the
@@ -634,15 +595,36 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             new DepthAttachment(PixelFormat.Depth32Float),
             "pbr_gbuffer_pass"));
 
-        _gbufferRT = rendering.CreateRenderTexture(_gbufferLayout, width, height, "pbr_gbuffer");
-
         _shadowLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [],
             new DepthAttachment(PixelFormat.Depth32Float),
             "pbr_shadow_pass"));
 
-        // 2x2 cascade atlas: each cascade renders into one quadrant.
-        _shadowRT = rendering.CreateRenderTexture(_shadowLayout, shadowMapSize * 2, shadowMapSize * 2, "pbr_shadow_map");
+        // Scene color: HDR color + Depth32Float shared from the G-buffer (the depth
+        // formats must match for the graph's depth sharing).
+        _forwardLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(rendering.PreferredHDRFormat)],
+            new DepthAttachment(PixelFormat.Depth32Float),
+            "pbr_forward_pass"));
+
+        // Color-only sibling of the scene color layout for post-process outputs.
+        _postProcessLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(rendering.PreferredHDRFormat)],
+            null,
+            "pbr_post_process"));
+
+        // The render graph and its transient targets. The 2x2 cascade atlas uses an
+        // absolute size; the G-buffer and scene color follow the graph viewport. The
+        // scene color shares the G-buffer's depth attachment (DepthSource), which is
+        // what eliminates the per-frame G-buffer → forward depth copy.
+        _graph = new RenderGraph(rendering, width, height, "pbr_deferred");
+        _graph.Profiler = _profiler;
+        _shadowMapResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+            _shadowLayout, shadowMapSize * 2, shadowMapSize * 2, name: "pbr_shadow_map"));
+        _gbufferResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+            _gbufferLayout, name: "pbr_gbuffer"));
+        _sceneColorResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+            _forwardLayout, depthSource: _gbufferResource, name: "pbr_scene_color"));
 
         _shadowDataBuffer = rendering.CreateGraphicsValueBuffer<ShadowCascadeData>("pbr_shadow_data");
 
@@ -668,16 +650,22 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _lightingContext = rendering.CreateRenderContext("pbr_lighting_pass");
         _volumetricLightContext = rendering.CreateRenderContext("pbr_volumetric_light_pass");
 
-        // Forward RT: HDR color + Depth32Float (must match the G-buffer depth format
-        // for native CopyTexture, which requires copy-compatible formats).
-        _forwardLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
-            [new ColorAttachment(rendering.PreferredHDRFormat)],
-            new DepthAttachment(PixelFormat.Depth32Float),
-            "pbr_forward_pass"));
-        _forwardRT = rendering.CreateRenderTexture(_forwardLayout, width, height, "pbr_forward");
-
-        // Dedicated command buffer for the native G-buffer → forward RT depth copy.
-        _depthCopyCommand = _device.CreateCommandBuffer("pbr_depth_copy");
+        // The fixed nodes, in execution order. Use() inserts chain nodes before the
+        // blit node, which always stays last.
+        _shadowNode = new ShadowPassNode(this);
+        _gbufferNode = new GBufferPassNode(this);
+        _callbackNode = new CallbackNode(this);
+        _pluginAdapterNode = new PluginAdapterNode(this, RenderInjectionPoint.AfterGBuffer);
+        _lightingNode = new LightingNode(this);
+        _volumetricLightNode = new VolumetricLightNode(this);
+        _blitNode = new BlitNode(this, blitShader);
+        _graph.Use(_shadowNode);
+        _graph.Use(_gbufferNode);
+        _graph.Use(_callbackNode);
+        _graph.Use(_pluginAdapterNode);
+        _graph.Use(_lightingNode);
+        _graph.Use(_volumetricLightNode);
+        _graph.Use(_blitNode);
 
         // Register pipeline-internal counters once; the returned handles are used
         // for zero-allocation PushValue calls on the per-frame hot path.
@@ -687,7 +675,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _volumetricLightCounter = _profiler.RegisterCounter("Pipeline", "VolumetricLight");
 
         // Create GPU timestamp ring buffer when the device supports it.
-        // 3 stages × 2 slots (begin/end) = 6 slots, resolved per-frame with
+        // 4 stages × 2 slots (begin/end) = 8 slots, resolved per-frame with
         // a 3-entry ring buffer for stall-free readback.
         if (_device.TimestampQuerySupported)
         {
@@ -704,8 +692,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _volumetricLightMaterial.BlendState = BlendState.Additive;
             _volumetricLightMaterial.SetBuffer(ShaderResourceId.Data, _lightingDataBuffer);
             _volumetricLightMaterial.SetBuffer(ShaderResourceId.PointLights, _pointLightBuffer);
-            _volumetricLightMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
-            _volumetricLightMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
+            _volumetricLightMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferResource.Texture);
+            _volumetricLightMaterial.SetRenderTextureDepth("_shadowMap", _shadowMapResource.Texture);
         }
     }
 
@@ -725,8 +713,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// Register a render node, dispatched by the interfaces it implements:
     /// <see cref="IGBufferRenderNode"/> / <see cref="IShadowRenderNode"/> nodes are
     /// invoked inside the pipeline's own passes; <see cref="IForwardRenderNode"/> /
-    /// <see cref="IContentProcessorNode"/> nodes join the forward resolve chain in
-    /// registration order. A node may implement both kinds.
+    /// <see cref="IContentProcessorNode"/> nodes join the graph's forward/post chain
+    /// before the final blit, in registration order. A node may implement both kinds;
+    /// a node implementing both chain interfaces runs as a content processor.
     /// The pipeline takes ownership: nodes implementing <see cref="System.IDisposable"/>
     /// are disposed with the pipeline.
     /// </summary>
@@ -748,7 +737,27 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         }
         if (isChainNode)
         {
-            _chain.Use(node);
+            IChainAdapterNode adapter;
+            // A forward node that is also a direct graph node (e.g. SSR with
+            // transient intermediates) registers itself after AttachGraph.
+            if (node is ScreenSpaceReflectionRenderer ssr)
+            {
+                ssr.AttachGraph(_graph);
+                adapter = ssr;
+            }
+            else if (node is IContentProcessorNode processor)
+            {
+                adapter = new PostProcessNode(this, processor);
+            }
+            else
+            {
+                adapter = new ForwardContentNode(this, (IForwardRenderNode)node);
+            }
+            // The blit node always stays last in the graph.
+            _graph.Remove(_blitNode);
+            _graph.Use(adapter);
+            _graph.Use(_blitNode);
+            _chainAdapters.Add(adapter);
         }
     }
 
@@ -758,7 +767,25 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public bool Remove(IRenderNode node)
     {
         bool removed = _passNodes.Remove(node);
-        removed |= _chain.Remove(node);
+        for (int i = 0; i < _chainAdapters.Count; i++)
+        {
+            if (ReferenceEquals(_chainAdapters[i].Source, node))
+            {
+                IChainAdapterNode adapter = _chainAdapters[i];
+                _graph.Remove(adapter);
+                if (adapter is PostProcessNode postProcess)
+                {
+                    _graph.DestroyTransient(postProcess.Output);
+                }
+                else if (adapter is ScreenSpaceReflectionRenderer ssr)
+                {
+                    ssr.DetachGraph();
+                }
+                _chainAdapters.RemoveAt(i);
+                removed = true;
+                break;
+            }
+        }
         return removed;
     }
 
@@ -775,14 +802,22 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 return node;
             }
         }
-        return _chain.Get<T>();
+        for (int i = 0; i < _chainAdapters.Count; i++)
+        {
+            if (_chainAdapters[i].Source is T node)
+            {
+                return node;
+            }
+        }
+        return null;
     }
 
     /// <summary>
-    /// Resizes the G-buffer and the forward resolve target in place. Call when the view
-    /// resizes. Both targets keep their object identity, so the lighting material needs
-    /// no rebinding: the affected bind groups are rebuilt automatically on next use
-    /// through the render texture version check.
+    /// Resizes the G-buffer and the forward resolve target. The graph rematerializes
+    /// the graph-relative transients at the new size; their facades keep their object
+    /// identity, so material bindings need no updates: the affected bind groups are
+    /// rebuilt automatically on next use through the render texture version check.
+    /// Chain nodes and plugins are notified through the graph's node resize.
     /// <br/>Render bundles recorded against <see cref="GBufferLayout"/> stay valid:
     /// the layout (attachment formats) does not change, only the textures do.
     /// </summary>
@@ -790,70 +825,55 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <param name="height">The new G-buffer height in pixels.</param>
     public void Resize(uint width, uint height)
     {
-        _gbufferRT.Resize(width, height);
-
-        // Resize the pipeline-internal forward RT at the new resolution.
-        _forwardRT.Resize(width, height);
-
-        for (int i = 0; i < _plugins.Count; i++)
+        if (width == _graph.Width && height == _graph.Height)
         {
-            _plugins[i].Resize(width, height);
+            return;
         }
-        _chain.Resize(width, height);
+
+        _graph.Resize(width, height);
+
+        // Plugin output transients and their facades are rematerialized by the
+        // graph's own resize. The facades keep their object identity (rebinding
+        // through the render texture version check), so no manual refresh is
+        // needed here.
     }
 
     /// <summary>
-    /// Execute the complete deferred frame in the correct order: shadow cascades →
+    /// Execute the complete deferred frame through the render graph: shadow cascades →
     /// G-buffer → <see cref="AfterGBufferCallback"/> → AfterGBuffer plugins → deferred
-    /// lighting, resolved into <see cref="ForwardRenderTexture"/>; then the forward
-    /// node chain runs from there — when it has enabled content nodes the G-buffer
-    /// depth is copied into the forward RT first (hardware depth testing for
-    /// transparency) — ending in <paramref name="destination"/>. The individual
-    /// <c>Render*Pass</c> methods remain available for custom pipelines or debugging.
+    /// lighting, resolved into <see cref="ForwardRenderTexture"/> (whose depth is the
+    /// G-buffer's own depth attachment) → volumetric light → forward content nodes →
+    /// content processors → final blit into <paramref name="destination"/>. Disabled
+    /// features and unconsumed work are culled by the graph automatically, and the
+    /// whole frame is submitted as a single command batch.
     /// </summary>
     /// <param name="destination">The final output frame buffer (e.g. the swapchain).
     /// When null, the passes and forward content nodes still run but processors are
     /// skipped (minimized or headless view).</param>
     public void Render(GPUFrameBuffer? destination)
     {
-        RenderShadowPass();
-        RenderGBufferPass();
-        AfterGBufferCallback?.Invoke();
-        ExecutePlugins(RenderInjectionPoint.AfterGBuffer);
-        RenderLighting(_forwardRT.FrameBuffer);
-        RenderVolumetricLight(_forwardRT.FrameBuffer);
+        _frameDestinationNull = destination == null;
+        _postChain.Current = _sceneColorResource;
+        // Start the profiler frame here rather than in the shadow node: with shadows
+        // disabled that node is culled, and the counters must still be cleared.
+        _profiler.BeginFrame();
+        _graph.Execute(destination);
 
         // Finalize the GPU timestamp sample after all pipeline stages (including
         // volumetric light) have recorded their timestamps.
         _gpuTimestamps?.EndSample();
         _profiler.EndFrame();
-
-        if (_chain.HasEnabledContentNodes)
-        {
-            // Copy G-buffer depth into the forward RT via native CopyTexture so glass
-            // materials can use hardware depth testing (DepthStencilState.Read) instead
-            // of a manual shader-side discard.
-            _depthCopyCommand.Begin();
-            _depthCopyCommand.CopyTexture(
-                _gbufferRT.FrameBuffer.DepthStencil!,
-                _forwardRT.FrameBuffer.DepthStencil!,
-                0, 0, TextureAspect.All);
-            _depthCopyCommand.End();
-            _rendering.ScheduleCommandBuffer(_depthCopyCommand);
-        }
-
-        _chain.Execute(_forwardRT, destination);
     }
 
     /// <summary>
     /// The GPU buffer holding the point light array. Passed to plugins via
-    /// <see cref="RenderPluginContext"/> automatically by <see cref="ExecutePlugins"/>.
+    /// <see cref="RenderPluginContext"/> automatically by the pipeline's plugin node.
     /// </summary>
     public GraphicsBuffer PointLightBuffer => _pointLightBuffer;
 
     /// <summary>
     /// Upload point lights to the GPU StructuredBuffer. Call once per frame before
-    /// <see cref="RenderLighting"/>; the active count is tracked internally.
+    /// <see cref="Render"/>; the active count is tracked internally.
     /// An upload identical to the current contents is skipped (no GPU upload).
     /// </summary>
     /// <param name="lights">Active point lights; excess lights beyond
@@ -881,99 +901,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Begin the shadow map pass for one cascade. All shadow draws must happen
-    /// between this and <see cref="EndShadowPass"/>: bundle replays via
-    /// <see cref="ExecuteShadowSubContext"/> and/or immediate draws via
-    /// <see cref="ShadowContext"/>. Cascades render into their own quadrant of
-    /// the 2x2 atlas; only the first cascade's pass clears the atlas.
-    /// <br/>The light view-projection matrix is read from the cascade data computed
-    /// by <see cref="ComputeShadowCascades"/>.
-    /// </summary>
-    /// <param name="cascadeIndex">The cascade to render (0 = nearest .. <see cref="ShadowCascadeCount"/>-1).</param>
-    public void BeginShadowPass(int cascadeIndex)
-    {
-        // The shadow pass is the first GPU work of each frame; start the profiler
-        // frame here and begin measuring the total shadow duration.
-        if (cascadeIndex == 0)
-        {
-            _profiler.BeginFrame();
-            _shadowElapsedTicks = 0;
-        }
-        _stageStartTicks = Stopwatch.GetTimestamp();
-
-        // Fold the atlas quadrant into the projection. The scissor is essential:
-        // geometry outside this cascade's orthographic box can otherwise transform
-        // into another atlas quadrant and corrupt that cascade's depth values.
-        float offsetX = (cascadeIndex % 2) - 0.5f;
-        float offsetY = 0.5f - (cascadeIndex / 2);
-        Matrix4x4 quadrant = Matrix4x4.CreateScale(0.5f, 0.5f, 1.0f) * Matrix4x4.CreateTranslation(offsetX, offsetY, 0.0f);
-        SetCascadeViewProjection(cascadeIndex, _cascadeViewProjections[cascadeIndex] * quadrant);
-        _shadowContext.Begin(_shadowRT.FrameBuffer, clearDepth: cascadeIndex == 0 ? 1.0f : null);
-        _shadowContext.SetScissorRect(
-            (uint)(cascadeIndex % 2) * ShadowMapSize,
-            (uint)(cascadeIndex / 2) * ShadowMapSize,
-            ShadowMapSize,
-            ShadowMapSize);
-    }
-
-    private void SetCascadeViewProjection(int cascadeIndex, in Matrix4x4 viewProjection)
-    {
-        // All four cascade passes record before their command buffers are submitted,
-        // so every slot holds this frame's value when the passes execute on the GPU.
-        switch (cascadeIndex)
-        {
-            case 0: _shadowDataBuffer.Value.CascadeViewProjection0 = viewProjection; break;
-            case 1: _shadowDataBuffer.Value.CascadeViewProjection1 = viewProjection; break;
-            case 2: _shadowDataBuffer.Value.CascadeViewProjection2 = viewProjection; break;
-            default: _shadowDataBuffer.Value.CascadeViewProjection3 = viewProjection; break;
-        }
-        _shadowDataBuffer.UpdateBuffer();
-    }
-
-    /// <summary>
-    /// Replay a recorded shadow render bundle. Must be called inside the shadow pass
-    /// (the pass applies its scissor rect, which bundles cannot set themselves).
-    /// </summary>
-    /// <param name="subContext">The recorded sub render context.</param>
-    public void ExecuteShadowSubContext(SubRenderContext subContext)
-    {
-        _shadowContext.ExecuteSubContext(subContext);
-    }
-
-    /// <summary>
-    /// End the shadow map pass and submit its commands.
-    /// </summary>
-    public void EndShadowPass()
-    {
-        _shadowContext.End();
-        _shadowElapsedTicks += Stopwatch.GetTimestamp() - _stageStartTicks;
-    }
-
-    /// <summary>
-    /// Convenience: run all <see cref="ShadowCascadeCount"/> cascade passes in one
-    /// call, invoking every enabled <see cref="IShadowRenderNode"/> between Begin/End
-    /// for each cascade. With no registered nodes each cascade's pass runs empty.
-    /// </summary>
-    public void RenderShadowPass()
-    {
-        for (int c = 0; c < ShadowCascadeCount; c++)
-        {
-            BeginShadowPass(c);
-            for (int i = 0; i < _passNodes.Count; i++)
-            {
-                if (_passNodes[i].IsEnabled && _passNodes[i] is IShadowRenderNode shadowNode)
-                {
-                    shadowNode.OnRenderShadow(_shadowContext, c);
-                }
-            }
-            EndShadowPass();
-        }
-    }
-
-    /// <summary>
     /// Compute cascaded shadow map data for a directional sun: per-cascade light
     /// view-projection matrices, split boundaries and world texel sizes, stored
-    /// internally for use by <see cref="BeginShadowPass"/> and <see cref="RenderLighting"/>.
+    /// internally for use by the shadow and lighting passes.
     /// <br/>Splits follow the practical split scheme (log/uniform blend controlled by
     /// <see cref="ShadowSplitLambda"/>) on radial camera distance. The light space is a
     /// pure rotation (camera-independent) and each cascade fits a fixed-radius bounding
@@ -1081,175 +1011,199 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Begin the G-buffer pass. All G-buffer draws must happen between this and
-    /// <see cref="EndGBufferPass"/>: bundle replays via <see cref="ExecuteGBufferSubContext"/>
-    /// and/or immediate draws via <see cref="GBufferContext"/>.
+    /// Writes the (quadrant-folded) light view-projection of one cascade into the
+    /// Sets one cascade's light view-projection matrix on the CPU-side shadow data
+    /// buffer. The GPU upload is deferred to the caller (see
+    /// <see cref="FlushShadowDataBuffer"/>): all four cascade passes set their slot
+    /// first, then a single upload fires before any pass is recorded.
     /// </summary>
-    public void BeginGBufferPass()
+    internal void SetCascadeViewProjection(int cascadeIndex, in Matrix4x4 viewProjection)
     {
-        _profiler.PushValue(_shadowCounter, TicksToMilliseconds(_shadowElapsedTicks));
-        _stageStartTicks = Stopwatch.GetTimestamp();
-
-        // Read back GPU timestamps from 2 frames ago (ring buffer guarantees
-        // GPU completion) and push them to the profiler.
-        ReadbackPipelineTimestamps();
-
-        ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[4]
+        switch (cascadeIndex)
         {
-            new(0, Vector4.Zero),
-            new(1, new Vector4(0.5f, 0.5f, 1.0f, 1.0f)),
-            new(2, Vector4.Zero),
-            new(3, Vector4.Zero),
-        };
-        if (_gpuTimestamps != null && _gpuTimestamps.ShouldRecord)
+            case 0: _shadowDataBuffer.Value.CascadeViewProjection0 = viewProjection; break;
+            case 1: _shadowDataBuffer.Value.CascadeViewProjection1 = viewProjection; break;
+            case 2: _shadowDataBuffer.Value.CascadeViewProjection2 = viewProjection; break;
+            default: _shadowDataBuffer.Value.CascadeViewProjection3 = viewProjection; break;
+        }
+    }
+
+    /// <summary>Uploads the shadow cascade data buffer to the GPU (once per frame).</summary>
+    internal void FlushShadowDataBuffer() => _shadowDataBuffer.UpdateBuffer();
+
+    /// <summary>
+    /// Convert raw <see cref="Stopwatch"/> ticks to milliseconds.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static double TicksToMilliseconds(long ticks)
+    {
+        return (double)ticks / Stopwatch.Frequency * 1000.0;
+    }
+
+    /// <summary>
+    /// Read back GPU timestamps from the previous sample (guaranteed GPU-complete
+    /// via the sampler's throttled interval) and push the values to the profiler.
+    /// Called by the G-buffer pass node at the start of its pass.
+    /// </summary>
+    internal void ReadbackPipelineTimestamps()
+    {
+        if (_gpuTimestamps == null)
         {
-            _gbufferContext.Begin(_gbufferRT.FrameBuffer, clearColors,
-                _gpuTimestamps.QuerySet, GBufferQueryBase, GBufferQueryBase + 1, 1.0f);
+            return;
+        }
+
+        ulong[]? timestamps = _gpuTimestamps.TryReadback();
+        if (timestamps == null)
+        {
+            return;
+        }
+
+        _profiler.PushValue(_gbufferCounter,
+            _gpuTimestamps.DeltaMilliseconds(timestamps, GBufferQueryBase, GBufferQueryBase + 1));
+        _profiler.PushValue(_lightingCounter,
+            _gpuTimestamps.DeltaMilliseconds(timestamps, LightingQueryBase, LightingQueryBase + 1));
+        _profiler.PushValue(_volumetricLightCounter,
+            _gpuTimestamps.DeltaMilliseconds(timestamps, VolumetricLightQueryBase, VolumetricLightQueryBase + 1));
+    }
+
+    /// <summary>
+    /// Assemble <see cref="_lightingData"/> from pipeline properties, camera and
+    /// cascade state. Called by the plugin adapter node (so plugins see current
+    /// data) and by the lighting node (for the final GPU upload).
+    /// </summary>
+    internal void AssembleLightingData(Matrix4x4 invViewProjection)
+    {
+        _lightingData.InvViewProjection = invViewProjection;
+        _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
+        _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
+        _lightingData.SunViewProjection2 = _cascadeViewProjections[2];
+        _lightingData.SunViewProjection3 = _cascadeViewProjections[3];
+        _lightingData.CameraPosition = new Vector4(_camera!.Transform.Position, 1.0f);
+        _lightingData.SunDirection = new Vector4(SunDirection, 0);
+        _lightingData.SunColorAndIntensity = new Vector4(SunColor, SunIntensity);
+        _lightingData.SkyParams = SkyParams;
+        _lightingData.SkyParams2 = SkyParams2;
+        _lightingData.SkyHorizonColor = new Vector4(SkyHorizonColor, 0.0f);
+        _lightingData.SkyZenithColor = new Vector4(SkyZenithColor, 0.0f);
+        _lightingData.Params = new Vector4(
+            ShadowEnabled ? 1.0f : 0.0f,
+            _pointLightCount,
+            ShadowMapSize,
+            SunDiscEnabled ? 1.0f : 0.0f);
+        _lightingData.CascadeSplits = new Vector4(
+            _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
+        _lightingData.CascadeTexelSizes = new Vector4(
+            _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
+        _lightingData.Params2 = new Vector4(
+            CascadeDebug ? 1.0f : 0.0f,
+            ShadowDebug ? 1.0f : 0.0f,
+            0.0f,
+            AoDebugView ? 1.0f : 0.0f);
+        RenderTexture gbuffer = _gbufferResource.Texture;
+        _lightingData.ViewportSize = new Vector4(gbuffer.Width, gbuffer.Height, 0, 0);
+        _lightingData.Params3 = new Vector4(
+            (_giActive && GiEnabled) ? 1.0f : 0.0f,
+            GiDiffuseStrength,
+            GiSpecularStrength,
+            GiDebugView);
+        _lightingData.Params4 = new Vector4(SunDiscSize, SunDiscBrightness, 0.0f, 0.0f);
+        _lightingData.VLParams = new Vector4(
+            VolumetricLightEnabled ? 1.0f : 0.0f,
+            VolumetricLightDensity,
+            VolumetricLightHeightScale,
+            VolumetricLightPhaseG);
+    }
+
+    /// <summary>
+    /// Bind the plugin output textures set on the context to the lighting material,
+    /// falling back to white (AO) / black (GI) when no plugin produced an output.
+    /// </summary>
+    internal void RebindPluginOutputs(RenderPluginContext context)
+    {
+        if (context.AOResult != null)
+        {
+            _lightingMaterial.SetRenderTexture("_aoTexture", context.AOResult);
         }
         else
         {
-            _gbufferContext.Begin(_gbufferRT.FrameBuffer, clearColors, 1.0f);
-        }
-    }
-
-    /// <summary>
-    /// Replay a recorded G-buffer render bundle. Must be called inside the G-buffer pass.
-    /// </summary>
-    /// <param name="subContext">The recorded sub render context.</param>
-    public void ExecuteGBufferSubContext(SubRenderContext subContext)
-    {
-        _gbufferContext.ExecuteSubContext(subContext);
-    }
-
-    /// <summary>
-    /// End the G-buffer pass and submit its commands.
-    /// </summary>
-    public void EndGBufferPass()
-    {
-        if (_gpuTimestamps != null && _gpuTimestamps.ShouldRecord)
-        {
-            _gbufferContext.ResolveTimestampsOnEnd(
-                _gpuTimestamps.QuerySet, GBufferQueryBase, 2, _gpuTimestamps.ResolveBuffer);
-        }
-        _gbufferContext.End();
-        _profiler.PushValue(_gbufferCounter, TicksToMilliseconds(Stopwatch.GetTimestamp() - _stageStartTicks));
-    }
-
-    /// <summary>
-    /// Convenience: begin the G-buffer pass, invoke every enabled
-    /// <see cref="IGBufferRenderNode"/>, then end the pass — all in one call.
-    /// With no registered nodes this is equivalent to calling Begin/End with
-    /// nothing in between.
-    /// </summary>
-    public void RenderGBufferPass()
-    {
-        BeginGBufferPass();
-        for (int i = 0; i < _passNodes.Count; i++)
-        {
-            if (_passNodes[i].IsEnabled && _passNodes[i] is IGBufferRenderNode gbufferNode)
-            {
-                gbufferNode.OnRenderGBuffer(_gbufferContext, _gbufferLayout);
-            }
-        }
-        EndGBufferPass();
-    }
-
-    /// <summary>
-    /// Resolve lighting, shadows and the sky into the target frame buffer
-    /// (typically <see cref="ForwardRenderTexture"/>'s frame buffer). Assembles the GPU
-    /// constant buffer from caller-set properties, camera data and internally tracked
-    /// cascade state.
-    /// </summary>
-    /// <param name="target">The frame buffer to render the lighting result into.</param>
-    /// <exception cref="InvalidOperationException">No camera is set.</exception>
-    public void RenderLighting(GPUFrameBuffer target)
-    {
-        if (_camera == null)
-        {
-            throw new InvalidOperationException("RenderLighting requires a camera (call SetCamera first).");
+            _lightingMaterial.SetTexture("_aoTexture", _rendering.TextureWhite);
         }
 
-        long lightingStart = Stopwatch.GetTimestamp();
-
-        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
-        AssembleLightingData(invViewProjection);
-
-        _lightingDataBuffer.UpdateBuffer(_lightingData);
-        bool recordGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
-        if (recordGpu)
+        if (context.GIDiffuse != null)
         {
-            _lightingContext.Begin(target, ReadOnlySpan<ClearColorData>.Empty,
-                _gpuTimestamps!.QuerySet, LightingQueryBase, LightingQueryBase + 1);
+            _lightingMaterial.SetRenderTexture("_giDiffuse", context.GIDiffuse);
+            _lightingMaterial.SetRenderTexture("_giSpecular", context.GISpecular!);
         }
         else
         {
-            _lightingContext.Begin(target);
+            _lightingMaterial.SetTexture("_giDiffuse", _rendering.TextureBlack);
+            _lightingMaterial.SetTexture("_giSpecular", _rendering.TextureBlack);
         }
-        _lightingContext.Draw(_fullScreenMesh, _lightingMaterial);
-        if (recordGpu)
-        {
-            _lightingContext.ResolveTimestampsOnEnd(
-                _gpuTimestamps!.QuerySet, LightingQueryBase, 2, _gpuTimestamps.ResolveBuffer);
-        }
-        _lightingContext.End();
+    }
 
-        _profiler.PushValue(_lightingCounter, TicksToMilliseconds(Stopwatch.GetTimestamp() - lightingStart));
+    /// <summary>Bind the AO output texture to the lighting material.</summary>
+    internal void BindAoOutput(RenderTexture aoTexture)
+    {
+        _lightingMaterial.SetRenderTexture("_aoTexture", aoTexture);
+    }
+
+    /// <summary>Bind the GI diffuse/specular output textures to the lighting material.</summary>
+    internal void BindGiOutput(RenderTexture giDiffuse, RenderTexture giSpecular)
+    {
+        _lightingMaterial.SetRenderTexture("_giDiffuse", giDiffuse);
+        _lightingMaterial.SetRenderTexture("_giSpecular", giSpecular);
     }
 
     private void RebindLightingTargets()
     {
-        _lightingMaterial.SetRenderTexture("_albedo",   _gbufferRT, 0);
-        _lightingMaterial.SetRenderTexture("_normal",   _gbufferRT, 1);
-        _lightingMaterial.SetRenderTexture("_mrAO",     _gbufferRT, 2);
-        _lightingMaterial.SetRenderTexture("_emissive", _gbufferRT, 3);
-        _lightingMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferRT);
-        _lightingMaterial.SetRenderTextureDepth("_shadowMap", _shadowRT);
+        RenderTexture gbuffer = _gbufferResource.Texture;
+        _lightingMaterial.SetRenderTexture("_albedo",   gbuffer, 0);
+        _lightingMaterial.SetRenderTexture("_normal",   gbuffer, 1);
+        _lightingMaterial.SetRenderTexture("_mrAO",     gbuffer, 2);
+        _lightingMaterial.SetRenderTexture("_emissive", gbuffer, 3);
+        _lightingMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+        _lightingMaterial.SetRenderTextureDepth("_shadowMap", _shadowMapResource.Texture);
         // Plugin output textures default to white/black until a plugin sets them.
         _lightingMaterial.SetTexture("_aoTexture", _rendering.TextureWhite);
         _lightingMaterial.SetTexture("_giDiffuse", _rendering.TextureBlack);
         _lightingMaterial.SetTexture("_giSpecular", _rendering.TextureBlack);
     }
 
-    /// <summary>
-    /// Render the volumetric light (god rays) pass. Additively blends in-scattered
-    /// atmospheric radiance into the HDR target. Should be called after
-    /// <see cref="RenderLighting"/> and before the forward/post-process chain.
-    /// The lighting data buffer must already be uploaded (done by RenderLighting).
-    /// </summary>
-    /// <param name="target">The HDR frame buffer to blend into (typically
-    /// <see cref="ForwardRenderTexture"/>'s frame buffer).</param>
-    public void RenderVolumetricLight(GPUFrameBuffer target)
-    {
-        if (_volumetricLightMaterial == null || !VolumetricLightEnabled)
-        {
-            return;
-        }
+    // ── Internal surface consumed by the graph nodes (Deferred/Nodes) ──
 
-        long vlStart = Stopwatch.GetTimestamp();
-
-        // The lighting data buffer was already uploaded by RenderLighting, which
-        // contains the vlParams the VL shader needs. No re-upload necessary.
-        bool recordGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
-        if (recordGpu)
-        {
-            _volumetricLightContext.Begin(target, ReadOnlySpan<ClearColorData>.Empty,
-                _gpuTimestamps!.QuerySet, VolumetricLightQueryBase, VolumetricLightQueryBase + 1);
-        }
-        else
-        {
-            _volumetricLightContext.Begin(target);
-        }
-        _volumetricLightContext.Draw(_fullScreenMesh, _volumetricLightMaterial);
-        if (recordGpu)
-        {
-            _volumetricLightContext.ResolveTimestampsOnEnd(
-                _gpuTimestamps!.QuerySet, VolumetricLightQueryBase, 2, _gpuTimestamps.ResolveBuffer);
-        }
-        _volumetricLightContext.End();
-
-        _profiler.PushValue(_volumetricLightCounter,
-            TicksToMilliseconds(Stopwatch.GetTimestamp() - vlStart));
-    }
+    internal RenderingSystem Rendering => _rendering;
+    internal GPUDevice Device => _device;
+    internal Mesh FullScreenMesh => _fullScreenMesh;
+    internal CameraPerspectiveBuffer? Camera => _camera;
+    internal List<IRenderNode> PassNodes => _passNodes;
+    internal List<IRenderPlugin> Plugins => _plugins;
+    internal GraphicsMaterial LightingMaterial => _lightingMaterial;
+    internal GraphicsMaterial? VolumetricLightMaterial => _volumetricLightMaterial;
+    internal RenderContext ShadowPassContext => _shadowContext;
+    internal RenderContext GBufferPassContext => _gbufferContext;
+    internal RenderContext LightingPassContext => _lightingContext;
+    internal RenderContext VolumetricLightPassContext => _volumetricLightContext;
+    internal GpuTimestampSampler? GpuTimestamps => _gpuTimestamps;
+    internal RenderProfileCounterId ShadowCounter => _shadowCounter;
+    internal RenderProfileCounterId GBufferCounter => _gbufferCounter;
+    internal RenderProfileCounterId LightingCounter => _lightingCounter;
+    internal RenderProfileCounterId VolumetricLightCounter => _volumetricLightCounter;
+    internal GraphicsValueBuffer<DeferredLightingData> LightingDataBufferTyped => _lightingDataBuffer;
+    internal DeferredLightingData CurrentLightingData => _lightingData;
+    internal Matrix4x4[] CascadeViewProjections => _cascadeViewProjections;
+    internal RenderGraph Graph => _graph;
+    internal GPUAttachmentLayout PostProcessLayout => _postProcessLayout;
+    internal RenderGraphTexture GBufferResource => _gbufferResource;
+    internal RenderGraphTexture ShadowMapResource => _shadowMapResource;
+    internal RenderGraphTexture SceneColorResource => _sceneColorResource;
+    internal PostChainState PostChain => _postChain;
+    internal bool FrameDestinationNull => _frameDestinationNull;
+    internal RenderGraphTexture? AoImport => _aoImport;
+    internal RenderGraphTexture? GiDiffuseImport => _giDiffuseImport;
+    internal RenderGraphTexture? GiSpecularImport => _giSpecularImport;
+    internal bool HasUnknownPlugins => _hasUnknownPlugins;
+    internal bool HasAfterGBufferCallback => AfterGBufferCallback != null;
+    internal void InvokeAfterGBufferCallback() => AfterGBufferCallback?.Invoke();
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
@@ -1262,7 +1216,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             }
             _plugins.Clear();
             _passNodes.Clear();
-            _chain.Dispose();
+            // Disposes every registered node (fixed nodes, chain adapters — which
+            // dispose their source nodes — and the blit node), the transient
+            // facades and the texture pool.
+            _graph.Dispose();
             _shadowContext.Dispose();
             _gbufferContext.Dispose();
             _lightingContext.Dispose();
@@ -1272,13 +1229,10 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _pointLightBuffer.Dispose();
             _lightingMaterial.Dispose();
             _volumetricLightMaterial?.Dispose();
-            _gbufferRT.Dispose();
-            _shadowRT.Dispose();
-            _forwardRT.Dispose();
-            _depthCopyCommand.Dispose();
             _gbufferLayout.Dispose();
             _shadowLayout.Dispose();
             _forwardLayout.Dispose();
+            _postProcessLayout.Dispose();
             _gpuTimestamps?.Dispose();
         }
     }

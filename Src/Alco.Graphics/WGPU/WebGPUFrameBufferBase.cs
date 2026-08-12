@@ -1,4 +1,6 @@
 using WebGPU;
+using static WebGPU.WebGPU;
+using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.WebGPU;
 
@@ -41,5 +43,54 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
             1,
             $"{Name}_depth_texture"
         );
+    }
+
+    // bakes the pre-filled native render pass attachments shared by the frame buffer implementations,
+    // the returned native memory is owned by the caller and must be freed manually
+    protected static unsafe WGPURenderPassColorAttachment* AllocColorAttachments(
+        ReadOnlySpan<GPUTextureView> colorViews,
+        ReadOnlySpan<WGPUColorAttachmentInfo> colorInfos)
+    {
+        WGPURenderPassColorAttachment* colorAttachments = Alloc<WGPURenderPassColorAttachment>(colorViews.Length);
+        for (int i = 0; i < colorViews.Length; i++)
+        {
+            colorAttachments[i] = new WGPURenderPassColorAttachment
+            {
+                view = ((WebGPUTextureViewBase)colorViews[i]).Native,
+                loadOp = WGPULoadOp.Load,
+                storeOp = WGPUStoreOp.Store,
+                clearValue = colorInfos[i].clearColor,
+                depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+            };
+        }
+        return colorAttachments;
+    }
+
+    protected static unsafe WGPURenderPassDepthStencilAttachment* AllocDepthAttachment(
+        GPUTextureView depthStencilView,
+        in WGPUDepthAttachmentInfo depthInfo)
+    {
+        WGPURenderPassDepthStencilAttachment* depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
+        *depthAttachment = new WGPURenderPassDepthStencilAttachment
+        {
+            view = ((WebGPUTextureViewBase)depthStencilView).Native,
+            depthLoadOp = WGPULoadOp.Load,
+            depthStoreOp = WGPUStoreOp.Store,
+            depthClearValue = depthInfo.clearDepth,
+            stencilLoadOp = WGPULoadOp.Load,
+            stencilStoreOp = WGPUStoreOp.Store,
+            stencilClearValue = depthInfo.clearStencil,
+        };
+        return depthAttachment;
+    }
+
+    protected static WGPUTextureFormat[] GetNativeColorFormats(WebGPUAttachmentLayout attachmentLayout)
+    {
+        WGPUTextureFormat[] colors = new WGPUTextureFormat[attachmentLayout.WebGPUColorInfos.Length];
+        for (int i = 0; i < colors.Length; i++)
+        {
+            colors[i] = attachmentLayout.WebGPUColorInfos[i].format;
+        }
+        return colors;
     }
 }

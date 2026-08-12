@@ -1,22 +1,27 @@
 using System.Runtime.CompilerServices;
 using WebGPU;
-using static WebGPU.WebGPU;
 using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.WebGPU;
 
-internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
+/// <summary>
+/// The frame buffer composed of externally owned textures and views.
+/// The textures and views are not disposed with the frame buffer; the caller owns their lifetime.
+/// </summary>
+internal unsafe sealed class WebGPUExternalFrameBuffer : WebGPUFrameBufferBase
 {
     #region Properties
     private readonly uint _width;
     private readonly uint _height;
 
-    private readonly WebGPUTexture[] _colorTextures;
-    private readonly WebGPUTextureView[] _colorViews;
-    private readonly WebGPUTexture? _depthStencilTexture;
-    private readonly WebGPUTextureView? _depthStencilView;
-    private readonly WebGPUTextureView? _depthView;
-    private readonly WebGPUTextureView? _stencilView;
+    // externally owned resources, never disposed by this frame buffer
+    private readonly GPUTexture[] _colorTextures;
+    private readonly GPUTextureView[] _colorViews;
+    private readonly GPUTexture? _depthStencilTexture;
+    private readonly GPUTextureView? _depthStencilView;
+    private readonly GPUTextureView? _depthView;
+    private readonly GPUTextureView? _stencilView;
+
     private readonly WebGPUAttachmentLayout _attachmentLayout;
     private readonly WGPURenderPassDescriptor _descriptor;
     // native memory, need to be manually released
@@ -88,26 +93,7 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            foreach (var view in _colorViews)
-            {
-                view.Dispose();
-            }
-
-            _depthStencilView?.Dispose();
-            _depthView?.Dispose();
-            _stencilView?.Dispose();
-
-            foreach (var texture in _colorTextures)
-            {
-                texture.Dispose();
-            }
-
-            _depthStencilTexture?.Dispose();
-        }
-
-
+        // the externally owned textures and views are not disposed here
         Free(_colorAttachments);
         if (_depthAttachment != null)
         {
@@ -136,59 +122,36 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
         get => _depth;
     }
 
-    internal WebGPUFrameBuffer(WebGPUDevice device, in FrameBufferDescriptor descriptor): base(descriptor)
+    internal WebGPUExternalFrameBuffer(WebGPUDevice device, in ExternalFrameBufferDescriptor descriptor)
+        : base(new FrameBufferDescriptor(descriptor.AttachmentLayout, descriptor.Width, descriptor.Height, descriptor.Name))
     {
         Device = device;
         WebGPUAttachmentLayout attachmentLayout = (WebGPUAttachmentLayout)descriptor.AttachmentLayout;
-        uint width = descriptor.Width;
-        uint height = descriptor.Height;
 
         _attachmentLayout = attachmentLayout;
 
-        _width = width;
-        _height = height;
+        _width = descriptor.Width;
+        _height = descriptor.Height;
 
-        _colorTextures = new WebGPUTexture[attachmentLayout.Colors.Length];
-        _colorViews = new WebGPUTextureView[attachmentLayout.Colors.Length];
+        _colorTextures = descriptor.Colors;
+        _colorViews = descriptor.ColorViews;
+        _depthStencilTexture = descriptor.DepthStencil;
+        _depthStencilView = descriptor.DepthStencilView;
+        _depthView = descriptor.DepthView;
+        _stencilView = descriptor.StencilView;
+
+        _colorAttachments = AllocColorAttachments(descriptor.ColorViews, attachmentLayout.WebGPUColorInfos);
         _descriptor = new WGPURenderPassDescriptor
         {
-            colorAttachmentCount = (uint)attachmentLayout.Colors.Length,
+            colorAttachmentCount = (uint)descriptor.ColorViews.Length,
+            colorAttachments = _colorAttachments,
         };
-
-        for (int i = 0; i < attachmentLayout.WebGPUColorInfos.Length; i++)
-        {
-            WGPUColorAttachmentInfo colorInfo = attachmentLayout.WebGPUColorInfos[i];
-            _colorTextures[i] = new WebGPUTexture(
-                device,
-                BuildColorTextureDescriptor(colorInfo.format, width, height)
-                );
-
-            _colorViews[i] = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_colorTextures[i]));
-        }
-
-        _colorAttachments = AllocColorAttachments(_colorViews, attachmentLayout.WebGPUColorInfos);
 
         if (attachmentLayout.WebGPUDepthInfo.HasValue)
         {
-            WGPUDepthAttachmentInfo depthInfo = attachmentLayout.WebGPUDepthInfo.Value;
-
-            _depthStencilTexture = new WebGPUTexture(
-                device,
-                BuildDepthTextureDescriptor(depthInfo.format, width, height)
-                );
-
-            _depthStencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.None));
-            _depthView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            if(PixelFormatUtility.HasStencil(_depthStencilTexture.PixelFormat))
-            {
-                _stencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
-            }
-
-            _depthAttachment = AllocDepthAttachment(_depthStencilView, depthInfo);
+            _depthAttachment = AllocDepthAttachment(descriptor.DepthStencilView!, attachmentLayout.WebGPUDepthInfo.Value);
+            _descriptor.depthStencilAttachment = _depthAttachment;
         }
-
-        _descriptor.colorAttachments = _colorAttachments;
-        _descriptor.depthStencilAttachment = _depthAttachment;
 
         _colors = GetNativeColorFormats(attachmentLayout);
 
