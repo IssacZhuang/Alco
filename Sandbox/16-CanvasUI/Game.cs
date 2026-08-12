@@ -79,10 +79,13 @@ public class Game : GameEngine
             MainView.Size.Y);
 
         // The node chain: scene content first, then tone mapping.
-        _mainPipeline.Use(new SceneNode(this));
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
-        var tonemapNode = new RenderNode_Tonemap(
+        var tonemapNode = new TonemapNode(
             RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -808,16 +811,16 @@ public class Game : GameEngine
     /// <summary>
     /// Content node updating and drawing the canvas UI into the pipeline-assigned target.
     /// </summary>
-    private sealed class SceneNode : IForwardRenderNode
+    private sealed class SceneNode : SceneContentNode
     {
         private readonly Game _game;
 
-        public SceneNode(Game game)
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
         {
             _game = game;
         }
 
-        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             _game._canvas.Update(target, _game._delta);
         }

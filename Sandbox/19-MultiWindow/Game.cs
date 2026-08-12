@@ -23,18 +23,18 @@ public class Game : GameEngine
     private readonly SpriteRenderer _renderer;
 
     //hdr
-    private readonly RenderNode_Tonemap _tonemapNode1;
-    private readonly RenderNode_Tonemap _tonemapNode2;
+    private readonly TonemapNode _tonemapNode1;
+    private readonly TonemapNode _tonemapNode2;
 
     //bloom
-    private readonly RenderNode_Bloom _bloomNode1;
-    private readonly RenderNode_Bloom _bloomNode2;
+    private readonly BloomNode _bloomNode1;
+    private readonly BloomNode _bloomNode2;
 
 
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
-        _mainPipeline.Use(new SceneNode(this));
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _shader = BuiltInAssets.Shader_Sprite;
@@ -51,7 +51,7 @@ public class Game : GameEngine
 
         _presenter2 = CreateViewPresenter(_window2);
         _pipeline2 = new ForwardPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, _window2.Size.X, _window2.Size.Y);
-        _pipeline2.Use(new SceneNode(this));
+        _pipeline2.Use(new SceneNode(this, _pipeline2.Graph, _pipeline2.Chain));
         _presenter2.OnResize += size => _pipeline2.Resize(size.X, size.Y);
 
         _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);
@@ -66,7 +66,7 @@ public class Game : GameEngine
         MainView.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
 
-        _bloomNode1 = new RenderNode_Bloom(RenderingSystem, RenderingSystem.CreateBloom(
+        _bloomNode1 = new BloomNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
             BuiltInAssets.Shader_BloomClamp,
             BuiltInAssets.Shader_BloomDownSample,
@@ -74,7 +74,7 @@ public class Game : GameEngine
             11), BuiltInAssets.Shader_Blit);
         _mainPipeline.Use(_bloomNode1);
 
-        _bloomNode2 = new RenderNode_Bloom(RenderingSystem, RenderingSystem.CreateBloom(
+        _bloomNode2 = new BloomNode(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout, RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
             BuiltInAssets.Shader_BloomClamp,
             BuiltInAssets.Shader_BloomDownSample,
@@ -82,7 +82,7 @@ public class Game : GameEngine
             11), BuiltInAssets.Shader_Blit);
         _pipeline2.Use(_bloomNode2);
 
-        _tonemapNode1 = new RenderNode_Tonemap(RenderingSystem,
+        _tonemapNode1 = new TonemapNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -92,7 +92,7 @@ public class Game : GameEngine
             BuiltInAssets.Shader_AgXTonemap);
         _mainPipeline.Use(_tonemapNode1);
 
-        _tonemapNode2 = new RenderNode_Tonemap(RenderingSystem,
+        _tonemapNode2 = new TonemapNode(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -145,16 +145,16 @@ public class Game : GameEngine
         return new Vector2(x, y);
     }
 
-    private sealed class SceneNode : IForwardRenderNode
+    private sealed class SceneNode : SceneContentNode
     {
         private readonly Game _game;
 
-        public SceneNode(Game game)
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
         {
             _game = game;
         }
 
-        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             _game._renderContext.Begin(target);
             _game._renderer.Draw(_game.RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));

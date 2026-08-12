@@ -83,6 +83,15 @@ public sealed class RenderGraph : AutoDisposable
     /// <summary>The current viewport height in pixels.</summary>
     public uint Height => _height;
 
+    /// <summary>
+    /// Whether the frame currently being executed has a final destination (e.g. the
+    /// swapchain). Set at the start of <see cref="Execute"/>, before any node's
+    /// <see cref="IRenderGraphNode.Setup"/> runs, so nodes can read it from
+    /// <see cref="IRenderNode.IsEnabled"/> and <see cref="IRenderGraphNode.Setup"/>
+    /// to implement headless-frame behavior (e.g. a final blit disabling itself).
+    /// </summary>
+    public bool HasDestinationThisFrame { get; private set; } = true;
+
     /// <summary>The number of textures materialized in the pool (diagnostics).</summary>
     public int PooledTextureCount => _pool.TotalCount;
 
@@ -120,6 +129,29 @@ public sealed class RenderGraph : AutoDisposable
         }
         _nodes.Insert(index, node);
         _records.Insert(index, new RenderGraphNodeRecord(node));
+    }
+
+    /// <summary>
+    /// Registers a node immediately after <paramref name="anchor"/>. The graph takes
+    /// ownership and disposes the node (when <see cref="System.IDisposable"/>) with
+    /// itself.
+    /// </summary>
+    /// <param name="anchor">The registered node after which <paramref name="node"/> is inserted.</param>
+    /// <param name="node">The node to register.</param>
+    /// <exception cref="InvalidOperationException">The anchor node is not registered in this graph.</exception>
+    public void InsertAfter(IRenderGraphNode anchor, IRenderGraphNode node)
+    {
+        ArgumentNullException.ThrowIfNull(anchor);
+        ArgumentNullException.ThrowIfNull(node);
+        ThrowIfInFrame();
+        int index = _nodes.IndexOf(anchor);
+        if (index < 0)
+        {
+            throw new InvalidOperationException(
+                $"The anchor node '{anchor.GetType().Name}' is not registered in this render graph.");
+        }
+        _nodes.Insert(index + 1, node);
+        _records.Insert(index + 1, new RenderGraphNodeRecord(node));
     }
 
     /// <summary>
@@ -231,7 +263,7 @@ public sealed class RenderGraph : AutoDisposable
     /// the resource last held — they become idle and are reused by other transients.
     /// </summary>
     /// <param name="resource">The transient resource to destroy.</param>
-    internal void DestroyTransient(RenderGraphTexture resource)
+    public void DestroyTransient(RenderGraphTexture resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
         ThrowIfInFrame();
@@ -254,6 +286,7 @@ public sealed class RenderGraph : AutoDisposable
     {
         ThrowIfInFrame();
         _inFrame = true;
+        HasDestinationThisFrame = destination != null;
         try
         {
             // Setup: capture this frame's declarations in registration order.

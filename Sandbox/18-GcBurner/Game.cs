@@ -53,8 +53,11 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        var tonemapNode = new RenderNode_Tonemap(
+        var tonemapNode = new TonemapNode(
             RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,

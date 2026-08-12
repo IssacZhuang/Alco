@@ -1,9 +1,8 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// A node of a <see cref="RenderGraph"/> — the unit the graph schedules. Unlike the
-/// pipeline-pass interfaces (<see cref="IGBufferRenderNode"/> etc., which are invoked
-/// inside an owning pass), a graph node declares its own resource dependencies:
+/// A node of a <see cref="RenderGraph"/> — the unit the graph schedules. A graph node
+/// declares its own resource dependencies:
 /// <list type="bullet">
 /// <item><see cref="Setup"/> runs every frame, in registration order, before any
 /// <see cref="Execute"/>. It declares which <see cref="RenderGraphTexture"/> resources

@@ -5,10 +5,10 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Content processor node that applies procedural color grading to the input. Falls back
+/// Chain transform node that applies procedural color grading to the input. Falls back
 /// to a plain copy while the parameters are at identity.
 /// </summary>
-public sealed class RenderNode_ColorGrading : AutoDisposable, IContentProcessorNode
+public sealed class ColorGradingNode : ChainTransformNode
 {
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
@@ -17,9 +17,6 @@ public sealed class RenderNode_ColorGrading : AutoDisposable, IContentProcessorN
     private readonly GraphicsBuffer _dataBuffer;
 
     private ColorGradingData _data;
-
-    /// <inheritdoc />
-    public bool IsEnabled { get; set; } = true;
 
     /// <summary>
     /// The color grading parameters. Updating this property immediately uploads to the GPU.
@@ -44,9 +41,15 @@ public sealed class RenderNode_ColorGrading : AutoDisposable, IContentProcessorN
     /// Creates the node. The shaders stay owned by the caller.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
+    /// <param name="graph">The graph the node is (or will be) registered in.</param>
+    /// <param name="chain">The content chain the node reads and advances.</param>
+    /// <param name="outputLayout">The attachment layout of the node's output transient
+    /// (color-only, in the chain's content format).</param>
     /// <param name="gradingShader">The color grading shader.</param>
     /// <param name="blitShader">The shader used for the plain copy at identity parameters.</param>
-    public RenderNode_ColorGrading(RenderingSystem rendering, Shader gradingShader, Shader blitShader)
+    public ColorGradingNode(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+        GPUAttachmentLayout outputLayout, Shader gradingShader, Shader blitShader)
+        : base(graph, chain, outputLayout, name: "color_grading")
     {
         _renderContext = rendering.CreateRenderContext();
         _fullScreenMesh = rendering.MeshFullScreen;
@@ -61,11 +64,11 @@ public sealed class RenderNode_ColorGrading : AutoDisposable, IContentProcessorN
     }
 
     /// <inheritdoc />
-    public void OnRenderForward(RenderTexture input, RenderTexture target)
+    protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
     {
         Material material = _data.IsIdentity ? _blitMaterial : _gradingMaterial;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
-        _renderContext.Begin(target.FrameBuffer);
+        _renderContext.Begin(output.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, material);
         _renderContext.End();
     }
@@ -80,5 +83,6 @@ public sealed class RenderNode_ColorGrading : AutoDisposable, IContentProcessorN
             _dataBuffer.Dispose();
             _renderContext.Dispose();
         }
+        base.Dispose(disposing);
     }
 }

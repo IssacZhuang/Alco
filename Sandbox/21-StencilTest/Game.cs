@@ -42,7 +42,7 @@ public class Game : GameEngine
         _mainPipeline.ClearColor = new ColorFloat(0.2f, 0.2f, 0.2f, 1);
 
         // The node chain: scene content first, then bloom, then tone mapping.
-        _mainPipeline.Use(new SceneNode(this));
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
         Bloom bloom = RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
@@ -50,10 +50,13 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        _mainPipeline.Use(new RenderNode_Bloom(RenderingSystem, bloom, BuiltInAssets.Shader_Blit));
+        _mainPipeline.Use(new BloomNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit));
 
-        _mainPipeline.Use(new RenderNode_Tonemap(
+        _mainPipeline.Use(new TonemapNode(
             RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -150,16 +153,16 @@ public class Game : GameEngine
     /// <summary>
     /// Content node drawing the stencil test cubes into the pipeline-assigned target.
     /// </summary>
-    private sealed class SceneNode : IForwardRenderNode
+    private sealed class SceneNode : SceneContentNode
     {
         private readonly Game _game;
 
-        public SceneNode(Game game)
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
         {
             _game = game;
         }
 
-        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             _game._renderer.Begin(target);
             _game._renderer.SetStencilReference(250);

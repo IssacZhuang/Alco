@@ -10,11 +10,12 @@ namespace Alco.Rendering;
 /// horizon rays in a compute pass (HBAO.hlsl) and filters the noisy result with a
 /// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blur pass writes the
 /// filtered AO to a full-resolution texture (<see cref="AOResult"/>),
-/// which the pipeline binds to the deferred lighting material's _aoTexture slot.
-/// <br/>Registered via <see cref="PBRDeferredPipeline.Use"/> the renderer
-/// is a direct <see cref="IRenderGraphNode"/> in the pipeline's render graph
-/// (see <see cref="Initialize"/>): the AO result is a graph-owned transient and
-/// the raw intermediate is pooled/aliased by the graph.
+/// which the deferred lighting material samples through its _aoTexture slot.
+/// <br/>Attach the renderer to a pipeline via <see cref="Attach"/>: it creates its
+/// graph transient resources, registers itself as a direct
+/// <see cref="IRenderGraphNode"/> before the pipeline's lighting node and wires its
+/// output to <see cref="DeferredLightingNode.AoInput"/> — all through the pipeline's
+/// public composition surface. The raw intermediate is pooled/aliased by the graph.
 /// </summary>
 public sealed class HbaoRenderer : AutoDisposable, IRenderGraphNode
 {
@@ -140,31 +141,69 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Initialize the renderer as a direct <see cref="IRenderGraphNode"/> in the
-    /// pipeline's render graph (called by <see cref="PBRDeferredPipeline.Use"/>):
-    /// stores the pipeline, adopts <paramref name="aoResult"/> (a pipeline-created
-    /// transient) as the AO output and creates the private transient raw-AO
-    /// intermediate. The constructor-created standalone textures are released and the
-    /// materials are rebound once here — the facades keep their object identity from
-    /// then on. After initialization the graph drives execution and resize.
+    /// Attaches the renderer to a pipeline as a direct <see cref="IRenderGraphNode"/>
+    /// in the pipeline's render graph: creates the transient AO result and raw-AO
+    /// intermediate, registers itself immediately before the pipeline's lighting
+    /// node, and wires the result to <see cref="DeferredLightingNode.AoInput"/> and
+    /// the lighting material's _aoTexture slot. The constructor-created standalone
+    /// textures are released and the materials are rebound once here — the facades
+    /// keep their object identity from then on. After attachment the graph drives
+    /// execution and resize.
     /// </summary>
-    /// <param name="pipeline">The owning pipeline (camera, G-buffer and graph access).</param>
-    /// <param name="aoResult">The transient resource receiving the filtered AO result.</param>
-    internal void Initialize(PBRDeferredPipeline pipeline, RenderGraphTexture aoResult)
+    /// <param name="pipeline">The pipeline to attach to (camera, G-buffer and graph
+    /// access through its public composition surface).</param>
+    /// <exception cref="InvalidOperationException">The renderer is already attached.</exception>
+    public void Attach(PBRDeferredPipeline pipeline)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
-        ArgumentNullException.ThrowIfNull(aoResult);
+        if (_pipeline != null)
+        {
+            throw new InvalidOperationException("The HBAO renderer is already attached to a pipeline (call Detach first).");
+        }
         _pipeline = pipeline;
+        RenderGraph graph = pipeline.Graph;
         _rawAO.Dispose();
         _aoResult.Dispose();
-        _aoResource = aoResult;
-        _rawAOResource = pipeline.Graph.CreateTransient(new RenderGraphTextureDescriptor(
+        _aoResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
+            _rendering.PreferredLightMapPass, name: "hbao_ao"));
+        _rawAOResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, name: "hbao_raw"));
         _rawAO = _rawAOResource.Texture;
-        _aoResult = aoResult.Texture;
+        _aoResult = _aoResource.Texture;
         _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
         _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
+        graph.InsertBefore(pipeline.LightingNode, this);
+        pipeline.LightingNode.AoInput = _aoResource;
+        pipeline.LightingNode.Material.SetRenderTexture("_aoTexture", _aoResult);
+    }
+
+    /// <summary>
+    /// Detaches the renderer from the pipeline: unregisters it from the graph,
+    /// destroys its transient resources and restores the lighting material's
+    /// _aoTexture fallback. The renderer can be re-attached afterwards.
+    /// </summary>
+    public void Detach()
+    {
+        if (_pipeline == null)
+        {
+            return;
+        }
+        RenderGraph graph = _pipeline.Graph;
+        graph.Remove(this);
+        if (_rawAOResource != null)
+        {
+            graph.DestroyTransient(_rawAOResource);
+            _rawAOResource = null;
+        }
+        if (_aoResource != null)
+        {
+            graph.DestroyTransient(_aoResource);
+            _aoResource = null;
+        }
+        _pipeline.LightingNode.AoInput = null;
+        _pipeline.LightingNode.Material.SetTexture("_aoTexture", _rendering.TextureWhite);
+        _pipeline = null;
     }
 
     /// <inheritdoc />
@@ -194,9 +233,6 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderGraphNode
         Matrix4x4.Invert(camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
         RenderTexture gbuffer = _pipeline.GBufferResource.Texture;
         ExecuteCore(camera.Data.ProjectionMatrix, invViewProjection, camera.Transform, gbuffer, _pipeline.Profiler);
-        // Bind the output facade to the lighting material at the end of every
-        // execution (the pipeline maintains the white fallback on unregistration).
-        _pipeline.BindAoOutput(_aoResult);
     }
 
     // Shared body of the execute path: assembles the per-frame constants, records

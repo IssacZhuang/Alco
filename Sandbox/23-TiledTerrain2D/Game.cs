@@ -69,19 +69,22 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        _mainPipeline.Use(new SceneNode(this));
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         AddSystem(new ImGUISystem(this));
 
-        var fxaaNode = new RenderNode_FXAA(RenderingSystem.CreateFXAA(
+        var fxaaNode = new FxaaNode(MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, RenderingSystem.CreateFXAA(
             BuiltInAssets.Shader_FXAA,
             BuiltInAssets.Shader_Blit));
         MainPipeline.Use(fxaaNode);
 
-        var tonemapNode = new RenderNode_Tonemap(
+        var tonemapNode = new TonemapNode(
             RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -276,7 +279,7 @@ public class Game : GameEngine
             }
         }
 
-        if (MainPipeline.Get<RenderNode_FXAA>() is { } fxaaNode)
+        if (MainPipeline.Get<FxaaNode>() is { } fxaaNode)
         {
             bool isFXAAEnabled = fxaaNode.IsEnabled;
             if (ImGui.Checkbox("FXAA", ref isFXAAEnabled))
@@ -387,16 +390,16 @@ public class Game : GameEngine
         return new TileSet(items.ToArray());
     }
 
-    private sealed class SceneNode : IForwardRenderNode
+    private sealed class SceneNode : SceneContentNode
     {
         private readonly Game _game;
 
-        public SceneNode(Game game)
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
         {
             _game = game;
         }
 
-        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             _game._renderer.Begin(target);
             _game._surfaceBlock.Render();

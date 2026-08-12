@@ -8,6 +8,9 @@ namespace Alco.Rendering.Test;
 /// End-to-end tests of <see cref="PBRDeferredPipeline"/> driven by the NoGPU backend:
 /// node dispatch order and counts, feature gating (shadow / headless destination),
 /// facade identity and version stability, resize and the no-camera guard.
+/// The fake nodes use only the public composition API: pass content lists
+/// (<see cref="GeometryPassNode.Content"/> / <see cref="ShadowPassNode.Content"/>) and
+/// chain nodes (<see cref="SceneContentNode"/> / <see cref="ChainTransformNode"/>).
 /// </summary>
 [TestFixture]
 public sealed class TestPBRDeferredPipeline
@@ -83,7 +86,7 @@ float4 MainPS(V2F input) : SV_TARGET
 }
 ";
 
-    private sealed class FakeShadowNode : IShadowRenderNode
+    private sealed class FakeShadowContent : IShadowPassContent
     {
         public bool IsEnabled { get; set; } = true;
         public List<string> Log = new();
@@ -93,41 +96,53 @@ float4 MainPS(V2F input) : SV_TARGET
         }
     }
 
-    private sealed class FakeGBufferNode : IGBufferRenderNode
+    private sealed class FakeGBufferContent : IRenderPassContent
     {
         public bool IsEnabled { get; set; } = true;
         public List<string> Log = new();
-        public void OnRenderGBuffer(RenderContext context, GPUAttachmentLayout layout)
+        public void OnRender(RenderContext context, GPUAttachmentLayout layout)
         {
             Log.Add("gbuffer");
         }
     }
 
-    private sealed class FakeForwardNode : IForwardRenderNode
+    private sealed class FakeForwardNode : SceneContentNode
     {
-        public bool IsEnabled { get; set; } = true;
         public int ResizeCount;
         public List<string> Log = new();
-        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+
+        public FakeForwardNode(PBRDeferredPipeline pipeline)
+            : base(pipeline.Graph, pipeline.PostChain)
+        {
+        }
+
+        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             Log.Add("forward");
         }
-        public void Resize(uint width, uint height)
+
+        public override void Resize(uint width, uint height)
         {
             ResizeCount++;
         }
     }
 
-    private sealed class FakeProcessorNode : IContentProcessorNode
+    private sealed class FakeProcessorNode : ChainTransformNode
     {
-        public bool IsEnabled { get; set; } = true;
         public int ResizeCount;
         public List<string> Log = new();
-        public void OnRenderForward(RenderTexture input, RenderTexture target)
+
+        public FakeProcessorNode(PBRDeferredPipeline pipeline)
+            : base(pipeline.Graph, pipeline.PostChain, pipeline.PostProcessLayout, name: "fake_processor")
+        {
+        }
+
+        protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
         {
             Log.Add("processor");
         }
-        public void Resize(uint width, uint height)
+
+        public override void Resize(uint width, uint height)
         {
             ResizeCount++;
         }
@@ -181,12 +196,12 @@ float4 MainPS(V2F input) : SV_TARGET
         using PBRDeferredPipeline pipeline = CreatePipeline();
         using RenderTexture destination = CreateDestination();
         var log = new List<string>(8);
-        var shadow = new FakeShadowNode { Log = log };
-        var gbuffer = new FakeGBufferNode { Log = log };
-        var forward = new FakeForwardNode { Log = log };
-        var processor = new FakeProcessorNode { Log = log };
-        pipeline.Use(shadow);
-        pipeline.Use(gbuffer);
+        var shadow = new FakeShadowContent { Log = log };
+        var gbuffer = new FakeGBufferContent { Log = log };
+        var forward = new FakeForwardNode(pipeline) { Log = log };
+        var processor = new FakeProcessorNode(pipeline) { Log = log };
+        pipeline.ShadowPass.Content.Add(shadow);
+        pipeline.GBufferPass.Content.Add(gbuffer);
         pipeline.Use(forward);
         pipeline.Use(processor);
         pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
@@ -209,12 +224,12 @@ float4 MainPS(V2F input) : SV_TARGET
         using RenderTexture destination = CreateDestination();
         pipeline.ShadowEnabled = false;
         var log = new List<string>(8);
-        var shadow = new FakeShadowNode { Log = log };
-        var gbuffer = new FakeGBufferNode { Log = log };
-        var forward = new FakeForwardNode { Log = log };
-        var processor = new FakeProcessorNode { Log = log };
-        pipeline.Use(shadow);
-        pipeline.Use(gbuffer);
+        var shadow = new FakeShadowContent { Log = log };
+        var gbuffer = new FakeGBufferContent { Log = log };
+        var forward = new FakeForwardNode(pipeline) { Log = log };
+        var processor = new FakeProcessorNode(pipeline) { Log = log };
+        pipeline.ShadowPass.Content.Add(shadow);
+        pipeline.GBufferPass.Content.Add(gbuffer);
         pipeline.Use(forward);
         pipeline.Use(processor);
         pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
@@ -224,17 +239,17 @@ float4 MainPS(V2F input) : SV_TARGET
         Assert.That(log, Is.EqualTo(new[] { "gbuffer", "forward", "processor" }));
     }
 
-    [Test(Description = "A null destination (headless view) skips processors but still runs forward content nodes")]
+    [Test(Description = "A null destination (headless view) skips chain transforms but still runs content nodes")]
     public void NullDestinationSkipsProcessorsButKeepsContent()
     {
         using PBRDeferredPipeline pipeline = CreatePipeline();
         var log = new List<string>(8);
-        var shadow = new FakeShadowNode { Log = log };
-        var gbuffer = new FakeGBufferNode { Log = log };
-        var forward = new FakeForwardNode { Log = log };
-        var processor = new FakeProcessorNode { Log = log };
-        pipeline.Use(shadow);
-        pipeline.Use(gbuffer);
+        var shadow = new FakeShadowContent { Log = log };
+        var gbuffer = new FakeGBufferContent { Log = log };
+        var forward = new FakeForwardNode(pipeline) { Log = log };
+        var processor = new FakeProcessorNode(pipeline) { Log = log };
+        pipeline.ShadowPass.Content.Add(shadow);
+        pipeline.GBufferPass.Content.Add(gbuffer);
         pipeline.Use(forward);
         pipeline.Use(processor);
         pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));
@@ -278,8 +293,8 @@ float4 MainPS(V2F input) : SV_TARGET
     {
         using PBRDeferredPipeline pipeline = CreatePipeline();
         using RenderTexture destination = CreateDestination();
-        var forward = new FakeForwardNode();
-        var processor = new FakeProcessorNode();
+        var forward = new FakeForwardNode(pipeline);
+        var processor = new FakeProcessorNode(pipeline);
         pipeline.Use(forward);
         pipeline.Use(processor);
         pipeline.SetCamera(_rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f));

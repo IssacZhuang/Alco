@@ -38,15 +38,16 @@ public interface IGBufferRenderable
 }
 
 /// <summary>
-/// A G-buffer render node of the deferred PBR pipeline. Holds the G-buffer
+/// A G-buffer content provider of the deferred PBR pipeline. Holds the G-buffer
 /// shaders, material factory methods and a registry of <see cref="IGBufferRenderable"/>
 /// objects. Static objects are baked into an internal render bundle; dynamic objects
-/// are drawn immediately each frame. The pipeline calls <see cref="OnRenderGBuffer"/>
-/// automatically between <c>BeginGBufferPass</c> and <c>EndGBufferPass</c>.
+/// are drawn immediately each frame. The owning <see cref="GeometryPassNode"/> calls
+/// <see cref="OnRender"/> automatically inside its open G-buffer pass (register via
+/// <see cref="GeometryPassNode.Content"/>).
 /// <br/>The renderer does <b>not</b> own the G-buffer render texture, attachment layout
-/// or render context — those are owned by <see cref="PBRDeferredPipeline"/>.
+/// or render context — those are owned by the pass node.
 /// </summary>
-public sealed unsafe class GBufferRenderer : AutoDisposable, IGBufferRenderNode
+public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
 {
     /// <inheritdoc />
     public bool IsEnabled { get; set; } = true;
@@ -161,16 +162,16 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IGBufferRenderNode
         _staticBundleDirty = true;
     }
 
-    // ── Pipeline callback ──
+    // ── Pass content callback ──
 
     /// <summary>
-    /// Draw all registered renderables into the G-buffer. Called by the pipeline
-    /// automatically between <c>BeginGBufferPass</c> and <c>EndGBufferPass</c>.
+    /// Draw all registered renderables into the G-buffer. Called by the owning
+    /// <see cref="GeometryPassNode"/> inside its open pass.
     /// Re-records the static bundle when dirty, replays it, then draws dynamic items.
     /// </summary>
     /// <param name="context">The live G-buffer render context.</param>
     /// <param name="layout">The G-buffer attachment layout (for bundle recording).</param>
-    public void OnRenderGBuffer(RenderContext context, GPUAttachmentLayout layout)
+    public void OnRender(RenderContext context, GPUAttachmentLayout layout)
     {
         _bundleLayout = layout;
 

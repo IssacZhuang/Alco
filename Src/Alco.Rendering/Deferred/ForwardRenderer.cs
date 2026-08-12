@@ -41,14 +41,14 @@ public interface IForwardRenderable
 }
 
 /// <summary>
-/// A forward render node drawing the transparency pass of the deferred PBR
+/// A scene content node drawing the transparency pass of the deferred PBR
 /// pipeline. Holds the glass shader, material factory methods and a registry of
 /// <see cref="IForwardRenderable"/> objects. Static objects are baked into an
 /// internal render bundle; dynamic objects are drawn immediately each frame.
 /// The node owns its render pass: it begins and ends its own context on the
-/// target assigned by the pipeline's forward chain.
+/// chain's current target.
 /// </summary>
-public sealed unsafe class ForwardRenderer : AutoDisposable, IForwardRenderNode
+public sealed unsafe class ForwardRenderer : SceneContentNode
 {
     /// <summary>
     /// Push constant payload for a forward glass draw. Layout must match the
@@ -106,16 +106,21 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, IForwardRenderNode
     /// Create the forward renderer with the glass shader and shared pipeline resources.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
+    /// <param name="graph">The render graph the node is registered in.</param>
+    /// <param name="chain">The pipeline's content chain (the node draws into its current target).</param>
     /// <param name="glassShader">The ForwardGlass.hlsl shader.</param>
     /// <param name="lightingDataBuffer">The deferred lighting data buffer (shared with the pipeline).</param>
     /// <param name="pointLightBuffer">The point light buffer (shared with the pipeline).</param>
     /// <param name="shadowRT">The shadow map render texture (for shadow comparison sampling).</param>
     public ForwardRenderer(
         RenderingSystem rendering,
+        RenderGraph graph,
+        RenderChain chain,
         Shader glassShader,
         GraphicsBuffer lightingDataBuffer,
         GraphicsBuffer pointLightBuffer,
         RenderTexture shadowRT)
+        : base(graph, chain)
     {
         _rendering = rendering;
         _glassShader = glassShader;
@@ -166,7 +171,7 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, IForwardRenderNode
 
     /// <summary>
     /// Mark the static render bundle as dirty so it is re-recorded on the next
-    /// <see cref="OnRenderForward"/>. Call after changing a static item's mesh,
+    /// <see cref="OnRender"/>. Call after changing a static item's mesh,
     /// material or other bundle-recorded property.
     /// </summary>
     public void MarkStaticBundleDirty()
@@ -179,15 +184,12 @@ public sealed unsafe class ForwardRenderer : AutoDisposable, IForwardRenderNode
     /// <summary>Whether any renderable is registered (static or dynamic).</summary>
     public bool HasContent => _staticItems.Count > 0 || _dynamicItems.Count > 0;
 
-    /// <inheritdoc />
-    public bool IsEnabled { get; set; } = true;
-
     /// <summary>
-    /// Draw all registered renderables onto <paramref name="target"/> (the pipeline's
-    /// forward RT after deferred lighting, pre-filled with the G-buffer depth).
-    /// Called by the pipeline's forward chain automatically.
+    /// Draw all registered renderables onto <paramref name="target"/> (the chain's
+    /// current target after deferred lighting, pre-filled with the scene depth).
+    /// Called by the graph automatically.
     /// </summary>
-    public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+    protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
     {
         if (_staticItems.Count == 0 && _dynamicItems.Count == 0)
         {

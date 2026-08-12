@@ -4,18 +4,15 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Content processor node that adds a bloom glow: the input is first copied into the
-/// target, then the bloom pyramid is composited additively on top.
+/// Chain transform node that adds a bloom glow: the input is first copied into the
+/// output, then the bloom pyramid is composited additively on top.
 /// </summary>
-public sealed class RenderNode_Bloom : AutoDisposable, IContentProcessorNode
+public sealed class BloomNode : ChainTransformNode
 {
     private readonly Bloom _bloom;
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _blitMaterial;
-
-    /// <inheritdoc />
-    public bool IsEnabled { get; set; } = true;
 
     /// <summary>
     /// Only pixels above this brightness contribute to the bloom effect.
@@ -57,7 +54,16 @@ public sealed class RenderNode_Bloom : AutoDisposable, IContentProcessorNode
     /// Creates the node wrapping the bloom effect. The node takes ownership of
     /// <paramref name="bloom"/>; <paramref name="blitShader"/> stays owned by the caller.
     /// </summary>
-    public RenderNode_Bloom(RenderingSystem rendering, Bloom bloom, Shader blitShader)
+    /// <param name="rendering">The rendering system.</param>
+    /// <param name="graph">The graph the node is (or will be) registered in.</param>
+    /// <param name="chain">The content chain the node reads and advances.</param>
+    /// <param name="outputLayout">The attachment layout of the node's output transient
+    /// (color-only, in the chain's content format).</param>
+    /// <param name="bloom">The bloom effect implementation.</param>
+    /// <param name="blitShader">The shader used for the plain copy of the input.</param>
+    public BloomNode(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+        GPUAttachmentLayout outputLayout, Bloom bloom, Shader blitShader)
+        : base(graph, chain, outputLayout, name: "bloom")
     {
         _bloom = bloom;
         _renderContext = rendering.CreateRenderContext();
@@ -66,18 +72,18 @@ public sealed class RenderNode_Bloom : AutoDisposable, IContentProcessorNode
     }
 
     /// <inheritdoc />
-    public void OnRenderForward(RenderTexture input, RenderTexture target)
+    protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
     {
         // Setting the same texture is a no-op; an in-place resize of the input is
         // picked up by the material system's version check.
         _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, input);
 
-        // The bloom blit is additive: the target must already hold the scene image.
-        _renderContext.Begin(target.FrameBuffer);
+        // The bloom blit is additive: the output must already hold the scene image.
+        _renderContext.Begin(output.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, _blitMaterial);
         _renderContext.End();
 
-        _bloom.Blit(input, target.FrameBuffer);
+        _bloom.Blit(input, output.FrameBuffer);
     }
 
     /// <inheritdoc />
@@ -89,5 +95,6 @@ public sealed class RenderNode_Bloom : AutoDisposable, IContentProcessorNode
             _blitMaterial.Dispose();
             _renderContext.Dispose();
         }
+        base.Dispose(disposing);
     }
 }

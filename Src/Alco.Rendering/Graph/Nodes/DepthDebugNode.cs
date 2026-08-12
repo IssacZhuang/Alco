@@ -5,11 +5,11 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Content processor node that visualizes the pipeline's scene depth buffer as grayscale,
+/// Chain transform node that visualizes the pipeline's scene depth buffer as grayscale,
 /// replacing the final image. Debug tooling only. Samples the scene texture's depth
 /// (not the chain input), so it works from any position in the chain.
 /// </summary>
-public sealed class RenderNode_DepthDebug : AutoDisposable, IContentProcessorNode
+public sealed class DepthDebugNode : ChainTransformNode
 {
     private struct Data
     {
@@ -17,8 +17,6 @@ public sealed class RenderNode_DepthDebug : AutoDisposable, IContentProcessorNod
         public Vector2 DynamicRange;
     }
 
-    private readonly RenderingSystem _rendering;
-    private readonly ForwardPipeline _pipeline;
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Shader _blitDepthShader;
@@ -26,14 +24,9 @@ public sealed class RenderNode_DepthDebug : AutoDisposable, IContentProcessorNod
     private readonly Material _materialBlitToDestination;
     private readonly Material _materialFallback;
     private readonly GraphicsValueBuffer<Data> _dataBuffer;
-
-    // The depth texture cannot be a depth attachment and a sampled source in the same
-    // pass, so the depth visualization goes through a temporary texture.
-    private RenderTexture _tmpTexture;
-    private RenderTexture? _boundScene;
-
-    /// <inheritdoc />
-    public bool IsEnabled { get; set; } = true;
+    private readonly RenderGraphTexture _sceneResource;
+    private readonly RenderGraphTexture _tmpResource;
+    private readonly RenderGraph _graph;
 
     /// <summary>
     /// The dynamic range for depth normalization. X maps to black, Y maps to white.
@@ -48,16 +41,18 @@ public sealed class RenderNode_DepthDebug : AutoDisposable, IContentProcessorNod
     /// <param name="blitDepthShaderText">The source text of the depth blit shader.</param>
     /// <param name="blitDepthShaderName">The name of the depth blit shader.</param>
     /// <param name="blitShader">The plain blit shader. Stays owned by the caller.</param>
-    /// <param name="width">The initial width in pixels.</param>
-    /// <param name="height">The initial height in pixels.</param>
-    public RenderNode_DepthDebug(RenderingSystem rendering, ForwardPipeline pipeline, string blitDepthShaderText, string blitDepthShaderName, Shader blitShader, uint width, uint height)
+    public DepthDebugNode(RenderingSystem rendering, ForwardPipeline pipeline, string blitDepthShaderText, string blitDepthShaderName, Shader blitShader)
+        : base(pipeline.Graph, pipeline.Chain, pipeline.PostProcessLayout, name: "depth_debug")
     {
-        _rendering = rendering;
-        _pipeline = pipeline;
+        _graph = pipeline.Graph;
         _renderContext = rendering.CreateRenderContext("blit_depth_buffer");
         _fullScreenMesh = rendering.MeshFullScreen;
+        _sceneResource = pipeline.SceneColorResource;
 
-        _tmpTexture = CreateTmpTexture(width, height);
+        // The depth texture cannot be a depth attachment and a sampled source in the
+        // same pass, so the depth visualization goes through a temporary texture.
+        _tmpResource = pipeline.Graph.CreateTransient(new RenderGraphTextureDescriptor(
+            rendering.PreferredSDRPassWithoutDepth, name: "depth_debug_tmp"));
 
         _dataBuffer = rendering.CreateGraphicsValueBuffer<Data>();
 
@@ -97,63 +92,48 @@ public sealed class RenderNode_DepthDebug : AutoDisposable, IContentProcessorNod
         _materialBlitToTmp.SetBuffer(ShaderResourceId.Data, _dataBuffer);
 
         _materialBlitToDestination = blitShader.CreateMaterial("material_blit_to_destination");
-        _materialBlitToDestination.SetRenderTexture(ShaderResourceId.Texture, _tmpTexture);
+        _materialBlitToDestination.SetRenderTexture(ShaderResourceId.Texture, _tmpResource.Texture);
 
         _materialFallback = blitShader.CreateMaterial("material_blit_depth_fallback");
     }
 
     /// <inheritdoc />
-    public void OnRenderForward(RenderTexture input, RenderTexture target)
+    public override void Setup(RenderGraphBuilder builder)
     {
-        RenderTexture scene = _pipeline.SceneTexture;
+        base.Setup(builder);
+        // The scene depth is sampled regardless of the chain's current position.
+        builder.Read(_sceneResource);
+        builder.Write(_tmpResource);
+    }
+
+    /// <inheritdoc />
+    protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
+    {
+        RenderTexture scene = _sceneResource.Texture;
         if (!scene.HasDepth)
         {
             _materialFallback.SetRenderTexture(ShaderResourceId.Texture, input);
-            _renderContext.Begin(target.FrameBuffer);
+            _renderContext.Begin(output.FrameBuffer);
             _renderContext.Draw(_fullScreenMesh, _materialFallback);
             _renderContext.End();
             return;
         }
 
-        if (!ReferenceEquals(_boundScene, scene))
-        {
-            _materialBlitToTmp.SetRenderTextureDepth(ShaderResourceId.Texture, scene);
-            _boundScene = scene;
-        }
+        // The scene facade identity is stable: the depth binding is refreshed by the
+        // material system's version check after a resize.
+        _materialBlitToTmp.SetRenderTextureDepth(ShaderResourceId.Texture, scene);
 
         _dataBuffer.Value.CanvasSize = new Vector2(scene.Width, scene.Height);
         _dataBuffer.Value.DynamicRange = DynamicRange;
         _dataBuffer.UpdateBuffer();
 
-        _renderContext.Begin(_tmpTexture.FrameBuffer);
+        _renderContext.Begin(_tmpResource.Texture.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, _materialBlitToTmp);
         _renderContext.End();
 
-        _renderContext.Begin(target.FrameBuffer);
+        _renderContext.Begin(output.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, _materialBlitToDestination);
         _renderContext.End();
-    }
-
-    /// <inheritdoc />
-    public void Resize(uint width, uint height)
-    {
-        if (_tmpTexture.Width == width && _tmpTexture.Height == height)
-        {
-            return;
-        }
-
-        _tmpTexture.Dispose();
-        _tmpTexture = CreateTmpTexture(width, height);
-        _materialBlitToDestination.SetRenderTexture(ShaderResourceId.Texture, _tmpTexture);
-    }
-
-    private RenderTexture CreateTmpTexture(uint width, uint height)
-    {
-        return _rendering.CreateRenderTexture(
-            _rendering.PreferredSDRPassWithoutDepth,
-            width,
-            height,
-            "tmp_depth_texture");
     }
 
     /// <inheritdoc />
@@ -161,13 +141,17 @@ public sealed class RenderNode_DepthDebug : AutoDisposable, IContentProcessorNod
     {
         if (disposing)
         {
-            _tmpTexture.Dispose();
             _dataBuffer.Dispose();
             _materialBlitToTmp.Dispose();
             _materialBlitToDestination.Dispose();
             _materialFallback.Dispose();
             _blitDepthShader.Dispose();
             _renderContext.Dispose();
+            if (!_graph.IsDisposed)
+            {
+                _graph.DestroyTransient(_tmpResource);
+            }
         }
+        base.Dispose(disposing);
     }
 }

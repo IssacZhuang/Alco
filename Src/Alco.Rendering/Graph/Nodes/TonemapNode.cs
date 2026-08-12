@@ -5,11 +5,11 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Content processor node that resolves the HDR input into its target with a tone mapping
+/// Chain transform node that resolves the HDR input into its output with a tone mapping
 /// operator. Supports switching between operators at runtime; the
 /// <see cref="TonemapType.Linear"/> operator is a plain copy (no tone mapping).
 /// </summary>
-public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
+public sealed class TonemapNode : ChainTransformNode
 {
     private readonly RenderingSystem _rendering;
     private readonly RenderContext _renderContext;
@@ -32,9 +32,6 @@ public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
     private ACESTonemapData _acesData = ACESTonemapData.Default;
     private NeutralTonemapData _neutralData = NeutralTonemapData.Default;
     private AgXTonemapData _agxData = AgXTonemapData.Default;
-
-    /// <inheritdoc />
-    public bool IsEnabled { get; set; } = true;
 
     /// <summary>
     /// The active tone mapping operator. Switching recreates the internal material and
@@ -155,10 +152,17 @@ public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
     /// caller; the node creates its materials and buffers lazily per operator.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
+    /// <param name="graph">The graph the node is (or will be) registered in.</param>
+    /// <param name="chain">The content chain the node reads and advances.</param>
+    /// <param name="outputLayout">The attachment layout of the node's output transient
+    /// (color-only, in the chain's content format).</param>
     /// <param name="blitShader">The shader used for the plain copy of the
     /// <see cref="TonemapType.Linear"/> operator.</param>
-    public RenderNode_Tonemap(
+    public TonemapNode(
         RenderingSystem rendering,
+        RenderGraph graph,
+        RenderChain chain,
+        GPUAttachmentLayout outputLayout,
         Shader blitShader,
         Shader reinhardShader,
         Shader uncharted2Shader,
@@ -166,6 +170,7 @@ public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
         Shader acesShader,
         Shader neutralShader,
         Shader agxShader)
+        : base(graph, chain, outputLayout, name: "tonemap")
     {
         _rendering = rendering;
         _renderContext = rendering.CreateRenderContext();
@@ -183,11 +188,11 @@ public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
     }
 
     /// <inheritdoc />
-    public void OnRenderForward(RenderTexture input, RenderTexture target)
+    protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
     {
         Material material = _operator == TonemapType.Linear || _material == null ? _blitMaterial : _material;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
-        _renderContext.Begin(target.FrameBuffer);
+        _renderContext.Begin(output.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, material);
         _renderContext.End();
     }
@@ -226,7 +231,7 @@ public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
                 _dataBuffer!.UpdateBuffer(_agxData);
                 break;
             case TonemapType.Linear:
-                // No resources: OnRenderForward falls back to a plain blit.
+                // No resources: OnProcess falls back to a plain blit.
                 break;
         }
     }
@@ -248,5 +253,6 @@ public sealed class RenderNode_Tonemap : AutoDisposable, IContentProcessorNode
             _blitMaterial.Dispose();
             _renderContext.Dispose();
         }
+        base.Dispose(disposing);
     }
 }

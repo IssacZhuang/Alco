@@ -29,8 +29,8 @@ public class Game : GameEngine
     private ColorFloat _color = new ColorFloat(4, 2, 2, 1);
     private bool _enabled = true;
 
-    private readonly RenderNode_Bloom _bloomNode;
-    private readonly RenderNode_Tonemap _tonemapNode;
+    private readonly BloomNode _bloomNode;
+    private readonly TonemapNode _tonemapNode;
     private TonemapType _toneMapType;
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -43,7 +43,7 @@ public class Game : GameEngine
             MainView.Size.Y);
 
         // The node chain: scene content first, then bloom, then tone mapping.
-        _mainPipeline.Use(new SceneNode(this));
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
         Bloom bloom = RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
@@ -51,11 +51,14 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        _bloomNode = new RenderNode_Bloom(RenderingSystem, bloom, BuiltInAssets.Shader_Blit);
+        _bloomNode = new BloomNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit);
         _mainPipeline.Use(_bloomNode);
 
-        _tonemapNode = new RenderNode_Tonemap(
+        _tonemapNode = new TonemapNode(
             RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -230,16 +233,16 @@ public class Game : GameEngine
     /// <summary>
     /// Content node drawing the HDR sprite into the pipeline-assigned target.
     /// </summary>
-    private sealed class SceneNode : IForwardRenderNode
+    private sealed class SceneNode : SceneContentNode
     {
         private readonly Game _game;
 
-        public SceneNode(Game game)
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
         {
             _game = game;
         }
 
-        public void OnRenderForward(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             Vector2 normalizedMousePosition = _game.Input.MousePosition / new Vector2(1280, 720);
             Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
