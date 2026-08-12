@@ -9,21 +9,19 @@ namespace Alco.Rendering;
 /// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
 /// horizon rays in a compute pass (HBAO.hlsl) and filters the noisy result with a
 /// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blur pass writes the
-/// filtered AO to a standalone full-resolution texture (<see cref="AOResult"/>),
+/// filtered AO to a full-resolution texture (<see cref="AOResult"/>),
 /// which the pipeline binds to the deferred lighting material's _aoTexture slot.
-/// <br/>Registered via <see cref="PBRDeferredPipeline.RegisterPlugin"/> the renderer
-/// attaches to the pipeline's render graph as a direct <see cref="IRenderGraphNode"/>
-/// (see <see cref="AttachGraph"/>): the AO result becomes a graph-owned transient and
-/// the raw intermediate is pooled/aliased by the graph. Standalone use through
-/// <see cref="IRenderPlugin.Execute"/> remains available while unattached.
+/// <br/>Registered via <see cref="PBRDeferredPipeline.Use"/> the renderer
+/// is a direct <see cref="IRenderGraphNode"/> in the pipeline's render graph
+/// (see <see cref="Initialize"/>): the AO result is a graph-owned transient and
+/// the raw intermediate is pooled/aliased by the graph.
 /// </summary>
-public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNode
+public sealed class HbaoRenderer : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Per-frame HBAO data uploaded to both compute passes. Layout must match the
     /// <c>_data</c> cbuffer in HBAOCommon.hlsli exactly. Assembled internally by
-    /// the renderer from <see cref="RenderPluginContext"/> and user-tunable
-    /// properties.
+    /// the renderer from camera data and user-tunable properties.
     /// </summary>
     private struct HbaoData
     {
@@ -63,13 +61,12 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNo
     private RenderTexture _aoResult;
     private RenderTexture? _boundGBuffer;
 
-    // Graph attachment state (AttachGraph). While attached, _rawAO/_aoResult are
-    // graph-owned facades of the transient resources below (not disposed here and
-    // not resized by Resize), and the graph drives execution.
+    // Graph-owned transient resources. _rawAO/_aoResult are facades of the
+    // transients below; they are not disposed here and are rematerialized by
+    // the graph on resize.
     private PBRDeferredPipeline? _pipeline;
     private RenderGraphTexture? _rawAOResource;
     private RenderGraphTexture? _aoResource;
-    private bool _graphAttached;
 
     // Profiler counter handles — lazily registered on first Execute call.
     private RenderProfileCounterId _hbaoCounter;
@@ -108,12 +105,6 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNo
     /// <summary>The full-resolution AO result texture (r = occlusion [0,1], white = unoccluded).</summary>
     public RenderTexture AOResult => _aoResult;
 
-    /// <inheritdoc />
-    public string Name => "HBAO+";
-
-    /// <inheritdoc />
-    public RenderInjectionPoint InjectionPoint => RenderInjectionPoint.AfterGBuffer;
-
     /// <summary>
     /// Create the HBAO+ renderer with the given compute shaders.
     /// </summary>
@@ -149,34 +140,23 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNo
     }
 
     /// <summary>
-    /// Attaches the renderer to a pipeline's render graph as a direct
-    /// <see cref="IRenderGraphNode"/> (called by <see cref="PBRDeferredPipeline.RegisterPlugin"/>):
+    /// Initialize the renderer as a direct <see cref="IRenderGraphNode"/> in the
+    /// pipeline's render graph (called by <see cref="PBRDeferredPipeline.Use"/>):
     /// stores the pipeline, adopts <paramref name="aoResult"/> (a pipeline-created
     /// transient) as the AO output and creates the private transient raw-AO
     /// intermediate. The constructor-created standalone textures are released and the
     /// materials are rebound once here — the facades keep their object identity from
-    /// then on. After attachment the graph drives execution and resize; calling
-    /// <see cref="IRenderPlugin.Execute"/> directly is no longer valid.
+    /// then on. After initialization the graph drives execution and resize.
     /// </summary>
     /// <param name="pipeline">The owning pipeline (camera, G-buffer and graph access).</param>
     /// <param name="aoResult">The transient resource receiving the filtered AO result.</param>
-    public void AttachGraph(PBRDeferredPipeline pipeline, RenderGraphTexture aoResult)
+    internal void Initialize(PBRDeferredPipeline pipeline, RenderGraphTexture aoResult)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
         ArgumentNullException.ThrowIfNull(aoResult);
         _pipeline = pipeline;
-        if (!_graphAttached)
-        {
-            _rawAO.Dispose();
-            _aoResult.Dispose();
-            _graphAttached = true;
-        }
-        else if (_rawAOResource != null)
-        {
-            // Re-attachment: tombstone the previous private transient (its facade is
-            // replaced below) so it frees its pooled textures.
-            pipeline.Graph.DestroyTransient(_rawAOResource);
-        }
+        _rawAO.Dispose();
+        _aoResult.Dispose();
         _aoResource = aoResult;
         _rawAOResource = pipeline.Graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, name: "hbao_raw"));
@@ -187,73 +167,26 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNo
         _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
     }
 
-    /// <summary>Whether the renderer is attached to a pipeline's render graph.</summary>
-    internal bool IsGraphAttached => _graphAttached;
-
-    /// <summary>
-    /// Drops the renderer's private graph resources (called by
-    /// <see cref="PBRDeferredPipeline.UnregisterPlugin"/> after the node was removed
-    /// from the graph). The renderer stays attached — a later <see cref="AttachGraph"/>
-    /// recreates them.
-    /// </summary>
-    internal void DetachGraph()
-    {
-        if (_pipeline != null && _rawAOResource != null)
-        {
-            _pipeline.Graph.DestroyTransient(_rawAOResource);
-            _rawAOResource = null;
-        }
-        _aoResource = null;
-    }
-
     /// <inheritdoc />
     public void Resize(uint width, uint height)
     {
-        if (!_graphAttached)
-        {
-            // Standalone path — in-place resize: the materials keep referencing the
-            // same wrappers, the bind groups are rebuilt automatically through the
-            // render texture version check. When attached, the graph rematerializes
-            // the transient textures (their facades rebind through the same version
-            // check), so only the G-buffer rebind below is needed.
-            _rawAO.Resize(width, height);
-            _aoResult.Resize(width, height);
-        }
+        // The output textures are graph-owned transients, rematerialized by the
+        // graph's own resize. Only the G-buffer rebind cache needs resetting.
         _boundGBuffer = null;
-    }
-
-    /// <inheritdoc />
-    public void Execute(RenderPluginContext context)
-    {
-        if (_graphAttached)
-        {
-            throw new InvalidOperationException(
-                "This HbaoRenderer is attached to a render graph; the graph drives its execution.");
-        }
-        ExecuteCore(context.ProjectionMatrix, context.InvViewProjection, context.CameraTransform, context.GBuffer, context.Profiler);
-        context.AOResult = _aoResult;
     }
 
     /// <inheritdoc />
     public void Setup(RenderGraphBuilder builder)
     {
-        if (!_graphAttached || _pipeline == null || _rawAOResource == null || _aoResource == null)
-        {
-            return;
-        }
-        builder.Read(_pipeline.GBufferResource);
-        builder.Write(_rawAOResource);
-        builder.Write(_aoResource);
+        builder.Read(_pipeline!.GBufferResource);
+        builder.Write(_rawAOResource!);
+        builder.Write(_aoResource!);
     }
 
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        if (!_graphAttached || _pipeline == null || _aoResource == null)
-        {
-            throw new InvalidOperationException("HbaoRenderer is not attached to a render graph (call AttachGraph first).");
-        }
-        CameraPerspectiveBuffer? camera = _pipeline.Camera;
+        CameraPerspectiveBuffer? camera = _pipeline!.Camera;
         if (camera == null)
         {
             throw new InvalidOperationException("HBAO requires a camera (call SetCamera first).");
@@ -266,10 +199,8 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNo
         _pipeline.BindAoOutput(_aoResult);
     }
 
-    // Shared body of both execution paths: assembles the per-frame constants, records
-    // the AO and blur dispatches and schedules the command buffer. ScheduleCommandBuffer
-    // joins the graph's deferred submission batch while recording inside the graph and
-    // submits immediately otherwise (standalone use).
+    // Shared body of the execute path: assembles the per-frame constants, records
+    // the AO and blur dispatches and schedules the command buffer.
     private void ExecuteCore(
         in Matrix4x4 projectionMatrix,
         in Matrix4x4 invViewProjection,
@@ -363,12 +294,7 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNo
     {
         if (disposing)
         {
-            if (!_graphAttached)
-            {
-                // Attached textures are graph-owned facades, disposed with the graph.
-                _rawAO.Dispose();
-                _aoResult.Dispose();
-            }
+            // Output textures are graph-owned facades, disposed with the graph.
             _dataBuffer.Dispose();
             _gpuTimestamps?.Dispose();
             _commandBuffer.Dispose();

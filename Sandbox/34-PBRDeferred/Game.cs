@@ -420,7 +420,7 @@ public class Game : GameEngine
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"),
                 (uint)MainView.Size.X, (uint)MainView.Size.Y);
-            _pipeline.RegisterPlugin(_hbaoRenderer);
+            _pipeline.Use(_hbaoRenderer);
         }
 
         // Forward transparency renderer for glass materials (after deferred lighting).
@@ -539,7 +539,7 @@ public class Game : GameEngine
             _voxelGI.DebugView = giDebugView;
             _voxelGI.SsrOnly = args.Contains("--ssr-only");
             RegisterVoxelMeshes();
-            _pipeline.RegisterPlugin(_voxelGI);
+            _pipeline.Use(_voxelGI);
 
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
@@ -1286,7 +1286,7 @@ public class Game : GameEngine
 
     /// <summary>
     /// Sync HBAO user-tunable parameters (camera data is read automatically
-    /// from RenderPluginContext).
+    /// from the pipeline).
     /// </summary>
     private void SyncHbaoParams()
     {

@@ -167,13 +167,12 @@ public readonly struct VoxelGiShaders
 /// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
 /// cone-traced with hardware trilinear filtering.
 /// </summary>
-public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGraphNode
+public sealed class VoxelGiRenderer : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Per-frame data uploaded to every voxel GI shader. Layout must match the
     /// <c>_data</c> cbuffer in VoxelCommon.hlsli exactly. Assembled internally by
-    /// the renderer from <see cref="RenderPluginContext"/> and user-tunable
-    /// properties.
+    /// the renderer from pipeline data and user-tunable properties.
     /// </summary>
     private struct VoxelGiData
     {
@@ -433,13 +432,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
     private RenderTexture? _boundShadowMap;
     private GraphicsBuffer? _boundPointLightBuffer;
 
-    // Graph attachment state (AttachGraph). While attached, _giDiffuseFullRes and
-    // _giSpecularFullRes are graph-owned facades of the transient resources below
-    // (not disposed here, not recreated by Resize), and the graph drives execution.
+    // Graph-owned transient resources. _giDiffuseFullRes and _giSpecularFullRes are
+    // facades of the transients below (not disposed here, not recreated by Resize).
     private PBRDeferredPipeline? _pipeline;
     private RenderGraphTexture? _giDiffuseResource;
     private RenderGraphTexture? _giSpecularResource;
-    private bool _graphAttached;
 
     private const int LevelCount = 4;
     private const int BrickSize = 8;
@@ -636,12 +633,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
     /// </summary>
     public RenderTexture SpecularTexture => _giSpecularFullRes;
 
-    /// <inheritdoc />
-    public string Name => "VoxelGI";
-
-    /// <inheritdoc />
-    public RenderInjectionPoint InjectionPoint => RenderInjectionPoint.AfterGBuffer;
-
     /// <summary>
     /// Create the voxel GI renderer.
     /// </summary>
@@ -801,34 +792,26 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
     }
 
     /// <summary>
-    /// Attaches the renderer to a pipeline's render graph as a direct
-    /// <see cref="IRenderGraphNode"/> (called by <see cref="PBRDeferredPipeline.RegisterPlugin"/>):
+    /// Initialize the renderer as a direct <see cref="IRenderGraphNode"/> in the
+    /// pipeline's render graph (called by <see cref="PBRDeferredPipeline.Use"/>):
     /// stores the pipeline and adopts the pipeline-created transient outputs. The
     /// constructor-created standalone full-resolution outputs are released and the
     /// upsample material is rebound once here — the facades keep their object identity
     /// from then on, and the graph rematerializes them on resize. The trace and
     /// temporal-history textures stay persistent (cross-frame feedback never enters
-    /// the graph). After attachment the graph drives execution; calling
-    /// <see cref="IRenderPlugin.Execute"/> directly is no longer valid.
+    /// the graph).
     /// </summary>
     /// <param name="pipeline">The owning pipeline (camera, G-buffer/shadow resources and lighting data).</param>
     /// <param name="giDiffuse">The transient resource receiving the full-resolution diffuse irradiance.</param>
     /// <param name="giSpecular">The transient resource receiving the full-resolution specular radiance.</param>
-    public void AttachGraph(PBRDeferredPipeline pipeline, RenderGraphTexture giDiffuse, RenderGraphTexture giSpecular)
+    internal void Initialize(PBRDeferredPipeline pipeline, RenderGraphTexture giDiffuse, RenderGraphTexture giSpecular)
     {
         ArgumentNullException.ThrowIfNull(pipeline);
         ArgumentNullException.ThrowIfNull(giDiffuse);
         ArgumentNullException.ThrowIfNull(giSpecular);
         _pipeline = pipeline;
-        if (!_graphAttached)
-        {
-            _giDiffuseFullRes.Dispose();
-            _giSpecularFullRes.Dispose();
-            _graphAttached = true;
-        }
-        // On re-attachment the pipeline has already tombstoned the previous output
-        // transients; simply swap the handles and rebind (the old facades were
-        // graph-owned and are never disposed here).
+        _giDiffuseFullRes.Dispose();
+        _giSpecularFullRes.Dispose();
         _giDiffuseResource = giDiffuse;
         _giSpecularResource = giSpecular;
         _giDiffuseFullRes = giDiffuse.Texture;
@@ -838,21 +821,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
             _upsampleMaterial.SetRenderTexture("_giDiffuseOut", _giDiffuseFullRes);
             _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
         }
-    }
-
-    /// <summary>Whether the renderer is attached to a pipeline's render graph.</summary>
-    internal bool IsGraphAttached => _graphAttached;
-
-    /// <summary>
-    /// Drops the renderer's references to graph-owned output resources (called by
-    /// <see cref="PBRDeferredPipeline.UnregisterPlugin"/> after the node was removed
-    /// from the graph). The renderer stays attached — a later <see cref="AttachGraph"/>
-    /// recreates the bindings.
-    /// </summary>
-    internal void DetachGraph()
-    {
-        _giDiffuseResource = null;
-        _giSpecularResource = null;
     }
 
     private static void ValidateTraceResolutionScale(float scale)
@@ -1103,18 +1071,9 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
         _traceHistory = newTraceHistory;
         _historyGI[0] = newHistoryA;
         _historyGI[1] = newHistoryB;
-        if (!_graphAttached)
-        {
-            // Standalone path: recreate the full-resolution outputs. When attached
-            // they are graph transients, rematerialized by the graph's own resize
-            // (the facades rebind through the render texture version check).
-            _giDiffuseFullRes.Dispose();
-            _giSpecularFullRes.Dispose();
-            _giDiffuseFullRes = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_diffuse");
-            _giSpecularFullRes = _rendering.CreateRenderTexture(
-                _rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_specular");
-        }
+        // The full-resolution outputs are graph transients, rematerialized by the
+        // graph's own resize (the facades rebind through the render texture version
+        // check), so only internal textures are recreated here.
         _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
         _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
         _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[0], 0);
@@ -1123,11 +1082,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
         if (_upsampleMaterial != null)
         {
             _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
-            if (!_graphAttached)
-            {
-                _upsampleMaterial.SetRenderTexture("_giDiffuseOut", _giDiffuseFullRes);
-                _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
-            }
         }
         _historyReadIndex = 0;
         _historyValid = false;
@@ -1140,12 +1094,22 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
     /// from the G-buffer. Must be called after the G-buffer pass and before the
     /// lighting pass; dynamic instances are consumed (cleared) by the call.
     /// </summary>
-    /// <param name="context">The render plugin context providing G-buffer, shadow map,
-    /// lighting data, camera, and point-light buffer.</param>
-    public void Render(RenderPluginContext context)
+    /// <param name="context">The render graph context providing the frame delta time.</param>
+    private void Render(in RenderGraphContext context)
     {
-        RenderTexture gbuffer = context.GBuffer;
-        RenderTexture shadowMap = context.ShadowMap;
+        CameraPerspectiveBuffer? camera = _pipeline!.Camera;
+        if (camera == null)
+        {
+            throw new InvalidOperationException("VoxelGI requires a camera (call SetCamera first).");
+        }
+        Matrix4x4.Invert(camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
+        _pipeline.AssembleLightingData(invViewProjection);
+        Transform3D cameraTransform = camera.Transform;
+        RenderTexture gbuffer = _pipeline.GBufferResource.Texture;
+        RenderTexture shadowMap = _pipeline.ShadowMapResource.Texture;
+        PBRDeferredPipeline.DeferredLightingData lightingData = _pipeline.CurrentLightingData;
+        GraphicsBuffer? pointLightBuffer = _pipeline.PointLightBuffer;
+        float deltaTime = context.DeltaTime;
         long recordStart = Stopwatch.GetTimestamp();
         int staticBricksUpdated = 0;
         int dynamicBricksUpdated = 0;
@@ -1163,24 +1127,24 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
         // origins every frame while the content lagged shifted the whole
         // indirect field by whole bricks between refreshes (visible as
         // flicker while the camera moves).
-        _volumeUpdateElapsedSeconds += context.DeltaTime;
+        _volumeUpdateElapsedSeconds += deltaTime;
         bool updateVolume = !_volumeInitialized
             || VolumeRefreshRate <= 0.0f
             || _volumeUpdateElapsedSeconds >= 1.0f / VolumeRefreshRate;
         if (updateVolume)
         {
-            _clipmap.UpdateOrigins(context.CameraTransform.Position);
+            _clipmap.UpdateOrigins(cameraTransform.Position);
         }
 
         // ── Assemble the GPU constant buffer internally ──
         VoxelGiData data = new()
         {
-            InvViewProjection = context.InvViewProjection,
-            CameraPosition = new Vector4(context.CameraTransform.Position, 0.0f),
+            InvViewProjection = invViewProjection,
+            CameraPosition = new Vector4(cameraTransform.Position, 0.0f),
         };
 
         // Copy lighting/shadow/sky data from the pipeline context.
-        PBRDeferredPipeline.DeferredLightingData ld = context.LightingData;
+        PBRDeferredPipeline.DeferredLightingData ld = lightingData;
         data.SunViewProjection0 = ld.SunViewProjection0;
         data.SunViewProjection1 = ld.SunViewProjection1;
         data.SunViewProjection2 = ld.SunViewProjection2;
@@ -1199,11 +1163,11 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
             0.0f);
 
         // Bind the point-light buffer once (the buffer is stable across frames).
-        if (context.PointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, context.PointLightBuffer))
+        if (pointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, pointLightBuffer))
         {
-            _injectMaterial.SetBuffer(ShaderResourceId.PointLights, context.PointLightBuffer);
-            _traceMaterial.SetBuffer(ShaderResourceId.PointLights, context.PointLightBuffer);
-            _boundPointLightBuffer = context.PointLightBuffer;
+            _injectMaterial.SetBuffer(ShaderResourceId.PointLights, pointLightBuffer);
+            _traceMaterial.SetBuffer(ShaderResourceId.PointLights, pointLightBuffer);
+            _boundPointLightBuffer = pointLightBuffer;
         }
 
         // User-tunable GI parameters.
@@ -1761,51 +1725,20 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
     /// <inheritdoc />
     void IRenderGraphNode.Setup(RenderGraphBuilder builder)
     {
-        if (!_graphAttached || _pipeline == null || _giDiffuseResource == null || _giSpecularResource == null)
-        {
-            return;
-        }
-        builder.Read(_pipeline.GBufferResource);
+        builder.Read(_pipeline!.GBufferResource);
         if (_pipeline.ShadowEnabled)
         {
             builder.Read(_pipeline.ShadowMapResource);
         }
-        builder.Write(_giDiffuseResource);
-        builder.Write(_giSpecularResource);
+        builder.Write(_giDiffuseResource!);
+        builder.Write(_giSpecularResource!);
     }
 
     /// <inheritdoc />
     void IRenderGraphNode.Execute(in RenderGraphContext context)
     {
-        if (!_graphAttached || _pipeline == null || _giDiffuseResource == null || _giSpecularResource == null)
-        {
-            throw new InvalidOperationException("VoxelGiRenderer is not attached to a render graph (call AttachGraph first).");
-        }
-        CameraPerspectiveBuffer? camera = _pipeline.Camera;
-        if (camera == null)
-        {
-            throw new InvalidOperationException("VoxelGI requires a camera (call SetCamera first).");
-        }
-        Matrix4x4.Invert(camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
-        _pipeline.AssembleLightingData(invViewProjection);
-        RenderTexture gbuffer = _pipeline.GBufferResource.Texture;
-        RenderPluginContext pluginContext = new()
-        {
-            Rendering = _pipeline.Rendering,
-            GBuffer = gbuffer,
-            ShadowMap = _pipeline.ShadowMapResource.Texture,
-            InvViewProjection = invViewProjection,
-            ProjectionMatrix = camera.Data.ProjectionMatrix,
-            CameraTransform = camera.Transform,
-            Width = gbuffer.Width,
-            Height = gbuffer.Height,
-            LightingData = _pipeline.CurrentLightingData,
-            PointLightBuffer = _pipeline.PointLightBuffer,
-            DeltaTime = context.DeltaTime,
-            Profiler = _pipeline.Profiler,
-        };
-        Render(pluginContext);
-        _pipeline.BindGiOutput(_giDiffuseFullRes, _giSpecularFullRes);
+        Render(context);
+        _pipeline!.BindGiOutput(_giDiffuseFullRes, _giSpecularFullRes);
 
         // Lazily register profiler counters on the first Execute call.
         if (!_profilerCountersRegistered)
@@ -1826,36 +1759,6 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderPlugin, IRenderGrap
         for (int i = 0; i < GiStageCount; i++)
         {
             _pipeline.Profiler.PushValue(_giStageCounters[i], _stageGpuMilliseconds[i]);
-        }
-    }
-
-    /// <inheritdoc />
-    void IRenderPlugin.Execute(RenderPluginContext context)
-    {
-        Render(context);
-        context.GIDiffuse = _giDiffuseFullRes;
-        context.GISpecular = _giSpecularFullRes;
-
-        // Lazily register profiler counters on the first Execute call.
-        if (!_profilerCountersRegistered)
-        {
-            _giTotalCounter = context.Profiler.RegisterCounter("VoxelGI", "Total (CPU)");
-            _giGpuCounter = context.Profiler.RegisterCounter("VoxelGI", "GPU");
-            _giStageCounters[0] = context.Profiler.RegisterCounter("VoxelGI", "Voxelize");
-            _giStageCounters[1] = context.Profiler.RegisterCounter("VoxelGI", "Inject");
-            _giStageCounters[2] = context.Profiler.RegisterCounter("VoxelGI", "Inject MipChain");
-            _giStageCounters[3] = context.Profiler.RegisterCounter("VoxelGI", "Propagate");
-            _giStageCounters[4] = context.Profiler.RegisterCounter("VoxelGI", "Trace");
-            _giStageCounters[5] = context.Profiler.RegisterCounter("VoxelGI", "Demosaic");
-            _giStageCounters[6] = context.Profiler.RegisterCounter("VoxelGI", "Upsample");
-            _profilerCountersRegistered = true;
-        }
-
-        context.Profiler.PushValue(_giTotalCounter, Statistics.CpuRecordMilliseconds);
-        context.Profiler.PushValue(_giGpuCounter, Statistics.GpuMilliseconds);
-        for (int i = 0; i < GiStageCount; i++)
-        {
-            context.Profiler.PushValue(_giStageCounters[i], _stageGpuMilliseconds[i]);
         }
     }
 

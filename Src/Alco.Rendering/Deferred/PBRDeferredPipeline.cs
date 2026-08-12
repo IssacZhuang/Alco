@@ -37,10 +37,9 @@ namespace Alco.Rendering;
 /// while the camera-fitted cascades move.
 /// <br/>Cascade splits are computed by <see cref="ComputeShadowCascades"/> (PSSM,
 /// camera-fitted, texel-snapped).
-/// <br/>Pluggable effects (AO, GI, etc.) implementing <see cref="IRenderPlugin"/> can be
-/// registered via <see cref="RegisterPlugin"/>; they execute at their declared
-/// <see cref="RenderInjectionPoint"/> inside the graph's plugin adapter node and
-/// their output textures are bound to the lighting material automatically.
+/// <br/>Effects (HBAO, VoxelGI, SSR) are registered via <see cref="Use"/> as direct
+/// render graph nodes between the G-buffer pass and the lighting pass; their output
+/// textures are bound to the lighting material automatically.
 /// </summary>
 public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 {
@@ -168,7 +167,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly ShadowPassNode _shadowNode;
     private readonly GBufferPassNode _gbufferNode;
     private readonly CallbackNode _callbackNode;
-    private readonly PluginAdapterNode _pluginAdapterNode;
     private readonly LightingNode _lightingNode;
     private readonly VolumetricLightNode _volumetricLightNode;
     private readonly BlitNode _blitNode;
@@ -177,12 +175,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     // IContentProcessorNode), in registration order.
     private readonly List<IChainAdapterNode> _chainAdapters = new();
 
-    // Plugin output transients created by the graph (HBAO / VoxelGI full-resolution
-    // results), or null when the corresponding plugin is not registered.
+    // Output transients created by the graph (HBAO / VoxelGI full-resolution
+    // results), or null when the corresponding renderer is not registered.
     private RenderGraphTexture? _aoImport;
     private RenderGraphTexture? _giDiffuseImport;
     private RenderGraphTexture? _giSpecularImport;
-    private bool _hasUnknownPlugins;
 
     // Whether the current frame has no final destination; set at the start of
     // Render and read by the nodes' Setup.
@@ -201,11 +198,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
     private readonly GraphicsValueBuffer<ShadowCascadeData> _shadowDataBuffer;
     private readonly GraphicsArrayBuffer<PointLight> _pointLightBuffer;
-
-    // Pluggable render effects (AO, GI, etc.) executed between the G-buffer
-    // and lighting passes. The pipeline binds their output textures to the
-    // lighting material automatically after execution.
-    private readonly List<IRenderPlugin> _plugins = new();
 
     /// <summary>
     /// Called by <see cref="Render"/> after the G-buffer pass, before AfterGBuffer
@@ -418,137 +410,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public IRenderContext ShadowContext => _shadowContext;
 
     /// <summary>
-    /// Register a pluggable render effect. The pipeline executes the plugin at
-    /// its declared <see cref="RenderInjectionPoint"/> and binds the output
-    /// textures to the lighting material automatically. The caller owns the
-    /// plugin's lifetime (dispose it after disposing the pipeline or
-    /// unregistering it).
-    /// </summary>
-    /// <param name="plugin">The render plugin to register.</param>
-    public void RegisterPlugin(IRenderPlugin plugin)
-    {
-        _plugins.Add(plugin);
-        // Track whether any GI plugin is registered so the lighting shader can
-        // gate the GI code path. Known plugin types (HBAO, VoxelGI) are registered
-        // as direct graph nodes with transient outputs; unknown plugins stay on
-        // the PluginAdapterNode conservative path.
-        if (plugin is VoxelGiRenderer gi)
-        {
-            _giActive = true;
-            _giDiffuseImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-                _rendering.PreferredLightMapPass, name: "gi_diffuse"));
-            _giSpecularImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-                _rendering.PreferredLightMapPass, name: "gi_specular"));
-            gi.AttachGraph(this, _giDiffuseImport, _giSpecularImport);
-            _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)gi);
-        }
-        else if (plugin is HbaoRenderer hbao)
-        {
-            _aoImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-                _rendering.PreferredLightMapPass, name: "hbao_ao"));
-            hbao.AttachGraph(this, _aoImport);
-            _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)hbao);
-        }
-        else
-        {
-            _hasUnknownPlugins = true;
-        }
-    }
-
-    /// <summary>
-    /// Unregister a previously registered render plugin. The plugin's graph imports
-    /// are dropped from the pipeline (the inert entries stay registered on the
-    /// graph at zero cost — nothing declares them anymore).
-    /// </summary>
-    public void UnregisterPlugin(IRenderPlugin plugin)
-    {
-        _plugins.Remove(plugin);
-        if (plugin is VoxelGiRenderer giRemoved)
-        {
-            if (giRemoved.IsGraphAttached)
-            {
-                _graph.Remove((IRenderGraphNode)giRemoved);
-                giRemoved.DetachGraph();
-                if (_giDiffuseImport != null)
-                {
-                    _graph.DestroyTransient(_giDiffuseImport);
-                }
-                if (_giSpecularImport != null)
-                {
-                    _graph.DestroyTransient(_giSpecularImport);
-                }
-            }
-            _giActive = false;
-            _giDiffuseImport = null;
-            _giSpecularImport = null;
-            // Re-register the first remaining VoxelGI, if any.
-            for (int i = 0; i < _plugins.Count; i++)
-            {
-                if (_plugins[i] is VoxelGiRenderer gi)
-                {
-                    _giActive = true;
-                    _giDiffuseImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-                        _rendering.PreferredLightMapPass, name: "gi_diffuse"));
-                    _giSpecularImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-                        _rendering.PreferredLightMapPass, name: "gi_specular"));
-                    gi.AttachGraph(this, _giDiffuseImport, _giSpecularImport);
-                    _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)gi);
-                    break;
-                }
-            }
-        }
-        else if (plugin is HbaoRenderer hbaoRemoved)
-        {
-            if (hbaoRemoved.IsGraphAttached)
-            {
-                _graph.Remove((IRenderGraphNode)hbaoRemoved);
-                hbaoRemoved.DetachGraph();
-                if (_aoImport != null)
-                {
-                    _graph.DestroyTransient(_aoImport);
-                }
-            }
-            _aoImport = null;
-            // Re-register the first remaining HBAO, if any.
-            for (int i = 0; i < _plugins.Count; i++)
-            {
-                if (_plugins[i] is HbaoRenderer hbao)
-                {
-                    _aoImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-                        _rendering.PreferredLightMapPass, name: "hbao_ao"));
-                    hbao.AttachGraph(this, _aoImport);
-                    _graph.InsertBefore(_pluginAdapterNode, (IRenderGraphNode)hbao);
-                    break;
-                }
-            }
-        }
-        _hasUnknownPlugins = false;
-        for (int i = 0; i < _plugins.Count; i++)
-        {
-            if (_plugins[i] is not (VoxelGiRenderer or HbaoRenderer))
-            {
-                _hasUnknownPlugins = true;
-                break;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Get the first registered plugin of the specified type, or null.
-    /// </summary>
-    public T? GetPlugin<T>() where T : class, IRenderPlugin
-    {
-        for (int i = 0; i < _plugins.Count; i++)
-        {
-            if (_plugins[i] is T typed)
-            {
-                return typed;
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
     /// Create the deferred PBR pipeline.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
@@ -652,14 +513,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _shadowNode = new ShadowPassNode(this);
         _gbufferNode = new GBufferPassNode(this);
         _callbackNode = new CallbackNode(this);
-        _pluginAdapterNode = new PluginAdapterNode(this, RenderInjectionPoint.AfterGBuffer);
         _lightingNode = new LightingNode(this);
         _volumetricLightNode = new VolumetricLightNode(this);
         _blitNode = new BlitNode(this, blitShader);
         _graph.Use(_shadowNode);
         _graph.Use(_gbufferNode);
         _graph.Use(_callbackNode);
-        _graph.Use(_pluginAdapterNode);
         _graph.Use(_lightingNode);
         _graph.Use(_volumetricLightNode);
         _graph.Use(_blitNode);
@@ -708,6 +567,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// Register a render node, dispatched by the interfaces it implements:
+    /// <see cref="HbaoRenderer"/> / <see cref="VoxelGiRenderer"/> are registered as
+    /// direct render graph nodes between the G-buffer pass and the lighting pass;
     /// <see cref="IGBufferRenderNode"/> / <see cref="IShadowRenderNode"/> nodes are
     /// invoked inside the pipeline's own passes; <see cref="IForwardRenderNode"/> /
     /// <see cref="IContentProcessorNode"/> nodes join the graph's forward/post chain
@@ -720,6 +581,28 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public void Use(IRenderNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
+
+        // Direct render graph nodes with transient outputs.
+        if (node is HbaoRenderer hbao)
+        {
+            _aoImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                _rendering.PreferredLightMapPass, name: "hbao_ao"));
+            hbao.Initialize(this, _aoImport);
+            _graph.InsertBefore(_lightingNode, hbao);
+            return;
+        }
+        if (node is VoxelGiRenderer gi)
+        {
+            _giActive = true;
+            _giDiffuseImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                _rendering.PreferredLightMapPass, name: "gi_diffuse"));
+            _giSpecularImport = _graph.CreateTransient(new RenderGraphTextureDescriptor(
+                _rendering.PreferredLightMapPass, name: "gi_specular"));
+            gi.Initialize(this, _giDiffuseImport, _giSpecularImport);
+            _graph.InsertBefore(_lightingNode, gi);
+            return;
+        }
+
         bool isPassNode = node is IGBufferRenderNode or IShadowRenderNode;
         bool isChainNode = node is IForwardRenderNode or IContentProcessorNode;
         if (!isPassNode && !isChainNode)
@@ -763,6 +646,33 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// </summary>
     public bool Remove(IRenderNode node)
     {
+        if (node is HbaoRenderer hbao)
+        {
+            _graph.Remove(hbao);
+            if (_aoImport != null)
+            {
+                _graph.DestroyTransient(_aoImport);
+                _aoImport = null;
+            }
+            return true;
+        }
+        if (node is VoxelGiRenderer gi)
+        {
+            _graph.Remove(gi);
+            if (_giDiffuseImport != null)
+            {
+                _graph.DestroyTransient(_giDiffuseImport);
+                _giDiffuseImport = null;
+            }
+            if (_giSpecularImport != null)
+            {
+                _graph.DestroyTransient(_giSpecularImport);
+                _giSpecularImport = null;
+            }
+            _giActive = false;
+            return true;
+        }
+
         bool removed = _passNodes.Remove(node);
         for (int i = 0; i < _chainAdapters.Count; i++)
         {
@@ -787,8 +697,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Get the first registered node of the given type (pass nodes first, then the
-    /// forward chain), or null when the pipeline has none.
+    /// Get the first registered node of the given type (pass nodes, graph nodes,
+    /// then the forward chain), or null when the pipeline has none.
     /// </summary>
     public T? Get<T>() where T : class, IRenderNode
     {
@@ -797,6 +707,15 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             if (_passNodes[i] is T node)
             {
                 return node;
+            }
+        }
+        // Check direct graph nodes (HBAO, VoxelGI, SSR, fixed pipeline nodes).
+        IReadOnlyList<IRenderGraphNode> graphNodes = _graph.Nodes;
+        for (int i = 0; i < graphNodes.Count; i++)
+        {
+            if (graphNodes[i] is T graphNode)
+            {
+                return graphNode;
             }
         }
         for (int i = 0; i < _chainAdapters.Count; i++)
@@ -863,8 +782,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// The GPU buffer holding the point light array. Passed to plugins via
-    /// <see cref="RenderPluginContext"/> automatically by the pipeline's plugin node.
+    /// The GPU buffer holding the point light array. Read by the lighting pass
+    /// and GI renderers directly.
     /// </summary>
     public GraphicsBuffer PointLightBuffer => _pointLightBuffer;
 
@@ -1111,33 +1030,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             VolumetricLightPhaseG);
     }
 
-    /// <summary>
-    /// Bind the plugin output textures set on the context to the lighting material,
-    /// falling back to white (AO) / black (GI) when no plugin produced an output.
-    /// </summary>
-    internal void RebindPluginOutputs(RenderPluginContext context)
-    {
-        if (context.AOResult != null)
-        {
-            _lightingMaterial.SetRenderTexture("_aoTexture", context.AOResult);
-        }
-        else
-        {
-            _lightingMaterial.SetTexture("_aoTexture", _rendering.TextureWhite);
-        }
-
-        if (context.GIDiffuse != null)
-        {
-            _lightingMaterial.SetRenderTexture("_giDiffuse", context.GIDiffuse);
-            _lightingMaterial.SetRenderTexture("_giSpecular", context.GISpecular!);
-        }
-        else
-        {
-            _lightingMaterial.SetTexture("_giDiffuse", _rendering.TextureBlack);
-            _lightingMaterial.SetTexture("_giSpecular", _rendering.TextureBlack);
-        }
-    }
-
     /// <summary>Bind the AO output texture to the lighting material.</summary>
     internal void BindAoOutput(RenderTexture aoTexture)
     {
@@ -1173,7 +1065,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     internal Mesh FullScreenMesh => _fullScreenMesh;
     internal CameraPerspectiveBuffer? Camera => _camera;
     internal List<IRenderNode> PassNodes => _passNodes;
-    internal List<IRenderPlugin> Plugins => _plugins;
     internal GraphicsMaterial LightingMaterial => _lightingMaterial;
     internal GraphicsMaterial? VolumetricLightMaterial => _volumetricLightMaterial;
     internal RenderContext ShadowPassContext => _shadowContext;
@@ -1198,7 +1089,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     internal RenderGraphTexture? AoImport => _aoImport;
     internal RenderGraphTexture? GiDiffuseImport => _giDiffuseImport;
     internal RenderGraphTexture? GiSpecularImport => _giSpecularImport;
-    internal bool HasUnknownPlugins => _hasUnknownPlugins;
     internal bool HasAfterGBufferCallback => AfterGBufferCallback != null;
     internal void InvokeAfterGBufferCallback() => AfterGBufferCallback?.Invoke();
 
@@ -1207,11 +1097,6 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     {
         if (disposing)
         {
-            for (int i = 0; i < _plugins.Count; i++)
-            {
-                _plugins[i].Dispose();
-            }
-            _plugins.Clear();
             _passNodes.Clear();
             // Disposes every registered node (fixed nodes, chain adapters — which
             // dispose their source nodes — and the blit node), the transient
