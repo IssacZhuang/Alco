@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// The deferred lighting pass of the <see cref="PBRDeferredPipeline"/>: assembles and
 /// uploads the per-frame lighting constants, then draws the full-screen lighting
-/// material into the scene color target (which shares the G-buffer's depth, so the
+/// material into the scene color target (which has its own depth, so the
 /// depth filled by the G-buffer pass stays available to the forward pass — no depth
 /// copy). Always enabled.
 /// <br/>Setup reads the G-buffer, conditionally reads the shadow map (only while

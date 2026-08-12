@@ -320,8 +320,11 @@ public sealed class RenderGraph : AutoDisposable
         _width = width;
         _height = height;
 
-        _pool.Clear();
-
+        // Drop assignments so the next allocation walk rebinds with new sizes.
+        // The pool itself is not cleared: stale-size entries are simply not matched
+        // by the new (larger) keys and stay idle until a later Clear. This avoids
+        // destroying textures that may still be referenced by in-flight GPU work
+        // submitted in the previous frame.
         for (int i = 0; i < _resources.Count; i++)
         {
             RenderGraphTexture resource = _resources[i];

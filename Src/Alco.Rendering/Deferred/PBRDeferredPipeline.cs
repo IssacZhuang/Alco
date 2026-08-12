@@ -12,7 +12,7 @@ namespace Alco.Rendering;
 /// <br/>Owns the graph's transient targets — a G-buffer (albedo / normal /
 /// metallic-roughness-ao / emissive + depth), a depth-only shadow map holding
 /// <see cref="ShadowCascadeCount"/> cascades in a 2x2 atlas and the scene color
-/// target (HDR color sharing the G-buffer's depth attachment) — plus the pass
+/// target (HDR color + depth) — plus the pass
 /// render contexts and the pass-private deferred lighting material. G-buffer scene
 /// draws and shadow scene draws are handled by render nodes
 /// (<see cref="GBufferRenderer"/> / <see cref="ShadowRenderer"/>) registered via
@@ -22,7 +22,7 @@ namespace Alco.Rendering;
 /// <br/>The frame is driven by <see cref="Render"/>, which executes the graph:
 /// shadow cascades → G-buffer → AfterGBuffer plugins → deferred lighting into the
 /// scene color target → volumetric light → forward content nodes (transparency,
-/// hardware depth-tested against the shared G-buffer depth — no depth copy) →
+/// hardware depth-tested against the G-buffer depth) →
 /// content processors → final blit into the destination. Transient targets are
 /// pooled and aliased by the graph, unused work is culled automatically (disabled
 /// shadows, disabled volumetric light, processors on headless frames) and the
@@ -152,9 +152,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly List<IRenderNode> _passNodes = new();
 
     // The render graph driving the frame, plus its transient targets. The scene
-    // color shares the G-buffer's depth attachment (created with DepthSource), so
-    // the forward pass depth-tests directly against the G-buffer depth and the
-    // historical per-frame depth copy is gone.
+    // color has its own depth attachment, so
+    // the forward pass depth-tests against its own depth.
     private readonly RenderGraph _graph;
     private readonly RenderGraphTexture _gbufferResource;
     private readonly RenderGraphTexture _shadowMapResource;
@@ -614,9 +613,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             "pbr_post_process"));
 
         // The render graph and its transient targets. The 2x2 cascade atlas uses an
-        // absolute size; the G-buffer and scene color follow the graph viewport. The
-        // scene color shares the G-buffer's depth attachment (DepthSource), which is
-        // what eliminates the per-frame G-buffer → forward depth copy.
+        // absolute size; the G-buffer and scene color follow the graph viewport.
         _graph = new RenderGraph(rendering, width, height, "pbr_deferred");
         _graph.Profiler = _profiler;
         _shadowMapResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
@@ -624,7 +621,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         _gbufferResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             _gbufferLayout, name: "pbr_gbuffer"));
         _sceneColorResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
-            _forwardLayout, depthSource: _gbufferResource, name: "pbr_scene_color"));
+            _forwardLayout, name: "pbr_scene_color"));
 
         _shadowDataBuffer = rendering.CreateGraphicsValueBuffer<ShadowCascadeData>("pbr_shadow_data");
 

@@ -6,8 +6,8 @@ namespace Alco.Rendering;
 /// Adapts one chain-registered <see cref="IForwardRenderNode"/> (transparency and
 /// other forward content) into the <see cref="PBRDeferredPipeline"/>'s graph. Draws
 /// in place into the resource currently holding the scene content (the scene color
-/// target while no post-process node has run — including its shared G-buffer depth,
-/// which is what gives glass hardware depth testing without a depth copy).
+/// target while no post-process node has run — including its depth attachment,
+/// which is what gives glass hardware depth testing).
 /// <br/>The node never advances the post chain; on headless frames (null
 /// destination) it still runs, matching the historical chain behavior, by rooting
 /// itself via <see cref="RenderGraphBuilder.ProducesOutput"/>. Enable state and
