@@ -28,8 +28,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     private readonly DeviceDescriptor _descriptor;
     private readonly List<PendingTextureReadback> _pendingTextureReadbacks = new(capacity: 4);
-    // resident native array (grow-only) used to batch queue submissions
-    private WGPUCommandBuffer[] _submitBuffers = new WGPUCommandBuffer[8];
     private unsafe TextureReadbackCallbackState* _textureReadbackCallbackStates;
     // Native staging-buffer cache. The policy holds no native handles; the WGPUBuffer handle
     // is passed as the opaque ticket. All access is under _stagingCacheLock; native wgpu calls
@@ -120,48 +118,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
         get => _maxBindGroups;
     }
 
-    protected override void SubmitCore(GPUCommandBuffer commandBuffer)
+    protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
-        WebGPUCommandBuffer webGPUCommandBuffer = (WebGPUCommandBuffer)commandBuffer;
-        EnsureSubmitCapacity(webGPUCommandBuffer.PendingCount);
-        int count = webGPUCommandBuffer.TakeBuffers(_submitBuffers, 0);
-        SubmitAndRelease(count);
-    }
-
-    protected override void SubmitCore(ReadOnlySpan<GPUCommandBuffer> commandBuffers)
-    {
-        int count = 0;
-        for (int i = 0; i < commandBuffers.Length; i++)
-        {
-            WebGPUCommandBuffer webGPUCommandBuffer = (WebGPUCommandBuffer)commandBuffers[i];
-            EnsureSubmitCapacity(count + webGPUCommandBuffer.PendingCount);
-            count += webGPUCommandBuffer.TakeBuffers(_submitBuffers, count);
-        }
-        SubmitAndRelease(count);
-    }
-
-    private void EnsureSubmitCapacity(int capacity)
-    {
-        if (_submitBuffers.Length < capacity)
-        {
-            _submitBuffers = new WGPUCommandBuffer[Math.Max(capacity, _submitBuffers.Length * 2)];
-        }
-    }
-
-    private void SubmitAndRelease(int count)
-    {
-        if (count == 0)
-        {
-            return;
-        }
-
-        wgpuQueueSubmit(Queue, _submitBuffers.AsSpan(0, count));//add reference count
-
-        for (int i = 0; i < count; i++)
-        {
-            wgpuCommandBufferRelease(_submitBuffers[i]);//just decrement the reference count
-            _submitBuffers[i] = WGPUCommandBuffer.Null;
-        }
+        WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).TakeBuffer();
+        wgpuQueueSubmit(Queue, 1, &buffer);//add reference count
+        wgpuCommandBufferRelease(buffer);//just decrement the reference count
     }
 
     protected unsafe override void DisposeCore()

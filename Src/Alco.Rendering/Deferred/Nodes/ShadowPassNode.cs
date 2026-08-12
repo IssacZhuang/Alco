@@ -43,9 +43,7 @@ internal sealed class ShadowPassNode : IRenderGraphNode
         RenderContext shadowContext = _pipeline.ShadowPassContext;
 
         // Set all four cascade matrices on the CPU side first, then upload once.
-        // In the deferred-submission model every wgpuQueueWriteBuffer lands before
-        // any command buffer executes, so a single upload before recording is both
-        // correct and avoids 3 redundant uploads.
+        // All four cascade passes see the final complete struct at submit time.
         for (int c = 0; c < PBRDeferredPipeline.ShadowCascadeCount; c++)
         {
             float offsetX = (c % 2) - 0.5f;

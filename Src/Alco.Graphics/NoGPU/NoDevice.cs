@@ -282,11 +282,6 @@ internal class NoDevice : GPUDevice
         
     }
 
-    protected override void SubmitCore(ReadOnlySpan<GPUCommandBuffer> commandBuffers)
-    {
-
-    }
-
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         

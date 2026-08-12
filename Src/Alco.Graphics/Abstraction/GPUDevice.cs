@@ -506,30 +506,6 @@ public abstract class GPUDevice
     }
 
     /// <summary>
-    /// Submits a batch of GPU command buffers to the GPU for execution in a single queue submission.
-    /// The command buffers execute in the order of the span.
-    /// </summary>
-    /// <param name="commandBuffers">The GPU command buffers to submit. An empty span is a no-op.</param>
-    public void Submit(ReadOnlySpan<GPUCommandBuffer> commandBuffers)
-    {
-        if (commandBuffers.IsEmpty)
-        {
-            return;
-        }
-        for (int i = 0; i < commandBuffers.Length; i++)
-        {
-            GPUCommandBuffer commandBuffer = commandBuffers[i];
-            AssetUtility.IsTrue(commandBuffer != null, "The command buffer to submit must not be null.");
-            if (!commandBuffer.HasBuffer)
-            {
-                throw new GraphicsException($"Command buffer:{commandBuffer.Name} is empty, try use GPUCommandBuffer.Begin() and GPUCommandBuffer.End() to record commands.");
-            }
-        }
-
-        SubmitCore(commandBuffers);
-    }
-
-    /// <summary>
     /// Writes the data to the GPU buffer at the offset.
     /// </summary>
     /// <param name="buffer">The target GPU buffer.</param>
@@ -814,9 +790,6 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract void SubmitCore(GPUCommandBuffer commandBuffer);
-
-    /// <exclude />
-    protected abstract void SubmitCore(ReadOnlySpan<GPUCommandBuffer> commandBuffers);
 
     /// <exclude />
     protected abstract unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size);

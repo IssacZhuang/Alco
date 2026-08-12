@@ -245,13 +245,11 @@ public sealed class RenderGraph : AutoDisposable
 
     /// <summary>
     /// Runs one frame: Setup (dependency declaration) → Compile (validation, culling,
-    /// lifetimes) → Assign (pooled texture allocation walk) → Execute (node work,
-    /// batched submit).
+    /// lifetimes) → Assign (pooled texture allocation walk) → Execute (node work).
     /// </summary>
     /// <param name="destination">The final output frame buffer (e.g. the swapchain),
     /// or null for a minimized/headless view.</param>
-    /// <returns>The number of command buffers recorded and submitted this frame
-    /// (in a single batch).</returns>
+    /// <returns>The number of alive nodes that executed this frame.</returns>
     public int Execute(GPUFrameBuffer? destination)
     {
         ThrowIfInFrame();
@@ -288,24 +286,17 @@ public sealed class RenderGraph : AutoDisposable
             _context.Reset(destination, _rendering.GlobalRenderDataBuffer.Value.DeltaTime);
             _context.Profiler = Profiler;
 
-            _rendering.BeginCommandCollection();
-            int submittedCount;
-            try
+            ReadOnlySpan<bool> alive = _compiler.Alive;
+            int executed = 0;
+            for (int i = 0; i < _records.Count; i++)
             {
-                ReadOnlySpan<bool> alive = _compiler.Alive;
-                for (int i = 0; i < _records.Count; i++)
+                if (alive[i])
                 {
-                    if (alive[i])
-                    {
-                        _records[i].Node.Execute(_context);
-                    }
+                    _records[i].Node.Execute(_context);
+                    executed++;
                 }
             }
-            finally
-            {
-                submittedCount = _rendering.FlushCommandCollection();
-            }
-            return submittedCount;
+            return executed;
         }
         finally
         {

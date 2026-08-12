@@ -141,29 +141,6 @@ public sealed class AttachmentOpsTests
         Assert.That(frameBuffer.DepthStencil, Is.SameAs(depthTexture));
     }
 
-    [Test(Description = "Submitting an empty command buffer span is a no-op")]
-    public void SubmitEmptySpanIsNoOp()
-    {
-        NoDevice device = NoDevice.noDevice;
-        Assert.DoesNotThrow(() => device.Submit(ReadOnlySpan<GPUCommandBuffer>.Empty));
-    }
-
-    [Test(Description = "Batch submit accepts recorded command buffers and rejects empty ones")]
-    public void SubmitSpanValidatesRecordedBuffers()
-    {
-        NoDevice device = NoDevice.noDevice;
-        GPUCommandBuffer recorded = device.CreateCommandBuffer("batch_submit_test");
-        recorded.Begin();
-        recorded.End();
-
-        GPUCommandBuffer[] buffers = [recorded];
-        Assert.DoesNotThrow(() => device.Submit(buffers));
-
-        GPUCommandBuffer empty = device.CreateCommandBuffer("batch_submit_empty_test");
-        GPUCommandBuffer[] emptyBuffers = [empty];
-        Assert.Throws<GraphicsException>(() => device.Submit(emptyBuffers));
-    }
-
     private static GPUTexture CreateColorTexture(NoDevice device)
     {
         return device.CreateTexture(new TextureDescriptor(

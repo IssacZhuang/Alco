@@ -132,7 +132,7 @@ public sealed class TestRenderGraph
         Assert.That(gbuffer.ExecuteCount, Is.EqualTo(1));
         Assert.That(lighting.ExecuteCount, Is.EqualTo(1));
         Assert.That(blit.ExecuteCount, Is.EqualTo(1));
-        Assert.That(submitted, Is.EqualTo(0));
+        Assert.That(submitted, Is.EqualTo(3));
     }
 
     [Test(Description = "A node whose writes are never read is culled; the rest of the chain runs")]
@@ -427,8 +427,8 @@ public sealed class TestRenderGraph
         Assert.That(external.IsDisposed, Is.False, "The graph must not dispose imported textures.");
     }
 
-    [Test(Description = "Execute returns the number of command buffers recorded through RenderContext.End this frame")]
-    public void ExecuteReturnsSubmittedCommandBufferCount()
+    [Test(Description = "Execute returns the number of alive nodes that executed this frame")]
+    public void ExecuteReturnsExecutedNodeCount()
     {
         using RenderGraph graph = CreateGraph();
         RenderGraphTexture a = graph.CreateTransient(Describe(_layoutColor, "a"));
@@ -452,11 +452,7 @@ public sealed class TestRenderGraph
         graph.Use(node);
 
         int withWork = graph.Execute(null);
-        recordWork = false;
-        int withoutWork = graph.Execute(null);
-
         Assert.That(withWork, Is.EqualTo(1));
-        Assert.That(withoutWork, Is.EqualTo(0));
     }
 
     [Test(Description = "Resize rematerializes graph-relative transients at the new size and later frames still run")]
@@ -510,7 +506,7 @@ public sealed class TestRenderGraph
         }
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        Assert.That(submitted, Is.EqualTo(0));
+        Assert.That(submitted, Is.EqualTo(300));
         Assert.That(allocated, Is.LessThan(32 * 1024),
             $"Steady-state Execute allocated {allocated} bytes over 100 frames.");
         TestContext.Out.WriteLine($"Steady-state allocation over 100 frames: {allocated} bytes.");

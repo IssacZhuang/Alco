@@ -30,12 +30,8 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
     private WGPURenderPipeline _graphicsPipeline;
     private WGPUComputePipeline _computePipeline;
 
-    // Finished command buffers not yet submitted. A command buffer object can go
-    // through multiple Begin/End cycles before a submit (e.g. inside a deferred
-    // submission collection scope), so every finished buffer is queued here in
-    // recording order instead of being released at the next Begin.
-    private WGPUCommandBuffer[] _pendingBuffers = new WGPUCommandBuffer[4];
-    private int _pendingCount;
+    // create on end(), can be reused
+    private WGPUCommandBuffer _buffer;
 
     //release on dispose
     private readonly byte* _nativeName;
@@ -51,7 +47,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
     public override bool HasBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pendingCount > 0;
+        get => _buffer != WGPUCommandBuffer.Null;
     }
 
     protected override void Dispose(bool disposing)
@@ -62,7 +58,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
 
-        ReleaseCommandBuffers();
+        ReleaseCommandBuffer();
         ReleaseCommandEncoder();
 
         InteropUtility.Free(_nativeName);
@@ -77,8 +73,14 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
             label = _nativeNameView
         };
         _encoder = wgpuDeviceCreateCommandEncoder(_nativeDevice, &descriptor);
-        // Finished buffers from previous Begin/End cycles stay pending in
-        // _pendingBuffers until the device submits (and releases) them.
+
+        // clear buffer
+        if (_buffer != WGPUCommandBuffer.Null)
+        {
+            //only happens when the buffer is not submitted
+            wgpuCommandBufferRelease(_buffer);
+            _buffer = WGPUCommandBuffer.Null;
+        }
     }
 
     // end the encoder
@@ -92,11 +94,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
             label = _nativeNameView
         };
 
-        if (_pendingCount == _pendingBuffers.Length)
-        {
-            Array.Resize(ref _pendingBuffers, _pendingBuffers.Length * 2);
-        }
-        _pendingBuffers[_pendingCount++] = wgpuCommandEncoderFinish(_encoder, &descriptor);
+        _buffer = wgpuCommandEncoderFinish(_encoder, &descriptor);
 
         _graphicsPipeline = WGPURenderPipeline.Null;
         _computePipeline = WGPUComputePipeline.Null;
@@ -578,36 +576,12 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         };
     }
 
-    /// <summary>
-    /// Drains all finished-but-unsubmitted command buffers into <paramref name="destination"/>
-    /// starting at <paramref name="offset"/>, in recording order. The drained buffers are
-    /// owned by the caller (the device submits and then releases them). The array must
-    /// have room for every pending buffer; grow it via <see cref="PendingCount"/> first.
-    /// </summary>
-    /// <param name="destination">The destination array.</param>
-    /// <param name="offset">The index in <paramref name="destination"/> to start writing at.</param>
-    /// <returns>The number of buffers written.</returns>
-    public int TakeBuffers(WGPUCommandBuffer[] destination, int offset)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public WGPUCommandBuffer TakeBuffer()
     {
-        AssetUtility.IsTrue(destination.Length - offset >= _pendingCount,
-            "The destination array does not have room for every pending command buffer, check WebGPUCommandBuffer.PendingCount first");
-        for (int i = 0; i < _pendingCount; i++)
-        {
-            destination[offset + i] = _pendingBuffers[i];
-            _pendingBuffers[i] = WGPUCommandBuffer.Null;
-        }
-        int count = _pendingCount;
-        _pendingCount = 0;
-        return count;
-    }
-
-    /// <summary>
-    /// The number of finished-but-unsubmitted command buffers currently pending.
-    /// </summary>
-    public int PendingCount
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pendingCount;
+        WGPUCommandBuffer buffer = _buffer;
+        _buffer = WGPUCommandBuffer.Null;
+        return buffer;
     }
 
     public unsafe WebGPUCommandBuffer(WebGPUDevice device, in CommandBufferDescriptor? descriptor) : base(descriptor)
@@ -616,6 +590,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         WGPUDevice nativeDevice = device.Native;
         _nativeDevice = nativeDevice;
 
+        _buffer = WGPUCommandBuffer.Null;
         _encoder = WGPUCommandEncoder.Null;
 
         _renderPass = WGPURenderPassEncoder.Null;
@@ -641,14 +616,13 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    private void ReleaseCommandBuffers()
+    private void ReleaseCommandBuffer()
     {
-        for (int i = 0; i < _pendingCount; i++)
+        if (_buffer != WGPUCommandBuffer.Null)
         {
-            wgpuCommandBufferRelease(_pendingBuffers[i]);
-            _pendingBuffers[i] = WGPUCommandBuffer.Null;
+            wgpuCommandBufferRelease(_buffer);
+            _buffer = WGPUCommandBuffer.Null;
         }
-        _pendingCount = 0;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -34,12 +34,6 @@ public partial class RenderingSystem
 
     private readonly ConcurrentGraphicsBufferPool _bufferPool;
 
-    // Deferred command submission domain used by the RenderGraph execution scope.
-    // The cache list is resident and reused across collection scopes; the nullable field
-    // doubles as the "collection active" marker checked by ScheduleCommandBuffer.
-    private readonly List<GPUCommandBuffer> _commandCollectionCache = new(32);
-    private List<GPUCommandBuffer>? _commandCollection;
-
     public GPUDevice GraphicsDevice
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -254,50 +248,7 @@ public partial class RenderingSystem
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
-        if (_commandCollection != null)
-        {
-            _commandCollection.Add(commandBuffer);
-            return;
-        }
         _device.Submit(commandBuffer);
-    }
-
-    /// <summary>
-    /// Begins a deferred command collection scope. Internal mechanism used by the RenderGraph execution domain:
-    /// while active, every submission scheduled through <see cref="ScheduleCommandBuffer"/>
-    /// (i.e. every RenderContext.End()) is collected instead of being submitted immediately,
-    /// until <see cref="FlushCommandCollection"/> submits all collected command buffers in a single batch.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">A command collection is already active; nested collections are not supported.</exception>
-    internal void BeginCommandCollection()
-    {
-        if (_commandCollection != null)
-        {
-            throw new InvalidOperationException("A command collection is already active, nested command collections are not supported.");
-        }
-        _commandCollection = _commandCollectionCache;
-    }
-
-    /// <summary>
-    /// Submits all command buffers collected since <see cref="BeginCommandCollection"/> in a single batch
-    /// submission and ends the collection scope. The list is kept and reused by the next collection scope.
-    /// </summary>
-    /// <returns>The number of submitted command buffers.</returns>
-    /// <exception cref="InvalidOperationException">No command collection is active.</exception>
-    internal int FlushCommandCollection()
-    {
-        List<GPUCommandBuffer> collection = _commandCollection
-            ?? throw new InvalidOperationException("No command collection is active, try call BeginCommandCollection() first.");
-        _commandCollection = null;
-
-        int count = collection.Count;
-        if (count == 0)
-        {
-            return 0;
-        }
-        _device.Submit(CollectionsMarshal.AsSpan(collection));
-        collection.Clear();
-        return count;
     }
 
     private void OnUpdate(float deltaTime)
