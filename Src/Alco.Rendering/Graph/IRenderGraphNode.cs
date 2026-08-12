@@ -37,9 +37,9 @@ public interface IRenderGraphNode : IRenderNode
     /// real GPU textures for the duration of this call (acquired at the node's first
     /// touch, released after its last touch).
     /// <br/>All uniform buffer uploads a pass depends on must be issued before the
-    /// pass is recorded: submissions inside the graph are deferred and batched, so a
-    /// buffer rewritten after recording would leak the newer value into the earlier
-    /// pass.
+    /// pass is recorded: buffer writes are queue-side operations outside the recorded
+    /// command stream, so a buffer rewritten after recording (but before submission)
+    /// would leak the newer value into the earlier pass.
     /// </summary>
     /// <param name="context">The per-frame execution context, valid only during
     /// this call. Do not store it.</param>

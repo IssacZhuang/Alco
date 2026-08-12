@@ -1415,10 +1415,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _gpuTimestamps.EndSample();
         }
         _commandBuffer.End();
-        // Schedule (not submit) so the dispatches join the render graph's deferred
-        // command batch when executing inside it — a direct submit would run them on
-        // the GPU before the G-buffer pass of the same frame. Outside a collection
-        // domain (standalone use) this submits immediately.
+        // Submit the dispatches: registration order places this node after the
+        // G-buffer pass of the same frame, and submission is immediate (there is
+        // no deferred command batch).
         _rendering.ScheduleCommandBuffer(_commandBuffer);
 
         _instances.Clear();

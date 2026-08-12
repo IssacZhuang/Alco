@@ -17,8 +17,8 @@ namespace Alco.Rendering;
 /// first touch) hands out pooled textures: assignments whose lifetime ended are
 /// released as reuse candidates, so non-overlapping lifetimes alias the same GPU
 /// textures;</item>
-/// <item><b>Execute</b> — surviving nodes record their GPU work; all command buffers
-/// are collected and submitted in a single batch at the end.</item>
+/// <item><b>Execute</b> — surviving nodes record their GPU work in registration
+/// order; each node's command buffer is submitted as the node completes.</item>
 /// </list>
 /// Execution order is always registration order — the graph validates it satisfies
 /// the declared dependencies instead of reordering, keeping the schedule explicit

@@ -18,7 +18,7 @@
 
   | 积木 | 角色 |
   |---|---|
-  | `RenderGraph` | 资源表、transient 池、剔除、单批提交;`Use` / `InsertBefore` / `InsertAfter` / `Remove` / `CreateTransient` / `DestroyTransient`。设置了 `Profiler` 时,`Execute` 自动包 `BeginFrame` / `EndFrame` |
+  | `RenderGraph` | 资源表、transient 池、剔除;`Use` / `InsertBefore` / `InsertAfter` / `Remove` / `CreateTransient` / `DestroyTransient`。节点按注册序录制,每个节点的 command buffer 在其完成时即时提交。设置了 `Profiler` 时,`Execute` 自动包 `BeginFrame` / `EndFrame` |
   | `RenderChain` | 线性内容链的穿线状态(`Current` / `Reset` / `Advance`),依赖"Setup 严格按注册顺序执行"这一图契约 |
   | `RGNode_Clear` | 清一个资源 |
   | `RGNode_GeometryPass` | 几何 pass:清目标 + 循环 `Content: List<IRenderPassContent>` |

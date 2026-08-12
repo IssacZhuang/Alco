@@ -76,6 +76,11 @@ public sealed class MaterialInstance : Material
 
     protected override void Dispose(bool disposing)
     {
-        //do nothing
+        if (disposing)
+        {
+            // The instance owns its parameter set; the parent chain it resolves
+            // through is caller-owned and left untouched.
+            _parameters.Dispose();
+        }
     }
 }

@@ -65,6 +65,9 @@ public sealed class GraphicsMaterial : Material
 
     protected override void Dispose(bool disposing)
     {
-
+        if (disposing)
+        {
+            _parameters.Dispose();
+        }
     }
 }

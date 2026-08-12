@@ -237,7 +237,7 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
                     stencilFront = WebGPUUtility.ConvertToWebGPU(descriptor.DepthStencilState.FrontFace),
                     stencilBack = WebGPUUtility.ConvertToWebGPU(descriptor.DepthStencilState.BackFace),
                     stencilReadMask = descriptor.DepthStencilState.StencilReadMask,
-                    stencilWriteMask = descriptor.DepthStencilState.StencilReadMask,
+                    stencilWriteMask = descriptor.DepthStencilState.StencilWriteMask,
                 };
 
                 pipelineDescriptor.depthStencil = &depthStencilState;

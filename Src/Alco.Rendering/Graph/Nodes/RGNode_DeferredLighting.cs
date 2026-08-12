@@ -11,7 +11,8 @@ namespace Alco.Rendering;
 /// the G-buffer pass stays available to later forward content — no depth copy.
 /// <br/>Per-frame data assembly and uniform uploads are delegated to
 /// <see cref="PrepareData"/>, invoked at the start of <see cref="Execute"/> — before
-/// any pass recording, as the graph's deferred submission requires. Plugin outputs
+/// any pass recording, since buffer writes are queue-side operations that must
+/// precede the recording of the pass that reads them. Plugin outputs
 /// are wired without the node knowing their types: set <see cref="AoInput"/> /
 /// <see cref="GiDiffuseInput"/> / <see cref="GiSpecularInput"/> (and bind the matching
 /// material parameter), or use <see cref="ExtraReads"/> for arbitrary additional
@@ -132,9 +133,9 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
     {
         long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
 
-        // Uniform uploads must precede the pass recording: submissions inside the
-        // graph are deferred and batched, so a buffer rewritten after recording
-        // would leak the newer value into this pass.
+        // Uniform uploads must precede the pass recording: buffer writes are
+        // queue-side operations outside the recorded command stream, so a buffer
+        // rewritten after recording would leak the newer value into this pass.
         PrepareData?.Invoke(this);
 
         if (Instrumentation != null)

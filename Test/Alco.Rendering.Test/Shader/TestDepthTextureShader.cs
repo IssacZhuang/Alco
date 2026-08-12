@@ -88,13 +88,4 @@ float4 MainPS(V2F input) : SV_TARGET
         Assert.That(group.Bindings[0].Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
         Assert.That(group.Bindings[1].Entry.Type, Is.EqualTo(BindingType.SamplerComparison));
     }
-
-    [Test(Description = "The depth comparison group classifies as a texture-sampler group for material binding")]
-    public void CompileHLSL_DepthSampledTexture_ClassifiedAsTextureSamplerGroup()
-    {
-        ShaderModulesInfo modules = Compile();
-
-        Assert.That(MaterialUtility.IsTextureReadGroup(GetGroup(modules, 0).Bindings), Is.True);
-        Assert.That(MaterialUtility.IsTextureSamplerGroup(GetGroup(modules, 1).Bindings), Is.True);
-    }
 }

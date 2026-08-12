@@ -1055,6 +1055,29 @@ public sealed class ShaderParameterSet
     }
 
     /// <summary>
+    /// Releases the bind group layouts and cached resource groups assembled by this
+    /// set. Slot values (textures and buffers) are caller-owned references and are
+    /// not disposed. Called from the owning material's dispose path.
+    /// </summary>
+    internal void Dispose()
+    {
+        for (int i = 0; i < _groups.Length; i++)
+        {
+            GroupState group = _groups[i];
+            group.layout?.Dispose();
+            group.layout = null;
+            group.current = null;
+            foreach (GPUResourceGroup resourceGroup in group.cache.Values)
+            {
+                resourceGroup.Dispose();
+            }
+            group.cache.Clear();
+            group.cacheOrder.Clear();
+            _resourceGroups[i] = null;
+        }
+    }
+
+    /// <summary>
     /// Whether the resource with the given id is a sampled texture slot (texture and
     /// sampler, not a depth texture) that has no value yet and therefore accepts the
     /// default texture.
