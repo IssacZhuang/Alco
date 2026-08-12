@@ -46,6 +46,7 @@ public sealed class RenderGraph : AutoDisposable
     // Allocation-walk working sets, reused across frames (indices into _resources,
     // sorted by first touch; the still-live assignments with their last touch).
     private readonly List<(RenderGraphTexture Resource, int LastTouch)> _assigned = new();
+    private readonly HashSet<object> _keepSet = new();
     private int[] _sortedIndices = new int[16];
 
     private uint _width;
@@ -343,7 +344,7 @@ public sealed class RenderGraph : AutoDisposable
 
     /// <summary>
     /// Resizes the graph viewport. Graph-relative transients are rematerialized at the
-    /// new size; the pool is wiped (stale-size textures are disposed through the
+    /// new size and pool entries of the old size are pruned (disposed through the
     /// deferred destruction path, keeping in-flight GPU work valid); all nodes are
     /// notified via <see cref="IRenderNode.Resize"/>.
     /// </summary>
@@ -357,11 +358,15 @@ public sealed class RenderGraph : AutoDisposable
         _width = width;
         _height = height;
 
-        // Drop assignments so the next allocation walk rebinds with new sizes.
-        // The pool itself is not cleared: stale-size entries are simply not matched
-        // by the new (larger) keys and stay idle until a later Clear. This avoids
-        // destroying textures that may still be referenced by in-flight GPU work
-        // submitted in the previous frame.
+        // Restart the pool's walk state so the reassignment below can recover
+        // sticky entries that were still occupied at the end of last frame's walk.
+        _pool.BeginFrame();
+
+        // Re-resolve sizes and reassign: resources whose key is unchanged by the
+        // resize (absolute-size transients, or scales resolving to the same size)
+        // recover their sticky assignment and keep their backing without a rebind;
+        // resized resources miss their sticky entry (it sits under the old-size key)
+        // and materialize/rebind at the new size.
         for (int i = 0; i < _resources.Count; i++)
         {
             RenderGraphTexture resource = _resources[i];
@@ -372,12 +377,33 @@ public sealed class RenderGraph : AutoDisposable
             resource.ResolvedWidth = ResolveSize(resource.AbsoluteWidth, width, resource.ResolutionScale);
             resource.ResolvedHeight = ResolveSize(resource.AbsoluteHeight, height, resource.ResolutionScale);
             resource.ComputeSlotKeys();
-
-            // Drop the stale assignment so the assignment below always rebinds.
-            resource.ColorAttachments = null;
-            resource.DepthAttachment = null;
             AssignTransient(resource);
         }
+
+        // Prune pool entries no resource kept: pool keys are size-qualified, so
+        // entries of the old size could never be matched again and would otherwise
+        // accumulate on every resize (e.g. dragging a window edge).
+        _keepSet.Clear();
+        for (int i = 0; i < _resources.Count; i++)
+        {
+            RenderGraphTexture resource = _resources[i];
+            if (resource.Kind != RenderGraphTexture.ResourceKind.Transient || resource.IsDestroyed)
+            {
+                continue;
+            }
+            if (resource.ColorAttachments != null)
+            {
+                foreach (PooledAttachment color in resource.ColorAttachments)
+                {
+                    _keepSet.Add(color);
+                }
+            }
+            if (resource.DepthAttachment != null)
+            {
+                _keepSet.Add(resource.DepthAttachment);
+            }
+        }
+        _pool.PruneExcept(_keepSet);
 
         for (int i = 0; i < _nodes.Count; i++)
         {

@@ -38,7 +38,11 @@ public sealed class RGNode_GeometryPass : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>The content drawn inside the pass, in list order. Register content
-    /// providers here — the pipeline the pass belongs to is not involved.</summary>
+    /// providers here — the pipeline the pass belongs to is not involved.
+    /// <br/>Ownership: the pass does not take ownership of registered providers;
+    /// disposing them (when disposable) is the caller's responsibility, unlike
+    /// nodes handed to <c>RenderGraph.Use</c>, which transfers ownership to the
+    /// graph.</summary>
     public List<IRenderPassContent> Content { get; } = new();
 
     /// <summary>Optional CPU/GPU stage instrumentation.</summary>

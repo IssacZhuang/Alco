@@ -176,6 +176,30 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(pool.TotalCount, Is.EqualTo(1));
     }
 
+    [Test(Description = "PruneExcept disposes entries outside the keep set, rebuilds the walk state and drops empty key states")]
+    public void PruneExceptDisposesUnkeptEntries()
+    {
+        using RenderGraphTexturePool pool = CreatePool(out _, out _);
+        var keepA = (FakeHandle)pool.Allocate(KeyA, null, "keep_a");
+        var dropA = (FakeHandle)pool.Allocate(KeyA, null, "drop_a");
+        var dropB = (FakeHandle)pool.Allocate(KeyB, null, "drop_b");
+        pool.BeginFrame();
+
+        int pruned = pool.PruneExcept(new HashSet<object> { keepA });
+
+        Assert.That(pruned, Is.EqualTo(2));
+        Assert.That(keepA.Disposed, Is.False, "Kept entries survive.");
+        Assert.That(dropA.Disposed, Is.True);
+        Assert.That(dropB.Disposed, Is.True);
+        Assert.That(pool.TotalCountFor(KeyA), Is.EqualTo(1));
+        Assert.That(pool.TotalCountFor(KeyB), Is.EqualTo(0), "The emptied key state is removed.");
+        Assert.That(pool.TotalCount, Is.EqualTo(1));
+        Assert.That(pool.IdleCountFor(KeyA), Is.EqualTo(1), "Surviving entries are idle for the next walk.");
+
+        object rerented = pool.Allocate(KeyA, keepA, "ignored");
+        Assert.That(ReferenceEquals(rerented, keepA), Is.True, "The pool keeps working after a prune.");
+    }
+
     [Test(Description = "Entries of one key are invisible to allocations of a different key")]
     public void DifferentKeysAreIsolated()
     {

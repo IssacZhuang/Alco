@@ -419,8 +419,7 @@ public class Game : GameEngine
             _hbaoRenderer = new RGNode_HBAO(
                 RenderingSystem,
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"),
-                (uint)MainView.Size.X, (uint)MainView.Size.Y);
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"));
             _hbaoRenderer.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
         }
 
@@ -709,6 +708,10 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         AssetSystem.OnHotReload -= OnShaderHotReload;
+        // Pass content providers are not owned by the graph (see the Content
+        // ownership note on RGNode_GeometryPass/RGNode_ShadowPass): dispose them here.
+        _gbufferRenderer.Dispose();
+        _shadowRenderer.Dispose();
         _preset.Dispose();
     }
 

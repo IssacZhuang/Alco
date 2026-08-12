@@ -145,6 +145,56 @@ internal sealed class RenderGraphTexturePool : System.IDisposable
     }
 
     /// <summary>
+    /// Disposes every materialized entry not contained in <paramref name="keep"/> and
+    /// drops it from the pool. Called by the graph's resize to release stale-size
+    /// textures: pool keys are size-qualified, so entries of a previous size can never
+    /// be matched again and would otherwise stay idle until <see cref="Clear"/>.
+    /// Must only be called between frames; device-level deferred destruction keeps
+    /// in-flight GPU work referencing the disposed textures valid.
+    /// </summary>
+    /// <param name="keep">The entries still assigned to live resources.</param>
+    /// <returns>The number of entries disposed.</returns>
+    internal int PruneExcept(HashSet<object> keep)
+    {
+        int pruned = 0;
+        List<TexturePoolKey>? emptyKeys = null;
+        foreach (KeyValuePair<TexturePoolKey, KeyState> pair in _states)
+        {
+            KeyState state = pair.Value;
+            for (int i = state.All.Count - 1; i >= 0; i--)
+            {
+                object entry = state.All[i];
+                if (!keep.Contains(entry))
+                {
+                    if (entry is System.IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+                    state.All.RemoveAt(i);
+                    pruned++;
+                }
+            }
+            // Idle/Freed may still reference disposed entries; rebuild them from All
+            // (BeginFrame would do the same on the next walk).
+            state.Idle.Clear();
+            state.Idle.AddRange(state.All);
+            state.Freed.Clear();
+            if (state.All.Count == 0)
+            {
+                (emptyKeys ??= new List<TexturePoolKey>()).Add(pair.Key);
+            }
+        }
+        if (emptyKeys != null)
+        {
+            foreach (TexturePoolKey key in emptyKeys)
+            {
+                _states.Remove(key);
+            }
+        }
+        return pruned;
+    }
+
+    /// <summary>
     /// Disposes every materialized entry (entries implementing
     /// <see cref="System.IDisposable"/>) and empties the pool. Must only be called
     /// between frames.

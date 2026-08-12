@@ -45,8 +45,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private readonly GraphicsValueBuffer<SsrData> _dataBuffer;
     private readonly GPUAttachmentLayout _historyLayout;
 
-    private RenderTexture _sceneCopy;
-    private RenderTexture _reflectionRaw;
+    // Facades of the graph-owned transients below; null until Attach creates them.
+    private RenderTexture? _sceneCopy;
+    private RenderTexture? _reflectionRaw;
     private readonly RenderTexture[] _reflectionHistory = new RenderTexture[2];
     private int _historyReadIndex;
     private bool _historyValid;
@@ -57,10 +58,10 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private Matrix4x4 _previousViewProjection = Matrix4x4.Identity;
     private Vector3 _previousCameraPosition;
 
-    // Graph attachment state (Attach). While attached, _sceneCopy/_reflectionRaw
-    // are graph-owned facades of the transient resources below (not disposed here and
-    // resized by the graph), and the node executes directly in the graph. The
-    // reflection history stays persistent (cross-frame feedback never enters the graph).
+    // Graph attachment state (Attach). The node must be attached before it can
+    // execute: _sceneCopy/_reflectionRaw are graph-owned facades of the transient
+    // resources below (not disposed here and resized by the graph). The reflection
+    // history stays persistent (cross-frame feedback never enters the graph).
     private RenderGraphTexture? _sceneCopyResource;
     private RenderGraphTexture? _rawResource;
     private bool _graphAttached;
@@ -122,15 +123,21 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>Current SSR trace width in pixels.</summary>
-    public uint TraceWidth => _reflectionRaw.Width;
+    /// <exception cref="InvalidOperationException">The node is not attached to a graph.</exception>
+    public uint TraceWidth => (_reflectionRaw
+        ?? throw new InvalidOperationException("The SSR node is not attached to a graph (call Attach first).")).Width;
 
     /// <summary>Current SSR trace height in pixels.</summary>
-    public uint TraceHeight => _reflectionRaw.Height;
+    /// <exception cref="InvalidOperationException">The node is not attached to a graph.</exception>
+    public uint TraceHeight => (_reflectionRaw
+        ?? throw new InvalidOperationException("The SSR node is not attached to a graph (call Attach first).")).Height;
 
     /// <summary>
     /// Creates the post-lighting SSR node. Shader objects and the graph resources
-    /// remain owned by their callers; the node owns its materials and intermediate
-    /// textures.
+    /// remain owned by their callers; the node owns its materials and the persistent
+    /// reflection history. The scene copy and raw trace target are graph transients
+    /// created by <see cref="Attach"/>; <paramref name="width"/>/<paramref name="height"/>
+    /// only size the initial history.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
     /// <param name="graph">The render graph the node will attach to.</param>
@@ -192,10 +199,10 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
                 null,
                 "ssr_history_pass"));
 
-        _sceneCopy = CreateTexture(Math.Max(width, 1), Math.Max(height, 1), "ssr_scene_copy");
+        // The persistent cross-frame history is created up front; the scene copy
+        // and the raw trace target are graph transients created by Attach.
         uint traceWidth = TraceDimension(width);
         uint traceHeight = TraceDimension(height);
-        _reflectionRaw = CreateTexture(traceWidth, traceHeight, "ssr_raw");
         _reflectionHistory[0] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_a");
         _reflectionHistory[1] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_b");
 
@@ -218,12 +225,6 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         }
     }
 
-    private RenderTexture CreateTexture(uint width, uint height, string name)
-    {
-        return _rendering.CreateRenderTexture(
-            _rendering.PreferredLightMapPass, width, height, name);
-    }
-
     private RenderTexture CreateHistoryTexture(uint width, uint height, string name)
     {
         return _rendering.CreateRenderTexture(_historyLayout, width, height, name);
@@ -236,21 +237,18 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, sceneColorTexture);
 
         _traceMaterial.SetBuffer("_ssrData", _dataBuffer);
-        _traceMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
         _traceMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
         _traceMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
         _traceMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
         _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
 
         _resolveMaterial.SetBuffer("_ssrData", _dataBuffer);
-        _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
         _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0], 0);
         _resolveMaterial.SetRenderTexture("_historyMetadata", _reflectionHistory[0], 1);
         _resolveMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
         _resolveMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
 
         _compositeMaterial.SetBuffer("_ssrData", _dataBuffer);
-        _compositeMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
         _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1], 0);
         _compositeMaterial.SetRenderTexture("_reflectionMetadata", _reflectionHistory[1], 1);
         _compositeMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
@@ -263,10 +261,10 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     /// Attaches the node to the render graph as a direct <see cref="IRenderGraphNode"/>
     /// registered immediately before <paramref name="insertBefore"/> (usually the
     /// composition's final blit): creates the scene-copy (graph-relative ×1.0) and
-    /// raw-trace (×<see cref="TraceResolutionScale"/>) transient resources and rebinds
-    /// the materials once — the constructor-created standalone textures are released.
-    /// The temporal reflection history stays persistent (cross-frame feedback never
-    /// enters the graph). After attachment the graph drives execution and resize.
+    /// raw-trace (×<see cref="TraceResolutionScale"/>) transient resources and binds
+    /// the materials to them. The temporal reflection history stays persistent
+    /// (cross-frame feedback never enters the graph). After attachment the graph
+    /// drives execution and resize.
     /// </summary>
     /// <param name="insertBefore">The registered node before which this node runs.</param>
     /// <exception cref="InvalidOperationException">The node is already attached.</exception>
@@ -278,8 +276,6 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             throw new InvalidOperationException("The SSR renderer is already attached to a graph (call Detach first).");
         }
         _graphAttached = true;
-        _sceneCopy.Dispose();
-        _reflectionRaw.Dispose();
         _sceneCopyResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, name: "ssr_scene_copy"));
         _rawResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
@@ -314,49 +310,18 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             _graph.DestroyTransient(_rawResource);
             _rawResource = null;
         }
+        _sceneCopy = null;
+        _reflectionRaw = null;
         _graphAttached = false;
-    }
-
-    private void EnsureTextures(uint width, uint height)
-    {
-        if (_graphAttached)
-        {
-            // Attached: the graph owns and resizes the scene copy and the raw trace
-            // target; only the persistent history (sized off the trace facade) is
-            // maintained here.
-            EnsureHistoryTextures();
-            return;
-        }
-
-        width = Math.Max(width, 1);
-        height = Math.Max(height, 1);
-        uint traceWidth = TraceDimension(width);
-        uint traceHeight = TraceDimension(height);
-        if (_sceneCopy.Width == width && _sceneCopy.Height == height
-            && _reflectionRaw.Width == traceWidth && _reflectionRaw.Height == traceHeight)
-        {
-            return;
-        }
-
-        _sceneCopy.Dispose();
-        _reflectionRaw.Dispose();
-        _reflectionHistory[0].Dispose();
-        _reflectionHistory[1].Dispose();
-        _sceneCopy = CreateTexture(width, height, "ssr_scene_copy");
-        _reflectionRaw = CreateTexture(traceWidth, traceHeight, "ssr_raw");
-        _reflectionHistory[0] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_a");
-        _reflectionHistory[1] = CreateHistoryTexture(traceWidth, traceHeight, "ssr_history_b");
-        _historyReadIndex = 0;
-        _historyValid = false;
-        BindPersistentResources();
     }
 
     // Recreates the persistent temporal history when the trace resolution changed
     // (graph viewport resize or a TraceResolutionScale change). The per-frame
-    // history bindings in Render pick up the new textures before use.
+    // history bindings in Render pick up the new textures before use. The scene
+    // copy and the raw trace target are graph transients resized by the graph.
     private void EnsureHistoryTextures()
     {
-        uint traceWidth = _reflectionRaw.Width;
+        uint traceWidth = _reflectionRaw!.Width;
         uint traceHeight = _reflectionRaw.Height;
         if (_reflectionHistory[0].Width == traceWidth && _reflectionHistory[0].Height == traceHeight)
         {
@@ -376,7 +341,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private void Render(GPUFrameBuffer target)
     {
         RenderTexture scene = _sceneColor.Texture;
-        EnsureTextures(scene.Width, scene.Height);
+        RenderTexture sceneCopy = _sceneCopy!;
+        RenderTexture reflectionRaw = _reflectionRaw!;
+        EnsureHistoryTextures();
 
         bool ssrOnly = _voxelGi.SsrOnly;
         if (ssrOnly != _lastSsrOnly)
@@ -401,7 +368,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
                 _historyValid ? _previousCameraPosition : _camera.Transform.Position,
                 1.0f),
             RenderSize = new Vector4(scene.Width, scene.Height,
-                _reflectionRaw.Width, _reflectionRaw.Height),
+                reflectionRaw.Width, reflectionRaw.Height),
             Params = new Vector4(_frameIndex, _historyValid ? 1.0f : 0.0f,
                 (int)_voxelGi.DebugView, _environment.GiSpecularStrength),
             RayParams = new Vector4(MaxTraceDistance, RoughnessCutoff, 0.0f, 0.0f),
@@ -410,11 +377,11 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 
         // Preserve the completed HDR scene before overwriting the pipeline target.
         _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, scene);
-        _renderContext.Begin(_sceneCopy.FrameBuffer);
+        _renderContext.Begin(sceneCopy.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, _copyMaterial);
         _renderContext.End();
 
-        _renderContext.Begin(_reflectionRaw.FrameBuffer);
+        _renderContext.Begin(reflectionRaw.FrameBuffer);
         _renderContext.Draw(_fullScreenMesh, _traceMaterial);
         _renderContext.End();
 
@@ -445,7 +412,12 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Resize(uint width, uint height)
     {
-        EnsureTextures(width, height);
+        // The graph owns and resizes the scene copy and the raw trace target;
+        // only the persistent history (sized off the trace facade) follows here.
+        if (_graphAttached)
+        {
+            EnsureHistoryTextures();
+        }
     }
 
     /// <inheritdoc />
@@ -496,12 +468,8 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             _resolveMaterial.Dispose();
             _compositeMaterial.Dispose();
             _dataBuffer.Dispose();
-            if (!_graphAttached)
-            {
-                // Attached textures are graph-owned facades, disposed with the graph.
-                _sceneCopy.Dispose();
-                _reflectionRaw.Dispose();
-            }
+            // The scene copy and raw trace target are graph-owned facades,
+            // disposed with the graph.
             _reflectionHistory[0].Dispose();
             _reflectionHistory[1].Dispose();
             _historyLayout.Dispose();

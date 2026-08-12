@@ -86,6 +86,10 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting NoGPU = new GraphicsSetting
     {
         Backend = GraphicsBackend.None,
+        PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
+        PreferredSDRFormat = PixelFormat.RGBA8Unorm,
+        PreferredHDRFormat = PixelFormat.RGBA16Float,
+        PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,
         IsShaderCacheEnabled = false,
         ShaderCachePath = null,

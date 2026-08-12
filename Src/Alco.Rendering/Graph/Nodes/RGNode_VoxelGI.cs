@@ -418,8 +418,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     // write the new accumulation without a separate resolve pass.
     private RenderTexture _traceHistory;
     private RenderTexture _indirectAtlas;
-    private RenderTexture _giDiffuseFullRes;
-    private RenderTexture _giSpecularFullRes;
+    // Facades of the graph-owned transients below; null until Attach creates them.
+    private RenderTexture? _giDiffuseFullRes;
+    private RenderTexture? _giSpecularFullRes;
     private readonly RenderTexture[] _historyGI = new RenderTexture[2];
     private uint _gbufferWidth;
     private uint _gbufferHeight;
@@ -433,7 +434,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private GraphicsBuffer? _boundPointLightBuffer;
 
     // Graph-owned transient resources. _giDiffuseFullRes and _giSpecularFullRes are
-    // facades of the transients below (not disposed here, not recreated by Resize).
+    // facades of the transients below (not disposed here, rematerialized on resize).
     private RenderGraph? _graph;
     private RGNode_DeferredLighting? _lighting;
     private RenderGraphTexture? _gbufferResource;
@@ -629,13 +630,17 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// selected visibility), produced by the internal upsample pass from
     /// <see cref="IndirectTexture"/>. Consumed by the deferred lighting pass.
     /// </summary>
-    public RenderTexture DiffuseTexture => _giDiffuseFullRes;
+    /// <exception cref="InvalidOperationException">The renderer is not attached to a graph.</exception>
+    public RenderTexture DiffuseTexture => _giDiffuseFullRes
+        ?? throw new InvalidOperationException("The voxel GI renderer is not attached to a graph (call Attach first).");
 
     /// <summary>
     /// The full-resolution specular radiance output, produced by the internal
     /// upsample pass. Consumed by the deferred lighting pass.
     /// </summary>
-    public RenderTexture SpecularTexture => _giSpecularFullRes;
+    /// <exception cref="InvalidOperationException">The renderer is not attached to a graph.</exception>
+    public RenderTexture SpecularTexture => _giSpecularFullRes
+        ?? throw new InvalidOperationException("The voxel GI renderer is not attached to a graph (call Attach first).");
 
     /// <summary>
     /// Create the voxel GI renderer.
@@ -773,10 +778,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
 
-        // Full-resolution GI outputs (upsampled from the trace-resolution atlas
-        // by VoxelGiUpsample.hlsl) consumed by the deferred lighting pass.
-        _giDiffuseFullRes = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_diffuse");
-        _giSpecularFullRes = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, _gbufferWidth, _gbufferHeight, "voxel_gi_specular");
+        // The full-resolution GI outputs (upsampled from the trace-resolution
+        // atlas by VoxelGiUpsample.hlsl, consumed by the deferred lighting pass)
+        // are graph transients created by Attach.
 
         // Create the upsample compute pass eagerly when the shader is supplied.
         if (shaders.Upsample != null)
@@ -791,8 +795,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _upsampleDataBuffer = _rendering.CreateGraphicsValueBuffer<VoxelGiUpsampleData>("voxel_gi_upsample_data");
         _upsampleMaterial.SetBuffer("_data", _upsampleDataBuffer);
         _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
-        _upsampleMaterial.SetRenderTexture("_giDiffuseOut", _giDiffuseFullRes);
-        _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
+        // _giDiffuseOut/_giSpecularOut are bound by Attach once the graph
+        // transients exist.
     }
 
     /// <summary>
@@ -801,11 +805,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// full-resolution outputs, registers itself immediately before the lighting
     /// node and wires the outputs to <see cref="RGNode_DeferredLighting.GiDiffuseInput"/> /
     /// <see cref="RGNode_DeferredLighting.GiSpecularInput"/> and the lighting material's
-    /// GI slots. The constructor-created standalone full-resolution outputs are
-    /// released and the upsample material is rebound once here — the facades keep
-    /// their object identity from then on, and the graph rematerializes them on
-    /// resize. The trace and temporal-history textures stay persistent (cross-frame
-    /// feedback never enters the graph).
+    /// GI slots. The graph rematerializes the outputs on resize. The trace and
+    /// temporal-history textures stay persistent (cross-frame feedback never
+    /// enters the graph).
     /// </summary>
     /// <param name="graph">The render graph driving the frame.</param>
     /// <param name="lighting">The deferred lighting node the GI outputs feed.</param>
@@ -830,8 +832,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _gbufferResource = gbuffer;
         _shadowMapResource = shadowMap;
         _environment = environment;
-        _giDiffuseFullRes.Dispose();
-        _giSpecularFullRes.Dispose();
         _giDiffuseResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, name: "gi_diffuse"));
         _giSpecularResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
@@ -872,6 +872,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _graph.DestroyTransient(_giSpecularResource);
             _giSpecularResource = null;
         }
+        _giDiffuseFullRes = null;
+        _giSpecularFullRes = null;
         if (_lighting != null)
         {
             _lighting.GiDiffuseInput = null;
@@ -2178,8 +2180,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _traceRaw.Dispose();
             _traceHistory.Dispose();
             _indirectAtlas.Dispose();
-            _giDiffuseFullRes.Dispose();
-            _giSpecularFullRes.Dispose();
+            // The full-resolution GI outputs are graph-owned facades, disposed
+            // with the graph. Compute materials hold no native resources of
+            // their own and are not disposable.
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
             _dataBuffer.Dispose();

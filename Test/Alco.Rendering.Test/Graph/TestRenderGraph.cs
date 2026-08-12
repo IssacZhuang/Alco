@@ -480,6 +480,30 @@ public sealed class TestRenderGraph
         Assert.That(node.ExecuteCount, Is.EqualTo(2));
     }
 
+    [Test(Description = "Resize prunes pool entries of the old size; absolute-size transients keep their backing")]
+    public void ResizePrunesStaleSizePoolEntries()
+    {
+        using RenderGraph graph = CreateGraph(32, 32);
+        RenderGraphTexture relative = graph.CreateTransient(Describe(_layoutColor, "relative"));
+        RenderGraphTexture absolute = graph.CreateTransient(Describe(_layoutColor, "absolute", width: 16, height: 16));
+        var node = new FakeNode("node") { Writes = [relative, absolute], DeclaresOutput = true };
+        graph.Use(node);
+
+        graph.Execute(null);
+        int pooledBefore = graph.PooledTextureCount;
+        GPUTexture absoluteBacking = absolute.Texture.FrameBuffer.Colors[0];
+
+        graph.Resize(64, 64);
+
+        Assert.That(graph.PooledTextureCount, Is.EqualTo(pooledBefore),
+            "The old-size entry is pruned and the new-size entry materialized; the absolute-size entry is kept.");
+        Assert.That(ReferenceEquals(absolute.Texture.FrameBuffer.Colors[0], absoluteBacking), Is.True,
+            "The absolute-size transient keeps its pooled texture across the resize.");
+
+        Assert.DoesNotThrow(() => graph.Execute(null));
+        Assert.That(node.ExecuteCount, Is.EqualTo(2));
+    }
+
     [Test(Description = "Steady-state frames perform no meaningful managed allocations on the Setup/Compile/Execute path")]
     public void SteadyStateFramesDoNotAllocate()
     {

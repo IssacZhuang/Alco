@@ -58,13 +58,13 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     private double _aoGpuMilliseconds;
     private double _blurGpuMilliseconds;
 
-    private RenderTexture _rawAO;
-    private RenderTexture _aoResult;
+    // Facades of the graph-owned transients below; null until Attach creates them.
+    // They are not disposed here and are rematerialized by the graph on resize.
+    private RenderTexture? _rawAO;
+    private RenderTexture? _aoResult;
     private RenderTexture? _boundGBuffer;
 
-    // Graph-owned transient resources. _rawAO/_aoResult are facades of the
-    // transients below; they are not disposed here and are rematerialized by
-    // the graph on resize.
+    // Graph-owned transient resources.
     private RenderGraph? _graph;
     private RGNode_DeferredLighting? _lighting;
     private RenderGraphTexture? _gbufferResource;
@@ -107,17 +107,18 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     public float MaxStepPixels { get; set; } = 64.0f;
 
     /// <summary>The full-resolution AO result texture (r = occlusion [0,1], white = unoccluded).</summary>
-    public RenderTexture AOResult => _aoResult;
+    /// <exception cref="InvalidOperationException">The renderer is not attached to a graph.</exception>
+    public RenderTexture AOResult => _aoResult
+        ?? throw new InvalidOperationException("The HBAO renderer is not attached to a graph (call Attach first).");
 
     /// <summary>
-    /// Create the HBAO+ renderer with the given compute shaders.
+    /// Create the HBAO+ renderer with the given compute shaders. No GPU textures are
+    /// allocated here — the AO textures are graph transients created by <see cref="Attach"/>.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="hbaoShader">The raw AO shader (HBAO.hlsl).</param>
     /// <param name="blurShader">The bilateral blur shader (HBAOBlur.hlsl).</param>
-    /// <param name="width">The initial AO texture width in pixels (match the G-buffer).</param>
-    /// <param name="height">The initial AO texture height in pixels (match the G-buffer).</param>
-    public RGNode_HBAO(RenderingSystem rendering, Shader hbaoShader, Shader blurShader, uint width, uint height)
+    public RGNode_HBAO(RenderingSystem rendering, Shader hbaoShader, Shader blurShader)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -127,15 +128,6 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         _dataBuffer = rendering.CreateGraphicsValueBuffer<HbaoData>("hbao_data");
         _hbaoMaterial.SetBuffer("_data", _dataBuffer);
         _blurMaterial.SetBuffer("_data", _dataBuffer);
-
-        // RGBA16Float (light map layout): proven as both a compute storage target and
-        // a filterable sampled texture.
-        _rawAO = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width, height, "hbao_raw");
-        _aoResult = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, width, height, "hbao_result");
-
-        _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
 
         if (_device.TimestampQuerySupported)
         {
@@ -148,9 +140,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     /// <see cref="IRenderGraphNode"/> in the graph: creates the transient AO result
     /// and raw-AO intermediate, registers itself immediately before the lighting
     /// node, and wires the result to <see cref="RGNode_DeferredLighting.AoInput"/> and
-    /// the lighting material's _aoTexture slot. The constructor-created standalone
-    /// textures are released and the materials are rebound once here — the facades
-    /// keep their object identity from then on. After attachment the graph drives
+    /// the lighting material's _aoTexture slot. After attachment the graph drives
     /// execution and resize.
     /// </summary>
     /// <param name="graph">The render graph driving the frame.</param>
@@ -172,8 +162,8 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         _lighting = lighting;
         _gbufferResource = gbuffer;
         _environment = environment;
-        _rawAO.Dispose();
-        _aoResult.Dispose();
+        // RGBA16Float (light map layout): proven as both a compute storage target and
+        // a filterable sampled texture.
         _aoResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, name: "hbao_ao"));
         _rawAOResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
@@ -210,6 +200,8 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
             _graph.DestroyTransient(_aoResource);
             _aoResource = null;
         }
+        _rawAO = null;
+        _aoResult = null;
         if (_lighting != null)
         {
             _lighting.AoInput = null;
@@ -349,6 +341,8 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         if (disposing)
         {
             // Output textures are graph-owned facades, disposed with the graph.
+            // Compute materials hold no native resources of their own (bind groups
+            // are cache-retained by the parameter set) and are not disposable.
             _dataBuffer.Dispose();
             _gpuTimestamps?.Dispose();
             _commandBuffer.Dispose();
