@@ -17,15 +17,11 @@ public partial class RenderingSystem
     private readonly IRenderingSystemHost _host;
 
     //preferred
-    private readonly GPUAttachmentLayout _preferredSDRPass;
     private readonly GPUAttachmentLayout _preferredHDRPass;
-    private readonly GPUAttachmentLayout _preferredSDRPassWithoutDepth;
-    private readonly GPUAttachmentLayout _preferredHDRPassWithoutDepth;
     private readonly GPUAttachmentLayout _preferredRGBATexturePass;
     private readonly GPUAttachmentLayout _preferredRTexturePass;
     private readonly GPUAttachmentLayout _preferredLightMapPass;
 
-    private readonly PixelFormat _preferredSDRFormat;
     private readonly PixelFormat _preferredHDRFormat;
     private readonly PixelFormat _preferredDepthStencilFormat;
 
@@ -52,60 +48,62 @@ public partial class RenderingSystem
         get => _viewProjectionMatrix;
     }
 
-    public PixelFormat PreferredSDRFormat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSDRFormat;
-    }
-
+    /// <summary>
+    /// The pixel format of the pipeline's main HDR scene target (set via
+    /// <c>GraphicsSetting.PreferredHDRFormat</c>).
+    /// </summary>
     public PixelFormat PreferredHDRFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredHDRFormat;
     }
 
+    /// <summary>
+    /// The depth-stencil format of <see cref="PreferredHDRPass"/> (set via
+    /// <c>GraphicsSetting.PreferredDepthStencilFormat</c>). The deferred pipeline's
+    /// own targets always use Depth32Float regardless of this value.
+    /// </summary>
     public PixelFormat PreferredDepthStencilFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredDepthStencilFormat;
     }
 
-    public GPUAttachmentLayout PreferredSDRPass
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSDRPass;
-    }
-
-    public GPUAttachmentLayout PreferredSDRPassWithoutDepth
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSDRPassWithoutDepth;
-    }
-
+    /// <summary>
+    /// The canonical layout of a forward-style HDR scene target (HDR color +
+    /// depth-stencil). Pass it to <see cref="RenderPipeline"/> when composing a
+    /// custom pipeline whose scene texture needs its own depth attachment.
+    /// </summary>
     public GPUAttachmentLayout PreferredHDRPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredHDRPass;
     }
 
-    public GPUAttachmentLayout PreferredHDRPassWithoutDepth
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredHDRPassWithoutDepth;
-    }
-
+    /// <summary>
+    /// The canonical layout of a general-purpose 8-bit offscreen texture
+    /// (RGBA8Unorm, no depth) — snapshots, atlases, encoders.
+    /// </summary>
     public GPUAttachmentLayout PreferredRGBATexturePass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredRGBATexturePass;
     }
 
+    /// <summary>
+    /// The canonical layout of a single-channel 8-bit offscreen texture
+    /// (R8Unorm, no depth) — font SDF generation.
+    /// </summary>
     public GPUAttachmentLayout PreferredRTexturePass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredRTexturePass;
     }
 
+    /// <summary>
+    /// The canonical layout of a filterable HDR compute texture (RGBA16Float,
+    /// no depth) — GI/AO/SSR intermediates, light maps, post-process pyramids.
+    /// </summary>
     public GPUAttachmentLayout PreferredLightMapPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -159,7 +157,6 @@ public partial class RenderingSystem
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
-        PixelFormat preferredSDRFormat, 
         PixelFormat preferredHDRFormat,
         PixelFormat preferredDepthStencilFormat,
         IShaderCache? shaderCache = null
@@ -168,7 +165,6 @@ public partial class RenderingSystem
         _device = device;
         _host = host;
 
-        _preferredSDRFormat = preferredSDRFormat;
         _preferredHDRFormat = preferredHDRFormat;
         _preferredDepthStencilFormat = preferredDepthStencilFormat;
 
@@ -189,32 +185,11 @@ public partial class RenderingSystem
             512 * 1024
             );
 
-        _preferredSDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
-        (
-            [new(_preferredSDRFormat)],
-            new(_preferredDepthStencilFormat),
-            "sdr_pass"
-        ));
-
         _preferredHDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_preferredHDRFormat)],
             new(_preferredDepthStencilFormat),
             "hdr_pass"
-        ));
-
-        _preferredSDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
-        (
-            [new(_preferredSDRFormat)],
-            null,
-            "sdr_pass_no_depth"
-        ));
-
-        _preferredHDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
-        (
-            [new(_preferredHDRFormat)],
-            null,
-            "hdr_pass_no_depth"
         ));
 
         _preferredRGBATexturePass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
@@ -274,6 +249,11 @@ public partial class RenderingSystem
         _host.OnUpdate -= OnUpdate;
         _host.OnDispose -= OnDispose;
         _globalRenderData.Dispose();
+        _viewProjectionMatrix.Dispose();
+        _preferredHDRPass.Dispose();
+        _preferredRGBATexturePass.Dispose();
+        _preferredRTexturePass.Dispose();
+        _preferredLightMapPass.Dispose();
         _bufferPool.Dispose();
     }
 }

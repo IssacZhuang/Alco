@@ -44,7 +44,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
         _mesh = mesh;
 
         _pipelineInfo = shader.GetGraphicsPipeline(
-            renderingSystem.PreferredSDRPass,
+            renderingSystem.PreferredHDRPass,
             DepthStencilState.Read,
             BlendState.AlphaBlend
         );

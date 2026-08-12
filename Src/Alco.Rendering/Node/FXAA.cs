@@ -122,9 +122,10 @@ public class FXAA : TextureProcessor
         // Initialize FXAA pipeline context with default HIGH quality
         UpdateShaderDefines();
 
-        // Initialize blit pipeline context
+        // Initialize blit pipeline context (placeholder layout only: Blit re-creates
+        // the pipeline against the real target layout on first use).
         _blitPipelineInfo = GraphicsPipelineContext.Default;
-        _blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, renderingSystem.PreferredSDRPass);
+        _blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, renderingSystem.PreferredLightMapPass);
         _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
 
         // Create shader data buffer with default values
@@ -251,8 +252,9 @@ public class FXAA : TextureProcessor
 
         _currentDefines = new[] { qualityDefine };
 
-        // Get a new pipeline with the specified defines
-        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_intermediateLayout ?? _renderingSystem.PreferredSDRPass, _currentDefines);
+        // Get a new pipeline with the specified defines (the placeholder layout is
+        // replaced by the intermediate texture's real layout on the next Blit).
+        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_intermediateLayout ?? _renderingSystem.PreferredLightMapPass, _currentDefines);
 
         // Update resource IDs after pipeline recreation
         _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);

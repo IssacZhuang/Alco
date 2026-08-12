@@ -11,8 +11,7 @@ internal static class Utility
         DummyRenderingSystemHost host = new DummyRenderingSystemHost();
         RenderingSystem renderingSystem = new RenderingSystem(
             host,
-            device, 
-            PixelFormat.RGBA8Unorm,
+            device,
             PixelFormat.RGBA16Float,
             PixelFormat.Depth24PlusStencil8
         );

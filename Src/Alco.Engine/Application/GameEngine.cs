@@ -229,7 +229,6 @@ IDisposable
         _renderingSystem = new RenderingSystem(
             this,
             _graphicsDevice,
-            _setting.Graphics.PreferredSDRFormat,
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat,
             CreateShaderCache(_setting.Graphics)

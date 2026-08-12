@@ -109,7 +109,7 @@ public class Bloom : TextureProcessor
         _renderingSystem = _system;
         _targetDownSampleHeight = targetDownSampleHeight;
 
-        _backBufferPass = _system.PreferredHDRPassWithoutDepth;
+        _backBufferPass = _system.PreferredLightMapPass;
 
         _blitShader = blitShader;
         _blitPipelineInfo = GraphicsPipelineContext.Default with

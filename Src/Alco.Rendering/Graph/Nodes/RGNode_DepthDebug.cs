@@ -52,7 +52,7 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
         // The depth texture cannot be a depth attachment and a sampled source in the
         // same pass, so the depth visualization goes through a temporary texture.
         _tmpResource = pipeline.Graph.CreateTransient(new RenderGraphTextureDescriptor(
-            rendering.PreferredSDRPassWithoutDepth, name: "depth_debug_tmp"));
+            rendering.PreferredRGBATexturePass, name: "depth_debug_tmp"));
 
         _dataBuffer = rendering.CreateGraphicsValueBuffer<Data>();
 

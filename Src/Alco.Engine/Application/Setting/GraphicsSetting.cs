@@ -24,18 +24,17 @@ public struct GraphicsSetting
     public PixelFormat PreferredSurfaceFormat { get; set; }
 
     /// <summary>
-    /// The preferred pixel format for standard dynamic range (SDR) rendering targets
-    /// </summary>
-    public PixelFormat PreferredSDRFormat { get; set; }
-
-    /// <summary>
-    /// The preferred pixel format for high dynamic range (HDR) rendering targets
+    /// The pixel format of the pipeline's main HDR scene target (and the
+    /// <c>PreferredHDRPass</c> scene layout). Does not affect the swapchain —
+    /// its format is <see cref="PreferredSurfaceFormat"/>.
     /// </summary>
     public PixelFormat PreferredHDRFormat { get; set; }
 
     /// <summary>
-    /// The format of the swap chain depth stencil buffer. 
-    /// <br/>Set to null to disable depth stencil test.
+    /// The depth-stencil format of the <c>PreferredHDRPass</c> scene layout (the
+    /// default for forward-style scene targets). The deferred pipeline's own
+    /// targets (G-buffer, shadow map) always use Depth32Float regardless of this
+    /// setting. The swapchain has no depth buffer.
     /// </summary>
     public PixelFormat PreferredDepthStencilFormat { get; set; }
 
@@ -56,7 +55,6 @@ public struct GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
         PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
-        PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,
@@ -71,7 +69,6 @@ public struct GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
         PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
-        PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = true,
@@ -87,7 +84,6 @@ public struct GraphicsSetting
     {
         Backend = GraphicsBackend.None,
         PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
-        PreferredSDRFormat = PixelFormat.RGBA8Unorm,
         PreferredHDRFormat = PixelFormat.RGBA16Float,
         PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
         DebugInfo = false,

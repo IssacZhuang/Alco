@@ -44,8 +44,8 @@ public sealed class RenderPipeline : AutoDisposable
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
     /// <param name="sceneLayout">The attachment layout of the scene render texture
-    /// (e.g. <see cref="RenderingSystem.PreferredSDRPass"/> or
-    /// <see cref="RenderingSystem.PreferredHDRPass"/> for HDR content processors).
+    /// (e.g. <see cref="RenderingSystem.PreferredHDRPass"/> for an HDR forward
+    /// scene with its own depth attachment).
     /// Stays owned by the caller.</param>
     /// <param name="blitShader">The shader the final blit uses for the plain copy.</param>
     /// <param name="width">The initial scene texture width in pixels.</param>
