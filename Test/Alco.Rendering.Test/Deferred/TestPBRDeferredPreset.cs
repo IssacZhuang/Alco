@@ -290,6 +290,29 @@ float4 MainPS(V2F input) : SV_TARGET
         Assert.That(preset.ForwardRenderTexture.Version, Is.EqualTo(forwardVersion));
     }
 
+    [Test(Description = "The scene color target shares the G-buffer's depth attachment (render graph depthSource) instead of owning a separate depth texture")]
+    public void SceneColorSharesGBufferDepth()
+    {
+        using PBRDeferredPreset preset = CreatePreset();
+        using RenderTexture destination = CreateDestination();
+        preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
+
+        preset.Pipeline.Render(destination.FrameBuffer);
+
+        Assert.That(ReferenceEquals(
+            preset.SceneColorResource.Texture.FrameBuffer.DepthStencil,
+            preset.GBuffer.FrameBuffer.DepthStencil), Is.True);
+    }
+
+    [Test(Description = "The forward layout declares its depth read-only: the lighting/forward passes sample or test the shared G-buffer depth while it is attached")]
+    public void ForwardLayoutDepthIsReadOnly()
+    {
+        using PBRDeferredPreset preset = CreatePreset();
+
+        Assert.That(preset.ForwardLayout.Depth.HasValue, Is.True);
+        Assert.That(preset.ForwardLayout.Depth.Value.ReadOnly, Is.True);
+    }
+
     [Test(Description = "Resize keeps facade identity, updates sizes and notifies chain nodes")]
     public void ResizeUpdatesFacadesAndNotifiesNodes()
     {

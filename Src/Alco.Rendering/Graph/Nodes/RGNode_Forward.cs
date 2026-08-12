@@ -255,8 +255,9 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     /// Create a glass material for the ForwardGlass shader with per-material
     /// albedo, normal, metallic-roughness and emissive textures. The material
     /// uses alpha blending (no accumulation, no sorting needed) and hardware
-    /// depth testing against opaque geometry (the pipeline pre-fills the forward
-    /// RT's depth from the G-buffer via a copy pass). The caller owns the material.
+    /// depth testing against opaque geometry (the forward target shares the
+    /// G-buffer's depth attachment through the graph's depth sharing — no depth
+    /// copy). The caller owns the material.
     /// </summary>
     public GraphicsMaterial CreateGlassMaterial(
         Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
@@ -275,8 +276,8 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         // Shared pipeline buffers.
         material.SetBuffer(ShaderResourceId.Data, _lightingDataBuffer);
         material.SetBuffer(ShaderResourceId.PointLights, _pointLightBuffer);
-        // Shadow map for shadow comparison (G-buffer depth no longer needed —
-        // the pipeline copies it into the forward RT's depth attachment).
+        // Shadow map for shadow comparison (the forward target shares the
+        // G-buffer's depth attachment, so no G-buffer depth sampling is needed).
         material.SetRenderTextureDepth("_shadowMap", _shadowRT);
         return material;
     }

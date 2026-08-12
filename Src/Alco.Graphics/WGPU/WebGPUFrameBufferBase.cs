@@ -74,12 +74,17 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
         *depthAttachment = new WGPURenderPassDepthStencilAttachment
         {
             view = ((WebGPUTextureViewBase)depthStencilView).Native,
-            depthLoadOp = WGPULoadOp.Load,
-            depthStoreOp = WGPUStoreOp.Store,
+            // Read-only depth/stencil: the load/store ops must be Undefined per the
+            // WebGPU pass descriptor validation, and the attachment stays usable as a
+            // sampled texture inside the same pass.
+            depthLoadOp = depthInfo.isDepthReadOnly ? WGPULoadOp.Undefined : WGPULoadOp.Load,
+            depthStoreOp = depthInfo.isDepthReadOnly ? WGPUStoreOp.Undefined : WGPUStoreOp.Store,
             depthClearValue = depthInfo.clearDepth,
-            stencilLoadOp = WGPULoadOp.Load,
-            stencilStoreOp = WGPUStoreOp.Store,
+            depthReadOnly = depthInfo.isDepthReadOnly,
+            stencilLoadOp = depthInfo.isStencilReadOnly ? WGPULoadOp.Undefined : WGPULoadOp.Load,
+            stencilStoreOp = depthInfo.isStencilReadOnly ? WGPUStoreOp.Undefined : WGPUStoreOp.Store,
             stencilClearValue = depthInfo.clearStencil,
+            stencilReadOnly = depthInfo.isStencilReadOnly,
         };
         return depthAttachment;
     }

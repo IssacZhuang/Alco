@@ -200,6 +200,19 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         {
             WGPURenderPassDepthStencilAttachment attachment = *tmpDescriptor.depthStencilAttachment;
 
+            if (attachment.depthReadOnly && (clearDepth.HasValue || depthOps.HasValue))
+            {
+                throw new InvalidOperationException(
+                    "The pass's depth attachment is read-only (the attachment layout declares " +
+                    "DepthAttachment.ReadOnly): it cannot be cleared or have explicit load/store ops.");
+            }
+            if (attachment.stencilReadOnly && (clearStencil.HasValue || depthOps.HasValue))
+            {
+                throw new InvalidOperationException(
+                    "The pass's stencil attachment is read-only (the attachment layout declares " +
+                    "DepthAttachment.ReadOnly): it cannot be cleared or have explicit load/store ops.");
+            }
+
             if (clearDepth.HasValue)
             {
                 attachment.depthLoadOp = WGPULoadOp.Clear;

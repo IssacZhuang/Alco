@@ -73,6 +73,10 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
             colorFormats = colors,
             depthStencilFormat = nativeAttachmentLayout.WebGPUDepthInfo?.format ?? WGPUTextureFormat.Undefined,
             sampleCount = 1,
+            // Must match the read-only state of the passes this bundle is executed
+            // into (webgpu bundle/pass attachment compatibility).
+            depthReadOnly = nativeAttachmentLayout.WebGPUDepthInfo?.isDepthReadOnly ?? false,
+            stencilReadOnly = nativeAttachmentLayout.WebGPUDepthInfo?.isStencilReadOnly ?? false,
         };
         _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, &descriptor);
     }

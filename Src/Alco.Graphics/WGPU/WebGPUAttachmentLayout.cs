@@ -74,9 +74,9 @@ internal sealed class WebGPUAttachmentLayout : GPUAttachmentLayout
             {
                 format = WebGPUUtility.PixelFormatToWebGPU(depth.Format),
                 clearDepth = depth.ClearDepth,
-                isDepthReadOnly = false,
+                isDepthReadOnly = depth.ReadOnly,
                 clearStencil = depth.ClearStencil,
-                isStencilReadOnly = false,
+                isStencilReadOnly = depth.ReadOnly,
             };
         }
     }

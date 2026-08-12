@@ -687,7 +687,8 @@ public class Game : GameEngine
         _frameCount++;
 
         // Disable the forward renderer when no glass is registered, so the
-        // pipeline skips the G-buffer → forward depth copy.
+        // pipeline skips the forward pass depth-tested against the shared
+        // G-buffer depth attachment.
         _forwardRenderer!.IsEnabled = _forwardRenderer.HasContent;
 
         // Render the frame and resolve it through the forward chain into the swapchain.

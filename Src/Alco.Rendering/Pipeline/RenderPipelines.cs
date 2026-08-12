@@ -80,14 +80,19 @@ public static class RenderPipelines
             "pbr_shadow_pass"));
 
         // Scene color: HDR color + Depth32Float shared from the G-buffer (the depth
-        // formats must match for the graph's depth sharing).
+        // formats must match for the graph's depth sharing). The depth is attached
+        // read-only: the deferred lighting / volumetric / SSR composite passes sample
+        // the G-buffer depth in the same pass, and the forward pass only depth-tests
+        // against it (nothing ever writes the shared depth outside the G-buffer pass).
         var forwardLayout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(rendering.PreferredHDRFormat)],
-            new DepthAttachment(PixelFormat.Depth32Float),
+            new DepthAttachment(PixelFormat.Depth32Float) { ReadOnly = true },
             "pbr_forward_pass"));
 
         // The render graph and its transient targets. The 2x2 cascade atlas uses an
-        // absolute size; the G-buffer and scene color follow the graph viewport.
+        // absolute size; the G-buffer and scene color follow the graph viewport. The
+        // scene color shares the G-buffer's depth attachment, so the depth filled by
+        // the geometry pass is available to the lighting/forward passes with no copy.
         var graph = new RenderGraph(rendering, width, height, "pbr_deferred");
         var profiler = new RenderProfiler();
         graph.Profiler = profiler;
@@ -96,7 +101,7 @@ public static class RenderPipelines
         RenderGraphTexture gbufferResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
             gbufferLayout, name: "pbr_gbuffer"));
         RenderGraphTexture sceneColorResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
-            forwardLayout, name: "pbr_scene_color"));
+            forwardLayout, depthSource: gbufferResource, name: "pbr_scene_color"));
 
         // IMPORTANT: DepthStencilState.None means depthCompare=Never — with a depth
         // attachment present (the engine's HDR main target), every fragment would be
