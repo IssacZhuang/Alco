@@ -123,7 +123,7 @@ public enum VoxelGiDebugMode
 }
 
 /// <summary>
-/// The complete set of compute shaders required by <see cref="VoxelGiRenderer"/>.
+/// The complete set of compute shaders required by <see cref="RGNode_VoxelGI"/>.
 /// Load each from its HLSL file and pass to the constructor.
 /// </summary>
 public readonly struct VoxelGiShaders
@@ -167,7 +167,7 @@ public readonly struct VoxelGiShaders
 /// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
 /// cone-traced with hardware trilinear filtering.
 /// </summary>
-public sealed class VoxelGiRenderer : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Per-frame data uploaded to every voxel GI shader. Layout must match the
@@ -644,7 +644,7 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderGraphNode
     /// <param name="baseVoxelSize">The voxel size of the finest level in world units.</param>
     /// <param name="traceResolutionScale">Screen-space cone-trace resolution relative to the G-buffer (0.25..1.0).</param>
     /// <exception cref="ArgumentException">The voxel resolution or trace-resolution scale is invalid.</exception>
-    public VoxelGiRenderer(
+    public RGNode_VoxelGI(
         RenderingSystem rendering,
         VoxelGiShaders shaders,
         uint width,
@@ -795,8 +795,8 @@ public sealed class VoxelGiRenderer : AutoDisposable, IRenderGraphNode
     /// Attaches the renderer to a pipeline as a direct <see cref="IRenderGraphNode"/>
     /// in the pipeline's render graph: creates the transient full-resolution outputs,
     /// registers itself immediately before the pipeline's lighting node and wires the
-    /// outputs to <see cref="DeferredLightingNode.GiDiffuseInput"/> /
-    /// <see cref="DeferredLightingNode.GiSpecularInput"/> and the lighting material's
+    /// outputs to <see cref="RGNode_DeferredLighting.GiDiffuseInput"/> /
+    /// <see cref="RGNode_DeferredLighting.GiSpecularInput"/> and the lighting material's
     /// GI slots — all through the pipeline's public composition surface. The
     /// constructor-created standalone full-resolution outputs are released and the
     /// upsample material is rebound once here — the facades keep their object identity

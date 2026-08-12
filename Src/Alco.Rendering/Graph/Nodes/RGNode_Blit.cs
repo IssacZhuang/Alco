@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// headless frames (null destination); otherwise it is the graph's culling root
 /// (<see cref="RenderGraphBuilder.ProducesOutput"/>).
 /// </summary>
-public sealed class BlitNode : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
     private readonly RenderChain _chain;
@@ -29,7 +29,7 @@ public sealed class BlitNode : AutoDisposable, IRenderGraphNode
     /// <param name="chain">The content chain whose tail is blitted.</param>
     /// <param name="blitShader">The shader used for the plain copy.</param>
     /// <param name="name">A diagnostic name for the render context.</param>
-    public BlitNode(RenderingSystem rendering, RenderGraph graph, RenderChain chain, Shader blitShader, string name = "blit")
+    public RGNode_Blit(RenderingSystem rendering, RenderGraph graph, RenderChain chain, Shader blitShader, string name = "blit")
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(graph);

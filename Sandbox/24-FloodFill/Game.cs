@@ -35,7 +35,7 @@ public class Game : GameEngine
 
         _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
-        var tonemapNode = new TonemapNode(
+        var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             _mainPipeline.Graph,
             _mainPipeline.Chain,
@@ -142,7 +142,7 @@ public class Game : GameEngine
         _mainPipeline.Dispose();
     }
 
-    private sealed class SceneNode : SceneContentNode
+    private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
 

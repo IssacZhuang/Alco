@@ -6,7 +6,7 @@ using Alco;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A renderable object that the <see cref="ForwardRenderer"/> draws in the
+/// A renderable object that the <see cref="RGNode_Forward"/> draws in the
 /// forward transparency pass (after deferred lighting). Glass objects use this
 /// to blend semi-transparently onto the lit HDR scene.
 /// </summary>
@@ -18,7 +18,7 @@ public interface IForwardRenderable
     /// <summary>The mesh to draw.</summary>
     Mesh Mesh { get; }
 
-    /// <summary>The forward glass material (created via <see cref="ForwardRenderer.CreateGlassMaterial"/>).</summary>
+    /// <summary>The forward glass material (created via <see cref="RGNode_Forward.CreateGlassMaterial"/>).</summary>
     GraphicsMaterial Material { get; }
 
     /// <summary>The world transform of the object.</summary>
@@ -48,7 +48,7 @@ public interface IForwardRenderable
 /// The node owns its render pass: it begins and ends its own context on the
 /// chain's current target.
 /// </summary>
-public sealed unsafe class ForwardRenderer : SceneContentNode
+public sealed unsafe class RGNode_Forward : RGNode_SceneContent
 {
     /// <summary>
     /// Push constant payload for a forward glass draw. Layout must match the
@@ -112,7 +112,7 @@ public sealed unsafe class ForwardRenderer : SceneContentNode
     /// <param name="lightingDataBuffer">The deferred lighting data buffer (shared with the pipeline).</param>
     /// <param name="pointLightBuffer">The point light buffer (shared with the pipeline).</param>
     /// <param name="shadowRT">The shadow map render texture (for shadow comparison sampling).</param>
-    public ForwardRenderer(
+    public RGNode_Forward(
         RenderingSystem rendering,
         RenderGraph graph,
         RenderChain chain,

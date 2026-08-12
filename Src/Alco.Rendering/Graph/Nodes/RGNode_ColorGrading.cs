@@ -8,7 +8,7 @@ namespace Alco.Rendering;
 /// Chain transform node that applies procedural color grading to the input. Falls back
 /// to a plain copy while the parameters are at identity.
 /// </summary>
-public sealed class ColorGradingNode : ChainTransformNode
+public sealed class RGNode_ColorGrading : RGNode_ChainTransform
 {
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
@@ -47,7 +47,7 @@ public sealed class ColorGradingNode : ChainTransformNode
     /// (color-only, in the chain's content format).</param>
     /// <param name="gradingShader">The color grading shader.</param>
     /// <param name="blitShader">The shader used for the plain copy at identity parameters.</param>
-    public ColorGradingNode(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+    public RGNode_ColorGrading(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
         GPUAttachmentLayout outputLayout, Shader gradingShader, Shader blitShader)
         : base(graph, chain, outputLayout, name: "color_grading")
     {

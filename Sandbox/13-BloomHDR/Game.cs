@@ -29,8 +29,8 @@ public class Game : GameEngine
     private ColorFloat _color = new ColorFloat(4, 2, 2, 1);
     private bool _enabled = true;
 
-    private readonly BloomNode _bloomNode;
-    private readonly TonemapNode _tonemapNode;
+    private readonly RGNode_Bloom _bloomNode;
+    private readonly RGNode_Tonemap _tonemapNode;
     private TonemapType _toneMapType;
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -51,10 +51,10 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        _bloomNode = new BloomNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit);
+        _bloomNode = new RGNode_Bloom(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit);
         _mainPipeline.Use(_bloomNode);
 
-        _tonemapNode = new TonemapNode(
+        _tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             _mainPipeline.Graph,
             _mainPipeline.Chain,
@@ -233,7 +233,7 @@ public class Game : GameEngine
     /// <summary>
     /// Content node drawing the HDR sprite into the pipeline-assigned target.
     /// </summary>
-    private sealed class SceneNode : SceneContentNode
+    private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
 

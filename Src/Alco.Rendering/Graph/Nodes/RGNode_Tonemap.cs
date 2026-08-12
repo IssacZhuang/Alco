@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// operator. Supports switching between operators at runtime; the
 /// <see cref="TonemapType.Linear"/> operator is a plain copy (no tone mapping).
 /// </summary>
-public sealed class TonemapNode : ChainTransformNode
+public sealed class RGNode_Tonemap : RGNode_ChainTransform
 {
     private readonly RenderingSystem _rendering;
     private readonly RenderContext _renderContext;
@@ -158,7 +158,7 @@ public sealed class TonemapNode : ChainTransformNode
     /// (color-only, in the chain's content format).</param>
     /// <param name="blitShader">The shader used for the plain copy of the
     /// <see cref="TonemapType.Linear"/> operator.</param>
-    public TonemapNode(
+    public RGNode_Tonemap(
         RenderingSystem rendering,
         RenderGraph graph,
         RenderChain chain,

@@ -23,12 +23,12 @@ public class Game : GameEngine
     private readonly SpriteRenderer _renderer;
 
     //hdr
-    private readonly TonemapNode _tonemapNode1;
-    private readonly TonemapNode _tonemapNode2;
+    private readonly RGNode_Tonemap _tonemapNode1;
+    private readonly RGNode_Tonemap _tonemapNode2;
 
     //bloom
-    private readonly BloomNode _bloomNode1;
-    private readonly BloomNode _bloomNode2;
+    private readonly RGNode_Bloom _bloomNode1;
+    private readonly RGNode_Bloom _bloomNode2;
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -66,7 +66,7 @@ public class Game : GameEngine
         MainView.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
 
-        _bloomNode1 = new BloomNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, RenderingSystem.CreateBloom(
+        _bloomNode1 = new RGNode_Bloom(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
             BuiltInAssets.Shader_BloomClamp,
             BuiltInAssets.Shader_BloomDownSample,
@@ -74,7 +74,7 @@ public class Game : GameEngine
             11), BuiltInAssets.Shader_Blit);
         _mainPipeline.Use(_bloomNode1);
 
-        _bloomNode2 = new BloomNode(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout, RenderingSystem.CreateBloom(
+        _bloomNode2 = new RGNode_Bloom(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout, RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
             BuiltInAssets.Shader_BloomClamp,
             BuiltInAssets.Shader_BloomDownSample,
@@ -82,7 +82,7 @@ public class Game : GameEngine
             11), BuiltInAssets.Shader_Blit);
         _pipeline2.Use(_bloomNode2);
 
-        _tonemapNode1 = new TonemapNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout,
+        _tonemapNode1 = new RGNode_Tonemap(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -92,7 +92,7 @@ public class Game : GameEngine
             BuiltInAssets.Shader_AgXTonemap);
         _mainPipeline.Use(_tonemapNode1);
 
-        _tonemapNode2 = new TonemapNode(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout,
+        _tonemapNode2 = new RGNode_Tonemap(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout,
             BuiltInAssets.Shader_Blit,
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
@@ -145,7 +145,7 @@ public class Game : GameEngine
         return new Vector2(x, y);
     }
 
-    private sealed class SceneNode : SceneContentNode
+    private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
 

@@ -5,7 +5,7 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Base class for processors that render texture content into a target with a fullscreen
-/// pass (bloom, FXAA, ...). Typically wrapped by a <see cref="ChainTransformNode"/>
+/// pass (bloom, FXAA, ...). Typically wrapped by a <see cref="RGNode_ChainTransform"/>
 /// for pipeline orchestration.
 /// </summary>
 public abstract class TextureProcessor : AutoDisposable

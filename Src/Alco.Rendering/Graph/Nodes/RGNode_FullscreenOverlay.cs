@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// destination) it roots itself so it still runs.
 /// <br/>The node owns its render context; it does not own the material.
 /// </summary>
-public sealed class FullscreenOverlayNode : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_FullscreenOverlay : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
     private readonly RenderChain _chain;
@@ -31,7 +31,7 @@ public sealed class FullscreenOverlayNode : AutoDisposable, IRenderGraphNode
     /// <param name="material">The full-screen material (e.g. additive blend). Not
     /// owned by the node.</param>
     /// <param name="name">A diagnostic name.</param>
-    public FullscreenOverlayNode(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+    public RGNode_FullscreenOverlay(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
         Material material, string name = "fullscreen_overlay")
     {
         ArgumentNullException.ThrowIfNull(rendering);

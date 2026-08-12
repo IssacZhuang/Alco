@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// replacing the final image. Debug tooling only. Samples the scene texture's depth
 /// (not the chain input), so it works from any position in the chain.
 /// </summary>
-public sealed class DepthDebugNode : ChainTransformNode
+public sealed class RGNode_DepthDebug : RGNode_ChainTransform
 {
     private struct Data
     {
@@ -41,7 +41,7 @@ public sealed class DepthDebugNode : ChainTransformNode
     /// <param name="blitDepthShaderText">The source text of the depth blit shader.</param>
     /// <param name="blitDepthShaderName">The name of the depth blit shader.</param>
     /// <param name="blitShader">The plain blit shader. Stays owned by the caller.</param>
-    public DepthDebugNode(RenderingSystem rendering, ForwardPipeline pipeline, string blitDepthShaderText, string blitDepthShaderName, Shader blitShader)
+    public RGNode_DepthDebug(RenderingSystem rendering, ForwardPipeline pipeline, string blitDepthShaderText, string blitDepthShaderName, Shader blitShader)
         : base(pipeline.Graph, pipeline.Chain, pipeline.PostProcessLayout, name: "depth_debug")
     {
         _graph = pipeline.Graph;

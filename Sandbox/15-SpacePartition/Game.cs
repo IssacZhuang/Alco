@@ -40,7 +40,7 @@ public class Game : GameEngine
         // The node chain: scene content first, then tone mapping.
         _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
-        var tonemapNode = new TonemapNode(
+        var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             _mainPipeline.Graph,
             _mainPipeline.Chain,
@@ -122,7 +122,7 @@ public class Game : GameEngine
     /// <summary>
     /// Content node drawing droplets and cubes into the pipeline-assigned target.
     /// </summary>
-    private sealed class SceneNode : SceneContentNode
+    private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
 

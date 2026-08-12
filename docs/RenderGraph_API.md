@@ -20,15 +20,15 @@
   |---|---|
   | `RenderGraph` | 资源表、transient 池、剔除、单批提交;`Use` / `InsertBefore` / `InsertAfter` / `Remove` / `CreateTransient` / `DestroyTransient` |
   | `RenderChain` | 线性内容链的穿线状态(`Current` / `Reset` / `Advance`),依赖"Setup 严格按注册顺序执行"这一图契约 |
-  | `ClearNode` | 清一个资源 |
-  | `GeometryPassNode` | 几何 pass:清目标 + 循环 `Content: List<IRenderPassContent>` |
-  | `ShadowPassNode` | 级联阴影 pass:2x2 atlas + 循环 `Content: List<IShadowPassContent>` |
-  | `DeferredLightingNode` | 全屏光照 pass,输入(`AoInput` / `GiDiffuseInput` / ...)是公开可设的资源槽 |
-  | `SceneContentNode`(abstract) | 原地向 `chain.Current` 绘制内容(场景、透明、UI);只需重写 `OnRender` |
-  | `ChainTransformNode`(abstract) | 后处理:读 `chain.Current` → 写自有 transient → `Advance`;只需重写 `OnProcess` |
-  | `FullscreenPassNode` / `FullscreenOverlayNode` | 全屏材质绘制(变换 / 原地叠加)的现成实现 |
-  | `BlitNode` | 链尾 → 帧目标;headless(目标为 null)时自动禁用,是通常的剔除根 |
-  | `CallbackNode` | 图中间的托管回调 |
+  | `RGNode_Clear` | 清一个资源 |
+  | `RGNode_GeometryPass` | 几何 pass:清目标 + 循环 `Content: List<IRenderPassContent>` |
+  | `RGNode_ShadowPass` | 级联阴影 pass:2x2 atlas + 循环 `Content: List<IShadowPassContent>` |
+  | `RGNode_DeferredLighting` | 全屏光照 pass,输入(`AoInput` / `GiDiffuseInput` / ...)是公开可设的资源槽 |
+  | `RGNode_SceneContent`(abstract) | 原地向 `chain.Current` 绘制内容(场景、透明、UI);只需重写 `OnRender` |
+  | `RGNode_ChainTransform`(abstract) | 后处理:读 `chain.Current` → 写自有 transient → `Advance`;只需重写 `OnProcess` |
+  | `RGNode_FullscreenPass` / `RGNode_FullscreenOverlay` | 全屏材质绘制(变换 / 原地叠加)的现成实现 |
+  | `RGNode_Blit` | 链尾 → 帧目标;headless(目标为 null)时自动禁用,是通常的剔除根 |
+  | `RGNode_Callback` | 图中间的托管回调 |
 
 - **内容接口按 pass 定界**:`IRenderPassContent`(`OnRender(context, layout)`)与 `IShadowPassContent`(`OnRenderShadow(context, cascade)`)注册在 pass 节点的 `Content` 列表上,管线本身不认识它们 —— 管线不认识任何内容类型,也就不存在"按功能区分的注册接口"。
 
@@ -43,7 +43,7 @@
 - `PostProcessLayout`:后处理输出 transient 的 layout(color-only,与场景色同格式);
 - `Use(node)` 只是 `Graph.InsertBefore(FinalBlit, node)` 的糖。
 
-`ForwardPipeline` 同样是最小组合:`ClearNode` + 用户节点 + `BlitNode`,公开 `Graph` / `Chain` / `SceneColorResource` / `PostProcessLayout` / `FinalBlit`。
+`ForwardPipeline` 同样是最小组合:`RGNode_Clear` + 用户节点 + `RGNode_Blit`,公开 `Graph` / `Chain` / `SceneColorResource` / `PostProcessLayout` / `FinalBlit`。
 
 ## 3. 扩展配方(recipes)
 
@@ -57,10 +57,10 @@ var chain = new RenderChain();
 RenderGraphTexture scene = graph.CreateTransient(new RenderGraphTextureDescriptor(
     rendering.PreferredHDRPass, name: "my_scene"));
 
-graph.Use(new ClearNode(rendering, scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
-graph.Use(new MySceneContent(graph, chain));      // : SceneContentNode,重写 OnRender
-graph.Use(new MyEffect(graph, chain, postLayout));// : ChainTransformNode,重写 OnProcess
-graph.Use(new BlitNode(rendering, graph, chain, blitShader));
+graph.Use(new RGNode_Clear(rendering, scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
+graph.Use(new MySceneContent(graph, chain));      // : RGNode_SceneContent,重写 OnRender
+graph.Use(new MyEffect(graph, chain, postLayout));// : RGNode_ChainTransform,重写 OnProcess
+graph.Use(new RGNode_Blit(rendering, graph, chain, blitShader));
 
 // 每帧:
 chain.Reset(scene);
@@ -70,7 +70,7 @@ graph.Execute(destination);
 ### 3.2 给现有管线加后处理
 
 ```csharp
-pipeline.Use(new BloomNode(rendering, pipeline.Graph, pipeline.PostChain,
+pipeline.Use(new RGNode_Bloom(rendering, pipeline.Graph, pipeline.PostChain,
     pipeline.PostProcessLayout, bloom, blitShader));
 ```
 
@@ -100,4 +100,4 @@ pipeline.ShadowPass.Content.Add(myShadowCasters);    // IShadowPassContent
 - **facade 身份稳定**:`RenderGraphTexture.Texture` 在 resize / 池重绑间保持对象身份,材质绑一次即可(Version 检查自动重建 bind group);
 - **链确定性**:`Setup` 严格按注册顺序执行,`RenderChain` 据此穿线;
 - **资源生命周期对称**:节点在图上创建 transient,就在自己的 `Dispose` 里 `DestroyTransient`(先判 `!graph.IsDisposed` —— 图自毁时会统一清理);
-- **headless 语义**:目标为 null 时 `BlitNode` 自动禁用,整条后处理链被剔除,`SceneContentNode` 通过 `ProducesOutput` 自我扎根照常执行。
+- **headless 语义**:目标为 null 时 `RGNode_Blit` 自动禁用,整条后处理链被剔除,`RGNode_SceneContent` 通过 `ProducesOutput` 自我扎根照常执行。

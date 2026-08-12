@@ -6,8 +6,8 @@ namespace Alco.Rendering;
 /// <summary>
 /// The forward pipeline: a minimal <see cref="RenderGraph"/> composition — a clear
 /// node, user content nodes drawing into the scene content target
-/// (<see cref="SceneContentNode"/>), chain transform nodes
-/// (<see cref="ChainTransformNode"/>: color grading, bloom, tone mapping, ...), and a
+/// (<see cref="RGNode_SceneContent"/>), chain transform nodes
+/// (<see cref="RGNode_ChainTransform"/>: color grading, bloom, tone mapping, ...), and a
 /// final blit into the destination. The owner composes the frame purely by ordering
 /// nodes via <see cref="Use"/> — there is no separate post-processing concept.
 /// <br/>The pipeline is a plain object, created and driven manually by its owner (the
@@ -19,8 +19,8 @@ namespace Alco.Rendering;
 /// <item><see cref="Resize"/> when the view size changes.</item>
 /// </list>
 /// Everything the pipeline does is public API: the same frame can be composed by hand
-/// from <see cref="RenderGraph"/>, <see cref="ClearNode"/>, <see cref="RenderChain"/>
-/// and <see cref="BlitNode"/>, and any stage of this pipeline can be replaced or
+/// from <see cref="RenderGraph"/>, <see cref="RGNode_Clear"/>, <see cref="RenderChain"/>
+/// and <see cref="RGNode_Blit"/>, and any stage of this pipeline can be replaced or
 /// reordered through <see cref="Graph"/>.
 /// </summary>
 public sealed class ForwardPipeline : AutoDisposable
@@ -31,8 +31,8 @@ public sealed class ForwardPipeline : AutoDisposable
     private readonly RenderGraph _graph;
     private readonly RenderChain _chain = new();
     private readonly RenderGraphTexture _sceneResource;
-    private readonly ClearNode _clearNode;
-    private readonly BlitNode _blitNode;
+    private readonly RGNode_Clear _clearNode;
+    private readonly RGNode_Blit _blitNode;
 
     /// <summary>
     /// The scene render texture the chain's content nodes draw into (via the chain,
@@ -67,7 +67,7 @@ public sealed class ForwardPipeline : AutoDisposable
     public GPUAttachmentLayout PostProcessLayout => _postProcessLayout;
 
     /// <summary>The final node of the pipeline: blits the chain tail into the destination.</summary>
-    public BlitNode FinalBlit => _blitNode;
+    public RGNode_Blit FinalBlit => _blitNode;
 
     /// <summary>
     /// The color the scene texture is cleared to at the start of <see cref="Render"/>.
@@ -105,9 +105,9 @@ public sealed class ForwardPipeline : AutoDisposable
         _sceneResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             sceneLayout, name: "forward_scene"));
 
-        _clearNode = new ClearNode(rendering, _sceneResource,
+        _clearNode = new RGNode_Clear(rendering, _sceneResource,
             [new ClearColorData(0, ColorFloat.Black)], clearDepth: 1.0f, name: "forward_clear");
-        _blitNode = new BlitNode(rendering, _graph, _chain, blitShader);
+        _blitNode = new RGNode_Blit(rendering, _graph, _chain, blitShader);
 
         _graph.Use(_clearNode);
         _graph.Use(_blitNode);

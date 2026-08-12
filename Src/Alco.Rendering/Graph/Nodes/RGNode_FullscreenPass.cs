@@ -13,7 +13,7 @@ namespace Alco.Rendering;
 /// <see cref="BindTextureDepth"/> / <see cref="BindBuffer"/>.
 /// <br/>The node owns its render context; it does not own the material.
 /// </summary>
-public class FullscreenPassNode : ChainTransformNode
+public class RGNode_FullscreenPass : RGNode_ChainTransform
 {
     private readonly Material _material;
     private readonly string _inputBinding;
@@ -37,7 +37,7 @@ public class FullscreenPassNode : ChainTransformNode
     /// <param name="resolutionScale">The output transient's resolution scale relative
     /// to the graph viewport.</param>
     /// <param name="name">A diagnostic name.</param>
-    public FullscreenPassNode(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+    public RGNode_FullscreenPass(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
         Material material, GPUAttachmentLayout outputLayout,
         string inputBinding = ShaderResourceId.Texture, bool inputIsDepth = false,
         float resolutionScale = 1.0f, string name = "fullscreen_pass")

@@ -47,9 +47,9 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        MainPipeline.Use(new BloomNode(RenderingSystem, MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit));
+        MainPipeline.Use(new RGNode_Bloom(RenderingSystem, MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit));
 
-        var tonemapNode = new TonemapNode(
+        var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             MainPipeline.Graph,
             MainPipeline.Chain,
@@ -172,7 +172,7 @@ public class Game : GameEngine
     /// <summary>
     /// Content node drawing the collision scene into the pipeline-assigned target.
     /// </summary>
-    private sealed class SceneNode : SceneContentNode
+    private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
 

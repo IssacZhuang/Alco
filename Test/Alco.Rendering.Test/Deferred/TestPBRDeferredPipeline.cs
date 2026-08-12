@@ -9,8 +9,8 @@ namespace Alco.Rendering.Test;
 /// node dispatch order and counts, feature gating (shadow / headless destination),
 /// facade identity and version stability, resize and the no-camera guard.
 /// The fake nodes use only the public composition API: pass content lists
-/// (<see cref="GeometryPassNode.Content"/> / <see cref="ShadowPassNode.Content"/>) and
-/// chain nodes (<see cref="SceneContentNode"/> / <see cref="ChainTransformNode"/>).
+/// (<see cref="RGNode_GeometryPass.Content"/> / <see cref="RGNode_ShadowPass.Content"/>) and
+/// chain nodes (<see cref="RGNode_SceneContent"/> / <see cref="RGNode_ChainTransform"/>).
 /// </summary>
 [TestFixture]
 public sealed class TestPBRDeferredPipeline
@@ -106,7 +106,7 @@ float4 MainPS(V2F input) : SV_TARGET
         }
     }
 
-    private sealed class FakeForwardNode : SceneContentNode
+    private sealed class FakeForwardNode : RGNode_SceneContent
     {
         public int ResizeCount;
         public List<string> Log = new();
@@ -127,7 +127,7 @@ float4 MainPS(V2F input) : SV_TARGET
         }
     }
 
-    private sealed class FakeProcessorNode : ChainTransformNode
+    private sealed class FakeProcessorNode : RGNode_ChainTransform
     {
         public int ResizeCount;
         public List<string> Log = new();

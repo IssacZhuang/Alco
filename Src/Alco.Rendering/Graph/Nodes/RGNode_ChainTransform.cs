@@ -13,7 +13,7 @@ namespace Alco.Rendering;
 /// node — and the graph's transient pool aliases the historical ping-pong
 /// temporaries.
 /// </summary>
-public abstract class ChainTransformNode : AutoDisposable, IRenderGraphNode
+public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
 
@@ -31,7 +31,7 @@ public abstract class ChainTransformNode : AutoDisposable, IRenderGraphNode
     /// <param name="resolutionScale">The output's resolution scale relative to the
     /// graph viewport.</param>
     /// <param name="name">A diagnostic name for the output transient.</param>
-    protected ChainTransformNode(RenderGraph graph, RenderChain chain, GPUAttachmentLayout outputLayout,
+    protected RGNode_ChainTransform(RenderGraph graph, RenderChain chain, GPUAttachmentLayout outputLayout,
         float resolutionScale = 1.0f, string name = "chain_transform")
     {
         ArgumentNullException.ThrowIfNull(graph);

@@ -14,10 +14,10 @@ namespace Alco.Rendering;
 /// <br/>Attach the renderer to a pipeline via <see cref="Attach"/>: it creates its
 /// graph transient resources, registers itself as a direct
 /// <see cref="IRenderGraphNode"/> before the pipeline's lighting node and wires its
-/// output to <see cref="DeferredLightingNode.AoInput"/> — all through the pipeline's
+/// output to <see cref="RGNode_DeferredLighting.AoInput"/> — all through the pipeline's
 /// public composition surface. The raw intermediate is pooled/aliased by the graph.
 /// </summary>
-public sealed class HbaoRenderer : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Per-frame HBAO data uploaded to both compute passes. Layout must match the
@@ -114,7 +114,7 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderGraphNode
     /// <param name="blurShader">The bilateral blur shader (HBAOBlur.hlsl).</param>
     /// <param name="width">The initial AO texture width in pixels (match the G-buffer).</param>
     /// <param name="height">The initial AO texture height in pixels (match the G-buffer).</param>
-    public HbaoRenderer(RenderingSystem rendering, Shader hbaoShader, Shader blurShader, uint width, uint height)
+    public RGNode_HBAO(RenderingSystem rendering, Shader hbaoShader, Shader blurShader, uint width, uint height)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -144,7 +144,7 @@ public sealed class HbaoRenderer : AutoDisposable, IRenderGraphNode
     /// Attaches the renderer to a pipeline as a direct <see cref="IRenderGraphNode"/>
     /// in the pipeline's render graph: creates the transient AO result and raw-AO
     /// intermediate, registers itself immediately before the pipeline's lighting
-    /// node, and wires the result to <see cref="DeferredLightingNode.AoInput"/> and
+    /// node, and wires the result to <see cref="RGNode_DeferredLighting.AoInput"/> and
     /// the lighting material's _aoTexture slot. The constructor-created standalone
     /// textures are released and the materials are rebound once here — the facades
     /// keep their object identity from then on. After attachment the graph drives

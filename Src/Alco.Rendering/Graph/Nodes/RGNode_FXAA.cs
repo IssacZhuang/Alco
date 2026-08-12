@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 /// <summary>
 /// Chain transform node that applies FXAA (Fast Approximate Anti-Aliasing) to the input.
 /// </summary>
-public sealed class FxaaNode : ChainTransformNode
+public sealed class RGNode_FXAA : RGNode_ChainTransform
 {
     private readonly FXAA _fxaa;
 
@@ -37,7 +37,7 @@ public sealed class FxaaNode : ChainTransformNode
     /// <param name="outputLayout">The attachment layout of the node's output transient
     /// (color-only, in the chain's content format).</param>
     /// <param name="fxaa">The FXAA effect implementation.</param>
-    public FxaaNode(RenderGraph graph, RenderChain chain, GPUAttachmentLayout outputLayout, FXAA fxaa)
+    public RGNode_FXAA(RenderGraph graph, RenderChain chain, GPUAttachmentLayout outputLayout, FXAA fxaa)
         : base(graph, chain, outputLayout, name: "fxaa")
     {
         _fxaa = fxaa;

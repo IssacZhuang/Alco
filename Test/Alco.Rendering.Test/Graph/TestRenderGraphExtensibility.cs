@@ -91,7 +91,7 @@ float4 MainPS(V2F input) : SV_TARGET
 ";
 
     /// <summary>A user content node drawing into the chain's current target.</summary>
-    private sealed class CustomSceneNode : SceneContentNode
+    private sealed class CustomSceneNode : RGNode_SceneContent
     {
         public List<string> Log = new();
 
@@ -107,7 +107,7 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     /// <summary>A user post-process effect transforming the chain content.</summary>
-    private sealed class CustomEffectNode : ChainTransformNode
+    private sealed class CustomEffectNode : RGNode_ChainTransform
     {
         private readonly string _tag;
         public List<string> Log = new();
@@ -215,8 +215,8 @@ float4 MainPS(V2F input) : SV_TARGET
 
         var content = new CustomSceneNode(graph, chain);
         var effect = new CustomEffectNode(graph, chain, _postProcessLayout, "effect");
-        var blit = new BlitNode(_rendering, graph, chain, _blitShader);
-        graph.Use(new ClearNode(_rendering, scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
+        var blit = new RGNode_Blit(_rendering, graph, chain, _blitShader);
+        graph.Use(new RGNode_Clear(_rendering, scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
         graph.Use(content);
         graph.Use(effect);
         graph.Use(blit);

@@ -37,11 +37,11 @@ namespace Alco.Rendering;
 /// <br/>Cascade splits are computed by <see cref="ComputeShadowCascades"/> (PSSM,
 /// camera-fitted, texel-snapped).
 /// <br/>Scene content (G-buffer draws / shadow casters) registers on the owning pass
-/// node (<see cref="GeometryPassNode.Content"/> / <see cref="ShadowPassNode.Content"/>);
+/// node (<see cref="RGNode_GeometryPass.Content"/> / <see cref="RGNode_ShadowPass.Content"/>);
 /// forward content and post-process nodes are graph nodes registered via
 /// <see cref="Use"/>; effect plugins (HBAO, VoxelGI, SSR) attach themselves through
 /// their public <c>Attach</c> methods, wiring their outputs to
-/// <see cref="DeferredLightingNode.AoInput"/> / <see cref="DeferredLightingNode.GiDiffuseInput"/>.
+/// <see cref="RGNode_DeferredLighting.AoInput"/> / <see cref="RGNode_DeferredLighting.GiDiffuseInput"/>.
 /// </summary>
 public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 {
@@ -71,7 +71,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>The number of shadow cascades (atlas quadrants) the pipeline supports.</summary>
-    public const int ShadowCascadeCount = ShadowPassNode.CascadeCount;
+    public const int ShadowCascadeCount = RGNode_ShadowPass.CascadeCount;
 
     /// <summary>The maximum number of point lights the StructuredBuffer can hold.</summary>
     public const int MaxPointLights = 256;
@@ -88,12 +88,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     private readonly RenderChain _chain = new();
 
     // The composed nodes, in execution order.
-    private readonly ShadowPassNode _shadowNode;
-    private readonly GeometryPassNode _gbufferNode;
-    private readonly CallbackNode _afterGBufferNode;
-    private readonly DeferredLightingNode _lightingNode;
-    private readonly FullscreenOverlayNode? _volumetricLightNode;
-    private readonly BlitNode _blitNode;
+    private readonly RGNode_ShadowPass _shadowNode;
+    private readonly RGNode_GeometryPass _gbufferNode;
+    private readonly RGNode_Callback _afterGBufferNode;
+    private readonly RGNode_DeferredLighting _lightingNode;
+    private readonly RGNode_FullscreenOverlay? _volumetricLightNode;
+    private readonly RGNode_Blit _blitNode;
 
     private readonly GPUAttachmentLayout _gbufferLayout;
     private readonly GPUAttachmentLayout _shadowLayout;
@@ -113,9 +113,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     // Cascade state computed by ComputeShadowCascades and consumed by both the
     // shadow pass (shared array) and the lighting data assembly — no longer exposed
     // to the caller.
-    private readonly Matrix4x4[] _cascadeViewProjections = new Matrix4x4[ShadowPassNode.CascadeCount];
-    private readonly float[] _cascadeSplits = new float[ShadowPassNode.CascadeCount];
-    private readonly float[] _cascadeTexelSizes = new float[ShadowPassNode.CascadeCount];
+    private readonly Matrix4x4[] _cascadeViewProjections = new Matrix4x4[RGNode_ShadowPass.CascadeCount];
+    private readonly float[] _cascadeSplits = new float[RGNode_ShadowPass.CascadeCount];
+    private readonly float[] _cascadeTexelSizes = new float[RGNode_ShadowPass.CascadeCount];
 
     // Assembled internally from properties + camera + cascade state each frame.
     private DeferredLightingData _lightingData;
@@ -224,7 +224,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <summary>
     /// The content chain threaded through the forward/post stages, rooted at
     /// <see cref="SceneColorResource"/> at the start of every frame. Chain-aware
-    /// nodes (<see cref="SceneContentNode"/>, <see cref="ChainTransformNode"/>)
+    /// nodes (<see cref="RGNode_SceneContent"/>, <see cref="RGNode_ChainTransform"/>)
     /// read and advance it during their setup.
     /// </summary>
     public RenderChain PostChain => _chain;
@@ -241,27 +241,27 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     public RenderGraphTexture SceneColorResource => _sceneColorResource;
 
     /// <summary>The shadow pass node. Register casters on
-    /// <see cref="ShadowPassNode.Content"/>.</summary>
-    public ShadowPassNode ShadowPass => _shadowNode;
+    /// <see cref="RGNode_ShadowPass.Content"/>.</summary>
+    public RGNode_ShadowPass ShadowPass => _shadowNode;
 
     /// <summary>The G-buffer pass node. Register scene geometry on
-    /// <see cref="GeometryPassNode.Content"/>.</summary>
-    public GeometryPassNode GBufferPass => _gbufferNode;
+    /// <see cref="RGNode_GeometryPass.Content"/>.</summary>
+    public RGNode_GeometryPass GBufferPass => _gbufferNode;
 
     /// <summary>The deferred lighting node. Wire effect plugin outputs through
-    /// <see cref="DeferredLightingNode.AoInput"/> /
-    /// <see cref="DeferredLightingNode.GiDiffuseInput"/> /
-    /// <see cref="DeferredLightingNode.GiSpecularInput"/> or
-    /// <see cref="DeferredLightingNode.ExtraReads"/>.</summary>
-    public DeferredLightingNode LightingNode => _lightingNode;
+    /// <see cref="RGNode_DeferredLighting.AoInput"/> /
+    /// <see cref="RGNode_DeferredLighting.GiDiffuseInput"/> /
+    /// <see cref="RGNode_DeferredLighting.GiSpecularInput"/> or
+    /// <see cref="RGNode_DeferredLighting.ExtraReads"/>.</summary>
+    public RGNode_DeferredLighting LightingNode => _lightingNode;
 
     /// <summary>The volumetric light overlay node, or null when the pipeline was
     /// created without a volumetric light shader.</summary>
-    public FullscreenOverlayNode? VolumetricLightNode => _volumetricLightNode;
+    public RGNode_FullscreenOverlay? VolumetricLightNode => _volumetricLightNode;
 
     /// <summary>The final blit node — the anchor post-process and forward content
     /// nodes are inserted before (see <see cref="Use"/>).</summary>
-    public BlitNode FinalBlit => _blitNode;
+    public RGNode_Blit FinalBlit => _blitNode;
 
     // ── Scene properties (caller-set each frame) ──
 
@@ -382,8 +382,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
     /// <summary>
     /// The color-only sibling layout of the scene color layout, for post-process
-    /// node outputs (<see cref="FullscreenPassNode"/> and
-    /// <see cref="ChainTransformNode"/> derivatives).
+    /// node outputs (<see cref="RGNode_FullscreenPass"/> and
+    /// <see cref="RGNode_ChainTransform"/> derivatives).
     /// </summary>
     public GPUAttachmentLayout PostProcessLayout => _postProcessLayout;
 
@@ -514,12 +514,12 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
         }
 
         // The composed nodes, in execution order.
-        _shadowNode = new ShadowPassNode(rendering, _shadowMapResource, _shadowDataBuffer,
+        _shadowNode = new RGNode_ShadowPass(rendering, _shadowMapResource, _shadowDataBuffer,
             _cascadeViewProjections, shadowMapSize, "pbr_shadow_pass")
         {
             Instrumentation = new PassInstrumentation { Profiler = _profiler, CpuCounter = _shadowCounter },
         };
-        _gbufferNode = new GeometryPassNode(rendering, _gbufferResource,
+        _gbufferNode = new RGNode_GeometryPass(rendering, _gbufferResource,
             [
                 new ClearColorData(0, Vector4.Zero),
                 new ClearColorData(1, new Vector4(0.5f, 0.5f, 1.0f, 1.0f)),
@@ -534,8 +534,8 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 GpuTimestamps = _gpuTimestamps, GpuQueryBase = GBufferQueryBase,
             },
         };
-        _afterGBufferNode = new CallbackNode();
-        _lightingNode = new DeferredLightingNode(rendering, _graph, _lightingMaterial,
+        _afterGBufferNode = new RGNode_Callback();
+        _lightingNode = new RGNode_DeferredLighting(rendering, _graph, _lightingMaterial,
             _gbufferResource, _sceneColorResource, "pbr_lighting_pass")
         {
             ShadowMap = _shadowMapResource,
@@ -546,7 +546,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
                 GpuTimestamps = _gpuTimestamps, GpuQueryBase = LightingQueryBase,
             },
         };
-        _blitNode = new BlitNode(rendering, _graph, _chain, blitShader);
+        _blitNode = new RGNode_Blit(rendering, _graph, _chain, blitShader);
 
         // Volumetric light pass (optional). Created eagerly so no runtime
         // recompilation is needed; controlled at runtime via VolumetricLightEnabled.
@@ -560,7 +560,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
             _volumetricLightMaterial.SetBuffer(ShaderResourceId.PointLights, _pointLightBuffer);
             _volumetricLightMaterial.SetRenderTextureDepth("_gbufferDepth", _gbufferResource.Texture);
             _volumetricLightMaterial.SetRenderTextureDepth("_shadowMap", _shadowMapResource.Texture);
-            _volumetricLightNode = new FullscreenOverlayNode(rendering, _graph, _chain,
+            _volumetricLightNode = new RGNode_FullscreenOverlay(rendering, _graph, _chain,
                 _volumetricLightMaterial, "pbr_volumetric_light_pass")
             {
                 IsEnabled = _volumetricLightEnabled,
@@ -601,7 +601,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// registration order). This is a convenience for
     /// <c>Graph.InsertBefore(FinalBlit, node)</c>; register at any other position
     /// through <see cref="Graph"/> directly. G-buffer / shadow content registers on
-    /// <see cref="GeometryPassNode.Content"/> / <see cref="ShadowPassNode.Content"/>
+    /// <see cref="RGNode_GeometryPass.Content"/> / <see cref="RGNode_ShadowPass.Content"/>
     /// instead. The graph takes ownership: nodes implementing
     /// <see cref="System.IDisposable"/> are disposed with the pipeline.
     /// </summary>
@@ -616,7 +616,7 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     /// <see cref="Graph"/>. The node is not disposed; transients it created remain
     /// allocated until destroyed (<see cref="RenderGraph.DestroyTransient"/>) or the
     /// node is disposed. Pass content is removed through
-    /// <see cref="GeometryPassNode.Content"/> / <see cref="ShadowPassNode.Content"/>.
+    /// <see cref="RGNode_GeometryPass.Content"/> / <see cref="RGNode_ShadowPass.Content"/>.
     /// </summary>
     public bool Remove(IRenderGraphNode node)
     {
@@ -779,9 +779,9 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
 
         float sliceNear = cameraNear;
         Span<Vector3> corners = stackalloc Vector3[8];
-        for (int c = 0; c < ShadowPassNode.CascadeCount; c++)
+        for (int c = 0; c < RGNode_ShadowPass.CascadeCount; c++)
         {
-            float p = (c + 1) / (float)ShadowPassNode.CascadeCount;
+            float p = (c + 1) / (float)RGNode_ShadowPass.CascadeCount;
             float logarithmic = cameraNear * MathF.Pow(shadowDistance / cameraNear, p);
             float uniform = cameraNear + (shadowDistance - cameraNear) * p;
             float sliceFar = splitLambda * logarithmic + (1.0f - splitLambda) * uniform;
@@ -869,11 +869,11 @@ public sealed unsafe class PBRDeferredPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// The lighting node's <see cref="DeferredLightingNode.PrepareData"/>: assembles
+    /// The lighting node's <see cref="RGNode_DeferredLighting.PrepareData"/>: assembles
     /// and uploads the per-frame lighting constants. Runs before the lighting pass
     /// is recorded (the graph's deferred submission requires uploads first).
     /// </summary>
-    private void PrepareLightingData(DeferredLightingNode node)
+    private void PrepareLightingData(RGNode_DeferredLighting node)
     {
         if (_camera == null)
         {

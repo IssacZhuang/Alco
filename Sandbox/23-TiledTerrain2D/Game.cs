@@ -75,12 +75,12 @@ public class Game : GameEngine
 
         AddSystem(new ImGUISystem(this));
 
-        var fxaaNode = new FxaaNode(MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, RenderingSystem.CreateFXAA(
+        var fxaaNode = new RGNode_FXAA(MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, RenderingSystem.CreateFXAA(
             BuiltInAssets.Shader_FXAA,
             BuiltInAssets.Shader_Blit));
         MainPipeline.Use(fxaaNode);
 
-        var tonemapNode = new TonemapNode(
+        var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             MainPipeline.Graph,
             MainPipeline.Chain,
@@ -279,7 +279,7 @@ public class Game : GameEngine
             }
         }
 
-        if (MainPipeline.Get<FxaaNode>() is { } fxaaNode)
+        if (MainPipeline.Get<RGNode_FXAA>() is { } fxaaNode)
         {
             bool isFXAAEnabled = fxaaNode.IsEnabled;
             if (ImGui.Checkbox("FXAA", ref isFXAAEnabled))
@@ -390,7 +390,7 @@ public class Game : GameEngine
         return new TileSet(items.ToArray());
     }
 
-    private sealed class SceneNode : SceneContentNode
+    private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
 

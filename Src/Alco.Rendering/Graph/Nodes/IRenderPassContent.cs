@@ -3,13 +3,13 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A content provider for a <see cref="GeometryPassNode"/>: draws geometry into the
+/// A content provider for a <see cref="RGNode_GeometryPass"/>: draws geometry into the
 /// pass's single open render context. The pass owns the render pass — it clears the
 /// target and keeps one render context open for all content, so render bundles
 /// recorded by content (via <see cref="SubRenderContext"/>) are replayed into the
 /// same pass.
 /// <br/>This is not a pipeline-level registration category: content is registered on
-/// the pass node itself (<see cref="GeometryPassNode.Content"/>), keeping the
+/// the pass node itself (<see cref="RGNode_GeometryPass.Content"/>), keeping the
 /// pipeline agnostic of the kinds of content its passes carry.
 /// </summary>
 public interface IRenderPassContent : IRenderNode

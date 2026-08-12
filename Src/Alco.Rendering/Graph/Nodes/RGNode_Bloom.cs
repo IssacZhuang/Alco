@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 /// Chain transform node that adds a bloom glow: the input is first copied into the
 /// output, then the bloom pyramid is composited additively on top.
 /// </summary>
-public sealed class BloomNode : ChainTransformNode
+public sealed class RGNode_Bloom : RGNode_ChainTransform
 {
     private readonly Bloom _bloom;
     private readonly RenderContext _renderContext;
@@ -61,7 +61,7 @@ public sealed class BloomNode : ChainTransformNode
     /// (color-only, in the chain's content format).</param>
     /// <param name="bloom">The bloom effect implementation.</param>
     /// <param name="blitShader">The shader used for the plain copy of the input.</param>
-    public BloomNode(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+    public RGNode_Bloom(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
         GPUAttachmentLayout outputLayout, Bloom bloom, Shader blitShader)
         : base(graph, chain, outputLayout, name: "bloom")
     {

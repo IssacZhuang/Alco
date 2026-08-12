@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 /// For work that reads or writes graph resources, implement
 /// <see cref="IRenderGraphNode"/> directly instead.
 /// </summary>
-public sealed class CallbackNode : IRenderGraphNode
+public sealed class RGNode_Callback : IRenderGraphNode
 {
     /// <summary>
     /// The delegate invoked in <see cref="Execute"/>. The node is disabled while null.

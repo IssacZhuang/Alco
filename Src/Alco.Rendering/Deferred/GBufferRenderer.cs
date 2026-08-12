@@ -41,9 +41,9 @@ public interface IGBufferRenderable
 /// A G-buffer content provider of the deferred PBR pipeline. Holds the G-buffer
 /// shaders, material factory methods and a registry of <see cref="IGBufferRenderable"/>
 /// objects. Static objects are baked into an internal render bundle; dynamic objects
-/// are drawn immediately each frame. The owning <see cref="GeometryPassNode"/> calls
+/// are drawn immediately each frame. The owning <see cref="RGNode_GeometryPass"/> calls
 /// <see cref="OnRender"/> automatically inside its open G-buffer pass (register via
-/// <see cref="GeometryPassNode.Content"/>).
+/// <see cref="RGNode_GeometryPass.Content"/>).
 /// <br/>The renderer does <b>not</b> own the G-buffer render texture, attachment layout
 /// or render context — those are owned by the pass node.
 /// </summary>
@@ -166,7 +166,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
 
     /// <summary>
     /// Draw all registered renderables into the G-buffer. Called by the owning
-    /// <see cref="GeometryPassNode"/> inside its open pass.
+    /// <see cref="RGNode_GeometryPass"/> inside its open pass.
     /// Re-records the static bundle when dirty, replays it, then draws dynamic items.
     /// </summary>
     /// <param name="context">The live G-buffer render context.</param>

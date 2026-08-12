@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// share (a G-buffer pass, a custom depth prepass, ...), so all draws land in one
 /// render pass and render bundles are replayed without re-opening.
 /// </summary>
-public sealed class GeometryPassNode : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_GeometryPass : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraphTexture _target;
     private readonly ClearColorData[] _clearColors;
@@ -26,7 +26,7 @@ public sealed class GeometryPassNode : AutoDisposable, IRenderGraphNode
     /// any color attachment.</param>
     /// <param name="clearDepth">The depth clear value, or null to not clear depth.</param>
     /// <param name="name">A diagnostic name for the pass's render context.</param>
-    public GeometryPassNode(RenderingSystem rendering, RenderGraphTexture target,
+    public RGNode_GeometryPass(RenderingSystem rendering, RenderGraphTexture target,
         ClearColorData[]? clearColors = null, float? clearDepth = null, string name = "geometry_pass")
     {
         ArgumentNullException.ThrowIfNull(rendering);

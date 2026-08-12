@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 /// values). Typically the first node of a forward pipeline, clearing the scene
 /// content target before content nodes draw over it.
 /// </summary>
-public sealed class ClearNode : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_Clear : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraphTexture _target;
     private readonly ClearColorData[] _clearColors;
@@ -23,7 +23,7 @@ public sealed class ClearNode : AutoDisposable, IRenderGraphNode
     /// any color attachment.</param>
     /// <param name="clearDepth">The depth clear value, or null to not clear depth.</param>
     /// <param name="name">A diagnostic name for the render context.</param>
-    public ClearNode(RenderingSystem rendering, RenderGraphTexture target,
+    public RGNode_Clear(RenderingSystem rendering, RenderGraphTexture target,
         ClearColorData[]? clearColors = null, float? clearDepth = 1.0f, string name = "clear")
     {
         ArgumentNullException.ThrowIfNull(rendering);

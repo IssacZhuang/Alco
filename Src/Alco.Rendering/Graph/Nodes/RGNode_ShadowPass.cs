@@ -12,7 +12,7 @@ namespace Alco.Rendering;
 /// <see cref="PBRDeferredPipeline.ComputeShadowCascades"/>); the node folds them into
 /// atlas quadrants and uploads the data buffer once, before recording the passes.
 /// </summary>
-public sealed class ShadowPassNode : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
 {
     /// <summary>The number of shadow cascades (atlas quadrants) the node supports.</summary>
     public const int CascadeCount = 4;
@@ -36,7 +36,7 @@ public sealed class ShadowPassNode : AutoDisposable, IRenderGraphNode
     /// them before the graph executes. The node folds them into atlas quadrants.</param>
     /// <param name="shadowMapSize">The width of one cascade (atlas quadrant) in texels.</param>
     /// <param name="name">A diagnostic name for the pass's render context.</param>
-    public ShadowPassNode(RenderingSystem rendering, RenderGraphTexture shadowMap,
+    public RGNode_ShadowPass(RenderingSystem rendering, RenderGraphTexture shadowMap,
         GraphicsValueBuffer<ShadowCascadeData> cascadeData,
         Matrix4x4[] cascadeViewProjections, uint shadowMapSize, string name = "shadow_pass")
     {

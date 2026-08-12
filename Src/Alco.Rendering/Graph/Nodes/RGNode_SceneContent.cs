@@ -14,7 +14,7 @@ namespace Alco.Rendering;
 /// into any open <see cref="RenderContext"/> via
 /// <see cref="RenderContext.ExecuteSubContext"/>).
 /// </summary>
-public abstract class SceneContentNode : AutoDisposable, IRenderGraphNode
+public abstract class RGNode_SceneContent : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
 
@@ -27,7 +27,7 @@ public abstract class SceneContentNode : AutoDisposable, IRenderGraphNode
     /// </summary>
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
     /// <param name="chain">The content chain whose current target the node draws into.</param>
-    protected SceneContentNode(RenderGraph graph, RenderChain chain)
+    protected RGNode_SceneContent(RenderGraph graph, RenderChain chain)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(chain);

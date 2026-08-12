@@ -131,7 +131,7 @@ public class Game : GameEngine
 
     /// <summary>
     /// Adapter that wraps a Bistro <see cref="ModelDrawItem"/> + its glass material
-    /// as an <see cref="IForwardRenderable"/> for the ForwardRenderer registry.
+    /// as an <see cref="IForwardRenderable"/> for the RGNode_Forward registry.
     /// </summary>
     private sealed class BistroGlassRenderable : IForwardRenderable
     {
@@ -178,7 +178,7 @@ public class Game : GameEngine
     private GraphicsMaterial[]? _bistroGlassMaterials;
 
     // Forward transparency renderer for glass materials.
-    private ForwardRenderer? _forwardRenderer;
+    private RGNode_Forward? _forwardRenderer;
     private bool _glassEnabled = true;
     private float _glassTransmission = 0.85f;
 
@@ -241,11 +241,11 @@ public class Game : GameEngine
     private bool _hbaoEnabled = true;
     private float _hbaoRadius = 1.0f;
     private float _hbaoStrength = 1.0f;
-    private HbaoRenderer? _hbaoRenderer;
+    private RGNode_HBAO? _hbaoRenderer;
 
     // Voxel global illumination (sparse clipmap + cone tracing).
-    private readonly VoxelGiRenderer? _voxelGI;
-    private readonly ScreenSpaceReflectionRenderer? _ssrRenderer;
+    private readonly RGNode_VoxelGI? _voxelGI;
+    private readonly RGNode_SSR? _ssrRenderer;
     private bool _giEnabled = true;
     private float _giDiffuseStrength = 1.0f;
     private float _giSpecularStrength = 1f;
@@ -264,7 +264,7 @@ public class Game : GameEngine
     // chain) and the emissive boost feeding it.
     // The Bistro emissive factors are all 1.0 and its emissive textures are LDR,
     // so without a boost nothing crosses the bloom threshold next to the sun.
-    private BloomNode? _bloom;
+    private RGNode_Bloom? _bloom;
     private float _emissiveBoost = 4.0f;
 
     // Point lights auto-generated from Bistro emissive surfaces.
@@ -275,7 +275,7 @@ public class Game : GameEngine
     private PBRDeferredPipeline.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
     // HDR tone mapping node: switchable operator with per-type parameters.
-    private TonemapNode? _tonemapStage;
+    private RGNode_Tonemap? _tonemapStage;
     private TonemapType _tonemapType;
 
     // Shader hot-reload notification (brief on-screen message).
@@ -416,7 +416,7 @@ public class Game : GameEngine
         // graph node and the lighting AO input itself.
         if (_hbaoEnabled)
         {
-            _hbaoRenderer = new HbaoRenderer(
+            _hbaoRenderer = new RGNode_HBAO(
                 RenderingSystem,
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
                 AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"),
@@ -425,7 +425,7 @@ public class Game : GameEngine
         }
 
         // Forward transparency renderer for glass materials (after deferred lighting).
-        _forwardRenderer = new ForwardRenderer(
+        _forwardRenderer = new RGNode_Forward(
             RenderingSystem,
             _pipeline.Graph,
             _pipeline.PostChain,
@@ -520,7 +520,7 @@ public class Game : GameEngine
         {
             float baseVoxelSize = MathF.Max(_sceneRadius * 4.0f / 1024.0f, 0.02f);
             string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
-            _voxelGI = new VoxelGiRenderer(
+            _voxelGI = new RGNode_VoxelGI(
                 RenderingSystem,
                 new VoxelGiShaders
                 {
@@ -546,7 +546,7 @@ public class Game : GameEngine
 
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
-            _ssrRenderer = new ScreenSpaceReflectionRenderer(
+            _ssrRenderer = new RGNode_SSR(
                 RenderingSystem,
                 _pipeline,
                 _voxelGI,
@@ -570,7 +570,7 @@ public class Game : GameEngine
         float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
             ? parsedBloomIntensity
             : 0.35f;
-        _bloom = new BloomNode(
+        _bloom = new RGNode_Bloom(
             RenderingSystem,
             _pipeline.Graph,
             _pipeline.PostChain,
@@ -590,7 +590,7 @@ public class Game : GameEngine
         _pipeline.Use(_bloom);
 
         // FXAA anti-aliasing node (registered between bloom and tonemap).
-        _pipeline.Use(new FxaaNode(
+        _pipeline.Use(new RGNode_FXAA(
             _pipeline.Graph,
             _pipeline.PostChain,
             _pipeline.PostProcessLayout,
@@ -599,7 +599,7 @@ public class Game : GameEngine
                 BuiltInAssets.Shader_Blit)));
 
         // HDR tone mapping node (registered last, after bloom and FXAA).
-        _tonemapStage = new TonemapNode(
+        _tonemapStage = new RGNode_Tonemap(
             RenderingSystem,
             _pipeline.Graph,
             _pipeline.PostChain,
@@ -1701,7 +1701,7 @@ public class Game : GameEngine
             }
         }
 
-        FxaaNode? fxaaStage = _pipeline.Get<FxaaNode>();
+        RGNode_FXAA? fxaaStage = _pipeline.Get<RGNode_FXAA>();
         if (fxaaStage != null && ImGui.CollapsingHeader("FXAA"))
         {
             bool fxaaEnabled = fxaaStage.IsEnabled;

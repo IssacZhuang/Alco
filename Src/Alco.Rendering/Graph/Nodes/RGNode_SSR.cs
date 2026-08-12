@@ -14,7 +14,7 @@ namespace Alco.Rendering;
 /// It intentionally runs after deferred lighting so a hit samples the real shaded
 /// scene color instead of attempting to reconstruct lighting from the G-buffer.
 /// </remarks>
-public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 {
     private struct SsrData
     {
@@ -30,7 +30,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IRenderGraph
 
     private readonly RenderingSystem _rendering;
     private readonly PBRDeferredPipeline _pipeline;
-    private readonly VoxelGiRenderer _voxelGi;
+    private readonly RGNode_VoxelGI _voxelGi;
     private readonly CameraPerspectiveBuffer _camera;
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
@@ -128,10 +128,10 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IRenderGraph
     /// Creates the post-lighting SSR node. Shader objects and the pipeline remain
     /// owned by their callers; the node owns its materials and intermediate textures.
     /// </summary>
-    public ScreenSpaceReflectionRenderer(
+    public RGNode_SSR(
         RenderingSystem rendering,
         PBRDeferredPipeline pipeline,
-        VoxelGiRenderer voxelGi,
+        RGNode_VoxelGI voxelGi,
         CameraPerspectiveBuffer camera,
         Shader traceShader,
         Shader resolveShader,
@@ -450,7 +450,7 @@ public sealed class ScreenSpaceReflectionRenderer : AutoDisposable, IRenderGraph
     {
         if (!_graphAttached)
         {
-            throw new InvalidOperationException("ScreenSpaceReflectionRenderer is not attached to a pipeline (call Attach first).");
+            throw new InvalidOperationException("RGNode_SSR is not attached to a pipeline (call Attach first).");
         }
         Render(_input!.Texture.FrameBuffer);
     }

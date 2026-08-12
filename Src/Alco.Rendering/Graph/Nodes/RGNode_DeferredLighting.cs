@@ -17,7 +17,7 @@ namespace Alco.Rendering;
 /// material parameter), or use <see cref="ExtraReads"/> for arbitrary additional
 /// inputs so their producers survive culling.
 /// </summary>
-public sealed class DeferredLightingNode : AutoDisposable, IRenderGraphNode
+public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
     private readonly RenderContext _context;
@@ -34,7 +34,7 @@ public sealed class DeferredLightingNode : AutoDisposable, IRenderGraphNode
     /// <param name="gbuffer">The G-buffer resource read by the lighting pass.</param>
     /// <param name="sceneColor">The scene color resource written by the lighting pass.</param>
     /// <param name="name">A diagnostic name for the render context.</param>
-    public DeferredLightingNode(RenderingSystem rendering, RenderGraph graph,
+    public RGNode_DeferredLighting(RenderingSystem rendering, RenderGraph graph,
         GraphicsMaterial material, RenderGraphTexture gbuffer, RenderGraphTexture sceneColor,
         string name = "deferred_lighting")
     {
@@ -87,7 +87,7 @@ public sealed class DeferredLightingNode : AutoDisposable, IRenderGraphNode
     /// <see cref="InvalidOperationException"/> here when required per-frame input
     /// (e.g. a camera) is missing.
     /// </summary>
-    public Action<DeferredLightingNode>? PrepareData { get; set; }
+    public Action<RGNode_DeferredLighting>? PrepareData { get; set; }
 
     /// <summary>Optional CPU/GPU stage instrumentation.</summary>
     public PassInstrumentation? Instrumentation { get; set; }

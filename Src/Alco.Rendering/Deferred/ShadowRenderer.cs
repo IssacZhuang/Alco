@@ -39,9 +39,9 @@ public interface IShadowRenderable
 /// A shadow content provider of the deferred PBR pipeline. Holds the shadow depth
 /// shaders, material factory methods and a registry of <see cref="IShadowRenderable"/>
 /// objects. Static objects are baked into internal per-cascade render bundles; dynamic
-/// objects are drawn immediately each frame. The owning <see cref="ShadowPassNode"/>
+/// objects are drawn immediately each frame. The owning <see cref="RGNode_ShadowPass"/>
 /// calls <see cref="OnRenderShadow"/> automatically inside each cascade's pass
-/// (register via <see cref="ShadowPassNode.Content"/>).
+/// (register via <see cref="RGNode_ShadowPass.Content"/>).
 /// <br/>The renderer does <b>not</b> own the shadow render texture, attachment layout,
 /// render context or cascade VP data buffer — those are owned by the pass node and
 /// the pipeline.
@@ -153,7 +153,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
 
     /// <summary>
     /// Draw all registered casters into the shadow map for the given cascade.
-    /// Called by the owning <see cref="ShadowPassNode"/> inside the cascade's open
+    /// Called by the owning <see cref="RGNode_ShadowPass"/> inside the cascade's open
     /// pass, once per cascade. When the static bundle is dirty all
     /// cascade bundles are re-recorded (on cascade 0); otherwise they are replayed.
     /// Dynamic items are re-recorded and replayed every cascade every frame.

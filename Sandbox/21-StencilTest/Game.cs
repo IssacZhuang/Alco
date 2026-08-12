@@ -50,9 +50,9 @@ public class Game : GameEngine
             BuiltInAssets.Shader_BloomDownSample,
             BuiltInAssets.Shader_BloomUpSample,
             11);
-        _mainPipeline.Use(new BloomNode(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit));
+        _mainPipeline.Use(new RGNode_Bloom(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit));
 
-        _mainPipeline.Use(new TonemapNode(
+        _mainPipeline.Use(new RGNode_Tonemap(
             RenderingSystem,
             _mainPipeline.Graph,
             _mainPipeline.Chain,
@@ -153,7 +153,7 @@ public class Game : GameEngine
     /// <summary>
     /// Content node drawing the stencil test cubes into the pipeline-assigned target.
     /// </summary>
-    private sealed class SceneNode : SceneContentNode
+    private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
 

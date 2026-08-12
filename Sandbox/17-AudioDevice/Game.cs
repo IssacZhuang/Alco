@@ -28,7 +28,7 @@ public class Game : GameEngine
             MainView.Size.X,
             MainView.Size.Y);
 
-        var tonemapNode = new TonemapNode(
+        var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             _mainPipeline.Graph,
             _mainPipeline.Chain,
