@@ -52,9 +52,10 @@ public unsafe class SpanStringBuilder
     /// <summary>
     /// Clears the content of the string builder, resetting its length to 0.
     /// </summary>
-    public void Clear()
+    public SpanStringBuilder Clear()
     {
         _length = 0;
+        return this;
     }
 
     private void EnsureCapacity(int required)
@@ -121,6 +122,25 @@ public unsafe class SpanStringBuilder
             return this;
         }
         return Append(value.ToString());
+    }
+
+    /// <summary>
+    /// Appends a formattable value with the specified format (e.g. "F4") to the
+    /// end of the current content, growing the internal buffer as needed.
+    /// </summary>
+    /// <typeparam name="T">The type of the value to append, must implement ISpanFormattable.</typeparam>
+    /// <param name="value">The value to append.</param>
+    /// <param name="format">The format string (e.g. "F4", "F1").</param>
+    /// <returns>This SpanStringBuilder instance for method chaining.</returns>
+    public SpanStringBuilder Append<T>(T value, ReadOnlySpan<char> format) where T : unmanaged, ISpanFormattable
+    {
+        int charsWritten;
+        while (!value.TryFormat(RemainingCurrentChunk, out charsWritten, format, null))
+        {
+            EnsureCapacity(_length + 32);
+        }
+        _length += charsWritten;
+        return this;
     }
 
     /// <summary>

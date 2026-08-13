@@ -283,6 +283,15 @@ public class Game : GameEngine
     private string? _shaderReloadNotice;
     private float _shaderReloadNoticeTimer;
 
+    // Reusable zero-allocation string builder for ImGui text display.
+    private readonly SpanStringBuilder _textBuilder = new(256);
+
+    // Cached combo item arrays (avoid per-frame allocation).
+    private static readonly string[] GiDebugModes =
+        ["Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility",
+         "Raw Diffuse Trace", "SSR Hit Confidence"];
+    private string[]? _objectNames;
+
     // Screenshot mode.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
@@ -501,6 +510,7 @@ public class Game : GameEngine
             _sphereMesh = CreateSphereMesh(48, 24);
             _groundMesh = CreateGroundMesh(40, 10);
             BuildScene();
+            _objectNames = _objects.Select(o => o.Mesh.Name).ToArray();
             _proceduralMaterial = _gbufferRenderer.CreateMaterial(_checkerTexture, null, null, null, name: "checker");
             _proceduralShadowMaterial = _shadowRenderer.CreateShadowMaterial(name: "checker_shadow");
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
@@ -1405,9 +1415,9 @@ public class Game : GameEngine
             _camera.Transform.Rotation));
         Vector3 cameraLookTarget = cameraPosition + cameraForward;
         ImGui.Text("Camera Repro (--pos / --look)");
-        ImGui.Text($"Position: {cameraPosition.X:F4}, {cameraPosition.Y:F4}, {cameraPosition.Z:F4}");
-        ImGui.Text($"Forward:  {cameraForward.X:F4}, {cameraForward.Y:F4}, {cameraForward.Z:F4}");
-        ImGui.Text($"Look:     {cameraLookTarget.X:F4}, {cameraLookTarget.Y:F4}, {cameraLookTarget.Z:F4}");
+        ImGui.Text(_textBuilder.Clear().Append("Position: ").Append(cameraPosition.X, "F4").Append(", ").Append(cameraPosition.Y, "F4").Append(", ").Append(cameraPosition.Z, "F4").AsReadOnlySpan());
+        ImGui.Text(_textBuilder.Clear().Append("Forward:  ").Append(cameraForward.X, "F4").Append(", ").Append(cameraForward.Y, "F4").Append(", ").Append(cameraForward.Z, "F4").AsReadOnlySpan());
+        ImGui.Text(_textBuilder.Clear().Append("Look:     ").Append(cameraLookTarget.X, "F4").Append(", ").Append(cameraLookTarget.Y, "F4").Append(", ").Append(cameraLookTarget.Z, "F4").AsReadOnlySpan());
         ImGui.Separator();
 
         if (ImGui.CollapsingHeader("Sun Light"))
@@ -1515,7 +1525,7 @@ public class Game : GameEngine
                     _ssrRenderer.TraceResolutionScale =
                         GiTraceResolutionScales[_ssrResolutionPreset];
                 }
-                ImGui.Text($"SSR trace resolution: {_ssrRenderer.TraceWidth}x{_ssrRenderer.TraceHeight}");
+                ImGui.Text(_textBuilder.Clear().Append("SSR trace resolution: ").Append(_ssrRenderer.TraceWidth).Append('x').Append(_ssrRenderer.TraceHeight).AsReadOnlySpan());
             }
             float giSkyIntensity = _voxelGI.SkyIntensity;
             if (ImGui.SliderFloat("GI Sky Intensity", ref giSkyIntensity, 0.0f, 10.0f))
@@ -1540,13 +1550,9 @@ public class Game : GameEngine
             {
                 _voxelGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
             }
-            ImGui.Text($"GI trace resolution: {_voxelGI.IndirectTexture.Width / 3}x{_voxelGI.IndirectTexture.Height}");
-            string[] giDebugModes = [
-                "Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility",
-                "Raw Diffuse Trace", "SSR Hit Confidence",
-            ];
+            ImGui.Text(_textBuilder.Clear().Append("GI trace resolution: ").Append(_voxelGI.IndirectTexture.Width / 3).Append('x').Append(_voxelGI.IndirectTexture.Height).AsReadOnlySpan());
             int giDebugInt = (int)_voxelGI.DebugView;
-            if (ImGui.Combo("GI Debug", ref giDebugInt, giDebugModes, giDebugModes.Length))
+            if (ImGui.Combo("GI Debug", ref giDebugInt, GiDebugModes, GiDebugModes.Length))
             {
                 _voxelGI.DebugView = (VoxelGiDebugMode)giDebugInt;
             }
@@ -1558,11 +1564,13 @@ public class Game : GameEngine
             for (int giLevel = 0; giLevel < 4; giLevel++)
             {
                 int giStaticBrickBudget = _voxelGI.GetStaticBrickBudget(giLevel);
-                string budgetLabel = giLevel == 0
-                    ? "GI Brick Budget L0 (finest)"
-                    : giLevel == 3
-                        ? "GI Brick Budget L3 (coarsest)"
-                        : $"GI Brick Budget L{giLevel}";
+                ReadOnlySpan<char> budgetLabel;
+                if (giLevel == 0)
+                    budgetLabel = "GI Brick Budget L0 (finest)";
+                else if (giLevel == 3)
+                    budgetLabel = "GI Brick Budget L3 (coarsest)";
+                else
+                    budgetLabel = _textBuilder.Clear().Append("GI Brick Budget L").Append(giLevel).AsReadOnlySpan();
                 if (ImGui.SliderInt(budgetLabel, ref giStaticBrickBudget, 0, 256))
                 {
                     _voxelGI.SetStaticBrickBudget(giLevel, giStaticBrickBudget);
@@ -1582,18 +1590,26 @@ public class Game : GameEngine
                     "0 pauses structural voxelization for that level (its queue keeps growing).");
             }
             VoxelGiStatistics statistics = _voxelGI.Statistics;
-            ImGui.Text($"Static bricks: {statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks} " +
-                $"({statistics.PendingStaticBricks} queued, {statistics.StaticBricksUpdated} updated)");
-            ImGui.Text($"Dynamic bricks: {statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks} " +
-                $"({statistics.DynamicBricksUpdated} updated)");
-            ImGui.Text($"Dropped bricks: {statistics.DroppedBricks}");
+            ImGui.Text(_textBuilder.Clear()
+                .Append("Static bricks: ").Append(statistics.StaticResidentBricks).Append('/')
+                .Append(statistics.StaticCapacityBricks).Append(" (")
+                .Append(statistics.PendingStaticBricks).Append(" queued, ")
+                .Append(statistics.StaticBricksUpdated).Append(" updated)").AsReadOnlySpan());
+            ImGui.Text(_textBuilder.Clear()
+                .Append("Dynamic bricks: ").Append(statistics.DynamicResidentBricks).Append('/')
+                .Append(statistics.DynamicCapacityBricks).Append(" (")
+                .Append(statistics.DynamicBricksUpdated).Append(" updated)").AsReadOnlySpan());
+            ImGui.Text(_textBuilder.Clear().Append("Dropped bricks: ").Append(statistics.DroppedBricks).AsReadOnlySpan());
             float sparseRatio = statistics.DenseBrickTotal > 0
                 ? 100.0f * statistics.SparseBrickTotal / statistics.DenseBrickTotal
                 : 0.0f;
-            ImGui.Text($"Sparse dispatch: {statistics.SparseBrickTotal}/{statistics.DenseBrickTotal} bricks " +
-                $"({sparseRatio:F1}% of dense)");
-            ImGui.Text($"GI memory: attributes {statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1} MiB, " +
-                $"radiance {statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1} MiB");
+            ImGui.Text(_textBuilder.Clear()
+                .Append("Sparse dispatch: ").Append(statistics.SparseBrickTotal).Append('/')
+                .Append(statistics.DenseBrickTotal).Append(" bricks (")
+                .Append(sparseRatio, "F1").Append("% of dense)").AsReadOnlySpan());
+            ImGui.Text(_textBuilder.Clear()
+                .Append("GI memory: attributes ").Append(statistics.AttributeMemoryBytes / (1024.0 * 1024.0), "F1").Append(" MiB, ")
+                .Append("radiance ").Append(statistics.RadianceMemoryBytes / (1024.0 * 1024.0), "F1").Append(" MiB").AsReadOnlySpan());
         }
 
         if (_bloom != null && ImGui.CollapsingHeader("Emissive & Bloom"))
@@ -1628,7 +1644,7 @@ public class Game : GameEngine
             }
             ImGui.SliderFloat("Light Intensity", ref _pointLightIntensity, 0.0f, 5.0f);
             ImGui.SliderFloat("Light Range", ref _pointLightRangeScale, 0.1f, 3.0f);
-            ImGui.Text($"Lights: {_bistroPointLights.Length} / {PBRSceneEnvironment.MaxPointLights}");
+            ImGui.Text(_textBuilder.Clear().Append("Lights: ").Append(_bistroPointLights.Length).Append(" / ").Append(PBRSceneEnvironment.MaxPointLights).AsReadOnlySpan());
         }
 
         if (_tonemapStage != null && ImGui.CollapsingHeader("Tone Mapping"))
@@ -1728,9 +1744,9 @@ public class Game : GameEngine
         {
             if (ImGui.CollapsingHeader("Bistro Scene"))
             {
-                ImGui.Text($"{_bistro.DrawItems.Count} draw items, {_bistro.Materials.Count} materials");
-                ImGui.Text($"bounds min {_bistro.BoundsMin}");
-                ImGui.Text($"bounds max {_bistro.BoundsMax}");
+                ImGui.Text(_textBuilder.Clear().Append(_bistro.DrawItems.Count).Append(" draw items, ").Append(_bistro.Materials.Count).Append(" materials").AsReadOnlySpan());
+                ImGui.Text(_textBuilder.Clear().Append("bounds min ").Append(_bistro.BoundsMin).AsReadOnlySpan());
+                ImGui.Text(_textBuilder.Clear().Append("bounds max ").Append(_bistro.BoundsMax).AsReadOnlySpan());
             }
 
             if (ImGui.CollapsingHeader("Glass Transparency"))
@@ -1749,8 +1765,7 @@ public class Game : GameEngine
         {
             if (ImGui.CollapsingHeader("Material"))
             {
-                string[] objectNames = _objects.Select(o => o.Mesh.Name).ToArray();
-                ImGui.Combo("Object", ref _selectedObject, objectNames, objectNames.Length);
+                ImGui.Combo("Object", ref _selectedObject, _objectNames!, _objectNames!.Length);
                 _selectedObject = Math.Clamp(_selectedObject, 0, _objects.Count - 1);
 
                 SceneObject sceneObject = _objects[_selectedObject];
@@ -1814,7 +1829,9 @@ public class Game : GameEngine
                     }
 
                     double ms = snapshot.Values[i];
-                    ImGui.Text($"  {snapshot.Names[i],-20} {ms,8:F3} ms");
+                    ImGui.Text(_textBuilder.Clear()
+                        .Append("  ").Append(snapshot.Names[i]).Append("  ")
+                        .Append(ms, "F3").Append(" ms").AsReadOnlySpan());
                 }
             }
         }
