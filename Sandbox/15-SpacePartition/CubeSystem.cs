@@ -97,6 +97,7 @@ public class CubeSystem : IDisposable
 
     public void OnRender(GPUFrameBuffer frame)
     {
+        using (RenderFrameScope frameScope = _renderContext.BeginFrame())
         using (RenderPassScope pass = _renderContext.BeginPass(frame))
         {
             for (int i = 0; i < _activeList.Count; i++)

@@ -5,9 +5,11 @@ using Alco.Rendering;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// Tests of the RAII render-pass scopes (<see cref="RenderPassScope"/>) handed out by
+/// Tests of the RAII scopes of <see cref="RenderContext"/>: frame scopes
+/// (<see cref="RenderFrameScope"/>, the only submitter) and pass scopes
+/// (<see cref="RenderPassScope"/>) handed out by
 /// <see cref="RenderContext.BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>
-/// and <see cref="SubRenderContext.BeginPass"/>: standalone auto-submission, misuse
+/// and <see cref="SubRenderContext.BeginPass"/>: frame-only submission, misuse
 /// guards, listener notifications, bundle recording, and the render graph's
 /// one-submission-per-frame model. Driven by the NoGPU backend.
 /// </summary>
@@ -101,30 +103,32 @@ public sealed class TestRenderPassScope
         _host.Dispose();
     }
 
-    [Test(Description = "A standalone context submits its command buffer when the pass scope is disposed")]
-    public void StandaloneContextSubmitsOnScopeDispose()
+    [Test(Description = "BeginPass without an open frame scope throws InvalidOperationException — the frame scope is the only submitter")]
+    public void BeginPassWithoutFrameThrows()
     {
         using RenderContext context = _rendering.CreateRenderContext("test");
-        int before = _rendering.ScheduledSubmissionCount;
 
-        using (context.BeginPass(_target.FrameBuffer))
-        {
-        }
-
-        Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 1));
+        Assert.Throws<InvalidOperationException>(() => context.BeginPass(_target.FrameBuffer));
+        Assert.That(context.IsPassOpen, Is.False);
     }
 
-    [Test(Description = "Two sequential passes on one standalone context submit once each (the old Begin/End behavior)")]
-    public void SequentialPassesSubmitOnceEach()
+    [Test(Description = "Two sequential frames on one context submit once each")]
+    public void SequentialFramesSubmitOnceEach()
     {
         using RenderContext context = _rendering.CreateRenderContext("test");
         int before = _rendering.ScheduledSubmissionCount;
 
-        using (context.BeginPass(_target.FrameBuffer))
+        using (context.BeginFrame())
         {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
         }
-        using (context.BeginPass(_target.FrameBuffer))
+        using (context.BeginFrame())
         {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
         }
 
         Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 2));
@@ -134,6 +138,7 @@ public sealed class TestRenderPassScope
     public void CallsOnClosedScopeThrow()
     {
         using RenderContext context = _rendering.CreateRenderContext("test");
+        using RenderFrameScope frame = context.BeginFrame();
         RenderPassScope pass = context.BeginPass(_target.FrameBuffer);
         pass.Dispose();
 
@@ -145,24 +150,31 @@ public sealed class TestRenderPassScope
     public void NestedBeginPassThrows()
     {
         using RenderContext context = _rendering.CreateRenderContext("test");
+        using (context.BeginFrame())
         using (context.BeginPass(_target.FrameBuffer))
         {
             Assert.Throws<InvalidOperationException>(() => context.BeginPass(_target.FrameBuffer));
         }
     }
 
-    [Test(Description = "Listeners are notified exactly once per pass, on the recycled scope identity")]
-    public void ListenersFireOncePerPass()
+    [Test(Description = "Listeners are notified once per frame scope (one pass per frame here), on the recycled scope identity")]
+    public void ListenersFireOncePerFrame()
     {
         using RenderContext context = _rendering.CreateRenderContext("test");
         var listener = new FakeListener();
         context.Pass.AddListener(listener);
 
-        using (context.BeginPass(_target.FrameBuffer))
+        using (context.BeginFrame())
         {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
         }
-        using (context.BeginPass(_target.FrameBuffer))
+        using (context.BeginFrame())
         {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
         }
 
         Assert.That(listener.BeginCount, Is.EqualTo(2));
@@ -183,6 +195,7 @@ public sealed class TestRenderPassScope
         Assert.That(sub.HasBuffer, Is.True);
 
         using RenderContext context = _rendering.CreateRenderContext("test");
+        using (RenderFrameScope frame = context.BeginFrame())
         using (RenderPassScope pass = context.BeginPass(_target.FrameBuffer))
         {
             Assert.DoesNotThrow(() => pass.ExecuteSubContext(sub));
@@ -237,6 +250,94 @@ public sealed class TestRenderPassScope
 
         Assert.That(listener.BeginCount, Is.EqualTo(2));
         Assert.That(listener.EndCount, Is.EqualTo(2));
+    }
+
+    [Test(Description = "A frame scope records many passes into one buffer and submits once on dispose (shared mode outside the render graph)")]
+    public void FrameScopeSubmitsOnceForManyPasses()
+    {
+        using RenderContext context = _rendering.CreateRenderContext("test");
+        int before = _rendering.ScheduledSubmissionCount;
+
+        using (RenderFrameScope frame = context.BeginFrame())
+        {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
+            Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before),
+                "A pass inside a frame scope must not submit.");
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
+        }
+
+        Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 1),
+            "The frame scope submits the shared buffer exactly once.");
+
+        // After the frame, the next recording requires its own frame scope.
+        using (context.BeginFrame())
+        {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
+        }
+        Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 2));
+    }
+
+    [Test(Description = "Listeners fire once per frame scope (buffer cycle), not per pass")]
+    public void FrameScopeListenersFireOncePerFrame()
+    {
+        using RenderContext context = _rendering.CreateRenderContext("test");
+        var listener = new FakeListener();
+        context.Pass.AddListener(listener);
+
+        using (context.BeginFrame())
+        {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
+        }
+
+        Assert.That(listener.BeginCount, Is.EqualTo(1));
+        Assert.That(listener.EndCount, Is.EqualTo(1));
+    }
+
+    [Test(Description = "Disposing a frame scope with a pass still open discards the buffer without submitting and leaves the context reusable")]
+    public void FrameScopeWithOpenPassAbortsWithoutSubmit()
+    {
+        using RenderContext context = _rendering.CreateRenderContext("test");
+        int before = _rendering.ScheduledSubmissionCount;
+
+        using (RenderFrameScope frame = context.BeginFrame())
+        {
+            context.BeginPass(_target.FrameBuffer);
+        } // pass still open here → abort, no submission
+
+        Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before));
+        Assert.That(context.IsPassOpen, Is.False);
+
+        // Clean state: the next frame records and submits normally.
+        using (context.BeginFrame())
+        {
+            using (context.BeginPass(_target.FrameBuffer))
+            {
+            }
+        }
+        Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 1));
+    }
+
+    [Test(Description = "Nested BeginFrame or a double frame dispose throws InvalidOperationException")]
+    public void FrameScopeNestingAndDoubleDisposeThrow()
+    {
+        using RenderContext context = _rendering.CreateRenderContext("test");
+        RenderFrameScope frame = context.BeginFrame();
+
+        Assert.Throws<InvalidOperationException>(() => context.BeginFrame());
+
+        frame.Dispose();
+        Assert.Throws<InvalidOperationException>(() => frame.Dispose());
     }
 
     [Test(Description = "The render graph records every node's passes into the shared context and submits exactly once per frame")]

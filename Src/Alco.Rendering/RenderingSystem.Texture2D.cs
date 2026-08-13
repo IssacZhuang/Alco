@@ -345,6 +345,10 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a Texture2D from existing GPU resources.
+    /// <br/>The wrapper does NOT take ownership of <paramref name="texture"/> and
+    /// <paramref name="textureView"/>: being created outside, their lifetime is
+    /// managed by the caller (e.g. the frame buffer whose attachments they are),
+    /// the same rule as the externally supplied sampler.
     /// </summary>
     /// <param name="texture">The GPU texture.</param>
     /// <param name="textureView">The GPU texture view.</param>
@@ -361,7 +365,8 @@ public partial class RenderingSystem
             texture,
             textureView,
             sampler,
-            null
+            null,
+            ownsResources: false
         );
     }
 

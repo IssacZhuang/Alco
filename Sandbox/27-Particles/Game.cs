@@ -96,6 +96,7 @@ public class Game : GameEngine
         if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         if (_subRenderContext.HasBuffer)
         {
+            using (RenderFrameScope frame = _renderContext.BeginFrame())
             using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
             {
                 pass.ExecuteSubContext(_subRenderContext);

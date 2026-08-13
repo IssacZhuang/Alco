@@ -58,6 +58,7 @@ public class Game : GameEngine
         Rotation2D rotation = new Rotation2D(_angle);
 
 
+        using (RenderFrameScope frame = _renderContext.BeginFrame())
         using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
         {
             _textRenderer.DrawText(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));

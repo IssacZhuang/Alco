@@ -19,8 +19,8 @@ public class Game : GameEngine
     private readonly Camera2DBuffer _windowCamera2;
 
     private readonly Shader _shader;
-    private readonly RenderContext _renderContext;
-    private readonly SpriteRenderer _renderer;
+    private readonly SpriteRenderer _renderer1;
+    private readonly SpriteRenderer _renderer2;
 
     //hdr
     private readonly RGNode_Tonemap _tonemapNode1;
@@ -34,7 +34,6 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
-        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _shader = BuiltInAssets.Shader_Sprite;
@@ -51,16 +50,21 @@ public class Game : GameEngine
 
         _presenter2 = CreateViewPresenter(_window2);
         _pipeline2 = new RenderPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, _window2.Size.X, _window2.Size.Y);
-        _pipeline2.Use(new SceneNode(this, _pipeline2.Graph, _pipeline2.Chain));
         _presenter2.OnResize += size => _pipeline2.Resize(size.X, size.Y);
 
         _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);
         _windowCamera2 = RenderingSystem.CreateCamera2D(720, 405, 100);
 
-        Material material = RenderingSystem.CreateMaterial(_shader);
-        material.SetBuffer(ShaderResourceId.Camera, _windowCamera1);
-        _renderContext = RenderingSystem.CreateRenderContext("renderer");
-        _renderer = RenderingSystem.CreateSpriteRenderer(_renderContext, material);
+        Material material1 = RenderingSystem.CreateMaterial(_shader);
+        material1.SetBuffer(ShaderResourceId.Camera, _windowCamera1);
+        _renderer1 = RenderingSystem.CreateSpriteRenderer(_mainPipeline.Graph.RenderContext, material1);
+
+        Material material2 = RenderingSystem.CreateMaterial(_shader);
+        material2.SetBuffer(ShaderResourceId.Camera, _windowCamera2);
+        _renderer2 = RenderingSystem.CreateSpriteRenderer(_pipeline2.Graph.RenderContext, material2);
+
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain, _renderer1));
+        _pipeline2.Use(new SceneNode(this, _pipeline2.Graph, _pipeline2.Chain, _renderer2));
 
 
         MainView.Position = new Vector2(276, 258);
@@ -148,17 +152,19 @@ public class Game : GameEngine
     private sealed class SceneNode : RGNode_SceneContent
     {
         private readonly Game _game;
+        private readonly SpriteRenderer _renderer;
 
-        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain, SpriteRenderer renderer) : base(graph, chain)
         {
             _game = game;
+            _renderer = renderer;
         }
 
         protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
-            using (RenderPassScope pass = _game._renderContext.BeginPass(target))
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
             {
-                _game._renderer.Draw(_game.RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
+                _renderer.Draw(_game.RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
             }
         }
     }

@@ -57,6 +57,7 @@ public class BenchmarkRenderer
     [Benchmark]
     public void NewSpriteRenderer()
     {
+        using (RenderFrameScope frame = _context.BeginFrame())
         using (RenderPassScope pass = _context.BeginPass(_target.FrameBuffer))
         {
             for (int i = 0; i < count; i++)

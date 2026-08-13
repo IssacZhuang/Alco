@@ -179,6 +179,7 @@ public class DropletSystem : IDisposable
 
         _jobParallelRender.Layout = layout;
         _jobParallelRender.RunParallel(RenderThreadCount);
+        using (RenderFrameScope frame = _renderContext.BeginFrame())
         using (RenderPassScope pass = _renderContext.BeginPass(target))
         {
             for (int i = 0; i < RenderThreadCount; i++)

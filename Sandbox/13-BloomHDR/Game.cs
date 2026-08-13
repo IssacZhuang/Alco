@@ -24,7 +24,6 @@ public class Game : GameEngine
 
     private readonly Texture2D _quad;
     private readonly Shader _spriteShader;
-    private readonly RenderContext _renderContext;
     private readonly SpriteRenderer _renderer;
     private ColorFloat _color = new ColorFloat(4, 2, 2, 1);
     private bool _enabled = true;
@@ -80,8 +79,7 @@ public class Game : GameEngine
 
         Material material = RenderingSystem.CreateMaterial(_spriteShader);
         material.SetBuffer(ShaderResourceId.Camera, _camera);
-        _renderContext = RenderingSystem.CreateRenderContext("renderer");
-        _renderer = RenderingSystem.CreateSpriteRenderer(_renderContext, material);
+        _renderer = RenderingSystem.CreateSpriteRenderer(_mainPipeline.Graph.RenderContext, material);
     }
 
     public override IEnumerable<IFileSource> CreateDefaultFileSources()
@@ -248,7 +246,7 @@ public class Game : GameEngine
             Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
             spritePosition.Y = -spritePosition.Y;
 
-            using (RenderPassScope pass = _game._renderContext.BeginPass(target))
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
             {
                 if (_game._enabled)
                 {

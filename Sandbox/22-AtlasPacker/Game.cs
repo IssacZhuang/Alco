@@ -68,6 +68,7 @@ public class Game : GameEngine
         };
 
         //draw atlas texture
+        using (RenderFrameScope frame = _materialRenderer.BeginFrame())
         using (RenderPassScope pass = _materialRenderer.BeginPass(frameBuffer, ColorFloat.Black))
         {
             pass.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);

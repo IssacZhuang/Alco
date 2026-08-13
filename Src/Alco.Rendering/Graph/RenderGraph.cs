@@ -339,8 +339,11 @@ public sealed class RenderGraph : AutoDisposable
 
             ReadOnlySpan<bool> alive = _compiler.Alive;
             int executed = 0;
-            _sharedContext.Open();
-            try
+            // One frame scope per Execute: every node records into the shared buffer,
+            // and the scope's Dispose performs the single submission. If a node threw
+            // with its pass still open, the scope aborts the buffer instead so the
+            // next frame starts from a clean state.
+            using (RenderFrameScope frame = _sharedContext.BeginFrame())
             {
                 for (int i = 0; i < _records.Count; i++)
                 {
@@ -348,23 +351,6 @@ public sealed class RenderGraph : AutoDisposable
                     {
                         _records[i].Node.Execute(_context);
                         executed++;
-                    }
-                }
-            }
-            finally
-            {
-                // One submission per frame for the whole graph. If a node threw with
-                // its pass still open, abort the buffer instead so the next frame
-                // starts from a clean state.
-                if (_sharedContext.IsBufferOpen)
-                {
-                    if (_sharedContext.IsPassOpen)
-                    {
-                        _sharedContext.Abort();
-                    }
-                    else
-                    {
-                        _sharedContext.Submit();
                     }
                 }
             }

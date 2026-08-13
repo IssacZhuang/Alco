@@ -177,6 +177,7 @@ public class Game : GameEngine
 
         if (_subRenderContext.HasBuffer)
         {
+            using (RenderFrameScope frame = _renderContext.BeginFrame())
             using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
             {
                 pass.ExecuteSubContext(_subRenderContext);

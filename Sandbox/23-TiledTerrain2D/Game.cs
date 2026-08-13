@@ -20,7 +20,6 @@ public class Game : GameEngine
 
     private readonly RenderPipeline _mainPipeline;
 
-    private readonly RenderContext _renderer;
     private readonly Camera2D _camera;
     private readonly Material _blitMaterial;
 
@@ -111,8 +110,6 @@ public class Game : GameEngine
 
         _blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
 
-        _renderer = RenderingSystem.CreateRenderContext();
-
         _lightingManager = new LightingManager(this, width, height);
         _wallManager = new WallManager(this, _lightingManager, width, height);
 
@@ -135,7 +132,7 @@ public class Game : GameEngine
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
         _surfaceTileSet = BuildSurfaceTileSet();
-        _surfaceBlock = RenderingSystem.CreateTileRenderer(_renderer, _surfaceTileSet, width, height, "surface_block");
+        _surfaceBlock = RenderingSystem.CreateTileRenderer(_mainPipeline.Graph.RenderContext, _surfaceTileSet, width, height, "surface_block");
         _surfaceBlock.SetAllTiles(1);
 
 
@@ -401,7 +398,7 @@ public class Game : GameEngine
 
         protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
-            using (RenderPassScope pass = _game._renderer.BeginPass(target))
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
             {
                 _game._surfaceBlock.Render();
                 _game._wallManager.Render(pass);

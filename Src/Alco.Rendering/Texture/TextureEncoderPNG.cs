@@ -61,6 +61,7 @@ public sealed class TextureEncoderPNG : AutoDisposable
 
         _blitMaterial.SetTexture(ShaderResourceId.Texture, source);
 
+        using (RenderFrameScope frame = _renderContext.BeginFrame())
         using (RenderPassScope pass = _renderContext.BeginPass(_cachedRenderTexture!.FrameBuffer))
         {
             pass.Draw(_fullScreenMesh, _blitMaterial);

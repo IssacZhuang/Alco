@@ -169,6 +169,9 @@ public sealed class RenderTexture : AutoDisposable
         _colorTextures = new Texture2D[_frameBuffer.Colors.Length];
         for (int i = 0; i < _colorTextures.Length; i++)
         {
+            // Non-owning wrappers: the attachments belong to the frame buffer
+            // (for external frame buffers, to the render graph's texture pool);
+            // disposing them here only releases the wrapper's own bind groups.
             _colorTextures[i] = renderingSystem.CreateTexture2D(
                 _frameBuffer.Colors[i],
                 _frameBuffer.ColorViews[i],

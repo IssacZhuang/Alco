@@ -72,9 +72,10 @@ public sealed class Texture2D : Texture
         GPUTexture texture,
         GPUTextureView textureView,
         GPUSampler sampler,
-        Padding? slicePadding = null
+        Padding? slicePadding = null,
+        bool ownsResources = true
         ) :
-        base(device, texture, textureView, sampler)
+        base(device, texture, textureView, sampler, ownsResources)
     {
         if (slicePadding.HasValue)
         {

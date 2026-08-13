@@ -111,6 +111,7 @@ public class Game : GameEngine
 
         // Rendering logic
         if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+        using (RenderFrameScope frame = _renderer.BeginFrame())
         using (RenderPassScope pass = _renderer.BeginPass(frameBuffer, ColorFloat.Black))
         {
             foreach (var cube in _entities.Values)

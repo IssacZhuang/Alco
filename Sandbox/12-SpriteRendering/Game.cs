@@ -65,6 +65,7 @@ public class Game : GameEngine
 
         if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
 
+        using (RenderFrameScope frame = _renderContext.BeginFrame())
         using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
         {
             _textRenderer.DrawText(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));

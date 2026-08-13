@@ -535,4 +535,71 @@ public sealed class TestRenderGraph
             $"Steady-state Execute allocated {allocated} bytes over 100 frames.");
         TestContext.Out.WriteLine($"Steady-state allocation over 100 frames: {allocated} bytes.");
     }
+
+    [Test(Description = "Regression: DestroyTransient disposes the facade but must not dispose the pooled backing; a later same-spec transient receives the intact pooled attachment")]
+    public void DestroyTransientKeepsPooledAttachmentAlive()
+    {
+        using RenderGraph graph = CreateGraph();
+        RenderGraphTexture a = graph.CreateTransient(Describe(_layoutColor, "a"));
+
+        // One frame returns the occupied entry to the idle set.
+        graph.Execute(null);
+
+        GPUTexture pooledTexture = a.Texture.FrameBuffer.Colors[0];
+        GPUTextureView pooledView = a.Texture.FrameBuffer.ColorViews[0];
+
+        // The SSR resolution-slider path between frames: destroy the old transient.
+        // The facade goes away, the pooled backing must stay alive for reuse.
+        graph.DestroyTransient(a);
+
+        Assert.That(a.Texture.IsDisposed, Is.True, "The facade itself is disposed.");
+        Assert.That(pooledTexture.IsDisposed, Is.False, "The pooled texture belongs to the pool, not to the facade.");
+        Assert.That(pooledView.IsDisposed, Is.False, "The pooled view belongs to the pool, not to the facade.");
+
+        // A later same-spec transient (the slider dragged back, or another node with
+        // an equal key) takes the idle entry and must find it intact.
+        RenderGraphTexture b = graph.CreateTransient(Describe(_layoutColor, "b"));
+
+        Assert.That(ReferenceEquals(b.Texture.FrameBuffer.Colors[0], pooledTexture), Is.True,
+            "The idle pooled attachment is reused by the same-spec transient.");
+        Assert.That(ReferenceEquals(b.Texture.FrameBuffer.ColorViews[0], pooledView), Is.True);
+        Assert.That(pooledTexture.IsDisposed, Is.False);
+        Assert.That(pooledView.IsDisposed, Is.False);
+
+        // Record a real pass into the reused backing: the frame buffer composes the
+        // pooled views, which must still be valid at render pass creation.
+        var node = new FakeNode("node")
+        {
+            Writes = [b],
+            DeclaresOutput = true,
+            OnExecute = context =>
+            {
+                using (context.RenderContext.BeginPass(b.Texture.FrameBuffer))
+                {
+                }
+            },
+        };
+        graph.Use(node);
+
+        Assert.DoesNotThrow(() => graph.Execute(null));
+        Assert.That(node.ExecuteCount, Is.EqualTo(1));
+    }
+
+    [Test(Description = "The color texture wrappers of a render texture do not own the attachments: disposing the render texture disposes the wrappers and the frame buffer, while attachment release is left to the frame buffer's (deferred) destruction")]
+    public void RenderTextureWrappersDoNotOwnAttachments()
+    {
+        RenderTexture renderTexture = _rendering.CreateRenderTexture(_layoutColor, 16, 16, "owned");
+        Texture2D wrapper = renderTexture.ColorTextures[0];
+        GPUTexture texture = renderTexture.FrameBuffer.Colors[0];
+        GPUTextureView view = renderTexture.FrameBuffer.ColorViews[0];
+
+        renderTexture.Dispose();
+
+        Assert.That(wrapper.IsDisposed, Is.True, "The wrapper itself is disposed.");
+        Assert.That(renderTexture.FrameBuffer.IsDisposed, Is.True, "The frame buffer is disposed with the render texture.");
+        Assert.That(texture.IsDisposed, Is.False,
+            "The attachment must not be released synchronously by the wrapper; the frame buffer releases it on destruction.");
+        Assert.That(view.IsDisposed, Is.False,
+            "The attachment view must not be released synchronously by the wrapper; the frame buffer releases it on destruction.");
+    }
 }

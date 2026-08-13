@@ -18,6 +18,12 @@ public abstract class Texture : AutoDisposable
     // from outside
     protected GPUSampler _sampler;
 
+    // Whether this wrapper owns _texture and _textureView. Wrappers created over
+    // externally owned GPU resources (e.g. frame buffer attachments or render
+    // graph pooled textures) are non-owning: their lifetime is managed by the
+    // creator, the same rule as the externally supplied sampler.
+    private readonly bool _ownsResources;
+
     public string Name { get; }
 
     public bool IsWriteable => _texture.IsWriteable;
@@ -83,13 +89,15 @@ public abstract class Texture : AutoDisposable
         GPUDevice device,
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler)
+        GPUSampler sampler,
+        bool ownsResources = true)
     {
         _device = device;
 
         _texture = texture;
         _textureView = textureView;
         _sampler = sampler;
+        _ownsResources = ownsResources;
 
         Name = texture.Name;
     }
@@ -134,7 +142,7 @@ public abstract class Texture : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && _ownsResources)
         {
             //dispose non-private managed resources
             _texture?.Dispose();

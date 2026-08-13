@@ -388,6 +388,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
     public void Update(GPUFrameBuffer renderTarget, float delta)
     {
         HandleInput();
+        // An injected context is already inside its owner's frame scope (e.g. the
+        // render graph's); an owned context opens and submits its own frame here.
+        RenderFrameScope? frame = _ownsRenderContext ? _renderContext.BeginFrame() : null;
+        using (frame)
         using (RenderPassScope pass = _renderContext.BeginPass(renderTarget))
         {
             _mask = 0;

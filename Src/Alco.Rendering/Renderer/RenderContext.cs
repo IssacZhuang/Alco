@@ -5,20 +5,20 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The context of the render object. Owns one <see cref="GPUCommandBuffer"/> and
-/// hands out <see cref="RenderPassScope"/> instances through <see cref="BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>
-/// — all draw commands are recorded inside the scope, consumed with <c>using</c>.
-/// <br/>Submission model: when the context itself opened the command buffer (a
-/// standalone context), closing the scope submits immediately — byte-for-byte the old
-/// Begin/End behavior. When the buffer was opened externally (<see cref="Open"/>,
-/// e.g. by a <see cref="RenderGraph"/>), passes record into the shared buffer and
-/// nothing submits until <see cref="Submit"/> is called — one submission per frame.
+/// The context of the render object. Owns one <see cref="GPUCommandBuffer"/>. Recording
+/// requires an active frame scope (<see cref="BeginFrame"/>); all draw commands are
+/// recorded inside <see cref="RenderPassScope"/> instances handed out by
+/// <see cref="BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>,
+/// consumed with <c>using</c>.
+/// <br/>Submission model: unified — the frame scope is the only submitter. Passes (and
+/// compute recorded through <see cref="CommandBuffer"/>) never submit; disposing the
+/// frame scope submits the whole buffer exactly once. <see cref="RenderGraph"/> drives
+/// its shared context through the same public <see cref="BeginFrame"/> path, so graph
+/// frames and standalone frames behave identically.
 /// <br/>All APIs in this class are not thread safe, but you can create multiple
 /// instances on different threads.
 /// <br/>Listeners bound through <see cref="RenderPassScope.AddListener"/> fire once per
-/// command-buffer cycle — when the buffer opens (<see cref="Open"/>/auto-open) and when it
-/// submits or aborts — not per pass, so listeners on a shared (graph) context see exactly
-/// one begin/end pair per frame no matter how many passes the frame contains.
+/// frame scope — when it opens and when it submits or aborts — never per pass.
 /// </summary>
 public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 {
@@ -27,13 +27,12 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     private readonly RenderPassScope _passScope;
 
     private bool _bufferOpen;
-    private bool _autoOpenedBuffer;
     private bool _passOpen;
 
     /// <summary>
-    /// The command buffer that is currently in use. In shared mode (buffer opened via
-    /// <see cref="Open"/>) compute passes may be recorded on it directly; the buffer
-    /// must never be ended or submitted by the caller.
+    /// The command buffer that is currently in use. While a frame scope is open,
+    /// compute passes may be recorded on it directly; the buffer must never be ended
+    /// or submitted by the caller — the frame scope owns submission.
     /// </summary>
     public GPUCommandBuffer CommandBuffer
     {
@@ -58,14 +57,6 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         get => _passOpen;
     }
 
-    /// <summary>Whether the command buffer is open (opened by <see cref="Open"/> or
-    /// auto-opened by an active pass).</summary>
-    internal bool IsBufferOpen
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _bufferOpen;
-    }
-
     internal RenderContext(RenderingSystem renderingSystem, string name)
     {
         _renderingSystem = renderingSystem;
@@ -75,9 +66,9 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 
     /// <summary>
     /// Begins a render pass on the target framebuffer and returns its scope.
-    /// A standalone context auto-opens its command buffer and submits when the scope
-    /// is disposed; on a shared context (buffer opened via <see cref="Open"/>) the
-    /// pass is recorded into the shared buffer without submitting.
+    /// Requires an active frame scope (<see cref="BeginFrame"/>); the pass records
+    /// into the frame's buffer and never submits — the frame scope submits once
+    /// when disposed.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
     /// <param name="clearColors">Attachment clear values.</param>
@@ -95,7 +86,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         AttachmentOps? depthOps = null)
     {
         ThrowIfPassOpen();
-        EnsureBufferOpen();
+        ThrowIfNoFrame();
         GPUCommandBuffer.RenderPass native = _command.BeginRender(target, clearColors, clearDepth, clearStencil, colorOps, depthOps);
         _passOpen = true;
         _passScope.Activate(native, target);
@@ -161,7 +152,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         AttachmentOps? depthOps = null)
     {
         ThrowIfPassOpen();
-        EnsureBufferOpen();
+        ThrowIfNoFrame();
         GPUCommandBuffer.RenderPass native = _command.BeginRender(target, clearColors, querySet, beginQueryIndex, endQueryIndex, clearDepth, clearStencil, colorOps, depthOps);
         _passOpen = true;
         _passScope.Activate(native, target);
@@ -169,15 +160,42 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     }
 
     /// <summary>
-    /// Opens the command buffer for external (shared) recording. While the buffer is
-    /// open, passes record into it without submitting; call <see cref="Submit"/> to
-    /// end and submit. Engine-internal: driven by <see cref="RenderGraph"/>.
+    /// Opens the command buffer and returns the frame scope that owns its submission:
+    /// passes (and compute recorded via <see cref="CommandBuffer"/>) inside the scope
+    /// record into one buffer without submitting; disposing the scope submits once.
+    /// This is the only way to open the buffer — <see cref="RenderGraph"/> drives its
+    /// shared context through this same path. Throws when a frame is already open
+    /// (nested <c>BeginFrame</c>).
     /// </summary>
-    internal void Open()
+    /// <returns>The frame scope, to be disposed outermost of any pass scope.</returns>
+    public RenderFrameScope BeginFrame()
+    {
+        Open();
+        return new RenderFrameScope(this);
+    }
+
+    /// <summary>
+    /// Ends a frame opened via <see cref="BeginFrame"/>: submits the buffer, or aborts
+    /// it without submitting when a pass scope is still open (a half-open pass cannot be
+    /// closed legally mid-dispose — the buffer is discarded so the next frame starts clean).
+    /// </summary>
+    internal void CloseFrame()
+    {
+        if (_passOpen)
+        {
+            Abort();
+            return;
+        }
+
+        Submit();
+    }
+
+    /// <summary>Opens the command buffer for frame recording. Driven by <see cref="BeginFrame"/>.</summary>
+    private void Open()
     {
         if (_bufferOpen)
         {
-            throw new InvalidOperationException("The command buffer is already open.");
+            throw new InvalidOperationException("A frame scope is already open on this context.");
         }
 
         _command.Begin();
@@ -185,11 +203,9 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         _passScope.NotifyListenersBegin();
     }
 
-    /// <summary>
-    /// Ends the command buffer opened via <see cref="Open"/> and submits it. No pass
-    /// scope may be open. Engine-internal: driven by <see cref="RenderGraph"/>.
-    /// </summary>
-    internal void Submit()
+    /// <summary>Ends and submits the open command buffer. No pass scope may be open.
+    /// Driven by <see cref="CloseFrame"/>.</summary>
+    private void Submit()
     {
         if (!_bufferOpen)
         {
@@ -208,40 +224,32 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 
     void RenderPassScope.IScopeOwner.OnScopeClosing(RenderPassScope scope)
     {
-        // Listeners fire per command-buffer cycle (open → submit), not per pass,
-        // so a shared context running many passes per frame notifies once per frame.
+        // Listeners fire per frame scope (open → submit/abort), not per pass,
+        // so a frame running many passes notifies exactly once.
     }
 
     void RenderPassScope.IScopeOwner.OnScopeClosed(RenderPassScope scope)
     {
         scope.ResolvePendingTimestamps(_command);
         _passOpen = false;
-        if (_autoOpenedBuffer)
-        {
-            _autoOpenedBuffer = false;
-            Submit();
-        }
     }
 
-    private void EnsureBufferOpen()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ThrowIfNoFrame()
     {
-        if (_bufferOpen)
+        if (!_bufferOpen)
         {
-            return;
+            throw new InvalidOperationException(
+                "No frame scope is open on this context. Recording requires one: using var frame = context.BeginFrame().");
         }
-
-        _command.Begin();
-        _bufferOpen = true;
-        _autoOpenedBuffer = true;
-        _passScope.NotifyListenersBegin();
     }
 
     /// <summary>
     /// Force-aborts the open command buffer without submitting it, closing any open
-    /// pass scope first. Error recovery only — used by <see cref="RenderGraph"/> when
-    /// a node threw mid-pass.
+    /// pass scope first. Driven by <see cref="CloseFrame"/> when a frame scope is
+    /// disposed with a pass still open.
     /// </summary>
-    internal void Abort()
+    private void Abort()
     {
         if (_passOpen)
         {
@@ -252,7 +260,6 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
             _passScope.NotifyListenersEnd();
             _command.End();
             _bufferOpen = false;
-            _autoOpenedBuffer = false;
         }
     }
 
