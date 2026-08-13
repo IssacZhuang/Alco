@@ -62,7 +62,7 @@
 - 承载全部绘制 API:`Draw` / `DrawWithConstant` / `DrawInstanced` / `DrawInstancedWithConstant`、`ExecuteSubContext`、`SetScissorRect`、`SetStencilReference`、`ResolveTimestampsOnEnd`、`Framebuffer`、`AddListener`/`RemoveListener`(转发给所属 context);
 - **内部两态**:直录 render pass(持有 `GPUCommandBuffer.RenderPass`)或 bundle 录制(持有 `GPURenderBundle`)——`RenderContext` 与 `SubRenderContext` 产出的作用域是同一个类型,消除现在两份 `Draw*` 重复代码;
 - **复用而非新建**:每个 context 在构造期创建一个 scope 实例,`BeginPass` 时重绑 native pass 后返回同一对象。这是与 `RenderGraphBuilder` 相同的"单实例复用、回调外禁止持有"契约:仅在 `using` 块内有效,关闭后任何调用抛 `InvalidOperationException`;身份稳定,因此渲染器可以构造期持有它跨帧使用(见 §3.4);
-- 关闭顺序(与现行 `RenderContext.End()` 一致):先触发 listener `OnCommandEnd`(listener 向仍打开的 pass 补充绘制)→ 关闭 native pass → 记录 pending timestamp resolve → 交还所属 context 收尾(§3.2)。
+- 关闭顺序:关闭 native pass → 记录 pending timestamp resolve → 交还所属 context 收尾(§3.2)。listener 通知已上移到缓冲域(`Open`/`Submit` 时触发,见 §3.2/§10.2,2026-08-13 修订);仅 `SubRenderContext` 保持录制域——scope 关闭、bundle 仍打开时触发 `OnCommandEnd`,listener 可向仍打开的 bundle 补充绘制。
 
 不用 struct:实现 `IRenderContext` 传参会装箱且破坏内部 mesh 缓存;需要身份稳定供渲染器长期持有。
 
@@ -79,7 +79,8 @@
 - `internal Open()` → `_command.Begin()`;`internal Submit()` → `_command.End()` + `ScheduleCommandBuffer`(总是提交:compute 直录在 `CommandBuffer` 上无法计入 pass 数,零 pass 空帧也提交,开销可忽略);仅 render graph 与引擎内部调用;
 - **即时模式(默认,独立路径)**:scope 关闭时若缓冲是本 pass 自动打开的,则自动 `End` + 提交——`BeginPass` 发现缓冲未开则自动打开并标记,`EndPass` 发现标记则提交。行为与现行 `Begin`/`End` 逐字节等价,调用方无感;
 - **共享模式(graph)**:`Open()` 已由 graph 显式调用,pass 开关不触发提交,graph 在 `Execute` 末尾统一 `Submit()`。模式不由开关切换,而由"谁打开缓冲"自然决定;
-- 守卫:缓冲未开不能开第二个 pass;pass 未关不能 `Submit`;作用域重复 `Dispose` 抛异常。
+- 守卫:缓冲未开不能开第二个 pass;pass 未关不能 `Submit`;作用域重复 `Dispose` 抛异常;
+- **listener 在缓冲域触发**(2026-08-13 修订):`Open()` 完成 `_command.Begin()` 后触发 `OnCommandBegin`;`Submit()`/`Abort()` 在 `_command.End()` 前触发 `OnCommandEnd`——每提交周期恰好一轮,与 pass 数量解耦(原设计随 pass 开关触发,在黑屏事故中证明会破坏共享 context,见 §10.3 末条)。
 
 ### 3.3 `SubRenderContext`:对称改造
 
@@ -93,12 +94,12 @@
 - `IRenderContext` **不变**,由 `RenderPassScope` 实现;
 - `TextRenderer`/`InstanceRenderer`/`DynamicMeshRenderer`/`SpriteRenderer`/`TileRenderer` 构造期持有 `IRenderContext` 并跨帧使用 → scope 身份稳定使其无感,**零改动**;
 - `RenderingSystem.Renderer.cs` 工厂增加 `RenderContext`/`SubRenderContext` 重载,内部转发 `context.Pass`,现有调用点(含 Game)**全部原样编译**;`IRenderContext` 重载保留;
-- `ICommandListener` 语义不变:pass 开/关各触发一次,挂载 list 仍在 context 上(scope 转发注册)。
+- `ICommandListener` 挂载 list 仍在 context 上(scope 转发注册);触发时机 2026-08-13 起改为缓冲域(§3.2),`SubRenderContext` 保持录制域——`TextRenderer` 等"Begin 重置/End 归还"语义的渲染器在每提交周期恰好一轮通知下行为不变。
 
 ### 3.5 render graph 共享 context
 
 - `RenderGraph` 构造期创建一个常驻 `RenderContext`(零逐帧分配);`Execute` 流程改为:Setup → Compile → Assign → `Open()` → 逐存活节点 `Execute` → `Submit()`(finally 中按状态 `Submit`/`Abort`,见 §10.5);
-- `RenderGraphContext` 新增 `RenderContext` 属性注入共享 context(与 `RenderGraphTexture.Texture` 同先例);
+- `RenderGraphContext` 新增 `RenderContext` 属性注入共享 context(与 `RenderGraphTexture.Texture` 同先例);`RenderGraph` 同时公开 `RenderContext` 属性,供节点外但与 graph 同帧的渲染(Game 世界、Canvas UI)共享同一缓冲(§10.3 末条);
 - 节点删除自持 `_context` 字段,`Execute` 改为 `using (RenderPassScope pass = context.RenderContext.BeginPass(...))`;
 - 内容接口签名变更:`IRenderPassContent.OnRender(RenderContext, ...)` → `OnRender(RenderPassScope, ...)`;`IShadowPassContent.OnRenderShadow` 同理;
 - `SubRenderContext` 用途不变(bundle 录制与回放),`ExecuteSubContext` 移入 scope;
@@ -166,7 +167,7 @@ renderPass.ExecuteSubContext(subContext);   // 在直录 scope 内回放
 - 内容接口签名变更波及:`GBufferRenderer`、`ShadowRenderer`、全部 `RGNode_*` 内容适配、Game `RGNode_World`/`RGNode_CanvasUI`(`RGNode_SceneContent.OnRender` 签名)、测试 fake;
 - 独立路径(Game 4 个自持 context、离屏合成、sandbox 直画)迁移到 using 形态,语义不变;
 - `DebugStatsSystem` 的 pass 横跨 `OnUpdate`/`OnEndFrame` 两个方法,不用 `using`,字段持有 scope 手动开关(scope 是 class,合法用法);
-- Game 的世界渲染主 context(`Game.cs`)本期**不强制**迁入共享 context——自持 context 在节点内即时提交仍合法(每帧多 1 次提交),迁移留作后续优化;listener 渲染器因此全部仍挂在单 pass context 上,§10.2 契约不触发。
+- ~~Game 的世界渲染主 context 本期不强制迁入共享 context~~ **该决策已被实测推翻(2026-08-13)**:节点内自持 context 的即时提交会插队到 graph 共享缓冲之前执行,而 `RGNode_Clear` 录在共享缓冲里帧末才执行 → clear 把世界与 Canvas 已画内容全部擦除(Game 黑屏,根因见 §10.3 末条)。修复:Game 世界渲染与 Canvas UI 均迁入 graph 共享 context(`Game.OnRenderWorld(RenderContext, ...)`、`CreateCanvas(..., renderContext)`),listener 触发改缓冲域后共享 context 多 pass 安全,§10.2 契约随之重写。
 
 ## 6. 影响面清单
 
@@ -186,14 +187,14 @@ renderPass.ExecuteSubContext(subContext);   // 在直录 scope 内回放
 | `Graph/Nodes/PassInstrumentation.cs` | BeginPass 返回 scope;EndPass → ScheduleResolve |
 | `Graph/Nodes/` ~15 个节点 | 删自持 context,改 using scope;SSR/HBAO/VoxelGI 收编 |
 | `Deferred/GBufferRenderer.cs` / `ShadowRenderer.cs` | 内容接口签名 + bundle 录制改 scope |
-| `Src/Alco.GUI/CanvasGUI/Canvas.cs` | 自持 context 改 using 形态 |
+| `Src/Alco.GUI/CanvasGUI/Canvas.cs` | 自持 context 改 using 形态;ctor 增加可选 `RenderContext` 注入(传入则不持有所有权),`RenderingSystemGUIExtension.CreateCanvas` 同步加重载 |
 | `Src/Alco.Engine/.../DebugStatsRenderer.cs` / `DebugStatsSystem.cs` | 跨帧持有 scope |
 | `Test/Alco.Rendering.Test` | fake 签名、extensibility 样例迁移;新增提交计数与守卫测试 |
 
 ### 父工程 Game(C:\Projects\Game)
 
 - ~30 个 `OnRender(RenderContext)` 服务签名(含 IService/BaseGameService/BaseMapService/BaseOverworldService 及全部 override)→ `RenderPassScope`;16+ 处 `renderContext.Framebuffer` → scope 同名属性(机械);
-- 4 个自持 context(world/shadow/snapshot/weapon)+ `MapSnapshotRenderer` 两阶段、`WeaponVisualCache` 合成 → using 形态(`WeaponVisualCache` 的 `Framebuffer != null` 异常兜底由 using 取代);
+- 自持 context:shadow/snapshot/weapon 3 个 + `MapSnapshotRenderer` 两阶段、`WeaponVisualCache` 合成 → using 形态(`WeaponVisualCache` 的 `Framebuffer != null` 异常兜底由 using 取代);**world context 已删除**——`Game.OnRenderWorld` 改收 graph 共享 context(黑屏修复,§5/§10.3 末条);
 - ~15 处 `SubRenderContext` 录制类 → `BeginPass` scope;
 - 8 处已标记时序假设(§10.3)全部位于独立/离屏路径,即时模式保留后天然安全。
 
@@ -213,7 +214,7 @@ renderPass.ExecuteSubContext(subContext);   // 在直录 scope 内回放
 | 4 | Sandbox(B/C 类)与 Game 工程迁移 | `Game.slnx` build;Game 运行冒烟 |
 | 5 | 验收:全量测试 + 稳态零分配复查 + submit 计数实测回填本文 | §9 清单 |
 
-**执行结果(2026-08-13 回填)**:步骤 1–5 全部完成。`Alco.slnx` 与 `Game.slnx` 均 0 错误;`dotnet test Alco.slnx` 全量 837 项中 836 通过,唯一例外是 `Alco.Profiler.BuildTool.Test` 在全量并行运行下的既有文件锁抖动(基线 HEAD 同样复现,与本重构无关,见 §9.4)。
+**执行结果(2026-08-13 回填)**:步骤 1–5 全部完成,同日完成黑屏热修复(§5/§10.3 末条:listener 缓冲域化 + Game 世界/Canvas 迁入共享 context,引擎+Game 共 9 文件)。`Alco.slnx` 与 `Game.slnx` 均 0 错误;`dotnet test Alco.slnx` 全量 839 项全部通过(`Alco.Profiler.BuildTool.Test` 在全量并行运行下偶有既有文件锁抖动,基线 HEAD 同样复现,单跑 100% 通过,与本重构无关,见 §9.4);headless 真机(Vulkan)截图验证主菜单与游戏内画面完整渲染(§9.4)。
 
 ## 8. 单元测试计划
 
@@ -246,14 +247,15 @@ renderPass.ExecuteSubContext(subContext);   // 在直录 scope 内回放
 - 计划 8/9 → `GraphSubmitsOncePerFrame`(两 pass 节点共享 context,一帧提交数 == 1);
 - 计划外追加 `GraphSubmitsEmptyFrameOnce`(§10.5:空帧仍提交一次);
 - 计划 7(timestamp 重载)**未落地**:NoGPU 后端 `TimestampQuerySupported == false`,timestamp query set 无法在 NoGPU 下创建,该路径只能 GPU 侧验证;
-- 计划 10 → 既有 `TestRenderGraph.SteadyStateFramesDoNotAllocate` 随 Alco.Rendering.Test 226 项全绿通过。
+- 计划 10 → 既有 `TestRenderGraph.SteadyStateFramesDoNotAllocate` 随 Alco.Rendering.Test 全绿通过;
+- 黑屏修复追加(2026-08-13):`ListenersFireOncePerFrameOnSharedGraphContext`(graph 共享 context 上 listener 每帧恰好一轮)/ `SubRenderContextListenersFirePerRecording`(bundle 录制域每录制一轮),Alco.Rendering.Test 总计 228 项全绿。
 
 ## 9. 验收方案
 
-1. **画面回归**:Sandbox 34 重构前基准截图(正常/AO/GI/阴影/cascade 各调试视图),重构后同场景同机位对比(HDR 路径差异应为 0)——**待 GPU 环境执行**;
+1. **画面回归**:Sandbox 34 全特性场景 ✅(用户实测正常);同机位逐像素对比**待 GPU 环境补充**;
 2. **特性开关矩阵**:`ShadowEnabled`×`VolumetricLightEnabled`×`GiEnabled`×forward 玻璃,裁剪行为不变——**待 GPU 环境执行**;
 3. **提交计数**:NoGPU 层已验证——graph 一帧恰好 1 次 `ScheduleCommandBuffer`(`GraphSubmitsOncePerFrame` / `GraphSubmitsEmptyFrameOnce`);真实 `wgpuQueueSubmit` 逐帧计数(15–20 → 预期 1,不含 VoxelGI 自留部分时 ≤3)**待 GPU 环境实测回填**;
-4. `dotnet test` 全量绿 ✅(837 项中 836 通过;`Alco.Profiler.BuildTool.Test` 全量并行下偶发 `File.Move` `UnauthorizedAccessException`,基线 HEAD 3 跑 1 败同样复现——既有抖动与本重构无关,单跑 100% 通过);`Game.slnx` build ✅ 0 错误;Game 运行冒烟**待 GPU 环境执行**;
+4. `dotnet test` 全量绿 ✅(839 项全部通过;`Alco.Profiler.BuildTool.Test` 全量并行下偶发 `File.Move` `UnauthorizedAccessException`,基线 HEAD 3 跑 1 败同样复现——既有抖动与本重构无关,单跑 100% 通过);`Game.slnx` build ✅ 0 错误;**Game 运行冒烟 ✅(2026-08-13,headless + 真实 Vulkan):修复前主菜单截图纯黑(100,970 字节),修复后主菜单完整渲染(383,470 字节),脚本加载存档后游戏内画面完整(地形/建筑/角色/HUD,3,818,932 字节)**;
 5. resize 反复触发,池重建与材质重绑无异常——**待 GPU 环境执行**;
 6. 稳态零分配测试绿 ✅(`TestRenderGraph.SteadyStateFramesDoNotAllocate`)。
 
@@ -263,13 +265,16 @@ renderPass.ExecuteSubContext(subContext);   // 在直录 scope 内回放
 
 单次提交内,提交前任何 queue 写入(`UpdateBuffer`)对**全部** pass 可见——后写的值会漏进先录制的 pass。契约:"节点内所有 uniform 上传必须先于依赖它的 pass 录制;不得重写本帧先前 pass 已消费的 buffer"。已审计现行代码全部满足(§3.6);新增节点由 `IRenderGraphNode` 文档约束。
 
-### 10.2 listener 渲染器的 buffer 复用契约
+### 10.2 listener 渲染器的 buffer 复用契约(2026-08-13 重写)
 
-`TextRenderer`/`InstanceRenderer`/`DynamicMeshRenderer` 假设"所挂 context 每帧至多一轮 pass"(Begin 重置 buffer 轮换、End 归还 pool)。多 pass 共享同一 context 且渲染器跨 pass 使用时,后一 pass 会拿到同一批 pool buffer 并在提交前重写 → 先录制 pass 读脏数据。本期:**约束挂载了 listener 渲染器的 context 每帧只开一个 pass**(现状全部满足,写入 `RenderContext` 文档);帧域回收(Submit 时才归还 pool)留作后续。
+`TextRenderer`/`InstanceRenderer`/`DynamicMeshRenderer` 假设"每轮命令周期 Begin 重置 buffer 轮换、End 归还 pool"。原设计 listener 随 **pass** 开关触发,共享 context 多 pass 下会每 pass 触发一轮 → 后一 pass 拿到同一批 pool buffer 并在提交前重写 → 先录制 pass 读脏数据;原对策是"约束挂 listener 的 context 每帧只开一个 pass"。
+
+黑屏修复后(§10.3 末条):**`RenderContext` 的 listener 通知改为缓冲域**——`Open()` 后触发 `OnCommandBegin`,`Submit()`/`Abort()` 前触发 `OnCommandEnd`,每提交周期恰好一轮,与 pass 数解耦;共享 context 上开任意多个 pass 均安全,原"每帧一 pass"约束废除。`SubRenderContext` 保持**录制域**:每次 `BeginPass` 触发 Begin、scope 关闭(bundle 仍打开时)触发 End,listener 可向仍打开的 bundle 补充绘制——bundle 是一次性录制物,语义不变。
 
 ### 10.3 已标记的时序假设(逐条复核结论)
 
-- `MapSnapshotRenderer`/`WeaponVisualCache`/`ScreenshotCaptureSystem`/`TextureEncoderPNG`:独立 context 即时模式,`using` 关闭即提交,readback 顺序不变——安全;
+- **【根因记录,2026-08-13】嵌套即时提交 vs graph 缓冲提交的顺序反转**:旧模型每节点各自提交,执行序=录制序;新模型 graph 共享缓冲帧末统一提交,节点内嵌套的独立 context 即时提交会**插队到整个 graph 缓冲之前**执行。于是 `RenderPipeline` 的 `RGNode_Clear`(清 scene 纹理,录在共享缓冲)在帧末才执行,把 Game 世界(自持 context 中途提交)与 Canvas UI 已画内容全部擦除 → **Game 黑屏仅见 debug stats**(ImGUI 在 graph 提交后直接画到 FrameBuffer,故可见);Sandbox 34 无 clear 节点故未暴露。修复:Game 世界/Canvas 迁入共享 context(提交内录制序即执行序),listener 改缓冲域(§10.2)。教训:**graph 节点内不允许嵌套即时提交**,凡在节点执行期间画内容的代码必须使用共享 context;
+- `MapSnapshotRenderer`/`WeaponVisualCache`/`ScreenshotCaptureSystem`/`TextureEncoderPNG`:独立 context 即时模式,`using` 关闭即提交,readback 顺序不变——安全(均在 graph 节点外执行,不构成上条嵌套形态);
 - `MapService_Shadow`:shadow context 节点内即时提交、主 context 后采样——不同提交,队列序保持——安全;
 - Sandbox 23/24:裸 compute 先提交、管线后采样——路径不动——安全;
 - Sandbox 34 截图:`Pipeline.Render` 返回即全部提交(graph 末尾统一 Submit)——安全;
@@ -293,5 +298,6 @@ scope 跨 `using` 块持有后使用 → guard 抛 `InvalidOperationException`(�
 - 作用域为所属 context 复用的 class(身份稳定、零分配),直录/bundle 两态合一,消除 `Draw*` 双份重复;
 - `RenderContext` 瘦身为"缓冲生命周期 + pass 工厂";即时模式(独立路径)语义逐字节保留,调用方无感;
 - render graph 一帧共享一个 context、一次 submit;compute 插件收编后进同一缓冲;
+- listener 通知为缓冲域(每提交周期一轮);**graph 节点内禁止嵌套即时提交**——Game 世界渲染与 Canvas UI 均使用共享 context(黑屏根因修复,§10.3 末条);
 - 渲染器/`IRenderContext` 消费方零改动;内容接口与 ~15 个节点、Game、Sandbox 全量迁移;
 - 分 5 步实施,每步 build + 测试可验证;画面以 Sandbox 34 对比验收。

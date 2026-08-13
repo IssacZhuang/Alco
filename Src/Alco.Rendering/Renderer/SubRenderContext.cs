@@ -62,7 +62,15 @@ public sealed class SubRenderContext : AutoDisposable, RenderPassScope.IScopeOwn
         _renderBundle.Begin(attachmentLayout);
         _passOpen = true;
         _passScope.Activate(_renderBundle, attachmentLayout);
+        _passScope.NotifyListenersBegin();
         return _passScope;
+    }
+
+    void RenderPassScope.IScopeOwner.OnScopeClosing(RenderPassScope scope)
+    {
+        // Flush listeners while the bundle is still recording, preserving the old
+        // Begin/End ordering (uploads land before the bundle is replayed).
+        scope.NotifyListenersEnd();
     }
 
     void RenderPassScope.IScopeOwner.OnScopeClosed(RenderPassScope scope)

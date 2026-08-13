@@ -15,8 +15,10 @@ namespace Alco.Rendering;
 /// nothing submits until <see cref="Submit"/> is called — one submission per frame.
 /// <br/>All APIs in this class are not thread safe, but you can create multiple
 /// instances on different threads.
-/// <br/>Listeners bound through <see cref="RenderPassScope.AddListener"/> assume the
-/// context opens at most one pass per frame (see docs/RenderContext_Refactor.md §10.2).
+/// <br/>Listeners bound through <see cref="RenderPassScope.AddListener"/> fire once per
+/// command-buffer cycle — when the buffer opens (<see cref="Open"/>/auto-open) and when it
+/// submits or aborts — not per pass, so listeners on a shared (graph) context see exactly
+/// one begin/end pair per frame no matter how many passes the frame contains.
 /// </summary>
 public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 {
@@ -180,6 +182,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 
         _command.Begin();
         _bufferOpen = true;
+        _passScope.NotifyListenersBegin();
     }
 
     /// <summary>
@@ -197,9 +200,16 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
             throw new InvalidOperationException("A pass scope is still open; dispose it before submitting.");
         }
 
+        _passScope.NotifyListenersEnd();
         _command.End();
         _bufferOpen = false;
         _renderingSystem.ScheduleCommandBuffer(_command);
+    }
+
+    void RenderPassScope.IScopeOwner.OnScopeClosing(RenderPassScope scope)
+    {
+        // Listeners fire per command-buffer cycle (open → submit), not per pass,
+        // so a shared context running many passes per frame notifies once per frame.
     }
 
     void RenderPassScope.IScopeOwner.OnScopeClosed(RenderPassScope scope)
@@ -223,6 +233,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         _command.Begin();
         _bufferOpen = true;
         _autoOpenedBuffer = true;
+        _passScope.NotifyListenersBegin();
     }
 
     /// <summary>
@@ -238,6 +249,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         }
         if (_bufferOpen)
         {
+            _passScope.NotifyListenersEnd();
             _command.End();
             _bufferOpen = false;
             _autoOpenedBuffer = false;

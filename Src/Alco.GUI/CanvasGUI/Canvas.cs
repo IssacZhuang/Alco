@@ -41,6 +41,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     //for debug
     private readonly RenderingSystem _renderingSystem;
     private readonly RenderContext _renderContext;
+    private readonly bool _ownsRenderContext;
     private readonly SpriteRenderer _spriteRenderer;
     private readonly TextRenderer _textRenderer;
     private readonly DynamicMeshRenderer _dynamicMeshRenderer;
@@ -261,7 +262,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
         IUIInputTracker inputTracker,
         Material defaultSpriteMaterial,
         Material defaultTextMaterial,
-        Font defaultFont
+        Font defaultFont,
+        RenderContext? renderContext = null
         )
     {
 
@@ -280,7 +282,11 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _camera = system.CreateCamera2D(640, 360, 1);
         _invCameraSize = Vector2.One / new Vector2(640, 360);
         _bound = new BoundingBox2D(_camera.Position - new Vector2(640, 360) * 0.5f, _camera.Position + new Vector2(640, 360) * 0.5f);
-        _renderContext = system.CreateRenderContext();
+        // When null the canvas owns a standalone context (immediate submission per
+        // Update); a shared (render graph) context is supplied by the host so canvas
+        // passes record into the frame's command buffer in node order.
+        _renderContext = renderContext ?? system.CreateRenderContext();
+        _ownsRenderContext = renderContext == null;
 
         _spriteMaterial = defaultSpriteMaterial.CreateInstance();
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
@@ -449,7 +455,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
             }
             _inputTracker?.UnregisterTextInput(OnTextInput);
             _collisionWorld.Dispose();
-            _renderContext.Dispose();
+            if (_ownsRenderContext)
+            {
+                _renderContext.Dispose();
+            }
             _spriteRenderer.Dispose();
             _textRenderer.Dispose();
             _dynamicMeshRenderer.Dispose();

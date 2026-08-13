@@ -202,6 +202,43 @@ public sealed class TestRenderPassScope
         }
     }
 
+    [Test(Description = "Listeners on a graph-shared context fire once per frame (buffer cycle), no matter how many passes the frame contains")]
+    public void ListenersFireOncePerFrameOnSharedGraphContext()
+    {
+        using var graph = new RenderGraph(_rendering, 32, 32, "test_graph");
+        RenderGraphTexture a = graph.CreateTransient(new RenderGraphTextureDescriptor(_layout, name: "a"));
+        RenderGraphTexture b = graph.CreateTransient(new RenderGraphTextureDescriptor(_layout, name: "b"));
+        graph.Use(new PassNode(a, declaresOutput: false));
+        graph.Use(new PassNode(b, declaresOutput: true));
+
+        var listener = new FakeListener();
+        graph.RenderContext.Pass.AddListener(listener);
+
+        graph.Execute(null);
+
+        Assert.That(listener.BeginCount, Is.EqualTo(1),
+            "Two passes on the shared context must still be a single listener begin for the frame.");
+        Assert.That(listener.EndCount, Is.EqualTo(1));
+    }
+
+    [Test(Description = "Listeners on a sub context fire once per bundle recording")]
+    public void SubRenderContextListenersFirePerRecording()
+    {
+        using SubRenderContext sub = _rendering.CreateSubRenderContext("test_sub");
+        var listener = new FakeListener();
+        sub.Pass.AddListener(listener);
+
+        using (sub.BeginPass(_layout))
+        {
+        }
+        using (sub.BeginPass(_layout))
+        {
+        }
+
+        Assert.That(listener.BeginCount, Is.EqualTo(2));
+        Assert.That(listener.EndCount, Is.EqualTo(2));
+    }
+
     [Test(Description = "The render graph records every node's passes into the shared context and submits exactly once per frame")]
     public void GraphSubmitsOncePerFrame()
     {

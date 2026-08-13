@@ -81,6 +81,14 @@ public sealed class RenderGraph : AutoDisposable
     /// <summary>The registered nodes, in execution (registration) order.</summary>
     public IReadOnlyList<IRenderGraphNode> Nodes => _nodes;
 
+    /// <summary>
+    /// The frame-shared context every node's passes are recorded into. Exposed so
+    /// long-lived consumers (e.g. a canvas whose renderers bind a scope at construction)
+    /// can attach to the same context the graph executes with. The graph owns its
+    /// lifecycle: never call its internal open/submit APIs or dispose it.
+    /// </summary>
+    public RenderContext RenderContext => _sharedContext;
+
     /// <summary>The profiler exposed to nodes through the execution context, or null.
     /// When set, <see cref="Execute"/> brackets the frame with
     /// <see cref="RenderProfiler.BeginFrame"/> / <see cref="RenderProfiler.EndFrame"/>.</summary>

@@ -21,6 +21,10 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// owning contexts to run their after-pass work (timestamp resolve, submission).</summary>
     internal interface IScopeOwner
     {
+        /// <summary>Called at the top of <see cref="RenderPassScope.Dispose"/>, while the
+        /// native pass/bundle is still open.</summary>
+        void OnScopeClosing(RenderPassScope scope);
+        /// <summary>Called after the native pass/bundle has been closed.</summary>
         void OnScopeClosed(RenderPassScope scope);
     }
 
@@ -76,7 +80,6 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
         _attachmentLayout = null;
         _active = true;
         ClearCache();
-        InvokeBegin();
     }
 
     internal void Activate(GPURenderBundle bundle, GPUAttachmentLayout attachmentLayout)
@@ -87,7 +90,6 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
         _pass = default;
         _active = true;
         ClearCache();
-        InvokeBegin();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -289,14 +291,15 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
-    /// Closes the pass: listeners are flushed into the still-open pass, the native pass
-    /// is closed, and the owning context runs its after-pass work (timestamp resolve,
-    /// submission of a standalone context).
+    /// Closes the pass: the owner is notified while the native pass is still open
+    /// (<see cref="IScopeOwner.OnScopeClosing"/>), the native pass is closed, and the
+    /// owner runs its after-pass work (timestamp resolve, submission of a standalone
+    /// context).
     /// </summary>
     public void Dispose()
     {
         ThrowIfInactive();
-        InvokeEnd();
+        _owner.OnScopeClosing(this);
         if (_bundle != null)
         {
             _bundle.End();
@@ -424,7 +427,11 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
         _subMeshIndex = 0;
     }
 
-    private void InvokeBegin()
+    /// <summary>Fires <see cref="ICommandListener.OnCommandBegin"/> on all registered
+    /// listeners. Driven by the owning context at its command-recording boundary
+    /// (buffer open for <see cref="RenderContext"/>, recording begin for
+    /// <see cref="SubRenderContext"/>).</summary>
+    internal void NotifyListenersBegin()
     {
         for (int i = 0; i < _listeners.Count; i++)
         {
@@ -439,7 +446,11 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
         }
     }
 
-    private void InvokeEnd()
+    /// <summary>Fires <see cref="ICommandListener.OnCommandEnd"/> on all registered
+    /// listeners. Driven by the owning context at its command-recording boundary
+    /// (buffer submit/abort for <see cref="RenderContext"/>, still-open bundle for
+    /// <see cref="SubRenderContext"/>).</summary>
+    internal void NotifyListenersEnd()
     {
         for (int i = 0; i < _listeners.Count; i++)
         {
