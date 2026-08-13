@@ -11,21 +11,20 @@ namespace Alco.Rendering;
 /// keeps steady-state rebinding free). Additional static bindings (G-buffer textures,
 /// data buffers, ...) are set through <see cref="BindTexture"/> /
 /// <see cref="BindTextureDepth"/> / <see cref="BindBuffer"/>.
-/// <br/>The node owns its render context; it does not own the material.
+/// <br/>The node draws inside a pass scope from the frame-shared render context;
+/// it does not own the material.
 /// </summary>
 public class RGNode_FullscreenPass : RGNode_ChainTransform
 {
     private readonly Material _material;
     private readonly string _inputBinding;
     private readonly bool _inputIsDepth;
-    private readonly RenderContext _context;
     private readonly Mesh _fullScreenMesh;
 
     /// <summary>
     /// Creates the node.
     /// </summary>
-    /// <param name="rendering">The rendering system, for the render context and the
-    /// full-screen mesh.</param>
+    /// <param name="rendering">The rendering system, for the full-screen mesh.</param>
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
     /// <param name="chain">The content chain the node reads and advances.</param>
     /// <param name="material">The full-screen material. Not owned by the node.</param>
@@ -48,7 +47,6 @@ public class RGNode_FullscreenPass : RGNode_ChainTransform
         _material = material;
         _inputBinding = inputBinding;
         _inputIsDepth = inputIsDepth;
-        _context = rendering.CreateRenderContext(name);
         _fullScreenMesh = rendering.MeshFullScreen;
     }
 
@@ -91,28 +89,14 @@ public class RGNode_FullscreenPass : RGNode_ChainTransform
         }
 
         long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
-        if (Instrumentation != null)
+        RenderPassScope pass = Instrumentation != null
+            ? Instrumentation.BeginPass(context.RenderContext, output.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty)
+            : context.RenderContext.BeginPass(output.FrameBuffer);
+        using (pass)
         {
-            Instrumentation.BeginPass(_context, output.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty);
-            _context.Draw(_fullScreenMesh, _material);
-            Instrumentation.EndPass(_context);
-            Instrumentation.PushCpuTiming(startTicks);
+            pass.Draw(_fullScreenMesh, _material);
+            Instrumentation?.ScheduleResolve(pass);
         }
-        else
-        {
-            _context.Begin(output.FrameBuffer);
-            _context.Draw(_fullScreenMesh, _material);
-            _context.End();
-        }
-    }
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _context.Dispose();
-        }
-        base.Dispose(disposing);
+        Instrumentation?.PushCpuTiming(startTicks);
     }
 }

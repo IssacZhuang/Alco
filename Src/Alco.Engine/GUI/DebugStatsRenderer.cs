@@ -23,6 +23,8 @@ public class DebugStatsRenderer : IDisposable
     private readonly SpriteRenderer _spriteRenderer;
     private readonly Mesh _mesh;
 
+    // The open pass scope between Begin and End (the pass spans both calls).
+    private RenderPassScope? _passScope;
     private bool _isBegun;
 
     public Vector2 MousePosition
@@ -82,14 +84,15 @@ public class DebugStatsRenderer : IDisposable
     public void Begin(GPUFrameBuffer target)
     {
         _isBegun = true;
-        _rendererContent.Begin(target);
+        _passScope = _rendererContent.BeginPass(target);
     }
 
     public void End()
     {
         if (_isBegun)
         {
-            _rendererContent.End();
+            _passScope!.Dispose();
+            _passScope = null;
             _isBegun = false;
         }
     }

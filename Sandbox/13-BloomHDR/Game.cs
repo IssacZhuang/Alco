@@ -242,20 +242,19 @@ public class Game : GameEngine
             _game = game;
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             Vector2 normalizedMousePosition = _game.Input.MousePosition / new Vector2(1280, 720);
             Vector2 spritePosition = normalizedMousePosition * new Vector2(640, 360) - new Vector2(320, 180);
             spritePosition.Y = -spritePosition.Y;
 
-            _game._renderContext.Begin(target);
-
-            if (_game._enabled)
+            using (RenderPassScope pass = _game._renderContext.BeginPass(target))
             {
-                _game._renderer.Draw(_game._quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, _game._color);
+                if (_game._enabled)
+                {
+                    _game._renderer.Draw(_game._quad, Vector2.Zero, Rotation2D.Identity, Vector2.One * 24, _game._color);
+                }
             }
-
-            _game._renderContext.End();
         }
     }
 }

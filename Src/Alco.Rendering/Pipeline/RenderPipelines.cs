@@ -128,19 +128,19 @@ public static class RenderPipelines
             : null;
 
         // The composed nodes, in execution order.
-        var shadowNode = new RGNode_ShadowPass(rendering, shadowMapResource, environment.ShadowDataBufferTyped,
-            environment.CascadeViewProjections, shadowMapSize, "pbr_shadow_pass")
+        var shadowNode = new RGNode_ShadowPass(shadowMapResource, environment.ShadowDataBufferTyped,
+            environment.CascadeViewProjections, shadowMapSize)
         {
             Instrumentation = new PassInstrumentation { Profiler = profiler, CpuCounter = shadowCounter },
         };
-        var gbufferNode = new RGNode_GeometryPass(rendering, gbufferResource,
+        var gbufferNode = new RGNode_GeometryPass(gbufferResource,
             [
                 new ClearColorData(0, System.Numerics.Vector4.Zero),
                 new ClearColorData(1, new System.Numerics.Vector4(0.5f, 0.5f, 1.0f, 1.0f)),
                 new ClearColorData(2, System.Numerics.Vector4.Zero),
                 new ClearColorData(3, System.Numerics.Vector4.Zero),
             ],
-            clearDepth: 1.0f, name: "pbr_gbuffer_pass")
+            clearDepth: 1.0f)
         {
             Instrumentation = new PassInstrumentation
             {
@@ -150,7 +150,7 @@ public static class RenderPipelines
         };
         var afterGBufferNode = new RGNode_Callback();
         var lightingNode = new RGNode_DeferredLighting(rendering, graph, lightingMaterial,
-            gbufferResource, sceneColorResource, "pbr_lighting_pass")
+            gbufferResource, sceneColorResource)
         {
             ShadowMap = shadowMapResource,
             PrepareData = node =>
@@ -188,7 +188,7 @@ public static class RenderPipelines
             volumetricLightMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferResource.Texture);
             volumetricLightMaterial.SetRenderTextureDepth("_shadowMap", shadowMapResource.Texture);
             volumetricLightNode = new RGNode_FullscreenOverlay(rendering, graph, chain,
-                volumetricLightMaterial, "pbr_volumetric_light_pass")
+                volumetricLightMaterial)
             {
                 IsEnabled = environment.VolumetricLightEnabled,
                 Instrumentation = new PassInstrumentation

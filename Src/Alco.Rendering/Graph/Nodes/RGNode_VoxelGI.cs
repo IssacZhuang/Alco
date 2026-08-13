@@ -303,6 +303,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     private readonly RenderingSystem _rendering;
     private readonly GPUDevice _device;
+    // One-off geometry upload buffer used by CreateGeometry; per-frame compute
+    // dispatches record into the graph's shared command buffer instead.
     private readonly GPUCommandBuffer _commandBuffer;
     private readonly ComputeMaterial _clearMaterial;
     private readonly ComputeMaterial _voxelizeMaterial;
@@ -1304,10 +1306,12 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _sampledVolumeUpdate = updateVolume;
         }
 
-        _commandBuffer.Begin();
+        // Record into the graph's frame-shared command buffer; the graph submits
+        // it once at the end of the frame.
+        GPUCommandBuffer commandBuffer = context.RenderContext.CommandBuffer;
         using (GPUCommandBuffer.ComputePass computePass = measureGpu
-            ? _commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 0, 7)
-            : _commandBuffer.BeginCompute())
+            ? commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 0, 7)
+            : commandBuffer.BeginCompute())
         {
             bool inPassTimestamps = _gpuTimestamps?.SupportsInPassTimestamps ?? false;
             int radianceReadIndex;
@@ -1399,8 +1403,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         if (_upsampleMaterial != null && _upsampleDataBuffer != null)
         {
             using GPUCommandBuffer.ComputePass upsamplePass = measureGpu
-                ? _commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 8, 9)
-                : _commandBuffer.BeginCompute();
+                ? commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 8, 9)
+                : commandBuffer.BeginCompute();
             _upsampleDataBuffer.Value.InvViewProjection = data.InvViewProjection;
             _upsampleDataBuffer.Value.Params = new Vector4(
                 _gbufferWidth, _gbufferHeight,
@@ -1411,14 +1415,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
         if (measureGpu)
         {
-            _commandBuffer.ResolveTimestamps(_gpuTimestamps!.QuerySet, 0, TimestampSlotCount, _gpuTimestamps.ResolveBuffer);
+            commandBuffer.ResolveTimestamps(_gpuTimestamps!.QuerySet, 0, TimestampSlotCount, _gpuTimestamps.ResolveBuffer);
             _gpuTimestamps.EndSample();
         }
-        _commandBuffer.End();
-        // Submit the dispatches: registration order places this node after the
-        // G-buffer pass of the same frame, and submission is immediate (there is
-        // no deferred command batch).
-        _rendering.ScheduleCommandBuffer(_commandBuffer);
 
         _instances.Clear();
         _viewProjectionPrev = data.ViewProjection;

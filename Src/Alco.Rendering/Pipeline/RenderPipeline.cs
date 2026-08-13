@@ -63,8 +63,8 @@ public sealed class RenderPipeline : AutoDisposable
         _sceneResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             sceneLayout, name: name + "_scene"));
 
-        _clearNode = new RGNode_Clear(rendering, _sceneResource,
-            [new ClearColorData(0, ColorFloat.Black)], clearDepth: 1.0f, name: name + "_clear");
+        _clearNode = new RGNode_Clear(_sceneResource,
+            [new ClearColorData(0, ColorFloat.Black)], clearDepth: 1.0f);
         _blitNode = new RGNode_Blit(rendering, _graph, _chain, blitShader);
 
         _graph.Use(_clearNode);

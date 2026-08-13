@@ -14,27 +14,22 @@ public sealed class RGNode_GeometryPass : AutoDisposable, IRenderGraphNode
     private readonly RenderGraphTexture _target;
     private readonly ClearColorData[] _clearColors;
     private readonly float? _clearDepth;
-    private readonly RenderContext _context;
 
     /// <summary>
     /// Creates the pass node.
     /// </summary>
-    /// <param name="rendering">The rendering system, for the pass's render context.</param>
     /// <param name="target">The resource the pass renders into (a full write: the pass
     /// clears the attachments first).</param>
     /// <param name="clearColors">The per-attachment clear colors, or null to not clear
     /// any color attachment.</param>
     /// <param name="clearDepth">The depth clear value, or null to not clear depth.</param>
-    /// <param name="name">A diagnostic name for the pass's render context.</param>
-    public RGNode_GeometryPass(RenderingSystem rendering, RenderGraphTexture target,
-        ClearColorData[]? clearColors = null, float? clearDepth = null, string name = "geometry_pass")
+    public RGNode_GeometryPass(RenderGraphTexture target,
+        ClearColorData[]? clearColors = null, float? clearDepth = null)
     {
-        ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(target);
         _target = target;
         _clearColors = clearColors ?? [];
         _clearDepth = clearDepth;
-        _context = rendering.CreateRenderContext(name);
     }
 
     /// <summary>The content drawn inside the pass, in list order. Register content
@@ -64,41 +59,26 @@ public sealed class RGNode_GeometryPass : AutoDisposable, IRenderGraphNode
     public void Execute(in RenderGraphContext context)
     {
         long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
-        if (Instrumentation != null)
-        {
-            Instrumentation.BeginPass(_context, _target.Texture.FrameBuffer, _clearColors, _clearDepth);
-        }
-        else
-        {
-            _context.Begin(_target.Texture.FrameBuffer, _clearColors, _clearDepth);
-        }
 
-        List<IRenderPassContent> content = Content;
-        for (int i = 0; i < content.Count; i++)
+        RenderPassScope pass = Instrumentation != null
+            ? Instrumentation.BeginPass(context.RenderContext, _target.Texture.FrameBuffer, _clearColors, _clearDepth)
+            : context.RenderContext.BeginPass(_target.Texture.FrameBuffer, _clearColors, _clearDepth);
+        using (pass)
         {
-            if (content[i].IsEnabled)
+            List<IRenderPassContent> content = Content;
+            for (int i = 0; i < content.Count; i++)
             {
-                content[i].OnRender(_context, _target.Texture.AttachmentLayout);
+                if (content[i].IsEnabled)
+                {
+                    content[i].OnRender(pass, _target.Texture.AttachmentLayout);
+                }
             }
-        }
 
-        if (Instrumentation != null)
-        {
-            Instrumentation.EndPass(_context);
-            Instrumentation.PushCpuTiming(startTicks);
+            Instrumentation?.ScheduleResolve(pass);
         }
-        else
-        {
-            _context.End();
-        }
+        Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _context.Dispose();
-        }
-    }
+    protected override void Dispose(bool disposing) { }
 }

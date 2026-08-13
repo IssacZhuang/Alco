@@ -45,8 +45,8 @@ public interface IForwardRenderable
 /// pipeline. Holds the glass shader, material factory methods and a registry of
 /// <see cref="IForwardRenderable"/> objects. Static objects are baked into an
 /// internal render bundle; dynamic objects are drawn immediately each frame.
-/// The node owns its render pass: it begins and ends its own context on the
-/// chain's current target.
+/// The pass scope comes from the graph's frame-shared render context — the node
+/// no longer owns a render context of its own.
 /// </summary>
 public sealed unsafe class RGNode_Forward : RGNode_SceneContent
 {
@@ -99,8 +99,6 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     // Dynamic render bundle — re-recorded every frame.
     private readonly SubRenderContext _dynamicBundle;
     private GPUAttachmentLayout? _bundleLayout;
-    // The node's own forward pass on the chain-assigned target.
-    private readonly RenderContext _forwardContext;
 
     /// <summary>
     /// Create the forward renderer with the glass shader and shared pipeline resources.
@@ -129,7 +127,6 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         _shadowRT = shadowRT;
         _staticBundle = rendering.CreateSubRenderContext("pbr_forward_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_forward_dynamic");
-        _forwardContext = rendering.CreateRenderContext("pbr_forward_pass");
     }
 
     /// <summary>
@@ -189,7 +186,9 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     /// current target after deferred lighting, pre-filled with the scene depth).
     /// Called by the graph automatically.
     /// </summary>
-    protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+    /// <param name="context">The frame's graph context — the forward pass scope is
+    /// opened on its frame-shared <see cref="RenderGraphContext.RenderContext"/>.</param>
+    protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
     {
         if (_staticItems.Count == 0 && _dynamicItems.Count == 0)
         {
@@ -200,37 +199,40 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
 
         if (_staticItems.Count > 0 && _staticBundleDirty)
         {
-            _staticBundle.Begin(layout);
-            for (int i = 0; i < _staticItems.Count; i++)
+            using (RenderPassScope pass = _staticBundle.BeginPass(layout))
             {
-                DrawItem(_staticItems[i], _staticBundle);
+                for (int i = 0; i < _staticItems.Count; i++)
+                {
+                    DrawItem(_staticItems[i], pass);
+                }
             }
-            _staticBundle.End();
             _staticBundleDirty = false;
         }
 
         SubRenderContext? dynamicBundle = null;
         if (_dynamicItems.Count > 0)
         {
-            _dynamicBundle.Begin(layout);
-            for (int i = 0; i < _dynamicItems.Count; i++)
+            using (RenderPassScope pass = _dynamicBundle.BeginPass(layout))
             {
-                DrawItem(_dynamicItems[i], _dynamicBundle);
+                for (int i = 0; i < _dynamicItems.Count; i++)
+                {
+                    DrawItem(_dynamicItems[i], pass);
+                }
             }
-            _dynamicBundle.End();
             dynamicBundle = _dynamicBundle;
         }
 
-        _forwardContext.Begin(target);
-        if (_staticItems.Count > 0)
+        using (RenderPassScope pass = context.RenderContext.BeginPass(target))
         {
-            _forwardContext.ExecuteSubContext(_staticBundle);
+            if (_staticItems.Count > 0)
+            {
+                pass.ExecuteSubContext(_staticBundle);
+            }
+            if (dynamicBundle != null)
+            {
+                pass.ExecuteSubContext(dynamicBundle);
+            }
         }
-        if (dynamicBundle != null)
-        {
-            _forwardContext.ExecuteSubContext(dynamicBundle);
-        }
-        _forwardContext.End();
     }
 
     /// <summary>
@@ -319,7 +321,6 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         {
             _staticBundle.Dispose();
             _dynamicBundle.Dispose();
-            _forwardContext.Dispose();
             _flatNormalTexture?.Dispose();
         }
     }

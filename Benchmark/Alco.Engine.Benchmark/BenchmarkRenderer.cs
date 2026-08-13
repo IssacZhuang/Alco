@@ -57,11 +57,12 @@ public class BenchmarkRenderer
     [Benchmark]
     public void NewSpriteRenderer()
     {
-        _context.Begin(_target.FrameBuffer);
-        for (int i = 0; i < count; i++)
+        using (RenderPassScope pass = _context.BeginPass(_target.FrameBuffer))
         {
-            _renderer2.Draw(_texture, Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);
+            for (int i = 0; i < count; i++)
+            {
+                _renderer2.Draw(_texture, Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);
+            }
         }
-        _context.End();
     }
 }

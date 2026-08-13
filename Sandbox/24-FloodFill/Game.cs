@@ -12,7 +12,6 @@ public class Game : GameEngine
 {
 
     private readonly uint2 _size = new uint2(65, 65);
-    private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
     private readonly Material _material;
     private readonly FloodFillLightMap _tileLightMap;
@@ -54,7 +53,6 @@ public class Game : GameEngine
         Material blitMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("InverserGamma.hlsl"));
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
-        _materialRenderer = RenderingSystem.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 
@@ -151,7 +149,7 @@ public class Game : GameEngine
             _game = game;
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             Transform2D transform = Transform2D.Identity;
             float scale = _game.MainView.Width / _game._tileLightMap.Width;
@@ -166,9 +164,10 @@ public class Game : GameEngine
             };
 
             //draw atlas texture
-            _game._materialRenderer.Begin(target);
-            _game._materialRenderer.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._material, constant);
-            _game._materialRenderer.End();
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                pass.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._material, constant);
+            }
         }
     }
 }

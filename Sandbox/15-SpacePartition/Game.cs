@@ -131,7 +131,7 @@ public class Game : GameEngine
             _game = game;
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             _game._dropletSystem.OnRender(target, layout);
             _game._cubeSystem.OnRender(target);

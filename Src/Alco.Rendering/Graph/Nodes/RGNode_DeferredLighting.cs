@@ -21,23 +21,19 @@ namespace Alco.Rendering;
 public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
-    private readonly RenderContext _context;
     private readonly Mesh _fullScreenMesh;
 
     /// <summary>
     /// Creates the lighting node.
     /// </summary>
-    /// <param name="rendering">The rendering system, for the render context and the
-    /// full-screen mesh.</param>
+    /// <param name="rendering">The rendering system, for the full-screen mesh.</param>
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
     /// <param name="material">The lighting material, with the G-buffer (and any static)
     /// bindings already set. Not owned by the node.</param>
     /// <param name="gbuffer">The G-buffer resource read by the lighting pass.</param>
     /// <param name="sceneColor">The scene color resource written by the lighting pass.</param>
-    /// <param name="name">A diagnostic name for the render context.</param>
     public RGNode_DeferredLighting(RenderingSystem rendering, RenderGraph graph,
-        GraphicsMaterial material, RenderGraphTexture gbuffer, RenderGraphTexture sceneColor,
-        string name = "deferred_lighting")
+        GraphicsMaterial material, RenderGraphTexture gbuffer, RenderGraphTexture sceneColor)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(graph);
@@ -48,7 +44,6 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
         Material = material;
         GBuffer = gbuffer;
         SceneColor = sceneColor;
-        _context = rendering.CreateRenderContext(name);
         _fullScreenMesh = rendering.MeshFullScreen;
     }
 
@@ -138,27 +133,17 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
         // rewritten after recording would leak the newer value into this pass.
         PrepareData?.Invoke(this);
 
-        if (Instrumentation != null)
+        RenderPassScope pass = Instrumentation != null
+            ? Instrumentation.BeginPass(context.RenderContext, SceneColor.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty)
+            : context.RenderContext.BeginPass(SceneColor.Texture.FrameBuffer);
+        using (pass)
         {
-            Instrumentation.BeginPass(_context, SceneColor.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty);
-            _context.Draw(_fullScreenMesh, Material);
-            Instrumentation.EndPass(_context);
-            Instrumentation.PushCpuTiming(startTicks);
+            pass.Draw(_fullScreenMesh, Material);
+            Instrumentation?.ScheduleResolve(pass);
         }
-        else
-        {
-            _context.Begin(SceneColor.Texture.FrameBuffer);
-            _context.Draw(_fullScreenMesh, Material);
-            _context.End();
-        }
+        Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _context.Dispose();
-        }
-    }
+    protected override void Dispose(bool disposing) { }
 }

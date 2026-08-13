@@ -46,7 +46,6 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
 
     private readonly RenderingSystem _rendering;
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _commandBuffer;
     private readonly ComputeMaterial _hbaoMaterial;
     private readonly ComputeMaterial _blurMaterial;
     private readonly GraphicsValueBuffer<HbaoData> _dataBuffer;
@@ -122,7 +121,6 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
-        _commandBuffer = _device.CreateCommandBuffer("hbao");
         _hbaoMaterial = rendering.CreateComputeMaterial(hbaoShader);
         _blurMaterial = rendering.CreateComputeMaterial(blurShader);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<HbaoData>("hbao_data");
@@ -239,16 +237,17 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         }
         Matrix4x4.Invert(camera.Data.ViewProjectionMatrix, out Matrix4x4 invViewProjection);
         RenderTexture gbuffer = _gbufferResource!.Texture;
-        ExecuteCore(camera.Data.ProjectionMatrix, invViewProjection, camera.Transform, gbuffer, _graph?.Profiler);
+        ExecuteCore(camera.Data.ProjectionMatrix, invViewProjection, camera.Transform, gbuffer, context.RenderContext.CommandBuffer, _graph?.Profiler);
     }
 
-    // Shared body of the execute path: assembles the per-frame constants, records
-    // the AO and blur dispatches and schedules the command buffer.
+    // Shared body of the execute path: assembles the per-frame constants and records
+    // the AO and blur dispatches into the frame-shared command buffer.
     private void ExecuteCore(
         in Matrix4x4 projectionMatrix,
         in Matrix4x4 invViewProjection,
         Transform3D cameraTransform,
         RenderTexture gbuffer,
+        GPUCommandBuffer commandBuffer,
         RenderProfiler? profiler)
     {
         long startTimestamp = Stopwatch.GetTimestamp();
@@ -295,10 +294,11 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
             }
         }
 
-        _commandBuffer.Begin();
+        // Record into the graph's frame-shared command buffer; the graph submits
+        // it once at the end of the frame.
         using (GPUCommandBuffer.ComputePass computePass = measureGpu
-            ? _commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 0, 2)
-            : _commandBuffer.BeginCompute())
+            ? commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 0, 2)
+            : commandBuffer.BeginCompute())
         {
             _hbaoMaterial.DispatchBySize(computePass, gbuffer.Width, gbuffer.Height, 1);
 
@@ -311,11 +311,9 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         }
         if (measureGpu)
         {
-            _commandBuffer.ResolveTimestamps(_gpuTimestamps!.QuerySet, 0, TimestampSlotCount, _gpuTimestamps.ResolveBuffer);
+            commandBuffer.ResolveTimestamps(_gpuTimestamps!.QuerySet, 0, TimestampSlotCount, _gpuTimestamps.ResolveBuffer);
             _gpuTimestamps.EndSample();
         }
-        _commandBuffer.End();
-        _rendering.ScheduleCommandBuffer(_commandBuffer);
 
         // Lazily register profiler counters on the first Execute call.
         if (profiler != null)
@@ -345,7 +343,6 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
             // are cache-retained by the parameter set) and are not disposable.
             _dataBuffer.Dispose();
             _gpuTimestamps?.Dispose();
-            _commandBuffer.Dispose();
         }
     }
 }

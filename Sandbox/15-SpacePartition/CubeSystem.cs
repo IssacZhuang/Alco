@@ -97,13 +97,14 @@ public class CubeSystem : IDisposable
 
     public void OnRender(GPUFrameBuffer frame)
     {
-        _renderContext.Begin(frame);
-        for (int i = 0; i < _activeList.Count; i++)
+        using (RenderPassScope pass = _renderContext.BeginPass(frame))
         {
-            Cube entity = _activeList[i];
-            _spriteRenderer.Draw(_texture, entity.Transform, entity.Color);
+            for (int i = 0; i < _activeList.Count; i++)
+            {
+                Cube entity = _activeList[i];
+                _spriteRenderer.Draw(_texture, entity.Transform, entity.Color);
+            }
         }
-        _renderContext.End();
 
     }
 

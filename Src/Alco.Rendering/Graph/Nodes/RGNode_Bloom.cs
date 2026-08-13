@@ -10,7 +10,6 @@ namespace Alco.Rendering;
 public sealed class RGNode_Bloom : RGNode_ChainTransform
 {
     private readonly Bloom _bloom;
-    private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _blitMaterial;
 
@@ -66,7 +65,6 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
         : base(graph, chain, outputLayout, name: "bloom")
     {
         _bloom = bloom;
-        _renderContext = rendering.CreateRenderContext();
         _fullScreenMesh = rendering.MeshFullScreen;
         _blitMaterial = rendering.CreateMaterial(blitShader);
     }
@@ -79,9 +77,10 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
         _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, input);
 
         // The bloom blit is additive: the output must already hold the scene image.
-        _renderContext.Begin(output.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, _blitMaterial);
-        _renderContext.End();
+        using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, _blitMaterial);
+        }
 
         _bloom.Blit(input, output.FrameBuffer);
     }
@@ -93,7 +92,6 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
         {
             _bloom.Dispose();
             _blitMaterial.Dispose();
-            _renderContext.Dispose();
         }
         base.Dispose(disposing);
     }

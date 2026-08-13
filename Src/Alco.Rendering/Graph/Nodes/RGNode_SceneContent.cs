@@ -11,8 +11,8 @@ namespace Alco.Rendering;
 /// <br/>Derive from this class and implement <see cref="OnRender"/>; the node begins
 /// and ends nothing itself — the implementation owns its render pass on the given
 /// target (render bundles recorded via <see cref="SubRenderContext"/> are replayed
-/// into any open <see cref="RenderContext"/> via
-/// <see cref="RenderContext.ExecuteSubContext"/>).
+/// into any open <see cref="RenderPassScope"/> via
+/// <see cref="RenderPassScope.ExecuteSubContext"/>).
 /// </summary>
 public abstract class RGNode_SceneContent : AutoDisposable, IRenderGraphNode
 {
@@ -56,18 +56,20 @@ public abstract class RGNode_SceneContent : AutoDisposable, IRenderGraphNode
     public void Execute(in RenderGraphContext context)
     {
         RenderTexture target = _target!.Texture;
-        OnRender(target.FrameBuffer, target.AttachmentLayout);
+        OnRender(context, target.FrameBuffer, target.AttachmentLayout);
     }
 
     /// <summary>
     /// Renders the node's content into <paramref name="target"/>.
     /// </summary>
+    /// <param name="context">The frame execution context; open the pass on
+    /// <see cref="RenderGraphContext.RenderContext"/>.</param>
     /// <param name="target">The frame buffer assigned by the chain: the pipeline's
     /// content texture or, once a transform node has run, a chain-owned temporary
     /// holding the content produced so far.</param>
     /// <param name="layout">The attachment layout of <paramref name="target"/>, for
     /// material compatibility and render bundle recording.</param>
-    protected abstract void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout);
+    protected abstract void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout);
 
     /// <inheritdoc />
     public virtual void Resize(uint width, uint height) { }

@@ -77,9 +77,10 @@ public class Game : GameEngine
     {
         // Simulate particles
         _particleSystem.Simulate(delta);
-        _subRenderContext.Begin(MainPresenter.AttachmentLayout!);
-        _renderer.Draw(_mesh, _particleSystem.Particles);
-        _subRenderContext.End();
+        using (RenderPassScope pass = _subRenderContext.BeginPass(MainPresenter.AttachmentLayout!))
+        {
+            _renderer.Draw(_mesh, _particleSystem.Particles);
+        }
     }
 
     protected override void OnUpdate(float delta)
@@ -95,9 +96,10 @@ public class Game : GameEngine
         if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         if (_subRenderContext.HasBuffer)
         {
-            _renderContext.Begin(frameBuffer, ColorFloat.Black);
-            _renderContext.ExecuteSubContext(_subRenderContext);
-            _renderContext.End();
+            using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
+            {
+                pass.ExecuteSubContext(_subRenderContext);
+            }
         }
 
         // Show particle controls

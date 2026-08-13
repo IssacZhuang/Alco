@@ -120,11 +120,11 @@ public sealed class PBRDeferredPreset : AutoDisposable
     public RGNode_FullscreenOverlay? VolumetricLight { get; }
 
     /// <summary>The attachment layout of the G-buffer pass, used to record render
-    /// bundles (see <see cref="SubRenderContext.Begin(GPUAttachmentLayout)"/>).</summary>
+    /// bundles (see <see cref="SubRenderContext.BeginPass"/>).</summary>
     public GPUAttachmentLayout GBufferLayout => _gbufferLayout;
 
     /// <summary>The attachment layout of the shadow pass, used to record render
-    /// bundles (see <see cref="SubRenderContext.Begin(GPUAttachmentLayout)"/>).</summary>
+    /// bundles (see <see cref="SubRenderContext.BeginPass"/>).</summary>
     public GPUAttachmentLayout ShadowLayout => _shadowLayout;
 
     /// <summary>The attachment layout of <see cref="ForwardRenderTexture"/>.</summary>

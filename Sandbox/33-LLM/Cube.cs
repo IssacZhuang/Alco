@@ -61,7 +61,7 @@ public class Cube
     /// Draws the cube using the provided renderer.
     /// </summary>
     /// <param name="renderer">The render context.</param>
-    public void OnDraw(RenderContext renderer)
+    public void OnDraw(IRenderContext renderer)
     {
         _renderData.matrix = transform.Matrix;
         renderer.DrawWithConstant(_mesh, _material, _renderData);

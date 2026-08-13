@@ -32,32 +32,31 @@ public sealed class PassInstrumentation
     public bool ShouldRecordGpu => GpuTimestamps != null && GpuTimestamps.ShouldRecord;
 
     /// <summary>
-    /// Begins <paramref name="context"/> on <paramref name="target"/>, recording GPU
-    /// timestamps when <see cref="ShouldRecordGpu"/> is set.
+    /// Begins a pass on <paramref name="context"/> rendering to <paramref name="target"/>,
+    /// recording GPU timestamps when <see cref="ShouldRecordGpu"/> is set.
     /// </summary>
-    public void BeginPass(RenderContext context, GPUFrameBuffer target, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth = null)
+    /// <returns>The pass scope; dispose it (or use <c>using</c>) to close the pass.</returns>
+    public RenderPassScope BeginPass(RenderContext context, GPUFrameBuffer target, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth = null)
     {
         if (ShouldRecordGpu)
         {
-            context.Begin(target, clearColors, GpuTimestamps!.QuerySet, (uint)GpuQueryBase, (uint)GpuQueryBase + 1, clearDepth);
+            return context.BeginPass(target, clearColors, GpuTimestamps!.QuerySet, (uint)GpuQueryBase, (uint)GpuQueryBase + 1, clearDepth);
         }
-        else
-        {
-            context.Begin(target, clearColors, clearDepth);
-        }
+
+        return context.BeginPass(target, clearColors, clearDepth);
     }
 
     /// <summary>
-    /// Ends <paramref name="context"/>, resolving the GPU timestamps recorded since
-    /// <see cref="BeginPass"/> when <see cref="ShouldRecordGpu"/> is set.
+    /// Schedules the resolve of the GPU timestamps recorded since <see cref="BeginPass"/>
+    /// into the sampler's resolve buffer, to run when <paramref name="pass"/> closes.
+    /// No-op when <see cref="ShouldRecordGpu"/> is not set.
     /// </summary>
-    public void EndPass(RenderContext context)
+    public void ScheduleResolve(RenderPassScope pass)
     {
         if (ShouldRecordGpu)
         {
-            context.ResolveTimestampsOnEnd(GpuTimestamps!.QuerySet, (uint)GpuQueryBase, 2, GpuTimestamps.ResolveBuffer);
+            pass.ResolveTimestampsOnEnd(GpuTimestamps!.QuerySet, (uint)GpuQueryBase, 2, GpuTimestamps.ResolveBuffer);
         }
-        context.End();
     }
 
     /// <summary>Returns the current timestamp for a later <see cref="PushCpuTiming"/>,

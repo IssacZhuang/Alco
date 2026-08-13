@@ -15,10 +15,9 @@ namespace Alco.Rendering;
 public interface IRenderPassContent : IRenderNode
 {
     /// <summary>
-    /// Draws the content. Called by the pass node inside the open pass, between its
-    /// Begin and End.
+    /// Draws the content. Called by the pass node inside the open pass scope.
     /// </summary>
-    /// <param name="context">The live render context, already open on the pass's target.</param>
+    /// <param name="context">The live pass scope, already open on the pass's target.</param>
     /// <param name="layout">The target's attachment layout (for bundle recording).</param>
-    void OnRender(RenderContext context, GPUAttachmentLayout layout);
+    void OnRender(RenderPassScope context, GPUAttachmentLayout layout);
 }

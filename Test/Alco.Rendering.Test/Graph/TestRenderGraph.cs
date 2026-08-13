@@ -433,7 +433,6 @@ public sealed class TestRenderGraph
         using RenderGraph graph = CreateGraph();
         RenderGraphTexture a = graph.CreateTransient(Describe(_layoutColor, "a"));
 
-        using RenderContext renderContext = _rendering.CreateRenderContext("test_context");
         bool recordWork = true;
         var node = new FakeNode("recorder")
         {
@@ -445,8 +444,9 @@ public sealed class TestRenderGraph
                 {
                     return;
                 }
-                renderContext.Begin(a.Texture.FrameBuffer);
-                renderContext.End();
+                using (context.RenderContext.BeginPass(a.Texture.FrameBuffer))
+                {
+                }
             },
         };
         graph.Use(node);

@@ -151,20 +151,18 @@ public class Game : GameEngine
     {
         // Simulate all particle systems
         // Batch render all particles using EnqueueInstances
-        _subRenderContext.Begin(MainPresenter.AttachmentLayout!);
-        
-        // Enqueue particles from each system - the InstanceRenderer will batch them automatically
-        foreach (var system in _particleSystems)
+        using (RenderPassScope pass = _subRenderContext.BeginPass(MainPresenter.AttachmentLayout!))
         {
-            system.Simulate(delta);
-            _renderer.EnqueueInstances(system.Particles);
+            // Enqueue particles from each system - the InstanceRenderer will batch them automatically
+            foreach (var system in _particleSystems)
+            {
+                system.Simulate(delta);
+                _renderer.EnqueueInstances(system.Particles);
+            }
+
+
+            _renderer.Draw(_mesh);
         }
-
-
-        _renderer.Draw(_mesh);
-        
-
-        _subRenderContext.End();
     }
 
     protected override void OnUpdate(float delta)
@@ -179,9 +177,10 @@ public class Game : GameEngine
 
         if (_subRenderContext.HasBuffer)
         {
-            _renderContext.Begin(frameBuffer, ColorFloat.Black);
-            _renderContext.ExecuteSubContext(_subRenderContext);
-            _renderContext.End();
+            using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
+            {
+                pass.ExecuteSubContext(_subRenderContext);
+            }
         }
 
         // Show performance and controls

@@ -95,4 +95,84 @@ public partial class RenderingSystem
     {
         return new TileRenderer(this, renderContext, tileSet, width, height, batchSizeX, batchSizeY, name);
     }
+
+    // Convenience overloads binding a renderer to the recycled pass scope of a context.
+
+    /// <inheritdoc cref="CreateTextRenderer(IRenderContext, Material, string)"/>
+    public TextRenderer CreateTextRenderer(RenderContext renderContext, Material material, string name = "text_renderer")
+    {
+        return CreateTextRenderer(renderContext.Pass, material, name);
+    }
+
+    /// <inheritdoc cref="CreateTextRenderer(IRenderContext, Material, string)"/>
+    public TextRenderer CreateTextRenderer(SubRenderContext renderContext, Material material, string name = "text_renderer")
+    {
+        return CreateTextRenderer(renderContext.Pass, material, name);
+    }
+
+    /// <inheritdoc cref="CreateSpriteRenderer(IRenderContext, Material, string)"/>
+    public SpriteRenderer CreateSpriteRenderer(RenderContext renderContext, Material material, string name = "sprite_renderer")
+    {
+        return CreateSpriteRenderer(renderContext.Pass, material, name);
+    }
+
+    /// <inheritdoc cref="CreateSpriteRenderer(IRenderContext, Material, string)"/>
+    public SpriteRenderer CreateSpriteRenderer(SubRenderContext renderContext, Material material, string name = "sprite_renderer")
+    {
+        return CreateSpriteRenderer(renderContext.Pass, material, name);
+    }
+
+    /// <inheritdoc cref="CreateDynamicMeshRenderer(IRenderContext, uint, uint, string)"/>
+    public DynamicMeshRenderer CreateDynamicMeshRenderer(RenderContext renderContext,
+        uint vertexBufferSizePerChunk = 64 * 1024, uint indexBufferSizePerChunk = 16 * 1024, string name = "dynamic_mesh_renderer")
+    {
+        return CreateDynamicMeshRenderer(renderContext.Pass, vertexBufferSizePerChunk, indexBufferSizePerChunk, name);
+    }
+
+    /// <inheritdoc cref="CreateDynamicMeshRenderer(IRenderContext, uint, uint, string)"/>
+    public DynamicMeshRenderer CreateDynamicMeshRenderer(SubRenderContext renderContext,
+        uint vertexBufferSizePerChunk = 64 * 1024, uint indexBufferSizePerChunk = 16 * 1024, string name = "dynamic_mesh_renderer")
+    {
+        return CreateDynamicMeshRenderer(renderContext.Pass, vertexBufferSizePerChunk, indexBufferSizePerChunk, name);
+    }
+
+    /// <inheritdoc cref="CreateInstanceRenderer{T}(IRenderContext, Material, string, int, string)"/>
+    public InstanceRenderer<T> CreateInstanceRenderer<T>(RenderContext renderContext, Material material,
+        string instanceBufferShaderName = ShaderResourceId.Instances,
+        int sizePerBuffer = 256 * 1024, string name = "instance_renderer") where T : unmanaged
+    {
+        return CreateInstanceRenderer<T>(renderContext.Pass, material, instanceBufferShaderName, sizePerBuffer, name);
+    }
+
+    /// <inheritdoc cref="CreateInstanceRenderer{T}(IRenderContext, Material, string, int, string)"/>
+    public InstanceRenderer<T> CreateInstanceRenderer<T>(SubRenderContext renderContext, Material material,
+        string instanceBufferShaderName = ShaderResourceId.Instances,
+        int sizePerBuffer = 256 * 1024, string name = "instance_renderer") where T : unmanaged
+    {
+        return CreateInstanceRenderer<T>(renderContext.Pass, material, instanceBufferShaderName, sizePerBuffer, name);
+    }
+
+    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, string)"/>
+    public TileRenderer CreateTileRenderer(RenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer")
+    {
+        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, name);
+    }
+
+    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, string)"/>
+    public TileRenderer CreateTileRenderer(SubRenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer")
+    {
+        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, name);
+    }
+
+    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, int, int, string)"/>
+    public TileRenderer CreateTileRenderer(RenderContext renderContext, TileSet tileSet, int width, int height, int batchSizeX, int batchSizeY, string name = "tile_renderer")
+    {
+        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, batchSizeX, batchSizeY, name);
+    }
+
+    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, int, int, string)"/>
+    public TileRenderer CreateTileRenderer(SubRenderContext renderContext, TileSet tileSet, int width, int height, int batchSizeX, int batchSizeY, string name = "tile_renderer")
+    {
+        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, batchSizeX, batchSizeY, name);
+    }
 }

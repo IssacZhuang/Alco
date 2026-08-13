@@ -90,7 +90,7 @@ float4 MainPS(V2F input) : SV_TARGET
     {
         public bool IsEnabled { get; set; } = true;
         public List<string> Log = new();
-        public void OnRenderShadow(RenderContext context, int cascadeIndex)
+        public void OnRenderShadow(RenderPassScope context, int cascadeIndex)
         {
             Log.Add("shadow");
         }
@@ -100,7 +100,7 @@ float4 MainPS(V2F input) : SV_TARGET
     {
         public bool IsEnabled { get; set; } = true;
         public List<string> Log = new();
-        public void OnRender(RenderContext context, GPUAttachmentLayout layout)
+        public void OnRender(RenderPassScope context, GPUAttachmentLayout layout)
         {
             Log.Add("gbuffer");
         }
@@ -116,7 +116,7 @@ float4 MainPS(V2F input) : SV_TARGET
         {
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             Log.Add("forward");
         }

@@ -399,35 +399,36 @@ public class Game : GameEngine
             _game = game;
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
-            _game._renderer.Begin(target);
-            _game._surfaceBlock.Render();
-            _game._wallManager.Render(_game._renderer);
-
-            _game._renderer.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._materialLightOverlay, _game._lightOverlayConstant);
-
-            Ray3D cameraRay = CameraMathUtility.ScreenPointToRay2D(_game.MainView.MousePosition, _game.MainView.Size, _game._camera.ViewProjectionMatrix, -100, 100);
-
-            ImGuiIOPtr io = ImGui.GetIO();
-
-            if (_game.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+            using (RenderPassScope pass = _game._renderer.BeginPass(target))
             {
-                for (int i = 0; i < _game._brushCells.Count; i++)
-                {
-                    if (io.WantCaptureMouse)
-                    {
-                        continue;
-                    }
-                    int2 pos = _game._brushCells[i] + tilePosition;
+                _game._surfaceBlock.Render();
+                _game._wallManager.Render(pass);
 
-                    _game._brushTransform.Position = new Vector3(pos.X, pos.Y, 0);
-                    Transform3D tmp = math.transform(_game._surfaceBlock.Transform, _game._brushTransform);
-                    _game._brushConstant.Model = tmp.Matrix;
-                    _game._renderer.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._brushMaterial, _game._brushConstant);
+                pass.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._materialLightOverlay, _game._lightOverlayConstant);
+
+                Ray3D cameraRay = CameraMathUtility.ScreenPointToRay2D(_game.MainView.MousePosition, _game.MainView.Size, _game._camera.ViewProjectionMatrix, -100, 100);
+
+                ImGuiIOPtr io = ImGui.GetIO();
+
+                if (_game.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+                {
+                    for (int i = 0; i < _game._brushCells.Count; i++)
+                    {
+                        if (io.WantCaptureMouse)
+                        {
+                            continue;
+                        }
+                        int2 pos = _game._brushCells[i] + tilePosition;
+
+                        _game._brushTransform.Position = new Vector3(pos.X, pos.Y, 0);
+                        Transform3D tmp = math.transform(_game._surfaceBlock.Transform, _game._brushTransform);
+                        _game._brushConstant.Model = tmp.Matrix;
+                        pass.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._brushMaterial, _game._brushConstant);
+                    }
                 }
             }
-            _game._renderer.End();
         }
     }
 }

@@ -13,7 +13,6 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
     private readonly RenderChain _chain;
-    private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _blitMaterial;
 
@@ -28,8 +27,7 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
     /// <param name="chain">The content chain whose tail is blitted.</param>
     /// <param name="blitShader">The shader used for the plain copy.</param>
-    /// <param name="name">A diagnostic name for the render context.</param>
-    public RGNode_Blit(RenderingSystem rendering, RenderGraph graph, RenderChain chain, Shader blitShader, string name = "blit")
+    public RGNode_Blit(RenderingSystem rendering, RenderGraph graph, RenderChain chain, Shader blitShader)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(graph);
@@ -37,7 +35,6 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
         ArgumentNullException.ThrowIfNull(blitShader);
         _graph = graph;
         _chain = chain;
-        _renderContext = rendering.CreateRenderContext(name);
         _fullScreenMesh = rendering.MeshFullScreen;
         _blitMaterial = rendering.CreateMaterial(blitShader);
     }
@@ -57,9 +54,10 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
     public void Execute(in RenderGraphContext context)
     {
         _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _input!.Texture);
-        _renderContext.Begin(context.Destination!);
-        _renderContext.Draw(_fullScreenMesh, _blitMaterial);
-        _renderContext.End();
+        using (RenderPassScope pass = context.RenderContext.BeginPass(context.Destination!))
+        {
+            pass.Draw(_fullScreenMesh, _blitMaterial);
+        }
     }
 
     /// <inheritdoc />
@@ -68,7 +66,6 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
         if (disposing)
         {
             _blitMaterial.Dispose();
-            _renderContext.Dispose();
         }
     }
 }

@@ -18,7 +18,8 @@ namespace Alco.Rendering;
 /// released as reuse candidates, so non-overlapping lifetimes alias the same GPU
 /// textures;</item>
 /// <item><b>Execute</b> — surviving nodes record their GPU work in registration
-/// order; each node's command buffer is submitted as the node completes.</item>
+/// order into the frame-shared <see cref="RenderContext"/>; the shared command buffer
+/// is submitted once when the last node completes.</item>
 /// </list>
 /// Execution order is always registration order — the graph validates it satisfies
 /// the declared dependencies instead of reordering, keeping the schedule explicit
@@ -42,6 +43,10 @@ public sealed class RenderGraph : AutoDisposable
     private readonly RenderGraphCompiler _compiler = new();
     private readonly RenderGraphBuilder _builder = new();
     private readonly RenderGraphContext _context;
+
+    // The frame-shared command buffer: every node's passes are recorded into it and
+    // submitted once at the end of Execute (see docs/RenderContext_Refactor.md).
+    private readonly RenderContext _sharedContext;
 
     // Allocation-walk working sets, reused across frames (indices into _resources,
     // sorted by first touch; the still-live assignments with their last touch).
@@ -69,7 +74,8 @@ public sealed class RenderGraph : AutoDisposable
         _width = width;
         _height = height;
         _pool = new RenderGraphTexturePool(CreatePooledAttachment);
-        _context = new RenderGraphContext(rendering, null);
+        _sharedContext = rendering.CreateRenderContext(name + "_shared");
+        _context = new RenderGraphContext(rendering, null, _sharedContext);
     }
 
     /// <summary>The registered nodes, in execution (registration) order.</summary>
@@ -325,12 +331,33 @@ public sealed class RenderGraph : AutoDisposable
 
             ReadOnlySpan<bool> alive = _compiler.Alive;
             int executed = 0;
-            for (int i = 0; i < _records.Count; i++)
+            _sharedContext.Open();
+            try
             {
-                if (alive[i])
+                for (int i = 0; i < _records.Count; i++)
                 {
-                    _records[i].Node.Execute(_context);
-                    executed++;
+                    if (alive[i])
+                    {
+                        _records[i].Node.Execute(_context);
+                        executed++;
+                    }
+                }
+            }
+            finally
+            {
+                // One submission per frame for the whole graph. If a node threw with
+                // its pass still open, abort the buffer instead so the next frame
+                // starts from a clean state.
+                if (_sharedContext.IsBufferOpen)
+                {
+                    if (_sharedContext.IsPassOpen)
+                    {
+                        _sharedContext.Abort();
+                    }
+                    else
+                    {
+                        _sharedContext.Submit();
+                    }
                 }
             }
             return executed;
@@ -667,6 +694,7 @@ public sealed class RenderGraph : AutoDisposable
             }
             _resources.Clear();
             _pool.Dispose();
+            _sharedContext.Dispose();
         }
     }
 }

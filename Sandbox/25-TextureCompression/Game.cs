@@ -74,16 +74,17 @@ public class Game : GameEngine
         };
 
         //draw atlas texture
-        _materialRenderer.Begin(frameBuffer, ColorFloat.Black);
-        if (_isShowCompressed)
+        using (RenderPassScope pass = _materialRenderer.BeginPass(frameBuffer, ColorFloat.Black))
         {
-            _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);
+            if (_isShowCompressed)
+            {
+                pass.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);
+            }
+            else
+            {
+                pass.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
+            }
         }
-        else
-        {
-            _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
-        }
-        _materialRenderer.End();
     }
 
     protected override void OnStop()

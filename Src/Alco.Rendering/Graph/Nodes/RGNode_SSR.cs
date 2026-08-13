@@ -36,7 +36,6 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private readonly PBRSceneEnvironment _environment;
     private readonly RGNode_VoxelGI _voxelGi;
     private readonly CameraPerspectiveBuffer _camera;
-    private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _copyMaterial;
     private readonly Material _traceMaterial;
@@ -182,7 +181,6 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _voxelGi = voxelGi;
         _camera = camera;
         _environment = environment;
-        _renderContext = rendering.CreateRenderContext("post_lighting_ssr");
         _fullScreenMesh = rendering.MeshFullScreen;
         _copyMaterial = rendering.CreateMaterial(blitShader, "ssr_scene_copy");
         _traceMaterial = rendering.CreateMaterial(traceShader, "ssr_trace");
@@ -338,7 +336,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     /// Renders the pass into <paramref name="target"/>: preserves the completed
     /// scene color, ray-traces reflections, resolves temporal history, and
     /// composites the result in place.
-    private void Render(GPUFrameBuffer target)
+    private void Render(RenderContext renderContext, GPUFrameBuffer target)
     {
         RenderTexture scene = _sceneColor.Texture;
         RenderTexture sceneCopy = _sceneCopy!;
@@ -377,30 +375,34 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 
         // Preserve the completed HDR scene before overwriting the pipeline target.
         _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, scene);
-        _renderContext.Begin(sceneCopy.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, _copyMaterial);
-        _renderContext.End();
+        using (RenderPassScope pass = renderContext.BeginPass(sceneCopy.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, _copyMaterial);
+        }
 
-        _renderContext.Begin(reflectionRaw.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, _traceMaterial);
-        _renderContext.End();
+        using (RenderPassScope pass = renderContext.BeginPass(reflectionRaw.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, _traceMaterial);
+        }
 
         int historyWriteIndex = 1 - _historyReadIndex;
         _resolveMaterial.SetRenderTexture(
             "_reflectionHistory", _reflectionHistory[_historyReadIndex], 0);
         _resolveMaterial.SetRenderTexture(
             "_historyMetadata", _reflectionHistory[_historyReadIndex], 1);
-        _renderContext.Begin(_reflectionHistory[historyWriteIndex].FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, _resolveMaterial);
-        _renderContext.End();
+        using (RenderPassScope pass = renderContext.BeginPass(_reflectionHistory[historyWriteIndex].FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, _resolveMaterial);
+        }
 
         _compositeMaterial.SetRenderTexture(
             "_reflection", _reflectionHistory[historyWriteIndex], 0);
         _compositeMaterial.SetRenderTexture(
             "_reflectionMetadata", _reflectionHistory[historyWriteIndex], 1);
-        _renderContext.Begin(target);
-        _renderContext.Draw(_fullScreenMesh, _compositeMaterial);
-        _renderContext.End();
+        using (RenderPassScope pass = renderContext.BeginPass(target))
+        {
+            pass.Draw(_fullScreenMesh, _compositeMaterial);
+        }
 
         _historyReadIndex = historyWriteIndex;
         _historyValid = true;
@@ -455,7 +457,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         {
             throw new InvalidOperationException("RGNode_SSR is not attached to a render graph (call Attach first).");
         }
-        Render(_input!.Texture.FrameBuffer);
+        Render(context.RenderContext, _input!.Texture.FrameBuffer);
     }
 
     /// <inheritdoc />
@@ -473,7 +475,6 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             _reflectionHistory[0].Dispose();
             _reflectionHistory[1].Dispose();
             _historyLayout.Dispose();
-            _renderContext.Dispose();
         }
     }
 }

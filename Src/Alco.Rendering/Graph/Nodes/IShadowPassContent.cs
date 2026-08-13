@@ -13,10 +13,10 @@ public interface IShadowPassContent : IRenderNode
 {
     /// <summary>
     /// Draws casters into one cascade of the shadow map. Called by the pass node
-    /// inside the cascade's pass, once per cascade.
+    /// inside the cascade's pass scope, once per cascade.
     /// </summary>
-    /// <param name="context">The live shadow render context, already open on the shadow
+    /// <param name="context">The live shadow pass scope, already open on the shadow
     /// atlas with the cascade's scissor applied.</param>
     /// <param name="cascadeIndex">The cascade being rendered (0 = nearest).</param>
-    void OnRenderShadow(RenderContext context, int cascadeIndex);
+    void OnRenderShadow(RenderPassScope context, int cascadeIndex);
 }

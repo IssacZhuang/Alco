@@ -162,14 +162,15 @@ public class Game : GameEngine
             _game = game;
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
-            _game._renderer.Begin(target);
-            _game._renderer.SetStencilReference(250);
-            _game._cubeStencilWrite.OnDraw(_game._renderer);
-            _game._cubeStencilTest1.OnDraw(_game._renderer);
-            _game._cubeStencilTest2.OnDraw(_game._renderer);
-            _game._renderer.End();
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                pass.SetStencilReference(250);
+                _game._cubeStencilWrite.OnDraw(pass);
+                _game._cubeStencilTest1.OnDraw(pass);
+                _game._cubeStencilTest2.OnDraw(pass);
+            }
         }
     }
 }

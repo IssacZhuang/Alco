@@ -158,9 +158,9 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
     /// cascade bundles are re-recorded (on cascade 0); otherwise they are replayed.
     /// Dynamic items are re-recorded and replayed every cascade every frame.
     /// </summary>
-    /// <param name="context">The live shadow render context.</param>
+    /// <param name="context">The live shadow pass scope.</param>
     /// <param name="cascadeIndex">The cascade being rendered (0 = nearest).</param>
-    public void OnRenderShadow(RenderContext context, int cascadeIndex)
+    public void OnRenderShadow(RenderPassScope context, int cascadeIndex)
     {
         // Static bundles: re-record all cascades when dirty (only on cascade 0
         // to avoid redundant work).
@@ -169,12 +169,13 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
             int cascadeCount = RGNode_ShadowPass.CascadeCount;
             for (int c = 0; c < cascadeCount; c++)
             {
-                _staticBundles[c].Begin(_shadowLayout);
-                for (int i = 0; i < _staticItems.Count; i++)
+                using (RenderPassScope bundle = _staticBundles[c].BeginPass(_shadowLayout))
                 {
-                    DrawItem(_staticItems[i], _staticBundles[c], c);
+                    for (int i = 0; i < _staticItems.Count; i++)
+                    {
+                        DrawItem(_staticItems[i], bundle, c);
+                    }
                 }
-                _staticBundles[c].End();
             }
             _staticBundleDirty = false;
         }
@@ -189,12 +190,13 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
         // stay isolated from the main render context.
         if (_dynamicItems.Count > 0)
         {
-            _dynamicBundle.Begin(_shadowLayout);
-            for (int i = 0; i < _dynamicItems.Count; i++)
+            using (RenderPassScope bundle = _dynamicBundle.BeginPass(_shadowLayout))
             {
-                DrawItem(_dynamicItems[i], _dynamicBundle, cascadeIndex);
+                for (int i = 0; i < _dynamicItems.Count; i++)
+                {
+                    DrawItem(_dynamicItems[i], bundle, cascadeIndex);
+                }
             }
-            _dynamicBundle.End();
             context.ExecuteSubContext(_dynamicBundle);
         }
     }

@@ -12,26 +12,21 @@ public sealed class RGNode_Clear : AutoDisposable, IRenderGraphNode
     private readonly RenderGraphTexture _target;
     private readonly ClearColorData[] _clearColors;
     private readonly float? _clearDepth;
-    private readonly RenderContext _context;
 
     /// <summary>
     /// Creates the clear node.
     /// </summary>
-    /// <param name="rendering">The rendering system, for the render context.</param>
     /// <param name="target">The resource to clear.</param>
     /// <param name="clearColors">The per-attachment clear colors, or null to not clear
     /// any color attachment.</param>
     /// <param name="clearDepth">The depth clear value, or null to not clear depth.</param>
-    /// <param name="name">A diagnostic name for the render context.</param>
-    public RGNode_Clear(RenderingSystem rendering, RenderGraphTexture target,
-        ClearColorData[]? clearColors = null, float? clearDepth = 1.0f, string name = "clear")
+    public RGNode_Clear(RenderGraphTexture target,
+        ClearColorData[]? clearColors = null, float? clearDepth = 1.0f)
     {
-        ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(target);
         _target = target;
         _clearColors = clearColors ?? [];
         _clearDepth = clearDepth;
-        _context = rendering.CreateRenderContext(name);
     }
 
     /// <inheritdoc />
@@ -63,16 +58,11 @@ public sealed class RGNode_Clear : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        _context.Begin(_target.Texture.FrameBuffer, _clearColors, _clearDepth);
-        _context.End();
+        using (context.RenderContext.BeginPass(_target.Texture.FrameBuffer, _clearColors, _clearDepth))
+        {
+        }
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _context.Dispose();
-        }
-    }
+    protected override void Dispose(bool disposing) { }
 }

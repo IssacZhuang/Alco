@@ -21,12 +21,10 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
     private readonly GraphicsValueBuffer<ShadowCascadeData> _cascadeData;
     private readonly Matrix4x4[] _cascadeViewProjections;
     private readonly uint _shadowMapSize;
-    private readonly RenderContext _context;
 
     /// <summary>
     /// Creates the shadow pass node.
     /// </summary>
-    /// <param name="rendering">The rendering system, for the pass's render context.</param>
     /// <param name="shadowMap">The depth-only atlas resource (2x2 quadrants of
     /// <paramref name="shadowMapSize"/> texels each).</param>
     /// <param name="cascadeData">The per-cascade data buffer, uploaded once per frame
@@ -35,12 +33,10 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
     /// view-projection matrices (length <see cref="CascadeCount"/>); the caller fills
     /// them before the graph executes. The node folds them into atlas quadrants.</param>
     /// <param name="shadowMapSize">The width of one cascade (atlas quadrant) in texels.</param>
-    /// <param name="name">A diagnostic name for the pass's render context.</param>
-    public RGNode_ShadowPass(RenderingSystem rendering, RenderGraphTexture shadowMap,
+    public RGNode_ShadowPass(RenderGraphTexture shadowMap,
         GraphicsValueBuffer<ShadowCascadeData> cascadeData,
-        Matrix4x4[] cascadeViewProjections, uint shadowMapSize, string name = "shadow_pass")
+        Matrix4x4[] cascadeViewProjections, uint shadowMapSize)
     {
-        ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(shadowMap);
         ArgumentNullException.ThrowIfNull(cascadeData);
         ArgumentNullException.ThrowIfNull(cascadeViewProjections);
@@ -52,7 +48,6 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
         _cascadeData = cascadeData;
         _cascadeViewProjections = cascadeViewProjections;
         _shadowMapSize = shadowMapSize;
-        _context = rendering.CreateRenderContext(name);
     }
 
     /// <summary>The caster content drawn inside each cascade's pass, in list order.
@@ -108,27 +103,22 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
             // The scissor is essential: geometry outside this cascade's orthographic
             // box can otherwise transform into another atlas quadrant and corrupt
             // that cascade's depth values.
-            _context.Begin(_shadowMap.Texture.FrameBuffer, clearDepth: c == 0 ? 1.0f : null);
-            _context.SetScissorRect((uint)(c % 2) * _shadowMapSize, (uint)(c / 2) * _shadowMapSize, _shadowMapSize, _shadowMapSize);
-            for (int i = 0; i < content.Count; i++)
+            using (RenderPassScope pass = context.RenderContext.BeginPass(_shadowMap.Texture.FrameBuffer, clearDepth: c == 0 ? 1.0f : null))
             {
-                if (content[i].IsEnabled)
+                pass.SetScissorRect((uint)(c % 2) * _shadowMapSize, (uint)(c / 2) * _shadowMapSize, _shadowMapSize, _shadowMapSize);
+                for (int i = 0; i < content.Count; i++)
                 {
-                    content[i].OnRenderShadow(_context, c);
+                    if (content[i].IsEnabled)
+                    {
+                        content[i].OnRenderShadow(pass, c);
+                    }
                 }
             }
-            _context.End();
         }
 
         Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _context.Dispose();
-        }
-    }
+    protected override void Dispose(bool disposing) { }
 }

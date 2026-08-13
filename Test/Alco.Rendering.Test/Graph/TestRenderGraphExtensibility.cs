@@ -100,7 +100,7 @@ float4 MainPS(V2F input) : SV_TARGET
         {
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
             Log.Add("content");
         }
@@ -131,13 +131,11 @@ float4 MainPS(V2F input) : SV_TARGET
     private sealed class CustomLightingNode : AutoDisposable, IRenderGraphNode
     {
         private readonly RenderGraphTexture _sceneColor;
-        private readonly RenderContext _context;
         public List<string> Log = new();
 
-        public CustomLightingNode(RenderingSystem rendering, RenderGraphTexture sceneColor)
+        public CustomLightingNode(RenderGraphTexture sceneColor)
         {
             _sceneColor = sceneColor;
-            _context = rendering.CreateRenderContext("custom_lighting");
         }
 
         public bool IsEnabled { get; set; } = true;
@@ -150,17 +148,14 @@ float4 MainPS(V2F input) : SV_TARGET
         public void Execute(in RenderGraphContext context)
         {
             Log.Add("custom_lighting");
-            _context.Begin(_sceneColor.Texture.FrameBuffer,
-                new[] { new ClearColorData(0, Vector4.UnitW) }, 1.0f);
-            _context.End();
+            using (context.RenderContext.BeginPass(_sceneColor.Texture.FrameBuffer,
+                new[] { new ClearColorData(0, Vector4.UnitW) }, 1.0f))
+            {
+            }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                _context.Dispose();
-            }
         }
     }
 
@@ -218,7 +213,7 @@ float4 MainPS(V2F input) : SV_TARGET
         var content = new CustomSceneNode(graph, chain);
         var effect = new CustomEffectNode(graph, chain, _postProcessLayout, "effect");
         var blit = new RGNode_Blit(_rendering, graph, chain, _blitShader);
-        graph.Use(new RGNode_Clear(_rendering, scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
+        graph.Use(new RGNode_Clear(scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
         graph.Use(content);
         graph.Use(effect);
         graph.Use(blit);
@@ -246,7 +241,7 @@ float4 MainPS(V2F input) : SV_TARGET
         using RenderTexture destination = _rendering.CreateRenderTexture(_destinationLayout, 64, 64, "test_destination_rt");
         preset.Environment.Camera = _rendering.CreateCameraPerspective(0.83f, 16f / 9, 0.1f, 100f);
 
-        var replacement = new CustomLightingNode(_rendering, preset.SceneColorResource);
+        var replacement = new CustomLightingNode(preset.SceneColorResource);
         Assert.That(preset.Graph.Remove(preset.Lighting), Is.True);
         preset.Graph.InsertAfter(preset.GBufferPass, replacement);
 

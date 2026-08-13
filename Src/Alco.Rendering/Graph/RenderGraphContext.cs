@@ -16,14 +16,22 @@ public sealed class RenderGraphContext
     private GPUFrameBuffer? _destination;
     private float _deltaTime;
 
-    internal RenderGraphContext(RenderingSystem rendering, RenderProfiler? profiler)
+    internal RenderGraphContext(RenderingSystem rendering, RenderProfiler? profiler, RenderContext renderContext)
     {
         Rendering = rendering;
         Profiler = profiler;
+        RenderContext = renderContext;
     }
 
     /// <summary>The rendering system, for creating GPU resources.</summary>
     public RenderingSystem Rendering { get; }
+
+    /// <summary>
+    /// The frame-shared render context: nodes open their passes on it through
+    /// <see cref="RenderContext.BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>
+    /// and the graph submits its command buffer once at the end of the frame.
+    /// </summary>
+    public RenderContext RenderContext { get; }
 
     /// <summary>The profiler exposed to nodes through the execution context, or null.</summary>
     public RenderProfiler? Profiler { get; internal set; }

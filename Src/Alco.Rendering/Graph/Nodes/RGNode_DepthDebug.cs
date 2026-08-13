@@ -17,7 +17,6 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
         public Vector2 DynamicRange;
     }
 
-    private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Shader _blitDepthShader;
     private readonly Material _materialBlitToTmp;
@@ -45,7 +44,6 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
         : base(pipeline.Graph, pipeline.Chain, pipeline.PostProcessLayout, name: "depth_debug")
     {
         _graph = pipeline.Graph;
-        _renderContext = rendering.CreateRenderContext("blit_depth_buffer");
         _fullScreenMesh = rendering.MeshFullScreen;
         _sceneResource = pipeline.SceneColorResource;
 
@@ -113,9 +111,10 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
         if (!scene.HasDepth)
         {
             _materialFallback.SetRenderTexture(ShaderResourceId.Texture, input);
-            _renderContext.Begin(output.FrameBuffer);
-            _renderContext.Draw(_fullScreenMesh, _materialFallback);
-            _renderContext.End();
+            using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
+            {
+                pass.Draw(_fullScreenMesh, _materialFallback);
+            }
             return;
         }
 
@@ -127,13 +126,15 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
         _dataBuffer.Value.DynamicRange = DynamicRange;
         _dataBuffer.UpdateBuffer();
 
-        _renderContext.Begin(_tmpResource.Texture.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, _materialBlitToTmp);
-        _renderContext.End();
+        using (RenderPassScope pass = context.RenderContext.BeginPass(_tmpResource.Texture.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, _materialBlitToTmp);
+        }
 
-        _renderContext.Begin(output.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, _materialBlitToDestination);
-        _renderContext.End();
+        using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, _materialBlitToDestination);
+        }
     }
 
     /// <inheritdoc />
@@ -146,7 +147,6 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
             _materialBlitToDestination.Dispose();
             _materialFallback.Dispose();
             _blitDepthShader.Dispose();
-            _renderContext.Dispose();
             if (!_graph.IsDisposed)
             {
                 _graph.DestroyTransient(_tmpResource);

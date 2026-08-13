@@ -65,17 +65,17 @@ public class Game : GameEngine
 
         if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
 
-        _renderContext.Begin(frameBuffer, ColorFloat.Black);
-        _textRenderer.DrawText(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        
-        _spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
-
-        for (int i = 0; i < DrawCount; i++)
+        using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
         {
-            _spriteRenderer.Draw(_star, _positions[i], Rotation2D.Identity, _size, _colors[i]);
+            _textRenderer.DrawText(_font, FrameRate.ToString(), 16, new Vector2(-320, 180), Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
+
+            _spriteRenderer.Draw(_star, new Vector2(0, 0), Rotation2D.Identity, Vector2.One * 20, new Vector4(1, 1, 1, 1));
+
+            for (int i = 0; i < DrawCount; i++)
+            {
+                _spriteRenderer.Draw(_star, _positions[i], Rotation2D.Identity, _size, _colors[i]);
+            }
         }
-        
-        _renderContext.End();
     }
 
     protected override void OnStop()

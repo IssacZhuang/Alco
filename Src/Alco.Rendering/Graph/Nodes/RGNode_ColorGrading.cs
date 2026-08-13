@@ -10,7 +10,6 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class RGNode_ColorGrading : RGNode_ChainTransform
 {
-    private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _gradingMaterial;
     private readonly Material _blitMaterial;
@@ -51,7 +50,6 @@ public sealed class RGNode_ColorGrading : RGNode_ChainTransform
         GPUAttachmentLayout outputLayout, Shader gradingShader, Shader blitShader)
         : base(graph, chain, outputLayout, name: "color_grading")
     {
-        _renderContext = rendering.CreateRenderContext();
         _fullScreenMesh = rendering.MeshFullScreen;
 
         _gradingMaterial = rendering.CreateMaterial(gradingShader);
@@ -68,9 +66,10 @@ public sealed class RGNode_ColorGrading : RGNode_ChainTransform
     {
         Material material = _data.IsIdentity ? _blitMaterial : _gradingMaterial;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
-        _renderContext.Begin(output.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, material);
-        _renderContext.End();
+        using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, material);
+        }
     }
 
     /// <inheritdoc />
@@ -81,7 +80,6 @@ public sealed class RGNode_ColorGrading : RGNode_ChainTransform
             _gradingMaterial.Dispose();
             _blitMaterial.Dispose();
             _dataBuffer.Dispose();
-            _renderContext.Dispose();
         }
         base.Dispose(disposing);
     }

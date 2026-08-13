@@ -61,9 +61,10 @@ public sealed class TextureEncoderPNG : AutoDisposable
 
         _blitMaterial.SetTexture(ShaderResourceId.Texture, source);
 
-        _renderContext.Begin(_cachedRenderTexture!.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, _blitMaterial);
-        _renderContext.End();
+        using (RenderPassScope pass = _renderContext.BeginPass(_cachedRenderTexture!.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, _blitMaterial);
+        }
 
         _device.ReadTexture(_cachedRenderTexture.ColorTextures[0].NativeTexture, _cachedData.UnsafePointer, (uint)_cachedData.Length);
 

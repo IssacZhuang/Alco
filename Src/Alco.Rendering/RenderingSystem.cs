@@ -220,9 +220,13 @@ public partial class RenderingSystem
 
     }
 
+    // Test hook: total number of command buffers submitted through ScheduleCommandBuffer.
+    internal int ScheduledSubmissionCount;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
+        ScheduledSubmissionCount++;
         _device.Submit(commandBuffer);
     }
 

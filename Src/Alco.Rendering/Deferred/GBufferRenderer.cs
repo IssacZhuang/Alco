@@ -169,9 +169,9 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     /// <see cref="RGNode_GeometryPass"/> inside its open pass.
     /// Re-records the static bundle when dirty, replays it, then draws dynamic items.
     /// </summary>
-    /// <param name="context">The live G-buffer render context.</param>
+    /// <param name="context">The live G-buffer pass scope.</param>
     /// <param name="layout">The G-buffer attachment layout (for bundle recording).</param>
-    public void OnRender(RenderContext context, GPUAttachmentLayout layout)
+    public void OnRender(RenderPassScope context, GPUAttachmentLayout layout)
     {
         _bundleLayout = layout;
 
@@ -180,12 +180,13 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         {
             if (_staticBundleDirty)
             {
-                _staticBundle.Begin(layout);
-                for (int i = 0; i < _staticItems.Count; i++)
+                using (RenderPassScope bundle = _staticBundle.BeginPass(layout))
                 {
-                    DrawItem(_staticItems[i], _staticBundle);
+                    for (int i = 0; i < _staticItems.Count; i++)
+                    {
+                        DrawItem(_staticItems[i], bundle);
+                    }
                 }
-                _staticBundle.End();
                 _staticBundleDirty = false;
             }
 
@@ -196,12 +197,13 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         // isolated from the main render context.
         if (_dynamicItems.Count > 0)
         {
-            _dynamicBundle.Begin(layout);
-            for (int i = 0; i < _dynamicItems.Count; i++)
+            using (RenderPassScope bundle = _dynamicBundle.BeginPass(layout))
             {
-                DrawItem(_dynamicItems[i], _dynamicBundle);
+                for (int i = 0; i < _dynamicItems.Count; i++)
+                {
+                    DrawItem(_dynamicItems[i], bundle);
+                }
             }
-            _dynamicBundle.End();
             context.ExecuteSubContext(_dynamicBundle);
         }
     }

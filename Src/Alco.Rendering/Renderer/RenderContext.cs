@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
@@ -6,40 +5,33 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The context of the render object. It is a high level encapsulation of the <see cref="GPUCommandBuffer"/>.
-/// All APIs in this class are not thread safe, but you can create multiple instances on different threads.
+/// The context of the render object. Owns one <see cref="GPUCommandBuffer"/> and
+/// hands out <see cref="RenderPassScope"/> instances through <see cref="BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>
+/// — all draw commands are recorded inside the scope, consumed with <c>using</c>.
+/// <br/>Submission model: when the context itself opened the command buffer (a
+/// standalone context), closing the scope submits immediately — byte-for-byte the old
+/// Begin/End behavior. When the buffer was opened externally (<see cref="Open"/>,
+/// e.g. by a <see cref="RenderGraph"/>), passes record into the shared buffer and
+/// nothing submits until <see cref="Submit"/> is called — one submission per frame.
+/// <br/>All APIs in this class are not thread safe, but you can create multiple
+/// instances on different threads.
+/// <br/>Listeners bound through <see cref="RenderPassScope.AddListener"/> assume the
+/// context opens at most one pass per frame (see docs/RenderContext_Refactor.md §10.2).
 /// </summary>
-public sealed class RenderContext : AutoDisposable, IRenderContext
+public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 {
-    private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
-    private GPUCommandBuffer.RenderPass _renderScope;
-    private readonly List<ICommandListener> _listeners;
-    private GPUFrameBuffer? _framebuffer;
+    private readonly RenderPassScope _passScope;
 
-    // Optional: when non-null, End() resolves the given timestamp range into
-    // the destination buffer after closing the render pass but before ending
-    // the command buffer — the only valid window for wgpu resolve calls.
-    private GPUTimestampQuerySet? _pendingResolveQuerySet;
-    private GPUBuffer? _pendingResolveDest;
-    private uint _pendingResolveFirst;
-    private uint _pendingResolveCount;
-    private ulong _pendingResolveOffset;
-
-    //cached mesh data
-    private Mesh? _mesh;
-    private int _subMeshIndex;
-    private uint _meshVersion;
-    private uint _indexCount;
+    private bool _bufferOpen;
+    private bool _autoOpenedBuffer;
+    private bool _passOpen;
 
     /// <summary>
-    /// The framebuffer that is currently being rendered to.
-    /// </summary>
-    public GPUFrameBuffer? Framebuffer => _framebuffer;
-
-    /// <summary>
-    /// The command buffer that is currently in use.
+    /// The command buffer that is currently in use. In shared mode (buffer opened via
+    /// <see cref="Open"/>) compute passes may be recorded on it directly; the buffer
+    /// must never be ended or submitted by the caller.
     /// </summary>
     public GPUCommandBuffer CommandBuffer
     {
@@ -47,75 +39,102 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
         get => _command;
     }
 
+    /// <summary>
+    /// The recycled pass scope of this context. Stable in identity — renderers bind to
+    /// it at construction and use it across frames (valid only inside an open pass).
+    /// </summary>
+    public RenderPassScope Pass
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _passScope;
+    }
+
+    /// <summary>Whether a pass scope is currently open on this context.</summary>
+    public bool IsPassOpen
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _passOpen;
+    }
+
+    /// <summary>Whether the command buffer is open (opened by <see cref="Open"/> or
+    /// auto-opened by an active pass).</summary>
+    internal bool IsBufferOpen
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _bufferOpen;
+    }
+
     internal RenderContext(RenderingSystem renderingSystem, string name)
     {
         _renderingSystem = renderingSystem;
-        _device = renderingSystem.GraphicsDevice;
-        _command = _device.CreateCommandBuffer(new CommandBufferDescriptor(name));
-        _listeners = new List<ICommandListener>();
+        _command = renderingSystem.GraphicsDevice.CreateCommandBuffer(new CommandBufferDescriptor(name));
+        _passScope = new RenderPassScope(this);
     }
 
     /// <summary>
-    /// Adds a command listener to the render context.
-    /// </summary>
-    /// <param name="listener">The listener to add.</param>
-    public void AddListener(ICommandListener listener)
-    {
-        _listeners.Add(listener);
-    }
-
-    /// <summary>
-    /// Removes a command listener from the render context.
-    /// </summary>
-    /// <param name="listener">The listener to remove.</param>
-    public void RemoveListener(ICommandListener listener)
-    {
-        _listeners.Remove(listener);
-    }
-
-    /// <summary>
-    /// Begin the render context.
+    /// Begins a render pass on the target framebuffer and returns its scope.
+    /// A standalone context auto-opens its command buffer and submits when the scope
+    /// is disposed; on a shared context (buffer opened via <see cref="Open"/>) the
+    /// pass is recorded into the shared buffer without submitting.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
-    public void Begin(
+    /// <param name="clearColors">Attachment clear values.</param>
+    /// <param name="clearDepth">Optional depth clear value.</param>
+    /// <param name="clearStencil">Optional stencil clear value.</param>
+    /// <param name="colorOps">Optional per-color-attachment load/store ops.</param>
+    /// <param name="depthOps">Optional depth/stencil load/store ops.</param>
+    /// <returns>The pass scope, valid until disposed.</returns>
+    public RenderPassScope BeginPass(
         GPUFrameBuffer target,
         ReadOnlySpan<ClearColorData> clearColors,
         float? clearDepth = null,
-        uint? clearStencil = null
-        )
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null)
     {
-        _command.Begin();
-        _renderScope = _command.BeginRender(target, clearColors, clearDepth, clearStencil);
-
-        _framebuffer = target;
-
-        ClearCache();
-
-        InvokeBegin();
-    }
-
-    public void Begin(
-        GPUFrameBuffer target,
-        float? clearDepth = null,
-        uint? clearStencil = null
-        )
-    {
-        Begin(target, ReadOnlySpan<ClearColorData>.Empty, clearDepth, clearStencil);
-    }
-
-    public void Begin(
-        GPUFrameBuffer target,
-        ColorFloat clearColor,
-        float? clearDepth = null,
-        uint? clearStencil = null
-        )
-    {
-        ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
-        Begin(target, clearColors, clearDepth, clearStencil);
+        ThrowIfPassOpen();
+        EnsureBufferOpen();
+        GPUCommandBuffer.RenderPass native = _command.BeginRender(target, clearColors, clearDepth, clearStencil, colorOps, depthOps);
+        _passOpen = true;
+        _passScope.Activate(native, target);
+        return _passScope;
     }
 
     /// <summary>
-    /// Begin the render context with GPU timestamp writes at pass begin and end.
+    /// Begins a render pass on the target framebuffer without clearing color attachments.
+    /// </summary>
+    /// <param name="target">The framebuffer to render to.</param>
+    /// <param name="clearDepth">Optional depth clear value.</param>
+    /// <param name="clearStencil">Optional stencil clear value.</param>
+    /// <returns>The pass scope, valid until disposed.</returns>
+    public RenderPassScope BeginPass(
+        GPUFrameBuffer target,
+        float? clearDepth = null,
+        uint? clearStencil = null)
+    {
+        return BeginPass(target, ReadOnlySpan<ClearColorData>.Empty, clearDepth, clearStencil);
+    }
+
+    /// <summary>
+    /// Begins a render pass on the target framebuffer, clearing its first color attachment.
+    /// </summary>
+    /// <param name="target">The framebuffer to render to.</param>
+    /// <param name="clearColor">The clear color for the first color attachment.</param>
+    /// <param name="clearDepth">Optional depth clear value.</param>
+    /// <param name="clearStencil">Optional stencil clear value.</param>
+    /// <returns>The pass scope, valid until disposed.</returns>
+    public RenderPassScope BeginPass(
+        GPUFrameBuffer target,
+        ColorFloat clearColor,
+        float? clearDepth = null,
+        uint? clearStencil = null)
+    {
+        ReadOnlySpan<ClearColorData> clearColors = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
+        return BeginPass(target, clearColors, clearDepth, clearStencil);
+    }
+
+    /// <summary>
+    /// Begins a render pass with GPU timestamp writes at pass begin and end.
     /// Only call this when <see cref="GPUDevice.TimestampQuerySupported"/> is true.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
@@ -125,299 +144,112 @@ public sealed class RenderContext : AutoDisposable, IRenderContext
     /// <param name="endQueryIndex">The slot written when the pass ends.</param>
     /// <param name="clearDepth">Optional depth clear value.</param>
     /// <param name="clearStencil">Optional stencil clear value.</param>
-    public void Begin(
+    /// <param name="colorOps">Optional per-color-attachment load/store ops.</param>
+    /// <param name="depthOps">Optional depth/stencil load/store ops.</param>
+    /// <returns>The pass scope, valid until disposed.</returns>
+    public RenderPassScope BeginPass(
         GPUFrameBuffer target,
         ReadOnlySpan<ClearColorData> clearColors,
         GPUTimestampQuerySet querySet,
         uint beginQueryIndex,
         uint endQueryIndex,
         float? clearDepth = null,
-        uint? clearStencil = null
-        )
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null)
     {
-        _command.Begin();
-        _renderScope = _command.BeginRender(target, clearColors, querySet, beginQueryIndex, endQueryIndex, clearDepth, clearStencil);
-
-        _framebuffer = target;
-
-        ClearCache();
-
-        InvokeBegin();
+        ThrowIfPassOpen();
+        EnsureBufferOpen();
+        GPUCommandBuffer.RenderPass native = _command.BeginRender(target, clearColors, querySet, beginQueryIndex, endQueryIndex, clearDepth, clearStencil, colorOps, depthOps);
+        _passOpen = true;
+        _passScope.Activate(native, target);
+        return _passScope;
     }
 
     /// <summary>
-    /// Sets the stencil reference value for subsequent draw calls.
+    /// Opens the command buffer for external (shared) recording. While the buffer is
+    /// open, passes record into it without submitting; call <see cref="Submit"/> to
+    /// end and submit. Engine-internal: driven by <see cref="RenderGraph"/>.
     /// </summary>
-    /// <param name="value">The stencil reference value.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetStencilReference(uint value)
+    internal void Open()
     {
-        _renderScope.SetStencilReference(value);
-    }
-
-    /// <summary>
-    /// Restricts subsequent draw calls to the specified framebuffer rectangle.
-    /// </summary>
-    /// <param name="x">The horizontal origin in pixels.</param>
-    /// <param name="y">The vertical origin in pixels.</param>
-    /// <param name="width">The rectangle width in pixels.</param>
-    /// <param name="height">The rectangle height in pixels.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetScissorRect(uint x, uint y, uint width, uint height)
-    {
-        _renderScope.SetScissorRect(x, y, width, height);
-    }
-
-    /// <summary>
-    /// Draws a mesh with the specified material.
-    /// </summary>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The material to use for drawing.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void Draw(in Mesh mesh, in Material material, in int subMeshIndex = 0)
-    {
-        Debug.Assert(_framebuffer != null);
-        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_framebuffer!.AttachmentLayout);
-        _renderScope.SetPipeline(pipelineContext.Pipeline!);
-        SetMesh(mesh, subMeshIndex);
-        material.PushResources(_renderScope);
-        _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
-    }
-
-    /// <summary>
-    /// Draws a mesh with the specified material and push constants.
-    /// </summary>
-    /// <typeparam name="T">The type of the constant data.</typeparam>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The material to use for drawing.</param>
-    /// <param name="constant">The constant data to push to the shader.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    /// <exception cref="ArgumentException">Thrown when the size of the constant does not match the push constants size.</exception>
-    public unsafe void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant, in int subMeshIndex = 0) where T : unmanaged
-    {
-        Debug.Assert(_framebuffer != null);
-        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_framebuffer!.AttachmentLayout);
-        // if (pipelineContext.PushConstantsSize != sizeof(T))
-        // {
-        //     throw new ArgumentException("The size of the constant does not match the push constants size");
-        // }
-        _renderScope.SetPipeline(pipelineContext.Pipeline!);
-        SetMesh(mesh, subMeshIndex);
-        material.PushResources(_renderScope);
-        PushConstantSafe(constant, pipelineContext.PushConstantsSize);
-        _renderScope.DrawIndexed(_indexCount, 1, 0, 0, 0);
-    }
-
-    /// <summary>
-    /// Draws a mesh multiple times with the specified material.
-    /// </summary>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The material to use for drawing.</param>
-    /// <param name="instanceCount">The number of instances to draw.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
-    {
-        DrawInstanced(mesh, material, instanceCount, 0, subMeshIndex);
-    }
-
-    /// <summary>
-    /// Draws a mesh multiple times with the specified material.
-    /// </summary>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The material to use for drawing.</param>
-    /// <param name="instanceCount">The number of instances to draw.</param>
-    /// <param name="instanceStartIndex">The index of the first instance to draw.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
-    {
-        Debug.Assert(_framebuffer != null);
-        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_framebuffer!.AttachmentLayout);
-        _renderScope.SetPipeline(pipelineContext.Pipeline!);
-        SetMesh(mesh, subMeshIndex);
-        material.PushResources(_renderScope);
-        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStartIndex);
-    }
-
-    /// <summary>
-    /// Draws a mesh multiple times with the specified material and push constants.
-    /// </summary>
-    /// <typeparam name="T">The type of the constant data.</typeparam>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The material to use for drawing.</param>
-    /// <param name="instanceCount">The number of instances to draw.</param>
-    /// <param name="constant">The constant data to push to the shader.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in T constant, in int subMeshIndex = 0) where T : unmanaged
-    {
-        DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant, subMeshIndex);
-    }
-
-    /// <summary>
-    /// Draws a mesh multiple times with the specified material and push constants, starting from a specific instance.
-    /// </summary>
-    /// <typeparam name="T">The type of the constant data.</typeparam>
-    /// <param name="mesh">The mesh to draw.</param>
-    /// <param name="material">The material to use for drawing.</param>
-    /// <param name="instanceCount">The number of instances to draw.</param>
-    /// <param name="instanceStart">The index of the first instance to draw.</param>
-    /// <param name="constant">The constant data to push to the shader.</param>
-    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged
-    {
-        Debug.Assert(_framebuffer != null);
-        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(_framebuffer!.AttachmentLayout);
-        _renderScope.SetPipeline(pipelineContext.Pipeline!);
-        SetMesh(mesh, subMeshIndex);
-        material.PushResources(_renderScope);
-        PushConstantSafe(constant, pipelineContext.PushConstantsSize);
-        _renderScope.DrawIndexed(_indexCount, instanceCount, 0, 0, instanceStart);
-    }
-
-    /// <summary>
-    /// Execute the commands recorded in the <see cref="SubRenderContext"/>.
-    /// </summary>
-    /// <param name="subContext">The sub context to execute.</param>
-    public void ExecuteSubContext(SubRenderContext subContext)
-    {
-        GPURenderBundle renderBundle = subContext.RenderBundle;
-        if (!renderBundle.HasBuffer)
+        if (_bufferOpen)
         {
-            throw new InvalidOperationException("The render bundle of SubRenderContext is not been recorded, try use RenderContext.Begin(GPUAttachmentLayout) to record render commands.");
+            throw new InvalidOperationException("The command buffer is already open.");
         }
 
-        _renderScope.ExecuteBundle(renderBundle);
-        // the binding of vertex buffer and index buffer will be reset after executing the bundle
-        // so we need to clear the cache to rebind the vertex buffer and index buffer
-        ClearCache();
+        _command.Begin();
+        _bufferOpen = true;
     }
 
     /// <summary>
-    /// End the render context.
+    /// Ends the command buffer opened via <see cref="Open"/> and submits it. No pass
+    /// scope may be open. Engine-internal: driven by <see cref="RenderGraph"/>.
     /// </summary>
-    public void End()
+    internal void Submit()
     {
-        InvokeEnd();
-
-        _renderScope.Dispose();
-
-        // Resolve timestamps between the render pass close and the command buffer
-        // end — the only valid window for wgpu resolve calls.
-        if (_pendingResolveQuerySet != null)
+        if (!_bufferOpen)
         {
-            _command.ResolveTimestamps(
-                _pendingResolveQuerySet,
-                _pendingResolveFirst,
-                _pendingResolveCount,
-                _pendingResolveDest!,
-                _pendingResolveOffset);
-            _pendingResolveQuerySet = null;
-            _pendingResolveDest = null;
+            throw new InvalidOperationException("The command buffer is not open.");
+        }
+        if (_passOpen)
+        {
+            throw new InvalidOperationException("A pass scope is still open; dispose it before submitting.");
         }
 
         _command.End();
+        _bufferOpen = false;
         _renderingSystem.ScheduleCommandBuffer(_command);
-        ClearCache();
-
-        _framebuffer = null;
     }
 
-    /// <summary>
-    /// Schedule a timestamp resolve to run after the current render pass closes but
-    /// before the command buffer ends. Must be called while a pass is active (after
-    /// Begin, before End). The resolve writes the given query range into
-    /// <paramref name="destination"/> at <paramref name="destinationOffset"/>.
-    /// </summary>
-    /// <param name="querySet">The source timestamp query set.</param>
-    /// <param name="firstQuery">The first source query slot.</param>
-    /// <param name="queryCount">The number of slots to resolve.</param>
-    /// <param name="destination">A buffer with QueryResolve usage.</param>
-    /// <param name="destinationOffset">The byte offset in the destination buffer.</param>
-    public void ResolveTimestampsOnEnd(
-        GPUTimestampQuerySet querySet,
-        uint firstQuery,
-        uint queryCount,
-        GPUBuffer destination,
-        ulong destinationOffset = 0)
+    void RenderPassScope.IScopeOwner.OnScopeClosed(RenderPassScope scope)
     {
-        _pendingResolveQuerySet = querySet;
-        _pendingResolveFirst = firstQuery;
-        _pendingResolveCount = queryCount;
-        _pendingResolveDest = destination;
-        _pendingResolveOffset = destinationOffset;
+        scope.ResolvePendingTimestamps(_command);
+        _passOpen = false;
+        if (_autoOpenedBuffer)
+        {
+            _autoOpenedBuffer = false;
+            Submit();
+        }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetMesh(in Mesh mesh, in int subMeshIndex)
+    private void EnsureBufferOpen()
     {
-        if (_mesh == mesh && _subMeshIndex == subMeshIndex && mesh.Version == _meshVersion)
+        if (_bufferOpen)
         {
             return;
         }
 
-        _mesh = mesh;
-        _subMeshIndex = subMeshIndex;
-        _meshVersion = mesh.Version;
+        _command.Begin();
+        _bufferOpen = true;
+        _autoOpenedBuffer = true;
+    }
 
-        _indexCount = _renderScope.SetMesh(mesh, subMeshIndex);
+    /// <summary>
+    /// Force-aborts the open command buffer without submitting it, closing any open
+    /// pass scope first. Error recovery only — used by <see cref="RenderGraph"/> when
+    /// a node threw mid-pass.
+    /// </summary>
+    internal void Abort()
+    {
+        if (_passOpen)
+        {
+            _passScope.Dispose();
+        }
+        if (_bufferOpen)
+        {
+            _command.End();
+            _bufferOpen = false;
+            _autoOpenedBuffer = false;
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe void PushConstantSafe<T>(in T data, int pushConstantSize) where T : unmanaged
+    private void ThrowIfPassOpen()
     {
-        if (pushConstantSize != sizeof(T))
+        if (_passOpen)
         {
-            pushConstantSize = Math.Min(pushConstantSize, sizeof(T));
-        }
-
-        fixed (T* ptr = &data)
-        {
-            _renderScope.PushConstants(0, (byte*)ptr, (uint)pushConstantSize);
-        }
-    }
-
-    /// <summary>
-    /// Clears the cached mesh data.
-    /// </summary>
-    private void ClearCache()
-    {
-        _mesh = null;
-        _subMeshIndex = 0;
-    }
-
-    /// <summary>
-    /// Invokes the OnCommandBegin event on all listeners.
-    /// </summary>
-    private void InvokeBegin()
-    {
-        foreach (var observer in _listeners)
-        {
-            try
-            {
-                observer.OnCommandBegin();
-            }
-            catch (Exception e)
-            {
-                Log.Error(e);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Invokes the OnCommandEnd event on all listeners.
-    /// </summary>
-    private void InvokeEnd()
-    {
-        foreach (var observer in _listeners)
-        {
-            try
-            {
-                observer.OnCommandEnd();
-            }
-            catch (Exception e)
-            {
-                Log.Error(e);
-            }
+            throw new InvalidOperationException("A pass scope is already open on this context; dispose it before beginning a new one.");
         }
     }
 

@@ -181,11 +181,12 @@ public class Game : GameEngine
             _game = game;
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
-            _game._renderer.Begin(target);
-            _game._entity.OnDraw(_game._renderer);
-            _game._renderer.End();
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                _game._entity.OnDraw(pass);
+            }
         }
     }
 

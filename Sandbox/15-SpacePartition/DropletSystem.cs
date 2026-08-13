@@ -42,23 +42,24 @@ public class DropletSystem : IDisposable
 
         protected override void ExecuteCore(int index)
         {
-            _renderContext[index].Begin(Layout);
-            RenderRange range = _renderRanges[index];
-            int i = 0;
-            Span<SpriteConstant> instances = stackalloc SpriteConstant[range.end - range.start];
-            for (int j = range.start; j < range.end; j++)
+            using (_renderContext[index].BeginPass(Layout))
             {
-                var droplet = _activeList[j];
-                instances[i++] = new SpriteConstant
+                RenderRange range = _renderRanges[index];
+                int i = 0;
+                Span<SpriteConstant> instances = stackalloc SpriteConstant[range.end - range.start];
+                for (int j = range.start; j < range.end; j++)
                 {
-                    Model = droplet.transform.Matrix,
-                    Color = ColorFloat.White,
-                    UvRect = Rect.One
-                };
-            }
+                    var droplet = _activeList[j];
+                    instances[i++] = new SpriteConstant
+                    {
+                        Model = droplet.transform.Matrix,
+                        Color = ColorFloat.White,
+                        UvRect = Rect.One
+                    };
+                }
 
-            _renderers[index].Draw(_mesh, instances);
-            _renderContext[index].End();
+                _renderers[index].Draw(_mesh, instances);
+            }
         }
     }
 
@@ -178,12 +179,13 @@ public class DropletSystem : IDisposable
 
         _jobParallelRender.Layout = layout;
         _jobParallelRender.RunParallel(RenderThreadCount);
-        _renderContext.Begin(target);
-        for (int i = 0; i < RenderThreadCount; i++)
+        using (RenderPassScope pass = _renderContext.BeginPass(target))
         {
-            _renderContext.ExecuteSubContext(_subRenderContexts[i]);
+            for (int i = 0; i < RenderThreadCount; i++)
+            {
+                pass.ExecuteSubContext(_subRenderContexts[i]);
+            }
         }
-        _renderContext.End();
     }
 
     public void Render(int i)

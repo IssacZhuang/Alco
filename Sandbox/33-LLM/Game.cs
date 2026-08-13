@@ -111,12 +111,13 @@ public class Game : GameEngine
 
         // Rendering logic
         if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
-        _renderer.Begin(frameBuffer, ColorFloat.Black);
-        foreach (var cube in _entities.Values)
+        using (RenderPassScope pass = _renderer.BeginPass(frameBuffer, ColorFloat.Black))
         {
-            cube.OnDraw(_renderer);
+            foreach (var cube in _entities.Values)
+            {
+                cube.OnDraw(pass);
+            }
         }
-        _renderer.End();
 
         RenderConfigWindow();
         RenderChatWindow();

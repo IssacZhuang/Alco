@@ -154,11 +154,12 @@ public class Game : GameEngine
             _game = game;
         }
 
-        protected override void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
         {
-            _game._renderContext.Begin(target);
-            _game._renderer.Draw(_game.RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
-            _game._renderContext.End();
+            using (RenderPassScope pass = _game._renderContext.BeginPass(target))
+            {
+                _game._renderer.Draw(_game.RenderingSystem.TextureWhite, new Vector2(0, 0), Rotation2D.Identity, new Vector2(200, 200), new ColorFloat(2, 1.2f, 1.2f, 1));
+            }
         }
     }
 }

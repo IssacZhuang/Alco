@@ -30,7 +30,7 @@ public class WallManager
         _lightingManager.RemoveObstacle(wall);
     }
 
-    public void Render(RenderContext context)
+    public void Render(RenderPassScope context)
     {
         _wallGrid.OnRender(context);
     }

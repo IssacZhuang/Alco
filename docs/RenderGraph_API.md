@@ -65,7 +65,7 @@ var chain = new RenderChain();
 RenderGraphTexture scene = graph.CreateTransient(new RenderGraphTextureDescriptor(
     rendering.PreferredHDRPass, name: "my_scene"));
 
-graph.Use(new RGNode_Clear(rendering, scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
+graph.Use(new RGNode_Clear(scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
 graph.Use(new MySceneContent(graph, chain));      // : RGNode_SceneContent,重写 OnRender
 graph.Use(new MyEffect(graph, chain, postLayout));// : RGNode_ChainTransform,重写 OnProcess
 graph.Use(new RGNode_Blit(rendering, graph, chain, blitShader));

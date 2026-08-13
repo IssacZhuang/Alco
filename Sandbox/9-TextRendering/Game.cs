@@ -58,20 +58,19 @@ public class Game : GameEngine
         Rotation2D rotation = new Rotation2D(_angle);
 
 
-        _renderContext.Begin(frameBuffer, ColorFloat.Black);
+        using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
+        {
+            _textRenderer.DrawText(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
+            _textRenderer.DrawText(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+            _textRenderer.DrawText(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
+            _textRenderer.DrawText(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+            _textRenderer.DrawText(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
+            _textRenderer.DrawText(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
+            _textRenderer.DrawText(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
 
-        _textRenderer.DrawText(_font, FrameRate.ToString(), _fontSize, new Vector2(-320, 180) , Rotation2D.Identity, Pivot.LeftTop, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawText(_font, "Hello World !!!", _fontSize, new Vector2(0, 0), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawText(_font, "cn: 中文", _fontSize, new Vector2(0, _fontSize), Rotation2D.Identity, Pivot.LeftBottom, 0xff6666);
-        _textRenderer.DrawText(_font, "jp: こんにちは", _fontSize, new Vector2(0, _fontSize * 2), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawText(_font, "kr: 안녕하세요", _fontSize, new Vector2(0, _fontSize * 3), Rotation2D.Identity, Pivot.CenterBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawText(_font, "ru: Привет", _fontSize, new Vector2(0, _fontSize * 4), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawText(_font, "gr: Γειά σας", _fontSize, new Vector2(0, _fontSize * 5), Rotation2D.Identity, Pivot.RightBottom, new Vector4(1, 1, 1, 1));
-
-        _textRenderer.DrawText( _font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
-        _textRenderer.DrawText(_font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.quaternion(0, _angle, 0), Pivot.Center, new Vector4(1, 1, 1, 1));
-
-        _renderContext.End();
+            _textRenderer.DrawText( _font, "Rotation", _fontSize, new Vector2(-100, -100), rotation, Pivot.Center, new Vector4(1, 1, 1, 1));
+            _textRenderer.DrawText(_font, "3D Text", _fontSize, new Vector3(0, -130f, 50), math.quaternion(0, _angle, 0), Pivot.Center, new Vector4(1, 1, 1, 1));
+        }
     }
 
     protected override void OnStop()

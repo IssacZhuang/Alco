@@ -12,7 +12,6 @@ namespace Alco.Rendering;
 public sealed class RGNode_Tonemap : RGNode_ChainTransform
 {
     private readonly RenderingSystem _rendering;
-    private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
     private readonly Material _blitMaterial;
     private readonly Shader _reinhardShader;
@@ -173,7 +172,6 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
         : base(graph, chain, outputLayout, name: "tonemap")
     {
         _rendering = rendering;
-        _renderContext = rendering.CreateRenderContext();
         _fullScreenMesh = rendering.MeshFullScreen;
         _blitMaterial = rendering.CreateMaterial(blitShader);
 
@@ -192,9 +190,10 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
     {
         Material material = _operator == TonemapType.Linear || _material == null ? _blitMaterial : _material;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
-        _renderContext.Begin(output.FrameBuffer);
-        _renderContext.Draw(_fullScreenMesh, material);
-        _renderContext.End();
+        using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
+        {
+            pass.Draw(_fullScreenMesh, material);
+        }
     }
 
     private void ApplyCurrentOperator()
@@ -251,7 +250,6 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
             _material?.Dispose();
             _dataBuffer?.Dispose();
             _blitMaterial.Dispose();
-            _renderContext.Dispose();
         }
         base.Dispose(disposing);
     }

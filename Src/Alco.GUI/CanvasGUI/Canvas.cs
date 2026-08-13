@@ -382,10 +382,11 @@ public partial class Canvas : AutoDisposable, INavigationContext
     public void Update(GPUFrameBuffer renderTarget, float delta)
     {
         HandleInput();
-        _renderContext.Begin(renderTarget);
-        _mask = 0;
-        UpdateNode(Root, delta);
-        _renderContext.End();
+        using (RenderPassScope pass = _renderContext.BeginPass(renderTarget))
+        {
+            _mask = 0;
+            UpdateNode(Root, delta);
+        }
 
         //DebugDraw(renderTarget, Root);
     }
