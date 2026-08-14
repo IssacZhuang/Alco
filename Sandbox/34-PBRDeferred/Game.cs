@@ -186,7 +186,7 @@ public class Game : GameEngine
     // Volumetric clouds (ray-marched slab composited over the HDR scene,
     // with a coverage bake that shadows the direct sun).
     private readonly RGNode_VolumetricClouds? _clouds;
-    private int _cloudStepsPreset = 1;
+    private int _cloudStepsPreset = 0;
     private static readonly int[] CloudStepPresets = [64, 112, 160];
     private static readonly string[] CloudStepModes =
         ["Performance (64)", "Balanced (112)", "Quality (160)"];

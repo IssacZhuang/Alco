@@ -140,8 +140,9 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     public float AerialFadeEndKm { get; set; } = 30.0f;
 
     /// <summary>March step budget per pixel (quality knob: 64 fast … 160
-    /// ultra). Empty-space skipping means typical rays use far fewer.</summary>
-    public int MaxMarchSteps { get; set; } = 112;
+    /// ultra). Empty-space skipping means typical rays use far fewer; the
+    /// default is the performance tier.</summary>
+    public int MaxMarchSteps { get; set; } = 64;
 
     /// <summary>The march pass resolution scale relative to the graph
     /// viewport (0.5 = half resolution).</summary>

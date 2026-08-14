@@ -2,15 +2,17 @@
 
 // Volumetric clouds composite pass: a full-screen overlay on the HDR scene
 // color that reconstructs the half-resolution cloud result (premultiplied
-// scattering + opacity, written by VolumetricClouds.hlsl) with a 4-tap
-// depth-aware bilateral upsample and blends it over the completed scene with
+// scattering + opacity, written by VolumetricClouds.hlsl) with a 3x3
+// gaussian-bilateral upsample and blends it over the completed scene with
 // premultiplied-alpha blending (One, OneMinusSrcAlpha) — the scene color is
 // never bound as a texture, the blend hardware performs the composite.
 //
-// The bilateral weights pair each half-resolution tap's bilinear fraction with
-// a depth-similarity gaussian, so cloud edges snap to geometry silhouettes
-// instead of haloing around them; pure-sky regions (all taps at the far plane)
-// degenerate to a plain bilinear upsample.
+// The spatial half of the weights (a gaussian over the continuous half-res
+// texel coordinate) averages the march pass's per-pixel jitter noise into a
+// fine, isotropic blur — the spatial counterpart of the temporal averaging a
+// TAA-based pipeline gets for free — while the depth-similarity half keeps
+// cloud edges snapped to geometry silhouettes instead of haloing. Pure-sky
+// regions (all taps at the far plane) degenerate to a plain gaussian upsample.
 
 struct Vertex
 {
@@ -28,6 +30,11 @@ struct V2F
 DEFINE_TEX2D_SAMPLE(1, _clouds);
 // Shared G-buffer depth for the bilateral weights.
 DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
+
+// Squared gaussian width of the upsample kernel, in half-resolution texels
+// (sigma ~ 0.67 texels): wide enough to average the march jitter grain into
+// a fine isotropic blur, tight enough to keep cloud silhouettes crisp.
+static const float CLOUD_UPSAMPLE_SIGMA2 = 0.45;
 
 #include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli"
 
@@ -74,11 +81,10 @@ float4 MainPS(V2F input) : SV_TARGET
     float2 halfTexel = 1.0 / halfSize;
 
     // Continuous position of this full-resolution pixel in half-resolution
-    // texel space, and the four surrounding half-resolution texel centers.
+    // texel space (texel centers at n + 0.5), snapped to the nearest texel
+    // center whose 3x3 neighborhood the gaussian taps below cover.
     float2 halfPos = input.position.xy * scale;
-    float2 base = floor(halfPos - 0.5) + 0.5;
-    float2 fraction = halfPos - base;
-    fraction = saturate(fraction);
+    float2 center = floor(halfPos) + 0.5;
 
     float centerDepth = CloudCompositeLinearDepth(input.uv);
     // Depth tolerance grows with distance: nearby geometry gets tight edges,
@@ -89,21 +95,22 @@ float4 MainPS(V2F input) : SV_TARGET
     float opacity = 0.0;
     float weightSum = 0.0;
     [unroll]
-    for (int y = 0; y < 2; y++)
+    for (int y = -1; y <= 1; y++)
     {
         [unroll]
-        for (int x = 0; x < 2; x++)
+        for (int x = -1; x <= 1; x++)
         {
-            float2 offset = float2(x, y);
-            float2 tapPos = clamp(base + offset, 0.5, halfSize - 0.5);
+            float2 tapPos = clamp(center + float2(x, y), 0.5, halfSize - 0.5);
             float2 tapUv = tapPos * halfTexel;
 
-            float bilinear = (x == 0 ? 1.0 - fraction.x : fraction.x)
-                * (y == 0 ? 1.0 - fraction.y : fraction.y);
+            // Spatial gaussian over the sub-texel distance: substitutes the
+            // old bilinear fractions while averaging the march jitter grain.
+            float2 delta = halfPos - tapPos;
+            float spatialWeight = exp(-0.5 * dot(delta, delta) / CLOUD_UPSAMPLE_SIGMA2);
             float tapDepth = CloudCompositeLinearDepth(tapUv);
             float depthWeight = exp(-abs(tapDepth - centerDepth) / sigma);
 
-            float w = bilinear * depthWeight + 1e-5;
+            float w = spatialWeight * depthWeight + 1e-5;
             float4 tap = SAMPLE_TEX2D(_clouds, tapUv);
             scattering += tap.rgb * w;
             opacity += tap.a * w;
