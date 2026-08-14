@@ -50,4 +50,6 @@ public struct DeferredLightingData
     public Vector4 Params4;
     /// <summary>Volumetric light params: x=enabled(&gt;0), y=fogDensity, z=heightScaleHeight (height-falloff model, ignored for constant), w=phaseG (Henyey-Greenstein anisotropy).</summary>
     public Vector4 VLParams;
+    /// <summary>Volumetric cloud shadow params: x=strength (0=off), y=shadow plane altitude (meters, mid-slab), z=coverage texture half extent (meters), w=enabled(&gt;0). The coverage texture itself is bound to the lighting material's _cloudShadow slot by the clouds plugin.</summary>
+    public Vector4 CloudShadow;
 }

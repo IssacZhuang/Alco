@@ -183,6 +183,14 @@ public class Game : GameEngine
     private bool _glassEnabled = true;
     private float _glassTransmission = 0.85f;
 
+    // Volumetric clouds (ray-marched slab composited over the HDR scene,
+    // with a coverage bake that shadows the direct sun).
+    private readonly RGNode_VolumetricClouds? _clouds;
+    private int _cloudStepsPreset = 1;
+    private static readonly int[] CloudStepPresets = [64, 112, 160];
+    private static readonly string[] CloudStepModes =
+        ["Performance (64)", "Balanced (112)", "Quality (160)"];
+
     private bool _staticShadowBundlesDirty;
     private bool _bistroStreaming;
 
@@ -443,6 +451,53 @@ public class Game : GameEngine
             _preset.ShadowMap);
         _forwardRenderer.SetCamera(_camera);
         _preset.Pipeline.Use(_forwardRenderer);
+
+        // Volumetric clouds: a ray-marched Perlin-Worley cloud slab rendered at
+        // half resolution and composited depth-aware over the HDR scene color
+        // right after deferred lighting (before the volumetric light overlay,
+        // whose near-camera shafts correctly add over the clouds). The lighting
+        // pass also dims the direct sun from the plugin's cloud coverage bake,
+        // so cloud shadows drift across the scene.
+        if (!args.Contains("--no-clouds"))
+        {
+            float cloudResolutionScale = float.TryParse(GetArgValue(args, "--cloud-res="), out float parsedCloudRes)
+                ? Math.Clamp(parsedCloudRes, 0.25f, 1.0f)
+                : 0.5f;
+            string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
+            _clouds = new RGNode_VolumetricClouds(
+                RenderingSystem,
+                AssetSystem.Load<Shader>(shaderDir + "VolumetricClouds.hlsl"),
+                AssetSystem.Load<Shader>(shaderDir + "VolumetricCloudsComposite.hlsl"),
+                AssetSystem.Load<Shader>(shaderDir + "VolumetricCloudNoise.hlsl"),
+                AssetSystem.Load<Shader>(shaderDir + "VolumetricCloudShadow.hlsl"))
+            {
+                MarchResolutionScale = cloudResolutionScale,
+            };
+            if (float.TryParse(GetArgValue(args, "--cloud-coverage="), out float cloudCoverage))
+            {
+                _clouds.Coverage = Math.Clamp(cloudCoverage, 0.0f, 1.0f);
+            }
+            if (float.TryParse(GetArgValue(args, "--cloud-bottom="), out float cloudBottom))
+            {
+                _clouds.BottomAltitudeKm = cloudBottom;
+            }
+            if (float.TryParse(GetArgValue(args, "--cloud-thickness="), out float cloudThickness))
+            {
+                _clouds.ThicknessKm = cloudThickness;
+            }
+            if (int.TryParse(GetArgValue(args, "--cloud-steps="), out int cloudSteps))
+            {
+                _clouds.MaxMarchSteps = Math.Clamp(cloudSteps, 24, 200);
+                _cloudStepsPreset = cloudSteps <= 64 ? 0 : cloudSteps <= 112 ? 1 : 2;
+            }
+            _clouds.Attach(
+                _preset.Graph,
+                _preset.PostChain,
+                _preset.Lighting,
+                _preset.GBufferResource,
+                _preset.ShadowMapResource,
+                _environment);
+        }
 
         // Per-frame logic that runs between the G-buffer pass and the plugin pass
         // (HBAO/GI) is wired into the pipeline via AfterGBufferCallback so that
@@ -1479,6 +1534,61 @@ public class Game : GameEngine
             float vlPhaseG = _environment.VolumetricLightPhaseG;
             if (ImGui.SliderFloat("Phase G", ref vlPhaseG, 0.0f, 0.95f))
                 _environment.VolumetricLightPhaseG = vlPhaseG;
+        }
+
+        if (_clouds != null && ImGui.CollapsingHeader("Volumetric Clouds"))
+        {
+            bool cloudsEnabled = _clouds.IsEnabled;
+            if (ImGui.Checkbox("Enabled", ref cloudsEnabled))
+                _clouds.IsEnabled = cloudsEnabled;
+
+            float coverage = _clouds.Coverage;
+            if (ImGui.SliderFloat("Coverage", ref coverage, 0.0f, 1.0f))
+                _clouds.Coverage = coverage;
+            float cloudDensity = _clouds.Density;
+            if (ImGui.SliderFloat("Density", ref cloudDensity, 0.1f, 3.0f))
+                _clouds.Density = cloudDensity;
+            float cloudBottom = _clouds.BottomAltitudeKm;
+            if (ImGui.SliderFloat("Bottom Altitude (km)", ref cloudBottom, 0.4f, 6.0f))
+                _clouds.BottomAltitudeKm = cloudBottom;
+            float cloudThickness = _clouds.ThicknessKm;
+            if (ImGui.SliderFloat("Thickness (km)", ref cloudThickness, 0.5f, 8.0f))
+                _clouds.ThicknessKm = cloudThickness;
+            float cloudDetail = _clouds.DetailStrength;
+            if (ImGui.SliderFloat("Detail Erosion", ref cloudDetail, 0.0f, 1.0f))
+                _clouds.DetailStrength = cloudDetail;
+            float cloudExtinction = _clouds.ExtinctionPerKm;
+            if (ImGui.SliderFloat("Extinction (1/km)", ref cloudExtinction, 2.0f, 48.0f))
+                _clouds.ExtinctionPerKm = cloudExtinction;
+            float cloudAmbient = _clouds.AmbientStrength;
+            if (ImGui.SliderFloat("Ambient Strength", ref cloudAmbient, 0.0f, 3.0f))
+                _clouds.AmbientStrength = cloudAmbient;
+            float cloudSun = _clouds.SunStrength;
+            if (ImGui.SliderFloat("Sun Strength", ref cloudSun, 0.0f, 2.5f))
+                _clouds.SunStrength = cloudSun;
+            float cloudWindDir = _clouds.WindDirectionDeg;
+            if (ImGui.SliderFloat("Wind Heading (deg)", ref cloudWindDir, 0.0f, 360.0f))
+                _clouds.WindDirectionDeg = cloudWindDir;
+            float cloudWindSpeed = _clouds.WindSpeed;
+            if (ImGui.SliderFloat("Wind Speed (m/s)", ref cloudWindSpeed, 0.0f, 40.0f))
+                _clouds.WindSpeed = cloudWindSpeed;
+            float cloudFadeStart = _clouds.AerialFadeStartKm;
+            if (ImGui.SliderFloat("Aerial Fade Start (km)", ref cloudFadeStart, 4.0f, 30.0f))
+                _clouds.AerialFadeStartKm = cloudFadeStart;
+            float cloudFadeEnd = _clouds.AerialFadeEndKm;
+            if (ImGui.SliderFloat("Aerial Fade End (km)", ref cloudFadeEnd, 10.0f, 42.0f))
+                _clouds.AerialFadeEndKm = cloudFadeEnd;
+            if (ImGui.Combo("March Steps", ref _cloudStepsPreset, CloudStepModes, CloudStepModes.Length))
+                _clouds.MaxMarchSteps = CloudStepPresets[_cloudStepsPreset];
+            float cloudShadow = _clouds.ShadowStrength;
+            if (ImGui.SliderFloat("Cloud Shadow Strength", ref cloudShadow, 0.0f, 1.0f))
+                _clouds.ShadowStrength = cloudShadow;
+            float cloudShadowExtent = _clouds.ShadowExtentKm;
+            if (ImGui.SliderFloat("Shadow Extent (km)", ref cloudShadowExtent, 4.0f, 40.0f))
+                _clouds.ShadowExtentKm = cloudShadowExtent;
+            bool cloudDebugOpacity = _clouds.DebugOpacityView;
+            if (ImGui.Checkbox("Debug Opacity View", ref cloudDebugOpacity))
+                _clouds.DebugOpacityView = cloudDebugOpacity;
         }
 
         if (_hbaoRenderer != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))

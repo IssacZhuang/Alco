@@ -279,6 +279,34 @@ public abstract class Material : AutoDisposable
         IncreaseVersion();
     }
 
+    /// <summary>
+    /// Try to set a 3D texture to a sampled texture slot (filtered sampling
+    /// through the texture's own sampler; see <see cref="Texture3D"/>).
+    /// </summary>
+    /// <param name="name">The shader resource name of the texture.</param>
+    /// <param name="texture">The 3D texture to set.</param>
+    /// <returns>True if the texture is set successfully, otherwise false.</returns>
+    public bool TrySetTexture3D(string name, Texture3D texture)
+    {
+        if (!_parameters.TrySetTexture(name, texture))
+        {
+            return false;
+        }
+        IncreaseVersion();
+        return true;
+    }
+
+    /// <summary>
+    /// Set a 3D texture to a sampled texture slot (filtered sampling through
+    /// the texture's own sampler; see <see cref="Texture3D"/>).
+    /// </summary>
+    /// <param name="name">The shader resource name of the texture.</param>
+    /// <param name="texture">The 3D texture to set.</param>
+    public void SetTexture3D(string name, Texture3D texture)
+    {
+        _parameters.SetTexture(name, texture);
+        IncreaseVersion();
+    }
 
     #endregion
 

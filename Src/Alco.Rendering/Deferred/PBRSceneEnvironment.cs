@@ -265,6 +265,19 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>Henyey-Greenstein phase anisotropy g (0=isotropic, >0=forward scattering).</summary>
     public float VolumetricLightPhaseG { get; set; } = 0.9f;
 
+    // ── Volumetric cloud shadows (written by the clouds plugin; consumed by
+    // AssembleLightingData one frame later, in lockstep with the coverage
+    // texture the plugin bakes) ──
+
+    /// <summary>Cloud shadow strength multiplying the direct sun dimming (0 = off).</summary>
+    public float CloudShadowStrength { get; set; }
+
+    /// <summary>World altitude of the cloud shadow projection plane (meters, mid-slab).</summary>
+    public float CloudShadowPlaneAltitude { get; set; } = 3250.0f;
+
+    /// <summary>Half extent of the cloud shadow coverage window around the camera (meters).</summary>
+    public float CloudShadowExtent { get; set; } = 20000.0f;
+
     /// <summary>
     /// Upload point lights to the GPU StructuredBuffer. Call once per frame before
     /// rendering; the active count is tracked internally.
@@ -459,6 +472,11 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
             VolumetricLightDensity,
             VolumetricLightHeightScale,
             VolumetricLightPhaseG);
+        _lightingData.CloudShadow = new Vector4(
+            CloudShadowStrength,
+            CloudShadowPlaneAltitude,
+            CloudShadowExtent,
+            CloudShadowStrength > 0.0f ? 1.0f : 0.0f);
     }
 
     /// <summary>

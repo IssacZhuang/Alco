@@ -284,6 +284,7 @@ public static class RenderPipelines
         lightingMaterial.SetRenderTextureDepth("_shadowMap", shadowMapResource.Texture);
         // Plugin output textures default to white/black until a plugin sets them.
         lightingMaterial.SetTexture("_aoTexture", rendering.TextureWhite);
+        lightingMaterial.SetTexture("_cloudShadow", rendering.TextureWhite);
         lightingMaterial.SetTexture("_giDiffuse", rendering.TextureBlack);
         lightingMaterial.SetTexture("_giSpecular", rendering.TextureBlack);
     }

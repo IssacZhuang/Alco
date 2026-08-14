@@ -37,6 +37,10 @@ DEFINE_TEX2D_SAMPLE(1, _giSpecular);
 // Screen-space ambient occlusion from an AO render plugin (full-resolution,
 // white = unoccluded). The pipeline binds white when no AO plugin is active.
 DEFINE_TEX2D_SAMPLE(1, _aoTexture);
+// Cloud shadow coverage from the volumetric clouds plugin (r = 1 - column
+// transmittance at the cloud slab, camera-centered world grid; white when no
+// clouds plugin is active).
+DEFINE_TEX2D_SAMPLE(1, _cloudShadow);
 
 #include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli"
 
@@ -123,6 +127,16 @@ float4 MainPS(V2F input) : SV_TARGET
         if (pbrParams.x > 0.5 && sunNdotL > 0.0)
         {
             sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
+        }
+
+        // Volumetric cloud shadows: dim the direct sun by the cloud column
+        // coverage where the receiver's sun ray pierces the cloud slab. The
+        // coverage texture is baked by the clouds plugin around the camera.
+        if (cloudShadow.w > 0.5 && L.z > 0.02)
+        {
+            float3 hit = worldPosition + L * ((cloudShadow.y - worldPosition.z) / L.z);
+            float2 uv = (hit.xy - cameraPosition.xy) / cloudShadow.z + 0.5;
+            sunShadow *= 1.0 - cloudShadow.x * SAMPLE_TEX2D(_cloudShadow, uv).r;
         }
 
         Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)

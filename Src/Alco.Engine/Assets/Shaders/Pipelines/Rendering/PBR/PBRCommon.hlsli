@@ -31,6 +31,7 @@ DEFINE_UNIFORM(0, _data)
     float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
     float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
     float4 vlParams;             // x=enabled(>0) y=fogDensity z=heightScaleHeight(constant model ignores) w=phaseG(Henyey-Greenstein anisotropy)
+    float4 cloudShadow;          // x=strength y=shadow plane altitude m z=half extent m w=enabled(>0; _cloudShadow texture holds the coverage)
 };
 
 // Point light storage buffer element.
