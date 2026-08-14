@@ -191,7 +191,17 @@ public class FXAA : TextureProcessor
     }
 
     /// <summary>
-    /// Applies FXAA anti-aliasing to the input and renders to the target framebuffer.
+    /// GPU timing span for the current blit, set by the wrapping graph node on
+    /// sample frames (null = no timing). The first pass writes the begin
+    /// timestamp, the final pass the end timestamp.
+    /// </summary>
+    internal GpuTimestampSampler? TimestampSampler { get; set; }
+
+    /// <summary>The first query slot of the timing span in <see cref="TimestampSampler"/>.</summary>
+    internal int TimestampBaseSlot { get; set; }
+
+    /// <summary>
+    /// Anti-aliases the input and renders the result into the target with two fullscreen passes.
     /// </summary>
     /// <param name="input">The input render texture to anti-alias.</param>
     /// <param name="target">The target framebuffer to render to</param>
@@ -213,9 +223,13 @@ public class FXAA : TextureProcessor
             _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
         }
 
+        GpuTimestampSampler? timestamps = TimestampSampler;
         _commandFXAA.Begin();
 
-        using (var renderPass = _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
+        using (var renderPass = timestamps != null
+            ? _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+                timestamps.QuerySet, (uint)TimestampBaseSlot, null)
+            : _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
         {
             renderPass.SetPipeline(_fxaaPipelineInfo.Pipeline!);
             uint indexCount = renderPass.SetMesh(fullScreenMesh);
@@ -224,7 +238,10 @@ public class FXAA : TextureProcessor
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
-        using (var renderPass = _commandFXAA.BeginRender(target))
+        using (var renderPass = timestamps != null
+            ? _commandFXAA.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
+                timestamps.QuerySet, null, (uint)(TimestampBaseSlot + 1))
+            : _commandFXAA.BeginRender(target))
         {
             renderPass.SetPipeline(_blitPipelineInfo.Pipeline!);
             uint indexCount = renderPass.SetMesh(fullScreenMesh);
@@ -232,6 +249,10 @@ public class FXAA : TextureProcessor
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
+        if (timestamps != null)
+        {
+            timestamps.ResolveAll(_commandFXAA);
+        }
         _commandFXAA.End();
         _renderingSystem.ScheduleCommandBuffer(_commandFXAA);
     }

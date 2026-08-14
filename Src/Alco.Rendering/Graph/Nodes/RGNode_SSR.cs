@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 
@@ -27,6 +28,13 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         public Vector4 Params;
         public Vector4 RayParams;
     }
+
+    // GPU timestamp slots: two per pipeline stage (begin + end).
+    private const int CopyQueryBase = 0;
+    private const int TraceQueryBase = 2;
+    private const int ResolveQueryBase = 4;
+    private const int CompositeQueryBase = 6;
+    private const int TimestampSlotCount = 8;
 
     private readonly RenderingSystem _rendering;
     private readonly RenderGraph _graph;
@@ -68,6 +76,21 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     // The resource this node composites into, captured during Setup (the post chain
     // tail at this node's position — the scene color target in the usual case).
     private RenderGraphTexture? _input;
+
+    // Per-stage GPU timing (throttled sampler, 8 slots) and the profiler counters
+    // lazily registered on the first Execute. Cached GPU durations are re-pushed
+    // every frame because the profiler's BeginFrame clears its buffers.
+    private readonly GpuTimestampSampler? _gpuTimestamps;
+    private RenderProfileCounterId _cpuCounter;
+    private RenderProfileCounterId _copyGpuCounter;
+    private RenderProfileCounterId _traceGpuCounter;
+    private RenderProfileCounterId _resolveGpuCounter;
+    private RenderProfileCounterId _compositeGpuCounter;
+    private bool _profilerCountersRegistered;
+    private double _copyGpuMilliseconds;
+    private double _traceGpuMilliseconds;
+    private double _resolveGpuMilliseconds;
+    private double _compositeGpuMilliseconds;
 
     /// <inheritdoc />
     public bool IsEnabled
@@ -206,6 +229,11 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 
         _lastSsrOnly = voxelGi.SsrOnly;
         BindPersistentResources();
+
+        if (rendering.GraphicsDevice.TimestampQuerySupported)
+        {
+            _gpuTimestamps = new GpuTimestampSampler(rendering.GraphicsDevice, TimestampSlotCount, "ssr");
+        }
     }
 
     private uint TraceDimension(uint fullDimension)
@@ -335,8 +363,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 
     /// Renders the pass into <paramref name="target"/>: preserves the completed
     /// scene color, ray-traces reflections, resolves temporal history, and
-    /// composites the result in place.
-    private void Render(RenderContext renderContext, GPUFrameBuffer target)
+    /// composites the result in place. Each stage's pass carries its own GPU
+    /// timestamp pair when <paramref name="measureGpu"/> is set.
+    private void Render(RenderContext renderContext, GPUFrameBuffer target, bool measureGpu)
     {
         RenderTexture scene = _sceneColor.Texture;
         RenderTexture sceneCopy = _sceneCopy!;
@@ -373,14 +402,20 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         };
         _dataBuffer.UpdateBuffer(data);
 
+        GPUTimestampQuerySet? querySet = measureGpu ? _gpuTimestamps!.QuerySet : null;
+
         // Preserve the completed HDR scene before overwriting the pipeline target.
         _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, scene);
-        using (RenderPassScope pass = renderContext.BeginPass(sceneCopy.FrameBuffer))
+        using (RenderPassScope pass = querySet != null
+            ? renderContext.BeginPass(sceneCopy.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty, querySet, CopyQueryBase, CopyQueryBase + 1)
+            : renderContext.BeginPass(sceneCopy.FrameBuffer))
         {
             pass.Draw(_fullScreenMesh, _copyMaterial);
         }
 
-        using (RenderPassScope pass = renderContext.BeginPass(reflectionRaw.FrameBuffer))
+        using (RenderPassScope pass = querySet != null
+            ? renderContext.BeginPass(reflectionRaw.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty, querySet, TraceQueryBase, TraceQueryBase + 1)
+            : renderContext.BeginPass(reflectionRaw.FrameBuffer))
         {
             pass.Draw(_fullScreenMesh, _traceMaterial);
         }
@@ -390,7 +425,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             "_reflectionHistory", _reflectionHistory[_historyReadIndex], 0);
         _resolveMaterial.SetRenderTexture(
             "_historyMetadata", _reflectionHistory[_historyReadIndex], 1);
-        using (RenderPassScope pass = renderContext.BeginPass(_reflectionHistory[historyWriteIndex].FrameBuffer))
+        using (RenderPassScope pass = querySet != null
+            ? renderContext.BeginPass(_reflectionHistory[historyWriteIndex].FrameBuffer, ReadOnlySpan<ClearColorData>.Empty, querySet, ResolveQueryBase, ResolveQueryBase + 1)
+            : renderContext.BeginPass(_reflectionHistory[historyWriteIndex].FrameBuffer))
         {
             pass.Draw(_fullScreenMesh, _resolveMaterial);
         }
@@ -399,9 +436,16 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             "_reflection", _reflectionHistory[historyWriteIndex], 0);
         _compositeMaterial.SetRenderTexture(
             "_reflectionMetadata", _reflectionHistory[historyWriteIndex], 1);
-        using (RenderPassScope pass = renderContext.BeginPass(target))
+        using (RenderPassScope pass = querySet != null
+            ? renderContext.BeginPass(target, ReadOnlySpan<ClearColorData>.Empty, querySet, CompositeQueryBase, CompositeQueryBase + 1)
+            : renderContext.BeginPass(target))
         {
             pass.Draw(_fullScreenMesh, _compositeMaterial);
+            if (querySet != null)
+            {
+                // Resolve the whole slot range once the final pass closes.
+                pass.ResolveTimestampsOnEnd(querySet, 0, TimestampSlotCount, _gpuTimestamps!.ResolveBuffer);
+            }
         }
 
         _historyReadIndex = historyWriteIndex;
@@ -457,7 +501,54 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         {
             throw new InvalidOperationException("RGNode_SSR is not attached to a render graph (call Attach first).");
         }
-        Render(context.RenderContext, _input!.Texture.FrameBuffer);
+        long startTimestamp = Stopwatch.GetTimestamp();
+
+        bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
+        Render(context.RenderContext, _input!.Texture.FrameBuffer, measureGpu);
+
+        // Lazily register and push the profiler counters. The CPU value is pushed
+        // before the synchronous readback so the stall stays out of the metric;
+        // the cached GPU durations are re-pushed every frame (BeginFrame cleared
+        // the buffers).
+        RenderProfiler? profiler = _graph.Profiler;
+        if (profiler != null)
+        {
+            if (!_profilerCountersRegistered)
+            {
+                _cpuCounter = profiler.RegisterCounter("SSR", "Total (CPU)");
+                if (_gpuTimestamps != null)
+                {
+                    _copyGpuCounter = profiler.RegisterCounter("SSR", "Copy (GPU)");
+                    _traceGpuCounter = profiler.RegisterCounter("SSR", "Trace (GPU)");
+                    _resolveGpuCounter = profiler.RegisterCounter("SSR", "Resolve (GPU)");
+                    _compositeGpuCounter = profiler.RegisterCounter("SSR", "Composite (GPU)");
+                }
+                _profilerCountersRegistered = true;
+            }
+            double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
+            profiler.PushValue(_cpuCounter, elapsedMs);
+        }
+
+        if (measureGpu)
+        {
+            ulong[]? timestamps = _gpuTimestamps!.TryReadback();
+            if (timestamps != null)
+            {
+                _copyGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, CopyQueryBase, CopyQueryBase + 1);
+                _traceGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, TraceQueryBase, TraceQueryBase + 1);
+                _resolveGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, ResolveQueryBase, ResolveQueryBase + 1);
+                _compositeGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, CompositeQueryBase, CompositeQueryBase + 1);
+            }
+            _gpuTimestamps.EndSample();
+        }
+
+        if (profiler != null && _gpuTimestamps != null)
+        {
+            profiler.PushValue(_copyGpuCounter, _copyGpuMilliseconds);
+            profiler.PushValue(_traceGpuCounter, _traceGpuMilliseconds);
+            profiler.PushValue(_resolveGpuCounter, _resolveGpuMilliseconds);
+            profiler.PushValue(_compositeGpuCounter, _compositeGpuMilliseconds);
+        }
     }
 
     /// <inheritdoc />
@@ -475,6 +566,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             _reflectionHistory[0].Dispose();
             _reflectionHistory[1].Dispose();
             _historyLayout.Dispose();
+            _gpuTimestamps?.Dispose();
         }
     }
 }

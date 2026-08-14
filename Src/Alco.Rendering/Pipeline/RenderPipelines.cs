@@ -17,6 +17,7 @@ public static class RenderPipelines
 {
     // GPU timestamp query-slot bases of the preset's instrumented stages
     // (2 slots per stage: begin + end).
+    private const int ShadowQueryBase = 0;
     private const int GBufferQueryBase = 2;
     private const int LightingQueryBase = 4;
     private const int VolumetricLightQueryBase = 6;
@@ -114,7 +115,9 @@ public static class RenderPipelines
         BindLightingTargets(rendering, lightingMaterial, gbufferResource, shadowMapResource);
 
         // Register pipeline stage counters once; the returned handles are used for
-        // zero-allocation PushValue calls on the per-frame hot path.
+        // zero-allocation PushValue calls on the per-frame hot path. CPU and GPU
+        // timings use separate counters: the CPU value is pushed every frame, the
+        // GPU value only refreshes on the sampler's throttled sample frames.
         RenderProfileCounterId shadowCounter = profiler.RegisterCounter("Pipeline", "Shadow");
         RenderProfileCounterId gbufferCounter = profiler.RegisterCounter("Pipeline", "GBuffer");
         RenderProfileCounterId lightingCounter = profiler.RegisterCounter("Pipeline", "Lighting");
@@ -122,16 +125,29 @@ public static class RenderPipelines
 
         // GPU timestamp ring buffer for per-stage GPU timing, when the device
         // supports it. The frame-start readback and the sample end run as graph
-        // callback nodes (see below).
+        // callback nodes (see below). Padded-pair layout: every stage resolves
+        // its own slot pair right after it is written, so disabled stages simply
+        // keep their previous sample and no resolve ever touches unwritten slots.
         GpuTimestampSampler? gpuTimestamps = device.TimestampQuerySupported
-            ? new GpuTimestampSampler(device, TimestampSlotCount, "pbr_pipeline")
+            ? new GpuTimestampSampler(device, TimestampSlotCount, "pbr_pipeline", GpuTimestampSampler.PairStrideBytes)
             : null;
+
+        // GPU counters stay unregistered (and the callback pushes below no-op)
+        // on devices without timestamp query support.
+        RenderProfileCounterId shadowGpuCounter = gpuTimestamps != null ? profiler.RegisterCounter("Pipeline", "Shadow (GPU)") : default;
+        RenderProfileCounterId gbufferGpuCounter = gpuTimestamps != null ? profiler.RegisterCounter("Pipeline", "GBuffer (GPU)") : default;
+        RenderProfileCounterId lightingGpuCounter = gpuTimestamps != null ? profiler.RegisterCounter("Pipeline", "Lighting (GPU)") : default;
+        RenderProfileCounterId volumetricLightGpuCounter = gpuTimestamps != null ? profiler.RegisterCounter("Pipeline", "VolumetricLight (GPU)") : default;
 
         // The composed nodes, in execution order.
         var shadowNode = new RGNode_ShadowPass(shadowMapResource, environment.ShadowDataBufferTyped,
             environment.CascadeViewProjections, shadowMapSize)
         {
-            Instrumentation = new PassInstrumentation { Profiler = profiler, CpuCounter = shadowCounter },
+            Instrumentation = new PassInstrumentation
+            {
+                Profiler = profiler, CpuCounter = shadowCounter,
+                GpuTimestamps = gpuTimestamps, GpuQueryBase = ShadowQueryBase,
+            },
         };
         var gbufferNode = new RGNode_GeometryPass(gbufferResource,
             [
@@ -216,16 +232,22 @@ public static class RenderPipelines
         // Register the nodes in execution order.
         if (gpuTimestamps != null)
         {
-            // Frame start: read back the previous GPU timestamp sample (guaranteed
-            // GPU-complete via the sampler's throttled interval) and push the values
-            // to the profiler. Gating on ShouldRecord first flips the frame's sample
-            // flag, which both enables the readback and lets the instrumented nodes
-            // record their timestamps this frame.
+            // Frame start: republish the last-read GPU stage timings (the
+            // profiler's BeginFrame cleared them) and, on the sampler's throttled
+            // sample frames, read back the previous sample (guaranteed
+            // GPU-complete via the interval). Gating on ShouldRecord first flips
+            // the frame's sample flag, which both enables the readback and lets
+            // the instrumented nodes record their timestamps this frame.
             GpuTimestampSampler sampler = gpuTimestamps;
+            double shadowGpuMs = 0.0, gbufferGpuMs = 0.0, lightingGpuMs = 0.0, volumetricLightGpuMs = 0.0;
             graph.Use(new RGNode_Callback
             {
                 Callback = _ =>
                 {
+                    profiler.PushValue(shadowGpuCounter, shadowGpuMs);
+                    profiler.PushValue(gbufferGpuCounter, gbufferGpuMs);
+                    profiler.PushValue(lightingGpuCounter, lightingGpuMs);
+                    profiler.PushValue(volumetricLightGpuCounter, volumetricLightGpuMs);
                     if (!sampler.ShouldRecord)
                     {
                         return;
@@ -235,12 +257,10 @@ public static class RenderPipelines
                     {
                         return;
                     }
-                    profiler.PushValue(gbufferCounter,
-                        sampler.DeltaMilliseconds(timestamps, GBufferQueryBase, GBufferQueryBase + 1));
-                    profiler.PushValue(lightingCounter,
-                        sampler.DeltaMilliseconds(timestamps, LightingQueryBase, LightingQueryBase + 1));
-                    profiler.PushValue(volumetricLightCounter,
-                        sampler.DeltaMilliseconds(timestamps, VolumetricLightQueryBase, VolumetricLightQueryBase + 1));
+                    shadowGpuMs = sampler.DeltaMilliseconds(timestamps, ShadowQueryBase, ShadowQueryBase + 1);
+                    gbufferGpuMs = sampler.DeltaMilliseconds(timestamps, GBufferQueryBase, GBufferQueryBase + 1);
+                    lightingGpuMs = sampler.DeltaMilliseconds(timestamps, LightingQueryBase, LightingQueryBase + 1);
+                    volumetricLightGpuMs = sampler.DeltaMilliseconds(timestamps, VolumetricLightQueryBase, VolumetricLightQueryBase + 1);
                 },
             });
         }

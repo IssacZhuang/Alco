@@ -190,10 +190,8 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
     {
         Material material = _operator == TonemapType.Linear || _material == null ? _blitMaterial : _material;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
-        using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
-        {
-            pass.Draw(_fullScreenMesh, material);
-        }
+        using RenderPassScope pass = BeginProcessPass(output, context);
+        pass.Draw(_fullScreenMesh, material);
     }
 
     private void ApplyCurrentOperator()

@@ -111,10 +111,8 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
         if (!scene.HasDepth)
         {
             _materialFallback.SetRenderTexture(ShaderResourceId.Texture, input);
-            using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
-            {
-                pass.Draw(_fullScreenMesh, _materialFallback);
-            }
+            using RenderPassScope pass = BeginProcessPass(output, context);
+            pass.Draw(_fullScreenMesh, _materialFallback);
             return;
         }
 
@@ -126,15 +124,14 @@ public sealed class RGNode_DepthDebug : RGNode_ChainTransform
         _dataBuffer.Value.DynamicRange = DynamicRange;
         _dataBuffer.UpdateBuffer();
 
-        using (RenderPassScope pass = context.RenderContext.BeginPass(_tmpResource.Texture.FrameBuffer))
+        // The two passes share one timestamp pair bracketing the whole span.
+        using (RenderPassScope pass = BeginProcessSpanPass(_tmpResource.Texture.FrameBuffer, context))
         {
             pass.Draw(_fullScreenMesh, _materialBlitToTmp);
         }
 
-        using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
-        {
-            pass.Draw(_fullScreenMesh, _materialBlitToDestination);
-        }
+        using RenderPassScope destinationPass = EndProcessSpanPass(output.FrameBuffer, context);
+        destinationPass.Draw(_fullScreenMesh, _materialBlitToDestination);
     }
 
     /// <inheritdoc />

@@ -82,6 +82,17 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
             pass.Draw(_fullScreenMesh, _blitMaterial);
         }
 
+        // The pyramid runs on the effect's own command buffer; hand it this
+        // frame's timestamp span so the whole chain is bracketed by one pair.
+        if (Instrumentation is { ShouldRecordGpu: true } instrumentation)
+        {
+            _bloom.TimestampSampler = instrumentation.GpuTimestamps;
+            _bloom.TimestampBaseSlot = instrumentation.GpuQueryBase;
+        }
+        else
+        {
+            _bloom.TimestampSampler = null;
+        }
         _bloom.Blit(input, output.FrameBuffer);
     }
 

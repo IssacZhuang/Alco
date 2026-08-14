@@ -66,10 +66,8 @@ public sealed class RGNode_ColorGrading : RGNode_ChainTransform
     {
         Material material = _data.IsIdentity ? _blitMaterial : _gradingMaterial;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
-        using (RenderPassScope pass = context.RenderContext.BeginPass(output.FrameBuffer))
-        {
-            pass.Draw(_fullScreenMesh, material);
-        }
+        using RenderPassScope pass = BeginProcessPass(output, context);
+        pass.Draw(_fullScreenMesh, material);
     }
 
     /// <inheritdoc />

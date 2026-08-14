@@ -32,8 +32,8 @@ internal class NoCommandBuffer : GPUCommandBuffer
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
         float? clearDepth,
         uint? clearStencil,
         ReadOnlySpan<AttachmentOps> colorOps,
@@ -43,18 +43,18 @@ internal class NoCommandBuffer : GPUCommandBuffer
 
     protected override void EndRenderCore()
     {
-        
+
     }
 
     protected override void BeginComputeCore()
     {
-        
+
     }
 
     protected override void BeginComputeTimestampCore(
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex)
+        uint? beginningQueryIndex,
+        uint? endQueryIndex)
     {
     }
 

@@ -200,11 +200,23 @@ public class Bloom : TextureProcessor
         }
     }
 
+    /// <summary>
+    /// GPU timing span for the current pyramid, set by the wrapping graph node on
+    /// sample frames (null = no timing). The clamp pass writes the begin
+    /// timestamp, the final composite pass the end timestamp, so one pair covers
+    /// the whole down/up-sample chain.
+    /// </summary>
+    internal GpuTimestampSampler? TimestampSampler { get; set; }
+
+    /// <summary>The first query slot of the timing span in <see cref="TimestampSampler"/>.</summary>
+    internal int TimestampBaseSlot { get; set; }
+
     public override void Blit(RenderTexture input, GPUFrameBuffer target)
     {
         EnsurePyramid(input);
 
         Mesh mesh = FullScreenMesh;
+        GpuTimestampSampler? timestamps = TimestampSampler;
 
         _command.Begin();
 
@@ -216,7 +228,10 @@ public class Bloom : TextureProcessor
         }
 
         //clamp
-        using (var renderPass = _command.BeginRender(clampFrame.FrameBuffer))
+        using (var renderPass = timestamps != null
+            ? _command.BeginRender(clampFrame.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+                timestamps.QuerySet, (uint)TimestampBaseSlot, null)
+            : _command.BeginRender(clampFrame.FrameBuffer))
         {
             renderPass.SetPipeline(_clampPipelineInfo);
             uint indexCount = renderPass.SetMesh(mesh);
@@ -311,7 +326,10 @@ public class Bloom : TextureProcessor
         }
 
         //blit
-        using (var renderPass = _command.BeginRender(target))
+        using (var renderPass = timestamps != null
+            ? _command.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
+                timestamps.QuerySet, null, (uint)(TimestampBaseSlot + 1))
+            : _command.BeginRender(target))
         {
             renderPass.SetPipeline(_blitPipelineInfo);
             uint indexCount = renderPass.SetMesh(mesh);
@@ -325,6 +343,10 @@ public class Bloom : TextureProcessor
             renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
         }
 
+        if (timestamps != null)
+        {
+            timestamps.ResolveAll(_command);
+        }
         _command.End();
         _renderingSystem.ScheduleCommandBuffer(_command);
     }

@@ -340,13 +340,16 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     }
 
     /// <summary>
-    /// Begins a render pass and writes timestamps at its beginning and end.
+    /// Begins a render pass and writes timestamps at its beginning and/or end.
+    /// A null index skips the corresponding write, which allows bracketing a span
+    /// of consecutive passes with one timestamp pair (begin on the first pass,
+    /// end on the last).
     /// </summary>
     /// <param name="frameBuffer">The target framebuffer.</param>
     /// <param name="clearColors">Attachment clear values.</param>
     /// <param name="querySet">The destination timestamp query set.</param>
-    /// <param name="beginningQueryIndex">The slot written when the pass begins.</param>
-    /// <param name="endQueryIndex">The slot written when the pass ends.</param>
+    /// <param name="beginningQueryIndex">The slot written when the pass begins, or null to skip.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends, or null to skip.</param>
     /// <param name="clearDepth">Optional depth clear value.</param>
     /// <param name="clearStencil">Optional stencil clear value.</param>
     /// <param name="colorOps">Optional per-color-attachment load/store ops, indexed by attachment. A clear specified through <paramref name="clearColors"/> takes precedence over the load op.</param>
@@ -356,8 +359,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
         float? clearDepth = null,
         uint? clearStencil = null,
         ReadOnlySpan<AttachmentOps> colorOps = default,
@@ -370,6 +373,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         if (_isRecordingCompute)
         {
             throw new InvalidOperationException("Compute pass is already recording, try end current pass before starting a new one");
+        }
+        if (beginningQueryIndex == null && endQueryIndex == null)
+        {
+            throw new ArgumentException("At least one of the timestamp query indices must be non-null.");
         }
         if (beginningQueryIndex >= querySet.Count || endQueryIndex >= querySet.Count)
         {
@@ -399,20 +406,26 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     }
 
     /// <summary>
-    /// Begins a compute pass and writes timestamps at its beginning and end.
+    /// Begins a compute pass and writes timestamps at its beginning and/or end.
+    /// A null index skips the corresponding write (see
+    /// <see cref="BeginRender(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, GPUTimestampQuerySet, uint?, uint?, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>).
     /// </summary>
     /// <param name="querySet">The destination timestamp query set.</param>
-    /// <param name="beginningQueryIndex">The slot written when the pass begins.</param>
-    /// <param name="endQueryIndex">The slot written when the pass ends.</param>
+    /// <param name="beginningQueryIndex">The slot written when the pass begins, or null to skip.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends, or null to skip.</param>
     /// <returns>An RAII compute-pass scope.</returns>
     public ComputePass BeginCompute(
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex)
+        uint? beginningQueryIndex,
+        uint? endQueryIndex)
     {
         if (_isRecordingRender || _isRecordingCompute)
         {
             throw new InvalidOperationException("Another GPU pass is already recording.");
+        }
+        if (beginningQueryIndex == null && endQueryIndex == null)
+        {
+            throw new ArgumentException("At least one of the timestamp query indices must be non-null.");
         }
         if (beginningQueryIndex >= querySet.Count || endQueryIndex >= querySet.Count)
         {
@@ -510,8 +523,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
         float? clearDepth,
         uint? clearStencil,
         ReadOnlySpan<AttachmentOps> colorOps,
@@ -521,8 +534,8 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void BeginComputeCore();
     protected abstract void BeginComputeTimestampCore(
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex);
+        uint? beginningQueryIndex,
+        uint? endQueryIndex);
     protected abstract void WriteTimestampInsidePassCore(
         GPUTimestampQuerySet querySet,
         uint queryIndex);

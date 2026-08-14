@@ -47,6 +47,45 @@ public sealed class PassInstrumentation
     }
 
     /// <summary>
+    /// Begins the first pass of a measured span: only the begin timestamp is
+    /// written, so consecutive passes can be bracketed by one timestamp pair —
+    /// open the last pass of the span with <see cref="EndSpanPass"/> and resolve
+    /// there via <see cref="ScheduleResolve"/>. No-op pass opening when GPU
+    /// timing is disabled.
+    /// </summary>
+    /// <returns>The pass scope; dispose it (or use <c>using</c>) to close the pass.</returns>
+    public RenderPassScope BeginSpanPass(RenderContext context, GPUFrameBuffer target, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth = null)
+    {
+        if (ShouldRecordGpu)
+        {
+            return context.BeginPass(target, clearColors, GpuTimestamps!.QuerySet, (uint)GpuQueryBase, null, clearDepth);
+        }
+
+        return context.BeginPass(target, clearColors, clearDepth);
+    }
+
+    /// <summary>
+    /// Begins the last pass of a span opened with <see cref="BeginSpanPass"/>:
+    /// only the end timestamp is written. Call <see cref="ScheduleResolve"/> on
+    /// the returned scope so the span's slot pair resolves when the pass closes.
+    /// </summary>
+    /// <returns>The pass scope; dispose it (or use <c>using</c>) to close the pass.</returns>
+    public RenderPassScope EndSpanPass(RenderContext context, GPUFrameBuffer target, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth = null)
+    {
+        if (ShouldRecordGpu)
+        {
+            return context.BeginPass(target, clearColors, GpuTimestamps!.QuerySet, null, (uint)GpuQueryBase + 1, clearDepth);
+        }
+
+        return context.BeginPass(target, clearColors, clearDepth);
+    }
+
+    /// <summary>
+    /// Schedules the resolve of the GPU timestamps recorded since <see cref="BeginPass"/>
+    /// into the sampler's resolve buffer, to run when <paramref name="pass"/> closes.
+    /// No-op when <see cref="ShouldRecordGpu"/> is not set.
+    /// </summary>
+    /// <summary>
     /// Schedules the resolve of the GPU timestamps recorded since <see cref="BeginPass"/>
     /// into the sampler's resolve buffer, to run when <paramref name="pass"/> closes.
     /// No-op when <see cref="ShouldRecordGpu"/> is not set.
@@ -55,7 +94,18 @@ public sealed class PassInstrumentation
     {
         if (ShouldRecordGpu)
         {
-            pass.ResolveTimestampsOnEnd(GpuTimestamps!.QuerySet, (uint)GpuQueryBase, 2, GpuTimestamps.ResolveBuffer);
+            GpuTimestampSampler sampler = GpuTimestamps!;
+            if (sampler.UsesPaddedPairs)
+            {
+                // Shared sampler: this stage's pair resolves into its own
+                // stride-aligned region (the pair index follows the query base).
+                sampler.ResolvePair(pass, GpuQueryBase / 2);
+            }
+            else
+            {
+                // Private sampler: the whole (fully written) range at offset 0.
+                sampler.ResolveAll(pass);
+            }
         }
     }
 

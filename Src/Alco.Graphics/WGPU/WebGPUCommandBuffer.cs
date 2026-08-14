@@ -121,8 +121,8 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
         float? clearDepth,
         uint? clearStencil,
         ReadOnlySpan<AttachmentOps> colorOps,
@@ -131,8 +131,8 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         WGPUPassTimestampWrites timestampWrites = new()
         {
             querySet = ((WebGPUTimestampQuerySet)querySet).Native,
-            beginningOfPassWriteIndex = beginningQueryIndex,
-            endOfPassWriteIndex = endQueryIndex,
+            beginningOfPassWriteIndex = ToTimestampIndex(beginningQueryIndex),
+            endOfPassWriteIndex = ToTimestampIndex(endQueryIndex),
         };
         BeginRenderInternal(frameBuffer, clearColors, clearDepth, clearStencil, colorOps, depthOps, &timestampWrites);
     }
@@ -281,8 +281,8 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     protected override void BeginComputeTimestampCore(
         GPUTimestampQuerySet querySet,
-        uint beginningQueryIndex,
-        uint endQueryIndex)
+        uint? beginningQueryIndex,
+        uint? endQueryIndex)
     {
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
@@ -290,14 +290,21 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         WGPUPassTimestampWrites timestampWrites = new()
         {
             querySet = ((WebGPUTimestampQuerySet)querySet).Native,
-            beginningOfPassWriteIndex = beginningQueryIndex,
-            endOfPassWriteIndex = endQueryIndex,
+            beginningOfPassWriteIndex = ToTimestampIndex(beginningQueryIndex),
+            endOfPassWriteIndex = ToTimestampIndex(endQueryIndex),
         };
         WGPUComputePassDescriptor descriptor = new()
         {
             timestampWrites = &timestampWrites,
         };
         _computePass = wgpuCommandEncoderBeginComputePass(_encoder, &descriptor);
+    }
+
+    // wgpu-native marks an absent timestamp write with the all-ones sentinel
+    // (WGPU_QUERY_SET_INDEX_UNDEFINED) instead of a null index.
+    private static uint ToTimestampIndex(uint? queryIndex)
+    {
+        return queryIndex ?? WGPU_QUERY_SET_INDEX_UNDEFINED;
     }
 
     protected override void EndComputeCore()

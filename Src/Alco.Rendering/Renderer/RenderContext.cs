@@ -127,14 +127,17 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     }
 
     /// <summary>
-    /// Begins a render pass with GPU timestamp writes at pass begin and end.
-    /// Only call this when <see cref="GPUDevice.TimestampQuerySupported"/> is true.
+    /// Begins a render pass with GPU timestamp writes at pass begin and/or end.
+    /// A null index skips the corresponding write, which allows bracketing a span
+    /// of consecutive passes with one timestamp pair (begin on the first pass,
+    /// end on the last). Only call this when
+    /// <see cref="GPUDevice.TimestampQuerySupported"/> is true.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
     /// <param name="clearColors">Attachment clear values.</param>
     /// <param name="querySet">The destination timestamp query set.</param>
-    /// <param name="beginQueryIndex">The slot written when the pass begins.</param>
-    /// <param name="endQueryIndex">The slot written when the pass ends.</param>
+    /// <param name="beginQueryIndex">The slot written when the pass begins, or null to skip.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends, or null to skip.</param>
     /// <param name="clearDepth">Optional depth clear value.</param>
     /// <param name="clearStencil">Optional stencil clear value.</param>
     /// <param name="colorOps">Optional per-color-attachment load/store ops.</param>
@@ -144,8 +147,8 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         GPUFrameBuffer target,
         ReadOnlySpan<ClearColorData> clearColors,
         GPUTimestampQuerySet querySet,
-        uint beginQueryIndex,
-        uint endQueryIndex,
+        uint? beginQueryIndex,
+        uint? endQueryIndex,
         float? clearDepth = null,
         uint? clearStencil = null,
         ReadOnlySpan<AttachmentOps> colorOps = default,

@@ -53,9 +53,6 @@ public class RGNode_FullscreenPass : RGNode_ChainTransform
     /// <summary>The full-screen material.</summary>
     public Material Material => _material;
 
-    /// <summary>Optional CPU/GPU stage instrumentation.</summary>
-    public PassInstrumentation? Instrumentation { get; set; }
-
     /// <summary>Binds a resource's facade to a material parameter (color attachment
     /// <paramref name="attachmentIndex"/>). Stable across frames.</summary>
     public void BindTexture(string name, RenderGraphTexture resource, int attachmentIndex = 0)
@@ -88,15 +85,7 @@ public class RGNode_FullscreenPass : RGNode_ChainTransform
             _material.SetRenderTexture(_inputBinding, input);
         }
 
-        long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
-        RenderPassScope pass = Instrumentation != null
-            ? Instrumentation.BeginPass(context.RenderContext, output.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty)
-            : context.RenderContext.BeginPass(output.FrameBuffer);
-        using (pass)
-        {
-            pass.Draw(_fullScreenMesh, _material);
-            Instrumentation?.ScheduleResolve(pass);
-        }
-        Instrumentation?.PushCpuTiming(startTicks);
+        using RenderPassScope pass = BeginProcessPass(output, context);
+        pass.Draw(_fullScreenMesh, _material);
     }
 }

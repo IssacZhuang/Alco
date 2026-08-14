@@ -1,4 +1,5 @@
 using System.Numerics;
+using Alco.Graphics;
 
 namespace Alco.Rendering;
 
@@ -97,14 +98,34 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
         }
         _cascadeData.UpdateBuffer();
 
+        // The GPU timestamp pair brackets all four cascade passes: the begin
+        // timestamp rides the first pass, the end timestamp (and the resolve) the
+        // last one.
         List<IShadowPassContent> content = Content;
+        GPUFrameBuffer shadowFrameBuffer = _shadowMap.Texture.FrameBuffer;
         for (int c = 0; c < CascadeCount; c++)
         {
-            // The scissor is essential: geometry outside this cascade's orthographic
-            // box can otherwise transform into another atlas quadrant and corrupt
-            // that cascade's depth values.
-            using (RenderPassScope pass = context.RenderContext.BeginPass(_shadowMap.Texture.FrameBuffer, clearDepth: c == 0 ? 1.0f : null))
+            float? cascadeClearDepth = c == 0 ? 1.0f : null;
+            RenderPassScope pass;
+            if (Instrumentation != null && c == 0)
             {
+                pass = Instrumentation.BeginSpanPass(context.RenderContext, shadowFrameBuffer,
+                    ReadOnlySpan<ClearColorData>.Empty, cascadeClearDepth);
+            }
+            else if (Instrumentation != null && c == CascadeCount - 1)
+            {
+                pass = Instrumentation.EndSpanPass(context.RenderContext, shadowFrameBuffer,
+                    ReadOnlySpan<ClearColorData>.Empty, cascadeClearDepth);
+            }
+            else
+            {
+                pass = context.RenderContext.BeginPass(shadowFrameBuffer, clearDepth: cascadeClearDepth);
+            }
+            using (pass)
+            {
+                // The scissor is essential: geometry outside this cascade's orthographic
+                // box can otherwise transform into another atlas quadrant and corrupt
+                // that cascade's depth values.
                 pass.SetScissorRect((uint)(c % 2) * _shadowMapSize, (uint)(c / 2) * _shadowMapSize, _shadowMapSize, _shadowMapSize);
                 for (int i = 0; i < content.Count; i++)
                 {
@@ -112,6 +133,10 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
                     {
                         content[i].OnRenderShadow(pass, c);
                     }
+                }
+                if (c == CascadeCount - 1)
+                {
+                    Instrumentation?.ScheduleResolve(pass);
                 }
             }
         }

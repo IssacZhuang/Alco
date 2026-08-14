@@ -55,6 +55,13 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     private const int ShadowCoverageSize = 256;
     private const float DetailDriftSpeed = 0.012f; // detail uvw units per second (200 m texture period)
 
+    // GPU timestamp slots: two per timed stage (begin + end). The one-time noise
+    // bake is not measured.
+    private const int ShadowBakeQueryBase = 0;
+    private const int MarchQueryBase = 2;
+    private const int CompositeQueryBase = 4;
+    private const int TimestampSlotCount = 6;
+
     private readonly RenderingSystem _rendering;
     private readonly GPUDevice _device;
     private readonly GraphicsMaterial _marchMaterial;
@@ -95,7 +102,17 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 
     // Profiler counter handle — lazily registered on first Execute.
     private RenderProfileCounterId _cpuCounter;
+    private RenderProfileCounterId _shadowBakeGpuCounter;
+    private RenderProfileCounterId _marchGpuCounter;
+    private RenderProfileCounterId _compositeGpuCounter;
     private bool _profilerCounterRegistered;
+
+    // Per-stage GPU timing (throttled sampler, 6 slots) and the cached durations
+    // re-pushed to the profiler every frame (its BeginFrame clears the buffers).
+    private readonly GpuTimestampSampler? _gpuTimestamps;
+    private double _shadowBakeGpuMilliseconds;
+    private double _marchGpuMilliseconds;
+    private double _compositeGpuMilliseconds;
 
     /// <summary>Cloud coverage (0 = clear sky, 1 = overcast). Slides the
     /// coverage window over the noise field, growing existing clouds before
@@ -242,6 +259,11 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         _compositeMaterial.RasterizerState = RasterizerState.CullNone;
         _compositeMaterial.BlendState = BlendState.PremultipliedAlpha;
         _compositeMaterial.SetBuffer("_cloudData", _dataBuffer);
+
+        if (_device.TimestampQuerySupported)
+        {
+            _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "volumetric_clouds");
+        }
     }
 
     /// <summary>
@@ -426,6 +448,8 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 
         GPUCommandBuffer commandBuffer = context.RenderContext.CommandBuffer;
 
+        bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
+
         // One-time 3D noise bake (dispatched into the frame's command buffer so
         // no out-of-band submission is needed; the textures persist afterwards).
         if (!_noiseBaked)
@@ -440,33 +464,76 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 
         // Cloud shadow coverage bake around the camera (read by the lighting
         // pass next frame).
-        using (GPUCommandBuffer.ComputePass shadowPass = commandBuffer.BeginCompute())
+        using (GPUCommandBuffer.ComputePass shadowPass = measureGpu
+            ? commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, ShadowBakeQueryBase, ShadowBakeQueryBase + 1)
+            : commandBuffer.BeginCompute())
         {
             _shadowBakeMaterial.DispatchBySize(shadowPass, ShadowCoverageSize, ShadowCoverageSize, 1);
         }
 
         // Half-resolution cloud march, then the full-resolution composite over
         // the chain's current content.
-        using (RenderPassScope marchPass = context.RenderContext.BeginPass(marchTarget.FrameBuffer))
+        using (RenderPassScope marchPass = measureGpu
+            ? context.RenderContext.BeginPass(marchTarget.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+                _gpuTimestamps!.QuerySet, MarchQueryBase, MarchQueryBase + 1)
+            : context.RenderContext.BeginPass(marchTarget.FrameBuffer))
         {
             marchPass.Draw(_fullScreenMesh, _marchMaterial);
         }
-        using (RenderPassScope compositePass = context.RenderContext.BeginPass(_compositeTarget!.Texture.FrameBuffer))
+        using (RenderPassScope compositePass = measureGpu
+            ? context.RenderContext.BeginPass(_compositeTarget!.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+                _gpuTimestamps!.QuerySet, CompositeQueryBase, CompositeQueryBase + 1)
+            : context.RenderContext.BeginPass(_compositeTarget!.Texture.FrameBuffer))
         {
             compositePass.Draw(_fullScreenMesh, _compositeMaterial);
+            if (measureGpu)
+            {
+                // Resolve the whole slot range once the final pass closes.
+                compositePass.ResolveTimestampsOnEnd(
+                    _gpuTimestamps!.QuerySet, 0, TimestampSlotCount, _gpuTimestamps.ResolveBuffer);
+            }
         }
 
-        // Lazily register and push the profiler counter.
+        // Lazily register and push the profiler counters. The CPU value is pushed
+        // before the synchronous readback so the stall stays out of the metric
+        // (the recorded resolves have not executed yet — submission happens at
+        // frame end — so the buffer still holds the previous sample); the cached
+        // GPU durations are re-pushed every frame (BeginFrame cleared the buffers).
         RenderProfiler? profiler = _graph!.Profiler;
         if (profiler != null)
         {
             if (!_profilerCounterRegistered)
             {
                 _cpuCounter = profiler.RegisterCounter("VolumetricClouds", "Total (CPU)");
+                if (_gpuTimestamps != null)
+                {
+                    _shadowBakeGpuCounter = profiler.RegisterCounter("VolumetricClouds", "Shadow Bake (GPU)");
+                    _marchGpuCounter = profiler.RegisterCounter("VolumetricClouds", "March (GPU)");
+                    _compositeGpuCounter = profiler.RegisterCounter("VolumetricClouds", "Composite (GPU)");
+                }
                 _profilerCounterRegistered = true;
             }
             double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
             profiler.PushValue(_cpuCounter, elapsedMs);
+        }
+
+        if (measureGpu)
+        {
+            ulong[]? timestamps = _gpuTimestamps!.TryReadback();
+            if (timestamps != null)
+            {
+                _shadowBakeGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, ShadowBakeQueryBase, ShadowBakeQueryBase + 1);
+                _marchGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, MarchQueryBase, MarchQueryBase + 1);
+                _compositeGpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, CompositeQueryBase, CompositeQueryBase + 1);
+            }
+            _gpuTimestamps.EndSample();
+        }
+
+        if (profiler != null && _gpuTimestamps != null)
+        {
+            profiler.PushValue(_shadowBakeGpuCounter, _shadowBakeGpuMilliseconds);
+            profiler.PushValue(_marchGpuCounter, _marchGpuMilliseconds);
+            profiler.PushValue(_compositeGpuCounter, _compositeGpuMilliseconds);
         }
     }
 
@@ -479,6 +546,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             _detailNoise.Dispose();
             _shadowCoverage.Dispose();
             _dataBuffer.Dispose();
+            _gpuTimestamps?.Dispose();
         }
     }
 

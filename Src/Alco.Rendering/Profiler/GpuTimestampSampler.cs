@@ -17,13 +17,30 @@ namespace Alco.Rendering;
 /// Call <see cref="TryReadback"/> to get the previous sample's timestamps (returns
 /// null if none are available or this isn't a sample frame).
 /// </para>
+/// <para>
+/// Two resolve layouts exist. The default contiguous layout packs the slots
+/// tightly and is served by <see cref="ResolveAll"/> — valid when every slot is
+/// written before the resolve runs (the sampler's owner resolves once, after all
+/// its passes). The padded-pair layout (<paramref name="pairStrideBytes"/>) gives
+/// each consecutive slot pair its own stride-aligned buffer region served by
+/// <see cref="ResolvePair(RenderPassScope, int)"/> — for samplers shared by
+/// several passes that resolve their own pair right after it is written.
+/// Resolving only already-written slots matters: mid-frame resolves of slots not
+/// yet written can lose the device on some backends.
+/// </para>
 /// </summary>
 public sealed class GpuTimestampSampler : AutoDisposable
 {
+    // Backends align query-resolve destination offsets (256 bytes on Vulkan);
+    // one stride covers the strictest backend. See ResolvePair.
+    public const int PairStrideBytes = 256;
+
     private readonly GPUDevice _device;
     private readonly GPUTimestampQuerySet _querySet;
     private readonly GPUBuffer _resolveBuffer;
     private readonly ulong[] _stagingArray;
+    private readonly ulong[]? _paddedReadbackArray;
+    private readonly int _pairStrideBytes;
     private readonly double _intervalSeconds;
     private readonly Stopwatch _timer = new();
     private bool _hasPending;
@@ -34,6 +51,14 @@ public sealed class GpuTimestampSampler : AutoDisposable
 
     /// <summary>The resolve buffer for the current sample frame.</summary>
     public GPUBuffer ResolveBuffer => _resolveBuffer;
+
+    /// <summary>The number of timestamp query slots.</summary>
+    public int SlotCount => _stagingArray.Length;
+
+    /// <summary>Whether consecutive slot pairs resolve into padded, stride-aligned
+    /// buffer regions (<see cref="ResolvePair(RenderPassScope, int)"/>); when
+    /// false, the slots pack contiguously (<see cref="ResolveAll"/>).</summary>
+    public bool UsesPaddedPairs => _pairStrideBytes > 0;
 
     /// <summary>Whether the device supports in-pass timestamp writes.</summary>
     public bool SupportsInPassTimestamps => _device.TimestampQueryInsidePassesSupported;
@@ -57,31 +82,56 @@ public sealed class GpuTimestampSampler : AutoDisposable
     }
 
     /// <summary>
-    /// Create a throttled GPU timestamp sampler.
+    /// Create a throttled GPU timestamp sampler with the contiguous resolve layout.
     /// </summary>
     /// <param name="device">The GPU device (must support timestamp queries).</param>
     /// <param name="slotCount">The number of timestamp query slots.</param>
     /// <param name="name">A diagnostic name used for GPU resource labels.</param>
     /// <param name="intervalSeconds">The minimum time between samples (default 1s).</param>
     public GpuTimestampSampler(GPUDevice device, int slotCount, string name, double intervalSeconds = 1.0)
+        : this(device, slotCount, name, pairStrideBytes: 0, intervalSeconds)
+    {
+    }
+
+    /// <summary>
+    /// Create a throttled GPU timestamp sampler with an explicit resolve layout.
+    /// </summary>
+    /// <param name="device">The GPU device (must support timestamp queries).</param>
+    /// <param name="slotCount">The number of timestamp query slots.</param>
+    /// <param name="name">A diagnostic name used for GPU resource labels.</param>
+    /// <param name="pairStrideBytes">When positive, the padded-pair layout: each
+    /// consecutive slot pair resolves into its own region of this size (must be
+    /// at least 16 and aligned to the backend's query-resolve buffer alignment —
+    /// use <see cref="PairStrideBytes"/>). Zero selects the contiguous layout.</param>
+    /// <param name="intervalSeconds">The minimum time between samples (default 1s).</param>
+    public GpuTimestampSampler(GPUDevice device, int slotCount, string name, int pairStrideBytes, double intervalSeconds = 1.0)
     {
         _device = device;
         _intervalSeconds = intervalSeconds;
+        _pairStrideBytes = pairStrideBytes;
         _querySet = device.CreateTimestampQuerySet((uint)slotCount, name + "_timestamps");
+        uint resolveSize = pairStrideBytes > 0
+            ? (uint)(slotCount / 2 * pairStrideBytes)
+            : sizeof(ulong) * (uint)slotCount;
         _resolveBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Usage = BufferUsage.QueryResolve | BufferUsage.CopySrc,
-            Size = sizeof(ulong) * (uint)slotCount,
+            Size = resolveSize,
             Name = name + "_resolve",
         });
         _stagingArray = new ulong[slotCount];
+        if (pairStrideBytes > 0)
+        {
+            _paddedReadbackArray = new ulong[resolveSize / sizeof(ulong)];
+        }
         _timer.Start();
     }
 
     /// <summary>
     /// Read back timestamps from the previous sample. Returns null if this isn't
     /// a sample frame or no previous data exists. Call on sample frames
-    /// (<see cref="ShouldRecord"/> == true) before recording new timestamps.
+    /// (<see cref="ShouldRecord"/> == true); the returned array is indexed by
+    /// logical slot regardless of the resolve layout.
     /// </summary>
     /// <returns>The timestamp array, or null.</returns>
     public ulong[]? TryReadback()
@@ -91,7 +141,22 @@ public sealed class GpuTimestampSampler : AutoDisposable
             return null;
         }
 
-        _device.ReadBuffer(_resolveBuffer, _stagingArray);
+        if (_paddedReadbackArray != null)
+        {
+            // Compaction: pair i lives at buffer offset i * stride, but consumers
+            // index the staging array by logical slot.
+            _device.ReadBuffer(_resolveBuffer, _paddedReadbackArray);
+            int strideUlongs = _pairStrideBytes / sizeof(ulong);
+            for (int i = 0; i < SlotCount / 2; i++)
+            {
+                _stagingArray[i * 2] = _paddedReadbackArray[i * strideUlongs];
+                _stagingArray[i * 2 + 1] = _paddedReadbackArray[i * strideUlongs + 1];
+            }
+        }
+        else
+        {
+            _device.ReadBuffer(_resolveBuffer, _stagingArray);
+        }
         _hasPending = false;
         return _stagingArray;
     }
@@ -126,6 +191,47 @@ public sealed class GpuTimestampSampler : AutoDisposable
                 * _device.TimestampPeriodNanoseconds / 1_000_000.0;
         }
         return 0.0;
+    }
+
+    /// <summary>
+    /// Schedule (at <paramref name="pass"/> close) a resolve of the sampler's
+    /// whole query set into the resolve buffer at offset 0 — the layout
+    /// <see cref="DeltaMilliseconds"/> reads back. Contiguous layout only, and
+    /// only valid once every slot has been written this frame. A repeated
+    /// identical resolve is harmless.
+    /// </summary>
+    /// <param name="pass">An open pass scope; the resolve runs when it closes.</param>
+    public void ResolveAll(RenderPassScope pass)
+    {
+        pass.ResolveTimestampsOnEnd(QuerySet, 0, (uint)SlotCount, ResolveBuffer);
+    }
+
+    /// <summary>
+    /// Record a resolve of the sampler's whole query set into its resolve buffer
+    /// at offset 0. Contiguous layout only; every slot must have been written
+    /// before the resolve executes. Call outside any render/compute pass while
+    /// the command buffer is recording.
+    /// </summary>
+    /// <param name="command">The recording command buffer.</param>
+    public void ResolveAll(GPUCommandBuffer command)
+    {
+        command.ResolveTimestamps(QuerySet, 0, (uint)SlotCount, ResolveBuffer);
+    }
+
+    /// <summary>
+    /// Schedule (at <paramref name="pass"/> close) a resolve of one slot pair
+    /// into its own stride-aligned region of the resolve buffer, so passes
+    /// sharing the sampler never overwrite each other's timings. Padded-pair
+    /// layout only; call on the pass that writes the pair's end timestamp, after
+    /// both of its slots have been written.
+    /// </summary>
+    /// <param name="pass">An open pass scope; the resolve runs when it closes.</param>
+    /// <param name="pairIndex">The pair to resolve; pair <c>i</c> covers slots
+    /// <c>2i</c> and <c>2i+1</c>.</param>
+    public void ResolvePair(RenderPassScope pass, int pairIndex)
+    {
+        pass.ResolveTimestampsOnEnd(QuerySet, (uint)(pairIndex * 2), 2, ResolveBuffer,
+            (ulong)(pairIndex * _pairStrideBytes));
     }
 
     /// <inheritdoc />

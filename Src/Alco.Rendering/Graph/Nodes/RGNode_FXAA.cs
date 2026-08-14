@@ -38,7 +38,7 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     /// (color-only, in the chain's content format).</param>
     /// <param name="fxaa">The FXAA effect implementation.</param>
     public RGNode_FXAA(RenderGraph graph, RenderChain chain, GPUAttachmentLayout outputLayout, FXAA fxaa)
-        : base(graph, chain, outputLayout, name: "fxaa")
+        : base(graph, chain, outputLayout, name: "FXAA")
     {
         _fxaa = fxaa;
     }
@@ -46,6 +46,17 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     /// <inheritdoc />
     protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
     {
+        // The effect runs on its own command buffer; hand it this frame's
+        // timestamp span so both passes are bracketed by one pair.
+        if (Instrumentation is { ShouldRecordGpu: true } instrumentation)
+        {
+            _fxaa.TimestampSampler = instrumentation.GpuTimestamps;
+            _fxaa.TimestampBaseSlot = instrumentation.GpuQueryBase;
+        }
+        else
+        {
+            _fxaa.TimestampSampler = null;
+        }
         _fxaa.Blit(input, output.FrameBuffer);
     }
 

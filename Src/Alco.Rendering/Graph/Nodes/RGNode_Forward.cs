@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 
@@ -100,6 +101,15 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     private readonly SubRenderContext _dynamicBundle;
     private GPUAttachmentLayout? _bundleLayout;
 
+    // Per-pass GPU timing (throttled sampler, one slot pair wrapping the final
+    // pass) and the profiler counters lazily registered on the first render. The
+    // cached GPU duration is re-pushed every frame (BeginFrame clears buffers).
+    private readonly GpuTimestampSampler? _gpuTimestamps;
+    private RenderProfileCounterId _cpuCounter;
+    private RenderProfileCounterId _gpuCounter;
+    private bool _profilerCountersRegistered;
+    private double _gpuMilliseconds;
+
     /// <summary>
     /// Create the forward renderer with the glass shader and shared pipeline resources.
     /// </summary>
@@ -127,6 +137,11 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         _shadowRT = shadowRT;
         _staticBundle = rendering.CreateSubRenderContext("pbr_forward_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_forward_dynamic");
+
+        if (rendering.GraphicsDevice.TimestampQuerySupported)
+        {
+            _gpuTimestamps = new GpuTimestampSampler(rendering.GraphicsDevice, 2, "forward_pass");
+        }
     }
 
     /// <summary>
@@ -190,48 +205,93 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     /// opened on its frame-shared <see cref="RenderGraphContext.RenderContext"/>.</param>
     protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
     {
-        if (_staticItems.Count == 0 && _dynamicItems.Count == 0)
-        {
-            return;
-        }
+        long startTimestamp = Stopwatch.GetTimestamp();
 
-        _bundleLayout = layout;
+        bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
 
-        if (_staticItems.Count > 0 && _staticBundleDirty)
+        if (_staticItems.Count > 0 || _dynamicItems.Count > 0)
         {
-            using (RenderPassScope pass = _staticBundle.BeginPass(layout))
+            _bundleLayout = layout;
+
+            if (_staticItems.Count > 0 && _staticBundleDirty)
             {
-                for (int i = 0; i < _staticItems.Count; i++)
+                using (RenderPassScope pass = _staticBundle.BeginPass(layout))
                 {
-                    DrawItem(_staticItems[i], pass);
+                    for (int i = 0; i < _staticItems.Count; i++)
+                    {
+                        DrawItem(_staticItems[i], pass);
+                    }
+                }
+                _staticBundleDirty = false;
+            }
+
+            SubRenderContext? dynamicBundle = null;
+            if (_dynamicItems.Count > 0)
+            {
+                using (RenderPassScope pass = _dynamicBundle.BeginPass(layout))
+                {
+                    for (int i = 0; i < _dynamicItems.Count; i++)
+                    {
+                        DrawItem(_dynamicItems[i], pass);
+                    }
+                }
+                dynamicBundle = _dynamicBundle;
+            }
+
+            using (RenderPassScope pass = measureGpu
+                ? context.RenderContext.BeginPass(target, ReadOnlySpan<ClearColorData>.Empty,
+                    _gpuTimestamps!.QuerySet, 0, 1)
+                : context.RenderContext.BeginPass(target))
+            {
+                if (_staticItems.Count > 0)
+                {
+                    pass.ExecuteSubContext(_staticBundle);
+                }
+                if (dynamicBundle != null)
+                {
+                    pass.ExecuteSubContext(dynamicBundle);
+                }
+                if (measureGpu)
+                {
+                    pass.ResolveTimestampsOnEnd(_gpuTimestamps!.QuerySet, 0, 2, _gpuTimestamps.ResolveBuffer);
                 }
             }
-            _staticBundleDirty = false;
         }
 
-        SubRenderContext? dynamicBundle = null;
-        if (_dynamicItems.Count > 0)
+        // Lazily register and push the profiler counters. The CPU value is pushed
+        // before the synchronous readback so the stall stays out of the metric
+        // (the recorded resolve has not executed yet — submission happens at frame
+        // end — so the buffer still holds the previous sample); the cached GPU
+        // duration is re-pushed every frame (BeginFrame cleared the buffers).
+        RenderProfiler? profiler = context.Profiler;
+        if (profiler != null)
         {
-            using (RenderPassScope pass = _dynamicBundle.BeginPass(layout))
+            if (!_profilerCountersRegistered)
             {
-                for (int i = 0; i < _dynamicItems.Count; i++)
+                _cpuCounter = profiler.RegisterCounter("Forward", "Total (CPU)");
+                if (_gpuTimestamps != null)
                 {
-                    DrawItem(_dynamicItems[i], pass);
+                    _gpuCounter = profiler.RegisterCounter("Forward", "GPU");
                 }
+                _profilerCountersRegistered = true;
             }
-            dynamicBundle = _dynamicBundle;
+            double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
+            profiler.PushValue(_cpuCounter, elapsedMs);
         }
 
-        using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+        if (measureGpu)
         {
-            if (_staticItems.Count > 0)
+            ulong[]? timestamps = _gpuTimestamps!.TryReadback();
+            if (timestamps != null)
             {
-                pass.ExecuteSubContext(_staticBundle);
+                _gpuMilliseconds = _gpuTimestamps.DeltaMilliseconds(timestamps, 0, 1);
             }
-            if (dynamicBundle != null)
-            {
-                pass.ExecuteSubContext(dynamicBundle);
-            }
+            _gpuTimestamps.EndSample();
+        }
+
+        if (profiler != null && _gpuTimestamps != null)
+        {
+            profiler.PushValue(_gpuCounter, _gpuMilliseconds);
         }
     }
 
@@ -322,6 +382,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
             _staticBundle.Dispose();
             _dynamicBundle.Dispose();
             _flatNormalTexture?.Dispose();
+            _gpuTimestamps?.Dispose();
         }
     }
 }
