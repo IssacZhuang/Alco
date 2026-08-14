@@ -72,9 +72,11 @@ static const float CLOUD_DETAIL_SCALE = 1.0 / 2.0;
 static const float CLOUD_MAX_MARCH_KM = 42.0;
 
 // March step bounds (km): steps grow with distance at the perspective rate
-// until this cap; empty space advances at double length.
+// until this cap; empty space advances at double length. The cap stays well
+// below the slab thickness so mid-range clouds integrate over enough segments
+// to look soft once the per-pixel jitter decorrelates the sample sequence.
 static const float CLOUD_DT_MIN = 0.06;
-static const float CLOUD_DT_MAX = 0.55;
+static const float CLOUD_DT_MAX = 0.45;
 static const float CLOUD_STEP_SCALE = 0.045;
 
 // Sun-march offsets (km): fixed growing gaps concentrate samples inside the
@@ -246,13 +248,21 @@ float4 MainPS(V2F input) : SV_TARGET
     // ── The march ──
     float3 scattering = 0.0;
     float transmittance = 1.0;
-    float t = tEntry;
+    // Jitter the start by up to one step: neighbouring pixels then sample the
+    // slab on decorrelated sequences, so the large steps average into smooth
+    // gradients (and the half-res upsample blurs the rest into fine grain)
+    // instead of leaving coherent bands — visible as "slices" — in the clouds.
+    float t = tEntry + dither * clamp(tEntry * CLOUD_STEP_SCALE, CLOUD_DT_MIN, CLOUD_DT_MAX);
     float dt = CLOUD_DT_MIN;
     [loop]
     for (int i = 0; i < maxSteps && t < tExit && transmittance > 0.015; i++)
     {
-        float3 posKm = originKm + dir * t;
         dt = clamp(t * CLOUD_STEP_SCALE, CLOUD_DT_MIN, CLOUD_DT_MAX);
+
+        // Sample the segment midpoint rather than its start: the integration
+        // sees an effectively halved spacing, which softens the remaining
+        // banding without paying for extra samples.
+        float3 posKm = originKm + dir * (t + dt * 0.5);
 
         // Cheap gate: no base density means no detail either — skip ahead at
         // double length without paying for the erosion sample.
