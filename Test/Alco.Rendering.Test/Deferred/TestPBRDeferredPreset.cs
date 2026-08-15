@@ -42,6 +42,7 @@ DEFINE_TEX2D_SAMPLE(1, _emissive);
 DEFINE_TEX2D_SAMPLE(1, _giDiffuse);
 DEFINE_TEX2D_SAMPLE(1, _giSpecular);
 DEFINE_TEX2D_SAMPLE(1, _aoTexture);
+DEFINE_TEX2D_SAMPLE(1, _cloudShadow);
 DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap);
 
 struct PointLightData { float4 positionRange; float4 colorIntensity; };
