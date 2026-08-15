@@ -28,8 +28,6 @@ public partial class RenderingSystem
     private readonly GraphicsValueBuffer<GlobalRenderData> _globalRenderData;
     private readonly GraphicsValueBuffer<Matrix4x4> _viewProjectionMatrix;
 
-    private readonly ConcurrentGraphicsBufferPool _bufferPool;
-
     public GPUDevice GraphicsDevice
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -110,12 +108,6 @@ public partial class RenderingSystem
         get => _preferredLightMapPass;
     }
 
-    public ConcurrentGraphicsBufferPool GraphicsBufferPool
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _bufferPool;
-    }
-
     public IShaderCache? ShaderCache { get; }
 
     private WeakReference<ICamera>? _mainCameraWeakRef;
@@ -170,20 +162,6 @@ public partial class RenderingSystem
 
         _globalRenderData = CreateGraphicsValueBuffer<GlobalRenderData>();
         _viewProjectionMatrix = CreateGraphicsValueBuffer<Matrix4x4>();
-
-        //2kb, 4kb, 8kb, 16kb, 32kb, 64kb, 128kb, 256kb, 512kb
-        _bufferPool = new ConcurrentGraphicsBufferPool(
-            this,
-            2 * 1024,
-            4 * 1024,
-            8 * 1024,
-            16 * 1024,
-            32 * 1024,
-            64 * 1024,
-            128 * 1024,
-            256 * 1024,
-            512 * 1024
-            );
 
         _preferredHDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
@@ -258,6 +236,5 @@ public partial class RenderingSystem
         _preferredRGBATexturePass.Dispose();
         _preferredRTexturePass.Dispose();
         _preferredLightMapPass.Dispose();
-        _bufferPool.Dispose();
     }
 }

@@ -41,6 +41,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private uint _shaderId_font;
 
     private int _instanceIndex;
+    private int _bufferIndex;
     private bool _isDrawing;
 
     internal TextRenderer(RenderingSystem renderingSystem, IRenderContext renderContext, Mesh mesh, Material material, string name)
@@ -74,6 +75,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
         _isDrawing = true;
         _instanceIndex = 0;
+        _bufferIndex = 0;
 
         RequestGPUBuffer();
     }
@@ -90,11 +92,10 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         _isDrawing = false;
 
         _textBufferGPU = null;
-        for (int i = 0; i < _tmpGPUBuffers.Count; i++)
-        {
-            _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_tmpGPUBuffers[i]);
-        }
-        _tmpGPUBuffers.Clear();
+        // Owned buffers are kept until dispose: returning them here would let another
+        // TextRenderer recording later in the same frame take the same pooled buffer, and
+        // its upload would overwrite this renderer's glyphs before the single frame
+        // submission executes (draws read the storage buffer at execution time).
     }
 
 
@@ -327,22 +328,37 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
     private void RequestGPUBuffer()
     {
-        if (_renderingSystem.GraphicsBufferPool.TryGetBuffer(GPUBufferSize, out var buffer))
+        // Reuse owned buffers from previous passes first; create a new one only
+        // when the pass needs more chunks than ever held before.
+        if (_bufferIndex < _tmpGPUBuffers.Count)
         {
-            _tmpGPUBuffers.Add(buffer);
-            _textBufferGPU = buffer;
-            _material.SetBuffer(_shaderId_textBuffer, _textBufferGPU);
+            _textBufferGPU = _tmpGPUBuffers[_bufferIndex];
         }
         else
         {
-            throw new InvalidOperationException("Failed to request GPU buffer of size: " + GPUBufferSize);
+            var buffer = _renderingSystem.CreateGraphicsBuffer(GPUBufferSize, "text_instance_buffer");
+            _tmpGPUBuffers.Add(buffer);
+            _textBufferGPU = buffer;
         }
 
+        _bufferIndex++;
+        _material.SetBuffer(_shaderId_textBuffer, _textBufferGPU);
     }
 
     protected override void Dispose(bool disposing)
     {
         _renderContext.RemoveListener(this);
+
+        // dispose owned GPU buffers
+        if (disposing)
+        {
+            for (int i = 0; i < _tmpGPUBuffers.Count; i++)
+            {
+                _tmpGPUBuffers[i].Dispose();
+            }
+            _tmpGPUBuffers.Clear();
+        }
+
         //dispose native resources
         _textBufferPartial.Dispose();
         _charColorBuffer.Dispose();

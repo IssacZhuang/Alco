@@ -344,24 +344,20 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
 
     private GraphicsBuffer RequestNewBuffer()
     {
-        uint bufferSize = (uint)_sizePerBuffer;
-
+        // Reuse owned buffers from previous passes first; create a new one only
+        // when the pass needs more chunks than ever held before.
         if (_bufferIndex < _tmpGPUBuffers.Count)
         {
             _instanceCount = 0;
             return _tmpGPUBuffers[_bufferIndex++];
         }
-        else if (_renderingSystem.GraphicsBufferPool.TryGetBuffer(bufferSize, out var buffer))
+        else
         {
+            var buffer = _renderingSystem.CreateGraphicsBuffer((uint)_sizePerBuffer, $"{Name}_instances_{_tmpGPUBuffers.Count}");
             _tmpGPUBuffers.Add(buffer);
             _instanceCount = 0;
             _bufferIndex++;
             return buffer;
-        }
-        else
-        {
-            //should not happen
-            throw new Exception("No buffer available in pool");
         }
     }
 
@@ -369,10 +365,10 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     {
         if (disposing)
         {
-            // return all temporary GPU buffers to pool
+            // dispose all temporary GPU buffers
             for (int i = 0; i < _tmpGPUBuffers.Count; i++)
             {
-                _renderingSystem.GraphicsBufferPool.TryReturnBuffer(_tmpGPUBuffers[i]);
+                _tmpGPUBuffers[i].Dispose();
             }
         }
 
