@@ -50,7 +50,7 @@
 
 - listener 渲染器(`TextRenderer`/`InstanceRenderer`/`DynamicMeshRenderer`)的帧域 buffer 回收——当前没有任何 listener 渲染器挂在"每帧多 pass"的 context 上,该工作推迟到确有需求时(见 §10.2 契约);
 - 多线程命令录制、多队列;
-- 旧立即模式效果器(`Node/Bloom`/`Node/FXAA`)迁移;
+- 旧立即模式效果器(`Node/Bloom`/`Node/FXAA`)迁移(2026-08-15 补做:`TextureProcessor.Blit` 改为录制到调用方命令缓冲,节点传入 frame-shared buffer,私有缓冲与立即提交已移除);
 - `AttachmentOps`(load/store op)接线——RHI 已支持,`BeginPass` 预留参数,节点侧使用留作后续。
 
 ## 3. 总体设计

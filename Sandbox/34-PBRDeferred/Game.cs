@@ -1920,6 +1920,11 @@ public class Game : GameEngine
             }
             else
             {
+                if (ImGui.Button("Copy to Clipboard"))
+                {
+                    ImGui.SetClipboardText(BuildProfilerClipboardText(in snapshot));
+                }
+
                 // Group counters by their Group label, rendering each group as
                 // a sub-section. The snapshot arrays are pre-sorted by registration
                 // order (pipeline first, then plugins), so same-group entries are
@@ -1947,6 +1952,31 @@ public class Game : GameEngine
         }
 
         ImGui.End();
+    }
+
+    /// <summary>
+    /// Formats a profiler snapshot as grouped plain text (one counter per line,
+    /// "Group / Name / milliseconds") for the clipboard.
+    /// </summary>
+    /// <param name="snapshot">The published snapshot to format.</param>
+    /// <returns>The clipboard text.</returns>
+    private string BuildProfilerClipboardText(in RenderProfileSnapshot snapshot)
+    {
+        _textBuilder.Clear();
+        _textBuilder.Append("Render Profiler @ frame ").Append(_frameCount).AppendLine();
+        string currentGroup = null!;
+        for (int i = 0; i < snapshot.Count; i++)
+        {
+            string group = snapshot.Groups[i];
+            if (group != currentGroup)
+            {
+                _textBuilder.Append('[').Append(group).AppendLine("]");
+                currentGroup = group;
+            }
+            _textBuilder.Append("  ").Append(snapshot.Names[i]).Append(" = ")
+                .Append(snapshot.Values[i], "F3").AppendLine(" ms");
+        }
+        return _textBuilder.ToString();
     }
 
     private void BuildScene()

@@ -35,8 +35,6 @@ public class Bloom : TextureProcessor
     public const string ShaderId_previousTexture = "_previousTexture";
     public const string ShaderId_currentTexture = "_currentTexture";
 
-    private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _command;
     private readonly GPUAttachmentLayout _backBufferPass;
     private readonly RenderingSystem _renderingSystem;
 
@@ -103,9 +101,8 @@ public class Bloom : TextureProcessor
     private uint _upSampleShaderId_currentTexture;
 
     private RenderTexture[]? _upSampleTextures;
-    internal Bloom(RenderingSystem _system, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(_system, blitShader)
+    internal Bloom(RenderingSystem _system, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(_system)
     {
-        _device = _system.GraphicsDevice;
         _renderingSystem = _system;
         _targetDownSampleHeight = targetDownSampleHeight;
 
@@ -134,8 +131,6 @@ public class Bloom : TextureProcessor
         _upSampleShader.TryUpdatePipelineContext(ref _upSamplePipelineInfo, _backBufferPass);
         _upSampleShaderId_previousTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_previousTexture);
         _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
-
-        _command = _device.CreateCommandBuffer();
     }
 
     // Rebuilds the down/up sample pyramid when the input size changed since the last
@@ -211,14 +206,21 @@ public class Bloom : TextureProcessor
     /// <summary>The first query slot of the timing span in <see cref="TimestampSampler"/>.</summary>
     internal int TimestampBaseSlot { get; set; }
 
-    public override void Blit(RenderTexture input, GPUFrameBuffer target)
+    /// <summary>
+    /// Builds the bloom pyramid from <paramref name="input"/> and records the whole
+    /// down/up-sample chain plus the final additive composite onto
+    /// <paramref name="command"/>, rendering into <paramref name="target"/>. The
+    /// command buffer is neither ended nor submitted here.
+    /// </summary>
+    /// <param name="command">The caller-owned open command buffer to record into.</param>
+    /// <param name="input">The input render texture.</param>
+    /// <param name="target">The target framebuffer; must already hold the scene image.</param>
+    public override void Blit(GPUCommandBuffer command, RenderTexture input, GPUFrameBuffer target)
     {
         EnsurePyramid(input);
 
         Mesh mesh = FullScreenMesh;
         GpuTimestampSampler? timestamps = TimestampSampler;
-
-        _command.Begin();
 
         RenderTexture clampFrame = _downSampleTextures![0];
 
@@ -229,9 +231,9 @@ public class Bloom : TextureProcessor
 
         //clamp
         using (var renderPass = timestamps != null
-            ? _command.BeginRender(clampFrame.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+            ? command.BeginRender(clampFrame.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, (uint)TimestampBaseSlot, null)
-            : _command.BeginRender(clampFrame.FrameBuffer))
+            : command.BeginRender(clampFrame.FrameBuffer))
         {
             renderPass.SetPipeline(_clampPipelineInfo);
             uint indexCount = renderPass.SetMesh(mesh);
@@ -257,7 +259,7 @@ public class Bloom : TextureProcessor
         {
             RenderTexture downSampleFrame = _downSampleTextures[i];
             Vector2 invFrameSize = new Vector2(1f) / new Vector2(downSampleFrame.Width, downSampleFrame.Height);
-            using (var renderPass = _command.BeginRender(downSampleFrame.FrameBuffer))
+            using (var renderPass = command.BeginRender(downSampleFrame.FrameBuffer))
             {
                 renderPass.SetPipeline(_downSamplePipelineInfo);
                 uint indexCount = renderPass.SetMesh(mesh);
@@ -282,7 +284,7 @@ public class Bloom : TextureProcessor
             _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
         }
 
-        using (var renderPass = _command.BeginRender(_upSampleTextures![0].FrameBuffer))
+        using (var renderPass = command.BeginRender(_upSampleTextures![0].FrameBuffer))
         {
             renderPass.SetPipeline(_upSamplePipelineInfo);
             uint indexCount = renderPass.SetMesh(mesh);
@@ -302,7 +304,7 @@ public class Bloom : TextureProcessor
 
         for (int i = 1; i < _upSampleTextures!.Length; i++)
         {
-            using (var renderPass = _command.BeginRender(_upSampleTextures[i].FrameBuffer))
+            using (var renderPass = command.BeginRender(_upSampleTextures[i].FrameBuffer))
             {
                 renderPass.SetPipeline(_upSamplePipelineInfo);
                 uint indexCount = renderPass.SetMesh(mesh);
@@ -327,9 +329,9 @@ public class Bloom : TextureProcessor
 
         //blit
         using (var renderPass = timestamps != null
-            ? _command.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
+            ? command.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, null, (uint)(TimestampBaseSlot + 1))
-            : _command.BeginRender(target))
+            : command.BeginRender(target))
         {
             renderPass.SetPipeline(_blitPipelineInfo);
             uint indexCount = renderPass.SetMesh(mesh);
@@ -345,10 +347,8 @@ public class Bloom : TextureProcessor
 
         if (timestamps != null)
         {
-            timestamps.ResolveAll(_command);
+            timestamps.ResolveAll(command);
         }
-        _command.End();
-        _renderingSystem.ScheduleCommandBuffer(_command);
     }
 
     private int GetDownSampleCount(uint height)
@@ -384,7 +384,6 @@ public class Bloom : TextureProcessor
     protected override void Dispose(bool disposing)
     {
         //dispose non-private managed resources
-        _command.Dispose();
         TryDisposeFrames();
     }
 }

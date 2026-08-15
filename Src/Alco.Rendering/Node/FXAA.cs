@@ -50,7 +50,6 @@ public class FXAA : TextureProcessor
     public const string ShaderId_fxaaData = "_fxaaData";
 
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _commandFXAA;
     private readonly RenderingSystem _renderingSystem;
 
     // FXAA shader and pipeline
@@ -112,7 +111,7 @@ public class FXAA : TextureProcessor
     /// <param name="renderingSystem">The rendering system instance</param>
     /// <param name="fxaaShader">The FXAA shader</param>
     /// <param name="blitShader">The blit shader for final copy</param>
-    internal FXAA(RenderingSystem renderingSystem, Shader fxaaShader, Shader blitShader) : base(renderingSystem, fxaaShader)
+    internal FXAA(RenderingSystem renderingSystem, Shader fxaaShader, Shader blitShader) : base(renderingSystem)
     {
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
@@ -137,9 +136,6 @@ public class FXAA : TextureProcessor
             Padding = 0.0f
         };
         _fxaaShaderData.UpdateBuffer();
-
-        // Create command buffers
-        _commandFXAA = _device.CreateCommandBuffer("fxaa_command_buffer");
     }
 
     // Keeps the intermediate texture matching the input's size and pixel format,
@@ -201,11 +197,14 @@ public class FXAA : TextureProcessor
     internal int TimestampBaseSlot { get; set; }
 
     /// <summary>
-    /// Anti-aliases the input and renders the result into the target with two fullscreen passes.
+    /// Anti-aliases the input and records two fullscreen passes onto
+    /// <paramref name="command"/>, rendering the result into <paramref name="target"/>.
+    /// The command buffer is neither ended nor submitted here.
     /// </summary>
+    /// <param name="command">The caller-owned open command buffer to record into.</param>
     /// <param name="input">The input render texture to anti-alias.</param>
     /// <param name="target">The target framebuffer to render to</param>
-    public override void Blit(RenderTexture input, GPUFrameBuffer target)
+    public override void Blit(GPUCommandBuffer command, RenderTexture input, GPUFrameBuffer target)
     {
         EnsureIntermediate(input);
 
@@ -224,12 +223,11 @@ public class FXAA : TextureProcessor
         }
 
         GpuTimestampSampler? timestamps = TimestampSampler;
-        _commandFXAA.Begin();
 
         using (var renderPass = timestamps != null
-            ? _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+            ? command.BeginRender(_intermediateTexture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, (uint)TimestampBaseSlot, null)
-            : _commandFXAA.BeginRender(_intermediateTexture.FrameBuffer))
+            : command.BeginRender(_intermediateTexture.FrameBuffer))
         {
             renderPass.SetPipeline(_fxaaPipelineInfo.Pipeline!);
             uint indexCount = renderPass.SetMesh(fullScreenMesh);
@@ -239,9 +237,9 @@ public class FXAA : TextureProcessor
         }
 
         using (var renderPass = timestamps != null
-            ? _commandFXAA.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
+            ? command.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, null, (uint)(TimestampBaseSlot + 1))
-            : _commandFXAA.BeginRender(target))
+            : command.BeginRender(target))
         {
             renderPass.SetPipeline(_blitPipelineInfo.Pipeline!);
             uint indexCount = renderPass.SetMesh(fullScreenMesh);
@@ -251,10 +249,8 @@ public class FXAA : TextureProcessor
 
         if (timestamps != null)
         {
-            timestamps.ResolveAll(_commandFXAA);
+            timestamps.ResolveAll(command);
         }
-        _commandFXAA.End();
-        _renderingSystem.ScheduleCommandBuffer(_commandFXAA);
     }
 
     /// <summary>
@@ -290,7 +286,6 @@ public class FXAA : TextureProcessor
     {
         if (disposing)
         {
-            _commandFXAA.Dispose();
             _fxaaShaderData.Dispose();
             _intermediateTexture?.Dispose();
             _intermediateLayout?.Dispose();
