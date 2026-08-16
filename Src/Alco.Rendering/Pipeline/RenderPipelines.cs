@@ -307,5 +307,6 @@ public static class RenderPipelines
         lightingMaterial.SetTexture("_cloudShadow", rendering.TextureWhite);
         lightingMaterial.SetTexture("_giDiffuse", rendering.TextureBlack);
         lightingMaterial.SetTexture("_giSpecular", rendering.TextureBlack);
+        lightingMaterial.SetTexture("_pointLightShadowed", rendering.TextureBlack);
     }
 }

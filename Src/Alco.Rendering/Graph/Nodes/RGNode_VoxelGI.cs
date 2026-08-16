@@ -230,6 +230,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         public Vector4 GiParams2;
         /// <summary>x=frame index, y=GI diffuse bias, z=history-valid flag (filled by the renderer), w=diffuse spreading (dual-kernel opacity bias).</summary>
         public Vector4 GiFrameParams;
+        /// <summary>Point light shadow atlas params for shadowed inject: x=1/faceSize y=1/atlasWidth z=1/atlasHeight w=maxPenumbraTexels (zero when not wired).</summary>
+        public Vector4 PointLightShadowParams;
     }
 
     /// <summary>
@@ -434,6 +436,15 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private RenderTexture? _boundGBuffer;
     private RenderTexture? _boundShadowMap;
     private GraphicsBuffer? _boundPointLightBuffer;
+
+    // Optional point light shadow atlas wiring (shadowed direct-light inject):
+    // the inject material's _plShadowAtlas/_plShadowAtlasLoad/_plShadowInfo
+    // bindings always reference something — neutral defaults until wired.
+    private readonly GPUAttachmentLayout _plShadowDummyLayout;
+    private readonly RenderTexture _plShadowDummyAtlas;
+    private readonly GraphicsArrayBuffer<Vector4> _plShadowDummyInfo;
+    private Vector4 _plShadowAtlasParams = Vector4.Zero;
+    private float _plShadowRadius;
 
     // Graph-owned transient resources. _giDiffuseFullRes and _giSpecularFullRes are
     // facades of the transients below (not disposed here, rematerialized on resize).
@@ -762,6 +773,20 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _propagateMaterial.SetTexture("_opacity", _opacity);
         _traceMaterial.SetTexture("_opacity", _opacity);
 
+        // Neutral point light shadow bindings: an empty 1x1 atlas and an
+        // all-disabled slot list keep the inject shader's declarations bound
+        // until SetPointLightShadowAtlas wires the real atlas (the shadowed
+        // path stays gated off by the zero atlas params / radius).
+        _plShadowDummyLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [], new DepthAttachment(PixelFormat.Depth32Float), "voxel_pls_dummy"));
+        _plShadowDummyAtlas = rendering.CreateRenderTexture(_plShadowDummyLayout, 1, 1, "voxel_pls_dummy_atlas");
+        _plShadowDummyInfo = rendering.CreateGraphicsArrayBuffer<Vector4>(PBRSceneEnvironment.MaxPointLights, "voxel_pls_dummy_info");
+        _plShadowDummyInfo.AsSpan().Fill(new Vector4(-1.0f, 0.0f, 0.0f, 0.0f));
+        _plShadowDummyInfo.UpdateBuffer();
+        _injectMaterial.SetRenderTextureDepth("_plShadowAtlas", _plShadowDummyAtlas);
+        _injectMaterial.SetRenderTextureDepth("_plShadowAtlasLoad", _plShadowDummyAtlas);
+        _injectMaterial.SetBuffer("_plShadowInfo", _plShadowDummyInfo);
+
         uint traceWidth = TraceWidth(_gbufferWidth);
         uint traceHeight = TraceHeight(_gbufferHeight);
         // Atlas: 5 segments (diffuse near/far, specular, ALD near/far).
@@ -897,6 +922,41 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             throw new ArgumentOutOfRangeException(
                 nameof(scale), scale, "The GI trace-resolution scale must be between 0.25 and 1.0.");
         }
+    }
+
+    /// <summary>
+    /// Wires the point light shadow atlas into the direct-light inject pass, so
+    /// injected point light radiance is multiplied by the atlas-sampled PCSS
+    /// visibility instead of bleeding through walls. Pass null to restore the
+    /// neutral (unshadowed inject) defaults.
+    /// </summary>
+    /// <param name="atlas">The atlas render texture of an attached
+    /// <see cref="RGNode_PointLightShadow"/> (<see cref="RGNode_PointLightShadow.Atlas"/>),
+    /// or null to unwire.</param>
+    /// <param name="shadowInfoBuffer">The matching per-light slot metadata buffer
+    /// (<see cref="RGNode_PointLightShadow.ShadowInfoBuffer"/>).</param>
+    /// <param name="faceSize">The atlas face resolution in texels
+    /// (<see cref="RGNode_PointLightShadow.FaceSize"/>).</param>
+    /// <param name="lightRadius">The shadowed lights' physical radius (penumbra source).</param>
+    /// <param name="maxPenumbraTexels">The PCSS penumbra cap in face texels.</param>
+    public void SetPointLightShadowAtlas(RenderTexture? atlas, GraphicsBuffer? shadowInfoBuffer,
+        uint faceSize, float lightRadius, float maxPenumbraTexels)
+    {
+        if (atlas == null || shadowInfoBuffer == null)
+        {
+            _injectMaterial.SetRenderTextureDepth("_plShadowAtlas", _plShadowDummyAtlas);
+            _injectMaterial.SetRenderTextureDepth("_plShadowAtlasLoad", _plShadowDummyAtlas);
+            _injectMaterial.SetBuffer("_plShadowInfo", _plShadowDummyInfo);
+            _plShadowAtlasParams = Vector4.Zero;
+            _plShadowRadius = 0.0f;
+            return;
+        }
+        _injectMaterial.SetRenderTextureDepth("_plShadowAtlas", atlas);
+        _injectMaterial.SetRenderTextureDepth("_plShadowAtlasLoad", atlas);
+        _injectMaterial.SetBuffer("_plShadowInfo", shadowInfoBuffer);
+        _plShadowAtlasParams = new Vector4(
+            1.0f / faceSize, 1.0f / atlas.Width, 1.0f / atlas.Height, maxPenumbraTexels);
+        _plShadowRadius = lightRadius;
     }
 
     private uint TraceWidth(uint gbufferWidth)
@@ -1223,12 +1283,12 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         data.SkyZenithColor = ld.SkyZenithColor;
         data.CascadeSplits = ld.CascadeSplits;
         data.CascadeTexelSizes = ld.CascadeTexelSizes;
-        // x=shadowEnabled y=numPointLights z=shadowMapSize
+        // x=shadowEnabled y=numPointLights z=shadowMapSize w=point light shadow radius
         data.LightingParams = new Vector4(
             ld.Params.X,
             ld.Params.Y,
             ld.Params.Z,
-            0.0f);
+            _plShadowRadius);
 
         // Bind the point-light buffer once (the buffer is stable across frames).
         if (pointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, pointLightBuffer))
@@ -1258,6 +1318,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         data.GiParams = new Vector4(EmissiveScale, TraceMaxDistance, traceWidth, _traceRaw.Height);
         data.GiParams2 = new Vector4((int)DebugView, gbuffer.Width, gbuffer.Height, SkyIntensity);
         data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, DiffuseSpreading);
+        data.PointLightShadowParams = _plShadowAtlasParams;
         _dataBuffer.UpdateBuffer(data);
 
         // The G-buffer and shadow map render textures are stable across frames
@@ -2183,6 +2244,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             // their own and are not disposable.
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
+            _plShadowDummyAtlas.Dispose();
+            _plShadowDummyInfo.Dispose();
+            _plShadowDummyLayout.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
             _gpuTimestamps?.Dispose();

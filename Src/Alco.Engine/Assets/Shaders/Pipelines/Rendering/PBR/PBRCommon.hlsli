@@ -26,7 +26,7 @@ DEFINE_UNIFORM(0, _data)
     float4 pbrParams;            // x=shadowEnabled y=numPointLights z=shadowMapSize w=sunDiscEnabled
     float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
     float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
-    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView
+    float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=pointLightShadowed (atlas PCSS point light shadows active), w=aoDebugView
     float4 viewportSize;         // xy = render target size in pixels
     float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
     float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)

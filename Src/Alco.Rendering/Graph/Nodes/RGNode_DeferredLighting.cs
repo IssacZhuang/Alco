@@ -73,6 +73,11 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
     /// <summary>The specular GI plugin output read by the pass, or null.</summary>
     public RenderGraphTexture? GiSpecularInput { get; set; }
 
+    /// <summary>The shadowed point light output read by the pass, or null (the
+    /// material's _pointLightShadowed parameter should then stay bound to a black
+    /// texture and the PointLightShadowsActive flag left off).</summary>
+    public RenderGraphTexture? PointLightShadowInput { get; set; }
+
     /// <summary>Additional resources the pass reads, so their producers survive
     /// culling. Use this for custom plugins the node does not know about.</summary>
     public List<RenderGraphTexture> ExtraReads { get; } = new();
@@ -110,6 +115,10 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
         if (GiSpecularInput != null)
         {
             builder.Read(GiSpecularInput);
+        }
+        if (PointLightShadowInput != null)
+        {
+            builder.Read(PointLightShadowInput);
         }
         List<RenderGraphTexture> extraReads = ExtraReads;
         for (int i = 0; i < extraReads.Count; i++)

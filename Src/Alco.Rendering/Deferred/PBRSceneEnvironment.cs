@@ -72,6 +72,11 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     private int _pointLightCount;
     private bool _shadowEnabled = true;
     private bool _volumetricLightEnabled;
+    private bool _pointLightShadowsActive;
+
+    // CPU-side copy of the most recently uploaded point lights, exposed to the
+    // point light shadow node for importance ranking and slot assignment.
+    private readonly PointLight[] _pointLightArray = new PointLight[MaxPointLights];
 
     /// <summary>
     /// Creates the environment and its GPU buffers.
@@ -218,6 +223,25 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>Whether GI contributes to the lighting pass.</summary>
     public bool GiEnabled { get; set; } = true;
 
+    /// <summary>Whether atlas-PCSS shadowed point lights are active this frame. Set
+    /// by the point light shadow node when its screen chain runs and its output is
+    /// wired into the lighting pass; while true the deferred lighting shader
+    /// consumes the shadowed point-light irradiance from its bound texture
+    /// (dividing by its own unshadowed evaluation) instead of evaluating the inline
+    /// unshadowed loop.</summary>
+    public bool PointLightShadowsActive
+    {
+        get => _pointLightShadowsActive;
+        set => _pointLightShadowsActive = value;
+    }
+
+    /// <summary>
+    /// The point lights most recently accepted by <see cref="UpdatePointLights"/>
+    /// (a CPU-side snapshot used by the point light shadow node's importance
+    /// ranking; not uploaded by the getter).
+    /// </summary>
+    internal ReadOnlySpan<PointLight> CurrentPointLights => _pointLightArray.AsSpan(0, _pointLightCount);
+
     /// <summary>Diffuse GI strength multiplier.</summary>
     public float GiDiffuseStrength { get; set; } = 1.0f;
 
@@ -299,9 +323,11 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
         }
 
         var span = _pointLightBuffer.AsSpan();
+        var arraySpan = _pointLightArray.AsSpan();
         for (int i = 0; i < count; i++)
         {
             span[i] = lights[i];
+            arraySpan[i] = lights[i];
         }
         _pointLightBuffer.UpdateBufferRanged(0, (uint)count);
         _pointLightCount = count;
@@ -458,7 +484,7 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
         _lightingData.Params2 = new Vector4(
             CascadeDebug ? 1.0f : 0.0f,
             ShadowDebug ? 1.0f : 0.0f,
-            0.0f,
+            PointLightShadowsActive ? 1.0f : 0.0f,
             AoDebugView ? 1.0f : 0.0f);
         _lightingData.ViewportSize = new Vector4(gbuffer.Width, gbuffer.Height, 0, 0);
         _lightingData.Params3 = new Vector4(

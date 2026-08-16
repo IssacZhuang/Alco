@@ -33,6 +33,12 @@ struct PointLightData
     float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
 };
 DEFINE_STORAGE(0, PointLightData, _pointLights);
+// Point light shadow atlas (PCSS-sampled) and per-light slot metadata, shared
+// with RGNode_PointLightShadow. Bound to neutral defaults (empty 1x1 atlas, all
+// slots -1) until SetPointLightShadowAtlas wires the real atlas.
+DEFINE_TEX2D_DEPTH_SAMPLE(0, _plShadowAtlas);
+DEFINE_TEX2D_DEPTH(0, _plShadowAtlasLoad);
+#include "Shaders/Pipelines/Rendering/PBR/PointLightShadowSampling.hlsli"
 DEFINE_TEX3D_STORAGE(1, _radianceOut, float4, "rgba16f");
 DEFINE_TEX3D_STORAGE(1, _opacityOut, float4, "rgba16f");
 
@@ -219,8 +225,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float shadow = lightingParams.x > 0.5 ? SampleSunShadowVoxel(worldPosition, normal, voxelSize, originAndSize, resolution, level) : 1.0;
     direct += sunColorAndIntensity.rgb * sunColorAndIntensity.w * (NdotL / PI) * shadow;
 
-    // Point lights (unshadowed, StructuredBuffer with per-light range).
+    // Point lights (StructuredBuffer with per-light range). Lights with an
+    // atlas slot sample the PCSS visibility, so injected radiance respects
+    // occlusion and stops bleeding through walls; slotless lights inject
+    // unshadowed.
     {
+        bool shadowedInject = pointLightShadowParams.x > 0.0 && lightingParams.w > 0.0;
         uint lightCount = (uint)lightingParams.y;
         [loop]
         for (uint i = 0; i < lightCount; i++)
@@ -243,8 +253,25 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float fallOff = saturate(1.0 - dist / posRange.w);
                 attenuation *= fallOff * fallOff;
             }
-            float pointNdotL = max(dot(normal, toLight / max(dist, 1e-6)), 0.0);
-            direct += colInt.rgb * colInt.w * attenuation * (pointNdotL / PI);
+            float3 pointL = toLight / max(dist, 1e-6);
+            float pointNdotL = max(dot(normal, pointL), 0.0);
+            if (pointNdotL <= 0.0)
+            {
+                continue;
+            }
+            float visibility = 1.0;
+            if (shadowedInject)
+            {
+                float4 slotNearFar = _plShadowInfo[i].slotNearFar;
+                if (slotNearFar.x >= 0.0)
+                {
+                    visibility = SamplePointLightVisibility(
+                        worldPosition, normal, pointL, posRange.xyz, dist,
+                        slotNearFar, pointLightShadowParams, lightingParams.w,
+                        float2(dispatchId.x, dispatchId.z));
+                }
+            }
+            direct += colInt.rgb * colInt.w * attenuation * (pointNdotL / PI) * visibility;
         }
     }
 

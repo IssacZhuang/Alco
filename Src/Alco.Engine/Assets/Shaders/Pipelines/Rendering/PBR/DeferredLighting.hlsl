@@ -41,6 +41,12 @@ DEFINE_TEX2D_SAMPLE(1, _aoTexture);
 // transmittance at the cloud slab, camera-centered world grid; white when no
 // clouds plugin is active).
 DEFINE_TEX2D_SAMPLE(1, _cloudShadow);
+// Shadowed point-light diffuse irradiance from the point light shadow plugin
+// (full-resolution, temporally resolved; rgb = irradiance). Divided by the
+// locally evaluated unshadowed irradiance to reconstruct a per-pixel
+// visibility. Black and flagged off (params2.z) when the feature is inactive —
+// the inline unshadowed loop is used instead.
+DEFINE_TEX2D_SAMPLE(1, _pointLightShadowed);
 
 #include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli"
 
@@ -75,6 +81,62 @@ float ReconstructLinearDepth(V2F input)
 // Shared PBR functions (DistributionGGX, EvaluatePBR, shadow sampling, sky,
 // EnvBRDFApprox, EvaluateDiffuseSky, GeometricSpecularAA, EvaluatePointLights)
 // are provided by PBRCommon.hlsli included above.
+
+// PCSS-shadowed point lights. The plugin's screen chain stores the atlas-sampled,
+// temporally resolved shadowed diffuse irradiance; dividing it by the unshadowed
+// irradiance evaluated here (same lights, same attenuation, full-resolution
+// normal) reconstructs a per-pixel visibility. Applying that visibility to the
+// full-resolution PBR keeps NdotL terminators and GGX highlights pixel-sharp —
+// only the shadow signal itself is trace-resolution.
+float3 EvaluatePointLightsShadowed(
+    float3 N,
+    float3 V,
+    float3 worldPosition,
+    float3 albedo,
+    float metallic,
+    float roughness,
+    float3 shadowedIrradiance)
+{
+    float3 Lo = 0.0;
+    float3 unshadowedIrradiance = 0.0;
+    uint lightCount = (uint)pbrParams.y;
+    [loop]
+    for (uint i = 0; i < lightCount; i++)
+    {
+        float4 posRange = _pointLights[i].positionRange;
+        float4 colInt = _pointLights[i].colorIntensity;
+        if (colInt.w <= 0.0)
+        {
+            continue;
+        }
+
+        float3 toLight = posRange.xyz - worldPosition;
+        float dist = length(toLight);
+        if (posRange.w > 0.0 && dist > posRange.w)
+        {
+            continue;
+        }
+
+        float attenuation = 1.0 / (dist * dist + 1.0);
+        if (posRange.w > 0.0)
+        {
+            float fallOff = saturate(1.0 - dist / posRange.w);
+            attenuation *= fallOff * fallOff;
+        }
+
+        float3 L = toLight / max(dist, 1e-6);
+        float NdotL = saturate(dot(N, L));
+        float3 lightColor = colInt.rgb * colInt.w * attenuation;
+        unshadowedIrradiance += lightColor * NdotL;
+        Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness) * lightColor;
+    }
+
+    // Per-channel ratio preserves colored shadows; clamping to 1 keeps the
+    // result bounded by the unshadowed evaluation (trace pixels whose normal
+    // grazes the light can report more irradiance than this pixel).
+    float3 visibility = min(shadowedIrradiance / max(unshadowedIrradiance, 1e-5), 1.0);
+    return Lo * visibility;
+}
 
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
@@ -151,8 +213,21 @@ float4 MainPS(V2F input) : SV_TARGET
         return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
 
-    // Point lights (shared loop from PBRCommon.hlsli).
-    Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
+    // Point lights. When the point light shadow plugin is active (params2.z >
+    // 0.5), its output carries the atlas-sampled, temporally resolved shadowed
+    // irradiance; EvaluatePointLightsShadowed turns it into a per-pixel
+    // visibility applied to the full-resolution PBR (diffuse + specular).
+    // Otherwise fall back to the inline unshadowed loop.
+    if (params2.z > 0.5)
+    {
+        float3 shadowedIrradiance = SAMPLE_TEX2D(_pointLightShadowed, input.uv).rgb;
+        Lo += EvaluatePointLightsShadowed(
+            N, V, worldPosition, albedo, metallic, roughness, shadowedIrradiance);
+    }
+    else
+    {
+        Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
+    }
 
     // Build the diffuse environment baseline independently of voxel GI. This is
     // the diffuse environment-probe accumulation: shadows only remove direct

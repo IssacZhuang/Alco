@@ -130,6 +130,31 @@ public class Game : GameEngine
     }
 
     /// <summary>
+    /// Re-targets an existing <see cref="IShadowRenderable"/> at the point light shadow
+    /// atlas material, which binds a different per-face matrix buffer than the sun
+    /// cascades. Geometry and transform are forwarded from the wrapped renderable.
+    /// </summary>
+    private sealed class PointLightShadowRenderableAdapter : IShadowRenderable
+    {
+        private readonly IShadowRenderable _inner;
+        private readonly GraphicsMaterial _material;
+
+        public PointLightShadowRenderableAdapter(IShadowRenderable inner, GraphicsMaterial material)
+        {
+            _inner = inner;
+            _material = material;
+        }
+
+        public bool IsStatic => _inner.IsStatic;
+        public bool CastsShadow => _inner.CastsShadow;
+        Mesh IShadowRenderable.Mesh => _inner.Mesh;
+        GraphicsMaterial IShadowRenderable.Material => _material;
+        Matrix4x4 IShadowRenderable.WorldMatrix => _inner.WorldMatrix;
+        float IShadowRenderable.AlphaCutoff => _inner.AlphaCutoff;
+        float IShadowRenderable.BaseColorAlpha => _inner.BaseColorAlpha;
+    }
+
+    /// <summary>
     /// Adapter that wraps a Bistro <see cref="ModelDrawItem"/> + its glass material
     /// as an <see cref="IForwardRenderable"/> for the RGNode_Forward registry.
     /// </summary>
@@ -283,6 +308,14 @@ public class Game : GameEngine
     private PBRSceneEnvironment.PointLight[]? _bistroPointLights;         // base lights (unscaled)
     private PBRSceneEnvironment.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
+    // Point light shadows: a persistent 6-face PCSS atlas for the most important
+    // lights plus its caster registry (materials are shader-specific, so the
+    // atlas keeps a parallel set instead of reusing the sun shadow materials).
+    private RGNode_PointLightShadow? _pointLightShadow;
+    private PointLightShadowRenderer? _pointLightShadowRenderer;
+    private bool _pointLightShadowsEnabled = true;
+    private GraphicsMaterial[]? _plsBistroShadowMaterials;
+
     // HDR tone mapping node: switchable operator with per-type parameters.
     private RGNode_Tonemap? _tonemapStage;
     private TonemapType _tonemapType;
@@ -429,6 +462,32 @@ public class Game : GameEngine
         _environment.ShadowDebug = shadowDebug;
         _environment.AoDebugView = hbaoDebugView;
 
+        // Point light shadows (atlas PCSS): renders 6-face depth atlases for the
+        // most important lights and feeds shadowed irradiance to the lighting
+        // pass. Attached before the lighting node; the voxel GI wiring below
+        // re-anchors it in front of the GI node when the GI is created (the
+        // inject pass samples the atlas).
+        {
+            string plsShaderDir = "Shaders/Pipelines/Rendering/PBR/";
+            Shader plsDepthShader = AssetSystem.Load<Shader>(plsShaderDir + "PointLightShadowDepth.hlsl");
+            _pointLightShadow = new RGNode_PointLightShadow(
+                RenderingSystem,
+                new PointLightShadowShaders
+                {
+                    Depth = plsDepthShader,
+                    Trace = AssetSystem.Load<Shader>(plsShaderDir + "PointLightShadowTrace.hlsl"),
+                    Resolve = AssetSystem.Load<Shader>(plsShaderDir + "PointLightShadowResolve.hlsl"),
+                    Upsample = AssetSystem.Load<Shader>(plsShaderDir + "PointLightShadowUpsample.hlsl"),
+                },
+                faceSize: 256,
+                width: (uint)MainView.Size.X,
+                height: (uint)MainView.Size.Y);
+            _pointLightShadowRenderer = new PointLightShadowRenderer(
+                RenderingSystem, plsDepthShader, _pointLightShadow.AtlasLayout, _pointLightShadow.MatrixBuffer);
+            _pointLightShadow.Content.Add(_pointLightShadowRenderer);
+            _pointLightShadow.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
+        }
+
         // HBAO+ as a render plugin (decoupled from the pipeline): Attach wires its
         // graph node and the lighting AO input itself.
         if (_hbaoEnabled)
@@ -516,6 +575,7 @@ public class Game : GameEngine
             // One cutout shadow material per glTF material so alpha-tested meshes
             // (foliage, fences, etc.) cast correctly shaped shadows.
             _bistroShadowMaterials = new GraphicsMaterial[_bistro.Materials.Count];
+            _plsBistroShadowMaterials = new GraphicsMaterial[_bistro.Materials.Count];
             // Glass materials for transparent BLEND glass (rendered in forward pass).
             _bistroGlassMaterials = new GraphicsMaterial[_bistro.Materials.Count];
             for (int i = 0; i < _bistroMaterials.Length; i++)
@@ -526,6 +586,10 @@ public class Game : GameEngine
                     material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
                 _bistroShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutMaterial(
                     material.AlbedoTexture, material.DoubleSided, $"bistro_shadow_{material.Name}");
+                // Parallel cutout materials for the point light shadow atlas
+                // (same factory pattern, its own folded-face matrix buffer).
+                _plsBistroShadowMaterials![i] = _pointLightShadowRenderer!.CreateShadowCutoutMaterial(
+                    material.AlbedoTexture, material.DoubleSided, $"bistro_pls_shadow_{material.Name}");
                 _bistroGlassMaterials[i] = _forwardRenderer.CreateGlassMaterial(
                     material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
                     material.EmissiveTexture, material.DoubleSided, $"bistro_glass_{material.Name}");
@@ -554,6 +618,7 @@ public class Game : GameEngine
                         _gbufferRenderer.Add(new BistroRenderable(item, material, _bistroMaterials![item.MaterialIndex],
                             () => material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
                         _shadowRenderer.Add(new BistroShadowRenderable(item, material, _bistroShadowMaterials![item.MaterialIndex]));
+                        _pointLightShadowRenderer!.Add(new BistroShadowRenderable(item, material, _plsBistroShadowMaterials![item.MaterialIndex]));
                     }
                 }
             }
@@ -568,6 +633,7 @@ public class Game : GameEngine
             _objectNames = _objects.Select(o => o.Mesh.Name).ToArray();
             _proceduralMaterial = _gbufferRenderer.CreateMaterial(_checkerTexture, null, null, null, name: "checker");
             _proceduralShadowMaterial = _shadowRenderer.CreateShadowMaterial(name: "checker_shadow");
+            GraphicsMaterial plsProceduralShadowMaterial = _pointLightShadowRenderer!.CreateShadowMaterial(name: "checker_pls_shadow");
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
             {
@@ -575,6 +641,7 @@ public class Game : GameEngine
                 obj.ShadowMaterial = _proceduralShadowMaterial;
                 _gbufferRenderer.Add(obj);
                 _shadowRenderer.Add(obj);
+                _pointLightShadowRenderer.Add(new PointLightShadowRenderableAdapter(obj, plsProceduralShadowMaterial));
             }
         }
 
@@ -607,6 +674,15 @@ public class Game : GameEngine
             _voxelGI.SsrOnly = args.Contains("--ssr-only");
             RegisterVoxelMeshes();
             _voxelGI.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _preset.ShadowMapResource, _environment);
+            // Shadowed point-light inject: the atlas is rendered by the point
+            // light shadow node earlier in the frame (it attached before this GI
+            // node), so the inject pass always samples this frame's faces.
+            if (_pointLightShadowsEnabled)
+            {
+                _voxelGI.SetPointLightShadowAtlas(
+                    _pointLightShadow!.Atlas, _pointLightShadow.ShadowInfoBuffer,
+                    _pointLightShadow.FaceSize, _pointLightShadow.LightRadius, _pointLightShadow.MaxPenumbraTexels);
+            }
 
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
@@ -777,6 +853,7 @@ public class Game : GameEngine
         // ownership note on RGNode_GeometryPass/RGNode_ShadowPass): dispose them here.
         _gbufferRenderer.Dispose();
         _shadowRenderer.Dispose();
+        _pointLightShadowRenderer?.Dispose();
         _preset.Dispose();
     }
 
@@ -797,6 +874,9 @@ public class Game : GameEngine
         _gbufferRenderer.MarkStaticBundleDirty();
         _shadowRenderer.MarkStaticBundleDirty();
         _forwardRenderer?.MarkStaticBundleDirty();
+        // The point light shadow atlas has no bundles, but faces rendered with
+        // the old pipeline must re-render with the recompiled one.
+        _pointLightShadow?.MarkAtlasDirty();
 
         string shaderName = Path.GetFileName(filename);
         _shaderReloadNotice = $"Shader reloaded: {shaderName}";
@@ -1395,6 +1475,7 @@ public class Game : GameEngine
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
             _shadowRenderer.SetShadowCutoutMaterialTextures(_bistroShadowMaterials![i], material.AlbedoTexture);
+            _pointLightShadowRenderer?.SetCutoutMaterialTextures(_plsBistroShadowMaterials![i], material.AlbedoTexture);
             if (_bistroGlassMaterials != null)
             {
                 _forwardRenderer?.SetGlassMaterialTextures(_bistroGlassMaterials[i],
@@ -1755,6 +1836,30 @@ public class Game : GameEngine
             ImGui.SliderFloat("Light Intensity", ref _pointLightIntensity, 0.0f, 5.0f);
             ImGui.SliderFloat("Light Range", ref _pointLightRangeScale, 0.1f, 3.0f);
             ImGui.Text(_textBuilder.Clear().Append("Lights: ").Append(_bistroPointLights.Length).Append(" / ").Append(PBRSceneEnvironment.MaxPointLights).AsReadOnlySpan());
+
+            if (_pointLightShadow != null)
+            {
+                if (ImGui.Checkbox("Shadows (Atlas PCSS)", ref _pointLightShadowsEnabled))
+                {
+                    _pointLightShadow.IsEnabled = _pointLightShadowsEnabled;
+                    // Keep the GI inject wiring in lockstep: unwired inject falls
+                    // back to unshadowed instead of sampling a stale atlas.
+                    _voxelGI?.SetPointLightShadowAtlas(
+                        _pointLightShadowsEnabled ? _pointLightShadow.Atlas : null,
+                        _pointLightShadowsEnabled ? _pointLightShadow.ShadowInfoBuffer : null,
+                        _pointLightShadow.FaceSize, _pointLightShadow.LightRadius, _pointLightShadow.MaxPenumbraTexels);
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("The 16 most important lights get 6-face shadow maps with PCSS penumbrae; the rest stay unshadowed.");
+                float plsRadius = _pointLightShadow.LightRadius;
+                if (ImGui.SliderFloat("Shadow Light Radius", ref plsRadius, 0.02f, 0.5f))
+                {
+                    _pointLightShadow.LightRadius = plsRadius;
+                    _voxelGI?.SetPointLightShadowAtlas(
+                        _pointLightShadow.Atlas, _pointLightShadow.ShadowInfoBuffer,
+                        _pointLightShadow.FaceSize, plsRadius, _pointLightShadow.MaxPenumbraTexels);
+                }
+            }
         }
 
         if (_tonemapStage != null && ImGui.CollapsingHeader("Tone Mapping"))

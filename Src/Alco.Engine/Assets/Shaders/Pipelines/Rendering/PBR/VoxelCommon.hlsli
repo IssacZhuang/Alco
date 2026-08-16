@@ -37,10 +37,11 @@ DEFINE_UNIFORM(0, _data)
     float4 cascadeSplits;          // radial end distance of each shadow cascade
     float4 cascadeTexelSizes;      // world units per shadow texel of each cascade
     float4 clipmapParams;          // x=resolution y=levelCount z=mipCount w=voxelSpecularEnabled
-    float4 lightingParams;         // x=shadowEnabled y=numPointLights z=shadowMapSize w=unused
+    float4 lightingParams;         // x=shadowEnabled y=numPointLights z=shadowMapSize w=point light shadow radius (0 = unshadowed inject)
     float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
     float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
     float4 giFrameParams;          // x=frameIndex y=giDiffuseBias z=historyValid w=diffuseSpreading
+    float4 pointLightShadowParams; // point light shadow atlas params for shadowed inject: x=1/faceSize y=1/atlasWidth z=1/atlasHeight w=maxPenumbraTexels (zero when not wired)
 };
 
 // ---------------------------------------------------------------- packing ---
