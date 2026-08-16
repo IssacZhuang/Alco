@@ -34,6 +34,10 @@ public unsafe class TestCollisionWorld2D
             {
                 hitIds.Add(target.id);
             }
+            else if (hitObject is TestSphereTarget sphere)
+            {
+                hitIds.Add(sphere.id);
+            }
             return true;
         }
 
@@ -42,6 +46,10 @@ public unsafe class TestCollisionWorld2D
             if (target is TestBoxTarget box)
             {
                 hitIds.Add(box.id);
+            }
+            else if (target is TestSphereTarget sphere)
+            {
+                hitIds.Add(sphere.id);
             }
             return true;
         }
@@ -283,5 +291,69 @@ public unsafe class TestCollisionWorld2D
         Ray2D ray = new Ray2D(new Vector2(0, 0), new Vector2(20, 0));
         Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out var hitTarget, out _), Is.True);
         Assert.That(hitTarget!.id, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TestMortonBuilderWorld2D()
+    {
+        // The Morton-injected world must cast identically to the pairing default, including across
+        // repeated clear/push/build cycles like the map service's per-frame rebuild
+        using CollisionWorld2D pairingWorld = new CollisionWorld2D();
+        using CollisionWorld2D mortonWorld = new CollisionWorld2D { Builder = new MortonBvhBuilder2D() };
+
+        for (int cycle = 0; cycle < 3; cycle++)
+        {
+            pairingWorld.ClearAll();
+            mortonWorld.ClearAll();
+
+            for (int i = 0; i < 40; i++)
+            {
+                Vector2 pos = new Vector2((i * 7) % 31, (i * 13) % 19);
+                TestBoxTarget box = new TestBoxTarget
+                {
+                    id = i,
+                    shape = new ShapeBox2D(pos, new Vector2(1, 1), Rotation2D.Identity)
+                };
+                TestSphereTarget sphere = new TestSphereTarget
+                {
+                    id = 100 + i,
+                    shape = new ShapeSphere2D { Center = pos + new Vector2(0.5f, 0.5f), Radius = 0.75f }
+                };
+                pairingWorld.PushCollisionTarget(box, box.shape);
+                pairingWorld.PushCollisionTarget(sphere, sphere.shape);
+                mortonWorld.PushCollisionTarget(box, box.shape);
+                mortonWorld.PushCollisionTarget(sphere, sphere.shape);
+            }
+
+            pairingWorld.BuildTree();
+            mortonWorld.BuildTree();
+
+            ShapeSphere2D castSphere = new ShapeSphere2D { Center = new Vector2(15, 9), Radius = 5 };
+            TestSphereCollector pairingCollector = new TestSphereCollector(0);
+            TestSphereCollector mortonCollector = new TestSphereCollector(0);
+            pairingWorld.CastSphere(ref pairingCollector, castSphere);
+            mortonWorld.CastSphere(ref mortonCollector, castSphere);
+            pairingCollector.hitIds.Sort();
+            mortonCollector.hitIds.Sort();
+            Assert.That(mortonCollector.hitIds, Is.EqualTo(pairingCollector.hitIds));
+            Assert.That(mortonCollector.hitIds.Count, Is.GreaterThan(0));
+
+            Ray2D ray = new Ray2D(new Vector2(-5, -5), new Vector2(80, 40));
+            TestSphereCollector pairingRay = new TestSphereCollector(0);
+            TestSphereCollector mortonRay = new TestSphereCollector(0);
+            pairingWorld.CastRay(ref pairingRay, ray);
+            mortonWorld.CastRay(ref mortonRay, ray);
+            pairingRay.hitIds.Sort();
+            mortonRay.hitIds.Sort();
+            Assert.That(mortonRay.hitIds, Is.EqualTo(pairingRay.hitIds));
+            Assert.That(mortonRay.hitIds.Count, Is.GreaterThan(0));
+
+            bool pairingHit = pairingWorld.TryCastRayClosestHit<object>(ray, out object? pairingTarget, out RaycastHit2D pairingHitInfo);
+            bool mortonHit = mortonWorld.TryCastRayClosestHit<object>(ray, out object? mortonTarget, out RaycastHit2D mortonHitInfo);
+            Assert.That(mortonHit, Is.EqualTo(pairingHit));
+            Assert.That(mortonHit, Is.True);
+            Assert.That(mortonTarget, Is.EqualTo(pairingTarget));
+            Assert.That(mortonHitInfo.Fraction, Is.EqualTo(pairingHitInfo.Fraction));
+        }
     }
 }
