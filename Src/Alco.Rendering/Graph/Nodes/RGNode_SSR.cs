@@ -36,6 +36,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private const int CompositeQueryBase = 6;
     private const int TimestampSlotCount = 8;
 
+    // Must match SSR_BLUE_NOISE_SIZE in ScreenSpaceReflectionBlueNoise.hlsl.
+    private const uint BlueNoiseTextureSize = 128;
+
     private readonly RenderingSystem _rendering;
     private readonly RenderGraph _graph;
     private readonly RenderChain _chain;
@@ -49,6 +52,10 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private readonly Material _traceMaterial;
     private readonly Material _resolveMaterial;
     private readonly Material _compositeMaterial;
+    private readonly Material _blueNoiseMaterial;
+    private readonly GPUAttachmentLayout _blueNoiseLayout;
+    private readonly RenderTexture _blueNoiseTexture;
+    private bool _blueNoiseBaked;
     private readonly GraphicsValueBuffer<SsrData> _dataBuffer;
     private readonly GPUAttachmentLayout _historyLayout;
 
@@ -175,6 +182,8 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     /// <param name="resolveShader">The temporal/spatial resolve shader.</param>
     /// <param name="compositeShader">The composite shader.</param>
     /// <param name="blitShader">The plain blit shader (scene copy).</param>
+    /// <param name="blueNoiseShader">The blue-noise bake shader filling the
+    /// trace pass's stochastic-sample lookup once at runtime.</param>
     /// <param name="width">The initial viewport width in pixels.</param>
     /// <param name="height">The initial viewport height in pixels.</param>
     /// <param name="traceResolutionScale">The trace resolution relative to the viewport.</param>
@@ -191,11 +200,13 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         Shader resolveShader,
         Shader compositeShader,
         Shader blitShader,
+        Shader blueNoiseShader,
         uint width,
         uint height,
         float traceResolutionScale = 0.5f)
     {
         ValidateTraceResolutionScale(traceResolutionScale);
+        ArgumentNullException.ThrowIfNull(blueNoiseShader);
         _rendering = rendering;
         _graph = graph;
         _chain = chain;
@@ -209,6 +220,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _traceMaterial = rendering.CreateMaterial(traceShader, "ssr_trace");
         _resolveMaterial = rendering.CreateMaterial(resolveShader, "ssr_resolve");
         _compositeMaterial = rendering.CreateMaterial(compositeShader, "ssr_composite");
+        _blueNoiseMaterial = rendering.CreateMaterial(blueNoiseShader, "ssr_blue_noise_bake");
         _dataBuffer = rendering.CreateGraphicsValueBuffer<SsrData>("ssr_post_data");
         _traceResolutionScale = traceResolutionScale;
         _historyLayout = rendering.GraphicsDevice.CreateAttachmentLayout(
@@ -219,6 +231,17 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
                 ],
                 null,
                 "ssr_history_pass"));
+
+        // Persistent stochastic-sample lookup: a 128x128 tile baked once on the
+        // first rendered frame and reused afterwards (its size matches the
+        // scrambling table embedded in the bake shader).
+        _blueNoiseLayout = rendering.GraphicsDevice.CreateAttachmentLayout(
+            new AttachmentLayoutDescriptor(
+                [new ColorAttachment(PixelFormat.RGBA8Unorm)],
+                null,
+                "ssr_blue_noise_pass"));
+        _blueNoiseTexture = rendering.CreateRenderTexture(
+            _blueNoiseLayout, BlueNoiseTextureSize, BlueNoiseTextureSize, "ssr_blue_noise");
 
         // The persistent cross-frame history is created up front; the scene copy
         // and the raw trace target are graph transients created by Attach.
@@ -267,6 +290,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _traceMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
         _traceMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
         _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
+        _traceMaterial.SetRenderTexture("_blueNoise", _blueNoiseTexture);
 
         _resolveMaterial.SetBuffer("_ssrData", _dataBuffer);
         _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0], 0);
@@ -403,6 +427,20 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _dataBuffer.UpdateBuffer(data);
 
         GPUTimestampQuerySet? querySet = measureGpu ? _gpuTimestamps!.QuerySet : null;
+
+        // Bake the blue-noise lookup once (the scrambling-table bake is a
+        // one-time cost); every frame afterwards samples the persistent tile.
+        // Bake the blue-noise lookup once (procedural neighborhood-rank
+        // construction, see ScreenSpaceReflectionBlueNoise.hlsl); every frame
+        // afterwards samples the persistent tile.
+        if (!_blueNoiseBaked)
+        {
+            using RenderPassScope pass = renderContext.BeginPass(_blueNoiseTexture.FrameBuffer);
+            {
+                pass.Draw(_fullScreenMesh, _blueNoiseMaterial);
+            }
+            _blueNoiseBaked = true;
+        }
 
         // Preserve the completed HDR scene before overwriting the pipeline target.
         _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, scene);
@@ -560,12 +598,15 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             _traceMaterial.Dispose();
             _resolveMaterial.Dispose();
             _compositeMaterial.Dispose();
+            _blueNoiseMaterial.Dispose();
             _dataBuffer.Dispose();
             // The scene copy and raw trace target are graph-owned facades,
             // disposed with the graph.
             _reflectionHistory[0].Dispose();
             _reflectionHistory[1].Dispose();
             _historyLayout.Dispose();
+            _blueNoiseTexture.Dispose();
+            _blueNoiseLayout.Dispose();
             _gpuTimestamps?.Dispose();
         }
     }

@@ -610,6 +610,9 @@ public class Game : GameEngine
 
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
+            // The trace pass draws its stochastic samples from a blue-noise
+            // tile baked once at runtime by ScreenSpaceReflectionBlueNoise.hlsl
+            // (Heitz Owen-scrambled Sobol over an optimized scrambling table).
             _ssrRenderer = new RGNode_SSR(
                 RenderingSystem,
                 _preset.Graph,
@@ -623,6 +626,7 @@ public class Game : GameEngine
                 AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionResolve.hlsl"),
                 AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionComposite.hlsl"),
                 BuiltInAssets.Shader_Blit,
+                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
                 (uint)MainView.Size.X,
                 (uint)MainView.Size.Y,
                 traceResolutionScale: GiTraceResolutionScales[_ssrResolutionPreset]);

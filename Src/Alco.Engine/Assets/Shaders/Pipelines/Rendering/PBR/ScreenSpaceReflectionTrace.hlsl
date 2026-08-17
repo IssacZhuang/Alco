@@ -8,6 +8,10 @@ DEFINE_TEX2D_READ(1, _albedo);
 DEFINE_TEX2D_READ(1, _normal);
 DEFINE_TEX2D_READ(1, _mrAO);
 DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
+DEFINE_TEX2D_READ(1, _blueNoise);
+
+// Runtime-baked Heitz blue-noise lookup (see ScreenSpaceReflectionBlueNoise.hlsl).
+static const uint SSR_BLUE_NOISE_TILE = 128u;
 
 static const float2 SSR_BLUR_OFFSETS[9] = {
     float2( 0.0,  0.0), float2( 0.8,  0.2), float2(-0.7,  0.5),
@@ -74,18 +78,22 @@ float4 MainPS(V2F input) : SV_TARGET
     float viewDistance = length(worldPosition - ssrCameraPosition.xyz);
     float fresnel = saturate(1.0 + dot(normal, viewDirection));
 
-    // Give every pixel and stochastic dimension an independently scrambled
-    // temporal sequence. The previous additive golden-ratio phases advanced
-    // every pixel in the same angular direction, so the glossy lobe and blur
-    // kernel appeared to flow coherently across stationary surfaces.
-    uint2 randomPixel = uint2(pixel);
-    uint frameIndex = (uint)ssrParams.x;
-    float angleSample = SsrPostRandom(randomPixel, frameIndex, 0u);
-    float radialSample = SsrPostRandom(randomPixel, frameIndex, 1u);
-    float stepSample = SsrPostRandom(randomPixel, frameIndex, 2u);
-    // Keep the spatial blur kernel stable; only the traced glossy ray needs to
-    // vary over time for temporal integration.
-    float blurRotationSample = SsrPostRandom(randomPixel, 0u, 3u);
+    // Blue-noise sampling (Heitz's Owen-scrambled Sobol over an optimized
+    // scrambling tile, baked once at startup): neighbouring trace texels draw
+    // from uncorrelated sequences, so error energy concentrates in the high
+    // frequencies where the half-res 2x2 footprint, the bilateral resolve and
+    // temporal accumulation average it away. Each frame advances the
+    // stochastic dimensions with a Cranley-Patterson rotation; the (R, G)
+    // angle/radius pair uses the R2 low-discrepancy constants so every pixel's
+    // 2D disk samples stay stratified over time. The blur rotation (A) always
+    // reads the baked value and stays temporally stable.
+    uint2 noisePixel = uint2(input.uv * ssrRenderSize.zw) % SSR_BLUE_NOISE_TILE;
+    float4 blueNoise = GET_PIXEL_TEX2D(_blueNoise, int2(noisePixel));
+    uint noiseFrame = (uint)ssrParams.x % 256u;
+    float angleSample = frac(blueNoise.r + noiseFrame * 0.7548776662);
+    float radialSample = frac(blueNoise.g + noiseFrame * 0.5698402910);
+    float stepSample = frac(blueNoise.b + noiseFrame * 0.6180339887);
+    float blurRotationSample = blueNoise.a;
     float3 up = abs(normal.z) < 0.999 ? float3(0.0, 0.0, 1.0) : float3(0.0, 1.0, 0.0);
     float3 tangent = normalize(cross(up, normal));
     float3 bitangent = cross(normal, tangent);
