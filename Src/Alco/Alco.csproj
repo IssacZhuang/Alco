@@ -3,10 +3,11 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Alco</RootNamespace>
     <AssemblyName>Alco</AssemblyName>
-  
+
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Alco.Test" />
+    <!-- GenerateAssemblyInfo=false (Directory.Build.props) disables the SDK's
+         InternalsVisibleTo item, so the attribute is declared in AssemblyInfo.cs instead -->
   </ItemGroup>
 </Project>
