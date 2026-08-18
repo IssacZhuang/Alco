@@ -40,7 +40,7 @@ public struct DeferredLightingData
     public Vector4 CascadeSplits;
     /// <summary>World units per shadow texel of each cascade (for the normal-offset bias).</summary>
     public Vector4 CascadeTexelSizes;
-    /// <summary>x=cascadeDebugTint, y=shadowFactorView, z=unused, w=aoDebugView.</summary>
+    /// <summary>x=cascadeDebugTint, y=shadowFactorView, z=shadowTightness (0=linear, 1=full penumbra power curve), w=aoDebugView.</summary>
     public Vector4 Params2;
     /// <summary>xy=render target size in pixels (filled by the pipeline).</summary>
     public Vector4 ViewportSize;

@@ -185,6 +185,11 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>PSSM split blend: 1 = fully logarithmic, 0 = fully uniform.</summary>
     public float ShadowSplitLambda { get; set; } = 0.6f;
 
+    /// <summary>Sun shadow penumbra tightness (0 = linear PCF average, 1 = full
+    /// power-curve remap; cascade 0 uses a stronger exponent than the outer
+    /// cascades to keep contact shadows hard while edges stay soft).</summary>
+    public float ShadowTightness { get; set; } = 1.0f;
+
     /// <summary>Whether the physical-sky sun disc is visible.</summary>
     public bool SunDiscEnabled { get; set; } = true;
 
@@ -458,7 +463,7 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
         _lightingData.Params2 = new Vector4(
             CascadeDebug ? 1.0f : 0.0f,
             ShadowDebug ? 1.0f : 0.0f,
-            0.0f,
+            ShadowTightness,
             AoDebugView ? 1.0f : 0.0f);
         _lightingData.ViewportSize = new Vector4(gbuffer.Width, gbuffer.Height, 0, 0);
         _lightingData.Params3 = new Vector4(
