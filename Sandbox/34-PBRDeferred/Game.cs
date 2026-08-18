@@ -249,7 +249,7 @@ public class Game : GameEngine
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private bool _hbaoEnabled = true;
     private float _hbaoRadius = 1.0f;
-    private float _hbaoStrength = 1.0f;
+    private float _hbaoStrength = 0.5f;
     private RGNode_HBAO? _hbaoRenderer;
 
     // Voxel global illumination (sparse clipmap + cone tracing).
@@ -1518,6 +1518,9 @@ public class Game : GameEngine
             ImGui.SliderFloat("Star Intensity", ref _starIntensity, 0.0f, 4.0f);
             ImGui.SliderFloat("Night Floor", ref _nightFloor, 0.0f, 0.5f, "%.4f");
             ImGui.SliderFloat("Ambient Floor", ref _ambientFloor, 0.0f, 10.0f);
+            float skyGiSaturation = _environment.SkyGiSaturation;
+            if (ImGui.SliderFloat("Sky GI Saturation", ref skyGiSaturation, 0.0f, 1.0f))
+                _environment.SkyGiSaturation = skyGiSaturation;
         }
 
         if (ImGui.CollapsingHeader("Volumetric Light"))

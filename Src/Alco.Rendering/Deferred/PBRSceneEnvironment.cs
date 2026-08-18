@@ -211,6 +211,14 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>Filtered physical-sky radiance at the zenith.</summary>
     public Vector3 SkyZenithColor { get; set; }
 
+    /// <summary>Saturation of the sky colors used for ambient lighting and GI
+    /// (1 = full physical color, 0 = luminance-only neutral). The atmosphere is
+    /// rendered with single scattering only, which is bluer than the real sky
+    /// whose multiple scattering whitens ambient light; blending toward
+    /// luminance keeps sky GI intensity brightening the scene instead of
+    /// tinting it blue. The visible sky is not affected.</summary>
+    public float SkyGiSaturation { get; set; } = 0.6f;
+
     /// <summary>Tint shadow cascade quadrants for debugging.</summary>
     public bool CascadeDebug { get; set; }
 
@@ -422,6 +430,18 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
         }
     }
 
+    // Rec.709 luminance weights for desaturating ambient sky colors.
+    private static readonly Vector3 LuminanceWeights = new(0.2126f, 0.7152f, 0.0722f);
+
+    // Every consumer of the two sky colors (diffuse baseline, voxel GI,
+    // volumetric clouds) treats them as ambient irradiance, so the
+    // SkyGiSaturation blend is applied once here at assembly.
+    private Vector3 DesaturateAmbientSky(Vector3 color)
+    {
+        float luminance = Vector3.Dot(color, LuminanceWeights);
+        return Vector3.Lerp(new Vector3(luminance), color, SkyGiSaturation);
+    }
+
     /// <summary>
     /// Assemble <see cref="CurrentLightingData"/> from the scene properties, camera and
     /// cascade state. Called by the lighting node (followed by
@@ -449,8 +469,8 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
         _lightingData.SunColorAndIntensity = new Vector4(SunColor, SunIntensity);
         _lightingData.SkyParams = SkyParams;
         _lightingData.SkyParams2 = SkyParams2;
-        _lightingData.SkyHorizonColor = new Vector4(SkyHorizonColor, 0.0f);
-        _lightingData.SkyZenithColor = new Vector4(SkyZenithColor, 0.0f);
+        _lightingData.SkyHorizonColor = new Vector4(DesaturateAmbientSky(SkyHorizonColor), 0.0f);
+        _lightingData.SkyZenithColor = new Vector4(DesaturateAmbientSky(SkyZenithColor), 0.0f);
         _lightingData.Params = new Vector4(
             ShadowEnabled ? 1.0f : 0.0f,
             _pointLightCount,

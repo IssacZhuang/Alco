@@ -590,7 +590,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// Gets or sets the sky-light multiplier for voxel GI. Scales the sky
     /// radiance injected into the voxel volume.
     /// </summary>
-    public float SkyIntensity { get; set; } = 1.0f;
+    public float SkyIntensity { get; set; } = 3.0f;
 
     /// <summary>
     /// Gets or sets the debug visualization mode.
