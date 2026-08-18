@@ -572,6 +572,13 @@ void MainCS(
                     int2(0, 0),
                     int2((int)traceResolution.x - 1, (int)traceResolution.y - 1));
 
+                // Shared reprojection displacement in trace-UV units. The
+                // specular blend below discards history with it (reflection
+                // content slides under motion even when the reprojection is
+                // valid); the diffuse blend only shortens its window.
+                float2 motionVector = prevUV - traceUV;
+                float motionDist = length(motionVector);
+
                 // The depth RATIO (not absolute difference) gradually
                 // increases the current-frame blend weight. An absolute
                 // tolerance (7.5 cm) is far too strict for geometric
@@ -602,20 +609,29 @@ void MainCS(
                     float4 historyAldMax = _historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 4, 0), 0));
 
+                    // Diffuse tolerates camera motion far better than
+                    // specular: for static geometry the reprojection stays
+                    // valid, so motion halves the effective hysteresis
+                    // instead of discarding history. The shortened window
+                    // stays responsive to the brick-quantized scroll of the
+                    // voxel field while still averaging the single-cone
+                    // noise left wherever the raw-stage reprojection rejected
+                    // its own history.
+                    float diffuseHysteresis = constants.params.z
+                        * (1.0 - 0.5 * saturate(motionDist / 0.05));
                     resultMin = AccumulateDiffuseLayer(
                         historyMin, layerMin, neighborhoodMin, neighborhoodMax,
-                        constants.params.z, historyConfidence);
+                        diffuseHysteresis, historyConfidence);
                     resultMax = AccumulateDiffuseLayer(
                         historyMax, layerMax, neighborhoodMin, neighborhoodMax,
-                        constants.params.z, historyConfidence);
+                        diffuseHysteresis, historyConfidence);
 
                     // ALD accumulates with the same temporal scheme as diffuse
                     // RGB: clamp to a neighbourhood, blend at the confidence-
                     // weighted rate. ALD magnitude (w) is clamped against the
                     // diffuse neighbourhood alpha range so a stale bright
                     // direction cannot persist after the source surface moves.
-                    float aldHysteresis = constants.params.z;
-                    float aldBlendRate = lerp(1.0, 1.0 - aldHysteresis, historyConfidence);
+                    float aldBlendRate = lerp(1.0, 1.0 - diffuseHysteresis, historyConfidence);
                     resultAldMin = lerp(historyAldMin, layerAldMin, aldBlendRate);
                     resultAldMax = lerp(historyAldMax, layerAldMax, aldBlendRate);
 
@@ -641,8 +657,6 @@ void MainCS(
                     // little at any given pixel, so a luminance-only trigger
                     // lets stale history persist and then pop when the
                     // highlight arrives.
-                    float2 motionVector = prevUV - traceUV;
-                    float motionDist = length(motionVector);
                     float motionBlend = saturate(motionDist / 0.025);
 
                     float curLum = dot(specularCurrent.rgb, float3(0.299, 0.587, 0.114));

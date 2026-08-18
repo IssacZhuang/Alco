@@ -9,6 +9,8 @@
 // a 2x2 depth-weighted averaged geometry normal so cone directions stay stable
 // across edges and tessellated relief. Every pixel visits the complete
 // 64-direction kernel over time and accumulates it before spatial demosaic.
+// March positions are jittered by a per-pixel blue-noise factor (rotated per
+// frame) so voxel-grid quantization crawl averages out under that accumulation.
 // The result is written into a three-segment output atlas: total diffuse
 // irradiance plus diagnostic visibility, voxel specular fallback, and average
 // light direction data.
@@ -28,6 +30,10 @@ DEFINE_TEX2D_DEPTH_SAMPLE(0, _shadowMap);
 DEFINE_TEX2D_READ(0, _traceHistory);
 // Previous demosaic metadata, segment 5: x = linear depth, yzw = world normal.
 DEFINE_TEX2D_READ(0, _giHistoryMetadata);
+// 128x128 blue-noise tile baked once from
+// ScreenSpaceReflectionBlueNoise.hlsl (the same tile the SSR trace samples).
+// Its B channel jitters the cone march below.
+DEFINE_TEX2D_READ(0, _blueNoise);
 // Point lights are included in the compact screen-space near-field diffuse
 // gather below.
 struct PointLightData
@@ -43,6 +49,10 @@ DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
 // temporal accumulation. This keeps the first frames spatially stratified
 // while making the converged integral independent of neighbouring geometry.
 static const float DIFFUSE_CONE_APERTURE = 1.0 / 24.0;
+
+// Must match BlueNoiseTextureSize on the C# side and SSR_BLUE_NOISE_SIZE in
+// the bake shader.
+static const uint BLUE_NOISE_TILE = 128u;
 
 static const uint DIFFUSE_DIRECTION_TILE[64] = {
      0u, 32u,  8u, 40u,  2u, 34u, 10u, 42u,
@@ -308,13 +318,16 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
 // the opacity volume's xyz onto |cone direction|.
 // Returns rgb = gathered surface radiance plus visible sky, a = accumulated
 // occlusion. The caller selects whether the unoccluded cone reaches the sky.
+// marchJitter is a per-pixel, per-frame blue-noise factor in [0,1) that scales
+// the initial offset and every step (see MainCS).
 float4 TraceCone(
     float3 startPosition,
     float3 direction,
     float apertureTan,
     float maxDistance,
     float skyFallback,
-    float marchStepScale)
+    float marchStepScale,
+    float marchJitter)
 {
     float mipCount = clipmapParams.z;
     float fineVoxelSize = levelOrigins[0].w;
@@ -322,6 +335,14 @@ float4 TraceCone(
     float alpha = 0.0;
     int startLevel = VoxelFindLevel(startPosition);
     float t = startLevel >= 0 ? VoxelEffectiveVoxelSize(startPosition, startLevel) * 0.5 : fineVoxelSize * 0.5;
+    // The radiance volume quantizes the field in world space, so unjittered
+    // marches lock to the same grid phase and a moving receiver crawls across
+    // texel boundaries coherently — worst in the coarse far levels, where the
+    // brick-aligned mip clamp leaves the cone under-filtered. The jitter
+    // spreads the sample phase across neighbouring pixels and frames,
+    // redistributing that crawl into high-frequency dither that the demosaic
+    // bilateral and the temporal accumulation average out.
+    t *= 0.85 + 0.3 * marchJitter;
     float3 absDir = abs(direction);
     int prevLevel = -2;
     float effectiveVoxelSize = fineVoxelSize;
@@ -363,7 +384,7 @@ float4 TraceCone(
 
         color += (1.0 - alpha) * sample.a * sample.rgb * nearFade;
         alpha += (1.0 - alpha) * sample.a;
-        t += marchDistance;
+        t += marchDistance * (0.92 + 0.16 * marchJitter);
     }
 
     // Add directional sky radiance through the unoccluded part of the cone.
@@ -393,6 +414,7 @@ float4 TraceDiffuseCones(
     float3 normal,
     float maxDistance,
     uint2 tracePixel,
+    float marchJitter,
     out float3 outWorldDir)
 {
     float3x3 tbn = GetTangentBasis(normal);
@@ -424,7 +446,7 @@ float4 TraceDiffuseCones(
     float3 worldDir = normalize(mul(kernelDirection, tbn));
     outWorldDir = worldDir;
     float4 coneResult = TraceCone(
-        startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0);
+        startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0, marchJitter);
     return float4(coneResult.rgb, saturate(1.0 - coneResult.a));
 }
 
@@ -519,10 +541,20 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float receiverBias = max(fineVoxelSize * 2.0, surfaceVoxelSize * 0.5);
     float3 startPosition = worldPosition + N * receiverBias;
 
+    // One blue-noise sample per trace pixel drives the cone-march jitter. The
+    // B channel is rotated through the golden-ratio Cranley-Patterson
+    // sequence (the same scheme as the SSR trace), so the jitter decorrelates
+    // across frames and the temporal accumulation integrates over march
+    // phases instead of keeping one bias per pixel.
+    uint2 noisePixel = tracePixel % BLUE_NOISE_TILE;
+    float blueNoiseMarch = GET_PIXEL_TEX2D(_blueNoise, int2(noisePixel)).b;
+    float marchJitter = frac(blueNoiseMarch + float(uint(giFrameParams.x)) * 0.6180339887);
+
     // Diffuse RGB contains visible directional sky and bounced surface
     // radiance. Alpha is retained only as a diagnostic visibility output.
     float3 diffuseWorldDir;
-    float4 diffuseResult = TraceDiffuseCones(startPosition, N, maxDistance, tracePixel, diffuseWorldDir);
+    float4 diffuseResult = TraceDiffuseCones(
+        startPosition, N, maxDistance, tracePixel, marchJitter, diffuseWorldDir);
     float3 diffuse = diffuseResult.rgb;
 
     // Voxel specular is now only the off-screen/occluded fallback. Screen-space
@@ -536,7 +568,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     {
         float specularApertureTan = max(roughness * roughness, 0.06);
         specular = TraceCone(
-            startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5).rgb;
+            startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5, marchJitter).rgb;
     }
     // ALD (Average Light Direction): direction-weighted accumulation of cone
     // brightness. xyz = worldDir * brightness, w = brightness. The deferred

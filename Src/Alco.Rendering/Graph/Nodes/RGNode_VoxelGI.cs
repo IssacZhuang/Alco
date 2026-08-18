@@ -123,7 +123,7 @@ public enum VoxelGiDebugMode
 }
 
 /// <summary>
-/// The complete set of compute shaders required by <see cref="RGNode_VoxelGI"/>.
+/// The complete set of shaders required by <see cref="RGNode_VoxelGI"/>.
 /// Load each from its HLSL file and pass to the constructor.
 /// </summary>
 public readonly struct VoxelGiShaders
@@ -144,6 +144,11 @@ public readonly struct VoxelGiShaders
     public required Shader Trace { get; init; }
     /// <summary>The temporal demosaic shader (VoxelDemosaic.hlsl).</summary>
     public required Shader Demosaic { get; init; }
+    /// <summary>
+    /// The blue-noise tile bake shader (ScreenSpaceReflectionBlueNoise.hlsl),
+    /// shared with the SSR trace. The baked tile jitters the cone march.
+    /// </summary>
+    public required Shader BlueNoise { get; init; }
     /// <summary>The full-resolution upsample shader (VoxelGiUpsample.hlsl), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
 }
@@ -314,6 +319,15 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly ComputeMaterial _propagateMaterial;
     private readonly ComputeMaterial _traceMaterial;
     private readonly ComputeMaterial _demosaicMaterial;
+    // The blue-noise tile is baked once with a graphics pass, then sampled by
+    // the compute trace. Must match BLUE_NOISE_TILE in VoxelTrace.hlsl and
+    // SSR_BLUE_NOISE_SIZE in the bake shader.
+    private const uint BlueNoiseTextureSize = 128;
+    private readonly Mesh _fullScreenMesh;
+    private readonly Material _blueNoiseMaterial;
+    private readonly GPUAttachmentLayout _blueNoiseLayout;
+    private readonly RenderTexture _blueNoiseTexture;
+    private bool _blueNoiseBaked;
     private ComputeMaterial? _upsampleMaterial;
     private GraphicsValueBuffer<VoxelGiUpsampleData>? _upsampleDataBuffer;
     private readonly GraphicsValueBuffer<VoxelGiData> _dataBuffer;
@@ -505,12 +519,15 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     public float TemporalHysteresis { get; set; } = 0.8f;
 
     /// <summary>
-    /// Gets or sets optional post-demosaic diffuse temporal hysteresis (0..1),
-    /// independently from specular. Diffuse and ALD already accumulate their
-    /// angular samples per trace pixel before demosaic; keep this at zero by
-    /// default to avoid applying a second temporal filter and excess lag.
+    /// Gets or sets the post-demosaic diffuse temporal hysteresis (0..1),
+    /// independently from specular. The raw-trace accumulation converges for
+    /// static scenes but collapses to single-cone noise wherever its own
+    /// reprojection rejects history (camera motion across depth edges), so the
+    /// demosaic stage keeps a second, neighbourhood-clamped accumulation. The
+    /// effective hysteresis halves under camera motion (see VoxelDemosaic.hlsl)
+    /// to stay responsive to the scrolling voxel field; zero disables it.
     /// </summary>
-    public float DiffuseTemporalHysteresis { get; set; } = 0.0f;
+    public float DiffuseTemporalHysteresis { get; set; } = 0.85f;
 
     /// <summary>
     /// Gets or sets the diffuse spreading amount for the dual-kernel opacity
@@ -690,6 +707,19 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _traceMaterial = rendering.CreateComputeMaterial(shaders.Trace);
         _demosaicMaterial = rendering.CreateComputeMaterial(shaders.Demosaic);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
+
+        // Persistent blue-noise lookup for the cone-march jitter (the same
+        // tile the SSR trace samples): baked once on the first rendered frame
+        // by a graphics pass, reused by the compute trace afterwards.
+        _fullScreenMesh = rendering.MeshFullScreen;
+        _blueNoiseMaterial = rendering.CreateMaterial(shaders.BlueNoise, "voxel_gi_blue_noise_bake");
+        _blueNoiseLayout = _device.CreateAttachmentLayout(
+            new AttachmentLayoutDescriptor(
+                [new ColorAttachment(PixelFormat.RGBA8Unorm)],
+                null,
+                "voxel_gi_blue_noise_pass"));
+        _blueNoiseTexture = rendering.CreateRenderTexture(
+            _blueNoiseLayout, BlueNoiseTextureSize, BlueNoiseTextureSize, "voxel_gi_blue_noise");
         if (_device.TimestampQuerySupported)
         {
             _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "voxel_gi");
@@ -703,6 +733,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _propagateMaterial.SetBuffer("_data", _dataBuffer);
         _traceMaterial.SetBuffer("_data", _dataBuffer);
         _demosaicMaterial.SetBuffer("_data", _dataBuffer);
+        // The blue-noise tile never changes after the bake, so bind it once.
+        _traceMaterial.SetRenderTexture("_blueNoise", _blueNoiseTexture);
 
         // Attribute voxels are sparse physical 8^3 pages. Static data can fill
         // two complete levels and dynamic data one complete level before the
@@ -1304,6 +1336,18 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             // Remember whether this sample frame ran the volume update; the
             // timestamps recorded below are read back on the next sample frame.
             _sampledVolumeUpdate = updateVolume;
+        }
+
+        // Bake the blue-noise lookup once (procedural neighborhood-rank
+        // construction, see ScreenSpaceReflectionBlueNoise.hlsl); every frame
+        // afterwards the cone-trace march samples the persistent tile.
+        if (!_blueNoiseBaked)
+        {
+            using RenderPassScope pass = context.RenderContext.BeginPass(_blueNoiseTexture.FrameBuffer);
+            {
+                pass.Draw(_fullScreenMesh, _blueNoiseMaterial);
+            }
+            _blueNoiseBaked = true;
         }
 
         // Record into the graph's frame-shared command buffer; the graph submits
@@ -2183,6 +2227,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             // their own and are not disposable.
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
+            // Unlike the compute materials, the graphics bake material owns
+            // pass state and must be disposed with its texture and layout.
+            _blueNoiseMaterial.Dispose();
+            _blueNoiseTexture.Dispose();
+            _blueNoiseLayout.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
             _gpuTimestamps?.Dispose();

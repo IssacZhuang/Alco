@@ -596,6 +596,7 @@ public class Game : GameEngine
                     Propagate = AssetSystem.Load<Shader>(shaderDir + "VoxelPropagate.hlsl"),
                     Trace = AssetSystem.Load<Shader>(shaderDir + "VoxelTrace.hlsl"),
                     Demosaic = AssetSystem.Load<Shader>(shaderDir + "VoxelDemosaic.hlsl"),
+                    BlueNoise = AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
                     Upsample = AssetSystem.Load<Shader>(shaderDir + "VoxelGiUpsample.hlsl"),
                 },
                 width: (uint)MainView.Size.X,
