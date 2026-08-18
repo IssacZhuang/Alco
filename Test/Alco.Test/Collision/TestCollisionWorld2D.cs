@@ -296,14 +296,14 @@ public unsafe class TestCollisionWorld2D
     [Test]
     public void TestMortonBuilderWorld2D()
     {
-        // The Morton-injected world must cast identically to the pairing default, including across
-        // repeated clear/push/build cycles like the map service's per-frame rebuild
-        using CollisionWorld2D pairingWorld = new CollisionWorld2D();
+        // A world with an injected Morton builder must cast identically to the default build path,
+        // including across repeated clear/push/build cycles like the map service's per-frame rebuild
+        using CollisionWorld2D defaultWorld = new CollisionWorld2D();
         using CollisionWorld2D mortonWorld = new CollisionWorld2D { Builder = new MortonBvhBuilder2D() };
 
         for (int cycle = 0; cycle < 3; cycle++)
         {
-            pairingWorld.ClearAll();
+            defaultWorld.ClearAll();
             mortonWorld.ClearAll();
 
             for (int i = 0; i < 40; i++)
@@ -319,41 +319,41 @@ public unsafe class TestCollisionWorld2D
                     id = 100 + i,
                     shape = new ShapeSphere2D { Center = pos + new Vector2(0.5f, 0.5f), Radius = 0.75f }
                 };
-                pairingWorld.PushCollisionTarget(box, box.shape);
-                pairingWorld.PushCollisionTarget(sphere, sphere.shape);
+                defaultWorld.PushCollisionTarget(box, box.shape);
+                defaultWorld.PushCollisionTarget(sphere, sphere.shape);
                 mortonWorld.PushCollisionTarget(box, box.shape);
                 mortonWorld.PushCollisionTarget(sphere, sphere.shape);
             }
 
-            pairingWorld.BuildTree();
+            defaultWorld.BuildTree();
             mortonWorld.BuildTree();
 
             ShapeSphere2D castSphere = new ShapeSphere2D { Center = new Vector2(15, 9), Radius = 5 };
-            TestSphereCollector pairingCollector = new TestSphereCollector(0);
+            TestSphereCollector defaultCollector = new TestSphereCollector(0);
             TestSphereCollector mortonCollector = new TestSphereCollector(0);
-            pairingWorld.CastSphere(ref pairingCollector, castSphere);
+            defaultWorld.CastSphere(ref defaultCollector, castSphere);
             mortonWorld.CastSphere(ref mortonCollector, castSphere);
-            pairingCollector.hitIds.Sort();
+            defaultCollector.hitIds.Sort();
             mortonCollector.hitIds.Sort();
-            Assert.That(mortonCollector.hitIds, Is.EqualTo(pairingCollector.hitIds));
+            Assert.That(mortonCollector.hitIds, Is.EqualTo(defaultCollector.hitIds));
             Assert.That(mortonCollector.hitIds.Count, Is.GreaterThan(0));
 
             Ray2D ray = new Ray2D(new Vector2(-5, -5), new Vector2(80, 40));
-            TestSphereCollector pairingRay = new TestSphereCollector(0);
+            TestSphereCollector defaultRay = new TestSphereCollector(0);
             TestSphereCollector mortonRay = new TestSphereCollector(0);
-            pairingWorld.CastRay(ref pairingRay, ray);
+            defaultWorld.CastRay(ref defaultRay, ray);
             mortonWorld.CastRay(ref mortonRay, ray);
-            pairingRay.hitIds.Sort();
+            defaultRay.hitIds.Sort();
             mortonRay.hitIds.Sort();
-            Assert.That(mortonRay.hitIds, Is.EqualTo(pairingRay.hitIds));
+            Assert.That(mortonRay.hitIds, Is.EqualTo(defaultRay.hitIds));
             Assert.That(mortonRay.hitIds.Count, Is.GreaterThan(0));
 
-            bool pairingHit = pairingWorld.TryCastRayClosestHit<object>(ray, out object? pairingTarget, out RaycastHit2D pairingHitInfo);
+            bool defaultHit = defaultWorld.TryCastRayClosestHit<object>(ray, out object? defaultTarget, out RaycastHit2D defaultHitInfo);
             bool mortonHit = mortonWorld.TryCastRayClosestHit<object>(ray, out object? mortonTarget, out RaycastHit2D mortonHitInfo);
-            Assert.That(mortonHit, Is.EqualTo(pairingHit));
+            Assert.That(mortonHit, Is.EqualTo(defaultHit));
             Assert.That(mortonHit, Is.True);
-            Assert.That(mortonTarget, Is.EqualTo(pairingTarget));
-            Assert.That(mortonHitInfo.Fraction, Is.EqualTo(pairingHitInfo.Fraction));
+            Assert.That(mortonTarget, Is.EqualTo(defaultTarget));
+            Assert.That(mortonHitInfo.Fraction, Is.EqualTo(defaultHitInfo.Fraction));
         }
     }
 }

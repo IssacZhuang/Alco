@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Alco;
@@ -17,8 +18,13 @@ public class BenchmarkBvh
     NativeArrayList<ColliderRef3D> colliders3D;
     NativeBvh3D bvh3D;
 
-    private MortonBvhBuilder3D _mortonBuilder3D;
-    NativeBvh3D bvh3DMorton;
+    // order-preserving builds over the same colliders: insertion order (worst case for the
+    // range tree) and a Morton-sorted copy (the externally-maintained-order scenario)
+    private NativeBvh3D _bvh3DPairing;
+    private NativeBvh3D _bvh3DPairingSorted;
+    private NativeArrayList<ColliderRef3D> _colliders3DSorted;
+    private CastRayTask3D _castRayTask3DPairing;
+    private CastRayTask3D _castRayTask3DPairingSorted;
 
     NativeArrayList<ColliderBox2D> boxs2D;
     NativeArrayList<ColliderSphere2D> spheres2D;
@@ -26,13 +32,14 @@ public class BenchmarkBvh
     NativeArrayList<ColliderRef2D> colliders2D;
     NativeBvh2D bvh2D;
 
-    private MortonBvhBuilder2D _mortonBuilder2D;
-    NativeBvh2D bvh2DMorton;
+    private NativeBvh2D _bvh2DPairing;
+    private NativeBvh2D _bvh2DPairingSorted;
+    private NativeArrayList<ColliderRef2D> _colliders2DSorted;
+    private CastRayTask _castRayTask2DPairing;
+    private CastRayTask _castRayTask2DPairingSorted;
 
     private CastRayTask _castRayTask;
-    private CastRayTask _castRayTask2DMorton;
     private CastRayTask3D _castRayTask3D;
-    private CastRayTask3D _castRayTask3DMorton;
 
     // AABB-only BVH: same AABBs, no collider pointers
     private BvhAabb3D _bvhAabb3D;
@@ -117,12 +124,31 @@ public class BenchmarkBvh
         bvh3D = new NativeBvh3D();
         _castRayTask3D = new CastRayTask3D(bvh3D);
 
+        // default build = the Morton 4-wide builder owned by the tree
         bvh3D.BuildTree(colliders3D.AsSpan());
 
-        _mortonBuilder3D = new MortonBvhBuilder3D();
-        bvh3DMorton = new NativeBvh3D();
-        _castRayTask3DMorton = new CastRayTask3D(bvh3DMorton);
-        bvh3DMorton.BuildTree(colliders3D.AsSpan(), _mortonBuilder3D);
+        // pairing-order builds: same colliders, insertion order vs Morton-sorted order
+        _bvh3DPairing = new NativeBvh3D();
+        _bvh3DPairing.BuildTree(colliders3D.AsSpan(), PairingOrderBvhBuilder3D.Shared);
+        _castRayTask3DPairing = new CastRayTask3D(_bvh3DPairing);
+
+        _colliders3DSorted = SortCollidersByMorton3D(colliders3D);
+        _bvh3DPairingSorted = new NativeBvh3D();
+        _bvh3DPairingSorted.BuildTree(_colliders3DSorted.AsSpan(), PairingOrderBvhBuilder3D.Shared);
+        _castRayTask3DPairingSorted = new CastRayTask3D(_bvh3DPairingSorted);
+
+        // sanity check: both pairing builds must answer rays identically to the Morton tree
+        int pairingMismatch = 0;
+        int pairingSortedMismatch = 0;
+        for (int i = 0; i < rays3D.Length; i++)
+        {
+            RayCastResult3D expected = bvh3D.CastRayClosestHit(rays3D[i]);
+            RayCastResult3D pairing = _bvh3DPairing.CastRayClosestHit(rays3D[i]);
+            RayCastResult3D pairingSorted = _bvh3DPairingSorted.CastRayClosestHit(rays3D[i]);
+            if (expected.Hit != pairing.Hit || (expected.Hit && expected.HitInfo.Fraction != pairing.HitInfo.Fraction)) pairingMismatch++;
+            if (expected.Hit != pairingSorted.Hit || (expected.Hit && expected.HitInfo.Fraction != pairingSorted.HitInfo.Fraction)) pairingSortedMismatch++;
+        }
+        Console.WriteLine($"[PairingCheck 3D] ray result mismatches vs Morton (insertion order): {pairingMismatch}, (Morton-sorted): {pairingSortedMismatch}");
 
         // AABB-only BVH: extract AABBs from the same colliders, build once
         _aabbs3D = new BoundingBox3D[colliders3D.Length];
@@ -134,11 +160,11 @@ public class BenchmarkBvh
         _bvhAabb3D.Build(_aabbs3D);
         _castRayTaskAabb3D = new CastRayTaskAabb3D(_bvhAabb3D);
 
-        // sanity check: AABB BVH ray hits should agree with the Morton collider BVH
+        // sanity check: AABB BVH ray hits should agree with the collider BVH
         int aabbMismatches = 0;
         for (int i = 0; i < rays3D.Length; i++)
         {
-            RayCastResult3D colliderResult = bvh3DMorton.CastRayClosestHit(rays3D[i]);
+            RayCastResult3D colliderResult = bvh3D.CastRayClosestHit(rays3D[i]);
             bool aabbHit = _bvhAabb3D.RayCastClosest(rays3D[i].Origin, rays3D[i].Displacement, out _, out _);
             if (colliderResult.Hit != aabbHit)
                 aabbMismatches++;
@@ -157,7 +183,7 @@ public class BenchmarkBvh
         _castRayTaskBepuAdd = new CastRayTaskBepu(this, 0);
         _castRayTaskBepuBinned = new CastRayTaskBepu(this, 1);
 
-        // sanity check: bepu tree queries must agree with the pairing baseline
+        // sanity check: bepu tree queries must agree with the engine baseline
         int mismatches = 0;
         for (int i = 0; i < rays3D.Length; i++)
         {
@@ -251,11 +277,17 @@ public class BenchmarkBvh
             ColliderRef3D collider = Colliders[leafIndex];
             if (collider.IntersectRay(Ray, out RaycastHit3D hitInfo))
             {
-                if (!Result.Hit || hitInfo.Fraction < Result.HitInfo.Fraction)
+                // respect the maximumT contract like Bepu's own testers: only segment hits
+                // count, and a closer hit tightens the bound so traversal can prune
+                if (hitInfo.Fraction <= *maximumT)
                 {
-                    Result.Hit = true;
-                    Result.HitInfo = hitInfo;
-                    Result.Collider = collider;
+                    if (!Result.Hit || hitInfo.Fraction < Result.HitInfo.Fraction)
+                    {
+                        Result.Hit = true;
+                        Result.HitInfo = hitInfo;
+                        Result.Collider = collider;
+                    }
+                    *maximumT = hitInfo.Fraction;
                 }
             }
         }
@@ -344,12 +376,31 @@ public class BenchmarkBvh
         bvh2D = new NativeBvh2D();
         _castRayTask = new CastRayTask(bvh2D);
 
+        // default build = the Morton 4-wide builder owned by the tree
         bvh2D.BuildTree(colliders2D.AsSpan());
 
-        _mortonBuilder2D = new MortonBvhBuilder2D();
-        bvh2DMorton = new NativeBvh2D();
-        _castRayTask2DMorton = new CastRayTask(bvh2DMorton);
-        bvh2DMorton.BuildTree(colliders2D.AsSpan(), _mortonBuilder2D);
+        // pairing-order builds: same colliders, insertion order vs Morton-sorted order
+        _bvh2DPairing = new NativeBvh2D();
+        _bvh2DPairing.BuildTree(colliders2D.AsSpan(), PairingOrderBvhBuilder2D.Shared);
+        _castRayTask2DPairing = new CastRayTask(_bvh2DPairing);
+
+        _colliders2DSorted = SortCollidersByMorton2D(colliders2D);
+        _bvh2DPairingSorted = new NativeBvh2D();
+        _bvh2DPairingSorted.BuildTree(_colliders2DSorted.AsSpan(), PairingOrderBvhBuilder2D.Shared);
+        _castRayTask2DPairingSorted = new CastRayTask(_bvh2DPairingSorted);
+
+        // sanity check: both pairing builds must answer rays identically to the Morton tree
+        int pairingMismatch2D = 0;
+        int pairingSortedMismatch2D = 0;
+        for (int i = 0; i < rays2D.Length; i++)
+        {
+            RayCastResult2D expected = bvh2D.CastRayClosestHit(rays2D[i]);
+            RayCastResult2D pairing = _bvh2DPairing.CastRayClosestHit(rays2D[i]);
+            RayCastResult2D pairingSorted = _bvh2DPairingSorted.CastRayClosestHit(rays2D[i]);
+            if (expected.Hit != pairing.Hit || (expected.Hit && expected.HitInfo.Fraction != pairing.HitInfo.Fraction)) pairingMismatch2D++;
+            if (expected.Hit != pairingSorted.Hit || (expected.Hit && expected.HitInfo.Fraction != pairingSorted.HitInfo.Fraction)) pairingSortedMismatch2D++;
+        }
+        Console.WriteLine($"[PairingCheck 2D] ray result mismatches vs Morton (insertion order): {pairingMismatch2D}, (Morton-sorted): {pairingSortedMismatch2D}");
 
         // AABB-only BVH 2D: extract AABBs from the same colliders, build once
         _aabbs2D = new BoundingBox2D[colliders2D.Length];
@@ -371,9 +422,12 @@ public class BenchmarkBvh
         colliders3D.Dispose();
         bvh3D.Dispose();
         _castRayTask3D.Dispose();
-        bvh3DMorton.Dispose();
-        _castRayTask3DMorton.Dispose();
-        _mortonBuilder3D.Dispose();
+
+        _bvh3DPairing.Dispose();
+        _bvh3DPairingSorted.Dispose();
+        _colliders3DSorted.Dispose();
+        _castRayTask3DPairing.Dispose();
+        _castRayTask3DPairingSorted.Dispose();
 
         _bvhAabb3D.Dispose();
         _castRayTaskAabb3D.Dispose();
@@ -391,38 +445,54 @@ public class BenchmarkBvh
         colliders2D.Dispose();
         bvh2D.Dispose();
         _castRayTask.Dispose();
-        bvh2DMorton.Dispose();
-        _castRayTask2DMorton.Dispose();
-        _mortonBuilder2D.Dispose();
+
+        _bvh2DPairing.Dispose();
+        _bvh2DPairingSorted.Dispose();
+        _colliders2DSorted.Dispose();
+        _castRayTask2DPairing.Dispose();
+        _castRayTask2DPairingSorted.Dispose();
 
         _bvhAabb2D.Dispose();
         _castRayTaskAabb2D.Dispose();
     }
 
-    [Benchmark(Description = "BVH 3D Build tree: ")]
+    [Benchmark(Description = "BVH 3D (Morton 4-wide) Build tree: ")]
     public void BuildBvh3D()
     {
         bvh3D.BuildTree(colliders3D.AsSpan());
     }
 
-    [Benchmark(Description = "BVH 3D Cast ray: ")]
+    [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, insertion order) Build tree: ")]
+    public void BuildBvh3DPairing()
+    {
+        _bvh3DPairing.BuildTree(colliders3D.AsSpan(), PairingOrderBvhBuilder3D.Shared);
+    }
+
+    [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, Morton-sorted input) Build tree: ")]
+    public void BuildBvh3DPairingSorted()
+    {
+        _bvh3DPairingSorted.BuildTree(_colliders3DSorted.AsSpan(), PairingOrderBvhBuilder3D.Shared);
+    }
+
+    [Benchmark(Description = "BVH 3D (Morton 4-wide) Cast ray: ")]
     public void CastRay3D()
     {
         _castRayTask3D.rays = rays3D;
         _castRayTask3D.RunParallel(rays3D.Length, 16);
     }
 
-    [Benchmark(Description = "BVH 3D (Morton) Build tree: ")]
-    public void BuildBvh3DMorton()
+    [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, insertion order) Cast ray: ")]
+    public void CastRay3DPairing()
     {
-        bvh3DMorton.BuildTree(colliders3D.AsSpan(), _mortonBuilder3D);
+        _castRayTask3DPairing.rays = rays3D;
+        _castRayTask3DPairing.RunParallel(rays3D.Length, 16);
     }
 
-    [Benchmark(Description = "BVH 3D (Morton) Cast ray: ")]
-    public void CastRay3DMorton()
+    [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, Morton-sorted input) Cast ray: ")]
+    public void CastRay3DPairingSorted()
     {
-        _castRayTask3DMorton.rays = rays3D;
-        _castRayTask3DMorton.RunParallel(rays3D.Length, 16);
+        _castRayTask3DPairingSorted.rays = rays3D;
+        _castRayTask3DPairingSorted.RunParallel(rays3D.Length, 16);
     }
 
     [Benchmark(Description = "BVH 3D AABB (Morton) Build tree: ")]
@@ -464,10 +534,22 @@ public class BenchmarkBvh
         _castRayTaskBepuBinned.RunParallel(rays3D.Length, 16);
     }
 
-    [Benchmark(Description = "BVH 2D Build tree: ")]
+    [Benchmark(Description = "BVH 2D (Morton 4-wide) Build tree: ")]
     public void BuildBvh2D()
     {
         bvh2D.BuildTree(colliders2D.AsSpan());
+    }
+
+    [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, insertion order) Build tree: ")]
+    public void BuildBvh2DPairing()
+    {
+        _bvh2DPairing.BuildTree(colliders2D.AsSpan(), PairingOrderBvhBuilder2D.Shared);
+    }
+
+    [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, Morton-sorted input) Build tree: ")]
+    public void BuildBvh2DPairingSorted()
+    {
+        _bvh2DPairingSorted.BuildTree(_colliders2DSorted.AsSpan(), PairingOrderBvhBuilder2D.Shared);
     }
     private struct CountCollector : IBvhCollisionCastCollector2D
     {
@@ -545,24 +627,136 @@ public class BenchmarkBvh
         }
     }
 
-    [Benchmark(Description = "BVH 2D Cast ray: ")]
+    [Benchmark(Description = "BVH 2D (Morton 4-wide) Cast ray: ")]
     public void CastRay2D()
     {
         _castRayTask.rays = rays2D;
         _castRayTask.RunParallel(rays2D.Length, 16);
     }
 
-    [Benchmark(Description = "BVH 2D (Morton) Build tree: ")]
-    public void BuildBvh2DMorton()
+    [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, insertion order) Cast ray: ")]
+    public void CastRay2DPairing()
     {
-        bvh2DMorton.BuildTree(colliders2D.AsSpan(), _mortonBuilder2D);
+        _castRayTask2DPairing.rays = rays2D;
+        _castRayTask2DPairing.RunParallel(rays2D.Length, 16);
     }
 
-    [Benchmark(Description = "BVH 2D (Morton) Cast ray: ")]
-    public void CastRay2DMorton()
+    [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, Morton-sorted input) Cast ray: ")]
+    public void CastRay2DPairingSorted()
     {
-        _castRayTask2DMorton.rays = rays2D;
-        _castRayTask2DMorton.RunParallel(rays2D.Length, 16);
+        _castRayTask2DPairingSorted.rays = rays2D;
+        _castRayTask2DPairingSorted.RunParallel(rays2D.Length, 16);
+    }
+
+    // builds a Morton-ordered copy of the collider list: the order an external system would
+    // maintain (and incrementally refine) so the pairing builder gets a coherent sequence
+    private static unsafe NativeArrayList<ColliderRef3D> SortCollidersByMorton3D(NativeArrayList<ColliderRef3D> colliders)
+    {
+        int n = colliders.Length;
+        ColliderRef3D* p = colliders.UnsafePointer;
+        Vector3[] centers = new Vector3[n];
+        Vector3 sceneMin = new(float.MaxValue);
+        Vector3 sceneMax = new(float.MinValue);
+        for (int i = 0; i < n; i++)
+        {
+            BoundingBox3D b = p[i].GetBoundingBox();
+            centers[i] = (b.Min + b.Max) * 0.5f;
+            sceneMin = Vector3.Min(sceneMin, centers[i]);
+            sceneMax = Vector3.Max(sceneMax, centers[i]);
+        }
+        Vector3 extent = sceneMax - sceneMin;
+        float invX = extent.X > 0 ? 1f / extent.X : 0f;
+        float invY = extent.Y > 0 ? 1f / extent.Y : 0f;
+        float invZ = extent.Z > 0 ? 1f / extent.Z : 0f;
+
+        ulong[] keys = new ulong[n];
+        for (int i = 0; i < n; i++)
+        {
+            uint code = Morton3D(
+                (centers[i].X - sceneMin.X) * invX,
+                (centers[i].Y - sceneMin.Y) * invY,
+                (centers[i].Z - sceneMin.Z) * invZ);
+            keys[i] = ((ulong)code << 32) | (uint)i;
+        }
+        Array.Sort(keys);
+
+        NativeArrayList<ColliderRef3D> sorted = new NativeArrayList<ColliderRef3D>(n);
+        for (int i = 0; i < n; i++)
+        {
+            sorted.Add(p[(int)(uint)keys[i]]);
+        }
+        return sorted;
+    }
+
+    private static unsafe NativeArrayList<ColliderRef2D> SortCollidersByMorton2D(NativeArrayList<ColliderRef2D> colliders)
+    {
+        int n = colliders.Length;
+        ColliderRef2D* p = colliders.UnsafePointer;
+        Vector2[] centers = new Vector2[n];
+        Vector2 sceneMin = new(float.MaxValue);
+        Vector2 sceneMax = new(float.MinValue);
+        for (int i = 0; i < n; i++)
+        {
+            BoundingBox2D b = p[i].GetBoundingBox();
+            centers[i] = (b.Min + b.Max) * 0.5f;
+            sceneMin = Vector2.Min(sceneMin, centers[i]);
+            sceneMax = Vector2.Max(sceneMax, centers[i]);
+        }
+        Vector2 extent = sceneMax - sceneMin;
+        float invX = extent.X > 0 ? 1f / extent.X : 0f;
+        float invY = extent.Y > 0 ? 1f / extent.Y : 0f;
+
+        ulong[] keys = new ulong[n];
+        for (int i = 0; i < n; i++)
+        {
+            uint code = Morton2D(
+                (centers[i].X - sceneMin.X) * invX,
+                (centers[i].Y - sceneMin.Y) * invY);
+            keys[i] = ((ulong)code << 32) | (uint)i;
+        }
+        Array.Sort(keys);
+
+        NativeArrayList<ColliderRef2D> sorted = new NativeArrayList<ColliderRef2D>(n);
+        for (int i = 0; i < n; i++)
+        {
+            sorted.Add(p[(int)(uint)keys[i]]);
+        }
+        return sorted;
+    }
+
+    private static uint Morton3D(float x, float y, float z)
+    {
+        const float scale = (1 << 10) - 1;
+        uint xi = (uint)Math.Min(Math.Max(x * scale, 0f), scale);
+        uint yi = (uint)Math.Min(Math.Max(y * scale, 0f), scale);
+        uint zi = (uint)Math.Min(Math.Max(z * scale, 0f), scale);
+        return (Part1By2(xi) << 2) | (Part1By2(yi) << 1) | Part1By2(zi);
+    }
+
+    private static uint Morton2D(float x, float y)
+    {
+        const float scale = (1 << 10) - 1;
+        uint xi = (uint)Math.Min(Math.Max(x * scale, 0f), scale);
+        uint yi = (uint)Math.Min(Math.Max(y * scale, 0f), scale);
+        return (Part1By1(xi) << 1) | Part1By1(yi);
+    }
+
+    private static uint Part1By2(uint v)
+    {
+        v = (v | (v << 16)) & 0x030000FFu;
+        v = (v | (v << 8)) & 0x0300F00Fu;
+        v = (v | (v << 4)) & 0x030C30C3u;
+        v = (v | (v << 2)) & 0x09249249u;
+        return v;
+    }
+
+    private static uint Part1By1(uint v)
+    {
+        v = (v | (v << 8)) & 0x00FF00FFu;
+        v = (v | (v << 4)) & 0x0F0F0F0Fu;
+        v = (v | (v << 2)) & 0x33333333u;
+        v = (v | (v << 1)) & 0x55555555u;
+        return v;
     }
 
     [Benchmark(Description = "BVH 2D AABB (Morton) Build tree: ")]

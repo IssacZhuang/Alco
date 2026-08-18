@@ -1,38 +1,77 @@
 using System;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace Alco
 {
     /// <summary>
-    /// A node in a 3D bounding volume hierarchy.
-    /// The layout is part of the build contract between <see cref="NativeBvh3D"/> and <see cref="IBvhBuilder3D"/>:
-    /// leaf nodes occupy [0, leafCount) of the node buffer, internal nodes are appended after the leaves,
-    /// and child indices address the whole buffer.
+    /// An internal node of a 4-wide bounding volume hierarchy.
+    /// The layout is part of the build contract between <see cref="NativeBvh3D"/> and
+    /// <see cref="IBvhBuilder3D"/>: the bounds of the (up to) four children are stored
+    /// structure-of-arrays style, so one traversal step tests all children with a single
+    /// <see cref="Vector128{T}"/> comparison per axis, and the child references are sign-tagged.
     /// </summary>
-    public struct BvhNode3D
+    [StructLayout(LayoutKind.Sequential, Size = 128)]
+    public unsafe struct BvhNode3D
     {
         /// <summary>
-        /// The index of the left child node, or -1 if none.
+        /// The minimum X of child 0..3, one lane per child.
         /// </summary>
-        public int Left;
+        public Vector128<float> LowerX;
 
         /// <summary>
-        /// The index of the right child node, or -1 if none.
+        /// The maximum X of child 0..3, one lane per child.
         /// </summary>
-        public int Right;
+        public Vector128<float> UpperX;
 
         /// <summary>
-        /// The bounding box of this node.
+        /// The minimum Y of child 0..3, one lane per child.
         /// </summary>
-        public BoundingBox3D Bounds;
+        public Vector128<float> LowerY;
 
         /// <summary>
-        /// The collider associated with this node if it is a leaf.
+        /// The maximum Y of child 0..3, one lane per child.
         /// </summary>
-        public ColliderRef3D Collider;
+        public Vector128<float> UpperY;
 
         /// <summary>
-        /// Gets a value indicating whether this node is a leaf node.
+        /// The minimum Z of child 0..3, one lane per child.
         /// </summary>
-        public bool IsLeaf => Collider.HasCollider;
+        public Vector128<float> LowerZ;
+
+        /// <summary>
+        /// The maximum Z of child 0..3, one lane per child.
+        /// </summary>
+        public Vector128<float> UpperZ;
+
+        /// <summary>
+        /// The tagged child references. Lane i describes the child whose bounds occupy lane i of
+        /// the rows above: a value >= 0 addresses the node buffer, a value &lt; 0 (other than
+        /// <see cref="EmptyChild"/>) addresses leaf block ~value, and <see cref="EmptyChild"/>
+        /// marks an unused lane whose bounds must fail every traversal test.
+        /// </summary>
+        public fixed int Children[4];
+
+        /// <summary>
+        /// The tagged reference marking an unused child lane.
+        /// </summary>
+        public const int EmptyChild = int.MinValue;
+
+        /// <summary>
+        /// Encodes a leaf block index into a tagged child reference.
+        /// </summary>
+        public static int EncodeLeaf(int leafIndex)
+        {
+            return ~leafIndex;
+        }
+
+        /// <summary>
+        /// Decodes a tagged child reference into a leaf block index; the reference must be negative.
+        /// </summary>
+        public static int DecodeLeaf(int childRef)
+        {
+            return ~childRef;
+        }
     }
 }

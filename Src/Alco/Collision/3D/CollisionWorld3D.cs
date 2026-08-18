@@ -19,9 +19,10 @@ public unsafe class CollisionWorld3D : AutoDisposable
 
     /// <summary>
     /// Gets or sets the tree construction algorithm used by <see cref="BuildTree"/>; when null, the
-    /// stateless pairing-order baseline is used. The world owns the assigned builder: an instance
-    /// implementing <see cref="IDisposable"/> is disposed together with the world, and builders keep
-    /// per-build scratch state, so concurrent worlds must not share one instance.
+    /// Morton builder owned by the <see cref="NativeBvh3D"/> is used. The world owns the assigned
+    /// builder: an instance implementing <see cref="IDisposable"/> is disposed together with the
+    /// world, and builders keep per-build scratch state, so concurrent worlds must not share one
+    /// instance.
     /// </summary>
     public IBvhBuilder3D? Builder { get; set; }
 
@@ -70,11 +71,18 @@ public unsafe class CollisionWorld3D : AutoDisposable
     }
 
     /// <summary>
-    /// Build the BVH tree for the targets using <see cref="Builder"/> (or the pairing-order default).
+    /// Build the BVH tree for the targets using <see cref="Builder"/> (or the tree's default Morton builder).
     /// </summary>
     public void BuildTree()
     {
-        _bvh.BuildTree(_targetColliders.AsSpan(), Builder ?? PairingOrderBvhBuilder3D.Shared);
+        if (Builder is { } builder)
+        {
+            _bvh.BuildTree(_targetColliders.AsSpan(), builder);
+        }
+        else
+        {
+            _bvh.BuildTree(_targetColliders.AsSpan());
+        }
     }
 
     /// <summary>

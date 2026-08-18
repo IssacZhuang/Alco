@@ -57,6 +57,11 @@ public partial class Canvas : AutoDisposable, INavigationContext
     // for event handling
     private readonly CollisionWorld2D _collisionWorld; // for mouse events
     private readonly List<UINode> _hitNodes = new List<UINode>(64);
+    // Push order of this tick's click receivers (assigned in AddClickReciever). Rendering is
+    // pre-order, so a larger order means the receiver draws on top and must win the pick; the
+    // BVH itself returns hits in spatial order, which carries no priority information.
+    private readonly Dictionary<UINode, int> _receiverOrder = new Dictionary<UINode, int>(64);
+    private int _receiverCounter;
     private readonly IUIInputTracker _inputTracker;
 
     private INavigationFocusable? _navigationFocus;
@@ -375,6 +380,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
     public void Tick(float delta)
     {
         _collisionWorld.ClearAll();
+        _receiverOrder.Clear();
+        _receiverCounter = 0;
         _navigationFocus = null;
         ScanNavigationFocus(Root);
         TickNode(Root, delta);
@@ -406,6 +413,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     public void AddClickReciever(UINode node, ShapeBox2D shape)
     {
         _collisionWorld.PushCollisionTarget(node, shape);
+        _receiverOrder[node] = _receiverCounter++;
     }
 
     public void SetTextInputArea(ITextInput node, BoundingBox2D inputArea, int cursor)
@@ -582,13 +590,20 @@ public partial class Canvas : AutoDisposable, INavigationContext
             var collector = new NodeCollector(_hitNodes);
             _collisionWorld.CastPoint(ref collector, mouseWorldPosition);
 
+            // pick the topmost receiver by push order instead of collection order
+            int bestOrder = -1;
             for (int i = 0; i < _hitNodes.Count; i++)
             {
                 UINode node = _hitNodes[i];
-                if (CheckMask(node, mouseWorldPosition))
+                if (!CheckMask(node, mouseWorldPosition))
                 {
+                    continue;
+                }
+                _receiverOrder.TryGetValue(node, out int order);
+                if (order > bestOrder)
+                {
+                    bestOrder = order;
                     selectable = node;
-                    break;
                 }
             }
 
