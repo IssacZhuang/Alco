@@ -465,7 +465,6 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     uint2 gbufferResolution = uint2(giParams2.y, giParams2.z);
     int2 gbufferPixel = int2(uv * float2(gbufferResolution));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2(gbufferResolution) - 1);
-    float2 gbufferUV = (float2(gbufferPixel) + 0.5) / float2(gbufferResolution);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
     if (depth >= 0.9999)
     {
@@ -475,7 +474,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
-    float3 worldPosition = ReconstructWorldPosition(gbufferUV, depth);
+    // uv is the canonical receiver location of this trace texel. Reconstructing
+    // from the quantized G-buffer pixel center introduces a fixed +0.25 history-
+    // texel bias at half resolution: every frame reads from the right and feeds
+    // that color back into the pixel on the left. Keep receiver reconstruction
+    // on the trace grid so a stationary reprojection lands on the exact same
+    // history texel (the SSR trace follows the same rule).
+    float3 worldPosition = ReconstructWorldPosition(uv, depth);
     float4 packedNormal = GET_PIXEL_TEX2D(_normal, gbufferPixel);
     float4 packedAlbedo = GET_PIXEL_TEX2D(_albedo, gbufferPixel);
     float packedGeometryY = GET_PIXEL_TEX2D(_emissive, gbufferPixel).a;
@@ -490,7 +495,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // far side of a depth discontinuity out of the average, so cone directions
     // stay stable across edges and over tessellated relief instead of picking
     // per-pixel directions.
-    float centerLinearDepth = ReconstructLinearDepth(gbufferUV, depth);
+    float centerLinearDepth = ReconstructLinearDepth(uv, depth);
     float3 N = geometryNormal;
     {
         float3 averagedNormal = 0.0;

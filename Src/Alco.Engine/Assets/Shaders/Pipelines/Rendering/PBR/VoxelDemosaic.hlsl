@@ -280,7 +280,6 @@ void MainCS(
     float2 traceUV = (float2(tracePixel) + 0.5) / float2(traceResolution);
     int2 gbufferPixel = int2(traceUV * float2(gbufferRes));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), gbufferMax);
-    float2 gbufferUV = (float2(gbufferPixel) + 0.5) / float2(gbufferRes);
 
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
     if (depth >= 0.9999)
@@ -295,7 +294,10 @@ void MainCS(
     uint centerSpecularIndex =
         (groupThreadId.y + DEMOSAIC_SPECULAR_RADIUS) * DEMOSAIC_SPECULAR_TILE_SIZE
         + groupThreadId.x + DEMOSAIC_SPECULAR_RADIUS;
-    float3 worldPos = ReconstructWorldPosition(gbufferUV, depth, invViewProjection);
+    // Match VoxelTrace's canonical receiver grid. Using the selected full-res
+    // G-buffer pixel center here creates the same fixed quarter-history-texel
+    // offset and makes post-demosaic feedback smear toward screen-space left.
+    float3 worldPos = ReconstructWorldPosition(traceUV, depth, invViewProjection);
     float3 geometryNormal = float3(
         gsGeometryNormalX[centerDiffuseIndex],
         gsGeometryNormalY[centerDiffuseIndex],
