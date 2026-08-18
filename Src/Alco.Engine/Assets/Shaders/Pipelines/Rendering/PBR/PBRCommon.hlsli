@@ -95,22 +95,122 @@ int SelectCascade(float viewDistance)
     return -1;
 }
 
-// Interleaved Gradient Noise (Jorge Jimenez, "Next Generation Post-Processing
-// in Call of Duty: Advanced Warfare", 2014).
+// Interleaved gradient noise remains shared by the volumetric passes. Sun-shadow
+// PCF itself is deterministic and no longer uses this value to rotate its taps.
 float InterleavedGradientNoise(float2 pix)
 {
     return frac(52.9829189 * frac(dot(pix, float2(0.06711056, 0.00583715))));
 }
 
-static const float2 poissonDisk[4] = {
-    float2(-0.94201624, -0.39906216),
-    float2( 0.94558609, -0.76890725),
-    float2(-0.09418410, -0.92938870),
-    float2( 0.34495938,  0.29387733),
-};
+// Separable 5x5 PCF with the [1 3 4 3 1] kernel. Hardware bilinear comparison
+// sampling combines each adjacent pair, reducing 25 comparisons to 9 while the
+// sub-texel-dependent weights keep the filter stable as the receiver moves.
+float SampleShadowMapPCF5x5(
+    float2 shadowUV,
+    float compareDepth,
+    float texelAtlas,
+    float2 quadrantMin,
+    float2 quadrantMax)
+{
+    float2 texelPosition = shadowUV / texelAtlas;
+    float2 centerTexel = floor(texelPosition + 0.5);
+    float2 st = texelPosition + 0.5 - centerTexel;
+    float2 baseUV = (centerTexel - 0.5) * texelAtlas;
 
-// 4-tap rotated Poisson disk PCF against the shadow map cascade atlas.
-float SampleShadowMap(float3 worldPosition, float3 N, float3 L, float2 screenPos, int cascade)
+    float uWeights[3] = { 4.0 - 3.0 * st.x, 7.0, 1.0 + 3.0 * st.x };
+    float vWeights[3] = { 4.0 - 3.0 * st.y, 7.0, 1.0 + 3.0 * st.y };
+    float uOffsets[3] = {
+        (3.0 - 2.0 * st.x) / uWeights[0] - 2.0,
+        (3.0 + st.x) / uWeights[1],
+        st.x / uWeights[2] + 2.0
+    };
+    float vOffsets[3] = {
+        (3.0 - 2.0 * st.y) / vWeights[0] - 2.0,
+        (3.0 + st.y) / vWeights[1],
+        st.y / vWeights[2] + 2.0
+    };
+
+    float shadow = 0.0;
+    [unroll]
+    for (int y = 0; y < 3; y++)
+    {
+        [unroll]
+        for (int x = 0; x < 3; x++)
+        {
+            float2 uv = clamp(
+                baseUV + float2(uOffsets[x], vOffsets[y]) * texelAtlas,
+                quadrantMin,
+                quadrantMax);
+            shadow += uWeights[x] * vWeights[y]
+                * SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
+        }
+    }
+
+    return shadow * (1.0 / 144.0);
+}
+
+// Separable 7x7 PCF with the [1 4 7 8 7 4 1] kernel. The same bilinear
+// reduction evaluates the 49-texel footprint with 16 comparisons.
+float SampleShadowMapPCF7x7(
+    float2 shadowUV,
+    float compareDepth,
+    float texelAtlas,
+    float2 quadrantMin,
+    float2 quadrantMax)
+{
+    float2 texelPosition = shadowUV / texelAtlas;
+    float2 centerTexel = floor(texelPosition + 0.5);
+    float2 st = texelPosition + 0.5 - centerTexel;
+    float2 baseUV = (centerTexel - 0.5) * texelAtlas;
+
+    float uWeights[4] = {
+        5.0 - 4.0 * st.x,
+        15.0 - 4.0 * st.x,
+        11.0 + 4.0 * st.x,
+        1.0 + 4.0 * st.x
+    };
+    float vWeights[4] = {
+        5.0 - 4.0 * st.y,
+        15.0 - 4.0 * st.y,
+        11.0 + 4.0 * st.y,
+        1.0 + 4.0 * st.y
+    };
+    float uOffsets[4] = {
+        (4.0 - 3.0 * st.x) / uWeights[0] - 3.0,
+        (8.0 - st.x) / uWeights[1] - 1.0,
+        (4.0 + 3.0 * st.x) / uWeights[2] + 1.0,
+        st.x / uWeights[3] + 3.0
+    };
+    float vOffsets[4] = {
+        (4.0 - 3.0 * st.y) / vWeights[0] - 3.0,
+        (8.0 - st.y) / vWeights[1] - 1.0,
+        (4.0 + 3.0 * st.y) / vWeights[2] + 1.0,
+        st.y / vWeights[3] + 3.0
+    };
+
+    float shadow = 0.0;
+    [unroll]
+    for (int y = 0; y < 4; y++)
+    {
+        [unroll]
+        for (int x = 0; x < 4; x++)
+        {
+            float2 uv = clamp(
+                baseUV + float2(uOffsets[x], vOffsets[y]) * texelAtlas,
+                quadrantMin,
+                quadrantMax);
+            shadow += uWeights[x] * vWeights[y]
+                * SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
+        }
+    }
+
+    return shadow * (1.0 / 1024.0);
+}
+
+// Deterministic optimized PCF against the shadow map cascade atlas. Cascade 0
+// receives the wider 7x7 kernel for close contacts; the remaining cascades use
+// 5x5 to keep their cost and distant penumbra width under control.
+float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int cascade)
 {
     float texelWorld = cascadeTexelSizes[cascade];
     float3 biasedWorld = worldPosition + N * texelWorld;
@@ -133,19 +233,17 @@ float SampleShadowMap(float3 worldPosition, float3 N, float3 L, float2 screenPos
     float2 quadrantMin = quadrantOffset + texelAtlas * 0.5;
     float2 quadrantMax = quadrantOffset + 0.5 - texelAtlas * 0.5;
 
-    float angle = InterleavedGradientNoise(screenPos) * 6.2831853;
-    float s, c;
-    sincos(angle, s, c);
-    float2x2 rotation = float2x2(c, -s, s, c);
-
-    static const float spread = 1.5;
-    float shadow = 0.0;
-    [unroll]
-    for (int i = 0; i < 4; i++)
+    float shadow;
+    [branch]
+    if (cascade == 0)
     {
-        float2 offset = mul(rotation, poissonDisk[i]) * texelAtlas * spread;
-        float2 uv = clamp(shadowUV + offset, quadrantMin, quadrantMax);
-        shadow += SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
+        shadow = SampleShadowMapPCF7x7(
+            shadowUV, compareDepth, texelAtlas, quadrantMin, quadrantMax);
+    }
+    else
+    {
+        shadow = SampleShadowMapPCF5x5(
+            shadowUV, compareDepth, texelAtlas, quadrantMin, quadrantMax);
     }
 
     // Power-curve remap of the PCF average (per cascade, before cascade
@@ -155,7 +253,7 @@ float SampleShadowMap(float3 worldPosition, float3 N, float3 L, float2 screenPos
     // Cascade 0 (contacts) gets the stronger curve. params2.z is the strength:
     // 0 = linear average (previous behavior), 1 = full effect.
     float exponent = cascade == 0 ? lerp(1.0, 3.0, params2.z) : lerp(1.0, 2.0, params2.z);
-    return pow(shadow * 0.25, exponent);
+    return pow(shadow, exponent);
 }
 
 // Sun shadow with cascade blending.
@@ -166,7 +264,7 @@ float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 screenPos
         return 1.0;
     }
 
-    float shadow = SampleShadowMap(worldPosition, N, L, screenPos, cascade);
+    float shadow = SampleShadowMap(worldPosition, N, L, cascade);
 
     float splitEnd = cascadeSplits[cascade];
     float splitStart = cascade == 0 ? 0.0 : cascadeSplits[cascade - 1];
@@ -174,7 +272,7 @@ float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 screenPos
     float blend = saturate((viewDistance - (splitEnd - blendWidth)) / blendWidth);
     if (blend > 0.0)
     {
-        float nextShadow = cascade < 3 ? SampleShadowMap(worldPosition, N, L, screenPos, cascade + 1) : 1.0;
+        float nextShadow = cascade < 3 ? SampleShadowMap(worldPosition, N, L, cascade + 1) : 1.0;
         shadow = lerp(shadow, nextShadow, blend);
     }
     return shadow;
