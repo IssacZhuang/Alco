@@ -94,7 +94,6 @@ namespace Alco
             BvhLeaf2D* leaves = _leaves.UnsafePointer;
 
             float bestT = 1f;
-            bool hasHit = false;
             RayCastResult2D result = RayCastResult2D.none;
 
             int* stackChild = stackalloc int[_treeDepth * (Width - 1) + Width];
@@ -136,25 +135,21 @@ namespace Alco
                             if ((leafMask & 1) != 0 && leaf->C0.HasCollider && leaf->C0.IntersectRay(ray, out RaycastHit2D hit0) && hit0.Fraction < bestT)
                             {
                                 bestT = hit0.Fraction;
-                                hasHit = true;
                                 result = new RayCastResult2D { Hit = true, HitInfo = hit0, Collider = leaf->C0 };
                             }
                             if ((leafMask & 2) != 0 && leaf->C1.HasCollider && leaf->C1.IntersectRay(ray, out RaycastHit2D hit1) && hit1.Fraction < bestT)
                             {
                                 bestT = hit1.Fraction;
-                                hasHit = true;
                                 result = new RayCastResult2D { Hit = true, HitInfo = hit1, Collider = leaf->C1 };
                             }
                             if ((leafMask & 4) != 0 && leaf->C2.HasCollider && leaf->C2.IntersectRay(ray, out RaycastHit2D hit2) && hit2.Fraction < bestT)
                             {
                                 bestT = hit2.Fraction;
-                                hasHit = true;
                                 result = new RayCastResult2D { Hit = true, HitInfo = hit2, Collider = leaf->C2 };
                             }
                             if ((leafMask & 8) != 0 && leaf->C3.HasCollider && leaf->C3.IntersectRay(ray, out RaycastHit2D hit3) && hit3.Fraction < bestT)
                             {
                                 bestT = hit3.Fraction;
-                                hasHit = true;
                                 result = new RayCastResult2D { Hit = true, HitInfo = hit3, Collider = leaf->C3 };
                             }
                         }
