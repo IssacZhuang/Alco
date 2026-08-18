@@ -60,6 +60,17 @@ namespace Alco.Test
         }
     }
 
+    public struct OrderCollector : IBvhCollisionCastCollector2D
+    {
+        public List<int> Order;
+
+        public bool OnHit(ColliderCastResult2D result)
+        {
+            Order.Add(result.Collider.UserData);
+            return true;
+        }
+    }
+
     /// <summary>
     /// Correctness tests for the 4-wide collider <see cref="NativeBvh2D"/>. All query methods
     /// are cross-validated against a linear scan that runs the exact same shape tests on the
@@ -482,6 +493,38 @@ namespace Alco.Test
                 spheres.Dispose();
                 colliders.Dispose();
             }
+            bvh.Dispose();
+        }
+
+        [Test(Description = "BVH collider 2D: pairing-order trees emit point-cast hits in input order")]
+        public unsafe void TestBvhPairingOrderPointSequence()
+        {
+            NativeArrayList<ColliderBox2D> boxs = new NativeArrayList<ColliderBox2D>(9);
+            NativeArrayList<ColliderRef2D> colliders = new NativeArrayList<ColliderRef2D>(9);
+            for (int i = 0; i < 9; i++)
+            {
+                boxs.Add(new ColliderBox2D { Shape = new ShapeBox2D(new Vector2(i * 0.1f, 0), new Vector2(1f + i), Rotation2D.Identity) });
+            }
+            for (int i = 0; i < boxs.Length; i++)
+            {
+                ColliderRef2D colliderRef = ColliderRef2D.Create(boxs.UnsafePointer + i);
+                colliderRef.UserData = i;
+                colliders.Add(colliderRef);
+            }
+
+            NativeBvh2D bvh = new NativeBvh2D();
+            bvh.BuildTree(colliders.AsSpan(), PairingOrderBvhBuilder2D.Shared);
+
+            OrderCollector collector = new OrderCollector { Order = new List<int>() };
+            bvh.CastPoint(Vector2.Zero, ref collector);
+            Assert.AreEqual(9, collector.Order.Count, "all overlapping boxes must be hit");
+            for (int i = 0; i < collector.Order.Count; i++)
+            {
+                Assert.AreEqual(i, collector.Order[i], $"point-cast hit sequence must follow input order (position {i})");
+            }
+
+            boxs.Dispose();
+            colliders.Dispose();
             bvh.Dispose();
         }
 

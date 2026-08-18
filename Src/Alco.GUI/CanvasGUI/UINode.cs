@@ -960,6 +960,11 @@ public class UINode : IEnumerable<UINode>
         return _anchor.max - _anchor.min;
     }
 
+    // Assigned by the owning canvas each tick (pre-order, matching the render order): a larger
+    // value means the node draws on top. Used to pick the topmost node among overlapping click
+    // receivers; a node disabled for a tick keeps a stale value but cannot be hit that tick.
+    internal int TickOrder;
+
     internal void Tick(Canvas canvas, float delta)
     {
         OnTick(canvas, delta);
