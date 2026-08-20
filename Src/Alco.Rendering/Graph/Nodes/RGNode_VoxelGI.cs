@@ -791,12 +791,16 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // The blue-noise tile never changes after the bake, so bind it once.
         _traceMaterial.SetRenderTexture("_blueNoise", _blueNoiseTexture);
 
-        // Attribute voxels are sparse physical 8^3 pages. Static data can fill
-        // two complete levels and dynamic data one complete level before the
-        // allocator starts dropping lower-priority far bricks.
+        // Attribute voxels are sparse physical 8^3 pages. The static pool covers
+        // the structural demand ceiling — one page per logical brick slot across
+        // all levels (pagesPerLevel × LevelCount) — so allocation can never fail
+        // and the dirty queue always drains; anything smaller lets a full pool
+        // requeue bricks forever (no eviction frees pages while the camera is
+        // still). Dynamic data shares one complete level across its nearest
+        // levels; the per-frame rebuild drops far bricks beyond it.
         int bricksPerAxis = resolution / BrickSize;
         int pagesPerLevel = bricksPerAxis * bricksPerAxis * bricksPerAxis;
-        int staticPageCapacity = pagesPerLevel * 2;
+        int staticPageCapacity = pagesPerLevel * LevelCount;
         int dynamicPageCapacity = pagesPerLevel;
         _staticPagePool = new VoxelGiPagePool(staticPageCapacity, LevelCount, resolution, BrickSize);
         _dynamicPagePool = new VoxelGiPagePool(dynamicPageCapacity, LevelCount, resolution, BrickSize);
