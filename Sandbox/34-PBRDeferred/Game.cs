@@ -406,7 +406,7 @@ public class Game : GameEngine
             _yaw = 0.6f;
             _pitch = 0.12f;
             // Start in fly mode looking at the same view the orbit camera would give.
-            _flySpeed = _sceneRadius * 0.25f;
+            _flySpeed = _sceneRadius * 0.1f;
             OrbitToFly();
             Console.WriteLine($"Loaded {bistroFile}: {bistro.DrawItems.Count} draw items, " +
                 $"{bistro.Materials.Count} materials, bounds {bistro.BoundsMin} .. {bistro.BoundsMax}");

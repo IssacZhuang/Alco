@@ -500,6 +500,7 @@ float4 TraceDiffuseCones(
     float maxDistance,
     uint2 tracePixel,
     float marchJitter,
+    float kernelRotation,
     out float3 outWorldDir)
 {
     float3x3 tbn = GetTangentBasis(normal);
@@ -515,6 +516,20 @@ float4 TraceDiffuseCones(
     uint temporalPhase = (frameIndex * 37u) & 63u;
     sequenceIndex ^= temporalPhase;
     float3 kernelDirection = GetDiffuseKernelDirection(sequenceIndex);
+
+    // A planar receiver otherwise gives every point exactly the same 64-ray
+    // quadrature after temporal convergence. Sharp RSM emitters then expose
+    // the integer hit-count contours of that shared direction set as coherent
+    // light bands. Rotate the complete set around the receiver normal with a
+    // screen-space blue-noise angle. Keep the angle fixed for one complete
+    // 64-direction cycle, then advance it by a golden-ratio phase so long-term
+    // accumulation is not locked to a single quadrature orientation.
+    float rotationSin;
+    float rotationCos;
+    sincos(kernelRotation, rotationSin, rotationCos);
+    kernelDirection.xy = float2(
+        kernelDirection.x * rotationCos - kernelDirection.y * rotationSin,
+        kernelDirection.x * rotationSin + kernelDirection.y * rotationCos);
 
     // Dual-kernel approach: an "opacity" kernel lowers the cone elevation
     // toward the surface tangent, gathering more near-field occlusion for
@@ -631,20 +646,23 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float receiverBias = max(fineVoxelSize * 2.0, surfaceVoxelSize * 0.5);
     float3 startPosition = worldPosition + N * receiverBias;
 
-    // One blue-noise sample per trace pixel drives the cone-march jitter. The
-    // B channel is rotated through the golden-ratio Cranley-Patterson
-    // sequence (the same scheme as the SSR trace), so the jitter decorrelates
-    // across frames and the temporal accumulation integrates over march
-    // phases instead of keeping one bias per pixel.
+    // One blue-noise sample per trace pixel drives the cone rotation and march
+    // jitter. Rotation changes only after a complete 64-direction cycle, while
+    // the B channel advances every frame so voxel-grid phases converge.
     uint2 noisePixel = tracePixel % BLUE_NOISE_TILE;
-    float blueNoiseMarch = GET_PIXEL_TEX2D(_blueNoise, int2(noisePixel)).b;
+    float4 blueNoise = GET_PIXEL_TEX2D(_blueNoise, int2(noisePixel));
+    uint diffuseCycle = uint(giFrameParams.x) >> 6u;
+    float kernelRotation = frac(
+        blueNoise.r + float(diffuseCycle) * 0.6180339887) * TAU;
+    float blueNoiseMarch = blueNoise.b;
     float marchJitter = frac(blueNoiseMarch + float(uint(giFrameParams.x)) * 0.6180339887);
 
     // Diffuse RGB contains visible directional sky and bounced surface
     // radiance. Alpha is retained only as a diagnostic visibility output.
     float3 diffuseWorldDir;
     float4 diffuseResult = TraceDiffuseCones(
-        startPosition, N, maxDistance, tracePixel, marchJitter, diffuseWorldDir);
+        startPosition, N, maxDistance, tracePixel, marchJitter,
+        kernelRotation, diffuseWorldDir);
     float3 diffuse = diffuseResult.rgb;
 
     // Voxel specular is now only the off-screen/occluded fallback. Screen-space
