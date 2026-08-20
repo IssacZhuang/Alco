@@ -51,35 +51,6 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
 {
     /// <inheritdoc />
     public bool IsEnabled { get; set; } = true;
-    /// <summary>
-    /// Push constant payload for a G-buffer draw. Layout must match the
-    /// <c>Constants</c> struct in GBuffer.hlsl exactly.
-    /// </summary>
-    public struct DrawConstants
-    {
-        /// <summary>The world transform of the object (row-vector convention, compose scale → rotation → translation).</summary>
-        public Matrix4x4 Model;
-        /// <summary>Linear base color (rgb), alpha multiplies the albedo texture alpha.</summary>
-        public Vector4 BaseColor;
-        /// <summary>x=metallic y=roughness z=ambient occlusion, w is unused.</summary>
-        public Vector4 MetallicRoughnessAO;
-        /// <summary>x=alpha cutoff (0 disables alpha testing), yzw are unused.</summary>
-        public Vector4 Params;
-        /// <summary>Linear emissive color (rgb), w is unused.</summary>
-        public Vector4 Emissive;
-
-        /// <summary>
-        /// Create draw constants for a PBR surface.
-        /// </summary>
-        public DrawConstants(in Matrix4x4 model, in Vector3 baseColor, float metallic, float roughness, float ambientOcclusion)
-        {
-            Model = model;
-            BaseColor = new Vector4(baseColor, 1.0f);
-            MetallicRoughnessAO = new Vector4(metallic, roughness, ambientOcclusion, 1.0f);
-            Params = Vector4.Zero;
-            Emissive = Vector4.Zero;
-        }
-    }
 
     private readonly RenderingSystem _rendering;
     private readonly Shader _shader;
@@ -97,6 +68,11 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     // cannot corrupt the main render context.
     private readonly SubRenderContext _dynamicBundle;
     private GPUAttachmentLayout? _bundleLayout;
+
+    // Instanced draw batches: per-instance data uploaded to the _instances
+    // storage buffer, grouped into (material, mesh) draw segments.
+    private readonly PbrInstanceBatch _staticBatch = new();
+    private readonly PbrInstanceBatch _dynamicBatch = new();
 
     /// <summary>
     /// Create the G-buffer renderer with the given shader.
@@ -175,53 +151,80 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     {
         _bundleLayout = layout;
 
-        // Static bundle: re-record only when dirty.
-        if (_staticItems.Count > 0)
+        // Static batch: rebuild and re-record the bundle only when dirty. The
+        // rebuild also handles an emptied registry, leaving empty segments that
+        // suppress the replay below.
+        if (_staticBundleDirty)
         {
-            if (_staticBundleDirty)
+            RebuildBatch(_staticBatch, _staticItems, "pbr_gbuffer_static_instances");
+            if (!_staticBatch.Segments.IsEmpty)
             {
-                using (RenderPassScope bundle = _staticBundle.BeginPass(layout))
-                {
-                    for (int i = 0; i < _staticItems.Count; i++)
-                    {
-                        DrawItem(_staticItems[i], bundle);
-                    }
-                }
-                _staticBundleDirty = false;
+                using RenderPassScope bundle = _staticBundle.BeginPass(layout);
+                RecordBatch(bundle, _staticBatch);
             }
+            _staticBundleDirty = false;
+        }
 
+        if (!_staticBatch.Segments.IsEmpty)
+        {
             context.ExecuteSubContext(_staticBundle);
         }
 
-        // Dynamic bundle: re-recorded every frame so recording errors stay
-        // isolated from the main render context.
+        // Dynamic batch: rebuilt and re-recorded every frame so recording errors
+        // stay isolated from the main render context.
         if (_dynamicItems.Count > 0)
         {
-            using (RenderPassScope bundle = _dynamicBundle.BeginPass(layout))
+            RebuildBatch(_dynamicBatch, _dynamicItems, "pbr_gbuffer_dynamic_instances");
+            if (!_dynamicBatch.Segments.IsEmpty)
             {
-                for (int i = 0; i < _dynamicItems.Count; i++)
-                {
-                    DrawItem(_dynamicItems[i], bundle);
-                }
+                using RenderPassScope bundle = _dynamicBundle.BeginPass(layout);
+                RecordBatch(bundle, _dynamicBatch);
+                context.ExecuteSubContext(_dynamicBundle);
             }
-            context.ExecuteSubContext(_dynamicBundle);
         }
     }
 
     /// <summary>
-    /// Draw a single renderable into the given context (immediate or bundle).
+    /// Fill a batch with the instance data of the given items and upload it.
     /// </summary>
-    private static void DrawItem(IGBufferRenderable item, IRenderContext target)
+    /// <param name="batch">The batch to rebuild.</param>
+    /// <param name="items">The items to append (read live: the world transform).</param>
+    /// <param name="bufferName">The name of the (re)created instance buffer.</param>
+    private void RebuildBatch(PbrInstanceBatch batch, UnorderedList<IGBufferRenderable> items, string bufferName)
     {
-        target.DrawWithConstant(item.Mesh, item.Material,
-            new DrawConstants
+        batch.BeginBatch();
+        for (int i = 0; i < items.Count; i++)
+        {
+            IGBufferRenderable item = items[i];
+            batch.AddInstance(new PbrInstanceData
             {
                 Model = item.WorldMatrix,
                 BaseColor = item.BaseColor,
                 MetallicRoughnessAO = item.MetallicRoughnessAO,
                 Params = new Vector4(item.AlphaCutoff, 0.0f, 0.0f, 0.0f),
                 Emissive = new Vector4(item.EmissiveFactor, 1.0f),
-            });
+            }, item.Material, item.Mesh);
+        }
+        batch.Flush(_rendering, bufferName);
+    }
+
+    /// <summary>
+    /// Record the draws of a batch's segments into the given context (immediate
+    /// or bundle): one instanced draw per (material, mesh) segment, with the
+    /// batch's instance buffer bound to the shared <c>_instances</c> slot.
+    /// </summary>
+    /// <param name="target">The context to record into.</param>
+    /// <param name="batch">The batch holding the uploaded instance buffer and segments.</param>
+    private static void RecordBatch(IRenderContext target, PbrInstanceBatch batch)
+    {
+        GraphicsBuffer buffer = batch.Buffer!;
+        ReadOnlySpan<PbrInstanceSegment> segments = batch.Segments;
+        for (int i = 0; i < segments.Length; i++)
+        {
+            PbrInstanceSegment segment = segments[i];
+            segment.Material.SetBuffer(ShaderResourceId.Instances, buffer);
+            target.DrawInstanced(segment.Mesh, segment.Material, segment.Count, segment.Start);
+        }
     }
 
     // ── Material factory ──
@@ -285,6 +288,8 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         {
             _staticBundle.Dispose();
             _dynamicBundle.Dispose();
+            _staticBatch.Dispose();
+            _dynamicBatch.Dispose();
             _flatNormalTexture?.Dispose();
         }
     }

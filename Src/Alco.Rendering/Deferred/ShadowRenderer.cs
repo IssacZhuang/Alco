@@ -43,7 +43,7 @@ public interface IShadowRenderable
 
     /// <summary>
     /// Linear base color (rgb tints the RSM albedo, w multiplies its alpha) written
-    /// into the RSM pass push constants.
+    /// into the RSM pass instance data.
     /// </summary>
     Vector4 RsmBaseColor { get; }
 }
@@ -63,20 +63,17 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 {
     /// <inheritdoc />
     public bool IsEnabled { get; set; } = true;
+
     /// <summary>
-    /// Push constant payload for a shadow map draw. Layout must match the
-    /// <c>Constants</c> struct in ShadowDepth.hlsl exactly. The per-cascade light
-    /// view-projection matrices are read from the <c>_data</c> uniform buffer instead,
-    /// so the constants stay static for static geometry (render-bundle friendly).
-    /// <para>For cutout variants, <see cref="Params"/>.y carries the alpha cutoff and
-    /// <see cref="Params"/>.z carries the base-color alpha multiplier; both are ignored
-    /// by the opaque shaders.</para>
+    /// Push constant payload for the instanced shadow map / RSM draws. Layout
+    /// must match the <c>ShadowConstants</c> struct in ShadowDepth.hlsl and the
+    /// <c>RsmConstants</c> struct in Rsm.hlsl exactly. All other per-item data
+    /// comes from the <c>_instances</c> storage buffer, so this constant stays
+    /// static per cascade (render-bundle friendly).
     /// </summary>
-    public struct DrawConstants
+    public struct CascadeConstants
     {
-        /// <summary>The world transform of the mesh.</summary>
-        public Matrix4x4 Model;
-        /// <summary>x=cascade index, y=alphaCutoff (cutout only), z=baseColorAlpha (cutout only), w unused.</summary>
+        /// <summary>x = cascade index, yzw unused.</summary>
         public Vector4 Params;
     }
 
@@ -95,6 +92,16 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     // Dynamic render bundle — re-recorded every frame per cascade so errors in
     // recording cannot corrupt the main render context.
     private readonly SubRenderContext _dynamicBundle;
+
+    // Instanced draw batches: per-instance data uploaded to the _instances
+    // storage buffer, grouped into (material, mesh) draw segments. The shadow
+    // batches draw every item with its shadow material; the RSM batches draw
+    // only items carrying an RsmMaterial (their instance data carries the RSM
+    // base color instead of the cutout scalars).
+    private readonly PbrInstanceBatch _shadowStaticBatch = new();
+    private readonly PbrInstanceBatch _shadowDynamicBatch = new();
+    private readonly PbrInstanceBatch _rsmStaticBatch = new();
+    private readonly PbrInstanceBatch _rsmDynamicBatch = new();
 
     // RSM pass state (reflective shadow map for the voxel GI sun bounce).
     // Null until EnableRsm is called; the RSM bundles are separate from the
@@ -177,64 +184,53 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// <summary>
     /// Draw all registered casters into the shadow map for the given cascade.
     /// Called by the owning <see cref="RGNode_ShadowPass"/> inside the cascade's open
-    /// pass, once per cascade. When the static bundle is dirty all
-    /// cascade bundles are re-recorded (on cascade 0); otherwise they are replayed.
-    /// Dynamic items are re-recorded and replayed every cascade every frame.
+    /// pass, once per cascade. Static items live in instance batches recorded once
+    /// into the per-cascade bundles (re-recorded only when dirty on cascade 0);
+    /// dynamic items are batched once per frame (cascade 0) and their bundle is
+    /// re-recorded per cascade with the cascade constant.
     /// </summary>
     /// <param name="context">The live shadow pass scope.</param>
     /// <param name="cascadeIndex">The cascade being rendered (0 = nearest).</param>
     public void OnRenderShadow(RenderPassScope context, int cascadeIndex)
     {
-        // Static bundles: re-record all cascades when dirty (only on cascade 0
-        // to avoid redundant work).
-        if (cascadeIndex == 0 && _staticItems.Count > 0 && _staticBundleDirty)
+        // Static batch: rebuild and re-record all cascade bundles when dirty
+        // (only on cascade 0 to avoid redundant work). The rebuild also handles
+        // an emptied registry, leaving empty segments that suppress the replay.
+        if (cascadeIndex == 0 && _staticBundleDirty)
         {
-            int cascadeCount = RGNode_ShadowPass.CascadeCount;
-            for (int c = 0; c < cascadeCount; c++)
+            RebuildShadowBatch(_shadowStaticBatch, _staticItems, "pbr_shadow_static_instances");
+            if (!_shadowStaticBatch.Segments.IsEmpty)
             {
-                using (RenderPassScope bundle = _staticBundles[c].BeginPass(_shadowLayout))
+                int cascadeCount = RGNode_ShadowPass.CascadeCount;
+                for (int c = 0; c < cascadeCount; c++)
                 {
-                    for (int i = 0; i < _staticItems.Count; i++)
-                    {
-                        DrawItem(_staticItems[i], bundle, c);
-                    }
+                    using RenderPassScope bundle = _staticBundles[c].BeginPass(_shadowLayout);
+                    RecordInstancedPass(bundle, _shadowStaticBatch, c);
                 }
             }
             _staticBundleDirty = false;
         }
 
         // Replay the static bundle for this cascade.
-        if (_staticItems.Count > 0)
+        if (!_shadowStaticBatch.Segments.IsEmpty)
         {
             context.ExecuteSubContext(_staticBundles[cascadeIndex]);
         }
 
-        // Dynamic bundle: re-recorded every frame per cascade so recording errors
-        // stay isolated from the main render context.
-        if (_dynamicItems.Count > 0)
+        // Dynamic batch: rebuilt once per frame (cascade 0); each cascade
+        // re-records the bundle with its own cascade constant so recording
+        // errors stay isolated from the main render context.
+        if (cascadeIndex == 0)
         {
-            using (RenderPassScope bundle = _dynamicBundle.BeginPass(_shadowLayout))
-            {
-                for (int i = 0; i < _dynamicItems.Count; i++)
-                {
-                    DrawItem(_dynamicItems[i], bundle, cascadeIndex);
-                }
-            }
+            RebuildShadowBatch(_shadowDynamicBatch, _dynamicItems, "pbr_shadow_dynamic_instances");
+        }
+
+        if (!_shadowDynamicBatch.Segments.IsEmpty)
+        {
+            using RenderPassScope bundle = _dynamicBundle.BeginPass(_shadowLayout);
+            RecordInstancedPass(bundle, _shadowDynamicBatch, cascadeIndex);
             context.ExecuteSubContext(_dynamicBundle);
         }
-    }
-
-    /// <summary>
-    /// Draw a single renderable into the given context (immediate or bundle).
-    /// </summary>
-    private static void DrawItem(IShadowRenderable item, IRenderContext target, int cascadeIndex)
-    {
-        target.DrawWithConstant(item.Mesh, item.Material,
-            new DrawConstants
-            {
-                Model = item.WorldMatrix,
-                Params = new Vector4(cascadeIndex, item.AlphaCutoff, item.BaseColorAlpha, 0.0f),
-            });
     }
 
     // ── Material factory ──
@@ -294,20 +290,6 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     // ── RSM pass (reflective shadow map for the voxel GI sun bounce) ──
 
     /// <summary>
-    /// Push constant payload for one RSM draw. Layout must match the
-    /// <c>Constants</c> struct in Rsm.hlsl exactly.
-    /// </summary>
-    public struct RsmDrawConstants
-    {
-        /// <summary>The world transform of the mesh.</summary>
-        public Matrix4x4 Model;
-        /// <summary>Linear base color (rgb tints the albedo, w multiplies its alpha).</summary>
-        public Vector4 BaseColor;
-        /// <summary>x=cascade index, y=alphaCutoff (0 disables the test), zw unused.</summary>
-        public Vector4 Params;
-    }
-
-    /// <summary>
     /// Enable the RSM pass support: stores the RSM shader and attachment layout and
     /// creates the RSM render bundles. After this call the renderer can be
     /// registered as an <see cref="IRsmPassContent"/> on an <see cref="RGNode_RsmPass"/>
@@ -331,9 +313,9 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// Draw every registered renderable that carries an
     /// <see cref="IShadowRenderable.RsmMaterial"/> into the reflective shadow map.
     /// Called by the owning <see cref="RGNode_RsmPass"/> inside its open pass.
-    /// Static bundles share the shadow path's dirty flag; a change of the
-    /// RSM cascade forces a re-record because the cascade index is baked into the
-    /// recorded push constants.
+    /// Static items live in an instance batch recorded once into the RSM bundle;
+    /// a change of the RSM cascade forces a re-record because the cascade index
+    /// is baked into the recorded push constant.
     /// </summary>
     /// <param name="context">The live RSM pass scope.</param>
     /// <param name="cascadeIndex">The CSM cascade whose sun view defines the RSM.</param>
@@ -342,54 +324,113 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
         SubRenderContext staticBundle = _rsmStaticBundle!;
         SubRenderContext dynamicBundle = _rsmDynamicBundle!;
 
-        if (_staticItems.Count > 0)
+        // Static batch: rebuild when dirty (also handles an emptied registry,
+        // leaving empty segments that suppress the replay) and re-record when
+        // the RSM cascade changed (the cascade index is baked into the bundle's
+        // push constants).
+        if (_staticBundleDirty || _rsmRecordedCascade != cascadeIndex)
         {
-            if (_staticBundleDirty || _rsmRecordedCascade != cascadeIndex)
+            RebuildRsmBatch(_rsmStaticBatch, _staticItems, "pbr_rsm_static_instances");
+            if (!_rsmStaticBatch.Segments.IsEmpty)
             {
-                using (RenderPassScope bundle = staticBundle.BeginPass(_rsmLayout!))
-                {
-                    for (int i = 0; i < _staticItems.Count; i++)
-                    {
-                        DrawRsmItem(_staticItems[i], bundle, cascadeIndex);
-                    }
-                }
-                _rsmRecordedCascade = cascadeIndex;
+                using RenderPassScope bundle = staticBundle.BeginPass(_rsmLayout!);
+                RecordInstancedPass(bundle, _rsmStaticBatch, cascadeIndex);
             }
+            _rsmRecordedCascade = cascadeIndex;
+        }
 
+        if (!_rsmStaticBatch.Segments.IsEmpty)
+        {
             context.ExecuteSubContext(staticBundle);
         }
 
-        if (_dynamicItems.Count > 0)
+        // Dynamic batch: rebuilt and re-recorded every frame so recording
+        // errors stay isolated from the main render context.
+        RebuildRsmBatch(_rsmDynamicBatch, _dynamicItems, "pbr_rsm_dynamic_instances");
+        if (!_rsmDynamicBatch.Segments.IsEmpty)
         {
-            using (RenderPassScope bundle = dynamicBundle.BeginPass(_rsmLayout!))
-            {
-                for (int i = 0; i < _dynamicItems.Count; i++)
-                {
-                    DrawRsmItem(_dynamicItems[i], bundle, cascadeIndex);
-                }
-            }
+            using RenderPassScope bundle = dynamicBundle.BeginPass(_rsmLayout!);
+            RecordInstancedPass(bundle, _rsmDynamicBatch, cascadeIndex);
             context.ExecuteSubContext(dynamicBundle);
         }
     }
 
     /// <summary>
-    /// Draw a single renderable into the RSM (immediate or bundle context). Items
-    /// without an RSM material are skipped.
+    /// Fill a shadow batch with the instance data of the given items and upload
+    /// it. The cutout scalars ride in the shared instance fields: alphaCutoff in
+    /// <see cref="PbrInstanceData.Params"/>.x and the base-color alpha multiplier
+    /// in <see cref="PbrInstanceData.BaseColor"/>.w.
     /// </summary>
-    private static void DrawRsmItem(IShadowRenderable item, IRenderContext target, int cascadeIndex)
+    /// <param name="batch">The batch to rebuild.</param>
+    /// <param name="items">The items to append (read live: the world transform).</param>
+    /// <param name="bufferName">The name of the (re)created instance buffer.</param>
+    private void RebuildShadowBatch(PbrInstanceBatch batch, UnorderedList<IShadowRenderable> items, string bufferName)
     {
-        GraphicsMaterial? material = item.RsmMaterial;
-        if (material == null)
+        batch.BeginBatch();
+        for (int i = 0; i < items.Count; i++)
         {
-            return;
+            IShadowRenderable item = items[i];
+            batch.AddInstance(new PbrInstanceData
+            {
+                Model = item.WorldMatrix,
+                BaseColor = new Vector4(1.0f, 1.0f, 1.0f, item.BaseColorAlpha),
+                Params = new Vector4(item.AlphaCutoff, 0.0f, 0.0f, 0.0f),
+            }, item.Material, item.Mesh);
         }
-        target.DrawWithConstant(item.Mesh, material,
-            new RsmDrawConstants
+        batch.Flush(_rendering, bufferName);
+    }
+
+    /// <summary>
+    /// Fill an RSM batch with the instance data of the given items and upload
+    /// it. Items without an RSM material are skipped entirely.
+    /// </summary>
+    /// <param name="batch">The batch to rebuild.</param>
+    /// <param name="items">The items to append (read live: the world transform).</param>
+    /// <param name="bufferName">The name of the (re)created instance buffer.</param>
+    private void RebuildRsmBatch(PbrInstanceBatch batch, UnorderedList<IShadowRenderable> items, string bufferName)
+    {
+        batch.BeginBatch();
+        for (int i = 0; i < items.Count; i++)
+        {
+            IShadowRenderable item = items[i];
+            GraphicsMaterial? material = item.RsmMaterial;
+            if (material == null)
+            {
+                continue;
+            }
+            batch.AddInstance(new PbrInstanceData
             {
                 Model = item.WorldMatrix,
                 BaseColor = item.RsmBaseColor,
-                Params = new Vector4(cascadeIndex, item.AlphaCutoff, 0.0f, 0.0f),
-            });
+                Params = new Vector4(item.AlphaCutoff, 0.0f, 0.0f, 0.0f),
+            }, material, item.Mesh);
+        }
+        batch.Flush(_rendering, bufferName);
+    }
+
+    /// <summary>
+    /// Record the draws of a batch's segments into the given context (immediate
+    /// or bundle): one instanced draw per (material, mesh) segment with the
+    /// cascade index pushed as the pass constant and the batch's instance
+    /// buffer bound to the shared <c>_instances</c> slot.
+    /// </summary>
+    /// <param name="target">The context to record into.</param>
+    /// <param name="batch">The batch holding the uploaded instance buffer and segments.</param>
+    /// <param name="cascadeIndex">The cascade index baked into the push constant.</param>
+    private static void RecordInstancedPass(IRenderContext target, PbrInstanceBatch batch, int cascadeIndex)
+    {
+        GraphicsBuffer buffer = batch.Buffer!;
+        ReadOnlySpan<PbrInstanceSegment> segments = batch.Segments;
+        CascadeConstants constants = new CascadeConstants
+        {
+            Params = new Vector4(cascadeIndex, 0.0f, 0.0f, 0.0f),
+        };
+        for (int i = 0; i < segments.Length; i++)
+        {
+            PbrInstanceSegment segment = segments[i];
+            segment.Material.SetBuffer(ShaderResourceId.Instances, buffer);
+            target.DrawInstancedWithConstant(segment.Mesh, segment.Material, segment.Count, segment.Start, constants);
+        }
     }
 
     /// <summary>
@@ -430,6 +471,10 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
             _dynamicBundle.Dispose();
             _rsmStaticBundle?.Dispose();
             _rsmDynamicBundle?.Dispose();
+            _shadowStaticBatch.Dispose();
+            _shadowDynamicBatch.Dispose();
+            _rsmStaticBatch.Dispose();
+            _rsmDynamicBatch.Dispose();
         }
     }
 }

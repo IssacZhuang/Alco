@@ -1,11 +1,15 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/PbrInstance.hlsli"
 
 // G-buffer pass shader for PBR materials of the deferred pipeline.
 // Writes albedo, world-space normal (from the normal map via TBN), material and
 // emissive data. The interpolated mesh normal is octahedrally packed into two
 // spare channels for stable diffuse GI. The vertex layout must match
 // Alco.Rendering.VertexPBR exactly.
+// All per-item data (model matrix, factors, alpha cutoff) lives in the
+// _instances storage buffer and is fetched by SV_InstanceID; the pixel shader
+// re-reads it through the instance id interpolant (SpriteInstanced pattern).
 
 struct Vertex
 {
@@ -13,6 +17,7 @@ struct Vertex
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float4 tangent : TANGENT; // xyz = tangent, w = bitangent sign
+    uint instanceId : SV_InstanceID;
 };
 
 struct V2F
@@ -21,15 +26,7 @@ struct V2F
     float3 normal : TEXCOORD0;
     float2 uv : TEXCOORD1;
     float4 tangent : TEXCOORD2; // xyz = world tangent, w = bitangent sign
-};
-
-struct Constants
-{
-    float4x4 model;
-    float4 baseColor;
-    float4 metallicRoughnessAO; // x=metallic y=roughness z=ambientOcclusion
-    float4 params_;             // x=alphaCutoff (0 disables alpha testing)
-    float4 emissive;            // rgb = emissive factor
+    uint instanceId : TEXCOORD3;
 };
 
 DEFINE_UNIFORM(0, _camera)
@@ -42,18 +39,20 @@ DEFINE_TEX2D_SAMPLE(2, _normalTexture);
 DEFINE_TEX2D_SAMPLE(3, _mrTexture);
 DEFINE_TEX2D_SAMPLE(4, _emissiveTexture);
 
-PUSH_CONSTANT Constants constants;
+DEFINE_STORAGE(5, PbrInstance, _instances);
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
 {
     V2F output = (V2F)0;
-    float4 worldPosition = mul(constants.model, float4(input.position, 1.0f));
+    PbrInstance inst = _instances[input.instanceId];
+    float4 worldPosition = mul(inst.model, float4(input.position, 1.0f));
     output.position = mul(viewProjection, worldPosition);
     // Rigid transform only (uniform scale); fine for the demo scene.
-    output.normal = mul((float3x3)constants.model, input.normal);
-    output.tangent = float4(mul((float3x3)constants.model, input.tangent.xyz), input.tangent.w);
+    output.normal = mul((float3x3)inst.model, input.normal);
+    output.tangent = float4(mul((float3x3)inst.model, input.tangent.xyz), input.tangent.w);
     output.uv = input.uv;
+    output.instanceId = input.instanceId;
     return output;
 }
 
@@ -72,18 +71,19 @@ void MainPS(V2F input,
     out float4 mrAORT : SV_TARGET2,
     out float4 emissiveRT : SV_TARGET3)
 {
+    PbrInstance inst = _instances[input.instanceId];
     float4 albedo = SAMPLE_TEX2D(_albedoTexture, input.uv);
 
     // Alpha test: discard fragments below the cutoff (0 disables the test).
-    float alphaCutoff = constants.params_.x;
-    if (alphaCutoff > 0.0 && albedo.a * constants.baseColor.a < alphaCutoff)
+    float alphaCutoff = inst.params_.x;
+    if (alphaCutoff > 0.0 && albedo.a * inst.baseColor.a < alphaCutoff)
     {
         discard;
     }
 
     float4 mrTex = SAMPLE_TEX2D(_mrTexture, input.uv);
-    float roughness = constants.metallicRoughnessAO.y * mrTex.g;
-    albedoRT = float4(EncodeSRGB(albedo.rgb * constants.baseColor.rgb), roughness);
+    float roughness = inst.metallicRoughnessAO.y * mrTex.g;
+    albedoRT = float4(EncodeSRGB(albedo.rgb * inst.baseColor.rgb), roughness);
 
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);
@@ -101,13 +101,13 @@ void MainPS(V2F input,
     // glTF metallic-roughness texture: roughness in G, metallic in B, both
     // multiplied with their factors. AO stays factor-only.
     mrAORT = float4(
-        constants.metallicRoughnessAO.x * mrTex.b,
+        inst.metallicRoughnessAO.x * mrTex.b,
         roughness,
-        constants.metallicRoughnessAO.z,
+        inst.metallicRoughnessAO.z,
         1.0);
 
     // Emissive texture (sRGB-decoded by the sampler) times the linear factor,
     // stored linear in the RGBA16Float target; no shading applied downstream.
-    float3 emissive = SAMPLE_TEX2D(_emissiveTexture, input.uv).rgb * constants.emissive.rgb;
+    float3 emissive = SAMPLE_TEX2D(_emissiveTexture, input.uv).rgb * inst.emissive.rgb;
     emissiveRT = float4(emissive, geometryNormal.y);
 }
