@@ -185,11 +185,16 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// lighting node's <see cref="RGNode_DeferredLighting.ShadowMapEnabled"/>.</summary>
     public event Action<bool>? ShadowEnabledChanged;
 
-    /// <summary>Distance beyond which shadows are not rendered.</summary>
-    public float ShadowDistance { get; set; }
+    /// <summary>Distance beyond which shadows are not rendered. The default is
+    /// tuned on the Bistro scenes and fixed regardless of scene scale (open-world
+    /// design).</summary>
+    public float ShadowDistance { get; set; } = 192f;
 
-    /// <summary>How far the light-space depth range extends toward the sun for off-screen casters, in world units.</summary>
-    public float ShadowCasterExtension { get; set; } = 20.0f;
+    /// <summary>How far the light-space depth range extends toward the sun for off-screen
+    /// casters, in world units. Defaults to matching <see cref="ShadowDistance"/>: receivers
+    /// beyond the shadow distance are unshadowed anyway, so that bound is safe at any
+    /// scene scale.</summary>
+    public float ShadowCasterExtension { get; set; } = 192f;
 
     /// <summary>PSSM split blend: 1 = fully logarithmic, 0 = fully uniform.</summary>
     public float ShadowSplitLambda { get; set; } = 0.6f;

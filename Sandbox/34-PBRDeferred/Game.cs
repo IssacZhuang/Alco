@@ -17,17 +17,19 @@ using SandboxUtils;
 /// disc and a star field) and voxel global illumination (a camera-following
 /// sparse brick clipmap with compute voxelization, rotation-balanced diffuse
 /// tracing and hybrid reflections).
-/// <br/>Static geometry (the whole Bistro scene, or the non-animated primitives)
+/// <br/>Static geometry (the whole glTF scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
 /// G-buffer pass) and replayed every frame; the game owns the scene materials
 /// created via the pipeline's material factory. Only animated objects are drawn
 /// immediately each frame.
-/// <br/>Loads the Amazon Lumberyard Bistro scene (glTF) when present in
-/// Assets/Bistro; otherwise falls back to a procedural primitive scene.
+/// <br/>Loads the Amazon Lumberyard Bistro exterior scene (glTF) when present
+/// in Assets/Bistro; --interior loads the Bistro interior, --rungholt the
+/// converted Minecraft city (split into spatial chunks) from Assets/Rungholt
+/// instead. Otherwise falls back to a procedural primitive scene.
 /// <br/>Controls: in fly mode hold the right mouse button to look around,
 /// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--gi-resolution=50|75|100] [--rsm=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--rungholt] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--gi-resolution=50|75|100] [--rsm=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -78,17 +80,17 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Adapter that wraps a Bistro <see cref="ModelDrawItem"/> + its material as an
+    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its material as an
     /// <see cref="IGBufferRenderable"/> for the GBufferRenderer registry.
     /// </summary>
-    private sealed class BistroRenderable : IGBufferRenderable
+    private sealed class ModelRenderable : IGBufferRenderable
     {
         private readonly ModelDrawItem _item;
         private readonly ModelMaterial _material;
         private readonly GraphicsMaterial _gbufferMaterial;
         private readonly Func<Vector3> _getEmissiveFactor;
 
-        public BistroRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial gbufferMaterial,
+        public ModelRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial gbufferMaterial,
             Func<Vector3> getEmissiveFactor)
         {
             _item = item;
@@ -108,17 +110,17 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Adapter that wraps a Bistro <see cref="ModelDrawItem"/> + its shadow material as an
+    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its shadow material as an
     /// <see cref="IShadowRenderable"/> for the ShadowRenderer registry.
     /// </summary>
-    private sealed class BistroShadowRenderable : IShadowRenderable
+    private sealed class ModelShadowRenderable : IShadowRenderable
     {
         private readonly ModelDrawItem _item;
         private readonly ModelMaterial _material;
         private readonly GraphicsMaterial _shadowMaterial;
         private readonly GraphicsMaterial? _rsmMaterial;
 
-        public BistroShadowRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial shadowMaterial,
+        public ModelShadowRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial shadowMaterial,
             GraphicsMaterial? rsmMaterial = null)
         {
             _item = item;
@@ -139,17 +141,17 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Adapter that wraps a Bistro <see cref="ModelDrawItem"/> + its glass material
+    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its glass material
     /// as an <see cref="IForwardRenderable"/> for the RGNode_Forward registry.
     /// </summary>
-    private sealed class BistroGlassRenderable : IForwardRenderable
+    private sealed class ModelGlassRenderable : IForwardRenderable
     {
         private readonly ModelDrawItem _item;
         private readonly ModelMaterial _material;
         private readonly GraphicsMaterial _glassMaterial;
         private readonly Func<float> _getTransmission;
 
-        public BistroGlassRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial glassMaterial,
+        public ModelGlassRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial glassMaterial,
             Func<float> getTransmission)
         {
             _item = item;
@@ -184,10 +186,10 @@ public class Game : GameEngine
     private GraphicsMaterial? _proceduralMaterial;
     private GraphicsMaterial? _proceduralShadowMaterial;
     private GraphicsMaterial? _proceduralRsmMaterial;
-    private GraphicsMaterial[]? _bistroMaterials;
-    private GraphicsMaterial[]? _bistroShadowMaterials;
-    private GraphicsMaterial[]? _bistroRsmMaterials;
-    private GraphicsMaterial[]? _bistroGlassMaterials;
+    private GraphicsMaterial[]? _modelMaterials;
+    private GraphicsMaterial[]? _modelShadowMaterials;
+    private GraphicsMaterial[]? _modelRsmMaterials;
+    private GraphicsMaterial[]? _modelGlassMaterials;
 
     // Forward transparency renderer for glass materials.
     private RGNode_Forward? _forwardRenderer;
@@ -203,10 +205,10 @@ public class Game : GameEngine
         ["Performance (64)", "Balanced (112)", "Quality (160)"];
 
     private bool _staticShadowBundlesDirty;
-    private bool _bistroStreaming;
+    private bool _modelStreaming;
 
-    // The loaded Bistro scene (null when the assets are missing).
-    private readonly ModelScene? _bistro;
+    // The loaded glTF scene (null when the assets are missing).
+    private readonly ModelScene? _modelScene;
 
     // Camera orbit state.
     private float _yaw = 0.8f;
@@ -217,7 +219,7 @@ public class Game : GameEngine
     private Vector3 _sceneCenter = Vector3.Zero;
     private float _sceneRadius = 20f;
 
-    // Fly camera state (default mode when the Bistro scene is loaded; C toggles).
+    // Fly camera state (default mode when a glTF scene is loaded; C toggles).
     private bool _flyMode;
     private Vector3 _flyPosition;
     private float _flySpeed = 3f;
@@ -239,7 +241,6 @@ public class Game : GameEngine
 
     // Cascaded shadow map state.
     private readonly float _cameraNear;
-    private float _shadowDistance;
 
     // Time of day and physically-based sky (atmosphere parameters are packed
     // into DeferredLightingData.SkyParams/SkyParams2, see Atmosphere.hlsli).
@@ -259,7 +260,6 @@ public class Game : GameEngine
 
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private bool _hbaoEnabled = true;
-    private float _hbaoRadius = 1.0f;
     private float _hbaoStrength = 1.0f;
     private RGNode_HBAO? _hbaoRenderer;
 
@@ -290,16 +290,17 @@ public class Game : GameEngine
 
     // Bloom post-processing (a content processor node on the pipeline's forward
     // chain) and the emissive boost feeding it.
-    // The Bistro emissive factors are all 1.0 and its emissive textures are LDR,
-    // so without a boost nothing crosses the bloom threshold next to the sun.
+    // The Bistro emissive factors are all 1.0 and its emissive textures are LDR
+    // (Rungholt has no emissive materials at all), so without a boost nothing
+    // crosses the bloom threshold next to the sun.
     private RGNode_Bloom? _bloom;
     private float _emissiveBoost = 4.0f;
 
-    // Point lights auto-generated from Bistro emissive surfaces.
+    // Point lights auto-generated from emissive glTF surfaces.
     private bool _pointLightsEnabled = false;
     private float _pointLightIntensity = 0.5f;   // global multiplier on per-light base intensity
     private float _pointLightRangeScale = 3.0f;   // global multiplier on per-light range
-    private PBRSceneEnvironment.PointLight[]? _bistroPointLights;         // base lights (unscaled)
+    private PBRSceneEnvironment.PointLight[]? _modelPointLights;         // base lights (unscaled)
     private PBRSceneEnvironment.PointLight[]? _pointLightUploadBuffer;    // scratch for per-frame scaling
 
     // HDR tone mapping node: switchable operator with per-type parameters.
@@ -380,16 +381,21 @@ public class Game : GameEngine
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
         bool interior = args.Contains("--interior");
+        bool rungholt = args.Contains("--rungholt");
         bool procedural = args.Contains("--procedural");
 
-        // Load the Bistro scene; fall back to the procedural scene when absent.
-        string bistroFile = interior ? "Bistro/BistroInterior.gltf" : "Bistro/BistroExterior.gltf";
+        // Load the glTF scene: the Bistro exterior by default, --interior picks
+        // the Bistro interior, --rungholt the Minecraft city; fall back to the
+        // procedural scene when absent.
+        string modelFile = rungholt ? "Rungholt/rungholt.gltf"
+            : interior ? "Bistro/BistroInterior.gltf"
+            : "Bistro/BistroExterior.gltf";
         string failedReason = "the procedural scene was requested";
-        if (!procedural && AssetSystem.TryLoad(bistroFile, out ModelScene? bistro, out failedReason))
+        if (!procedural && AssetSystem.TryLoad(modelFile, out ModelScene? modelScene, out failedReason))
         {
-            _bistro = bistro;
-            _sceneCenter = (bistro.BoundsMin + bistro.BoundsMax) * 0.5f;
-            _sceneRadius = MathF.Max(Vector3.Distance(bistro.BoundsMax, bistro.BoundsMin) * 0.5f, 1.0f);
+            _modelScene = modelScene;
+            _sceneCenter = (modelScene.BoundsMin + modelScene.BoundsMax) * 0.5f;
+            _sceneRadius = MathF.Max(Vector3.Distance(modelScene.BoundsMax, modelScene.BoundsMin) * 0.5f, 1.0f);
             _distance = _sceneRadius * 0.6f;
             _minDistance = _sceneRadius * 0.01f;
             _maxDistance = _sceneRadius * 5.0f;
@@ -398,19 +404,22 @@ public class Game : GameEngine
             // Start in fly mode looking at the same view the orbit camera would give.
             _flySpeed = _sceneRadius * 0.1f;
             OrbitToFly();
-            Console.WriteLine($"Loaded {bistroFile}: {bistro.DrawItems.Count} draw items, " +
-                $"{bistro.Materials.Count} materials, bounds {bistro.BoundsMin} .. {bistro.BoundsMax}");
+            Console.WriteLine($"Loaded {modelFile}: {modelScene.DrawItems.Count} draw items, " +
+                $"{modelScene.Materials.Count} materials, bounds {modelScene.BoundsMin} .. {modelScene.BoundsMax}");
         }
         else
         {
-            Console.WriteLine($"Bistro scene not loaded ({failedReason}); using procedural scene.");
+            Console.WriteLine($"Scene {modelFile} not loaded ({failedReason}); using procedural scene.");
         }
 
         _checkerTexture = CreateCheckerTexture(256);
-        _cameraNear = MathF.Max(_sceneRadius * 0.002f, 0.1f);
+        // Fixed camera depth range (open-world design: parameters do not scale
+        // with the loaded scene). Forward-Z precision degrades quadratically
+        // with distance and linearly with 1/near, so near stays as large as
+        // playably acceptable; the far plane barely affects precision.
+        _cameraNear = 0.1f;
         _camera = RenderingSystem.CreateCameraPerspective(0.83f, 16f / 9,
-            _cameraNear, _sceneRadius * 10.0f);
-        _shadowDistance = _sceneRadius * 3.0f;
+            _cameraNear, 4096f);
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
@@ -456,7 +465,6 @@ public class Game : GameEngine
         _gbufferRenderer.SetCamera(_camera);
         _preset.GBufferPass.Content.Add(_gbufferRenderer);
         _preset.ShadowPass.Content.Add(_shadowRenderer);
-        _environment.ShadowCasterExtension = _sceneRadius;
         _environment.CascadeDebug = cascadeDebug;
         _environment.ShadowDebug = shadowDebug;
         _environment.AoDebugView = hbaoDebugView;
@@ -548,53 +556,53 @@ public class Game : GameEngine
             SyncHbaoParams();
         };
 
-        if (_bistro != null)
+        if (_modelScene != null)
         {
             // One game-owned G-buffer material per glTF material. Textures still
-            // streaming in start as the fallbacks and are synced in PrepareBistroFrame.
-            _bistroMaterials = new GraphicsMaterial[_bistro.Materials.Count];
+            // streaming in start as the fallbacks and are synced in PrepareModelFrame.
+            _modelMaterials = new GraphicsMaterial[_modelScene.Materials.Count];
             // One cutout shadow material per glTF material so alpha-tested meshes
             // (foliage, fences, etc.) cast correctly shaped shadows.
-            _bistroShadowMaterials = new GraphicsMaterial[_bistro.Materials.Count];
+            _modelShadowMaterials = new GraphicsMaterial[_modelScene.Materials.Count];
             // RSM materials mirror the cutout shadow materials (same albedo
             // slot) for the GI sun-bounce pass; null per material when the RSM
             // is disabled (GI off), which skips the item in the RSM pass.
-            _bistroRsmMaterials = _rsmLayout != null
-                ? new GraphicsMaterial[_bistro.Materials.Count]
+            _modelRsmMaterials = _rsmLayout != null
+                ? new GraphicsMaterial[_modelScene.Materials.Count]
                 : null;
             // Glass materials for transparent BLEND glass (rendered in forward pass).
-            _bistroGlassMaterials = new GraphicsMaterial[_bistro.Materials.Count];
-            for (int i = 0; i < _bistroMaterials.Length; i++)
+            _modelGlassMaterials = new GraphicsMaterial[_modelScene.Materials.Count];
+            for (int i = 0; i < _modelMaterials.Length; i++)
             {
-                ModelMaterial material = _bistro.Materials[i];
-                _bistroMaterials[i] = _gbufferRenderer.CreateMaterial(
+                ModelMaterial material = _modelScene.Materials[i];
+                _modelMaterials[i] = _gbufferRenderer.CreateMaterial(
                     material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
-                    material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
-                _bistroShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutMaterial(
-                    material.AlbedoTexture, material.DoubleSided, $"bistro_shadow_{material.Name}");
-                if (_bistroRsmMaterials != null)
+                    material.EmissiveTexture, material.DoubleSided, $"model_{material.Name}");
+                _modelShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutMaterial(
+                    material.AlbedoTexture, material.DoubleSided, $"model_shadow_{material.Name}");
+                if (_modelRsmMaterials != null)
                 {
-                    _bistroRsmMaterials[i] = _shadowRenderer.CreateRsmMaterial(
-                        material.AlbedoTexture, material.DoubleSided, $"bistro_rsm_{material.Name}");
+                    _modelRsmMaterials[i] = _shadowRenderer.CreateRsmMaterial(
+                        material.AlbedoTexture, material.DoubleSided, $"model_rsm_{material.Name}");
                 }
-                _bistroGlassMaterials[i] = _forwardRenderer.CreateGlassMaterial(
+                _modelGlassMaterials[i] = _forwardRenderer.CreateGlassMaterial(
                     material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
-                    material.EmissiveTexture, material.DoubleSided, $"bistro_glass_{material.Name}");
+                    material.EmissiveTexture, material.DoubleSided, $"model_glass_{material.Name}");
             }
-            _bistroStreaming = !_bistro.LoadingCompletion.IsCompleted;
+            _modelStreaming = !_modelScene.LoadingCompletion.IsCompleted;
 
-            // Register Bistro draw items: glass → forward renderer, everything else → GBuffer + shadow.
+            // Register model draw items: glass → forward renderer, everything else → GBuffer + shadow.
             {
-                IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
-                IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
+                IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
+                IReadOnlyList<ModelMaterial> materials = _modelScene.Materials;
                 for (int i = 0; i < drawItems.Count; i++)
                 {
                     ModelDrawItem item = drawItems[i];
                     ModelMaterial material = materials[item.MaterialIndex];
                     if (IsGlassMaterial(material))
                     {
-                        _forwardRenderer.Add(new BistroGlassRenderable(
-                            item, material, _bistroGlassMaterials![item.MaterialIndex],
+                        _forwardRenderer.Add(new ModelGlassRenderable(
+                            item, material, _modelGlassMaterials![item.MaterialIndex],
                             () => _glassTransmission));
                     }
                     else
@@ -602,14 +610,14 @@ public class Game : GameEngine
                         // The emissive boost is resolved at bundle record time so
                         // the Point Lights toggle / Emissive Boost slider take
                         // effect on the next re-record (MarkStaticBundleDirty).
-                        _gbufferRenderer.Add(new BistroRenderable(item, material, _bistroMaterials![item.MaterialIndex],
+                        _gbufferRenderer.Add(new ModelRenderable(item, material, _modelMaterials![item.MaterialIndex],
                             () => material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
-                        _shadowRenderer.Add(new BistroShadowRenderable(item, material, _bistroShadowMaterials![item.MaterialIndex],
-                            _bistroRsmMaterials?[item.MaterialIndex]));
+                        _shadowRenderer.Add(new ModelShadowRenderable(item, material, _modelShadowMaterials![item.MaterialIndex],
+                            _modelRsmMaterials?[item.MaterialIndex]));
                     }
                 }
             }
-            BuildBistroPointLights();
+            BuildModelPointLights();
         }
         else
         {
@@ -634,11 +642,10 @@ public class Game : GameEngine
             }
         }
 
-        // Voxel global illumination: a 4-level clipmap whose coarsest level
-        // covers roughly 4x the scene radius (128^3 voxels per level).
+        // Voxel global illumination: a 4-level clipmap (128^3 voxels per level;
+        // the node's default 0.25m base voxels give level coverage of 32/64/128/256m).
         if (_giEnabled)
         {
-            float baseVoxelSize = MathF.Max(_sceneRadius * 4.0f / 1024.0f, 0.02f);
             string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
             _voxelGI = new RGNode_VoxelGI(
                 RenderingSystem,
@@ -658,7 +665,6 @@ public class Game : GameEngine
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
                 resolution: 128,
-                baseVoxelSize: baseVoxelSize,
                 traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
             _voxelGI.DebugView = giDebugView;
             _voxelGI.SsrOnly = args.Contains("--ssr-only");
@@ -839,9 +845,9 @@ public class Game : GameEngine
         // Capture here: after Render the forward render texture still holds the last
         // completed frame's HDR image. Bloom is composited into the swapchain by the
         // chain and is not part of the capture. With --wait-load the capture is held
-        // back until the Bistro scene's asynchronously streaming textures have all arrived.
+        // back until the glTF scene's asynchronously streaming textures have all arrived.
         if (_screenshotPath != null && _frameCount >= _screenshotFrames &&
-            (!_waitForStreaming || _bistro == null || _bistro.LoadingCompletion.IsCompleted))
+            (!_waitForStreaming || _modelScene == null || _modelScene.LoadingCompletion.IsCompleted))
         {
             CaptureScreenshot(_screenshotPath);
             Stop();
@@ -1077,21 +1083,21 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Scan Bistro draw items for emissive materials and build point lights at
+    /// Scan model draw items for emissive materials and build point lights at
     /// their world-space centers. Light color, range and intensity are matched
     /// to the emissive material name (street lights, string lights, shop signs,
     /// ceiling lamps, etc.). Called once during initialization.
     /// </summary>
-    private void BuildBistroPointLights()
+    private void BuildModelPointLights()
     {
-        if (_bistro == null)
+        if (_modelScene == null)
         {
             return;
         }
 
         var lights = new List<PBRSceneEnvironment.PointLight>();
-        IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
-        IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
+        IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
+        IReadOnlyList<ModelMaterial> materials = _modelScene.Materials;
 
         for (int i = 0; i < drawItems.Count; i++)
         {
@@ -1115,7 +1121,7 @@ public class Game : GameEngine
             }
         }
 
-        _bistroPointLights = lights.ToArray();
+        _modelPointLights = lights.ToArray();
         _pointLightUploadBuffer = new PBRSceneEnvironment.PointLight[lights.Count];
     }
 
@@ -1220,29 +1226,28 @@ public class Game : GameEngine
         _environment.SkyParams = new Vector4(_rayleighScale, _mieScale, _miePhaseG, _skyExposure);
         _environment.SkyParams2 = new Vector4(_starIntensity, _nightFloor, _sunRadianceScale, _ambientFloor);
 
-        // Fit the shadow distance to the view: when the camera is far from the
-        // scene (e.g. aerial views), extend past the configured base so visible
-        // geometry never crosses the shadow range boundary — shadows would
-        // otherwise fade/pop out at _shadowDistance while still on screen.
-        _environment.ShadowDistance = Math.Max(_shadowDistance,
-            Vector3.Distance(_camera.Transform.Position, _sceneCenter) + _sceneRadius);
+        // Off-screen casters within the shadow range must still project into the
+        // visible slices; receivers beyond ShadowDistance are unshadowed anyway,
+        // so matching the extension to it is safe at any scene scale (and keeps
+        // the extension in step with the ImGui shadow distance slider).
+        _environment.ShadowCasterExtension = _environment.ShadowDistance;
 
         // Fit the shadow cascades to the camera frustum (PSSM splits).
         _environment.ComputeShadowCascades(_cameraNear);
 
-        // Scale and upload point lights generated from Bistro emissive surfaces.
+        // Scale and upload point lights generated from emissive glTF surfaces.
         int pointLightCount = 0;
-        if (_pointLightsEnabled && _bistroPointLights != null && _bistroPointLights.Length > 0)
+        if (_pointLightsEnabled && _modelPointLights != null && _modelPointLights.Length > 0)
         {
-            for (int i = 0; i < _bistroPointLights.Length; i++)
+            for (int i = 0; i < _modelPointLights.Length; i++)
             {
-                Vector4 ci = _bistroPointLights[i].ColorAndIntensity;
-                _pointLightUploadBuffer![i] = _bistroPointLights[i];
+                Vector4 ci = _modelPointLights[i].ColorAndIntensity;
+                _pointLightUploadBuffer![i] = _modelPointLights[i];
                 _pointLightUploadBuffer[i].ColorAndIntensity =
                     new Vector4(ci.X, ci.Y, ci.Z, ci.W * _pointLightIntensity);
                 _pointLightUploadBuffer[i].Position.W *= _pointLightRangeScale;
             }
-            pointLightCount = _bistroPointLights.Length;
+            pointLightCount = _modelPointLights.Length;
         }
         _environment.UpdatePointLights(
             _pointLightUploadBuffer != null
@@ -1276,9 +1281,9 @@ public class Game : GameEngine
     /// </summary>
     private void PrepareFrame()
     {
-        if (_bistro != null)
+        if (_modelScene != null)
         {
-            PrepareBistroFrame();
+            PrepareModelFrame();
             return;
         }
 
@@ -1290,21 +1295,21 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// The Bistro scene is fully static: every pass the pipeline runs is a pure
+    /// The loaded glTF scene is fully static: every pass the pipeline runs is a pure
     /// bundle replay; only streaming and dirty bookkeeping happens here.
     /// </summary>
-    private void PrepareBistroFrame()
+    private void PrepareModelFrame()
     {
         // Textures stream in asynchronously: refresh the materials and re-record the
         // bundles until everything arrived (equivalent to drawing every frame), then
         // the bundles stay frozen for the rest of the session.
-        if (_bistroStreaming)
+        if (_modelStreaming)
         {
-            SyncBistroMaterials();
+            SyncModelMaterials();
             _shadowRenderer.MarkStaticBundleDirty();
             _gbufferRenderer.MarkStaticBundleDirty();
-            _bistroStreaming = !_bistro!.LoadingCompletion.IsCompleted;
-            if (!_bistroStreaming && _voxelGI != null)
+            _modelStreaming = !_modelScene!.LoadingCompletion.IsCompleted;
+            if (!_modelStreaming && _voxelGI != null)
             {
                 // Texture instances may have been swapped while streaming:
                 // re-register against the final textures.
@@ -1354,10 +1359,10 @@ public class Game : GameEngine
             return;
         }
 
-        if (_bistro != null)
+        if (_modelScene != null)
         {
-            IReadOnlyList<ModelDrawItem> drawItems = _bistro.DrawItems;
-            IReadOnlyList<ModelMaterial> materials = _bistro.Materials;
+            IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
+            IReadOnlyList<ModelMaterial> materials = _modelScene.Materials;
             for (int i = 0; i < drawItems.Count; i++)
             {
                 ModelDrawItem item = drawItems[i];
@@ -1455,31 +1460,30 @@ public class Game : GameEngine
         if (_hbaoRenderer != null)
         {
             float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
-            _hbaoRenderer.Radius = MathF.Max(_hbaoRadius * ssaoAmount, 0.001f);
             _hbaoRenderer.Strength = (_hbaoEnabled ? _hbaoStrength : 0.0f) * ssaoAmount;
         }
     }
 
-    /// <summary>Copy the current (possibly still streaming) Bistro textures into the materials.</summary>
-    private void SyncBistroMaterials()
+    /// <summary>Copy the current (possibly still streaming) model textures into the materials.</summary>
+    private void SyncModelMaterials()
     {
-        IReadOnlyList<ModelMaterial> materials = _bistro!.Materials;
+        IReadOnlyList<ModelMaterial> materials = _modelScene!.Materials;
         for (int i = 0; i < materials.Count; i++)
         {
             ModelMaterial material = materials[i];
-            _gbufferRenderer.SetMaterialTextures(_bistroMaterials![i],
+            _gbufferRenderer.SetMaterialTextures(_modelMaterials![i],
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
-            _shadowRenderer.SetShadowCutoutMaterialTextures(_bistroShadowMaterials![i], material.AlbedoTexture);
+            _shadowRenderer.SetShadowCutoutMaterialTextures(_modelShadowMaterials![i], material.AlbedoTexture);
             // Rsm.hlsl binds the same _albedoTexture slot as the cutout shadow
             // shader, so streaming albedo rebinds cover the RSM materials too.
-            if (_bistroRsmMaterials != null)
+            if (_modelRsmMaterials != null)
             {
-                _shadowRenderer.SetShadowCutoutMaterialTextures(_bistroRsmMaterials[i], material.AlbedoTexture);
+                _shadowRenderer.SetShadowCutoutMaterialTextures(_modelRsmMaterials[i], material.AlbedoTexture);
             }
-            if (_bistroGlassMaterials != null)
+            if (_modelGlassMaterials != null)
             {
-                _forwardRenderer?.SetGlassMaterialTextures(_bistroGlassMaterials[i],
+                _forwardRenderer?.SetGlassMaterialTextures(_modelGlassMaterials[i],
                     material.AlbedoTexture, material.NormalTexture,
                     material.MetallicRoughnessTexture, material.EmissiveTexture);
             }
@@ -1564,7 +1568,9 @@ public class Game : GameEngine
             bool shadowEnabled = _environment.ShadowEnabled;
             if (ImGui.Checkbox("Shadows", ref shadowEnabled))
                 _environment.ShadowEnabled = shadowEnabled;
-            ImGui.SliderFloat("Shadow Distance", ref _shadowDistance, _sceneRadius * 0.5f, _sceneRadius * 8.0f);
+            float shadowDistance = _environment.ShadowDistance;
+            if (ImGui.SliderFloat("Shadow Distance", ref shadowDistance, 16, 2048))
+                _environment.ShadowDistance = shadowDistance;
             bool cascadeDebug = _environment.CascadeDebug;
             if (ImGui.Checkbox("Cascade Debug", ref cascadeDebug))
                 _environment.CascadeDebug = cascadeDebug;
@@ -1679,7 +1685,9 @@ public class Game : GameEngine
         if (_hbaoRenderer != null && ImGui.CollapsingHeader("Ambient Occlusion (HBAO+)"))
         {
             ImGui.Checkbox("AO Enabled", ref _hbaoEnabled);
-            ImGui.SliderFloat("AO Radius", ref _hbaoRadius, 0.1f, MathF.Max(4.0f, _sceneRadius * 0.05f));
+            float hbaoRadius = _hbaoRenderer.Radius;
+            if (ImGui.SliderFloat("AO Radius", ref hbaoRadius, 0.1f, 4.0f))
+                _hbaoRenderer.Radius = hbaoRadius;
             ImGui.SliderFloat("AO Strength", ref _hbaoStrength, 0.0f, 1.0f);
             float intensity = _hbaoRenderer.Intensity;
             if (ImGui.SliderFloat("AO Power", ref intensity, 0.5f, 3.0f))
@@ -1746,7 +1754,10 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("GI Sky Intensity", ref giSkyIntensity, 0.0f, 10.0f))
                 _voxelGI.SkyIntensity = giSkyIntensity;
             float giMaxTraceDistance = _voxelGI.TraceMaxDistance;
-            if (ImGui.SliderFloat("GI Max Trace Distance", ref giMaxTraceDistance, 1.0f, MathF.Max(4.0f, _sceneRadius * 2.0f)))
+            // 256m matches the coarsest voxel clipmap level (base voxel 0.25m,
+            // 128^3 per level, 4 levels: 32/64/128/256m) — tracing farther has
+            // no voxels left to sample.
+            if (ImGui.SliderFloat("GI Max Trace Distance", ref giMaxTraceDistance, 1.0f, 256.0f))
                 _voxelGI.TraceMaxDistance = giMaxTraceDistance;
             float giDiffuseSpreading = _voxelGI.DiffuseSpreading;
             if (ImGui.SliderFloat("GI Diffuse Spreading", ref giDiffuseSpreading, 0.0f, 0.5f, "%.3f"))
@@ -1851,7 +1862,7 @@ public class Game : GameEngine
             }
         }
 
-        if (_bistroPointLights != null && ImGui.CollapsingHeader("Point Lights"))
+        if (_modelPointLights != null && ImGui.CollapsingHeader("Point Lights"))
         {
             if (ImGui.Checkbox("Enabled", ref _pointLightsEnabled))
             {
@@ -1859,7 +1870,7 @@ public class Game : GameEngine
             }
             ImGui.SliderFloat("Light Intensity", ref _pointLightIntensity, 0.0f, 5.0f);
             ImGui.SliderFloat("Light Range", ref _pointLightRangeScale, 0.1f, 3.0f);
-            ImGui.Text(_textBuilder.Clear().Append("Lights: ").Append(_bistroPointLights.Length).Append(" / ").Append(PBRSceneEnvironment.MaxPointLights).AsReadOnlySpan());
+            ImGui.Text(_textBuilder.Clear().Append("Lights: ").Append(_modelPointLights.Length).Append(" / ").Append(PBRSceneEnvironment.MaxPointLights).AsReadOnlySpan());
         }
 
         if (_tonemapStage != null && ImGui.CollapsingHeader("Tone Mapping"))
@@ -1955,13 +1966,13 @@ public class Game : GameEngine
             }
         }
 
-        if (_bistro != null)
+        if (_modelScene != null)
         {
-            if (ImGui.CollapsingHeader("Bistro Scene"))
+            if (ImGui.CollapsingHeader("glTF Scene"))
             {
-                ImGui.Text(_textBuilder.Clear().Append(_bistro.DrawItems.Count).Append(" draw items, ").Append(_bistro.Materials.Count).Append(" materials").AsReadOnlySpan());
-                ImGui.Text(_textBuilder.Clear().Append("bounds min ").Append(_bistro.BoundsMin).AsReadOnlySpan());
-                ImGui.Text(_textBuilder.Clear().Append("bounds max ").Append(_bistro.BoundsMax).AsReadOnlySpan());
+                ImGui.Text(_textBuilder.Clear().Append(_modelScene.DrawItems.Count).Append(" draw items, ").Append(_modelScene.Materials.Count).Append(" materials").AsReadOnlySpan());
+                ImGui.Text(_textBuilder.Clear().Append("bounds min ").Append(_modelScene.BoundsMin).AsReadOnlySpan());
+                ImGui.Text(_textBuilder.Clear().Append("bounds max ").Append(_modelScene.BoundsMax).AsReadOnlySpan());
             }
 
             if (ImGui.CollapsingHeader("Glass Transparency"))

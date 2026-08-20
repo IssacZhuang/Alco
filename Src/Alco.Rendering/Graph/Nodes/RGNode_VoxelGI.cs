@@ -723,7 +723,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
     /// <param name="resolution">The voxel resolution of each clipmap level (power of two).</param>
-    /// <param name="baseVoxelSize">The voxel size of the finest level in world units.</param>
+    /// <param name="baseVoxelSize">The voxel size of the finest level in world units
+    /// (default 0.25m, tuned on the Bistro scenes and fixed regardless of scene scale;
+    /// with 128³ voxels per level the 4-level clipmap covers 32/64/128/256m).</param>
     /// <param name="traceResolutionScale">Screen-space cone-trace resolution relative to the G-buffer (0.25..1.0).</param>
     /// <exception cref="ArgumentException">The voxel resolution or trace-resolution scale is invalid.</exception>
     public RGNode_VoxelGI(
@@ -732,7 +734,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         uint width,
         uint height,
         int resolution = 128,
-        float baseVoxelSize = 0.1f,
+        float baseVoxelSize = 0.25f,
         float traceResolutionScale = 0.5f)
     {
         if (resolution < 16 || (resolution & (resolution - 1)) != 0)
