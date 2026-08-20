@@ -66,6 +66,7 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     private readonly Matrix4x4[] _cascadeViewProjections = new Matrix4x4[RGNode_ShadowPass.CascadeCount];
     private readonly float[] _cascadeSplits = new float[RGNode_ShadowPass.CascadeCount];
     private readonly float[] _cascadeTexelSizes = new float[RGNode_ShadowPass.CascadeCount];
+    private readonly float[] _cascadeDepthRanges = new float[RGNode_ShadowPass.CascadeCount];
 
     // Assembled internally from properties + camera + cascade state each frame.
     private DeferredLightingData _lightingData;
@@ -109,6 +110,14 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// and consumed by <see cref="RGNode_ShadowPass"/> (constructed with this array).
     /// </summary>
     public Matrix4x4[] CascadeViewProjections => _cascadeViewProjections;
+
+    /// <summary>
+    /// The depth range of each cascade's orthographic projection in world units
+    /// (texelZ * shadow map size), filled by <see cref="ComputeShadowCascades"/>.
+    /// Used to convert world-space error tolerances into shadow NDC depth units
+    /// (e.g. the voxel GI's RSM depth-match window).
+    /// </summary>
+    public float[] CascadeDepthRanges => _cascadeDepthRanges;
 
     // ── GPU buffers (bound to lighting / volumetric / forward / GI materials) ──
 
@@ -425,6 +434,7 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
                 zMin, zMax);
             _cascadeViewProjections[c] = lightView * ortho;
             _cascadeTexelSizes[c] = texel;
+            _cascadeDepthRanges[c] = texelZ * shadowMapSize;
 
             sliceNear = sliceFar;
         }

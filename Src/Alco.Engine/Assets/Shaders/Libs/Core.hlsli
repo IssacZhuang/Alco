@@ -61,6 +61,9 @@ float OutputDither8Bit(float2 pixelPos)
 
 #define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
 #define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
+// Hardware bilinear sampling of a 2D texture at an explicit mip level
+// (paired by DEFINE_TEX2D_SAMPLE); usable from compute shaders.
+#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
 // Hardware trilinear sampling of a 3D texture at an explicit mip level (paired by DEFINE_TEX3D_SAMPLE).
 #define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
 // Exact texel fetch of a 3D texture at an explicit mip level (paired by DEFINE_TEX3D_READ).

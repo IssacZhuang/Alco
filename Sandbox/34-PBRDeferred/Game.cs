@@ -27,7 +27,7 @@ using SandboxUtils;
 /// <br/>Controls: in fly mode hold the right mouse button to look around,
 /// WASD to move; in orbit mode drag with the left mouse button to orbit,
 /// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--gi-resolution=50|75|100] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--gi-resolution=50|75|100] [--rsm=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
 /// </summary>
 public class Game : GameEngine
 {
@@ -65,12 +65,16 @@ public class Game : GameEngine
 
         // ── IShadowRenderable (Shadow renderer reads these) ──
         public GraphicsMaterial? ShadowMaterial { get; set; }
+        /// <summary>Optional RSM material for the GI sun-bounce pass (null skips the object).</summary>
+        public GraphicsMaterial? RsmMaterial { get; set; }
         bool IShadowRenderable.CastsShadow => CastsShadow;
         Mesh IShadowRenderable.Mesh => Mesh;
         GraphicsMaterial IShadowRenderable.Material => ShadowMaterial!;
         Matrix4x4 IShadowRenderable.WorldMatrix => Transform.Matrix;
         float IShadowRenderable.AlphaCutoff => 0.0f;
         float IShadowRenderable.BaseColorAlpha => 1.0f;
+        GraphicsMaterial? IShadowRenderable.RsmMaterial => RsmMaterial;
+        Vector4 IShadowRenderable.RsmBaseColor => new(BaseColor, 1.0f);
     }
 
     /// <summary>
@@ -112,12 +116,15 @@ public class Game : GameEngine
         private readonly ModelDrawItem _item;
         private readonly ModelMaterial _material;
         private readonly GraphicsMaterial _shadowMaterial;
+        private readonly GraphicsMaterial? _rsmMaterial;
 
-        public BistroShadowRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial shadowMaterial)
+        public BistroShadowRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial shadowMaterial,
+            GraphicsMaterial? rsmMaterial = null)
         {
             _item = item;
             _material = material;
             _shadowMaterial = shadowMaterial;
+            _rsmMaterial = rsmMaterial;
         }
 
         public bool IsStatic => true;
@@ -127,6 +134,8 @@ public class Game : GameEngine
         Matrix4x4 IShadowRenderable.WorldMatrix => _item.World;
         float IShadowRenderable.AlphaCutoff => GetAlphaCutoff(_material);
         float IShadowRenderable.BaseColorAlpha => _material.BaseColorFactor.W;
+        GraphicsMaterial? IShadowRenderable.RsmMaterial => _rsmMaterial;
+        Vector4 IShadowRenderable.RsmBaseColor => _material.BaseColorFactor;
     }
 
     /// <summary>
@@ -174,8 +183,10 @@ public class Game : GameEngine
     // Scene materials owned by the game (created via the renderer's material factory).
     private GraphicsMaterial? _proceduralMaterial;
     private GraphicsMaterial? _proceduralShadowMaterial;
+    private GraphicsMaterial? _proceduralRsmMaterial;
     private GraphicsMaterial[]? _bistroMaterials;
     private GraphicsMaterial[]? _bistroShadowMaterials;
+    private GraphicsMaterial[]? _bistroRsmMaterials;
     private GraphicsMaterial[]? _bistroGlassMaterials;
 
     // Forward transparency renderer for glass materials.
@@ -261,6 +272,16 @@ public class Game : GameEngine
     private float _giSsaoAmount = 1f;
     private int _giResolutionPreset = 0;
     private int _ssrResolutionPreset = 0;
+
+    // RSM (reflective shadow map) sun bounce for the voxel GI: an extra sun-view
+    // pass (RGNode_RsmPass) renders albedo + world normals at shadow-map
+    // resolution; the GI trace pass matches cone march points against the RSM
+    // depth to inject shadow-map-resolution first-bounce sunlight. 0 disables
+    // the injection (and skips the RSM pass); --rsm=N overrides.
+    private readonly RGNode_RsmPass? _rsmNode;
+    private readonly GPUAttachmentLayout? _rsmLayout;
+    private float _giRsmSunBounce = 0.8f;
+    private const uint RsmResolution = 1024;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
     private static readonly string[] GiTraceResolutionModes =
         ["Performance (50%)", "Balanced (75%)", "Quality (100%)"];
@@ -360,6 +381,11 @@ public class Game : GameEngine
         {
             _giSpecularStrength = giSpecular;
         }
+        // 0 disables the RSM sun bounce (and its pass); values above 0 scale it.
+        if (float.TryParse(GetArgValue(args, "--rsm="), out float rsmIntensity))
+        {
+            _giRsmSunBounce = Math.Clamp(rsmIntensity, 0.0f, 4.0f);
+        }
 
         _fixedCameraPosition = ParseVector3(GetArgValue(args, "--pos="));
         _fixedCameraLook = ParseVector3(GetArgValue(args, "--look="));
@@ -417,6 +443,22 @@ public class Game : GameEngine
             BuiltInAssets.Shader_PBRShadowDepth,
             _preset.ShadowLayout,
             _environment.ShadowDataBuffer);
+
+        // RSM pass support for the voxel GI sun bounce: two RGBA8 color targets
+        // (sRGB albedo with alpha marking rendered texels, world normal) plus
+        // depth, rendered from the selected shadow cascade's sun view. Only
+        // needed when GI runs; the pass node itself is created with the GI
+        // below and disabled in lockstep with the injection intensity.
+        if (_giEnabled)
+        {
+            _rsmLayout = RenderingSystem.GraphicsDevice.CreateAttachmentLayout(
+                new AttachmentLayoutDescriptor(
+                    [new ColorAttachment(PixelFormat.RGBA8Unorm), new ColorAttachment(PixelFormat.RGBA8Unorm)],
+                    new DepthAttachment(PixelFormat.Depth32Float),
+                    "pbr_rsm_pass"));
+            _shadowRenderer.EnableRsm(
+                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/Rsm.hlsl"), _rsmLayout);
+        }
 
         // Materials created by the renderer bind this camera; the sandbox
         // drives its own camera (RenderingSystem.MainCamera is not set by sandboxes).
@@ -516,6 +558,12 @@ public class Game : GameEngine
             // One cutout shadow material per glTF material so alpha-tested meshes
             // (foliage, fences, etc.) cast correctly shaped shadows.
             _bistroShadowMaterials = new GraphicsMaterial[_bistro.Materials.Count];
+            // RSM materials mirror the cutout shadow materials (same albedo
+            // slot) for the GI sun-bounce pass; null per material when the RSM
+            // is disabled (GI off), which skips the item in the RSM pass.
+            _bistroRsmMaterials = _rsmLayout != null
+                ? new GraphicsMaterial[_bistro.Materials.Count]
+                : null;
             // Glass materials for transparent BLEND glass (rendered in forward pass).
             _bistroGlassMaterials = new GraphicsMaterial[_bistro.Materials.Count];
             for (int i = 0; i < _bistroMaterials.Length; i++)
@@ -526,6 +574,11 @@ public class Game : GameEngine
                     material.EmissiveTexture, material.DoubleSided, $"bistro_{material.Name}");
                 _bistroShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutMaterial(
                     material.AlbedoTexture, material.DoubleSided, $"bistro_shadow_{material.Name}");
+                if (_bistroRsmMaterials != null)
+                {
+                    _bistroRsmMaterials[i] = _shadowRenderer.CreateRsmMaterial(
+                        material.AlbedoTexture, material.DoubleSided, $"bistro_rsm_{material.Name}");
+                }
                 _bistroGlassMaterials[i] = _forwardRenderer.CreateGlassMaterial(
                     material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
                     material.EmissiveTexture, material.DoubleSided, $"bistro_glass_{material.Name}");
@@ -553,7 +606,8 @@ public class Game : GameEngine
                         // effect on the next re-record (MarkStaticBundleDirty).
                         _gbufferRenderer.Add(new BistroRenderable(item, material, _bistroMaterials![item.MaterialIndex],
                             () => material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
-                        _shadowRenderer.Add(new BistroShadowRenderable(item, material, _bistroShadowMaterials![item.MaterialIndex]));
+                        _shadowRenderer.Add(new BistroShadowRenderable(item, material, _bistroShadowMaterials![item.MaterialIndex],
+                            _bistroRsmMaterials?[item.MaterialIndex]));
                     }
                 }
             }
@@ -568,11 +622,15 @@ public class Game : GameEngine
             _objectNames = _objects.Select(o => o.Mesh.Name).ToArray();
             _proceduralMaterial = _gbufferRenderer.CreateMaterial(_checkerTexture, null, null, null, name: "checker");
             _proceduralShadowMaterial = _shadowRenderer.CreateShadowMaterial(name: "checker_shadow");
+            _proceduralRsmMaterial = _rsmLayout != null
+                ? _shadowRenderer.CreateRsmMaterial(_checkerTexture, name: "checker_rsm")
+                : null;
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
             {
                 obj.GBufferMaterial = _proceduralMaterial;
                 obj.ShadowMaterial = _proceduralShadowMaterial;
+                obj.RsmMaterial = _proceduralRsmMaterial;
                 _gbufferRenderer.Add(obj);
                 _shadowRenderer.Add(obj);
             }
@@ -607,7 +665,24 @@ public class Game : GameEngine
             _voxelGI.DebugView = giDebugView;
             _voxelGI.SsrOnly = args.Contains("--ssr-only");
             RegisterVoxelMeshes();
-            _voxelGI.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _preset.ShadowMapResource, _environment);
+
+            // RSM sun bounce: the map is a graph transient written by an extra
+            // pass inserted before the G-buffer (it only reads the cascade VP
+            // buffer, so ordering against the G-buffer is free); the GI trace
+            // reads it for first-bounce sunlight. Disabling the injection must
+            // disable the pass node in lockstep (the GI node gates its read on
+            // the intensity), hence the shared IsEnabled expression.
+            RenderGraphTexture rsmMap = _preset.Graph.CreateTransient(new RenderGraphTextureDescriptor(
+                _rsmLayout!, RsmResolution, RsmResolution, name: "pbr_rsm_map"));
+            _rsmNode = new RGNode_RsmPass(rsmMap, RGNode_RsmPass.DefaultCascadeIndex)
+            {
+                IsEnabled = _giRsmSunBounce > 0.0f,
+            };
+            _rsmNode.Content.Add(_shadowRenderer);
+            _preset.Graph.InsertBefore(_preset.GBufferPass, _rsmNode);
+            _voxelGI.RsmInjectionIntensity = _giRsmSunBounce;
+            _voxelGI.RsmCascadeIndex = RGNode_RsmPass.DefaultCascadeIndex;
+            _voxelGI.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _preset.ShadowMapResource, _environment, rsmMap);
 
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
@@ -1400,6 +1475,12 @@ public class Game : GameEngine
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
             _shadowRenderer.SetShadowCutoutMaterialTextures(_bistroShadowMaterials![i], material.AlbedoTexture);
+            // Rsm.hlsl binds the same _albedoTexture slot as the cutout shadow
+            // shader, so streaming albedo rebinds cover the RSM materials too.
+            if (_bistroRsmMaterials != null)
+            {
+                _shadowRenderer.SetShadowCutoutMaterialTextures(_bistroRsmMaterials[i], material.AlbedoTexture);
+            }
             if (_bistroGlassMaterials != null)
             {
                 _forwardRenderer?.SetGlassMaterialTextures(_bistroGlassMaterials[i],
@@ -1621,6 +1702,22 @@ public class Game : GameEngine
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
             ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
+            if (ImGui.SliderFloat("GI RSM Sun Bounce", ref _giRsmSunBounce, 0.0f, 2.0f))
+            {
+                // The RSM pass node and the trace injection must switch in
+                // lockstep: the GI node only declares its read of the transient
+                // RSM map while the intensity is above zero.
+                if (_voxelGI != null)
+                {
+                    _voxelGI.RsmInjectionIntensity = _giRsmSunBounce;
+                }
+                if (_rsmNode != null)
+                {
+                    _rsmNode.IsEnabled = _giRsmSunBounce > 0.0f;
+                }
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Reflective shadow map sun bounce: an extra sun-view pass captures albedo + normals; the GI trace injects shadow-map-resolution first-bounce sunlight. 0 skips the pass.");
             bool giSsrOnly = _voxelGI.SsrOnly;
             if (ImGui.Checkbox("SSR Only", ref giSsrOnly))
                 _voxelGI.SsrOnly = giSsrOnly;

@@ -37,10 +37,12 @@ DEFINE_UNIFORM(0, _data)
     float4 cascadeSplits;          // radial end distance of each shadow cascade
     float4 cascadeTexelSizes;      // world units per shadow texel of each cascade
     float4 clipmapParams;          // x=resolution y=levelCount z=mipCount w=voxelSpecularEnabled
-    float4 lightingParams;         // x=shadowEnabled y=numPointLights z=shadowMapSize w=unused
+    float4 lightingParams;         // x=shadowEnabled y=numPointLights z=shadowMapSize w=rsmCascadeIndex
     float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
     float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
     float4 giFrameParams;          // x=frameIndex y=giDiffuseBias z=historyValid w=diffuseSpreading
+    float4 rsmParams;              // x=intensity(0=off) y=maxDistance z=cascade depth range (world->NDC-z scale) w=minAlbedo
+    float4 rsmParams2;             // xy=rsm resolution z=rsm texel world size
 };
 
 // ---------------------------------------------------------------- packing ---

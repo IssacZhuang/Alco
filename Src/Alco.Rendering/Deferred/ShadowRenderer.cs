@@ -33,6 +33,19 @@ public interface IShadowRenderable
 
     /// <summary>Base-color alpha multiplier used in cutout alpha testing.</summary>
     float BaseColorAlpha { get; }
+
+    /// <summary>
+    /// Optional RSM material (created via <see cref="ShadowRenderer.CreateRsmMaterial"/>).
+    /// Null skips this object in the RSM pass; the object then contributes no
+    /// sun-bounce radiance to the voxel GI.
+    /// </summary>
+    GraphicsMaterial? RsmMaterial { get; }
+
+    /// <summary>
+    /// Linear base color (rgb tints the RSM albedo, w multiplies its alpha) written
+    /// into the RSM pass push constants.
+    /// </summary>
+    Vector4 RsmBaseColor { get; }
 }
 
 /// <summary>
@@ -46,7 +59,7 @@ public interface IShadowRenderable
 /// render context or cascade VP data buffer — those are owned by the pass node and
 /// the pipeline.
 /// </summary>
-public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
+public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, IRsmPassContent
 {
     /// <inheritdoc />
     public bool IsEnabled { get; set; } = true;
@@ -82,6 +95,16 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
     // Dynamic render bundle — re-recorded every frame per cascade so errors in
     // recording cannot corrupt the main render context.
     private readonly SubRenderContext _dynamicBundle;
+
+    // RSM pass state (reflective shadow map for the voxel GI sun bounce).
+    // Null until EnableRsm is called; the RSM bundles are separate from the
+    // shadow bundles because the pass records at a different resolution into
+    // different attachments, and a single bundle can only target one layout.
+    private Shader? _rsmShader;
+    private GPUAttachmentLayout? _rsmLayout;
+    private SubRenderContext? _rsmStaticBundle;
+    private SubRenderContext? _rsmDynamicBundle;
+    private int _rsmRecordedCascade = -1;
 
     /// <summary>
     /// Create the shadow renderer.
@@ -268,6 +291,133 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
         material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
     }
 
+    // ── RSM pass (reflective shadow map for the voxel GI sun bounce) ──
+
+    /// <summary>
+    /// Push constant payload for one RSM draw. Layout must match the
+    /// <c>Constants</c> struct in Rsm.hlsl exactly.
+    /// </summary>
+    public struct RsmDrawConstants
+    {
+        /// <summary>The world transform of the mesh.</summary>
+        public Matrix4x4 Model;
+        /// <summary>Linear base color (rgb tints the albedo, w multiplies its alpha).</summary>
+        public Vector4 BaseColor;
+        /// <summary>x=cascade index, y=alphaCutoff (0 disables the test), zw unused.</summary>
+        public Vector4 Params;
+    }
+
+    /// <summary>
+    /// Enable the RSM pass support: stores the RSM shader and attachment layout and
+    /// creates the RSM render bundles. After this call the renderer can be
+    /// registered as an <see cref="IRsmPassContent"/> on an <see cref="RGNode_RsmPass"/>
+    /// and RSM materials can be created via <see cref="CreateRsmMaterial"/>.
+    /// </summary>
+    /// <param name="rsmShader">The RSM pass shader (Rsm.hlsl).</param>
+    /// <param name="rsmLayout">The RSM pass attachment layout (two RGBA8 colors +
+    /// depth; the layout of the RSM render texture the pass draws into).</param>
+    public void EnableRsm(Shader rsmShader, GPUAttachmentLayout rsmLayout)
+    {
+        ArgumentNullException.ThrowIfNull(rsmShader);
+        ArgumentNullException.ThrowIfNull(rsmLayout);
+        _rsmShader = rsmShader;
+        _rsmLayout = rsmLayout;
+        _rsmStaticBundle ??= _rendering.CreateSubRenderContext("pbr_rsm_static");
+        _rsmDynamicBundle ??= _rendering.CreateSubRenderContext("pbr_rsm_dynamic");
+        _rsmRecordedCascade = -1;
+    }
+
+    /// <summary>
+    /// Draw every registered renderable that carries an
+    /// <see cref="IShadowRenderable.RsmMaterial"/> into the reflective shadow map.
+    /// Called by the owning <see cref="RGNode_RsmPass"/> inside its open pass.
+    /// Static bundles share the shadow path's dirty flag; a change of the
+    /// RSM cascade forces a re-record because the cascade index is baked into the
+    /// recorded push constants.
+    /// </summary>
+    /// <param name="context">The live RSM pass scope.</param>
+    /// <param name="cascadeIndex">The CSM cascade whose sun view defines the RSM.</param>
+    public void OnRenderRsm(RenderPassScope context, int cascadeIndex)
+    {
+        SubRenderContext staticBundle = _rsmStaticBundle!;
+        SubRenderContext dynamicBundle = _rsmDynamicBundle!;
+
+        if (_staticItems.Count > 0)
+        {
+            if (_staticBundleDirty || _rsmRecordedCascade != cascadeIndex)
+            {
+                using (RenderPassScope bundle = staticBundle.BeginPass(_rsmLayout!))
+                {
+                    for (int i = 0; i < _staticItems.Count; i++)
+                    {
+                        DrawRsmItem(_staticItems[i], bundle, cascadeIndex);
+                    }
+                }
+                _rsmRecordedCascade = cascadeIndex;
+            }
+
+            context.ExecuteSubContext(staticBundle);
+        }
+
+        if (_dynamicItems.Count > 0)
+        {
+            using (RenderPassScope bundle = dynamicBundle.BeginPass(_rsmLayout!))
+            {
+                for (int i = 0; i < _dynamicItems.Count; i++)
+                {
+                    DrawRsmItem(_dynamicItems[i], bundle, cascadeIndex);
+                }
+            }
+            context.ExecuteSubContext(dynamicBundle);
+        }
+    }
+
+    /// <summary>
+    /// Draw a single renderable into the RSM (immediate or bundle context). Items
+    /// without an RSM material are skipped.
+    /// </summary>
+    private static void DrawRsmItem(IShadowRenderable item, IRenderContext target, int cascadeIndex)
+    {
+        GraphicsMaterial? material = item.RsmMaterial;
+        if (material == null)
+        {
+            return;
+        }
+        target.DrawWithConstant(item.Mesh, material,
+            new RsmDrawConstants
+            {
+                Model = item.WorldMatrix,
+                BaseColor = item.RsmBaseColor,
+                Params = new Vector4(cascadeIndex, item.AlphaCutoff, 0.0f, 0.0f),
+            });
+    }
+
+    /// <summary>
+    /// Create a caller-owned RSM material — the RSM pass shader (Rsm.hlsl)
+    /// sampling the albedo texture and writing sRGB albedo + world normal.
+    /// Requires <see cref="EnableRsm"/> first; the material binds the shared
+    /// shadow cascade data buffer internally (the RSM vertex shader unfolds the
+    /// selected cascade's atlas quadrant), so recorded bundles stay valid while
+    /// the cascades move.
+    /// </summary>
+    /// <param name="albedoTexture">The albedo texture; null binds the shared white texture.</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="name">The material name for debugging.</param>
+    public GraphicsMaterial CreateRsmMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_rsm_material")
+    {
+        if (_rsmShader == null || _rsmLayout == null)
+        {
+            throw new InvalidOperationException("Call EnableRsm before creating RSM materials.");
+        }
+        var material = _rendering.CreateMaterial(_rsmShader, name);
+        material.DepthStencilState = DepthStencilState.Write;
+        material.RasterizerState = new RasterizerState(FillMode.Solid,
+            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
+        return material;
+    }
+
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
@@ -278,6 +428,8 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent
                 _staticBundles[i].Dispose();
             }
             _dynamicBundle.Dispose();
+            _rsmStaticBundle?.Dispose();
+            _rsmDynamicBundle?.Dispose();
         }
     }
 }

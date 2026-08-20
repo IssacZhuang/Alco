@@ -235,6 +235,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         public Vector4 GiParams2;
         /// <summary>x=frame index, y=GI diffuse bias, z=history-valid flag (filled by the renderer), w=diffuse spreading (dual-kernel opacity bias).</summary>
         public Vector4 GiFrameParams;
+        /// <summary>RSM sun bounce: x=intensity (0 disables), y=max injection distance in world units, z=NDC depth tolerance scale, w=minimum bounce albedo.</summary>
+        public Vector4 RsmParams;
+        /// <summary>RSM sun bounce: xy=RSM resolution in texels (zw unused).</summary>
+        public Vector4 RsmParams2;
     }
 
     /// <summary>
@@ -449,6 +453,17 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private RenderTexture? _boundShadowMap;
     private GraphicsBuffer? _boundPointLightBuffer;
 
+    // RSM sun bounce (reflective shadow map of the selected CSM cascade).
+    // _rsmMapResource is the graph transient written by the app's RGNode_RsmPass;
+    // null runs the trace with a 1x1 far-depth fallback so the shader bindings
+    // stay complete. _rsmBound guards the first bind (the ctor binds the
+    // fallback before any real map exists).
+    private RenderGraphTexture? _rsmMapResource;
+    private RenderTexture? _boundRsmMap;
+    private RenderTexture? _rsmFallbackDepth;
+    private bool _rsmBound;
+    private int _rsmCascadeIndex = 2;
+
     // Graph-owned transient resources. _giDiffuseFullRes and _giSpecularFullRes are
     // facades of the transients below (not disposed here, rematerialized on resize).
     private RenderGraph? _graph;
@@ -631,6 +646,45 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         get => _volumeRefreshRate;
         set => _volumeRefreshRate = float.IsFinite(value) ? MathF.Max(value, 0.0f) : 0.0f;
     }
+
+    /// <summary>
+    /// Gets or sets the RSM sun-bounce injection intensity (0 disables the
+    /// injection in the trace shader). When set to 0 the owning
+    /// <see cref="RGNode_RsmPass"/> must be disabled in the same frame (and
+    /// vice versa): the RSM map is a graph transient written by that node, and
+    /// the graph validates that this node only reads it while a writer is
+    /// enabled — the read declaration itself is gated on this property.
+    /// </summary>
+    public float RsmInjectionIntensity { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum world-space distance at which a diffuse cone
+    /// march point still samples the RSM for sun bounce. Beyond it the march
+    /// falls back to pure voxel radiance.
+    /// </summary>
+    public float RsmMaxDistance { get; set; } = 24.0f;
+
+    /// <summary>
+    /// Gets or sets the CSM cascade whose sun view defines the reflective
+    /// shadow map (matching the cascade rendered by the app's
+    /// <see cref="RGNode_RsmPass"/>). Coarser cascades cover more world space
+    /// at lower texel density. Clamped to 0..3.
+    /// </summary>
+    public int RsmCascadeIndex
+    {
+        get => _rsmCascadeIndex;
+        set => _rsmCascadeIndex = Math.Clamp(value, 0, RGNode_ShadowPass.CascadeCount - 1);
+    }
+
+    /// <summary>
+    /// Gets or sets the minimum effective bounce albedo. RSM texels darker than
+    /// this luminance are lifted to it in the shader so deeply dark surfaces
+    /// still bounce a visible amount of sunlight.
+    /// </summary>
+    public float RsmMinAlbedo { get; set; } = 0.15f;
+
+    /// <summary>Gets the RSM resolution in texels (tracked from the bound RSM map).</summary>
+    public int RsmResolution { get; private set; } = 1024;
 
     /// <summary>Gets the most recently completed frame's GI diagnostics.</summary>
     public VoxelGiStatistics Statistics { get; private set; }
@@ -821,6 +875,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         {
             InitUpsample(shaders.Upsample);
         }
+
+        // Bind the RSM fallback until Attach supplies a real RSM map.
+        BindRsmTextures(null);
     }
 
     private void InitUpsample(Shader upsampleShader)
@@ -831,6 +888,41 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
         // _giDiffuseOut/_giSpecularOut are bound by Attach once the graph
         // transients exist.
+    }
+
+    /// <summary>
+    /// (Re)bind the trace pass's RSM slots. A null map binds the far-depth
+    /// fallback (1x1 depth-only texture) plus the shared black textures, whose
+    /// albedo alpha of 0 makes the shader's injection gate reject everything.
+    /// Bindings only change when the map identity changes (resize-safe).
+    /// </summary>
+    private void BindRsmTextures(RenderTexture? rsmMap)
+    {
+        if (_rsmBound && ReferenceEquals(_boundRsmMap, rsmMap))
+        {
+            return;
+        }
+        _rsmBound = true;
+        if (rsmMap != null)
+        {
+            _traceMaterial.SetRenderTextureDepth("_rsmDepth", rsmMap);
+            _traceMaterial.SetRenderTexture("_rsmAlbedo", rsmMap, 0);
+            _traceMaterial.SetRenderTexture("_rsmNormal", rsmMap, 1);
+            RsmResolution = (int)rsmMap.Width;
+        }
+        else
+        {
+            // A depth-only 1x1 texture cleared once to far (1.0); its depth can
+            // never match a receiver, and black albedo has alpha 0.
+            _rsmFallbackDepth ??= _rendering.CreateRenderTexture(
+                _rendering.GraphicsDevice.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+                    [], new DepthAttachment(PixelFormat.Depth32Float), "voxel_gi_rsm_fallback")),
+                1, 1, "voxel_gi_rsm_fallback");
+            _traceMaterial.SetRenderTextureDepth("_rsmDepth", _rsmFallbackDepth);
+            _traceMaterial.SetTexture("_rsmAlbedo", _rendering.TextureBlack);
+            _traceMaterial.SetTexture("_rsmNormal", _rendering.TextureBlack);
+        }
+        _boundRsmMap = rsmMap;
     }
 
     /// <summary>
@@ -849,8 +941,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// <param name="shadowMap">The shadow map resource read by the inject pass.</param>
     /// <param name="environment">The shared scene environment (camera, lighting data
     /// and point lights).</param>
+    /// <param name="rsmMap">Optional reflective shadow map transient (written by an
+    /// enabled <see cref="RGNode_RsmPass"/> inserted earlier in the graph) driving the
+    /// sun-bounce injection; null keeps the disabled fallback bindings.</param>
     /// <exception cref="InvalidOperationException">The renderer is already attached.</exception>
-    public void Attach(RenderGraph graph, RGNode_DeferredLighting lighting, RenderGraphTexture gbuffer, RenderGraphTexture shadowMap, PBRSceneEnvironment environment)
+    public void Attach(RenderGraph graph, RGNode_DeferredLighting lighting, RenderGraphTexture gbuffer, RenderGraphTexture shadowMap, PBRSceneEnvironment environment, RenderGraphTexture? rsmMap = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(lighting);
@@ -866,6 +961,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _gbufferResource = gbuffer;
         _shadowMapResource = shadowMap;
         _environment = environment;
+        _rsmMapResource = rsmMap;
         _giDiffuseResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
             _rendering.PreferredLightMapPass, name: "gi_diffuse"));
         _giSpecularResource = graph.CreateTransient(new RenderGraphTextureDescriptor(
@@ -920,6 +1016,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _gbufferResource = null;
         _shadowMapResource = null;
         _environment = null;
+        _rsmMapResource = null;
+        BindRsmTextures(null);
     }
 
     private static void ValidateTraceResolutionScale(float scale)
@@ -1255,12 +1353,12 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         data.SkyZenithColor = ld.SkyZenithColor;
         data.CascadeSplits = ld.CascadeSplits;
         data.CascadeTexelSizes = ld.CascadeTexelSizes;
-        // x=shadowEnabled y=numPointLights z=shadowMapSize
+        // x=shadowEnabled y=numPointLights z=shadowMapSize w=rsmCascadeIndex
         data.LightingParams = new Vector4(
             ld.Params.X,
             ld.Params.Y,
             ld.Params.Z,
-            0.0f);
+            RsmCascadeIndex);
 
         // Bind the point-light buffer once (the buffer is stable across frames).
         if (pointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, pointLightBuffer))
@@ -1290,6 +1388,21 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         data.GiParams = new Vector4(EmissiveScale, TraceMaxDistance, traceWidth, _traceRaw.Height);
         data.GiParams2 = new Vector4((int)DebugView, gbuffer.Width, gbuffer.Height, SkyIntensity);
         data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, DiffuseSpreading);
+
+        // RSM sun bounce. The injection intensity is forced off when no map is
+        // bound (detached / RSM pass never attached) even if the property says
+        // otherwise, so the shader gate and the bindings stay consistent.
+        RenderTexture? rsmMap = _rsmMapResource?.Texture;
+        BindRsmTextures(rsmMap);
+        float rsmIntensity = rsmMap != null ? RsmInjectionIntensity : 0.0f;
+        // The shader sizes the glowing shell from its current march step
+        // (never thinner than 1.5 fine voxels / RSM texels), so it only needs
+        // the world-to-NDC-z scale of the cascade (depth range) and the RSM
+        // texel's world size.
+        float rsmTexelWorld = ld.CascadeTexelSizes[RsmCascadeIndex] * ld.Params.Z / MathF.Max(RsmResolution, 1);
+        float rsmDepthRange = MathF.Max(environment.CascadeDepthRanges[RsmCascadeIndex], 1e-3f);
+        data.RsmParams = new Vector4(rsmIntensity, RsmMaxDistance, rsmDepthRange, RsmMinAlbedo);
+        data.RsmParams2 = new Vector4(RsmResolution, RsmResolution, rsmTexelWorld, 0.0f);
         _dataBuffer.UpdateBuffer(data);
 
         // The G-buffer and shadow map render textures are stable across frames
@@ -1838,6 +1951,13 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         {
             builder.Read(_shadowMapResource!);
         }
+        // Gated on the intensity so disabling the injection (which must disable
+        // the app's RSM pass node in lockstep) does not leave this node reading
+        // a transient no enabled node writes this frame.
+        if (_rsmMapResource != null && RsmInjectionIntensity > 0.0f)
+        {
+            builder.Read(_rsmMapResource);
+        }
         builder.Write(_giDiffuseResource!);
         builder.Write(_giSpecularResource!);
     }
@@ -2234,6 +2354,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _blueNoiseLayout.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
+            _rsmFallbackDepth?.Dispose();
             _gpuTimestamps?.Dispose();
             _staticBvh.Dispose();
             _dynamicBvh.Dispose();

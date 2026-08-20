@@ -42,6 +42,15 @@ struct PointLightData
     float4 colorIntensity;
 };
 DEFINE_STORAGE(0, PointLightData, _pointLights);
+// Reflective shadow map (sun view of the selected CSM cascade): depth + sRGB
+// albedo (alpha=1 marks rendered texels) + world normal. Bound by the voxel GI
+// node; the fallback (1x1 far depth, black albedo with alpha=0) disables the
+// sun-bounce injection in TraceCone. The albedo slot is sampled (bilinear) so
+// the bounce colour a receiver gathers is filtered instead of snapping to
+// single RSM texels.
+DEFINE_TEX2D_DEPTH(0, _rsmDepth);
+DEFINE_TEX2D_SAMPLE(0, _rsmAlbedo);
+DEFINE_TEX2D_READ(0, _rsmNormal);
 DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
 
 // A large cosine-hemisphere kernel starts with a different direction at each
@@ -327,7 +336,8 @@ float4 TraceCone(
     float maxDistance,
     float skyFallback,
     float marchStepScale,
-    float marchJitter)
+    float marchJitter,
+    bool injectRsmSun)
 {
     float mipCount = clipmapParams.z;
     float fineVoxelSize = levelOrigins[0].w;
@@ -383,6 +393,81 @@ float4 TraceCone(
         float marchDistance = max(effectiveVoxelSize, diameter) * marchStepScale;
 
         color += (1.0 - alpha) * sample.a * sample.rgb * nearFade;
+
+        // RSM sun bounce (CE5 SVOTI final gather, CommonSVO.cfi ConeTraceBrick):
+        // at EVERY march step, project into the sun-space RSM of the selected
+        // cascade. While the cone travels through empty space in front of a
+        // sunlit first surface (RSM depth behind the march depth), the step
+        // gathers that surface's albedo radiating one bounce of sunlight — a
+        // thin glowing shell in front of every sun-visible surface that cones
+        // through open space accumulate. No occupancy gate: the shell lives in
+        // empty voxels, and that is where receivers gather it from. The depth
+        // comparison IS the occlusion test (an RSM texel is by definition the
+        // first surface along its sun ray, so shadowed receivers project onto
+        // a different depth and get nothing). On-surface steps are excluded by
+        // the epsilon: their direct sun already lives in the voxel radiance.
+        if (injectRsmSun && rsmParams.x > 0.0 && t < rsmParams.y)
+        {
+            uint rsmCascade = (uint)(lightingParams.w + 0.5);
+            float4 rsmClip = mul(sunViewProjection[rsmCascade], float4(position, 1.0));
+            float3 rsmNdc = rsmClip.xyz / rsmClip.w;
+            if (all(abs(rsmNdc.xy) <= 1.0) && rsmNdc.z >= 0.0 && rsmNdc.z <= 1.0)
+            {
+                // The RSM renders the whole cascade view (no atlas quadrant),
+                // so unlike SampleSunShadowScreen the UV is not folded.
+                float2 rsmUv = float2(rsmNdc.x * 0.5 + 0.5, 0.5 - rsmNdc.y * 0.5);
+                int2 rsmTexel = int2(rsmUv * rsmParams2.xy);
+                // Bilinear albedo: neighbouring march points and neighbouring
+                // receivers must see a continuous bounce colour, not per-texel
+                // snaps. Cleared texels are (0,0,0,0), so filtering drives
+                // alpha toward 0 at the sun-patch border; alpha becomes a
+                // coverage weight and the RGB is un-premultiplied below.
+                float4 rsmAlbedoSample = SAMPLE_TEX2D_LEVEL(_rsmAlbedo, rsmUv, 0.0);
+                float rsmCoverage = saturate(rsmAlbedoSample.a);
+                if (rsmCoverage > 0.05)
+                {
+                    float rsmDepth = GET_PIXEL_TEX2D(_rsmDepth, rsmTexel);
+                    // The glowing shell must be at least one and a half march
+                    // steps thick (and never thinner than the fine voxel / RSM
+                    // texel). A fixed fine-scale shell is thinner than the
+                    // growing march step of distant receivers, so their cones
+                    // stochastically skip it and converge into light spots
+                    // instead of a uniform bounce — the shell scaling with the
+                    // current step is what keeps every crossing sampled. CE5
+                    // scales the tolerance with the current node size
+                    // ((8/nodeSize)*450) for the same reason. rsmParams.z is
+                    // the cascade depth range (world->NDC-z scale),
+                    // rsmParams2.z the RSM texel world size.
+                    float rsmShellWorld = max(
+                        marchDistance * 1.5,
+                        max(fineVoxelSize, rsmParams2.z) * 1.5);
+                    float fRsm = saturate(
+                        1.0 - abs(rsmDepth - rsmNdc.z) * rsmParams.z / rsmShellWorld);
+                    // Strictly in front of the sunlit surface only.
+                    if (fRsm > 0.0 && rsmDepth > rsmNdc.z + 0.0007)
+                    {
+                        float3 rsmNormal = normalize(GET_PIXEL_TEX2D(_rsmNormal, rsmTexel).xyz * 2.0 - 1.0);
+                        float3 bounceAlbedo = DecodeSRGB(
+                            min(rsmAlbedoSample.rgb / max(rsmCoverage, 0.5), 1.0));
+                        // Minimum reflectance so deeply dark texels still
+                        // bounce a visible amount of sun.
+                        bounceAlbedo += saturate(rsmParams.w - dot(bounceAlbedo, 0.333));
+                        // CE5 rejects only surfaces significantly facing away
+                        // from the receiver (dot(N, dir) < 0.7) and applies no
+                        // NdotL: the texel's sun visibility is already implied
+                        // by the RSM. A cosine-falloff here zeroes the grazing
+                        // wall contacts that carry most street-level bounce.
+                        float facingReceiver = saturate((0.7 - dot(rsmNormal, direction)) * 2.0);
+                        float3 rsmLight = sunColorAndIntensity.rgb * sunColorAndIntensity.w *
+                            facingReceiver * fRsm * rsmCoverage;
+                        // CE5 applies no 1/pi: the term is radiance modulated by
+                        // the user intensity, not a Lambertian irradiance.
+                        color += (1.0 - alpha) * rsmLight * bounceAlbedo * rsmParams.x * nearFade;
+                    }
+                }
+            }
+        }
+
         alpha += (1.0 - alpha) * sample.a;
         t += marchDistance * (0.92 + 0.16 * marchJitter);
     }
@@ -446,7 +531,7 @@ float4 TraceDiffuseCones(
     float3 worldDir = normalize(mul(kernelDirection, tbn));
     outWorldDir = worldDir;
     float4 coneResult = TraceCone(
-        startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0, marchJitter);
+        startPosition, worldDir, DIFFUSE_CONE_APERTURE, maxDistance, 1.0, 1.0, marchJitter, true);
     return float4(coneResult.rgb, saturate(1.0 - coneResult.a));
 }
 
@@ -573,7 +658,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     {
         float specularApertureTan = max(roughness * roughness, 0.06);
         specular = TraceCone(
-            startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5, marchJitter).rgb;
+            startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5, marchJitter, false).rgb;
     }
     // ALD (Average Light Direction): direction-weighted accumulation of cone
     // brightness. xyz = worldDir * brightness, w = brightness. The deferred
