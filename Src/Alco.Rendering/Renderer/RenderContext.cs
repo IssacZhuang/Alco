@@ -25,6 +25,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUCommandBuffer _command;
     private readonly RenderPassScope _passScope;
+    private readonly RenderFrameScope _frameScope;
 
     private bool _bufferOpen;
     private bool _passOpen;
@@ -62,6 +63,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
         _renderingSystem = renderingSystem;
         _command = renderingSystem.GraphicsDevice.CreateCommandBuffer(new CommandBufferDescriptor(name));
         _passScope = new RenderPassScope(this);
+        _frameScope = new RenderFrameScope(this);
     }
 
     /// <summary>
@@ -169,12 +171,16 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     /// This is the only way to open the buffer — <see cref="RenderGraph"/> drives its
     /// shared context through this same path. Throws when a frame is already open
     /// (nested <c>BeginFrame</c>).
+    /// <br/>The returned scope is recycled (stable in identity, like
+    /// <see cref="Pass"/>): consume it with <c>using</c> and never hold it beyond
+    /// its frame.
     /// </summary>
     /// <returns>The frame scope, to be disposed outermost of any pass scope.</returns>
     public RenderFrameScope BeginFrame()
     {
         Open();
-        return new RenderFrameScope(this);
+        _frameScope.Activate();
+        return _frameScope;
     }
 
     /// <summary>
