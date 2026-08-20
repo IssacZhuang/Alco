@@ -252,6 +252,8 @@ public sealed class Texture2D : Texture
             _resourcesReadMip[i] = null;
             _mipViews[i] = null;
         }
+
+        DiscardLayoutResourceGroups();
     }
 
     public override void SetSampler(GPUSampler sampler)

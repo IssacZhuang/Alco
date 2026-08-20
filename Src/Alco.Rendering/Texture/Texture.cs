@@ -24,6 +24,14 @@ public abstract class Texture : AutoDisposable
     // creator, the same rule as the externally supplied sampler.
     private readonly bool _ownsResources;
 
+    // Bind groups that bind one view of this texture as the only resource of a
+    // shader group, keyed by the group layout and the bound view (the full-chain
+    // view or a per-mip view). A single-resource group is fully determined by
+    // (view, sampler, layout), so one group per combination is created for the
+    // texture's lifetime and shared across materials and frames instead of being
+    // rebuilt on every slot change.
+    private Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup>? _layoutResourceGroups;
+
     public string Name { get; }
 
     public bool IsWriteable => _texture.IsWriteable;
@@ -138,6 +146,52 @@ public abstract class Texture : AutoDisposable
     public virtual void SetSampler(GPUSampler sampler)
     {
         _sampler = sampler;
+        // Cached layout groups embed the old sampler. They are dropped without
+        // disposal: recorded commands and material caches may still reference
+        // them until their slots change, and the finalizer releases the native
+        // objects (the same policy as the texture hot reload).
+        DiscardLayoutResourceGroups();
+    }
+
+    /// <summary>
+    /// Returns the bind group that binds the given view of this texture (plus
+    /// its sampler for texture-and-sampler groups) as the only resource of a
+    /// shader bind group with the given layout, creating it on first use. The
+    /// group is cached on the texture for its lifetime and shared across all
+    /// materials and frames, so cycling textures or mip views through a
+    /// material does not allocate a new bind group per change.
+    /// </summary>
+    /// <param name="layout">The bind group layout of the consuming shader's group.</param>
+    /// <param name="view">The texture view to bind (full-chain or single-mip).</param>
+    /// <param name="sampler">The companion sampler, or null when the group has no sampler binding.</param>
+    /// <param name="binding">The binding number of the texture view inside the group.</param>
+    /// <param name="samplerBinding">The binding number of the sampler inside the group (used when <paramref name="sampler"/> is not null).</param>
+    /// <returns>The cached or newly created resource group.</returns>
+    internal GPUResourceGroup GetOrCreateResourceGroup(GPUBindGroup layout, GPUTextureView view, GPUSampler? sampler, uint binding, uint samplerBinding)
+    {
+        Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup> cache = _layoutResourceGroups ??= new Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup>();
+        if (cache.TryGetValue((layout, view), out GPUResourceGroup? group))
+        {
+            return group;
+        }
+
+        ResourceBindingEntry[] entries = sampler != null
+            ? new ResourceBindingEntry[] { new(binding, view), new(samplerBinding, sampler) }
+            : new ResourceBindingEntry[] { new(binding, view) };
+        group = _device.CreateResourceGroup(new ResourceGroupDescriptor(layout, entries, $"{Name}_layout_bind_group"));
+        cache[(layout, view)] = group;
+        return group;
+    }
+
+    /// <summary>
+    /// Drops the cached per-layout bind groups, e.g. after the native texture
+    /// or the sampler was replaced in place. The groups are not disposed:
+    /// recorded commands and material caches may still reference them; the
+    /// finalizer releases the native objects.
+    /// </summary>
+    internal void DiscardLayoutResourceGroups()
+    {
+        _layoutResourceGroups = null;
     }
 
     protected override void Dispose(bool disposing)
@@ -147,6 +201,16 @@ public abstract class Texture : AutoDisposable
             //dispose non-private managed resources
             _texture?.Dispose();
             _textureView?.Dispose();
+        }
+
+        if (disposing && _layoutResourceGroups != null)
+        {
+            foreach (GPUResourceGroup group in _layoutResourceGroups.Values)
+            {
+                group.Dispose();
+            }
+
+            _layoutResourceGroups = null;
         }
     }
 

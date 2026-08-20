@@ -12,6 +12,11 @@ namespace Alco.Rendering;
 /// lazily from the slot values: a group is (re)built only when one of its values
 /// changed, and identical contents are served from a per-group cache, so ping-pong
 /// updates (e.g. double buffering) do not recreate bind groups every frame.
+/// <br/>Groups that resolve from a single slot (one resource plus its sampler or
+/// counter companion) are cached on the resource itself, keyed by the group
+/// layout: they are created once per resource and reused across frames and
+/// materials, so slots whose value changes per instance (e.g. the voxel GI
+/// voxelize dispatch cycling mesh buffers) do not allocate new bind groups.
 /// </summary>
 public sealed class ShaderParameterSet
 {
@@ -1118,6 +1123,16 @@ public sealed class ShaderParameterSet
             hash = (hash ^ (ulong)RuntimeHelpers.GetHashCode(value)) * 1099511628211UL;
         }
 
+        // Single-slot groups (one resource plus its sampler/counter companions)
+        // are fully determined by the slot value and the group layout, so their
+        // bind groups are cached on the resource itself and shared across frames
+        // and materials. Binding new instances into such a group stops being a
+        // native allocation once each resource has its group.
+        if (TryAssembleSingleSlotGroup(groupIndex, group, plans, out GPUResourceGroup? resourceOwned))
+        {
+            return resourceOwned;
+        }
+
         if (group.cache.TryGetValue(hash, out GPUResourceGroup? cached))
         {
             return cached;
@@ -1145,6 +1160,100 @@ public sealed class ShaderParameterSet
         group.cache[hash] = resourceGroup;
         group.cacheOrder.Enqueue(hash);
         return resourceGroup;
+    }
+
+    /// <summary>
+    /// Assembles a group whose plans all resolve from one slot: one Resource
+    /// entry plus optional sampler/counter companions of that same slot. The
+    /// bind group of such a group is a pure function of the slot value and the
+    /// group layout, so it is cached on the buffer or texture itself (see
+    /// <see cref="GraphicsBuffer.GetOrCreateResourceGroup"/> and
+    /// <see cref="Texture.GetOrCreateResourceGroup"/>) instead of the per-group
+    /// LRU: created once per resource and reused no matter how often the slot
+    /// changes, for this set or any other set binding the same resource.
+    /// <br/>Slots resolved through the fallback chain or backed by render
+    /// textures are not covered and fall back to the general cache.
+    /// </summary>
+    private bool TryAssembleSingleSlotGroup(int groupIndex, GroupState group, EntryPlan[] plans, out GPUResourceGroup? resourceGroup)
+    {
+        resourceGroup = null;
+        int resourceIndex = -1;
+        for (int i = 0; i < plans.Length; i++)
+        {
+            if (plans[i].kind == EntryKind.Resource)
+            {
+                if (resourceIndex >= 0)
+                {
+                    // More than one resource in the group.
+                    return false;
+                }
+
+                resourceIndex = i;
+            }
+        }
+
+        if (resourceIndex < 0)
+        {
+            return false;
+        }
+
+        int resourceSlot = plans[resourceIndex].slotIndex;
+        uint counterBinding = GraphicsBuffer.NoCounterBinding;
+        uint samplerBinding = 0;
+        bool hasSampler = false;
+        bool comparisonSampler = false;
+        for (int i = 0; i < plans.Length; i++)
+        {
+            if (plans[i].kind == EntryKind.Resource)
+            {
+                continue;
+            }
+
+            if (plans[i].slotIndex != resourceSlot)
+            {
+                // A companion of another resource: not a single-slot group.
+                return false;
+            }
+
+            if (plans[i].kind == EntryKind.OwnerSampler)
+            {
+                hasSampler = true;
+                samplerBinding = plans[i].binding;
+                comparisonSampler = plans[i].entryType == BindingType.SamplerComparison;
+            }
+            else
+            {
+                counterBinding = plans[i].binding;
+            }
+        }
+
+        ref Slot slot = ref _slots[resourceSlot];
+        uint resourceBinding = plans[resourceIndex].binding;
+        if (slot.buffer != null)
+        {
+            group.layout ??= _device.CreateBindGroup(_reflectionInfo.BindGroups[groupIndex].ToDescriptor($"material_bind_group_layout_{groupIndex}"));
+            resourceGroup = slot.buffer.GetOrCreateResourceGroup(group.layout, resourceBinding, counterBinding);
+            return true;
+        }
+
+        if (slot.texture != null)
+        {
+            GPUTextureView? view = ResolveView(in slot);
+            if (view == null)
+            {
+                return false;
+            }
+
+            GPUSampler? sampler = !hasSampler
+                ? null
+                : comparisonSampler ? _device.SamplerDepthComparison : ResolveSampler(in slot);
+            group.layout ??= _device.CreateBindGroup(_reflectionInfo.BindGroups[groupIndex].ToDescriptor($"material_bind_group_layout_{groupIndex}"));
+            resourceGroup = slot.texture.GetOrCreateResourceGroup(group.layout, view, sampler, resourceBinding, samplerBinding);
+            return true;
+        }
+
+        // Render-texture-backed and fallback-resolved slots use the general path.
+        return false;
     }
 
     private IGPUBindableResource? ResolveEntryValue(in EntryPlan plan)
