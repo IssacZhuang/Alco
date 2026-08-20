@@ -366,7 +366,10 @@ public sealed class Shader : AutoDisposable
                 colors,
                 depthStencilFormat,
                 (uint)reflectionInfo.PushConstantsSize,
-                Name);
+                Name)
+            {
+                FragmentOutputCount = reflectionInfo.FragmentOutputCount,
+            };
 
 
             pipelineNew = device.CreateGraphicsPipeline(descriptor);

@@ -125,11 +125,15 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
 
             for (int i = 0; i < descriptor.ColorFormats.Length; i++)
             {
+                // WebGPU rejects a color target without a matching fragment output unless its
+                // write mask is zero, so extra targets (e.g. a MRT position buffer a shader
+                // does not write) are masked out instead of failing pipeline validation.
+                bool writesTarget = i < descriptor.FragmentOutputCount;
                 targets[i] = new WGPUColorTargetState()
                 {
                     format = WebGPUUtility.PixelFormatToWebGPU(descriptor.ColorFormats[i]),
-                    blend = &blendState,
-                    writeMask = WGPUColorWriteMask.All,
+                    blend = writesTarget ? &blendState : null,
+                    writeMask = writesTarget ? WGPUColorWriteMask.All : WGPUColorWriteMask.None,
                 };
             }
 

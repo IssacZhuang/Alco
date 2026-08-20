@@ -129,7 +129,8 @@ public static class ShaderReflectionUtility
             vertex.VertexLayouts,
             layouts,
             ranges,
-            ThreadGroupSize.Default);
+            ThreadGroupSize.Default,
+            fragment.FragmentOutputCount);
     }
 
     private static BindGroupEntryInfo[] MergeBindGroupEntries(

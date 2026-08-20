@@ -52,6 +52,13 @@ public sealed class ShaderReflectionInfo
     public int PushConstantsSize { get; }
 
     /// <summary>
+    /// The number of color attachments the fragment stage writes to, i.e. the highest
+    /// fragment output location plus one. Color targets at or beyond this index have no
+    /// matching shader output and must be created with a zero write mask.
+    /// </summary>
+    public int FragmentOutputCount { get; }
+
+    /// <summary>
     /// Thread group size for compute shader
     /// </summary>
     public ThreadGroupSize Size { get; }
@@ -60,12 +67,14 @@ public sealed class ShaderReflectionInfo
         IReadOnlyList<VertexInputLayout> vertexLayouts,
         IReadOnlyList<BindGroupLayout> bindGroups,
         IReadOnlyList<PushConstantsRange> pushConstantsRanges,
-        ThreadGroupSize size)
+        ThreadGroupSize size,
+        int fragmentOutputCount = 0)
     {
         VertexLayouts = vertexLayouts;
         BindGroups = bindGroups;
         PushConstantsRanges = pushConstantsRanges;
         Size = size;
+        FragmentOutputCount = fragmentOutputCount;
 
         int pushConstantsSize = 0;
         for (int i = 0; i < pushConstantsRanges.Count; i++)

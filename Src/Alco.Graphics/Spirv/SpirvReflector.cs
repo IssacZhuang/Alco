@@ -16,11 +16,14 @@ internal static class SpirvReflector
         ShaderStage stage = GetShaderStage(module);
         ShaderStage effectiveStage = ResolveEffectiveStage(stage, useStandardStage);
 
+        int fragmentOutputCount = stage == ShaderStage.Fragment ? GetFragmentOutputCount(module) : 0;
+
         return new ShaderReflectionInfo(
             [GetVertexInputLayout(module)],
             GetBindGroupLayouts(module, effectiveStage),
             GetPushConstants(module),
-            GetThreadGroupSize(module));
+            GetThreadGroupSize(module),
+            fragmentOutputCount);
     }
 
     // ─── Shader Stage ───────────────────────────────────────────────
@@ -57,6 +60,44 @@ internal static class SpirvReflector
         }
 
         return stage;
+    }
+
+    // ─── Fragment Outputs ───────────────────────────────────────────
+
+    private static int GetFragmentOutputCount(SpirvModule module)
+    {
+        // Color outputs are Output variables with a Location decoration; BuiltIn
+        // outputs (FragDepth, SampleMask) are not color attachments. The count is
+        // the highest location plus one so sparse locations keep lower targets valid.
+        int outputCount = 0;
+        foreach (SpirvInstruction inst in module.Instructions)
+        {
+            if ((SpirvOp)inst.OpCode != SpirvOp.Variable)
+            {
+                continue;
+            }
+
+            if ((SpirvStorageClass)inst[3] != SpirvStorageClass.Output)
+            {
+                continue;
+            }
+
+            uint variableId = inst[2];
+            if (module.HasDecoration(variableId, SpirvDecoration.BuiltIn))
+            {
+                continue;
+            }
+
+            if (!module.HasDecoration(variableId, SpirvDecoration.Location))
+            {
+                continue;
+            }
+
+            uint location = module.GetDecorationValue(variableId, SpirvDecoration.Location);
+            outputCount = Math.Max(outputCount, (int)location + 1);
+        }
+
+        return outputCount;
     }
 
     // ─── Descriptor Bindings (Bind Groups) ──────────────────────────

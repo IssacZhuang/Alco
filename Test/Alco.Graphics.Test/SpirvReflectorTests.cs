@@ -394,4 +394,116 @@ public class SpirvReflectorTests
 
         Assert.That(info.BindGroups[0].Bindings[0].Entry.Type, Is.EqualTo(BindingType.StorageBuffer));
     }
+
+    // ─── Fragment Output Count ──────────────────────────────────
+
+    private static byte[] BuildFragmentModuleWithOutputs(params (uint Id, uint Location)[] outputs)
+    {
+        List<uint[]> instructions = new()
+        {
+            TypeFloat(1, 32),
+            TypeVector(2, 1, 4),
+            TypePointer(3, (uint)SpirvStorageClass.Output, 2)
+        };
+
+        foreach ((uint id, uint location) in outputs)
+        {
+            instructions.Add(Variable(3, id, (uint)SpirvStorageClass.Output));
+            instructions.Add(Decorate(id, SpirvDecoration.Location, location));
+            instructions.Add(OpName(id, $"_out{location}"));
+        }
+
+        instructions.Add(Inst((ushort)SpirvOp.EntryPoint, (uint)SpirvExecutionModel.Fragment, 9, 0x6E69616D));
+        instructions.Add(Inst((ushort)SpirvOp.MemoryModel, 0, 1));
+
+        return BuildModule(10, instructions.ToArray());
+    }
+
+    [Test(Description = "A fragment module with one output variable reflects output count 1")]
+    public void Reflect_FragmentOutput_SingleOutput()
+    {
+        byte[] spirv = BuildFragmentModuleWithOutputs((4, 0));
+
+        ShaderReflectionInfo info = ShaderReflectionUtility.GetSpirvReflection(spirv);
+
+        Assert.That(info.FragmentOutputCount, Is.EqualTo(1));
+    }
+
+    [Test(Description = "A fragment module with outputs at location 0 and 1 reflects output count 2")]
+    public void Reflect_FragmentOutput_MultipleOutputs()
+    {
+        byte[] spirv = BuildFragmentModuleWithOutputs((4, 0), (5, 1));
+
+        ShaderReflectionInfo info = ShaderReflectionUtility.GetSpirvReflection(spirv);
+
+        Assert.That(info.FragmentOutputCount, Is.EqualTo(2));
+    }
+
+    [Test(Description = "BuiltIn outputs (FragDepth) are not color outputs and do not raise the count")]
+    public void Reflect_FragmentOutput_BuiltInIgnored()
+    {
+        byte[] spirv = BuildModule(
+            10,
+            TypeFloat(1, 32),
+            TypeVector(2, 1, 4),
+            TypePointer(3, (uint)SpirvStorageClass.Output, 2),
+            TypePointer(4, (uint)SpirvStorageClass.Output, 1),
+            Variable(3, 5, (uint)SpirvStorageClass.Output),
+            Variable(4, 6, (uint)SpirvStorageClass.Output),
+            Decorate(5, SpirvDecoration.Location, 0),
+            Decorate(6, SpirvDecoration.BuiltIn, 1), // FragDepth
+            OpName(5, "_color"),
+            OpName(6, "_depth"),
+            Inst((ushort)SpirvOp.EntryPoint, (uint)SpirvExecutionModel.Fragment, 9, 0x6E69616D),
+            Inst((ushort)SpirvOp.MemoryModel, 0, 1)
+        );
+
+        ShaderReflectionInfo info = ShaderReflectionUtility.GetSpirvReflection(spirv);
+
+        Assert.That(info.FragmentOutputCount, Is.EqualTo(1));
+    }
+
+    [Test(Description = "Vertex module outputs are stage varyings, not fragment color outputs: count stays 0")]
+    public void Reflect_FragmentOutput_VertexModuleStaysZero()
+    {
+        byte[] spirv = BuildModule(
+            10,
+            TypeFloat(1, 32),
+            TypeVector(2, 1, 4),
+            TypePointer(3, (uint)SpirvStorageClass.Output, 2),
+            Variable(3, 4, (uint)SpirvStorageClass.Output),
+            Decorate(4, SpirvDecoration.Location, 0),
+            OpName(4, "_vtxOut"),
+            Inst((ushort)SpirvOp.EntryPoint, (uint)SpirvExecutionModel.Vertex, 9, 0x6E69616D),
+            Inst((ushort)SpirvOp.MemoryModel, 0, 1)
+        );
+
+        ShaderReflectionInfo info = ShaderReflectionUtility.GetSpirvReflection(spirv);
+
+        Assert.That(info.FragmentOutputCount, Is.EqualTo(0));
+    }
+
+    [Test(Description = "Merging vertex and fragment reflections keeps the fragment output count")]
+    public void MergeReflectionInfo_KeepsFragmentOutputCount()
+    {
+        byte[] vertexSpirv = BuildModule(
+            10,
+            TypeFloat(1, 32),
+            TypeVector(2, 1, 4),
+            TypePointer(3, (uint)SpirvStorageClass.Output, 2),
+            Variable(3, 4, (uint)SpirvStorageClass.Output),
+            Decorate(4, SpirvDecoration.Location, 0),
+            Inst((ushort)SpirvOp.EntryPoint, (uint)SpirvExecutionModel.Vertex, 9, 0x6E69616D),
+            Inst((ushort)SpirvOp.MemoryModel, 0, 1)
+        );
+        byte[] fragmentSpirv = BuildFragmentModuleWithOutputs((4, 0), (5, 1));
+
+        ShaderReflectionInfo vertex = ShaderReflectionUtility.GetSpirvReflection(vertexSpirv);
+        ShaderReflectionInfo fragment = ShaderReflectionUtility.GetSpirvReflection(fragmentSpirv);
+        ShaderReflectionInfo merged = ShaderReflectionUtility.MergeReflectionInfo(vertex, fragment);
+
+        Assert.That(vertex.FragmentOutputCount, Is.EqualTo(0));
+        Assert.That(fragment.FragmentOutputCount, Is.EqualTo(2));
+        Assert.That(merged.FragmentOutputCount, Is.EqualTo(2));
+    }
 }
