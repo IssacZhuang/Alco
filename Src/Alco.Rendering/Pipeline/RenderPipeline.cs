@@ -63,8 +63,17 @@ public sealed class RenderPipeline : AutoDisposable
         _sceneResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             sceneLayout, name: name + "_scene"));
 
-        _clearNode = new RGNode_Clear(_sceneResource,
-            [new ClearColorData(0, ColorFloat.Black)], clearDepth: 1.0f);
+        // The first color attachment is cleared to the pipeline clear color; extra
+        // color attachments (e.g. a deferred position/g-buffer slot) must be cleared
+        // too — leftover content would be sampled as valid data by later passes.
+        ClearColorData[] clearColors = new ClearColorData[sceneLayout.Colors.Length];
+        clearColors[0] = new ClearColorData(0, ColorFloat.Black);
+        for (int i = 1; i < clearColors.Length; i++)
+        {
+            clearColors[i] = new ClearColorData((uint)i, ColorFloat.Transparent);
+        }
+
+        _clearNode = new RGNode_Clear(_sceneResource, clearColors, clearDepth: 1.0f);
         _blitNode = new RGNode_Blit(rendering, _graph, _chain, blitShader);
 
         _graph.Use(_clearNode);
