@@ -679,8 +679,13 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     if (voxelSpecularEnabled)
     {
         float specularApertureTan = max(roughness * roughness, 0.06);
+        // Sky fallback stays off: in open scenes most reflection rays escape
+        // every clipmap unoccluded, so the two-tone prefiltered sky would
+        // dominate the fallback while visibly disagreeing with the detailed
+        // atmosphere that SSR and the primary sky pass reflect. Misses keep
+        // only the surface bounce gathered from occupied voxels.
         specular = TraceCone(
-            startPosition, reflectDirection, specularApertureTan, maxDistance, 1.0, 0.5, marchJitter, false).rgb;
+            startPosition, reflectDirection, specularApertureTan, maxDistance, 0.0, 0.5, marchJitter, false).rgb;
     }
     // ALD (Average Light Direction): direction-weighted accumulation of cone
     // brightness. xyz = worldDir * brightness, w = brightness. The deferred
