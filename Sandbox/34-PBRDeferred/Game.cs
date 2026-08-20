@@ -280,7 +280,7 @@ public class Game : GameEngine
     // the injection (and skips the RSM pass); --rsm=N overrides.
     private readonly RGNode_RsmPass? _rsmNode;
     private readonly GPUAttachmentLayout? _rsmLayout;
-    private float _giRsmSunBounce = 0.8f;
+    private float _giRsmSunBounce = 1.0f;
     private const uint RsmResolution = 1024;
     private static readonly float[] GiTraceResolutionScales = [0.5f, 0.75f, 1.0f];
     private static readonly string[] GiTraceResolutionModes =

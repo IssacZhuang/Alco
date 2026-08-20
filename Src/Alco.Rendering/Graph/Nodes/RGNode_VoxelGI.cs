@@ -655,7 +655,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// the graph validates that this node only reads it while a writer is
     /// enabled — the read declaration itself is gated on this property.
     /// </summary>
-    public float RsmInjectionIntensity { get; set; }
+    public float RsmInjectionIntensity { get; set; } = 1;
 
     /// <summary>
     /// Gets or sets the maximum world-space distance at which a diffuse cone

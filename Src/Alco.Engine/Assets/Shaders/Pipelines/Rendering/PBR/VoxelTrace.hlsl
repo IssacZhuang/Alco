@@ -58,6 +58,7 @@ DEFINE_TEX2D_STORAGE(1, _indirectGI, float4, "rgba16f");
 // temporal accumulation. This keeps the first frames spatially stratified
 // while making the converged integral independent of neighbouring geometry.
 static const float DIFFUSE_CONE_APERTURE = 1.0 / 24.0;
+static const uint DIFFUSE_BOOTSTRAP_SAMPLE_COUNT = 4u;
 
 // Must match BlueNoiseTextureSize on the C# side and SSR_BLUE_NOISE_SIZE in
 // the bake shader.
@@ -491,9 +492,10 @@ float4 TraceCone(
 //   ald.xyz += direction * brightness
 //   ald.w   += brightness
 // The deferred lighting pass uses ALD to give indirect light a directional
-// diffuse response instead of treating it as flat ambient. Each trace pixel
-// traces one cone, so it outputs one ALD contribution; the demosaic pass
-// gathers the full tile just as it does for RGB.
+// diffuse response instead of treating it as flat ambient. A trace pixel
+// normally traces one cone; a disoccluded pixel bootstraps several independent
+// directions before temporal accumulation. The demosaic pass gathers the
+// resulting ALD just as it does for RGB.
 float4 TraceDiffuseCones(
     float3 startPosition,
     float3 normal,
@@ -501,6 +503,7 @@ float4 TraceDiffuseCones(
     uint2 tracePixel,
     float marchJitter,
     float kernelRotation,
+    uint temporalPhaseOffset,
     out float3 outWorldDir)
 {
     float3x3 tbn = GetTangentBasis(normal);
@@ -513,7 +516,8 @@ float4 TraceDiffuseCones(
     // individual frame. After 64 valid history samples the pixel therefore
     // owns the same hemisphere integral that previously had to be borrowed
     // from an 8x8 screen neighbourhood.
-    uint temporalPhase = (frameIndex * 37u) & 63u;
+    uint temporalPhase =
+        ((frameIndex * 37u) + temporalPhaseOffset) & 63u;
     sequenceIndex ^= temporalPhase;
     float3 kernelDirection = GetDiffuseKernelDirection(sequenceIndex);
 
@@ -662,7 +666,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 diffuseWorldDir;
     float4 diffuseResult = TraceDiffuseCones(
         startPosition, N, maxDistance, tracePixel, marchJitter,
-        kernelRotation, diffuseWorldDir);
+        kernelRotation, 0u, diffuseWorldDir);
     float3 diffuse = diffuseResult.rgb;
 
     // Voxel specular is now only the off-screen/occluded fallback. Screen-space
@@ -816,6 +820,42 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
 
+    // Newly visible or disoccluded surfaces have no matching raw history. A
+    // single randomly rotated cone is too noisy there, especially beside a
+    // sharp sun/RSM bounce. Bootstrap four well-separated kernel directions
+    // only for those pixels. Stable pixels keep the normal one-cone cost.
+    float currentSampleCount = 1.0;
+    if (!rawHistoryValid)
+    {
+        float4 bootstrapDiffuseSum = temporalDiffuse;
+        float4 bootstrapAldSum = temporalAld;
+
+        [unroll]
+        for (uint bootstrapIndex = 1u;
+             bootstrapIndex < DIFFUSE_BOOTSTRAP_SAMPLE_COUNT;
+             bootstrapIndex++)
+        {
+            float3 bootstrapWorldDir;
+            float bootstrapMarchJitter = frac(
+                marchJitter + float(bootstrapIndex) * 0.25);
+            float4 bootstrapDiffuse = TraceDiffuseCones(
+                startPosition, N, maxDistance, tracePixel,
+                bootstrapMarchJitter, kernelRotation,
+                bootstrapIndex * 16u, bootstrapWorldDir);
+            float bootstrapBrightness = length(bootstrapDiffuse.rgb);
+            bootstrapDiffuseSum += bootstrapDiffuse;
+            bootstrapAldSum += float4(
+                bootstrapWorldDir * bootstrapBrightness,
+                bootstrapBrightness);
+        }
+
+        float inverseBootstrapCount =
+            rcp(float(DIFFUSE_BOOTSTRAP_SAMPLE_COUNT));
+        temporalDiffuse = bootstrapDiffuseSum * inverseBootstrapCount;
+        temporalAld = bootstrapAldSum * inverseBootstrapCount;
+        currentSampleCount = float(DIFFUSE_BOOTSTRAP_SAMPLE_COUNT);
+    }
+
     if (rawHistoryValid)
     {
         // Bootstrap with an exact running average for the first complete
@@ -831,7 +871,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     float nextSampleCount = rawHistoryValid
         ? min(previousSampleCount + 1.0, 64.0)
-        : 1.0;
+        : currentSampleCount;
     float rawHistoryAge = nextSampleCount / 64.0;
 
     _indirectGI[tracePixel] = temporalDiffuse;
