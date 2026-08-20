@@ -58,8 +58,6 @@ public sealed class RGNode_GeometryPass : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
-
         RenderPassScope pass = Instrumentation != null
             ? Instrumentation.BeginPass(context.RenderContext, _target.Texture.FrameBuffer, _clearColors, _clearDepth)
             : context.RenderContext.BeginPass(_target.Texture.FrameBuffer, _clearColors, _clearDepth);
@@ -76,7 +74,6 @@ public sealed class RGNode_GeometryPass : AutoDisposable, IRenderGraphNode
 
             Instrumentation?.ScheduleResolve(pass);
         }
-        Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />

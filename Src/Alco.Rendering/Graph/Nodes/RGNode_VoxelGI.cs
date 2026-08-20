@@ -391,7 +391,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private const int GiStageCount = 7;
 
     // Profiler counter handles — lazily registered on first Execute call.
-    private RenderProfileCounterId _giTotalCounter;
     private RenderProfileCounterId _giGpuCounter;
     private readonly RenderProfileCounterId[] _giStageCounters = new RenderProfileCounterId[GiStageCount];
     private bool _profilerCountersRegistered;
@@ -1978,7 +1977,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // Lazily register profiler counters on the first Execute call.
         if (!_profilerCountersRegistered)
         {
-            _giTotalCounter = profiler.RegisterCounter("VoxelGI", "Total (CPU)");
             _giGpuCounter = profiler.RegisterCounter("VoxelGI", "GPU");
             _giStageCounters[0] = profiler.RegisterCounter("VoxelGI", "Voxelize");
             _giStageCounters[1] = profiler.RegisterCounter("VoxelGI", "Inject");
@@ -1989,7 +1987,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _giStageCounters[6] = profiler.RegisterCounter("VoxelGI", "Upsample");
             _profilerCountersRegistered = true;
         }
-        profiler.PushValue(_giTotalCounter, Statistics.CpuRecordMilliseconds);
         profiler.PushValue(_giGpuCounter, Statistics.GpuMilliseconds);
         for (int i = 0; i < GiStageCount; i++)
         {

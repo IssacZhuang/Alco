@@ -1,25 +1,18 @@
-using System.Diagnostics;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
 
 /// <summary>
-/// Optional per-pass instrumentation for the building-block graph nodes: a CPU-side
-/// stopwatch pushed to a <see cref="RenderProfiler"/> counter, and GPU-side begin/end
+/// Optional per-pass GPU instrumentation for the building-block graph nodes: begin/end
 /// timestamps written into a <see cref="GpuTimestampSampler"/> query set slot pair.
-/// All fields are optional; a null profiler/sampler disables the corresponding
-/// instrumentation. Nodes apply the GPU timestamps around their render pass
-/// (see <see cref="BeginPass"/> / <see cref="EndPass"/>) and the CPU timing around
-/// their whole <see cref="IRenderGraphNode.Execute"/>.
+/// All fields are optional; a null sampler disables instrumentation. Nodes apply the
+/// GPU timestamps around their render pass (see <see cref="BeginPass"/> /
+/// <see cref="EndPass"/>). CPU-side node timing is automatic — the graph itself
+/// measures every node's <see cref="IRenderGraphNode.Execute"/> (see
+/// <see cref="RenderGraph.Profiler"/>).
 /// </summary>
 public sealed class PassInstrumentation
 {
-    /// <summary>The profiler receiving the CPU-side stage duration, or null.</summary>
-    public RenderProfiler? Profiler { get; set; }
-
-    /// <summary>The profiler counter pushed to, or null to disable CPU timing.</summary>
-    public RenderProfileCounterId? CpuCounter { get; set; }
-
     /// <summary>The GPU timestamp sampler whose query set receives the pass begin/end
     /// timestamps, or null to disable GPU timing.</summary>
     public GpuTimestampSampler? GpuTimestamps { get; set; }
@@ -106,23 +99,6 @@ public sealed class PassInstrumentation
                 // Private sampler: the whole (fully written) range at offset 0.
                 sampler.ResolveAll(pass);
             }
-        }
-    }
-
-    /// <summary>Returns the current timestamp for a later <see cref="PushCpuTiming"/>,
-    /// or 0 when CPU timing is disabled.</summary>
-    public long BeginCpuTiming()
-    {
-        return Profiler != null && CpuCounter.HasValue ? Stopwatch.GetTimestamp() : 0;
-    }
-
-    /// <summary>Pushes the elapsed milliseconds since <paramref name="startTicks"/> to
-    /// the profiler counter. No-op when CPU timing is disabled.</summary>
-    public void PushCpuTiming(long startTicks)
-    {
-        if (Profiler != null && CpuCounter.HasValue)
-        {
-            Profiler.PushValue(CpuCounter.Value, (double)(Stopwatch.GetTimestamp() - startTicks) / Stopwatch.Frequency * 1000.0);
         }
     }
 }

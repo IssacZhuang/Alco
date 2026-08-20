@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 
@@ -102,10 +101,9 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     private GPUAttachmentLayout? _bundleLayout;
 
     // Per-pass GPU timing (throttled sampler, one slot pair wrapping the final
-    // pass) and the profiler counters lazily registered on the first render. The
+    // pass) and the profiler counter lazily registered on the first render. The
     // cached GPU duration is re-pushed every frame (BeginFrame clears buffers).
     private readonly GpuTimestampSampler? _gpuTimestamps;
-    private RenderProfileCounterId _cpuCounter;
     private RenderProfileCounterId _gpuCounter;
     private bool _profilerCountersRegistered;
     private double _gpuMilliseconds;
@@ -205,8 +203,6 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     /// opened on its frame-shared <see cref="RenderGraphContext.RenderContext"/>.</param>
     protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
     {
-        long startTimestamp = Stopwatch.GetTimestamp();
-
         bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
 
         if (_staticItems.Count > 0 || _dynamicItems.Count > 0)
@@ -258,25 +254,18 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
             }
         }
 
-        // Lazily register and push the profiler counters. The CPU value is pushed
-        // before the synchronous readback so the stall stays out of the metric
-        // (the recorded resolve has not executed yet — submission happens at frame
-        // end — so the buffer still holds the previous sample); the cached GPU
-        // duration is re-pushed every frame (BeginFrame cleared the buffers).
+        // Lazily register the GPU counter; the cached GPU duration is re-pushed
+        // every frame (BeginFrame cleared the buffers). The readback below is
+        // synchronous but reads the previous sample — the recorded resolve has
+        // not executed yet (submission happens at frame end).
         RenderProfiler? profiler = context.Profiler;
-        if (profiler != null)
+        if (profiler != null && !_profilerCountersRegistered)
         {
-            if (!_profilerCountersRegistered)
+            if (_gpuTimestamps != null)
             {
-                _cpuCounter = profiler.RegisterCounter("Forward", "Total (CPU)");
-                if (_gpuTimestamps != null)
-                {
-                    _gpuCounter = profiler.RegisterCounter("Forward", "GPU");
-                }
-                _profilerCountersRegistered = true;
+                _gpuCounter = profiler.RegisterCounter("Forward", "GPU");
             }
-            double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
-            profiler.PushValue(_cpuCounter, elapsedMs);
+            _profilerCountersRegistered = true;
         }
 
         if (measureGpu)

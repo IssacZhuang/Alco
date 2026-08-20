@@ -114,20 +114,13 @@ public static class RenderPipelines
         lightingMaterial.SetBuffer(ShaderResourceId.PointLights, environment.PointLightBuffer);
         BindLightingTargets(rendering, lightingMaterial, gbufferResource, shadowMapResource);
 
-        // Register pipeline stage counters once; the returned handles are used for
-        // zero-allocation PushValue calls on the per-frame hot path. CPU and GPU
-        // timings use separate counters: the CPU value is pushed every frame, the
-        // GPU value only refreshes on the sampler's throttled sample frames.
-        RenderProfileCounterId shadowCounter = profiler.RegisterCounter("Pipeline", "Shadow");
-        RenderProfileCounterId gbufferCounter = profiler.RegisterCounter("Pipeline", "GBuffer");
-        RenderProfileCounterId lightingCounter = profiler.RegisterCounter("Pipeline", "Lighting");
-        RenderProfileCounterId volumetricLightCounter = profiler.RegisterCounter("Pipeline", "VolumetricLight");
-
         // GPU timestamp ring buffer for per-stage GPU timing, when the device
         // supports it. The frame-start readback and the sample end run as graph
         // callback nodes (see below). Padded-pair layout: every stage resolves
         // its own slot pair right after it is written, so disabled stages simply
         // keep their previous sample and no resolve ever touches unwritten slots.
+        // Per-node CPU timing needs no wiring: the graph measures every node
+        // automatically (see RenderGraph.Profiler).
         GpuTimestampSampler? gpuTimestamps = device.TimestampQuerySupported
             ? new GpuTimestampSampler(device, TimestampSlotCount, "pbr_pipeline", GpuTimestampSampler.PairStrideBytes)
             : null;
@@ -145,7 +138,6 @@ public static class RenderPipelines
         {
             Instrumentation = new PassInstrumentation
             {
-                Profiler = profiler, CpuCounter = shadowCounter,
                 GpuTimestamps = gpuTimestamps, GpuQueryBase = ShadowQueryBase,
             },
         };
@@ -160,7 +152,6 @@ public static class RenderPipelines
         {
             Instrumentation = new PassInstrumentation
             {
-                Profiler = profiler, CpuCounter = gbufferCounter,
                 GpuTimestamps = gpuTimestamps, GpuQueryBase = GBufferQueryBase,
             },
         };
@@ -181,7 +172,6 @@ public static class RenderPipelines
             },
             Instrumentation = new PassInstrumentation
             {
-                Profiler = profiler, CpuCounter = lightingCounter,
                 GpuTimestamps = gpuTimestamps, GpuQueryBase = LightingQueryBase,
             },
         };
@@ -209,7 +199,6 @@ public static class RenderPipelines
                 IsEnabled = environment.VolumetricLightEnabled,
                 Instrumentation = new PassInstrumentation
                 {
-                    Profiler = profiler, CpuCounter = volumetricLightCounter,
                     GpuTimestamps = gpuTimestamps, GpuQueryBase = VolumetricLightQueryBase,
                 },
             };

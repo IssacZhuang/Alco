@@ -78,8 +78,6 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
-
         // Set all four cascade matrices on the CPU side first, then upload once.
         // All four cascade passes see the final complete struct at submit time.
         for (int c = 0; c < CascadeCount; c++)
@@ -140,8 +138,6 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
                 }
             }
         }
-
-        Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />

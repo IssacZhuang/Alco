@@ -27,6 +27,11 @@ internal sealed class RenderGraphNodeRecord
     /// <summary>Whether the node is enabled this frame (snapshot of <see cref="IRenderNode.IsEnabled"/> at setup time).</summary>
     internal bool EnabledThisFrame { get; private set; }
 
+    /// <summary>The profiler counter receiving the node's automatically measured CPU
+    /// execution time (see <see cref="RenderGraph.Execute"/>), or the invalid sentinel
+    /// until first registration.</summary>
+    internal RenderProfileCounterId CpuCounter;
+
     internal RenderGraphNodeRecord(IRenderGraphNode node)
     {
         Node = node;

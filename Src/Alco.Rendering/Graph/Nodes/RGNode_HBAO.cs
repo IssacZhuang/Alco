@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 
@@ -72,7 +71,6 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     private RenderGraphTexture? _aoResource;
 
     // Profiler counter handles — lazily registered on first Execute call.
-    private RenderProfileCounterId _hbaoCounter;
     private RenderProfileCounterId _aoCounter;
     private RenderProfileCounterId _blurCounter;
     private bool _profilerCounterRegistered;
@@ -250,8 +248,6 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         GPUCommandBuffer commandBuffer,
         RenderProfiler? profiler)
     {
-        long startTimestamp = Stopwatch.GetTimestamp();
-
         // ── Assemble the GPU constant buffer internally ──
         // Camera basis axes are derived from the camera rotation quaternion.
         // The engine camera convention is +X forward, +Y right, +Z up.
@@ -320,14 +316,11 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         {
             if (!_profilerCounterRegistered)
             {
-                _hbaoCounter = profiler.RegisterCounter("HBAO+", "Total");
                 _aoCounter = profiler.RegisterCounter("HBAO+", "AO");
                 _blurCounter = profiler.RegisterCounter("HBAO+", "Blur");
                 _profilerCounterRegistered = true;
             }
 
-            double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
-            profiler.PushValue(_hbaoCounter, elapsedMs);
             profiler.PushValue(_aoCounter, _aoGpuMilliseconds);
             profiler.PushValue(_blurCounter, _blurGpuMilliseconds);
         }

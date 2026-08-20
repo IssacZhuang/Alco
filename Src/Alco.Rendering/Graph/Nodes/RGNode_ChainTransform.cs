@@ -12,10 +12,11 @@ namespace Alco.Rendering;
 /// transient — destroyed via <see cref="RenderGraph.DestroyTransient"/> with the
 /// node — and the graph's transient pool aliases the historical ping-pong
 /// temporaries.
-/// <br/>Timing: when no external <see cref="Instrumentation"/> is set and the graph
-/// has a profiler, the node lazily self-instruments — a "PostProcess" CPU counter
-/// named after the node and, when the device supports timestamp queries, a private
-/// GPU sampler whose slot pair wraps the pass opened through
+/// <br/>Timing: per-node CPU time is measured automatically by the graph (see
+/// <see cref="RenderGraph.Profiler"/>). For GPU time, when no external
+/// <see cref="Instrumentation"/> is set and the graph has a profiler, the node
+/// lazily self-instruments — when the device supports timestamp queries it
+/// creates a private GPU sampler whose slot pair wraps the pass opened through
 /// <see cref="BeginProcessPass"/> (or a span the derivative brackets itself via
 /// <see cref="PassInstrumentation.BeginSpanPass"/>/
 /// <see cref="PassInstrumentation.EndSpanPass"/>).
@@ -33,6 +34,7 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
     // remarks). Null when external Instrumentation is wired or the graph has no
     // profiler.
     private GpuTimestampSampler? _autoGpuSampler;
+    private RenderProfiler? _autoProfiler;
     private RenderProfileCounterId _autoGpuCounter;
     private double _autoGpuMilliseconds;
 
@@ -72,7 +74,7 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
     /// its auto-registered profiler counters.</summary>
     public string Name => _name;
 
-    /// <summary>Optional CPU/GPU stage instrumentation. When left null and the
+    /// <summary>Optional GPU stage instrumentation. When left null and the
     /// graph has a profiler, the node self-instruments on its first execute (see
     /// the class remarks); setting it later replaces that auto instrumentation.</summary>
     public PassInstrumentation? Instrumentation { get; set; }
@@ -97,19 +99,16 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
     {
         EnsureAutoInstrumentation(context);
         PassInstrumentation? instrumentation = Instrumentation;
-        long startTicks = instrumentation?.BeginCpuTiming() ?? 0;
 
         // On sample frames the previous sample is read back after OnProcess: the
         // recorded resolves have not executed yet (submission happens at frame
-        // end), so the buffer still holds the previous sample, and keeping the
-        // synchronous readback out of the CPU timing below.
+        // end), so the buffer still holds the previous sample.
         bool gpuSample = instrumentation is { ShouldRecordGpu: true };
 
         OnProcess(_input!.Texture, Output.Texture, context);
 
         if (instrumentation != null)
         {
-            instrumentation.PushCpuTiming(startTicks);
             if (gpuSample && _autoGpuSampler != null)
             {
                 ulong[]? timestamps = _autoGpuSampler.TryReadback();
@@ -121,7 +120,7 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
             }
             if (_autoGpuSampler != null)
             {
-                instrumentation.Profiler!.PushValue(_autoGpuCounter, _autoGpuMilliseconds);
+                _autoProfiler!.PushValue(_autoGpuCounter, _autoGpuMilliseconds);
             }
         }
     }
@@ -202,6 +201,7 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
 
         string displayName = ToDisplayName(_name);
         GPUDevice device = context.Rendering.GraphicsDevice;
+        _autoProfiler = profiler;
         _autoGpuSampler = device.TimestampQuerySupported
             ? new GpuTimestampSampler(device, 2, "chain_" + _name)
             : null;
@@ -211,8 +211,6 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
         }
         Instrumentation = new PassInstrumentation
         {
-            Profiler = profiler,
-            CpuCounter = profiler.RegisterCounter("PostProcess", displayName),
             GpuTimestamps = _autoGpuSampler,
             GpuQueryBase = 0,
         };

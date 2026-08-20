@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 
@@ -88,7 +87,6 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     // lazily registered on the first Execute. Cached GPU durations are re-pushed
     // every frame because the profiler's BeginFrame clears its buffers.
     private readonly GpuTimestampSampler? _gpuTimestamps;
-    private RenderProfileCounterId _cpuCounter;
     private RenderProfileCounterId _copyGpuCounter;
     private RenderProfileCounterId _traceGpuCounter;
     private RenderProfileCounterId _resolveGpuCounter;
@@ -539,32 +537,25 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         {
             throw new InvalidOperationException("RGNode_SSR is not attached to a render graph (call Attach first).");
         }
-        long startTimestamp = Stopwatch.GetTimestamp();
 
         bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
         Render(context.RenderContext, _input!.Texture.FrameBuffer, measureGpu);
 
-        // Lazily register and push the profiler counters. The CPU value is pushed
-        // before the synchronous readback so the stall stays out of the metric;
-        // the cached GPU durations are re-pushed every frame (BeginFrame cleared
-        // the buffers).
+        // Lazily register the GPU counters; the cached GPU durations are re-pushed
+        // every frame (BeginFrame cleared the buffers). The readback below is
+        // synchronous but reads the previous sample — the recorded resolves have
+        // not executed yet (submission happens at frame end).
         RenderProfiler? profiler = _graph.Profiler;
-        if (profiler != null)
+        if (profiler != null && !_profilerCountersRegistered)
         {
-            if (!_profilerCountersRegistered)
+            if (_gpuTimestamps != null)
             {
-                _cpuCounter = profiler.RegisterCounter("SSR", "Total (CPU)");
-                if (_gpuTimestamps != null)
-                {
-                    _copyGpuCounter = profiler.RegisterCounter("SSR", "Copy (GPU)");
-                    _traceGpuCounter = profiler.RegisterCounter("SSR", "Trace (GPU)");
-                    _resolveGpuCounter = profiler.RegisterCounter("SSR", "Resolve (GPU)");
-                    _compositeGpuCounter = profiler.RegisterCounter("SSR", "Composite (GPU)");
-                }
-                _profilerCountersRegistered = true;
+                _copyGpuCounter = profiler.RegisterCounter("SSR", "Copy (GPU)");
+                _traceGpuCounter = profiler.RegisterCounter("SSR", "Trace (GPU)");
+                _resolveGpuCounter = profiler.RegisterCounter("SSR", "Resolve (GPU)");
+                _compositeGpuCounter = profiler.RegisterCounter("SSR", "Composite (GPU)");
             }
-            double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
-            profiler.PushValue(_cpuCounter, elapsedMs);
+            _profilerCountersRegistered = true;
         }
 
         if (measureGpu)

@@ -126,8 +126,6 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
-
         // Uniform uploads must precede the pass recording: buffer writes are
         // queue-side operations outside the recorded command stream, so a buffer
         // rewritten after recording would leak the newer value into this pass.
@@ -141,7 +139,6 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
             pass.Draw(_fullScreenMesh, Material);
             Instrumentation?.ScheduleResolve(pass);
         }
-        Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />

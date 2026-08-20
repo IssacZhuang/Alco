@@ -62,7 +62,6 @@ public sealed class RGNode_FullscreenOverlay : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
         RenderPassScope pass = Instrumentation != null
             ? Instrumentation.BeginPass(context.RenderContext, _target!.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty)
             : context.RenderContext.BeginPass(_target!.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty);
@@ -71,7 +70,6 @@ public sealed class RGNode_FullscreenOverlay : AutoDisposable, IRenderGraphNode
             pass.Draw(_fullScreenMesh, _material);
             Instrumentation?.ScheduleResolve(pass);
         }
-        Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />

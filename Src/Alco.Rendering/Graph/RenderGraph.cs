@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
@@ -54,6 +55,13 @@ public sealed class RenderGraph : AutoDisposable
     private readonly HashSet<object> _keepSet = new();
     private int[] _sortedIndices = new int[16];
 
+    // Automatic per-node CPU timing: the counter group label, the already-claimed
+    // counter display names (deduplication only happens on the registration path)
+    // and the whole-execute total's counter.
+    private const string NodeCpuGroup = "Graph Nodes";
+    private readonly HashSet<string> _usedCounterNames = new();
+    private RenderProfileCounterId _frameCpuCounter;
+
     private uint _width;
     private uint _height;
     private bool _inFrame;
@@ -91,7 +99,10 @@ public sealed class RenderGraph : AutoDisposable
 
     /// <summary>The profiler exposed to nodes through the execution context, or null.
     /// When set, <see cref="Execute"/> brackets the frame with
-    /// <see cref="RenderProfiler.BeginFrame"/> / <see cref="RenderProfiler.EndFrame"/>.</summary>
+    /// <see cref="RenderProfiler.BeginFrame"/> / <see cref="RenderProfiler.EndFrame"/>,
+    /// and automatically measures every node's CPU execution time into
+    /// <see cref="NodeCpuGroup"/> counters (plus a whole-execute <c>Total</c>) — nodes
+    /// never push their own CPU timing.</summary>
     public RenderProfiler? Profiler { get; set; }
 
     /// <summary>The current viewport width in pixels.</summary>
@@ -304,7 +315,8 @@ public sealed class RenderGraph : AutoDisposable
         ThrowIfInFrame();
         _inFrame = true;
         HasDestinationThisFrame = destination != null;
-        Profiler?.BeginFrame();
+        RenderProfiler? profiler = Profiler;
+        profiler?.BeginFrame();
         try
         {
             // Setup: capture this frame's declarations in registration order.
@@ -339,6 +351,12 @@ public sealed class RenderGraph : AutoDisposable
 
             ReadOnlySpan<bool> alive = _compiler.Alive;
             int executed = 0;
+            // Automatic per-node CPU timing: counters register lazily (once per node,
+            // see RegisterNodeCpuCounters) and the hot path reduces to two timestamp
+            // reads and one array write per node. Disabled when there is no profiler.
+            bool cpuTiming = profiler != null;
+            RegisterNodeCpuCounters(profiler);
+            long frameStartTicks = cpuTiming ? Stopwatch.GetTimestamp() : 0;
             // One frame scope per Execute: every node records into the shared buffer,
             // and the scope's Dispose performs the single submission. If a node threw
             // with its pass still open, the scope aborts the buffer instead so the
@@ -349,18 +367,80 @@ public sealed class RenderGraph : AutoDisposable
                 {
                     if (alive[i])
                     {
-                        _records[i].Node.Execute(_context);
+                        RenderGraphNodeRecord record = _records[i];
+                        long startTicks = cpuTiming ? Stopwatch.GetTimestamp() : 0;
+                        record.Node.Execute(_context);
+                        if (cpuTiming)
+                        {
+                            profiler!.PushValue(record.CpuCounter, MillisecondsSince(startTicks));
+                        }
                         executed++;
                     }
                 }
+            }
+            if (cpuTiming)
+            {
+                profiler!.PushValue(_frameCpuCounter, MillisecondsSince(frameStartTicks));
             }
             return executed;
         }
         finally
         {
-            Profiler?.EndFrame();
+            profiler?.EndFrame();
             _inFrame = false;
         }
+    }
+
+    /// <summary>
+    /// Registers the automatic per-node CPU timing counters, once per node (and once
+    /// for the whole-execute total) on the first <see cref="Execute"/> with a profiler.
+    /// Registering in one batch keeps the <see cref="NodeCpuGroup"/> counters contiguous
+    /// in the profiler, matching the grouped display of the debug UI.
+    /// </summary>
+    private void RegisterNodeCpuCounters(RenderProfiler? profiler)
+    {
+        if (profiler == null)
+        {
+            return;
+        }
+        if (!_frameCpuCounter.IsValid)
+        {
+            _frameCpuCounter = profiler.RegisterCounter(NodeCpuGroup, "Total");
+        }
+        for (int i = 0; i < _records.Count; i++)
+        {
+            if (!_records[i].CpuCounter.IsValid)
+            {
+                _records[i].CpuCounter = profiler.RegisterCounter(NodeCpuGroup, UniqueNodeName(_records[i].Node));
+            }
+        }
+    }
+
+    /// <summary>Derives a counter display name from the node's type ("RGNode_"
+    /// prefix stripped) and claims it, appending " #2", " #3", ... when the same node
+    /// type is registered more than once. Names are never released: profiler counters
+    /// are append-only, so removed nodes keep their counter (reading zero).</summary>
+    private string UniqueNodeName(IRenderGraphNode node)
+    {
+        string typeName = node.GetType().Name;
+        string name = typeName.StartsWith("RGNode_") ? typeName["RGNode_".Length..] : typeName;
+        if (_usedCounterNames.Add(name))
+        {
+            return name;
+        }
+        for (int n = 2; ; n++)
+        {
+            string suffixed = name + " #" + n.ToString();
+            if (_usedCounterNames.Add(suffixed))
+            {
+                return suffixed;
+            }
+        }
+    }
+
+    private static double MillisecondsSince(long startTicks)
+    {
+        return (double)(Stopwatch.GetTimestamp() - startTicks) / Stopwatch.Frequency * 1000.0;
     }
 
     /// <summary>

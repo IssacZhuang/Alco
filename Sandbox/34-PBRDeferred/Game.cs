@@ -718,7 +718,7 @@ public class Game : GameEngine
         // a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
-            : 1.5f;
+            : 1f;
         float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
             ? parsedBloomIntensity
             : 0.35f;

@@ -101,7 +101,6 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     private float _shadowStrength = 0.55f;
 
     // Profiler counter handle — lazily registered on first Execute.
-    private RenderProfileCounterId _cpuCounter;
     private RenderProfileCounterId _shadowBakeGpuCounter;
     private RenderProfileCounterId _marchGpuCounter;
     private RenderProfileCounterId _compositeGpuCounter;
@@ -393,8 +392,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
                 "Volumetric clouds require a camera (set the environment's Camera first).");
         }
 
-        long startTimestamp = Stopwatch.GetTimestamp();
-        long now = startTimestamp;
+        long now = Stopwatch.GetTimestamp();
         float deltaSeconds = _lastFrameTicks == 0
             ? 0.0f
             : MathF.Min((now - _lastFrameTicks) / (float)Stopwatch.Frequency, 0.25f);
@@ -494,27 +492,20 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             }
         }
 
-        // Lazily register and push the profiler counters. The CPU value is pushed
-        // before the synchronous readback so the stall stays out of the metric
-        // (the recorded resolves have not executed yet — submission happens at
-        // frame end — so the buffer still holds the previous sample); the cached
-        // GPU durations are re-pushed every frame (BeginFrame cleared the buffers).
+        // Lazily register the GPU counters; the cached GPU durations are re-pushed
+        // every frame (BeginFrame cleared the buffers). The readback below is
+        // synchronous but reads the previous sample — the recorded resolves have
+        // not executed yet (submission happens at frame end).
         RenderProfiler? profiler = _graph!.Profiler;
-        if (profiler != null)
+        if (profiler != null && !_profilerCounterRegistered)
         {
-            if (!_profilerCounterRegistered)
+            if (_gpuTimestamps != null)
             {
-                _cpuCounter = profiler.RegisterCounter("VolumetricClouds", "Total (CPU)");
-                if (_gpuTimestamps != null)
-                {
-                    _shadowBakeGpuCounter = profiler.RegisterCounter("VolumetricClouds", "Shadow Bake (GPU)");
-                    _marchGpuCounter = profiler.RegisterCounter("VolumetricClouds", "March (GPU)");
-                    _compositeGpuCounter = profiler.RegisterCounter("VolumetricClouds", "Composite (GPU)");
-                }
-                _profilerCounterRegistered = true;
+                _shadowBakeGpuCounter = profiler.RegisterCounter("VolumetricClouds", "Shadow Bake (GPU)");
+                _marchGpuCounter = profiler.RegisterCounter("VolumetricClouds", "March (GPU)");
+                _compositeGpuCounter = profiler.RegisterCounter("VolumetricClouds", "Composite (GPU)");
             }
-            double elapsedMs = (double)(Stopwatch.GetTimestamp() - startTimestamp) / Stopwatch.Frequency * 1000.0;
-            profiler.PushValue(_cpuCounter, elapsedMs);
+            _profilerCounterRegistered = true;
         }
 
         if (measureGpu)

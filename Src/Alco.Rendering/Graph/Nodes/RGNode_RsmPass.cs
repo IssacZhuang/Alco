@@ -76,8 +76,6 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        long startTicks = Instrumentation?.BeginCpuTiming() ?? 0;
-
         // The color clears carry alpha 0: the GI trace treats an albedo alpha
         // below 0.5 as "never rendered" so cleared (empty sky) regions cannot
         // match against the cleared far-plane depth.
@@ -102,7 +100,6 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
 
             Instrumentation?.ScheduleResolve(pass);
         }
-        Instrumentation?.PushCpuTiming(startTicks);
     }
 
     /// <inheritdoc />
