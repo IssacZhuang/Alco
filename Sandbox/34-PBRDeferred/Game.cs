@@ -260,7 +260,7 @@ public class Game : GameEngine
     // HBAO+ screen-space ambient occlusion (computed from the G-buffer).
     private bool _hbaoEnabled = true;
     private float _hbaoRadius = 1.0f;
-    private float _hbaoStrength = 0.5f;
+    private float _hbaoStrength = 1.0f;
     private RGNode_HBAO? _hbaoRenderer;
 
     // Voxel global illumination (sparse clipmap + cone tracing).

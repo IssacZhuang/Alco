@@ -98,7 +98,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     /// Gets or sets the overall AO strength multiplier. Zero disables the effect
     /// (the output texture is all white). Values above 1 amplify occlusion.
     /// </summary>
-    public float Strength { get; set; } = 0.5f;
+    public float Strength { get; set; } = 1.0f;
 
     /// <summary>
     /// Gets or sets the maximum march distance in pixels per direction.
