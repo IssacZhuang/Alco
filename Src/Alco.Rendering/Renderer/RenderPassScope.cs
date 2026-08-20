@@ -232,6 +232,40 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
+    /// Draws a mesh with the draw arguments (index count, instance count, first
+    /// instance) read from an indirect buffer plus push constants. The record at
+    /// <paramref name="indirectOffset"/> must follow the
+    /// <see cref="Alco.Graphics.IndexedIndirectData"/> layout; the shader still
+    /// fetches instance data by instance id, offset by the record's firstInstance
+    /// field. Available while recording render bundles, so bundles recorded against
+    /// a persistent indirect buffer replay whatever the buffer holds at execute time.
+    /// </summary>
+    /// <typeparam name="T">The type of the constant data.</typeparam>
+    /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from the indirect record).</param>
+    /// <param name="material">The material to use for drawing.</param>
+    /// <param name="indirectBuffer">The buffer holding the indirect draw record.</param>
+    /// <param name="indirectOffset">The byte offset of the record in the indirect buffer.</param>
+    /// <param name="constant">The constant data to push to the shader.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void DrawIndexedIndirect<T>(in Mesh mesh, in Material material, GraphicsBuffer indirectBuffer, uint indirectOffset, in T constant, in int subMeshIndex = 0) where T : unmanaged
+    {
+        ThrowIfInactive();
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
+        SetPipeline(pipelineContext.Pipeline!);
+        SetMesh(mesh, subMeshIndex);
+        PushResources(material);
+        PushConstantSafe(constant, pipelineContext.PushConstantsSize);
+        if (_bundle != null)
+        {
+            _bundle.DrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset);
+        }
+        else
+        {
+            _pass.DrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset);
+        }
+    }
+
+    /// <summary>
     /// Executes the commands recorded in the <see cref="SubRenderContext"/>.
     /// Not available while recording a render bundle (bundles cannot be nested).
     /// </summary>
