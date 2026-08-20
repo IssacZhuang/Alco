@@ -267,8 +267,6 @@ public class Game : GameEngine
     private readonly RGNode_VoxelGI? _voxelGI;
     private readonly RGNode_SSR? _ssrRenderer;
     private bool _giEnabled = true;
-    private float _giDiffuseStrength = 1.0f;
-    private float _giSpecularStrength = 1f;
     private float _giSsaoAmount = 1f;
     private int _giResolutionPreset = 0;
     private int _ssrResolutionPreset = 0;
@@ -373,14 +371,6 @@ public class Game : GameEngine
         {
             _skyExposure = skyExposure;
         }
-        if (float.TryParse(GetArgValue(args, "--gi-diffuse="), out float giDiffuse))
-        {
-            _giDiffuseStrength = giDiffuse;
-        }
-        if (float.TryParse(GetArgValue(args, "--gi-specular="), out float giSpecular))
-        {
-            _giSpecularStrength = giSpecular;
-        }
         // 0 disables the RSM sun bounce (and its pass); values above 0 scale it.
         if (float.TryParse(GetArgValue(args, "--rsm="), out float rsmIntensity))
         {
@@ -470,6 +460,14 @@ public class Game : GameEngine
         _environment.CascadeDebug = cascadeDebug;
         _environment.ShadowDebug = shadowDebug;
         _environment.AoDebugView = hbaoDebugView;
+        if (float.TryParse(GetArgValue(args, "--gi-diffuse="), out float giDiffuse))
+        {
+            _environment.GiDiffuseStrength = giDiffuse;
+        }
+        if (float.TryParse(GetArgValue(args, "--gi-specular="), out float giSpecular))
+        {
+            _environment.GiSpecularStrength = giSpecular;
+        }
 
         // HBAO+ as a render plugin (decoupled from the pipeline): Attach wires its
         // graph node and the lighting AO input itself.
@@ -1255,8 +1253,6 @@ public class Game : GameEngine
         if (_voxelGI != null)
         {
             _environment.GiEnabled = _giEnabled;
-            _environment.GiDiffuseStrength = _giDiffuseStrength;
-            _environment.GiSpecularStrength = _giSpecularStrength;
             // Post-lighting SSR needs the normally shaded scene as its source.
             // Its own two debug modes are therefore resolved by the SSR node,
             // while the pre-lighting deferred debug mode stays disabled.
@@ -1700,8 +1696,12 @@ public class Game : GameEngine
         if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))
         {
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
-            ImGui.SliderFloat("GI Diffuse Strength", ref _giDiffuseStrength, 0.0f, 4.0f);
-            ImGui.SliderFloat("GI Specular Strength", ref _giSpecularStrength, 0.0f, 4.0f);
+            float giDiffuseStrength = _environment.GiDiffuseStrength;
+            if (ImGui.SliderFloat("GI Diffuse Strength", ref giDiffuseStrength, 0.0f, 4.0f))
+                _environment.GiDiffuseStrength = giDiffuseStrength;
+            float giSpecularStrength = _environment.GiSpecularStrength;
+            if (ImGui.SliderFloat("GI Specular Strength", ref giSpecularStrength, 0.0f, 4.0f))
+                _environment.GiSpecularStrength = giSpecularStrength;
             if (ImGui.SliderFloat("GI RSM Sun Bounce", ref _giRsmSunBounce, 0.0f, 2.0f))
             {
                 // The RSM pass node and the trace injection must switch in
