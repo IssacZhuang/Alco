@@ -16,13 +16,13 @@ public static class World3DAssetPipeline
     /// <summary>
     /// Register the module's asset loaders with the engine's asset system. Call once after
     /// engine startup, before loading any World3D assets. A bound rendering system enables GPU
-    /// residency (<see cref="StreamableMesh.LoadLodAsync"/>); without one, mesh assets load
+    /// residency (<see cref="MeshStream.LoadLodAsync"/>); without one, mesh assets load
     /// header-only.
     /// </summary>
     /// <param name="assetSystem">The asset system to register with.</param>
     /// <param name="renderingSystem">The rendering system, or null for header-only assets.</param>
     public static void RegisterLoaders(AssetSystem assetSystem, RenderingSystem? renderingSystem = null)
     {
-        assetSystem.RegisterAssetLoader(new AssetLoaderStreamableMesh(renderingSystem));
+        assetSystem.RegisterAssetLoader(new AssetLoaderMeshStream(renderingSystem));
     }
 }

@@ -143,11 +143,11 @@ public class TestCookedMeshFormat
     }
 
     [Test]
-    public void StreamableMeshExposesStructureWithoutDevice()
+    public void MeshStreamExposesStructureWithoutDevice()
     {
         byte[] package = WritePackage(CreateBuildData());
 
-        using StreamableMesh mesh = StreamableMesh.FromMemory(package, device: null);
+        using MeshStream mesh = MeshStream.FromMemory(package, device: null);
         Assert.Multiple(() =>
         {
             Assert.That(mesh.Name, Is.EqualTo("test_quad"));
