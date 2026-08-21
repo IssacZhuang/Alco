@@ -3,11 +3,18 @@ using System.Numerics;
 namespace Alco.World3D;
 
 /// <summary>
-/// Data-only description of one PBR material — the runtime form of a material asset file
+/// Data-only description of one material — the runtime form of a material asset file
 /// (<c>.amat</c>). Pure data: no GPU objects, and texture references stay paths so parsing
 /// never blocks on bulk texture IO (textures are resolved separately at warm-up or first
 /// use, then bound into the compiled materials via <see cref="MaterialCompiler.BindTextures"/>).
-/// Per-pass GPU materials are derived from this description by <see cref="MaterialCompiler"/>.
+/// Per-pass GPU materials are derived from this description by <see cref="MaterialCompiler"/>
+/// from the policies of the registered <see cref="IMaterialPass"/>es.
+/// <br/>A material naming no <see cref="SurfaceShader"/> uses the built-in PbrStandard
+/// surface (glTF metallic-roughness) and reads the flat factor fields plus the four
+/// standard texture slots; a material naming a surface shader evaluates that surface
+/// instead, with its own texture slots (keys of <see cref="Textures"/>, e.g.
+/// <c>noiseMap</c> for a shader resource <c>_noiseMap</c>) and specialization
+/// <see cref="Defines"/>.
 /// </summary>
 public sealed class MaterialAsset
 {
@@ -17,8 +24,36 @@ public sealed class MaterialAsset
     /// <summary>The material name; defaults to the source file name when the file omits it.</summary>
     public string Name { get; init; } = string.Empty;
 
-    /// <summary>The shading domain. Only <c>"pbr"</c> (metallic-roughness) exists in M1.</summary>
-    public string Domain { get; init; } = "pbr";
+    /// <summary>
+    /// Asset path of the surface shader the material evaluates; null selects the built-in
+    /// PbrStandard surface. Pass templates splice the referenced file into their
+    /// <c>@SURFACE@</c> line (contract: Shaders/Libs/Surface.hlsli).
+    /// </summary>
+    public string? SurfaceShader { get; init; }
+
+    /// <summary>
+    /// Specialization defines of the surface, baked into the compiled shader permutations
+    /// (e.g. feature toggles of the surface's own code).
+    /// </summary>
+    public IReadOnlyList<string> Defines { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// The texture slots of the material: material slot name → texture path relative to
+    /// the asset root. Slot names are shader resource names without the leading
+    /// underscore (<c>albedo</c> binds <c>_albedoTexture</c>); the built-in surface reads
+    /// the four standard slots (see <see cref="StandardSurfaceSlotsUtility"/>), custom surfaces
+    /// the slots they declare. Never loaded by the parser.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Textures { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
+    /// Surface parameter values by member name of the surface's
+    /// <c>_materialParams</c> block (see the convention in Shaders/Libs/Surface.hlsli):
+    /// 1-4 float components per value, one <c>float4</c> register each. Only custom
+    /// surfaces declare such a block; the built-in surface's knobs are the flat factor
+    /// fields, which ride the instance buffers instead.
+    /// </summary>
+    public IReadOnlyDictionary<string, float[]> Parameters { get; init; } = new Dictionary<string, float[]>();
 
     /// <summary>Linear base color factor, multiplied with the albedo texture.</summary>
     public Vector4 BaseColorFactor { get; init; } = Vector4.One;
@@ -41,39 +76,18 @@ public sealed class MaterialAsset
     /// <summary>Whether both faces of triangles are rendered.</summary>
     public bool DoubleSided { get; init; }
 
-    /// <summary>Albedo (base color) texture path relative to the asset root; null when absent.</summary>
-    public string? AlbedoTexture { get; init; }
-
-    /// <summary>Tangent-space normal map path; null when absent.</summary>
-    public string? NormalTexture { get; init; }
-
-    /// <summary>Metallic-roughness texture path (roughness in G, metallic in B); null when absent.</summary>
-    public string? MetallicRoughnessTexture { get; init; }
-
-    /// <summary>Emissive texture path; null when absent.</summary>
-    public string? EmissiveTexture { get; init; }
-
     /// <summary>
     /// Enumerate the texture paths referenced by this material in slot order, skipping
     /// empty slots.
     /// </summary>
     public IEnumerable<string> EnumerateTexturePaths()
     {
-        if (!string.IsNullOrEmpty(AlbedoTexture))
+        foreach (KeyValuePair<string, string> pair in Textures)
         {
-            yield return AlbedoTexture;
-        }
-        if (!string.IsNullOrEmpty(NormalTexture))
-        {
-            yield return NormalTexture;
-        }
-        if (!string.IsNullOrEmpty(MetallicRoughnessTexture))
-        {
-            yield return MetallicRoughnessTexture;
-        }
-        if (!string.IsNullOrEmpty(EmissiveTexture))
-        {
-            yield return EmissiveTexture;
+            if (!string.IsNullOrEmpty(pair.Value))
+            {
+                yield return pair.Value;
+            }
         }
     }
 }

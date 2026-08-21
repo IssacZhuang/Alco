@@ -1,12 +1,17 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/PbrInstance.hlsli"
+#include "Shaders/Libs/Surface.hlsli"
+#include "Shaders/Materials/PbrStandard.hlsli" // @SURFACE@ default; the material composer swaps this line for a custom surface.
 
-// Reflective shadow map (RSM) pass shader for the voxel GI's sun-bounce
+// Reflective shadow map (RSM) pass template for the voxel GI's sun-bounce
 // injection (CRYENGINE SVOTI style, see docs/GI_Sun_RSM_Injection.md). Renders
 // the scene from the sun's point of view — the selected CSM cascade — into
 // albedo + world-normal color targets, so the GI cone trace can sample
 // shadow-map-resolution sun radiance where its march touches geometry.
-//
+// All material evaluation lives in the surface shader included above
+// (contract: Shaders/Libs/Surface.hlsli; PASS_RSM permutation), so the RSM
+// resolves normal maps like the G-buffer does. The vertex layout must match
+// Alco.Rendering.VertexPBR exactly.
 // Per-instance data (model matrix, base color tint, alpha cutoff) lives in the
 // _instances storage buffer and is fetched by SV_InstanceID; the push constant
 // carries only the RSM cascade index (per-pass constant).
@@ -14,8 +19,7 @@
 // The pass reuses the shadow pass's per-cascade view-projection uniform (the
 // matrices folded into the 2x2 atlas quadrants by RGNode_ShadowPass) and
 // unfolds the quadrant back to full NDC here, so no separate matrix upload
-// exists for this pass. The vertex layout must match Alco.Rendering.VertexPBR
-// exactly.
+// exists for this pass.
 
 struct Vertex
 {
@@ -30,8 +34,10 @@ struct V2F
 {
     float4 position : SV_POSITION;
     float3 normal : TEXCOORD0;
-    float2 uv : TEXCOORD1;
-    uint instanceId : TEXCOORD2;
+    float4 tangent : TEXCOORD1; // xyz = world tangent, w = bitangent sign
+    float3 worldPos : TEXCOORD2;
+    float2 uv : TEXCOORD3;
+    uint instanceId : TEXCOORD4;
 };
 
 // Push constant payload: only the RSM cascade index remains per-draw (per-pass
@@ -51,9 +57,7 @@ DEFINE_UNIFORM(0, _data)
     float4x4 lightViewProjections[4];
 };
 
-DEFINE_TEX2D_SAMPLE(1, _albedoTexture);
-
-DEFINE_STORAGE(2, PbrInstance, _instances);
+DEFINE_STORAGE(1, PbrInstance, _instances);
 
 PUSH_CONSTANT RsmConstants constants;
 
@@ -71,9 +75,14 @@ V2F MainVS(Vertex input)
 {
     V2F output = (V2F)0;
     PbrInstance inst = _instances[input.instanceId];
-    float4 worldPosition = mul(inst.model, float4(input.position, 1.0f));
+    float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
+    float3 worldNormal = mul((float3x3)inst.model, input.normal);
+    float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
+    // The surface may deform the vertex; every pass applies this identically
+    // so the RSM matches the G-buffer silhouette.
+    ModifyVertex(worldPos, worldNormal, input.uv, 0.0f /* time: no global time buffer yet */);
     uint cascade = (uint)constants.params_.x;
-    float4 folded = mul(lightViewProjections[cascade], worldPosition);
+    float4 folded = mul(lightViewProjections[cascade], float4(worldPos, 1.0f));
     // RGNode_ShadowPass folds the cascade into its atlas quadrant with
     // ndc' = ndc * 0.5 + offset, offset = ((cascade % 2) - 0.5, 0.5 - cascade / 2).
     // The RSM covers a full target, so unfold back to [-1, 1] here.
@@ -81,7 +90,9 @@ V2F MainVS(Vertex input)
         (float)(cascade % 2u) - 0.5f,
         0.5f - (float)(cascade / 2u));
     output.position = float4((folded.xy - quadrantOffset) * 2.0f, folded.zw);
-    output.normal = mul((float3x3)inst.model, input.normal);
+    output.normal = worldNormal;
+    output.tangent = float4(worldTangent, input.tangent.w);
+    output.worldPos = worldPos;
     output.uv = input.uv;
     output.instanceId = input.instanceId;
     return output;
@@ -93,17 +104,34 @@ void MainPS(V2F input,
     out float4 normalRT : SV_TARGET1)
 {
     PbrInstance inst = _instances[input.instanceId];
-    float4 albedo = SAMPLE_TEX2D(_albedoTexture, input.uv);
+
+    // TBN frame: re-orthogonalize the interpolated tangent against the normal.
+    float3 n = normalize(input.normal);
+    float3 t = input.tangent.xyz - n * dot(n, input.tangent.xyz);
+    t = normalize(t);
+    float3 b = cross(n, t) * input.tangent.w;
+
+    SurfaceInput surfaceInput;
+    surfaceInput.worldPos = input.worldPos;
+    surfaceInput.normalWS = n;
+    surfaceInput.tangentWS = float4(t, input.tangent.w);
+    surfaceInput.uv = input.uv;
+    surfaceInput.baseColorFactor = inst.baseColor;
+    surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
+    surfaceInput.emissiveFactor = inst.emissive;
+    surfaceInput.alphaCutoff = inst.params_.x;
+    surfaceInput.time = 0.0f; // no global time buffer yet
+
+    SurfaceOutput s = EvaluateSurface(surfaceInput);
 
     // Alpha test (mirrors GBuffer.hlsl): cutout meshes keep correctly shaped
     // bounce light, not the alpha-quantized silhouette.
-    float alphaCutoff = inst.params_.x;
-    if (alphaCutoff > 0.0 && albedo.a * inst.baseColor.a < alphaCutoff)
+    if (surfaceInput.alphaCutoff > 0.0 && s.alpha < surfaceInput.alphaCutoff)
     {
         discard;
     }
 
-    albedoRT = float4(EncodeSRGB(albedo.rgb * inst.baseColor.rgb), 1.0);
-    float3 worldNormal = normalize(input.normal);
+    albedoRT = float4(EncodeSRGB(s.albedo), 1.0);
+    float3 worldNormal = normalize(t * s.normalTS.x + b * s.normalTS.y + n * s.normalTS.z);
     normalRT = float4(worldNormal * 0.5 + 0.5, 1.0);
 }

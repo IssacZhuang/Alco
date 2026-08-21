@@ -241,13 +241,29 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
         Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_gbuffer_material")
     {
-        var material = _rendering.CreateMaterial(_shader, name);
+        GraphicsMaterial material = CreateMaterial(_shader, doubleSided, name);
+        SetMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
+        return material;
+    }
+
+    /// <summary>
+    /// Create a G-buffer material from a pass-template shader already composed with its
+    /// surface (see <see cref="MaterialCompiler"/>): applies the pass-mandated state —
+    /// reversed-infinite-depth write, cull mode from double-sidedness and the camera
+    /// binding — and leaves every texture slot to the caller. The caller owns the
+    /// material and must dispose it.
+    /// </summary>
+    /// <param name="shader">The composed G-buffer template shader.</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="name">The material name for debugging.</param>
+    public GraphicsMaterial CreateMaterial(Shader shader, bool doubleSided = false, string name = "pbr_gbuffer_material")
+    {
+        var material = _rendering.CreateMaterial(shader, name);
         // Reversed infinite camera depth (near = 1, far = 0): GreaterEqual keeps
         // the nearest surface, matching the 0.0 depth clear of the G-buffer pass.
         material.DepthStencilState = DepthStencilState.WriteReverseZ;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        SetMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
         if (_camera != null)
         {
             material.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -257,7 +273,8 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
 
     /// <summary>
     /// (Re)bind the texture slots of a G-buffer material created by
-    /// <see cref="CreateMaterial"/>, applying the same fallback textures.
+    /// <see cref="CreateMaterial(Texture2D?, Texture2D?, Texture2D?, Texture2D?, bool, string)"/>,
+    /// applying the same fallback textures.
     /// Use when textures stream in asynchronously after the material was created.
     /// </summary>
     public void SetMaterialTextures(
@@ -266,9 +283,15 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     {
         material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
         material.SetTexture("_normalTexture", normalTexture ?? GetOrCreateFlatNormalTexture());
-        material.SetTexture("_mrTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
+        material.SetTexture("_metallicRoughnessTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
         material.SetTexture("_emissiveTexture", emissiveTexture ?? _rendering.TextureBlack);
     }
+
+    /// <summary>
+    /// The 1x1 flat-normal fallback texture of the standard surface's normal slot
+    /// (see <see cref="StandardSurfaceSlotsUtility.Normal"/>).
+    /// </summary>
+    public Texture2D FlatNormalTexture => GetOrCreateFlatNormalTexture();
 
     /// <summary>
     /// Lazily create the 1x1 flat-normal fallback texture: (128,128,255) decodes to the

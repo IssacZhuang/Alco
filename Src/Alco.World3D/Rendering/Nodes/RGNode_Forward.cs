@@ -316,12 +316,28 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
         Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_glass_material")
     {
-        var material = _rendering.CreateMaterial(_glassShader, name);
+        GraphicsMaterial material = CreateGlassMaterial(_glassShader, doubleSided, name);
+        SetGlassMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
+        return material;
+    }
+
+    /// <summary>
+    /// Create a glass material from a pass-template shader already composed with its
+    /// surface (see <see cref="MaterialCompiler"/>): applies the pass-mandated state —
+    /// alpha blending (no accumulation), reversed-depth hardware testing, cull mode, the
+    /// camera/lighting buffer bindings and the shadow-map depth binding — leaving every
+    /// material texture slot to the caller. The caller owns the material.
+    /// </summary>
+    /// <param name="shader">The composed ForwardGlass template shader.</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="name">The material name for debugging.</param>
+    public GraphicsMaterial CreateGlassMaterial(Shader shader, bool doubleSided = false, string name = "pbr_glass_material")
+    {
+        var material = _rendering.CreateMaterial(shader, name);
         material.BlendState = BlendState.AlphaBlendNoAccumulation;
         material.DepthStencilState = DepthStencilState.ReadReverseZ; // hardware depth test (GreaterEqual on reversed depth, no write)
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        SetGlassMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
         if (_camera != null)
         {
             material.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -337,7 +353,8 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
 
     /// <summary>
     /// (Re)bind the texture slots of a glass material created by
-    /// <see cref="CreateGlassMaterial"/>, applying the same fallback textures.
+    /// <see cref="CreateGlassMaterial(Texture2D?, Texture2D?, Texture2D?, Texture2D?, bool, string)"/>,
+    /// applying the same fallback textures.
     /// Use when textures stream in asynchronously after the material was created.
     /// </summary>
     public void SetGlassMaterialTextures(
@@ -346,10 +363,15 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     {
         material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
         material.SetTexture("_normalTexture", normalTexture ?? GetOrCreateFlatNormalTexture());
-        material.SetTexture("_mrTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
-        // ForwardGlass has no emissive texture slot in the basic version;
-        // when one is added, bind emissiveTexture ?? _rendering.TextureBlack here.
+        material.SetTexture("_metallicRoughnessTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
+        material.SetTexture("_emissiveTexture", emissiveTexture ?? _rendering.TextureBlack);
     }
+
+    /// <summary>
+    /// The 1x1 flat-normal fallback texture of the standard surface's normal slot
+    /// (see <see cref="StandardSurfaceSlotsUtility.Normal"/>).
+    /// </summary>
+    public Texture2D FlatNormalTexture => GetOrCreateFlatNormalTexture();
 
     /// <summary>
     /// Lazily create the 1x1 flat-normal fallback texture: (128,128,255).

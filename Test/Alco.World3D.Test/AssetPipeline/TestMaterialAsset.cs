@@ -23,7 +23,6 @@ public class TestMaterialAsset
         {
             "version": "1.0",
             "name": "wall_brick",
-            "domain": "pbr",
             "baseColorFactor": [0.5, 0.6, 0.7, 0.9],
             "metallicFactor": 0.2,
             "roughnessFactor": 0.8,
@@ -45,7 +44,6 @@ public class TestMaterialAsset
         Assert.Multiple(() =>
         {
             Assert.That(material.Name, Is.EqualTo("wall_brick"));
-            Assert.That(material.Domain, Is.EqualTo("pbr"));
             Assert.That(material.BaseColorFactor, Is.EqualTo(new Vector4(0.5f, 0.6f, 0.7f, 0.9f)));
             Assert.That(material.MetallicFactor, Is.EqualTo(0.2f));
             Assert.That(material.RoughnessFactor, Is.EqualTo(0.8f));
@@ -53,13 +51,46 @@ public class TestMaterialAsset
             Assert.That(material.AlphaMode, Is.EqualTo(MeshAlphaMode.Mask));
             Assert.That(material.AlphaCutoff, Is.EqualTo(0.35f));
             Assert.That(material.DoubleSided, Is.True);
-            // Authored backslashes normalize to asset-root separators; empty and null stay null.
-            Assert.That(material.AlbedoTexture, Is.EqualTo("Rungholt/rungholt-RGB.png"));
-            Assert.That(material.NormalTexture, Is.EqualTo("Rungholt/rungholt-normal.png"));
-            Assert.That(material.MetallicRoughnessTexture, Is.Null);
-            Assert.That(material.EmissiveTexture, Is.Null);
+            // Authored backslashes normalize to asset-root separators; empty and null
+            // slots stay absent.
+            Assert.That(material.Textures["albedo"], Is.EqualTo("Rungholt/rungholt-RGB.png"));
+            Assert.That(material.Textures["normal"], Is.EqualTo("Rungholt/rungholt-normal.png"));
+            Assert.That(material.Textures, Does.Not.ContainKey("metallicRoughness"));
+            Assert.That(material.Textures, Does.Not.ContainKey("emissive"));
             Assert.That(material.EnumerateTexturePaths(), Is.EqualTo(new[] { "Rungholt/rungholt-RGB.png", "Rungholt/rungholt-normal.png" }));
         });
+    }
+
+    [Test]
+    public void ParseMapsSurfaceShaderDefinesAndCustomSlots()
+    {
+        const string json = """
+        {
+            "version": "1.0",
+            "name": "mossy_rock",
+            "shader": "Shaders\\Materials\\MossyRock.hlsli",
+            "defines": ["MOSS_ANIMATE", " MOSS_ANIMATE ", ""],
+            "textures": { "noiseMap": "Textures/noise.png" }
+        }
+        """;
+
+        MaterialAsset material = Parse(json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(material.SurfaceShader, Is.EqualTo("Shaders/Materials/MossyRock.hlsli"));
+            // Defines trim to uniqueness; empty entries drop.
+            Assert.That(material.Defines, Is.EqualTo(new[] { "MOSS_ANIMATE" }));
+            Assert.That(material.Textures["noiseMap"], Is.EqualTo("Textures/noise.png"));
+            Assert.That(material.EnumerateTexturePaths(), Is.EqualTo(new[] { "Textures/noise.png" }));
+        });
+    }
+
+    [Test]
+    public void ParseRejectsDefinesWithWhitespace()
+    {
+        Assert.That(() => Parse("""{ "version": "1.0", "defines": ["A B"] }"""),
+            Throws.TypeOf<InvalidDataException>());
     }
 
     [Test]
@@ -70,7 +101,8 @@ public class TestMaterialAsset
         Assert.Multiple(() =>
         {
             Assert.That(material.Name, Is.EqualTo("mat_wall"));
-            Assert.That(material.Domain, Is.EqualTo("pbr"));
+            Assert.That(material.SurfaceShader, Is.Null);
+            Assert.That(material.Defines, Is.Empty);
             Assert.That(material.BaseColorFactor, Is.EqualTo(Vector4.One));
             Assert.That(material.MetallicFactor, Is.EqualTo(0.0f));
             Assert.That(material.RoughnessFactor, Is.EqualTo(1.0f));
@@ -78,6 +110,7 @@ public class TestMaterialAsset
             Assert.That(material.AlphaMode, Is.EqualTo(MeshAlphaMode.Opaque));
             Assert.That(material.AlphaCutoff, Is.EqualTo(0.5f));
             Assert.That(material.DoubleSided, Is.False);
+            Assert.That(material.Textures, Is.Empty);
             Assert.That(material.EnumerateTexturePaths(), Is.Empty);
         });
     }
@@ -101,13 +134,6 @@ public class TestMaterialAsset
     {
         Assert.That(() => Parse("""{ "version": "1.0", "alphaMode": "Dithered" }"""),
             Throws.TypeOf<InvalidDataException>());
-    }
-
-    [Test]
-    public void ParseRejectsUnknownDomain()
-    {
-        Assert.That(() => Parse("""{ "version": "1.0", "domain": "toon" }"""),
-            Throws.TypeOf<NotSupportedException>());
     }
 
     [Test]
@@ -144,7 +170,7 @@ public class TestMaterialAsset
             Assert.Multiple(() =>
             {
                 Assert.That(first.Name, Is.EqualTo("wall"));
-                Assert.That(first.AlbedoTexture, Is.EqualTo("wall.png"));
+                Assert.That(first.Textures["albedo"], Is.EqualTo("wall.png"));
                 Assert.That(second, Is.SameAs(first), "The asset system must cache material assets per file.");
             });
         }

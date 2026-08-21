@@ -238,24 +238,20 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     // ── Material factory ──
 
     /// <summary>
-    /// Create an opaque shadow depth material (ShadowDepth.hlsl). The renderer applies
-    /// the pass-mandated state (depth write, rasterizer, data buffer binding); the caller
-    /// owns the material and must dispose it.
+    /// Create an opaque shadow depth material (ShadowDepth.hlsl with its default
+    /// surface). The renderer applies the pass-mandated state (depth write, rasterizer,
+    /// data buffer binding); the caller owns the material and must dispose it.
     /// </summary>
     public GraphicsMaterial CreateShadowMaterial(bool doubleSided = false, string name = "pbr_shadow_material")
     {
-        var material = _rendering.CreateMaterial(_shader, name);
-        material.DepthStencilState = DepthStencilState.Write;
-        material.RasterizerState = new RasterizerState(FillMode.Solid,
-            doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
-        return material;
+        return CreateShadowMaterial(_shader, [], doubleSided, name);
     }
 
     /// <summary>
     /// Create a caller-owned cutout shadow material — the shadow depth shader
     /// (ShadowDepth.hlsl) compiled with the <c>SHADOW_CUTOUT</c> define so the
-    /// pixel shader samples _albedoTexture and discards transparent fragments.
+    /// pixel shader evaluates the surface (alpha only in the PASS_SHADOW
+    /// permutation) and discards transparent fragments.
     /// Alpha-tested meshes (foliage, fences, etc.) cast correctly shaped shadows.
     /// The material binds the shadow data buffer internally.
     /// </summary>
@@ -265,15 +261,36 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// <returns>The caller-owned cutout shadow material.</returns>
     public GraphicsMaterial CreateShadowCutoutMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_shadow_cutout_material")
     {
-        var material = _rendering.CreateMaterial(_shader, name);
-        material.SetDefines("SHADOW_CUTOUT");
-        // Force the SHADOW_CUTOUT variant to compile and update the reflection so
-        // the _albedoTexture binding is visible before SetTexture is called.
-        material.GetPipelineContext(_shadowLayout);
+        GraphicsMaterial material = CreateShadowMaterial(_shader, ["SHADOW_CUTOUT"], doubleSided, name);
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        return material;
+    }
+
+    /// <summary>
+    /// Create a shadow depth material from a pass-template shader already composed with
+    /// its surface (see <see cref="MaterialCompiler"/>): applies the pass-mandated state
+    /// (depth write, rasterizer, data buffer binding) and the given shader defines —
+    /// <c>SHADOW_CUTOUT</c> selects the alpha-tested permutation. The define permutation
+    /// is compiled eagerly so its texture bindings are visible before SetTexture is
+    /// called. The caller owns the material and must dispose it.
+    /// </summary>
+    /// <param name="shader">The composed shadow depth template shader.</param>
+    /// <param name="defines">Shader defines of the material (may be empty).</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="name">The material name for debugging.</param>
+    public GraphicsMaterial CreateShadowMaterial(Shader shader, string[] defines, bool doubleSided = false, string name = "pbr_shadow_material")
+    {
+        var material = _rendering.CreateMaterial(shader, name);
+        if (defines.Length > 0)
+        {
+            material.SetDefines(defines);
+            // Force the permutation to compile and update the reflection so the
+            // texture bindings are visible before SetTexture is called.
+            material.GetPipelineContext(_shadowLayout);
+        }
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
         material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
         return material;
     }
@@ -439,9 +456,9 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     }
 
     /// <summary>
-    /// Create a caller-owned RSM material — the RSM pass shader (Rsm.hlsl)
-    /// sampling the albedo texture and writing sRGB albedo + world normal.
-    /// Requires <see cref="EnableRsm"/> first; the material binds the shared
+    /// Create a caller-owned RSM material — the RSM pass shader (Rsm.hlsl with its
+    /// default surface) sampling the albedo texture and writing sRGB albedo + world
+    /// normal. Requires <see cref="EnableRsm"/> first; the material binds the shared
     /// shadow cascade data buffer internally (the RSM vertex shader unfolds the
     /// selected cascade's atlas quadrant), so recorded bundles stay valid while
     /// the cascades move.
@@ -451,15 +468,34 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// <param name="name">The material name for debugging.</param>
     public GraphicsMaterial CreateRsmMaterial(Texture2D? albedoTexture, bool doubleSided = false, string name = "pbr_rsm_material")
     {
+        if (_rsmShader == null)
+        {
+            throw new InvalidOperationException("Call EnableRsm before creating RSM materials.");
+        }
+        GraphicsMaterial material = CreateRsmMaterial(_rsmShader, doubleSided, name);
+        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
+        return material;
+    }
+
+    /// <summary>
+    /// Create an RSM material from a pass-template shader already composed with its
+    /// surface (see <see cref="MaterialCompiler"/>): applies the pass-mandated state and
+    /// the shared cascade data buffer, leaving every texture slot to the caller.
+    /// Requires <see cref="EnableRsm"/> first; the caller owns the material.
+    /// </summary>
+    /// <param name="shader">The composed RSM template shader.</param>
+    /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
+    /// <param name="name">The material name for debugging.</param>
+    public GraphicsMaterial CreateRsmMaterial(Shader shader, bool doubleSided = false, string name = "pbr_rsm_material")
+    {
         if (_rsmShader == null || _rsmLayout == null)
         {
             throw new InvalidOperationException("Call EnableRsm before creating RSM materials.");
         }
-        var material = _rendering.CreateMaterial(_rsmShader, name);
+        var material = _rendering.CreateMaterial(shader, name);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
         material.SetBuffer(ShaderResourceId.Data, _shadowDataBuffer);
         return material;
     }

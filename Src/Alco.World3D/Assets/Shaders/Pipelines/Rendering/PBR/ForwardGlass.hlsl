@@ -1,10 +1,14 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Libs/Surface.hlsli"
+#include "Shaders/Materials/PbrStandard.hlsli" // @SURFACE@ default; the material composer swaps this line for a custom surface.
 
-// Forward-lit glass shader for the PBR deferred pipeline's transparency pass.
-// Renders semi-transparent glass objects after deferred lighting, blending onto
-// the lit HDR scene. Uses the same PBR functions as DeferredLighting (via
-// PBRCommon.hlsli) but evaluates them per-fragment in forward, with:
-// - Tangent-space normal mapping (same vertex layout as GBuffer.hlsl).
+// Forward-lit glass pass template for the PBR deferred pipeline's transparency
+// pass. Renders semi-transparent glass objects after deferred lighting,
+// blending onto the lit HDR scene. Uses the same PBR functions as
+// DeferredLighting (via PBRCommon.hlsli) but evaluates them per-fragment in
+// forward, with:
+// - The material evaluated by the surface shader included above (contract:
+//   Shaders/Libs/Surface.hlsli) — same linear-albedo convention as GBuffer.hlsl.
 // - Hardware depth testing (DepthStencilState.Read) against the opaque scene —
 //   the pipeline pre-fills the forward RT's depth from the G-buffer via a copy pass.
 // - Alpha blending with AlphaBlendNoAccumulation (Max on alpha, no sorting).
@@ -43,12 +47,8 @@ DEFINE_UNIFORM(0, _camera)
     float4x4 viewProjection;
 };
 
-// Pass-specific textures (set 1). The shared _data cbuffer, _pointLights
-// buffer and _shadowMap texture live in PBRCommon.hlsli.
-DEFINE_TEX2D_SAMPLE(1, _albedoTexture);
-DEFINE_TEX2D_SAMPLE(1, _normalTexture);
-DEFINE_TEX2D_SAMPLE(1, _mrTexture);
-
+// Pass-specific shared _data cbuffer, _pointLights buffer and _shadowMap
+// texture live in PBRCommon.hlsli; the material textures live in the surface.
 #include "Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli"
 
 PUSH_CONSTANT Constants constants;
@@ -57,11 +57,15 @@ PUSH_CONSTANT Constants constants;
 V2F MainVS(Vertex input)
 {
     V2F output = (V2F)0;
-    float4 worldPosition = mul(constants.model, float4(input.position, 1.0f));
-    output.position = mul(viewProjection, worldPosition);
-    output.worldPosition = worldPosition.xyz;
-    output.normal = mul((float3x3)constants.model, input.normal);
-    output.tangent = float4(mul((float3x3)constants.model, input.tangent.xyz), input.tangent.w);
+    float3 worldPosition = mul(constants.model, float4(input.position, 1.0f)).xyz;
+    float3 worldNormal = mul((float3x3)constants.model, input.normal);
+    float3 worldTangent = mul((float3x3)constants.model, input.tangent.xyz);
+    // The surface may deform the vertex; every pass applies this identically.
+    ModifyVertex(worldPosition, worldNormal, input.uv, 0.0f /* time: no global time buffer yet */);
+    output.position = mul(viewProjection, float4(worldPosition, 1.0f));
+    output.worldPosition = worldPosition;
+    output.normal = worldNormal;
+    output.tangent = float4(worldTangent, input.tangent.w);
     output.uv = input.uv;
     return output;
 }
@@ -69,26 +73,32 @@ V2F MainVS(Vertex input)
 [shader("pixel")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float4 albedoTex = SAMPLE_TEX2D(_albedoTexture, input.uv);
-    float3 albedo = DecodeSRGB(albedoTex.rgb) * constants.baseColor.rgb;
-    float alpha = albedoTex.a * constants.baseColor.a;
-
-    float transmission = constants.params_.x;
-
-    float4 mrTex = SAMPLE_TEX2D(_mrTexture, input.uv);
-    float metallic = constants.metallicRoughnessAO.x * mrTex.b;
-    float roughness = constants.metallicRoughnessAO.y * mrTex.g;
-    float ao = constants.metallicRoughnessAO.z;
-
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);
     float3 t = input.tangent.xyz - n * dot(n, input.tangent.xyz);
     t = normalize(t);
     float3 b = cross(n, t) * input.tangent.w;
 
-    float2 normalXY = SAMPLE_TEX2D(_normalTexture, input.uv).rg * 2.0 - 1.0;
-    float3 normalTex = float3(normalXY, sqrt(saturate(1.0 - dot(normalXY, normalXY))));
-    float3 N = normalize(t * normalTex.x + b * normalTex.y + n * normalTex.z);
+    SurfaceInput surfaceInput;
+    surfaceInput.worldPos = input.worldPosition;
+    surfaceInput.normalWS = n;
+    surfaceInput.tangentWS = float4(t, input.tangent.w);
+    surfaceInput.uv = input.uv;
+    surfaceInput.baseColorFactor = constants.baseColor;
+    surfaceInput.metallicRoughnessAO = constants.metallicRoughnessAO;
+    surfaceInput.emissiveFactor = constants.emissive;
+    surfaceInput.alphaCutoff = 0.0f; // glass does not alpha-test
+    surfaceInput.time = 0.0f; // no global time buffer yet
+
+    SurfaceOutput s = EvaluateSurface(surfaceInput);
+
+    float3 albedo = s.albedo;
+    float alpha = s.alpha;
+    float metallic = s.metallic;
+    float roughness = s.roughness;
+    float ao = s.ao;
+
+    float3 N = normalize(t * s.normalTS.x + b * s.normalTS.y + n * s.normalTS.z);
 
     float3 worldPosition = input.worldPosition;
     float3 V = normalize(cameraPosition.xyz - worldPosition);
@@ -125,8 +135,8 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 diffuseIrradiance = skyAmbient + ambientFloor;
     float3 ambient = diffuseIrradiance * albedo * (1.0 - metallic) * ao;
 
-    // Emissive.
-    float3 emissive = constants.emissive.rgb;
+    // Emissive (surface = emissive texture times the push-constant factor).
+    float3 emissive = s.emissive;
 
     float3 color = Lo + ambient + emissive;
 
@@ -134,6 +144,7 @@ float4 MainPS(V2F input) : SV_TARGET
     // transmission factor and the texture alpha (whichever is larger — the
     // Bistro glass textures carry a zero alpha channel, so transmission must
     // not rely on it).
+    float transmission = constants.params_.x;
     float outputAlpha = saturate(max(alpha, 1.0 - transmission));
 
     return float4(color, outputAlpha);
