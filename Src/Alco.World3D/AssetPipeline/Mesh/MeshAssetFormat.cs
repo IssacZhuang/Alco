@@ -6,7 +6,7 @@ namespace Alco.World3D;
 
 /// <summary>
 /// Alpha handling mode of a material. Values are stable on-disk identifiers, engine-neutral.
-/// Reserved for the upcoming material asset format — cooked meshes carry material slots
+/// Reserved for the upcoming material asset format — mesh assets carry material slots
 /// (names), never material definitions.
 /// </summary>
 public enum MeshAlphaMode : uint
@@ -22,7 +22,7 @@ public enum MeshAlphaMode : uint
 }
 
 /// <summary>
-/// Semantic identifier of a vertex stream in the cooked mesh format (.amsh).
+/// Semantic identifier of a vertex stream in the mesh asset format (.amsh).
 /// Values are stable on-disk identifiers; append new semantics only.
 /// </summary>
 public enum MeshStreamSemantic : uint
@@ -50,7 +50,7 @@ public enum MeshStreamSemantic : uint
 }
 
 /// <summary>
-/// Kind of a cooked mesh content entry. Values are stable on-disk identifiers; append only.
+/// Kind of a mesh asset content entry. Values are stable on-disk identifiers; append only.
 /// </summary>
 public enum MeshChunkType : uint
 {
@@ -72,7 +72,7 @@ public enum MeshChunkType : uint
     /// <summary>Bounds hierarchy for streaming selection (reserved).</summary>
     BoundsHierarchy = 5,
 
-    /// <summary>Cooked collision data (reserved).</summary>
+    /// <summary>Collision data (reserved).</summary>
     Collision = 6,
 
     /// <summary>Tool/user payload.</summary>
@@ -80,7 +80,7 @@ public enum MeshChunkType : uint
 }
 
 /// <summary>
-/// Payload compression of a cooked mesh chunk. Compressed chunks must be decoded on a worker
+/// Payload compression of a mesh asset chunk. Compressed chunks must be decoded on a worker
 /// before upload and can never be direct-uploaded. M1 ships <see cref="None"/> only.
 /// </summary>
 public enum MeshChunkCodec : uint
@@ -99,12 +99,12 @@ public enum MeshChunkCodec : uint
 }
 
 /// <summary>
-/// Feature flags of a cooked mesh file. Stored in the meta as <c>_flags</c>. New flags must be
+/// Feature flags of a mesh asset file. Stored in the meta as <c>_flags</c>. New flags must be
 /// appended and readers must reject files carrying flags they do not understand for the
 /// affected payload path.
 /// </summary>
 [Flags]
-public enum CookedMeshFlags : uint
+public enum MeshAssetFlags : uint
 {
     /// <summary>No features.</summary>
     None = 0,
@@ -135,11 +135,11 @@ public enum CookedMeshFlags : uint
 }
 
 /// <summary>
-/// Descriptor of one vertex stream inside an interleaved cooked vertex payload. The disk format
+/// Descriptor of one vertex stream inside an interleaved mesh asset vertex payload. The disk format
 /// (<see cref="Format"/>) is the GPU vertex format, so the payload bytes are directly
 /// consumable as a vertex buffer.
 /// </summary>
-public struct CookedVertexStream
+public struct MeshVertexStream
 {
     /// <summary>Semantic of the stream.</summary>
     public MeshStreamSemantic Semantic;
@@ -157,13 +157,13 @@ public struct CookedVertexStream
     /// Quantization domain of the stream (Position only): dequantize as
     /// <c>Min + n * (Max - Min)</c> with n in [0, 1]. Typically the tight position AABB chosen
     /// at cook time for maximum precision; semantically a decode input, not a culling bound.
-    /// The zero box means not quantized (authoritative gate: <see cref="CookedMeshFlags.QuantizedPositions"/>).
+    /// The zero box means not quantized (authoritative gate: <see cref="MeshAssetFlags.QuantizedPositions"/>).
     /// </summary>
     public BoundingBox3D QuantBounds;
 }
 
 /// <summary>
-/// Frozen 96-byte cluster descriptor of the cooked mesh format. Published with the format so
+/// Frozen 96-byte cluster descriptor of the mesh asset format. Published with the format so
 /// cookers can start emitting it without a format break; consumed by the M3 virtual geometry
 /// pipeline. Little-endian on disk; blit directly into native/GPU buffers.
 /// </summary>
@@ -223,7 +223,7 @@ public unsafe struct ClusterRecord
 }
 
 /// <summary>
-/// Frozen 32-byte page descriptor of the cooked mesh format (M3 virtual geometry). Pages have a
+/// Frozen 32-byte page descriptor of the mesh asset format (M3 virtual geometry). Pages have a
 /// fixed size declared in the meta; page N occupies <c>[N * pageSize, (N+1) * pageSize)</c> of
 /// the page data entry, so paging needs no per-page directory.
 /// </summary>
@@ -253,9 +253,9 @@ public struct PageRecord
 }
 
 /// <summary>
-/// Well-known cooked vertex layouts and format helpers.
+/// Well-known mesh vertex layouts and format helpers.
 /// </summary>
-public static class CookedVertexLayout
+public static class MeshVertexLayout
 {
     /// <summary>Stride of the default interleaved PBR vertex (matches <see cref="VertexPBR"/>).</summary>
     public const uint VertexPBRStride = 48;
@@ -265,14 +265,14 @@ public static class CookedVertexLayout
     /// position/normal/uv0/tangent at 0/12/24/32 in a 48-byte vertex.
     /// </summary>
     /// <returns>The stream descriptors.</returns>
-    public static CookedVertexStream[] CreatePBR()
+    public static MeshVertexStream[] CreatePBR()
     {
         return
         [
-            new CookedVertexStream { Semantic = MeshStreamSemantic.Position, Format = VertexFormat.Float32x3, Offset = 0, Stride = VertexPBRStride },
-            new CookedVertexStream { Semantic = MeshStreamSemantic.Normal, Format = VertexFormat.Float32x3, Offset = 12, Stride = VertexPBRStride },
-            new CookedVertexStream { Semantic = MeshStreamSemantic.TexCoord0, Format = VertexFormat.Float32x2, Offset = 24, Stride = VertexPBRStride },
-            new CookedVertexStream { Semantic = MeshStreamSemantic.Tangent, Format = VertexFormat.Float32x4, Offset = 32, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.Position, Format = VertexFormat.Float32x3, Offset = 0, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.Normal, Format = VertexFormat.Float32x3, Offset = 12, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.TexCoord0, Format = VertexFormat.Float32x2, Offset = 24, Stride = VertexPBRStride },
+            new MeshVertexStream { Semantic = MeshStreamSemantic.Tangent, Format = VertexFormat.Float32x4, Offset = 32, Stride = VertexPBRStride },
         ];
     }
 

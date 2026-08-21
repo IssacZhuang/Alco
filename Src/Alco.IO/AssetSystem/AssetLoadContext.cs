@@ -53,7 +53,7 @@ public readonly ref struct AssetLoadContext
     /// <summary>
     /// Opens a seekable read stream over the asset file without loading it into memory.
     /// Ownership of the stream transfers to the caller; dispose it when done. Loaders that
-    /// keep streaming after CreateAsset (e.g. cooked meshes) may hand the stream to the
+    /// keep streaming after CreateAsset (e.g. mesh assets) may hand the stream to the
     /// created asset instead of disposing it here.
     /// </summary>
     /// <returns>The seekable asset stream.</returns>

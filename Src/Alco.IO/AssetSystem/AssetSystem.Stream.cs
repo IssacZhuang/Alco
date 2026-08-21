@@ -7,7 +7,7 @@ public sealed partial class AssetSystem
 {
     /// <summary>
     /// <c>[Thread Safe]</c> Try to open a seekable read stream over an asset file without
-    /// loading it into memory. Intended for streaming assets (cooked meshes, future texture
+    /// loading it into memory. Intended for streaming assets (mesh assets, future texture
     /// streaming) that need positional access after the initial load. The caller owns and must
     /// dispose the returned stream.
     /// </summary>

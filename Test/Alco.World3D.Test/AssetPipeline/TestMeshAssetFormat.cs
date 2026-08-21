@@ -7,7 +7,7 @@ using Alco.Rendering;
 
 namespace Alco.World3D.Test;
 
-public class TestCookedMeshFormat
+public class TestMeshAssetFormat
 {
     private static VertexPBR[] CreateQuadVertices()
     {
@@ -49,16 +49,16 @@ public class TestCookedMeshFormat
         return bytes;
     }
 
-    private static CookedMeshBuildData CreateBuildData()
+    private static MeshAssetBuildData CreateBuildData()
     {
-        return new CookedMeshBuildData
+        return new MeshAssetBuildData
         {
             Name = "test_quad",
             SourceHash = 0x0123456789ABCDEF,
-            Streams = CookedVertexLayout.CreatePBR(),
+            Streams = MeshVertexLayout.CreatePBR(),
             Lods =
             [
-                new CookedMeshBuildLod
+                new MeshAssetBuildLod
                 {
                     Vertices = VerticesToBytes(CreateQuadVertices()),
                     Indices = [0, 1, 2, 0, 2, 3],
@@ -69,25 +69,25 @@ public class TestCookedMeshFormat
         };
     }
 
-    private static CookedMeshBuildData CreateMultiLodBuildData()
+    private static MeshAssetBuildData CreateMultiLodBuildData()
     {
         VertexPBR[] quad = CreateQuadVertices();
         VertexPBR[] triangle = [quad[0], quad[1], quad[2]];
-        return new CookedMeshBuildData
+        return new MeshAssetBuildData
         {
             Name = "test_quad_lods",
             SourceHash = 0x0123456789ABCDEF,
-            Streams = CookedVertexLayout.CreatePBR(),
+            Streams = MeshVertexLayout.CreatePBR(),
             Lods =
             [
-                new CookedMeshBuildLod
+                new MeshAssetBuildLod
                 {
                     Vertices = VerticesToBytes(quad),
                     Indices = [0, 1, 2, 0, 2, 3],
                     MaxError = 0.0f,
                     SubMeshes = [new MeshSubMeshMeta("primitive_0", 0, 6)],
                 },
-                new CookedMeshBuildLod
+                new MeshAssetBuildLod
                 {
                     Vertices = VerticesToBytes(triangle),
                     Indices = [0, 1, 2],
@@ -98,10 +98,10 @@ public class TestCookedMeshFormat
         };
     }
 
-    private static byte[] WritePackage(CookedMeshBuildData data)
+    private static byte[] WritePackage(MeshAssetBuildData data)
     {
         using MemoryStream stream = new();
-        CookedMeshWriter.Write(data, stream);
+        MeshAssetWriter.Write(data, stream);
         return stream.ToArray();
     }
 
@@ -110,15 +110,15 @@ public class TestCookedMeshFormat
     {
         byte[] package = WritePackage(CreateBuildData());
 
-        using PackageReader<CookedMeshMeta> reader = PackageReader<CookedMeshMeta>.OpenMemory(package);
-        CookedMeshMeta meta = reader.Meta;
+        using PackageReader<MeshAssetMeta> reader = PackageReader<MeshAssetMeta>.OpenMemory(package);
+        MeshAssetMeta meta = reader.Meta;
 
         Assert.Multiple(() =>
         {
             Assert.That(meta.Name, Is.EqualTo("test_quad"));
             Assert.That(meta.SourceHash, Is.EqualTo(0x0123456789ABCDEF));
-            Assert.That(meta.CookerVersion, Is.EqualTo(CookedMeshWriter.CookerVersion));
-            Assert.That(meta.Flags, Is.EqualTo(CookedMeshFlags.Interleaved));
+            Assert.That(meta.CookerVersion, Is.EqualTo(MeshAssetWriter.CookerVersion));
+            Assert.That(meta.Flags, Is.EqualTo(MeshAssetFlags.Interleaved));
             Assert.That(meta.Lods.Count, Is.EqualTo(1));
             Assert.That(meta.Lods[0].VertexCount, Is.EqualTo(4));
             Assert.That(meta.Lods[0].IndexCount, Is.EqualTo(6));
@@ -143,12 +143,12 @@ public class TestCookedMeshFormat
     {
         byte[] package = WritePackage(CreateMultiLodBuildData());
 
-        using PackageReader<CookedMeshMeta> reader = PackageReader<CookedMeshMeta>.OpenMemory(package);
-        CookedMeshMeta meta = reader.Meta;
+        using PackageReader<MeshAssetMeta> reader = PackageReader<MeshAssetMeta>.OpenMemory(package);
+        MeshAssetMeta meta = reader.Meta;
 
         Assert.Multiple(() =>
         {
-            Assert.That(meta.Flags, Is.EqualTo(CookedMeshFlags.Interleaved | CookedMeshFlags.HasLods));
+            Assert.That(meta.Flags, Is.EqualTo(MeshAssetFlags.Interleaved | MeshAssetFlags.HasLods));
             Assert.That(meta.Lods.Count, Is.EqualTo(2));
             Assert.That(meta.Lods[0].VertexCount, Is.EqualTo(4));
             Assert.That(meta.Lods[0].IndexCount, Is.EqualTo(6));
@@ -184,10 +184,10 @@ public class TestCookedMeshFormat
     [Test]
     public void ReaderRoundTripsChunkBytes()
     {
-        CookedMeshBuildData data = CreateBuildData();
+        MeshAssetBuildData data = CreateBuildData();
         byte[] package = WritePackage(data);
 
-        using CookedMeshReader reader = CookedMeshReader.OpenMemory(package);
+        using MeshAssetReader reader = MeshAssetReader.OpenMemory(package);
         Assert.That(reader.TryGetEntrySize("lod0/vertices", out long vertexSize), Is.True);
         Assert.That(vertexSize, Is.EqualTo(data.Lods[0].Vertices.Length));
 
@@ -205,10 +205,10 @@ public class TestCookedMeshFormat
     [Test]
     public void ReaderRoundTripsMultiLodChunkBytes()
     {
-        CookedMeshBuildData data = CreateMultiLodBuildData();
+        MeshAssetBuildData data = CreateMultiLodBuildData();
         byte[] package = WritePackage(data);
 
-        using CookedMeshReader reader = CookedMeshReader.OpenMemory(package);
+        using MeshAssetReader reader = MeshAssetReader.OpenMemory(package);
         using SafeMemoryHandle vertexData = new(data.Lods[1].Vertices.Length);
         reader.ReadChunk(reader.GetChunk("lod1/vertices"), vertexData);
         Assert.That(vertexData.AsReadOnlySpan().ToArray(), Is.EqualTo(data.Lods[1].Vertices));
@@ -227,24 +227,24 @@ public class TestCookedMeshFormat
 
         // Flip one payload byte inside the vertex entry (last byte of the file region is index
         // data, so corrupt a vertex byte right after the meta section via the entry offset).
-        using PackageReader<CookedMeshMeta> probe = PackageReader<CookedMeshMeta>.OpenMemory(package);
+        using PackageReader<MeshAssetMeta> probe = PackageReader<MeshAssetMeta>.OpenMemory(package);
         probe.TryGetEntry("lod0/vertices", out PackageEntry? entry);
         long metaLength = BinaryPrimitives.ReadInt64LittleEndian(package.AsSpan(4, 8));
         int absolute = (int)(12 + metaLength + entry!.Start + 5);
         package[absolute] ^= 0xFF;
 
-        using CookedMeshReader reader = CookedMeshReader.OpenMemory(package);
+        using MeshAssetReader reader = MeshAssetReader.OpenMemory(package);
         using SafeMemoryHandle vertexData = new((int)entry.Size);
         Assert.That(() => reader.ReadChunk(reader.GetChunk("lod0/vertices"), vertexData),
             Throws.TypeOf<InvalidDataException>());
     }
 
     [Test]
-    public void MeshStreamExposesStructureWithoutDevice()
+    public void MeshAssetExposesStructureWithoutDevice()
     {
         byte[] package = WritePackage(CreateBuildData());
 
-        using MeshStream mesh = MeshStream.FromMemory(package, device: null);
+        using MeshAsset mesh = MeshAsset.FromMemory(package, device: null);
         Assert.Multiple(() =>
         {
             Assert.That(mesh.Name, Is.EqualTo("test_quad"));
@@ -263,22 +263,22 @@ public class TestCookedMeshFormat
     }
 
     [Test]
-    public void MeshStreamExposesPerLodSubMeshes()
+    public void MeshAssetExposesPerLodSubMeshes()
     {
         byte[] package = WritePackage(CreateMultiLodBuildData());
 
-        using MeshStream mesh = MeshStream.FromMemory(package, device: null);
+        using MeshAsset mesh = MeshAsset.FromMemory(package, device: null);
         Assert.Multiple(() =>
         {
             Assert.That(mesh.LodCount, Is.EqualTo(2));
 
-            ReadOnlySpan<MeshStreamSubMesh> lod0 = mesh.GetSubMeshes(0);
+            ReadOnlySpan<MeshAssetSubMesh> lod0 = mesh.GetSubMeshes(0);
             Assert.That(lod0.Length, Is.EqualTo(1));
             Assert.That(lod0[0].Name, Is.EqualTo("primitive_0"));
             Assert.That(lod0[0].FirstIndex, Is.EqualTo(0u));
             Assert.That(lod0[0].IndexCount, Is.EqualTo(6u));
 
-            ReadOnlySpan<MeshStreamSubMesh> lod1 = mesh.GetSubMeshes(1);
+            ReadOnlySpan<MeshAssetSubMesh> lod1 = mesh.GetSubMeshes(1);
             Assert.That(lod1.Length, Is.EqualTo(1));
             Assert.That(lod1[0].Name, Is.EqualTo("primitive_0"));
             Assert.That(lod1[0].FirstIndex, Is.EqualTo(0u));
@@ -294,7 +294,7 @@ public class TestCookedMeshFormat
     {
         byte[] package = WritePackage(CreateBuildData());
 
-        MeshStream mesh = MeshStream.FromMemory(package, device: null);
+        MeshAsset mesh = MeshAsset.FromMemory(package, device: null);
         mesh.Dispose();
         mesh.Dispose();
 

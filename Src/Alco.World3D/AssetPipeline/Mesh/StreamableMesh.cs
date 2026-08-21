@@ -5,9 +5,9 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A read-only multi-submesh mesh whose vertex/index buffers were streamed from a cooked mesh
+/// A read-only multi-submesh mesh whose vertex/index buffers were streamed from a mesh asset
 /// asset (.amsh). Submeshes are byte ranges derived from the asset's submesh table. Constructed
-/// by <c>MeshStream</c> once a LOD's payload has been read; upload via the
+/// by <c>MeshAsset</c> once a LOD's payload has been read; upload via the
 /// <c>Upload</c> methods and finalize with <see cref="MarkReady"/>. Consumed by the renderer
 /// like any other <see cref="Mesh"/>.
 /// </summary>
@@ -36,7 +36,7 @@ public sealed unsafe class StreamableMesh : Mesh
     }
 
     /// <summary>
-    /// Initializes a new cooked mesh with the given buffer sizes. Buffers are created empty;
+    /// Initializes a new mesh asset with the given buffer sizes. Buffers are created empty;
     /// fill them with <see cref="UploadVertex"/> / <see cref="UploadIndices"/>.
     /// </summary>
     /// <param name="device">The GPU device used to create the buffers.</param>

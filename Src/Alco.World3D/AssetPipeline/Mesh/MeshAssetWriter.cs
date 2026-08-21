@@ -5,11 +5,11 @@ using Alco.IO;
 namespace Alco.World3D;
 
 /// <summary>
-/// Input of one cooked mesh LOD: an interleaved vertex payload, its index buffer, the geometric
+/// Input of one mesh asset LOD: an interleaved vertex payload, its index buffer, the geometric
 /// error relative to the source and the LOD's submesh slot ranges. Pure geometry — material
 /// binding happens in the composition layer (prefab), never here.
 /// </summary>
-public sealed class CookedMeshBuildLod
+public sealed class MeshAssetBuildLod
 {
     /// <summary>The interleaved vertex payload, directly GPU-consumable.</summary>
     public required byte[] Vertices { get; init; }
@@ -25,11 +25,11 @@ public sealed class CookedMeshBuildLod
 }
 
 /// <summary>
-/// Input of a cooked mesh build: the stream descriptors shared by all LODs plus the LOD list.
+/// Input of a mesh asset build: the stream descriptors shared by all LODs plus the LOD list.
 /// Entry 0 is the highest-detail LOD. Keep submesh slot names and order aligned across LODs so
 /// material binding by slot name is LOD-stable.
 /// </summary>
-public sealed class CookedMeshBuildData
+public sealed class MeshAssetBuildData
 {
     /// <summary>The mesh name.</summary>
     public required string Name { get; init; }
@@ -38,18 +38,18 @@ public sealed class CookedMeshBuildData
     public ulong SourceHash { get; init; }
 
     /// <summary>Stream descriptors of the interleaved vertex payload, shared by all LODs.</summary>
-    public required CookedVertexStream[] Streams { get; init; }
+    public required MeshVertexStream[] Streams { get; init; }
 
     /// <summary>The LOD list; entry 0 is the highest-detail LOD.</summary>
-    public required IReadOnlyList<CookedMeshBuildLod> Lods { get; init; }
+    public required IReadOnlyList<MeshAssetBuildLod> Lods { get; init; }
 }
 
 /// <summary>
-/// Writes cooked mesh packages (.amsh). M1 emits interleaved LODs with codec None: the payload
+/// Writes mesh asset packages (.amsh). M1 emits interleaved LODs with codec None: the payload
 /// bytes are the GPU bytes, loads need no parsing. Each LOD gets its own vertex/index entries
 /// (<c>lodN/vertices</c>, <c>lodN/indices</c>) and its own submesh slot ranges.
 /// </summary>
-public static class CookedMeshWriter
+public static class MeshAssetWriter
 {
     /// <summary>Version of the cooking algorithm; bump to invalidate cook caches.</summary>
     public const uint CookerVersion = 1;
@@ -61,23 +61,23 @@ public static class CookedMeshWriter
     /// </summary>
     /// <param name="data">The build data.</param>
     /// <param name="output">The output stream.</param>
-    public static void Write(CookedMeshBuildData data, Stream output)
+    public static void Write(MeshAssetBuildData data, Stream output)
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(output);
 
         if (data.Streams.Length == 0)
         {
-            throw new InvalidDataException("Cooked mesh needs at least one vertex stream.");
+            throw new InvalidDataException("Mesh asset needs at least one vertex stream.");
         }
 
         if (data.Lods.Count == 0)
         {
-            throw new InvalidDataException("Cooked mesh needs at least one LOD.");
+            throw new InvalidDataException("Mesh asset needs at least one LOD.");
         }
 
         uint stride = data.Streams[0].Stride;
-        foreach (CookedVertexStream stream in data.Streams)
+        foreach (MeshVertexStream stream in data.Streams)
         {
             if (stream.Stride != stride)
             {
@@ -85,7 +85,7 @@ public static class CookedMeshWriter
             }
         }
 
-        foreach (CookedMeshBuildLod lod in data.Lods)
+        foreach (MeshAssetBuildLod lod in data.Lods)
         {
             if (lod.Vertices.Length % stride != 0)
             {
@@ -101,10 +101,10 @@ public static class CookedMeshWriter
             }
         }
 
-        CookedMeshFlags flags = CookedMeshFlags.Interleaved;
+        MeshAssetFlags flags = MeshAssetFlags.Interleaved;
         if (data.Lods.Count > 1)
         {
-            flags |= CookedMeshFlags.HasLods;
+            flags |= MeshAssetFlags.HasLods;
         }
 
         // LOD bounds come from the position streams; the whole-mesh bounds are their union so
@@ -126,10 +126,10 @@ public static class CookedMeshWriter
             hasWholeBounds = true;
         }
 
-        CookedMeshMeta meta = new()
+        MeshAssetMeta meta = new()
         {
             Name = data.Name,
-            Version = CookedMeshFormatVersion.Current,
+            Version = MeshAssetFormatVersion.Current,
             Flags = flags,
             SourceHash = data.SourceHash,
             CookerVersion = CookerVersion,
@@ -137,12 +137,12 @@ public static class CookedMeshWriter
             Bounds = wholeBounds,
         };
 
-        foreach (CookedVertexStream stream in data.Streams)
+        foreach (MeshVertexStream stream in data.Streams)
         {
             meta.AddStream(new VertexStreamMeta(stream.Semantic, stream.Format, stream.Offset, stream.Stride, stream.QuantBounds));
         }
 
-        PackageBuilder<CookedMeshMeta> builder = new()
+        PackageBuilder<MeshAssetMeta> builder = new()
         {
             Meta = meta,
             EntryAlignment = EntryAlignment,
@@ -151,7 +151,7 @@ public static class CookedMeshWriter
         uint subMeshFirst = 0;
         for (int i = 0; i < data.Lods.Count; i++)
         {
-            CookedMeshBuildLod lod = data.Lods[i];
+            MeshAssetBuildLod lod = data.Lods[i];
             string vertexEntry = $"lod{i}/vertices";
             string indexEntry = $"lod{i}/indices";
             byte[] indexPayload = new byte[lod.Indices.Length * sizeof(uint)];
@@ -178,11 +178,11 @@ public static class CookedMeshWriter
         builder.Build(output);
     }
 
-    private static bool TryComputePositionBounds(CookedVertexStream[] streams, byte[] vertices, out BoundingBox3D bounds)
+    private static bool TryComputePositionBounds(MeshVertexStream[] streams, byte[] vertices, out BoundingBox3D bounds)
     {
-        CookedVertexStream position = default;
+        MeshVertexStream position = default;
         bool found = false;
-        foreach (CookedVertexStream stream in streams)
+        foreach (MeshVertexStream stream in streams)
         {
             if (stream.Semantic == MeshStreamSemantic.Position)
             {

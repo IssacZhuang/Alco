@@ -291,6 +291,9 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 
     // ── RSM pass (reflective shadow map for the voxel GI sun bounce) ──
 
+    /// <summary>Whether the RSM pass support is enabled (see <see cref="EnableRsm"/>).</summary>
+    public bool IsRsmEnabled => _rsmShader != null;
+
     /// <summary>
     /// Enable the RSM pass support: stores the RSM shader and attachment layout and
     /// creates the RSM render bundles. After this call the renderer can be

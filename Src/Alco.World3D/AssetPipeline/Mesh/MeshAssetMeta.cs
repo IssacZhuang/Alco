@@ -8,7 +8,7 @@ namespace Alco.World3D;
 /// Current format version written by the cooker. The major digit must be rejected by readers
 /// when higher than supported; meta schema evolution below that is handled by key defaults.
 /// </summary>
-public static class CookedMeshFormatVersion
+public static class MeshAssetFormatVersion
 {
     /// <summary>The version written by the current cooker.</summary>
     public const string Current = "1.0";
@@ -19,13 +19,13 @@ public static class CookedMeshFormatVersion
     /// <summary>
     /// Check a file's version string against the supported range.
     /// </summary>
-    /// <param name="version">The version string from a cooked mesh meta.</param>
+    /// <param name="version">The version string from a mesh asset meta.</param>
     /// <exception cref="InvalidDataException">Thrown when the major version is unsupported.</exception>
     public static void Validate(string version)
     {
         if (TryReadMajor(version, out int major) && major > SupportedMajor)
         {
-            throw new InvalidDataException($"Cooked mesh format version '{version}' is not supported (supported major: {SupportedMajor}).");
+            throw new InvalidDataException($"Mesh asset format version '{version}' is not supported (supported major: {SupportedMajor}).");
         }
     }
 
@@ -38,8 +38,8 @@ public static class CookedMeshFormatVersion
 }
 
 /// <summary>
-/// Serializable descriptor of one vertex stream in a cooked mesh file. Maps to
-/// <see cref="CookedVertexStream"/> at runtime.
+/// Serializable descriptor of one vertex stream in a mesh asset file. Maps to
+/// <see cref="MeshVertexStream"/> at runtime.
 /// </summary>
 public sealed class VertexStreamMeta : ISerializable
 {
@@ -96,7 +96,7 @@ public sealed class VertexStreamMeta : ISerializable
 }
 
 /// <summary>
-/// Serializable descriptor of one LOD level in a cooked mesh file.
+/// Serializable descriptor of one LOD level in a mesh asset file.
 /// </summary>
 public sealed class MeshLodMeta : ISerializable
 {
@@ -179,7 +179,7 @@ public sealed class MeshLodMeta : ISerializable
 }
 
 /// <summary>
-/// Serializable descriptor of one submesh (material slot) in a cooked mesh file: a named index
+/// Serializable descriptor of one submesh (material slot) in a mesh asset file: a named index
 /// range. The slot name is the stable identifier the composition layer (prefab) binds materials
 /// to — the mesh itself never references material assets.
 /// </summary>
@@ -226,7 +226,7 @@ public sealed class MeshSubMeshMeta : ISerializable
 }
 
 /// <summary>
-/// Serializable typed descriptor of one cooked mesh content entry: links the entry-name
+/// Serializable typed descriptor of one mesh asset content entry: links the entry-name
 /// locator from the package directory to its interpretation.
 /// </summary>
 public sealed class MeshChunkMeta : ISerializable
@@ -284,14 +284,14 @@ public sealed class MeshChunkMeta : ISerializable
 }
 
 /// <summary>
-/// Concrete package meta of the cooked mesh format (.amsh, magic <c>"amsh"</c>). The key-value
+/// Concrete package meta of the mesh asset format (.amsh, magic <c>"amsh"</c>). The key-value
 /// section carries all extensible metadata; hot tables and payloads are content entries.
 /// </summary>
-public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
+public sealed class MeshAssetMeta : PackageMetaBase, IPackageMeta
 {
     private static readonly byte[] s_magic = "amsh"u8.ToArray();
 
-    private CookedMeshFlags _flags;
+    private MeshAssetFlags _flags;
     private ulong _sourceHash;
     private uint _cookerVersion;
     private IndexFormat _indexFormat;
@@ -301,11 +301,11 @@ public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
     private readonly List<MeshSubMeshMeta> _subMeshes = new();
     private readonly List<MeshChunkMeta> _chunks = new();
 
-    /// <summary>Gets the 4-byte magic that identifies cooked mesh packages.</summary>
+    /// <summary>Gets the 4-byte magic that identifies mesh asset packages.</summary>
     public static ReadOnlySpan<byte> Magic => s_magic;
 
     /// <summary>Feature flags.</summary>
-    public CookedMeshFlags Flags
+    public MeshAssetFlags Flags
     {
         get => _flags;
         init => _flags = value;
@@ -371,7 +371,7 @@ public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
     public void AddChunk(MeshChunkMeta chunk) => _chunks.Add(chunk);
 
     /// <summary>
-    /// Serializes the cooked mesh fields after the inherited package directory.
+    /// Serializes the mesh asset fields after the inherited package directory.
     /// </summary>
     /// <param name="node">The serialization node.</param>
     /// <param name="mode">The serialization mode.</param>

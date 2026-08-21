@@ -6,9 +6,9 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// Descriptor of one LOD level of a <see cref="MeshStream"/>.
+/// Descriptor of one LOD level of a <see cref="MeshAsset"/>.
 /// </summary>
-public readonly struct MeshStreamLod
+public readonly struct MeshAssetLod
 {
     /// <summary>Number of vertices of the LOD.</summary>
     public uint VertexCount { get; }
@@ -35,7 +35,7 @@ public readonly struct MeshStreamLod
     /// <param name="bounds">LOD bounds.</param>
     /// <param name="vertexEntry">Vertex payload entry name.</param>
     /// <param name="indexEntry">Index payload entry name.</param>
-    public MeshStreamLod(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds, string vertexEntry, string indexEntry)
+    public MeshAssetLod(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds, string vertexEntry, string indexEntry)
     {
         VertexCount = vertexCount;
         IndexCount = indexCount;
@@ -47,11 +47,11 @@ public readonly struct MeshStreamLod
 }
 
 /// <summary>
-/// Descriptor of one submesh (material slot) of a <see cref="MeshStream"/>: a named
+/// Descriptor of one submesh (material slot) of a <see cref="MeshAsset"/>: a named
 /// index range. Materials bind to slot names in the composition layer (prefab) — the mesh
 /// itself carries no material references.
 /// </summary>
-public readonly struct MeshStreamSubMesh
+public readonly struct MeshAssetSubMesh
 {
     /// <summary>The slot name (typically the source material name).</summary>
     public string Name { get; }
@@ -66,7 +66,7 @@ public readonly struct MeshStreamSubMesh
     /// <param name="name">The slot name.</param>
     /// <param name="firstIndex">First index in the owning LOD's index buffer.</param>
     /// <param name="indexCount">Number of indices.</param>
-    public MeshStreamSubMesh(string name, uint firstIndex, uint indexCount)
+    public MeshAssetSubMesh(string name, uint firstIndex, uint indexCount)
     {
         Name = name;
         FirstIndex = firstIndex;
@@ -75,20 +75,20 @@ public readonly struct MeshStreamSubMesh
 }
 
 /// <summary>
-/// Lightweight handle to a cooked mesh asset (.amsh): the parsed meta tables plus a positional
+/// Lightweight handle to a mesh asset (.amsh): the parsed meta tables plus a positional
 /// file reader. Holds no geometry in memory — geometry streams into GPU residency on demand via
 /// <see cref="LoadLodAsync"/>. Bounds and structure are available before any payload load.
 /// </summary>
-public sealed class MeshStream : AutoDisposable
+public sealed class MeshAsset : AutoDisposable
 {
     // Feature flags this runtime consumes; anything else on the load path is rejected.
-    private const CookedMeshFlags SupportedFlags = CookedMeshFlags.Interleaved | CookedMeshFlags.HasLods;
+    private const MeshAssetFlags SupportedFlags = MeshAssetFlags.Interleaved | MeshAssetFlags.HasLods;
 
-    private readonly CookedMeshReader _reader;
+    private readonly MeshAssetReader _reader;
     private readonly GPUDevice? _device;
-    private readonly CookedVertexStream[] _streams;
-    private readonly MeshStreamLod[] _lods;
-    private readonly MeshStreamSubMesh[] _subMeshes;
+    private readonly MeshVertexStream[] _streams;
+    private readonly MeshAssetLod[] _lods;
+    private readonly MeshAssetSubMesh[] _subMeshes;
     private readonly uint[] _lodSubMeshFirst;
     private readonly uint[] _lodSubMeshCount;
     private readonly StreamableMesh?[] _residencies;
@@ -101,24 +101,24 @@ public sealed class MeshStream : AutoDisposable
     /// </summary>
     /// <param name="reader">The reader; ownership transfers to this asset.</param>
     /// <param name="device">The GPU device for residency uploads, null for header-only usage.</param>
-    internal MeshStream(CookedMeshReader reader, GPUDevice? device)
+    internal MeshAsset(MeshAssetReader reader, GPUDevice? device)
     {
         _reader = reader;
         _device = device;
 
-        CookedMeshMeta meta = reader.Meta;
+        MeshAssetMeta meta = reader.Meta;
 
         Name = meta.Name;
         Bounds = meta.Bounds;
         Flags = meta.Flags;
         LodCount = meta.Lods.Count;
-        HasClusters = Flags.HasFlag(CookedMeshFlags.HasClusters);
+        HasClusters = Flags.HasFlag(MeshAssetFlags.HasClusters);
 
-        _streams = new CookedVertexStream[meta.Streams.Count];
+        _streams = new MeshVertexStream[meta.Streams.Count];
         for (int i = 0; i < _streams.Length; i++)
         {
             VertexStreamMeta stream = meta.Streams[i];
-            _streams[i] = new CookedVertexStream
+            _streams[i] = new MeshVertexStream
             {
                 Semantic = stream.Semantic,
                 Format = stream.Format,
@@ -128,27 +128,27 @@ public sealed class MeshStream : AutoDisposable
             };
         }
 
-        _lods = new MeshStreamLod[meta.Lods.Count];
+        _lods = new MeshAssetLod[meta.Lods.Count];
         _lodSubMeshFirst = new uint[meta.Lods.Count];
         _lodSubMeshCount = new uint[meta.Lods.Count];
         for (int i = 0; i < _lods.Length; i++)
         {
             MeshLodMeta lod = meta.Lods[i];
-            _lods[i] = new MeshStreamLod(lod.VertexCount, lod.IndexCount, lod.MaxError, lod.Bounds, lod.VertexEntry, lod.IndexEntry);
+            _lods[i] = new MeshAssetLod(lod.VertexCount, lod.IndexCount, lod.MaxError, lod.Bounds, lod.VertexEntry, lod.IndexEntry);
             _lodSubMeshFirst[i] = lod.SubMeshFirst;
             _lodSubMeshCount[i] = lod.SubMeshCount;
 
             if (lod.SubMeshFirst + lod.SubMeshCount > (uint)meta.SubMeshes.Count)
             {
-                throw new InvalidDataException($"Cooked mesh '{meta.Name}' LOD {i} submesh range [{lod.SubMeshFirst}, {lod.SubMeshFirst + lod.SubMeshCount}) exceeds the submesh table ({meta.SubMeshes.Count} entries).");
+                throw new InvalidDataException($"Mesh asset '{meta.Name}' LOD {i} submesh range [{lod.SubMeshFirst}, {lod.SubMeshFirst + lod.SubMeshCount}) exceeds the submesh table ({meta.SubMeshes.Count} entries).");
             }
         }
 
-        _subMeshes = new MeshStreamSubMesh[meta.SubMeshes.Count];
+        _subMeshes = new MeshAssetSubMesh[meta.SubMeshes.Count];
         for (int i = 0; i < _subMeshes.Length; i++)
         {
             MeshSubMeshMeta subMesh = meta.SubMeshes[i];
-            _subMeshes[i] = new MeshStreamSubMesh(subMesh.Name, subMesh.FirstIndex, subMesh.IndexCount);
+            _subMeshes[i] = new MeshAssetSubMesh(subMesh.Name, subMesh.FirstIndex, subMesh.IndexCount);
         }
 
         // Residency/loading slots are indexed by LOD; the count is fixed by the meta.
@@ -163,7 +163,7 @@ public sealed class MeshStream : AutoDisposable
     public BoundingBox3D Bounds { get; }
 
     /// <summary>Feature flags of the file.</summary>
-    public CookedMeshFlags Flags { get; }
+    public MeshAssetFlags Flags { get; }
 
     /// <summary>Number of LOD levels in the file.</summary>
     public int LodCount { get; }
@@ -172,7 +172,7 @@ public sealed class MeshStream : AutoDisposable
     public bool HasClusters { get; }
 
     /// <summary>Vertex stream descriptors of the interleaved payload.</summary>
-    public ReadOnlySpan<CookedVertexStream> Streams => _streams;
+    public ReadOnlySpan<MeshVertexStream> Streams => _streams;
 
     /// <summary>
     /// Get the submesh (material slot) descriptors of one LOD. Materials bind to slot names
@@ -182,7 +182,7 @@ public sealed class MeshStream : AutoDisposable
     /// <param name="lodIndex">The LOD index.</param>
     /// <returns>The LOD's submesh descriptors.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the index is out of range.</exception>
-    public ReadOnlySpan<MeshStreamSubMesh> GetSubMeshes(int lodIndex)
+    public ReadOnlySpan<MeshAssetSubMesh> GetSubMeshes(int lodIndex)
     {
         if ((uint)lodIndex >= (uint)_lods.Length)
         {
@@ -195,23 +195,23 @@ public sealed class MeshStream : AutoDisposable
     /// <summary>
     /// Open a handle over a seekable stream. The stream ownership transfers to the returned asset.
     /// </summary>
-    /// <param name="stream">The seekable cooked mesh stream.</param>
+    /// <param name="stream">The seekable mesh asset stream.</param>
     /// <param name="device">The GPU device for residency uploads, null for header-only usage.</param>
     /// <returns>The asset handle.</returns>
-    internal static MeshStream FromStream(Stream stream, GPUDevice? device)
+    internal static MeshAsset FromStream(Stream stream, GPUDevice? device)
     {
-        return new MeshStream(CookedMeshReader.Open(stream, string.Empty), device);
+        return new MeshAsset(MeshAssetReader.Open(stream, string.Empty), device);
     }
 
     /// <summary>
-    /// Open a handle over cooked mesh bytes held in memory.
+    /// Open a handle over mesh asset bytes held in memory.
     /// </summary>
-    /// <param name="data">The cooked mesh bytes.</param>
+    /// <param name="data">The mesh asset bytes.</param>
     /// <param name="device">The GPU device for residency uploads, null for header-only usage.</param>
     /// <returns>The asset handle.</returns>
-    internal static MeshStream FromMemory(ReadOnlySpan<byte> data, GPUDevice? device)
+    internal static MeshAsset FromMemory(ReadOnlySpan<byte> data, GPUDevice? device)
     {
-        return new MeshStream(CookedMeshReader.OpenMemory(data), device);
+        return new MeshAsset(MeshAssetReader.OpenMemory(data), device);
     }
 
     /// <summary>
@@ -220,7 +220,7 @@ public sealed class MeshStream : AutoDisposable
     /// <param name="lodIndex">The LOD index.</param>
     /// <returns>The LOD descriptor.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the index is out of range.</exception>
-    public ref readonly MeshStreamLod GetLod(int lodIndex)
+    public ref readonly MeshAssetLod GetLod(int lodIndex)
     {
         if ((uint)lodIndex >= (uint)_lods.Length)
         {
@@ -322,7 +322,7 @@ public sealed class MeshStream : AutoDisposable
     {
         try
         {
-            MeshStreamLod lod = _lods[lodIndex];
+            MeshAssetLod lod = _lods[lodIndex];
             MeshChunkMeta vertexChunk = _reader.GetChunk(lod.VertexEntry);
             MeshChunkMeta indexChunk = _reader.GetChunk(lod.IndexEntry);
             ValidateChunk(vertexChunk, lod.VertexEntry);
@@ -372,7 +372,7 @@ public sealed class MeshStream : AutoDisposable
                     // The asset was disposed mid-load: drop the residency instead of caching it into a
                     // dead asset. Its GPU buffers reclaim through their own finalizer-safe path; calling
                     // Dispose here would run on a worker thread, off the device-owning thread.
-                    throw new ObjectDisposedException(nameof(MeshStream), $"Cooked mesh '{Name}' was disposed while LOD {lodIndex} was loading.");
+                    throw new ObjectDisposedException(nameof(MeshAsset), $"Mesh asset '{Name}' was disposed while LOD {lodIndex} was loading.");
                 }
 
                 _residencies[lodIndex] = mesh;
@@ -394,18 +394,18 @@ public sealed class MeshStream : AutoDisposable
 
     private StreamableMesh CreateResidency(int lodIndex, SafeMemoryHandle vertexData, SafeMemoryHandle indexData)
     {
-        MeshStreamLod lod = _lods[lodIndex];
+        MeshAssetLod lod = _lods[lodIndex];
         uint stride = _streams.Length > 0 ? _streams[0].Stride : 0;
 
         StreamableMesh mesh = new(_device!, (uint)vertexData.AsReadOnlySpan().Length, (uint)indexData.AsReadOnlySpan().Length, stride, lodIndex, Name);
         mesh.UploadVertex(vertexData.AsReadOnlySpan());
         mesh.UploadIndices(indexData.AsReadOnlySpan());
 
-        ReadOnlySpan<MeshStreamSubMesh> subMeshTable = GetSubMeshes(lodIndex);
+        ReadOnlySpan<MeshAssetSubMesh> subMeshTable = GetSubMeshes(lodIndex);
         Span<SubMeshData> subMeshes = stackalloc SubMeshData[subMeshTable.Length];
         for (int i = 0; i < subMeshTable.Length; i++)
         {
-            MeshStreamSubMesh subMesh = subMeshTable[i];
+            MeshAssetSubMesh subMesh = subMeshTable[i];
             subMeshes[i] = new SubMeshData
             {
                 Index = i,
@@ -427,14 +427,14 @@ public sealed class MeshStream : AutoDisposable
     {
         if (chunk.Codec != MeshChunkCodec.None)
         {
-            throw new NotSupportedException($"Cooked mesh entry '{entryName}' uses unsupported codec {chunk.Codec}.");
+            throw new NotSupportedException($"Mesh asset entry '{entryName}' uses unsupported codec {chunk.Codec}.");
         }
 
         if ((_reader.Meta.Flags & ~SupportedFlags) != 0)
         {
             // Quantization/paging features affect payload interpretation; reject per LOD load.
-            CookedMeshFlags unsupported = _reader.Meta.Flags & ~SupportedFlags;
-            throw new NotSupportedException($"Cooked mesh '{Name}' uses unsupported features: {unsupported}.");
+            MeshAssetFlags unsupported = _reader.Meta.Flags & ~SupportedFlags;
+            throw new NotSupportedException($"Mesh asset '{Name}' uses unsupported features: {unsupported}.");
         }
     }
 
