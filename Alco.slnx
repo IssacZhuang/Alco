@@ -64,6 +64,7 @@
     <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
     <Project Path="Src/Alco.Profiler/Alco.Profiler.csproj" />
     <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
+    <Project Path="Src/Alco.World3D/Alco.World3D.csproj" />
     <Project Path="Src/Alco.ShaderCompiler/Alco.ShaderCompiler.csproj" />
     <Project Path="Src/Alco/Alco.csproj" />
   </Folder>
@@ -77,6 +78,7 @@
     <Project Path="Test/Alco.ImGUI.Test/Alco.ImGUI.Test.csproj" />
     <Project Path="Test/Alco.IO.Test/Alco.IO.Test.csproj" />
     <Project Path="Test/Alco.Rendering.Test/Alco.Rendering.Test.csproj" />
+    <Project Path="Test/Alco.World3D.Test/Alco.World3D.Test.csproj" />
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
     <Project Path="Test/TestFramework/TestFramework.csproj" />
     <Project Path="Test/Alco.ShaderCompiler.Test/Alco.ShaderCompiler.Test.csproj" />

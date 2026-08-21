@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
     <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.World3D\Alco.World3D.csproj" />
     <ProjectReference Include="..\..\Sandbox\~SandboxUtils\~SandboxUtils.csproj" />
   </ItemGroup>
 

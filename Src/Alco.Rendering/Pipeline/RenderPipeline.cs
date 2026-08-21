@@ -11,9 +11,9 @@ namespace Alco.Rendering;
 /// nothing but a shell plus the nodes composed into its graph. A plain forward
 /// pipeline is just this shell with content and chain transform nodes added via
 /// <see cref="Use"/>; a deferred PBR pipeline is this shell with shadow, G-buffer,
-/// deferred lighting and overlay nodes — assembled by the preset factory
-/// (<see cref="RenderPipelines.CreatePBRDeferred"/>) or by hand from the same
-/// public building blocks.
+/// deferred lighting and overlay nodes — assembled by a preset factory (e.g. the
+/// Alco.World3D module's <c>RenderPipelines.CreatePBRDeferred</c>) or by hand from
+/// the same public building blocks.
 /// <br/>The pipeline is a plain object, created and driven manually by its owner
 /// (the engine for the main view, game code for additional views):
 /// <list type="number">
@@ -83,12 +83,20 @@ public sealed class RenderPipeline : AutoDisposable
     /// <summary>
     /// Creates a shell over an already-composed graph: the graph, its scene color
     /// resource, content chain and final blit were built by the caller (a preset
-    /// factory — see <see cref="RenderPipelines"/>) and are adopted by the shell,
-    /// which owns and disposes the graph (and through it the nodes and transients)
-    /// from this point on. There is no clear node; the composed passes clear their
-    /// own targets.
+    /// factory — inside the engine or in an external module such as Alco.World3D)
+    /// and are adopted by the shell, which owns and disposes the graph (and through
+    /// it the nodes and transients) from this point on. There is no clear node; the
+    /// composed passes clear their own targets.
     /// </summary>
-    internal RenderPipeline(RenderingSystem rendering, RenderGraph graph, RenderGraphTexture sceneColor, RenderChain chain, RGNode_Blit finalBlit)
+    /// <param name="rendering">The rendering system.</param>
+    /// <param name="graph">The fully composed graph (nodes already registered in
+    /// execution order). Ownership transfers to the pipeline.</param>
+    /// <param name="sceneColor">The graph's scene color resource: the chain root and
+    /// the target of the final blit. Must carry an attachment layout.</param>
+    /// <param name="chain">The content chain threading the scene color through the
+    /// graph's chain nodes.</param>
+    /// <param name="finalBlit">The final blit node, already registered in the graph.</param>
+    public RenderPipeline(RenderingSystem rendering, RenderGraph graph, RenderGraphTexture sceneColor, RenderChain chain, RGNode_Blit finalBlit)
     {
         _graph = graph;
         _chain = chain;

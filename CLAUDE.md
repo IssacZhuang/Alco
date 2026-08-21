@@ -11,7 +11,8 @@
 - **Alco/** - Base library including math, spatial, threading, and utilities
 - **Alco.Engine/** - Main engine implementation
 - **Alco.Graphics/** - Graphics abstraction layer
-- **Alco.Rendering/** - Rendering pipeline
+- **Alco.Rendering/** - Rendering pipeline (render graph, render pipeline framework, shared GPU resource facades)
+- **Alco.World3D/** - 3D PBR rendering module (deferred render nodes, scene environment, preset factory); references Alco.Engine like Alco.ImGUI and is consumed on demand — Alco.Engine never references it
 - **Alco.Audio/** - Audio system
 - **Alco.GUI/** - GUI framework
 - **Alco.IO/** - Input/Output handling

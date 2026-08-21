@@ -2,6 +2,7 @@ using System.Numerics;
 using NUnit.Framework;
 using Alco.Graphics;
 using Alco.Rendering;
+using Alco.World3D;
 
 namespace Alco.Rendering.Test;
 
@@ -12,7 +13,8 @@ namespace Alco.Rendering.Test;
 /// <item>A user can compose a complete rendering pipeline from scratch — graph,
 /// transient targets, clear / content / transform / blit nodes.</item>
 /// <item>A user can replace a pipeline stage with their own implementation
-/// (here: the deferred lighting pass of <see cref="RenderPipelines"/>).</item>
+/// (here: the deferred lighting pass of a preset composed by
+/// <see cref="RenderPipelines"/>).</item>
 /// <item>A user can insert custom post-process effects into an existing pipeline,
 /// reorder and toggle them, and remove them again at runtime.</item>
 /// </list>

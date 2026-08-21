@@ -6,6 +6,7 @@ using Alco.GUI;
 using Alco.ImGUI;
 using Alco.IO;
 using Alco.Rendering;
+using Alco.World3D;
 using SandboxUtils;
 
 /// <summary>
@@ -424,22 +425,22 @@ public class Game : GameEngine
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_PBRDeferredLighting),
+            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_DeferredLighting),
             BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            volumetricLightShader: BuiltInAssets.Shader_PBRVolumetricLight);
+            volumetricLightShader: AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricLight));
         _environment = _preset.Environment;
         _environment.VolumetricLightEnabled = true;
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
-            BuiltInAssets.Shader_PBRGBuffer);
+            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_GBuffer));
 
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
-            BuiltInAssets.Shader_PBRShadowDepth,
+            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_ShadowDepth),
             _preset.ShadowLayout,
             _environment.ShadowDataBuffer);
 
@@ -786,6 +787,8 @@ public class Game : GameEngine
             yield return fileSource;
         }
         yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), AssetSystem);
+        yield return new DirectoryWatcherFileSource(
+            Path.Combine(Utils.GetSolutionFolder(), "Src", "Alco.World3D", "Assets"), AssetSystem);
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 

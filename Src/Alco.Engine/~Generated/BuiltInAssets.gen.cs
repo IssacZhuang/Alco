@@ -48,9 +48,9 @@ public partial class BuiltInAssets
 
     public Shader Shader_BloomUpSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl");
 
-    public Shader Shader_AgXTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/AgXTonemap.hlsl");
-
     public Shader Shader_ACESTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl");
+
+    public Shader Shader_AgXTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/AgXTonemap.hlsl");
 
     public Shader Shader_FilmicTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/FilmicTonemap.hlsl");
 
@@ -65,14 +65,6 @@ public partial class BuiltInAssets
     public Shader Shader_Particle2D => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl");
 
     public Shader Shader_Particle2DAnimated => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl");
-
-    public Shader Shader_PBRDeferredLighting => GetShader("Shaders/Pipelines/Rendering/PBR/DeferredLighting.hlsl");
-
-    public Shader Shader_PBRGBuffer => GetShader("Shaders/Pipelines/Rendering/PBR/GBuffer.hlsl");
-
-    public Shader Shader_PBRShadowDepth => GetShader("Shaders/Pipelines/Rendering/PBR/ShadowDepth.hlsl");
-
-    public Shader Shader_PBRVolumetricLight => GetShader("Shaders/Pipelines/Rendering/PBR/VolumetricLight.hlsl");
 
     public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
 

@@ -345,19 +345,24 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a Texture2D from existing GPU resources.
-    /// <br/>The wrapper does NOT take ownership of <paramref name="texture"/> and
-    /// <paramref name="textureView"/>: being created outside, their lifetime is
-    /// managed by the caller (e.g. the frame buffer whose attachments they are),
-    /// the same rule as the externally supplied sampler.
+    /// <br/>By default the wrapper does NOT take ownership of
+    /// <paramref name="texture"/> and <paramref name="textureView"/>: being created
+    /// outside, their lifetime is managed by the caller (e.g. the frame buffer whose
+    /// attachments they are), the same rule as the externally supplied sampler. Pass
+    /// <paramref name="ownsResources"/> to transfer ownership to the wrapper instead
+    /// (its disposal then releases the texture and view).
     /// </summary>
     /// <param name="texture">The GPU texture.</param>
     /// <param name="textureView">The GPU texture view.</param>
     /// <param name="sampler">The GPU sampler.</param>
+    /// <param name="ownsResources">Whether the wrapper owns (and disposes) the
+    /// texture and view. The sampler's lifetime is always the caller's.</param>
     /// <returns>A new Texture2D instance.</returns>
     public Texture2D CreateTexture2D(
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler  
+        GPUSampler sampler,
+        bool ownsResources = false
     )
     {
         return new Texture2D(
@@ -366,7 +371,7 @@ public partial class RenderingSystem
             textureView,
             sampler,
             null,
-            ownsResources: false
+            ownsResources
         );
     }
 

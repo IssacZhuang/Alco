@@ -18,14 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TestFramework\TestFramework.csproj" />
-    <ProjectReference Include="..\..\Src\Alco.Rendering\Alco.Rendering.csproj" />
     <ProjectReference Include="..\..\Src\Alco.World3D\Alco.World3D.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Files\**">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
 </Project>
