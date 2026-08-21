@@ -1,4 +1,5 @@
 using Alco;
+using Alco.Graphics;
 using Alco.IO;
 
 namespace Alco.World3D;
@@ -42,17 +43,17 @@ public static class CookedMeshFormatVersion
 /// </summary>
 public sealed class VertexStreamMeta : ISerializable
 {
-    private uint _semantic;
-    private uint _format;
+    private MeshStreamSemantic _semantic;
+    private VertexFormat _format;
     private uint _offset;
     private uint _stride;
     private BoundingBox3D _quantBounds;
 
-    /// <summary>Stream semantic (<see cref="MeshStreamSemantic"/> value).</summary>
-    public uint Semantic => _semantic;
+    /// <summary>Stream semantic.</summary>
+    public MeshStreamSemantic Semantic => _semantic;
 
-    /// <summary>Vertex format (<see cref="Alco.Graphics.VertexFormat"/> value).</summary>
-    public uint Format => _format;
+    /// <summary>Vertex format.</summary>
+    public VertexFormat Format => _format;
 
     /// <summary>Byte offset inside the interleaved vertex.</summary>
     public uint Offset => _offset;
@@ -69,12 +70,12 @@ public sealed class VertexStreamMeta : ISerializable
     }
 
     /// <summary>Creates a stream descriptor.</summary>
-    /// <param name="semantic">Stream semantic value.</param>
-    /// <param name="format">Vertex format value.</param>
+    /// <param name="semantic">Stream semantic.</param>
+    /// <param name="format">Vertex format.</param>
     /// <param name="offset">Byte offset inside the interleaved vertex.</param>
     /// <param name="stride">Interleaved vertex stride in bytes.</param>
     /// <param name="quantBounds">Quantization domain (Position only).</param>
-    public VertexStreamMeta(uint semantic, uint format, uint offset, uint stride, in BoundingBox3D quantBounds)
+    public VertexStreamMeta(MeshStreamSemantic semantic, VertexFormat format, uint offset, uint stride, in BoundingBox3D quantBounds)
     {
         _semantic = semantic;
         _format = format;
@@ -86,8 +87,8 @@ public sealed class VertexStreamMeta : ISerializable
     /// <inheritdoc />
     public void OnSerialize(SerializeNode node, SerializeMode mode)
     {
-        node.BindValue(nameof(_semantic), ref _semantic);
-        node.BindValue(nameof(_format), ref _format);
+        node.BindEnum(nameof(_semantic), ref _semantic);
+        node.BindEnum(nameof(_format), ref _format);
         node.BindValue(nameof(_offset), ref _offset);
         node.BindValue(nameof(_stride), ref _stride);
         node.BindValue(nameof(_quantBounds), ref _quantBounds);
@@ -106,6 +107,8 @@ public sealed class MeshLodMeta : ISerializable
     private string _vertexEntry = string.Empty;
     private string _indexEntry = string.Empty;
     private string _clusterEntry = string.Empty;
+    private uint _subMeshFirst;
+    private uint _subMeshCount;
 
     /// <summary>Number of vertices of this LOD.</summary>
     public uint VertexCount => _vertexCount;
@@ -128,6 +131,12 @@ public sealed class MeshLodMeta : ISerializable
     /// <summary>Content entry name of the cluster table, empty when absent.</summary>
     public string ClusterEntry => _clusterEntry;
 
+    /// <summary>First submesh (material slot) descriptor of this LOD in the mesh's submesh table.</summary>
+    public uint SubMeshFirst => _subMeshFirst;
+
+    /// <summary>Number of submesh (material slot) descriptors of this LOD.</summary>
+    public uint SubMeshCount => _subMeshCount;
+
     /// <summary>Creates an empty LOD descriptor for serialization.</summary>
     public MeshLodMeta()
     {
@@ -140,7 +149,9 @@ public sealed class MeshLodMeta : ISerializable
     /// <param name="bounds">LOD bounds.</param>
     /// <param name="vertexEntry">Vertex payload entry name.</param>
     /// <param name="indexEntry">Index payload entry name.</param>
-    public MeshLodMeta(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds, string vertexEntry, string indexEntry)
+    /// <param name="subMeshFirst">First submesh descriptor of this LOD in the mesh's submesh table.</param>
+    /// <param name="subMeshCount">Number of submesh descriptors of this LOD.</param>
+    public MeshLodMeta(uint vertexCount, uint indexCount, float maxError, in BoundingBox3D bounds, string vertexEntry, string indexEntry, uint subMeshFirst, uint subMeshCount)
     {
         _vertexCount = vertexCount;
         _indexCount = indexCount;
@@ -148,6 +159,8 @@ public sealed class MeshLodMeta : ISerializable
         _bounds = bounds;
         _vertexEntry = vertexEntry;
         _indexEntry = indexEntry;
+        _subMeshFirst = subMeshFirst;
+        _subMeshCount = subMeshCount;
     }
 
     /// <inheritdoc />
@@ -160,13 +173,15 @@ public sealed class MeshLodMeta : ISerializable
         node.BindString(nameof(_vertexEntry), ref _vertexEntry);
         node.BindString(nameof(_indexEntry), ref _indexEntry);
         node.BindString(nameof(_clusterEntry), ref _clusterEntry);
+        node.BindValue(nameof(_subMeshFirst), ref _subMeshFirst);
+        node.BindValue(nameof(_subMeshCount), ref _subMeshCount);
     }
 }
 
 /// <summary>
-/// Serializable descriptor of one submesh (material slot) in a cooked mesh file: a named
-/// index range. The slot name is the stable identifier the composition layer (prefab)
-/// binds materials to — the mesh itself never references material assets.
+/// Serializable descriptor of one submesh (material slot) in a cooked mesh file: a named index
+/// range. The slot name is the stable identifier the composition layer (prefab) binds materials
+/// to — the mesh itself never references material assets.
 /// </summary>
 public sealed class MeshSubMeshMeta : ISerializable
 {
@@ -177,7 +192,9 @@ public sealed class MeshSubMeshMeta : ISerializable
     /// <summary>The slot name (typically the source material name).</summary>
     public string Name => _name;
 
-    /// <summary>First index in the LOD0 index buffer.</summary>
+    /// <summary>First index in the owning LOD's index buffer; the owning LOD is the one whose
+    /// submesh range (<see cref="MeshLodMeta.SubMeshFirst"/>/<see cref="MeshLodMeta.SubMeshCount"/>)
+    /// covers this descriptor.</summary>
     public uint FirstIndex => _firstIndex;
 
     /// <summary>Number of indices of the submesh.</summary>
@@ -190,7 +207,7 @@ public sealed class MeshSubMeshMeta : ISerializable
 
     /// <summary>Creates a submesh descriptor.</summary>
     /// <param name="name">The slot name.</param>
-    /// <param name="firstIndex">First index in the LOD0 index buffer.</param>
+    /// <param name="firstIndex">First index in the owning LOD's index buffer.</param>
     /// <param name="indexCount">Number of indices.</param>
     public MeshSubMeshMeta(string name, uint firstIndex, uint indexCount)
     {
@@ -215,19 +232,19 @@ public sealed class MeshSubMeshMeta : ISerializable
 public sealed class MeshChunkMeta : ISerializable
 {
     private string _entry = string.Empty;
-    private uint _type;
-    private uint _codec;
+    private MeshChunkType _type;
+    private MeshChunkCodec _codec;
     private uint _uncompressedSize;
     private ulong _hash;
 
     /// <summary>The content entry name this descriptor refers to.</summary>
     public string Entry => _entry;
 
-    /// <summary>Chunk type (<see cref="MeshChunkType"/> value).</summary>
-    public uint Type => _type;
+    /// <summary>Chunk type.</summary>
+    public MeshChunkType Type => _type;
 
-    /// <summary>Chunk codec (<see cref="MeshChunkCodec"/> value).</summary>
-    public uint Codec => _codec;
+    /// <summary>Chunk codec.</summary>
+    public MeshChunkCodec Codec => _codec;
 
     /// <summary>Uncompressed size in bytes; equals the entry size for codec None.</summary>
     public uint UncompressedSize => _uncompressedSize;
@@ -242,11 +259,11 @@ public sealed class MeshChunkMeta : ISerializable
 
     /// <summary>Creates a chunk descriptor.</summary>
     /// <param name="entry">Content entry name.</param>
-    /// <param name="type">Chunk type value.</param>
-    /// <param name="codec">Chunk codec value.</param>
+    /// <param name="type">Chunk type.</param>
+    /// <param name="codec">Chunk codec.</param>
     /// <param name="uncompressedSize">Uncompressed size in bytes.</param>
     /// <param name="hash">xxHash64 over the stored entry bytes.</param>
-    public MeshChunkMeta(string entry, uint type, uint codec, uint uncompressedSize, ulong hash)
+    public MeshChunkMeta(string entry, MeshChunkType type, MeshChunkCodec codec, uint uncompressedSize, ulong hash)
     {
         _entry = entry;
         _type = type;
@@ -259,8 +276,8 @@ public sealed class MeshChunkMeta : ISerializable
     public void OnSerialize(SerializeNode node, SerializeMode mode)
     {
         node.BindString(nameof(_entry), ref _entry);
-        node.BindValue(nameof(_type), ref _type);
-        node.BindValue(nameof(_codec), ref _codec);
+        node.BindEnum(nameof(_type), ref _type);
+        node.BindEnum(nameof(_codec), ref _codec);
         node.BindValue(nameof(_uncompressedSize), ref _uncompressedSize);
         node.BindValue(nameof(_hash), ref _hash);
     }
@@ -274,10 +291,10 @@ public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
 {
     private static readonly byte[] s_magic = "amsh"u8.ToArray();
 
-    private uint _flags;
+    private CookedMeshFlags _flags;
     private ulong _sourceHash;
     private uint _cookerVersion;
-    private uint _indexFormat;
+    private IndexFormat _indexFormat;
     private BoundingBox3D _bounds;
     private readonly List<VertexStreamMeta> _streams = new();
     private readonly List<MeshLodMeta> _lods = new();
@@ -287,8 +304,8 @@ public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
     /// <summary>Gets the 4-byte magic that identifies cooked mesh packages.</summary>
     public static ReadOnlySpan<byte> Magic => s_magic;
 
-    /// <summary>Feature flags (<see cref="CookedMeshFlags"/>).</summary>
-    public uint Flags
+    /// <summary>Feature flags.</summary>
+    public CookedMeshFlags Flags
     {
         get => _flags;
         init => _flags = value;
@@ -308,8 +325,8 @@ public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
         init => _cookerVersion = value;
     }
 
-    /// <summary>Global index format (<see cref="Alco.Graphics.IndexFormat"/> value).</summary>
-    public uint IndexFormat
+    /// <summary>Global index format.</summary>
+    public IndexFormat IndexFormat
     {
         get => _indexFormat;
         init => _indexFormat = value;
@@ -328,8 +345,10 @@ public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
     /// <summary>LOD descriptors; entry i is LOD i.</summary>
     public IReadOnlyList<MeshLodMeta> Lods => _lods;
 
-    /// <summary>Submesh (material slot) descriptors, index ranges into LOD0. Materials bind
-    /// to slot names externally (prefab layer); the mesh references no material assets.</summary>
+    /// <summary>Submesh (material slot) descriptors, partitioned per LOD and referenced through
+    /// each LOD's <see cref="MeshLodMeta.SubMeshFirst"/>/<see cref="MeshLodMeta.SubMeshCount"/>
+    /// range. Slot names and order should stay aligned across LODs so composition-layer material
+    /// binding by slot name is LOD-stable; the mesh references no material assets.</summary>
     public IReadOnlyList<MeshSubMeshMeta> SubMeshes => _subMeshes;
 
     /// <summary>Typed chunk descriptors linking content entries to their interpretation.</summary>
@@ -359,10 +378,10 @@ public sealed class CookedMeshMeta : PackageMetaBase, IPackageMeta
     public override void OnSerialize(SerializeNode node, SerializeMode mode)
     {
         base.OnSerialize(node, mode);
-        node.BindValue(nameof(_flags), ref _flags);
+        node.BindEnum(nameof(_flags), ref _flags);
         node.BindValue(nameof(_sourceHash), ref _sourceHash);
         node.BindValue(nameof(_cookerVersion), ref _cookerVersion);
-        node.BindValue(nameof(_indexFormat), ref _indexFormat);
+        node.BindEnum(nameof(_indexFormat), ref _indexFormat);
         node.BindValue(nameof(_bounds), ref _bounds);
         node.BindCollectionSerializable(nameof(_streams), _streams);
         node.BindCollectionSerializable(nameof(_lods), _lods);

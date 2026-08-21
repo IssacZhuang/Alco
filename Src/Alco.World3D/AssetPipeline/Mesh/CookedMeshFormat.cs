@@ -200,7 +200,9 @@ public unsafe struct ClusterRecord
     /// <summary>Offset into the owning page's index pool.</summary>
     public uint IndexOffset;
 
-    /// <summary>Number of indices (3 * triangle count; 8-bit local indices).</summary>
+    /// <summary>Number of indices (3 * triangle count). Cluster-local indices are 16-bit so the
+    /// same page payload can serve both the software path (storage-buffer reads) and hardware
+    /// raster (index buffer views); 8-bit is not a valid hardware index format.</summary>
     public uint IndexCount;
 
     /// <summary>Index into the group table, -1 for roots.</summary>
@@ -212,8 +214,12 @@ public unsafe struct ClusterRecord
     /// <summary>Index of the owning page.</summary>
     public uint PageIndex;
 
+    /// <summary>Index into the mesh's material slot (submesh) table. Slot order is stable across
+    /// LODs, so this is the position within the owning LOD's submesh range.</summary>
+    public ushort MaterialSlot;
+
     /// <summary>Reserved, must be zero.</summary>
-    public uint Reserved;
+    public ushort Reserved;
 }
 
 /// <summary>

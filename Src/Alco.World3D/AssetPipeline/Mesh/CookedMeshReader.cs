@@ -8,9 +8,10 @@ namespace Alco.World3D;
 /// <summary>
 /// Reads a cooked mesh package (.amsh) over a seekable stream with positional, concurrency-safe
 /// access (backed by <see cref="PackageReader{TMeta}"/>). Owns the stream. Hash-verifies chunk
-/// reads against the meta descriptors. M1 supports codec <see cref="MeshChunkCodec.None"/> only.
+/// reads against the meta descriptors. Reading counterpart of <see cref="CookedMeshWriter"/>;
+/// supports codec <see cref="MeshChunkCodec.None"/> only.
 /// </summary>
-internal sealed unsafe class MeshFileReader : IDisposable
+public sealed unsafe class CookedMeshReader : AutoDisposable
 {
     private readonly Stream _stream;
     private readonly PackageReader<CookedMeshMeta> _reader;
@@ -18,7 +19,7 @@ internal sealed unsafe class MeshFileReader : IDisposable
     /// <summary>Gets the parsed meta of the file.</summary>
     public CookedMeshMeta Meta => _reader.Meta;
 
-    private MeshFileReader(Stream stream, PackageReader<CookedMeshMeta> reader)
+    private CookedMeshReader(Stream stream, PackageReader<CookedMeshMeta> reader)
     {
         _stream = stream;
         _reader = reader;
@@ -31,13 +32,13 @@ internal sealed unsafe class MeshFileReader : IDisposable
     /// <param name="name">The asset name used in diagnostics.</param>
     /// <returns>The reader.</returns>
     /// <exception cref="InvalidDataException">Thrown when the magic or version is invalid.</exception>
-    public static MeshFileReader Open(Stream stream, string name)
+    public static CookedMeshReader Open(Stream stream, string name)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
         PackageReader<CookedMeshMeta> reader = PackageReader<CookedMeshMeta>.OpenStream(stream);
         CookedMeshFormatVersion.Validate(reader.Meta.Version);
-        return new MeshFileReader(stream, reader);
+        return new CookedMeshReader(stream, reader);
     }
 
     /// <summary>
@@ -47,12 +48,12 @@ internal sealed unsafe class MeshFileReader : IDisposable
     /// <param name="data">The cooked mesh bytes.</param>
     /// <returns>The reader.</returns>
     /// <exception cref="InvalidDataException">Thrown when the magic or version is invalid.</exception>
-    public static MeshFileReader OpenMemory(ReadOnlySpan<byte> data)
+    public static CookedMeshReader OpenMemory(ReadOnlySpan<byte> data)
     {
         byte[] copy = data.ToArray();
         PackageReader<CookedMeshMeta> reader = PackageReader<CookedMeshMeta>.OpenMemory(copy);
         CookedMeshFormatVersion.Validate(reader.Meta.Version);
-        return new MeshFileReader(new MemoryStream(copy, writable: false), reader);
+        return new CookedMeshReader(new MemoryStream(copy, writable: false), reader);
     }
 
     /// <summary>
@@ -118,9 +119,9 @@ internal sealed unsafe class MeshFileReader : IDisposable
     /// <exception cref="NotSupportedException">Thrown for codecs other than None.</exception>
     public void ReadChunk(in MeshChunkMeta chunk, SafeMemoryHandle destination)
     {
-        if ((MeshChunkCodec)chunk.Codec != MeshChunkCodec.None)
+        if (chunk.Codec != MeshChunkCodec.None)
         {
-            throw new NotSupportedException($"Cooked mesh chunk '{chunk.Entry}' uses unsupported codec {(MeshChunkCodec)chunk.Codec}.");
+            throw new NotSupportedException($"Cooked mesh chunk '{chunk.Entry}' uses unsupported codec {chunk.Codec}.");
         }
 
         if (!TryGetEntrySize(chunk.Entry, out long size))
@@ -163,8 +164,12 @@ internal sealed unsafe class MeshFileReader : IDisposable
         throw new InvalidDataException($"Cooked mesh entry '{entryName}' has no chunk descriptor.");
     }
 
-    /// <inheritdoc />
-    public void Dispose()
+    /// <summary>
+    /// Disposes the package reader and the underlying stream. Pure IO — safe from any thread,
+    /// including the finalizer path.
+    /// </summary>
+    /// <param name="disposing">True when called from <see cref="Dispose()"/>, false from the finalizer.</param>
+    protected override void Dispose(bool disposing)
     {
         _reader.Dispose();
         _stream.Dispose();

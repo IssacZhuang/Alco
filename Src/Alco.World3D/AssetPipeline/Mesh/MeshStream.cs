@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using Alco.Graphics;
 using Alco.Rendering;
 
@@ -55,7 +56,7 @@ public readonly struct MeshStreamSubMesh
     /// <summary>The slot name (typically the source material name).</summary>
     public string Name { get; }
 
-    /// <summary>First index in the LOD0 index buffer.</summary>
+    /// <summary>First index in the owning LOD's index buffer.</summary>
     public uint FirstIndex { get; }
 
     /// <summary>Number of indices of the submesh.</summary>
@@ -63,7 +64,7 @@ public readonly struct MeshStreamSubMesh
 
     /// <summary>Creates a submesh descriptor.</summary>
     /// <param name="name">The slot name.</param>
-    /// <param name="firstIndex">First index in the LOD0 index buffer.</param>
+    /// <param name="firstIndex">First index in the owning LOD's index buffer.</param>
     /// <param name="indexCount">Number of indices.</param>
     public MeshStreamSubMesh(string name, uint firstIndex, uint indexCount)
     {
@@ -78,18 +79,20 @@ public readonly struct MeshStreamSubMesh
 /// file reader. Holds no geometry in memory — geometry streams into GPU residency on demand via
 /// <see cref="LoadLodAsync"/>. Bounds and structure are available before any payload load.
 /// </summary>
-public sealed class MeshStream : IDisposable
+public sealed class MeshStream : AutoDisposable
 {
     // Feature flags this runtime consumes; anything else on the load path is rejected.
     private const CookedMeshFlags SupportedFlags = CookedMeshFlags.Interleaved | CookedMeshFlags.HasLods;
 
-    private readonly MeshFileReader _reader;
+    private readonly CookedMeshReader _reader;
     private readonly GPUDevice? _device;
     private readonly CookedVertexStream[] _streams;
     private readonly MeshStreamLod[] _lods;
     private readonly MeshStreamSubMesh[] _subMeshes;
-    private readonly Dictionary<int, StreamableMesh> _residencies = new();
-    private readonly Dictionary<int, Task<StreamableMesh>> _loading = new();
+    private readonly uint[] _lodSubMeshFirst;
+    private readonly uint[] _lodSubMeshCount;
+    private readonly StreamableMesh?[] _residencies;
+    private readonly Task<StreamableMesh>?[] _loading;
     private readonly object _lock = new();
 
     /// <summary>
@@ -98,7 +101,7 @@ public sealed class MeshStream : IDisposable
     /// </summary>
     /// <param name="reader">The reader; ownership transfers to this asset.</param>
     /// <param name="device">The GPU device for residency uploads, null for header-only usage.</param>
-    internal MeshStream(MeshFileReader reader, GPUDevice? device)
+    internal MeshStream(CookedMeshReader reader, GPUDevice? device)
     {
         _reader = reader;
         _device = device;
@@ -107,7 +110,7 @@ public sealed class MeshStream : IDisposable
 
         Name = meta.Name;
         Bounds = meta.Bounds;
-        Flags = (CookedMeshFlags)meta.Flags;
+        Flags = meta.Flags;
         LodCount = meta.Lods.Count;
         HasClusters = Flags.HasFlag(CookedMeshFlags.HasClusters);
 
@@ -117,8 +120,8 @@ public sealed class MeshStream : IDisposable
             VertexStreamMeta stream = meta.Streams[i];
             _streams[i] = new CookedVertexStream
             {
-                Semantic = (MeshStreamSemantic)stream.Semantic,
-                Format = (Alco.Graphics.VertexFormat)stream.Format,
+                Semantic = stream.Semantic,
+                Format = stream.Format,
                 Offset = stream.Offset,
                 Stride = stream.Stride,
                 QuantBounds = stream.QuantBounds,
@@ -126,10 +129,19 @@ public sealed class MeshStream : IDisposable
         }
 
         _lods = new MeshStreamLod[meta.Lods.Count];
+        _lodSubMeshFirst = new uint[meta.Lods.Count];
+        _lodSubMeshCount = new uint[meta.Lods.Count];
         for (int i = 0; i < _lods.Length; i++)
         {
             MeshLodMeta lod = meta.Lods[i];
             _lods[i] = new MeshStreamLod(lod.VertexCount, lod.IndexCount, lod.MaxError, lod.Bounds, lod.VertexEntry, lod.IndexEntry);
+            _lodSubMeshFirst[i] = lod.SubMeshFirst;
+            _lodSubMeshCount[i] = lod.SubMeshCount;
+
+            if (lod.SubMeshFirst + lod.SubMeshCount > (uint)meta.SubMeshes.Count)
+            {
+                throw new InvalidDataException($"Cooked mesh '{meta.Name}' LOD {i} submesh range [{lod.SubMeshFirst}, {lod.SubMeshFirst + lod.SubMeshCount}) exceeds the submesh table ({meta.SubMeshes.Count} entries).");
+            }
         }
 
         _subMeshes = new MeshStreamSubMesh[meta.SubMeshes.Count];
@@ -138,6 +150,10 @@ public sealed class MeshStream : IDisposable
             MeshSubMeshMeta subMesh = meta.SubMeshes[i];
             _subMeshes[i] = new MeshStreamSubMesh(subMesh.Name, subMesh.FirstIndex, subMesh.IndexCount);
         }
+
+        // Residency/loading slots are indexed by LOD; the count is fixed by the meta.
+        _residencies = new StreamableMesh?[meta.Lods.Count];
+        _loading = new Task<StreamableMesh>?[meta.Lods.Count];
     }
 
     /// <summary>Gets the mesh name.</summary>
@@ -158,9 +174,23 @@ public sealed class MeshStream : IDisposable
     /// <summary>Vertex stream descriptors of the interleaved payload.</summary>
     public ReadOnlySpan<CookedVertexStream> Streams => _streams;
 
-    /// <summary>Submesh (material slot) descriptors, index ranges into LOD0. Materials bind
-    /// to slot names externally (prefab layer), never inside the mesh.</summary>
-    public ReadOnlySpan<MeshStreamSubMesh> SubMeshes => _subMeshes;
+    /// <summary>
+    /// Get the submesh (material slot) descriptors of one LOD. Materials bind to slot names
+    /// externally (prefab layer), never inside the mesh; slot order is stable across LODs, so
+    /// <c>GetSubMeshes(0)</c> is the canonical slot list before any payload load.
+    /// </summary>
+    /// <param name="lodIndex">The LOD index.</param>
+    /// <returns>The LOD's submesh descriptors.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the index is out of range.</exception>
+    public ReadOnlySpan<MeshStreamSubMesh> GetSubMeshes(int lodIndex)
+    {
+        if ((uint)lodIndex >= (uint)_lods.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "LOD index out of range.");
+        }
+
+        return _subMeshes.AsSpan((int)_lodSubMeshFirst[lodIndex], (int)_lodSubMeshCount[lodIndex]);
+    }
 
     /// <summary>
     /// Open a handle over a seekable stream. The stream ownership transfers to the returned asset.
@@ -170,7 +200,7 @@ public sealed class MeshStream : IDisposable
     /// <returns>The asset handle.</returns>
     internal static MeshStream FromStream(Stream stream, GPUDevice? device)
     {
-        return new MeshStream(MeshFileReader.Open(stream, string.Empty), device);
+        return new MeshStream(CookedMeshReader.Open(stream, string.Empty), device);
     }
 
     /// <summary>
@@ -181,7 +211,7 @@ public sealed class MeshStream : IDisposable
     /// <returns>The asset handle.</returns>
     internal static MeshStream FromMemory(ReadOnlySpan<byte> data, GPUDevice? device)
     {
-        return new MeshStream(MeshFileReader.OpenMemory(data), device);
+        return new MeshStream(CookedMeshReader.OpenMemory(data), device);
     }
 
     /// <summary>
@@ -208,10 +238,13 @@ public sealed class MeshStream : IDisposable
     /// </summary>
     /// <param name="lodIndex">The LOD index to load.</param>
     /// <returns>A task completing with the resident <see cref="StreamableMesh"/>.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown when the stream has been disposed.</exception>
     /// <exception cref="NotSupportedException">Thrown when the file uses unsupported features.</exception>
     /// <exception cref="InvalidOperationException">Thrown when no GPU device is bound or the LOD is released mid-load.</exception>
     public Task<StreamableMesh> LoadLodAsync(int lodIndex)
     {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
         if ((uint)lodIndex >= (uint)_lods.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(lodIndex), lodIndex, "LOD index out of range.");
@@ -224,12 +257,14 @@ public sealed class MeshStream : IDisposable
 
         lock (_lock)
         {
-            if (_residencies.TryGetValue(lodIndex, out StreamableMesh? resident))
+            StreamableMesh? resident = _residencies[lodIndex];
+            if (resident != null)
             {
                 return Task.FromResult(resident);
             }
 
-            if (_loading.TryGetValue(lodIndex, out Task<StreamableMesh>? existing))
+            Task<StreamableMesh>? existing = _loading[lodIndex];
+            if (existing != null)
             {
                 return existing;
             }
@@ -241,21 +276,29 @@ public sealed class MeshStream : IDisposable
     }
 
     /// <summary>
-    /// Resident LOD lookup.
+    /// Resident LOD lookup. Out-of-range indices report not resident.
     /// </summary>
     /// <param name="lodIndex">The LOD index.</param>
     /// <param name="mesh">The resident mesh when loaded.</param>
-    /// <returns>True while resident; false while loading, after failure or after release.</returns>
+    /// <returns>True while resident; false while loading, after failure, after release or after disposal.</returns>
     public bool TryGetLoadedLod(int lodIndex, [NotNullWhen(true)] out StreamableMesh? mesh)
     {
+        if (IsDisposed || (uint)lodIndex >= (uint)_residencies.Length)
+        {
+            mesh = null;
+            return false;
+        }
+
         lock (_lock)
         {
-            return _residencies.TryGetValue(lodIndex, out mesh);
+            mesh = _residencies[lodIndex];
+            return mesh != null;
         }
     }
 
     /// <summary>
     /// Dispose the GPU residency of one LOD. Call from the thread that owns the GPU device.
+    /// Out-of-range indices are a no-op.
     /// </summary>
     /// <param name="lodIndex">The LOD index.</param>
     public void ReleaseLod(int lodIndex)
@@ -263,10 +306,13 @@ public sealed class MeshStream : IDisposable
         StreamableMesh? mesh;
         lock (_lock)
         {
-            if (!_residencies.Remove(lodIndex, out mesh))
+            if ((uint)lodIndex >= (uint)_residencies.Length)
             {
                 return;
             }
+
+            mesh = _residencies[lodIndex];
+            _residencies[lodIndex] = null;
         }
 
         mesh?.Dispose();
@@ -274,54 +320,76 @@ public sealed class MeshStream : IDisposable
 
     private async Task<StreamableMesh> LoadLodCoreAsync(int lodIndex, SynchronizationContext? synchronizationContext)
     {
-        MeshStreamLod lod = _lods[lodIndex];
-        MeshChunkMeta vertexChunk = _reader.GetChunk(lod.VertexEntry);
-        MeshChunkMeta indexChunk = _reader.GetChunk(lod.IndexEntry);
-        ValidateChunk(vertexChunk, lod.VertexEntry);
-        ValidateChunk(indexChunk, lod.IndexEntry);
-
-        // Read payloads on a worker; the reader supports concurrent positional reads.
-        using SafeMemoryHandle vertexData = new((int)(lod.VertexCount * (long)_streams[0].Stride));
-        using SafeMemoryHandle indexData = new((int)(lod.IndexCount * (long)sizeof(uint)));
-        await Task.Run(() =>
+        try
         {
-            _reader.ReadChunk(vertexChunk, vertexData);
-            _reader.ReadChunk(indexChunk, indexData);
-        }).ConfigureAwait(false);
+            MeshStreamLod lod = _lods[lodIndex];
+            MeshChunkMeta vertexChunk = _reader.GetChunk(lod.VertexEntry);
+            MeshChunkMeta indexChunk = _reader.GetChunk(lod.IndexEntry);
+            ValidateChunk(vertexChunk, lod.VertexEntry);
+            ValidateChunk(indexChunk, lod.IndexEntry);
 
-        // GPU work must run on the device-owning thread: hop to the captured context when
-        // the continuation landed elsewhere (e.g. on the worker).
-        Task<StreamableMesh> upload;
-        if (synchronizationContext != null && SynchronizationContext.Current != synchronizationContext)
-        {
-            TaskCompletionSource<StreamableMesh> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            synchronizationContext.Post(_ =>
+            // Read payloads on a worker; the reader supports concurrent positional reads.
+            using SafeMemoryHandle vertexData = new((int)(lod.VertexCount * (long)_streams[0].Stride));
+            using SafeMemoryHandle indexData = new((int)(lod.IndexCount * (long)sizeof(uint)));
+            await Task.Run(() =>
             {
-                try
+                _reader.ReadChunk(vertexChunk, vertexData);
+                _reader.ReadChunk(indexChunk, indexData);
+            }).ConfigureAwait(false);
+
+            // GPU work must run on the device-owning thread: hop to the captured context when
+            // the continuation landed elsewhere (e.g. on the worker).
+            Task<StreamableMesh> upload;
+            if (synchronizationContext != null && SynchronizationContext.Current != synchronizationContext)
+            {
+                TaskCompletionSource<StreamableMesh> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                synchronizationContext.Post(_ =>
                 {
-                    completion.SetResult(CreateResidency(lodIndex, vertexData, indexData));
-                }
-                catch (Exception exception)
+                    try
+                    {
+                        completion.SetResult(CreateResidency(lodIndex, vertexData, indexData));
+                    }
+                    catch (Exception exception)
+                    {
+                        completion.SetException(exception);
+                    }
+                }, null);
+                upload = completion.Task;
+            }
+            else
+            {
+                upload = Task.FromResult(CreateResidency(lodIndex, vertexData, indexData));
+            }
+
+            StreamableMesh mesh = await upload.ConfigureAwait(false);
+
+            lock (_lock)
+            {
+                _loading[lodIndex] = null;
+
+                if (IsDisposed)
                 {
-                    completion.SetException(exception);
+                    // The asset was disposed mid-load: drop the residency instead of caching it into a
+                    // dead asset. Its GPU buffers reclaim through their own finalizer-safe path; calling
+                    // Dispose here would run on a worker thread, off the device-owning thread.
+                    throw new ObjectDisposedException(nameof(MeshStream), $"Cooked mesh '{Name}' was disposed while LOD {lodIndex} was loading.");
                 }
-            }, null);
-            upload = completion.Task;
+
+                _residencies[lodIndex] = mesh;
+            }
+
+            return mesh;
         }
-        else
+        catch
         {
-            upload = Task.FromResult(CreateResidency(lodIndex, vertexData, indexData));
+            // A failed load must not pin the slot: clear it so the next LoadLodAsync can retry.
+            lock (_lock)
+            {
+                _loading[lodIndex] = null;
+            }
+
+            throw;
         }
-
-        StreamableMesh mesh = await upload.ConfigureAwait(false);
-
-        lock (_lock)
-        {
-            _loading.Remove(lodIndex, out _);
-            _residencies[lodIndex] = mesh;
-        }
-
-        return mesh;
     }
 
     private StreamableMesh CreateResidency(int lodIndex, SafeMemoryHandle vertexData, SafeMemoryHandle indexData)
@@ -333,10 +401,11 @@ public sealed class MeshStream : IDisposable
         mesh.UploadVertex(vertexData.AsReadOnlySpan());
         mesh.UploadIndices(indexData.AsReadOnlySpan());
 
-        Span<SubMeshData> subMeshes = stackalloc SubMeshData[_subMeshes.Length];
-        for (int i = 0; i < _subMeshes.Length; i++)
+        ReadOnlySpan<MeshStreamSubMesh> subMeshTable = GetSubMeshes(lodIndex);
+        Span<SubMeshData> subMeshes = stackalloc SubMeshData[subMeshTable.Length];
+        for (int i = 0; i < subMeshTable.Length; i++)
         {
-            MeshStreamSubMesh subMesh = _subMeshes[i];
+            MeshStreamSubMesh subMesh = subMeshTable[i];
             subMeshes[i] = new SubMeshData
             {
                 Index = i,
@@ -356,37 +425,44 @@ public sealed class MeshStream : IDisposable
 
     private void ValidateChunk(MeshChunkMeta chunk, string entryName)
     {
-        if ((MeshChunkCodec)chunk.Codec != MeshChunkCodec.None)
+        if (chunk.Codec != MeshChunkCodec.None)
         {
-            throw new NotSupportedException($"Cooked mesh entry '{entryName}' uses unsupported codec {(MeshChunkCodec)chunk.Codec}.");
+            throw new NotSupportedException($"Cooked mesh entry '{entryName}' uses unsupported codec {chunk.Codec}.");
         }
 
-        if (((CookedMeshFlags)_reader.Meta.Flags & ~SupportedFlags) != 0)
+        if ((_reader.Meta.Flags & ~SupportedFlags) != 0)
         {
             // Quantization/paging features affect payload interpretation; reject per LOD load.
-            CookedMeshFlags unsupported = (CookedMeshFlags)_reader.Meta.Flags & ~SupportedFlags;
+            CookedMeshFlags unsupported = _reader.Meta.Flags & ~SupportedFlags;
             throw new NotSupportedException($"Cooked mesh '{Name}' uses unsupported features: {unsupported}.");
         }
     }
 
     /// <summary>
-    /// Dispose the file reader and all GPU residencies. Residencies must be disposed from the
-    /// thread that owns the GPU device — dispose the asset on the main thread.
+    /// Disposes the file reader and all GPU residencies. Residencies must be disposed from the
+    /// thread that owns the GPU device — dispose the asset on the main thread. The finalizer path
+    /// (Dispose never called) releases only the file reader; the residencies' GPU buffers reclaim
+    /// through their own finalizer-safe path, never through the device's deferred destroy queue.
     /// </summary>
-    public void Dispose()
+    /// <param name="disposing">True when called from <see cref="Dispose()"/>, false from the finalizer.</param>
+    protected override void Dispose(bool disposing)
     {
-        List<StreamableMesh> meshes;
-        lock (_lock)
+        if (disposing)
         {
-            meshes = [.. _residencies.Values];
-            _residencies.Clear();
+            StreamableMesh?[] residencies;
+            lock (_lock)
+            {
+                residencies = (StreamableMesh?[])_residencies.Clone();
+                Array.Clear(_residencies);
+            }
+
+            foreach (StreamableMesh? mesh in residencies)
+            {
+                mesh?.Dispose();
+            }
         }
 
-        foreach (StreamableMesh mesh in meshes)
-        {
-            mesh.Dispose();
-        }
-
+        // Pure IO, safe from the finalizer thread.
         _reader.Dispose();
     }
 }
