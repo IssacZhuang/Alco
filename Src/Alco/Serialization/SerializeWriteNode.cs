@@ -21,6 +21,6 @@ public abstract class SerializeWriteNode : SerializeNode
     }
 
     public abstract void SetValue<T>(string key, T value) where T : unmanaged;
-    public abstract void SetEnum<T>(string key, T value) where T : struct, Enum;
+    public abstract void SetEnum<T>(string key, T value) where T : unmanaged, Enum;
     public abstract void SetString(string key, string value);
 }

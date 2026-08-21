@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -63,7 +64,7 @@ internal static unsafe class GltfDecoder
     private static GltfModel DecodeGlb(ReadOnlySpan<byte> glb, GltfDecodeUtility.GltfBufferResolver? resolver)
     {
         // GLB container: 12-byte header (magic, version, total length), then length-prefixed chunks.
-        uint version = MemoryMarshal.Read<uint>(glb[4..]);
+        uint version = BinaryPrimitives.ReadUInt32LittleEndian(glb[4..]);
         if (version != 2)
         {
             throw new MeshDecodeException($"Unsupported GLB version {version}, expected 2.");
@@ -74,7 +75,7 @@ internal static unsafe class GltfDecoder
         int offset = 12;
         while (offset + 8 <= glb.Length)
         {
-            int chunkLength = MemoryMarshal.Read<int>(glb[offset..]);
+            int chunkLength = BinaryPrimitives.ReadInt32LittleEndian(glb[offset..]);
             ReadOnlySpan<byte> chunkType = glb.Slice(offset + 4, 4);
             if (offset + 8 + chunkLength > glb.Length)
             {

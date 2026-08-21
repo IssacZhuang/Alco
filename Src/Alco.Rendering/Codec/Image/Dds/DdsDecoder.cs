@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+using System.Buffers.Binary;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
@@ -57,7 +57,7 @@ internal static class DdsDecoder
 
     /// <summary>Check whether the data starts with the DDS file magic.</summary>
     public static bool IsDds(ReadOnlySpan<byte> data)
-        => data.Length >= 4 && MemoryMarshal.Read<uint>(data) == Magic;
+        => data.Length >= 4 && BinaryPrimitives.ReadUInt32LittleEndian(data) == Magic;
 
     /// <summary>
     /// Parse and validate a DDS file. The mip chain is stored contiguously at
@@ -95,30 +95,30 @@ internal static class DdsDecoder
         {
             throw new ImageDecodeException("Not a DDS file or the header is truncated.");
         }
-        if (MemoryMarshal.Read<uint>(data[4..]) != 124)
+        if (BinaryPrimitives.ReadUInt32LittleEndian(data[4..]) != 124)
         {
             throw new ImageDecodeException("Invalid DDS header size, expected 124.");
         }
 
-        height = MemoryMarshal.Read<int>(data[12..]);
-        width = MemoryMarshal.Read<int>(data[16..]);
+        height = BinaryPrimitives.ReadInt32LittleEndian(data[12..]);
+        width = BinaryPrimitives.ReadInt32LittleEndian(data[16..]);
         if (width <= 0 || height <= 0)
         {
             throw new ImageDecodeException($"Invalid DDS dimensions {width}x{height}.");
         }
-        mipLevels = MemoryMarshal.Read<int>(data[28..]);
+        mipLevels = BinaryPrimitives.ReadInt32LittleEndian(data[28..]);
         if (mipLevels <= 0)
         {
             mipLevels = 1;
         }
 
-        uint pixelFormatFlags = MemoryMarshal.Read<uint>(data[80..]);
+        uint pixelFormatFlags = BinaryPrimitives.ReadUInt32LittleEndian(data[80..]);
         if ((pixelFormatFlags & PixelFormatFlagFourCc) == 0)
         {
             throw new ImageDecodeException("Uncompressed DDS pixel formats are not supported; use BC1-BC7.");
         }
 
-        uint fourCc = MemoryMarshal.Read<uint>(data[84..]);
+        uint fourCc = BinaryPrimitives.ReadUInt32LittleEndian(data[84..]);
         dataOffset = HeaderSize;
         BcFamily family;
         switch (fourCc)
@@ -204,7 +204,7 @@ internal static class DdsDecoder
             throw new ImageDecodeException("Truncated DDS DX10 extended header.");
         }
         dataOffset = HeaderSize + Dx10HeaderSize;
-        uint dxgiFormat = MemoryMarshal.Read<uint>(data[128..]);
+        uint dxgiFormat = BinaryPrimitives.ReadUInt32LittleEndian(data[128..]);
         return dxgiFormat switch
         {
             DxgiBc1Unorm or DxgiBc1UnormSrgb => BcFamily.BC1,

@@ -60,7 +60,7 @@ public abstract class SerializeNode
     /// <param name="key">The key identifier for the enum in the serialization format.</param>
     /// <param name="value">Reference to the enum value to be serialized or deserialized.</param>
     /// <param name="default">The default enum value to use if the key is not found during deserialization.</param>
-    public abstract void BindEnum<T>(string key, ref T value, T @default = default) where T : struct, Enum;
+    public abstract void BindEnum<T>(string key, ref T value, T @default = default) where T : unmanaged, Enum;
 
     /// <summary>
     /// Binds a span of memory for efficient serialization of contiguous data.

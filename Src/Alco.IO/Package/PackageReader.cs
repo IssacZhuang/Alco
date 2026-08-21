@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Frozen;
@@ -224,12 +225,11 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
         }
     }
 
-    private T ReadValue<T>(long offset) where T : unmanaged
+    private long ReadInt64LittleEndian(long offset)
     {
-        byte* ptr = stackalloc byte[sizeof(T)];
-        ReadUnsafe(ptr, offset, sizeof(T));
-        T value = *(T*)ptr;
-        return value;
+        byte* ptr = stackalloc byte[8];
+        ReadUnsafe(ptr, offset, 8);
+        return BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(ptr, 8));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -253,7 +253,7 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
             throw new InvalidDataException($"Invalid package magic. Expected '{Encoding.ASCII.GetString(expectedMagic)}'.");
         }
 
-        long metaLength = ReadValue<long>(4);
+        long metaLength = ReadInt64LittleEndian(4);
         if (metaLength < 0)
         {
             throw new InvalidDataException($"Negative meta length: {metaLength}");

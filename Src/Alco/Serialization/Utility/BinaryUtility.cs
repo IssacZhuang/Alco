@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -7,15 +8,25 @@ using System;
 
 namespace Alco
 {
+    /// <summary>
+    /// Encoding helpers of the binary serialization format. Primitive scalars and enums are
+    /// canonical little-endian on disk. Composite unmanaged layouts are host-layout blits,
+    /// which requires a little-endian host (every runtime .NET ships today is one).
+    /// </summary>
     public static class BinaryUtility
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static byte[] EncodeValue<T>(T value) where T : unmanaged
+        public static byte[] EncodeValue<T>(T value) where T : unmanaged
         {
             byte[] bytes = new byte[sizeof(T)];
-            fixed (byte* ptr = bytes)
+            if (typeof(T).IsPrimitive || typeof(T).IsEnum)
             {
-                *(T*)ptr = value;
+                WriteScalar(bytes, ref value);
+            }
+            else
+            {
+                ThrowIfBigEndianHost(typeof(T));
+                MemoryMarshal.Write(bytes, in value);
             }
             return bytes;
         }
@@ -25,25 +36,29 @@ namespace Alco
         public unsafe static byte[] EncodeNullableValue<T>(Nullable<T> value) where T : unmanaged
         {
             byte[] bytes = new byte[sizeof(Nullable<T>)];
+            ThrowIfBigEndianHost(typeof(Nullable<T>));
             fixed (byte* ptr = bytes)
             {
-                *(T?*)ptr = value;
+                *(Nullable<T>*)ptr = value;
             }
             return bytes;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static T DecodeToValue<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
+        public static T DecodeToValue<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
         {
-            fixed (byte* ptr = bytes)
+            if (typeof(T).IsPrimitive || typeof(T).IsEnum)
             {
-                return *(T*)ptr;
+                return ReadScalar<T>(bytes);
             }
+            ThrowIfBigEndianHost(typeof(T));
+            return MemoryMarshal.Read<T>(bytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static Nullable<T> DecodeToNullableValue<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
         {
+            ThrowIfBigEndianHost(typeof(Nullable<T>));
             fixed (byte* ptr = bytes)
             {
                 return *(Nullable<T>*)ptr;
@@ -84,53 +99,85 @@ namespace Alco
         /// <typeparam name="T">Enum type</typeparam>
         /// <param name="value">Enum value to encode</param>
         /// <returns>Byte array containing the enum value</returns>
-        public static unsafe byte[] EncodeEnum<T>(T value) where T : struct, Enum
+        public static byte[] EncodeEnum<T>(T value) where T : unmanaged, Enum
         {
-            // Use underlying type of enum for encoding
-            Type underlyingType = Enum.GetUnderlyingType(typeof(T));
-            int size = Unsafe.SizeOf<T>();
+            return EncodeValue(value);
+        }
 
-            byte[] bytes = new byte[size];
-            fixed (byte* ptr = bytes)
+        /// <summary>
+        /// Write a primitive or enum scalar in canonical little-endian byte order.
+        /// The size switch covers every C# scalar width (1/2/4/8); Unsafe.As is safe because
+        /// the destination type is picked to match sizeof(T).
+        /// </summary>
+        private static void WriteScalar<T>(Span<byte> bytes, ref T value) where T : unmanaged
+        {
+            switch (sizeof(T))
             {
-                if (underlyingType == typeof(Int32))
-                {
-                    *(int*)ptr = Unsafe.As<T, int>(ref value);
-                }
-                else if (underlyingType == typeof(UInt32))
-                {   
-                    *(uint*)ptr = Unsafe.As<T, uint>(ref value);
-                }
-                else if (underlyingType == typeof(Int16))
-                {
-                    *(short*)ptr = Unsafe.As<T, short>(ref value);
-                }
-                else if (underlyingType == typeof(UInt16))
-                {
-                    *(ushort*)ptr = Unsafe.As<T, ushort>(ref value);
-                }
-                else if (underlyingType == typeof(Byte))
-                {
-                    *(byte*)ptr = Unsafe.As<T, byte>(ref value);
-                }
-                else if (underlyingType == typeof(SByte))
-                {
-                    *(sbyte*)ptr = Unsafe.As<T, sbyte>(ref value);
-                }
-                else if (underlyingType == typeof(Int64))
-                {
-                    *(long*)ptr = Unsafe.As<T, long>(ref value);
-                }
-                else if (underlyingType == typeof(UInt64))
-                {
-                    *(ulong*)ptr = Unsafe.As<T, ulong>(ref value);
-                }
-                else
-                {
-                    throw new NotSupportedException($"Unsupported enum underlying type: {underlyingType.Name}");
-                }
+                case 1:
+                    bytes[0] = Unsafe.As<T, byte>(ref value);
+                    break;
+                case 2:
+                    BinaryPrimitives.WriteInt16LittleEndian(bytes, Unsafe.As<T, short>(ref value));
+                    break;
+                case 4:
+                    BinaryPrimitives.WriteInt32LittleEndian(bytes, Unsafe.As<T, int>(ref value));
+                    break;
+                case 8:
+                    BinaryPrimitives.WriteInt64LittleEndian(bytes, Unsafe.As<T, long>(ref value));
+                    break;
+                default:
+                    throw new NotSupportedException($"Unhandled scalar size {sizeof(T)} for {typeof(T).Name}.");
             }
-            return bytes;
+        }
+
+        /// <summary>
+        /// Read a primitive or enum scalar in canonical little-endian byte order.
+        /// A scalar shorter than sizeof(T) decodes zero-extended: the historical blit picked
+        /// the value's missing high bytes from the zeroed tail of its heap allocation.
+        /// </summary>
+        private static unsafe T ReadScalar<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
+        {
+            int size = sizeof(T);
+            if (bytes.Length < size)
+            {
+                byte* buffer = stackalloc byte[8];
+                Unsafe.InitBlock(buffer, 0, 8);
+                bytes.CopyTo(new Span<byte>(buffer, bytes.Length));
+                bytes = new ReadOnlySpan<byte>(buffer, size);
+            }
+            switch (size)
+            {
+                case 1:
+                    {
+                        byte v = bytes[0];
+                        return Unsafe.As<byte, T>(ref v);
+                    }
+                case 2:
+                    {
+                        short v = BinaryPrimitives.ReadInt16LittleEndian(bytes);
+                        return Unsafe.As<short, T>(ref v);
+                    }
+                case 4:
+                    {
+                        int v = BinaryPrimitives.ReadInt32LittleEndian(bytes);
+                        return Unsafe.As<int, T>(ref v);
+                    }
+                case 8:
+                    {
+                        long v = BinaryPrimitives.ReadInt64LittleEndian(bytes);
+                        return Unsafe.As<long, T>(ref v);
+                    }
+                default:
+                    throw new NotSupportedException($"Unhandled scalar size {sizeof(T)} for {typeof(T).Name}.");
+            }
+        }
+
+        private static void ThrowIfBigEndianHost(Type type)
+        {
+            if (!BitConverter.IsLittleEndian)
+            {
+                throw new NotSupportedException($"Composite unmanaged type {type.Name} is serialized as a host-layout blit, which requires a little-endian host.");
+            }
         }
     }
 }

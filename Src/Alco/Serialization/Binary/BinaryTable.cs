@@ -176,7 +176,7 @@ namespace Alco
         }
 
 
-        public bool TryGetEnum<T>(string key, [NotNullWhen(true)] out T value) where T : struct, Enum
+        public bool TryGetEnum<T>(string key, [NotNullWhen(true)] out T value) where T : unmanaged, Enum
         {
             if (_map.TryGetValue(key, out BaseBinaryValue? v) && v is BinaryValue binaryValue)
             {
@@ -186,7 +186,7 @@ namespace Alco
             return false;
         }
 
-        public T GetEnum<T>(string key) where T : struct, Enum
+        public T GetEnum<T>(string key) where T : unmanaged, Enum
         {
             if (TryGetEnum(key, out T value))
             {
@@ -208,7 +208,7 @@ namespace Alco
             _map.Add(key, value);
         }
 
-        public void Add<T>(string key, T value) where T : struct, Enum
+        public void Add<T>(string key, T value) where T : unmanaged, Enum
         {
             _map.Add(key, BinaryValue.CreateByEnum(value));
         }
