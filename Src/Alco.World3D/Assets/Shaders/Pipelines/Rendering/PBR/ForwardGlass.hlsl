@@ -61,7 +61,7 @@ V2F MainVS(Vertex input)
     float3 worldNormal = mul((float3x3)constants.model, input.normal);
     float3 worldTangent = mul((float3x3)constants.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically.
-    ModifyVertex(worldPosition, worldNormal, input.uv, 0.0f /* time: no global time buffer yet */);
+    ModifyVertex(worldPosition, worldNormal, input.uv);
     output.position = mul(viewProjection, float4(worldPosition, 1.0f));
     output.worldPosition = worldPosition;
     output.normal = worldNormal;
@@ -88,7 +88,6 @@ float4 MainPS(V2F input) : SV_TARGET
     surfaceInput.metallicRoughnessAO = constants.metallicRoughnessAO;
     surfaceInput.emissiveFactor = constants.emissive;
     surfaceInput.alphaCutoff = 0.0f; // glass does not alpha-test
-    surfaceInput.time = 0.0f; // no global time buffer yet
 
     SurfaceOutput s = EvaluateSurface(surfaceInput);
 

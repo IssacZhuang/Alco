@@ -80,7 +80,7 @@ V2F MainVS(Vertex input)
     float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically
     // so the RSM matches the G-buffer silhouette.
-    ModifyVertex(worldPos, worldNormal, input.uv, 0.0f /* time: no global time buffer yet */);
+    ModifyVertex(worldPos, worldNormal, input.uv);
     uint cascade = (uint)constants.params_.x;
     float4 folded = mul(lightViewProjections[cascade], float4(worldPos, 1.0f));
     // RGNode_ShadowPass folds the cascade into its atlas quadrant with
@@ -120,7 +120,6 @@ void MainPS(V2F input,
     surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
     surfaceInput.emissiveFactor = inst.emissive;
     surfaceInput.alphaCutoff = inst.params_.x;
-    surfaceInput.time = 0.0f; // no global time buffer yet
 
     SurfaceOutput s = EvaluateSurface(surfaceInput);
 

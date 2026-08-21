@@ -73,7 +73,7 @@ V2F MainVS(Vertex input)
     float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically
     // so shadows match the G-buffer silhouette.
-    ModifyVertex(worldPos, worldNormal, input.uv, 0.0f /* time: no global time buffer yet */);
+    ModifyVertex(worldPos, worldNormal, input.uv);
     output.position = mul(lightViewProjections[(uint)constants.params_.x], float4(worldPos, 1.0f));
 #if defined(SHADOW_CUTOUT)
     output.normal = worldNormal;
@@ -107,7 +107,6 @@ void MainPS(V2F input)
         surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
         surfaceInput.emissiveFactor = inst.emissive;
         surfaceInput.alphaCutoff = alphaCutoff;
-        surfaceInput.time = 0.0f; // no global time buffer yet
 
         clip(EvaluateSurface(surfaceInput).alpha - alphaCutoff);
     }

@@ -16,7 +16,7 @@ DEFINE_TEX2D_SAMPLE(4, _metallicRoughnessTexture);
 DEFINE_TEX2D_SAMPLE(5, _emissiveTexture);
 
 // Identity vertex deformation: the standard surface does not animate vertices.
-void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv, float time)
+void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv)
 {
 }
 

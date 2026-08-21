@@ -20,6 +20,15 @@
 // the registers by member name through its "parameters" object; members the
 // asset leaves out read zero.
 //
+// Time is not part of this contract: surfaces that need it declare the
+// engine's _globalRenderData cbuffer —
+//   DEFINE_UNIFORM(2, _globalRenderData) { float4 time; }
+// with x = time, y = deltaTime, z = sinTime, w = cosTime — and read it
+// directly, in ModifyVertex (vertex stage) or EvaluateSurface alike. The
+// engine binds the per-frame GlobalRenderDataBuffer to every material it
+// creates (see RenderingSystem.CreateMaterial), so no template or pass wiring
+// is involved.
+//
 // The same surface functions run in every pass that draws the mesh (G-buffer,
 // shadow depth, RSM, glass), so vertex animation applied in ModifyVertex stays
 // consistent across passes automatically. Gate expensive fragment work on the
@@ -37,7 +46,6 @@ struct SurfaceInput
     float4 metallicRoughnessAO; // metallic (x), roughness (y), ambient occlusion (z)
     float4 emissiveFactor;      // linear emissive factor (rgb)
     float alphaCutoff;          // alpha test threshold; 0 disables the test
-    float time;                 // seconds since startup (0 until a global time buffer is wired)
 };
 
 /// The material evaluated at one point. albedo/emissive are linear; normalTS is
@@ -58,7 +66,7 @@ SurfaceOutput EvaluateSurface(SurfaceInput input);
 
 /// Vertex deformation in world space, applied after the instance transform and
 /// before projection in every pass. Implemented by every surface shader;
-/// identity in PbrStandard.
-void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv, float time);
+/// identity in PbrStandard. Time, when needed, comes from _globalRenderData.
+void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv);
 
 #endif // SURFACE_HLSLI

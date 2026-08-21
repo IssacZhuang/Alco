@@ -85,6 +85,8 @@ public class TestMaterialCompiler
             Assert.That(compiler.Get(checker, gbufferPass), Is.SameAs(material), "Composed materials cache per (asset, pass).");
             Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.False, "The checker surface declares no albedo slot.");
             Assert.That(material.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True, "The pass template keeps its camera binding.");
+            Assert.That(material.TryGetResourceId(ShaderResourceId.GlobalRenderData, out _), Is.True,
+                "The surface's _globalRenderData declaration reaches the composed shader (time source).");
         });
 
         compiler.Invalidate(checker);

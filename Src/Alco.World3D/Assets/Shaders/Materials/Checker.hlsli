@@ -5,9 +5,10 @@
 #include "Shaders/Libs/Surface.hlsli"
 
 // Example procedural surface: a world-space checkerboard with per-cell
-// roughness variation. Declares no textures at all — materials bound to this
-// surface need no texture streaming, and shaders compiled from it have no
-// material texture slots. Pair with a material asset like:
+// roughness variation, slowly drifting along the world X axis to demonstrate
+// the engine's _globalRenderData time. Declares no textures at all — materials
+// bound to this surface need no texture streaming, and shaders compiled from
+// it have no material texture slots. Pair with a material asset like:
 //   { "version": "1.0", "shader": "Shaders/Materials/Checker.hlsli",
 //     "parameters": { "checkerScale": 4.0 } }
 
@@ -19,8 +20,15 @@ DEFINE_UNIFORM(2, _materialParams)
     float4 checkerScale; // x = cells per meter; 0 = the default 2
 };
 
+// Engine global time (the Surface.hlsli convention): bound by
+// RenderingSystem.CreateMaterial, no pass wiring needed.
+DEFINE_UNIFORM(2, _globalRenderData)
+{
+    float4 time; // x = time, y = deltaTime, z = sinTime, w = cosTime
+};
+
 // Identity vertex deformation: the checker does not animate vertices.
-void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv, float time)
+void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv)
 {
 }
 
@@ -35,7 +43,9 @@ SurfaceOutput EvaluateSurface(SurfaceInput input)
 #else
     // cbuffer members are unqualified in HLSL (see Core.hlsli's DEFINE_UNIFORM).
     float cellsPerMeter = checkerScale.x > 0.0 ? checkerScale.x : 2.0;
-    float3 cell = floor(input.worldPos * cellsPerMeter);
+    // Drift a quarter meter per second along world X.
+    float3 pos = input.worldPos - float3(time.x * 0.25, 0.0, 0.0);
+    float3 cell = floor(pos * cellsPerMeter);
     float checker = fmod(cell.x + cell.y + cell.z, 2.0);
 
     float3 colorA = float3(0.85, 0.12, 0.10);

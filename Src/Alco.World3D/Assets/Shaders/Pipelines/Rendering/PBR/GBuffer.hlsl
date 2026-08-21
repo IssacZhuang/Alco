@@ -53,7 +53,7 @@ V2F MainVS(Vertex input)
     float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically
     // so G-buffer, shadows and GI stay consistent.
-    ModifyVertex(worldPos, worldNormal, input.uv, 0.0f /* time: no global time buffer yet */);
+    ModifyVertex(worldPos, worldNormal, input.uv);
     output.position = mul(viewProjection, float4(worldPos, 1.0f));
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
@@ -95,7 +95,6 @@ void MainPS(V2F input,
     surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
     surfaceInput.emissiveFactor = inst.emissive;
     surfaceInput.alphaCutoff = inst.params_.x;
-    surfaceInput.time = 0.0f; // no global time buffer yet
 
     SurfaceOutput s = EvaluateSurface(surfaceInput);
 
