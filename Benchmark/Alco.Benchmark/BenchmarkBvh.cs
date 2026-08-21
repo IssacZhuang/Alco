@@ -202,7 +202,7 @@ public class BenchmarkBvh
         Console.WriteLine($"[BepuQuality] Binned: precise leaf tests/ray = {bepuBinnedLeafTests / (double)rays3D.Length:F1}");
     }
 
-    private long MeasureBepuLeafTests(ref Tree tree)
+    private unsafe long MeasureBepuLeafTests(ref Tree tree)
     {
         _bepuLeafTestCount = 0;
         for (int i = 0; i < rays3D.Length; i++)
@@ -239,7 +239,7 @@ public class BenchmarkBvh
         }
     }
 
-    private void BuildBepuBinned()
+    private unsafe void BuildBepuBinned()
     {
         int n = colliders3D.Length;
         for (int i = 0; i < n; i++)
