@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alco.Rendering\Alco.Rendering.csproj" />
+    <ProjectReference Include="..\Alco.IO\Alco.IO.csproj" />
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
   </ItemGroup>
 
