@@ -2,6 +2,8 @@
 // HBAOBlur.hlsl). Include after Shaders/Libs/Core.hlsli. The cbuffer layout
 // must match HbaoRenderer.HbaoData on the C# side exactly.
 
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
+
 DEFINE_UNIFORM(0, _data)
 {
     float4x4 invViewProjection;
@@ -15,10 +17,14 @@ DEFINE_UNIFORM(0, _data)
 };
 
 // Reconstruct the world-space position of a pixel from its UV and depth.
+// The blur pass reconstructs sky pixels without a sentinel check first, so the
+// clamp keeps the homogeneous w finite under reversed infinite depth (the
+// reconstructed sky point lands ~near / epsilon metres away, which the
+// bilateral depth weight then rejects exactly like the old far plane).
 float3 ReconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
+    float4 world = mul(invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
     return world.xyz / world.w;
 }
 

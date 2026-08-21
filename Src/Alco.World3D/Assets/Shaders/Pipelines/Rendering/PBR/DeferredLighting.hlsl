@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // Deferred lighting pass shader for the PBR pipeline.
 // Samples the G-buffer, evaluates a GGX PBR BRDF with a directional sun
@@ -53,10 +54,15 @@ V2F MainVS(Vertex input)
     return output;
 }
 
+// Reversed infinite camera depth (near = 1, sky = 0): back-projecting depth 0
+// would divide by a homogeneous w of 0, so the clamps below map sky to a finite
+// far point (~near / PBR_SKY_DEPTH_EPSILON metres). Sky pixels are still
+// rejected by IS_SKY_DEPTH before their reconstruction is used; the clamp only
+// keeps the view ray finite when a reconstruction slips past a sentinel.
 float3 ReconstructWorldPosition(V2F input)
 {
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    float depth = GET_PIXEL_TEX2D(_gbufferDepth, int2(input.uv * viewportSize.xy));
+    float depth = max(GET_PIXEL_TEX2D(_gbufferDepth, int2(input.uv * viewportSize.xy)), PBR_SKY_DEPTH_EPSILON);
     float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
@@ -67,7 +73,7 @@ float3 ReconstructWorldPosition(V2F input)
 float ReconstructLinearDepth(V2F input)
 {
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    float depth = GET_PIXEL_TEX2D(_gbufferDepth, int2(input.uv * viewportSize.xy));
+    float depth = max(GET_PIXEL_TEX2D(_gbufferDepth, int2(input.uv * viewportSize.xy)), PBR_SKY_DEPTH_EPSILON);
     float reciprocalClipW = dot(invViewProjection[3], float4(ndc, depth, 1.0));
     return abs(rcp(reciprocalClipW));
 }
@@ -94,7 +100,7 @@ float4 MainPS(V2F input) : SV_TARGET
         return float4(combined, combined, combined, 1.0);
     }
 
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
         return float4(GetSkyColor(viewDirection), 1.0);
     }

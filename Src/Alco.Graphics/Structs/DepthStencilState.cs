@@ -21,6 +21,19 @@ public struct DepthStencilState
     public static readonly DepthStencilState Read = new(false, CompareFunction.LessEqual);
 
     /// <summary>
+    /// A depth-stencil state for reversed depth buffers (near = 1, far = 0): writes
+    /// depth using GreaterEqual comparison. Pair with a reversed projection and a
+    /// depth clear value of 0.
+    /// </summary>
+    public static readonly DepthStencilState WriteReverseZ = new(true, CompareFunction.GreaterEqual);
+
+    /// <summary>
+    /// A depth-stencil state for reversed depth buffers (near = 1, far = 0): reads
+    /// depth using GreaterEqual comparison but does not write depth.
+    /// </summary>
+    public static readonly DepthStencilState ReadReverseZ = new(false, CompareFunction.GreaterEqual);
+
+    /// <summary>
     /// The default depth-stencil state, the depth test is always pass.
     /// </summary>
     public static readonly DepthStencilState Default = new(false, CompareFunction.Always);

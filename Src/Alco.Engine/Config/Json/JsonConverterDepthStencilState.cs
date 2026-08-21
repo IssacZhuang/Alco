@@ -17,6 +17,8 @@ public class JsonConverterDepthStencilState : JsonConverter<DepthStencilState>
         { "None", DepthStencilState.None },
         { "Write", DepthStencilState.Write },
         { "Read", DepthStencilState.Read },
+        { "WriteReverseZ", DepthStencilState.WriteReverseZ },
+        { "ReadReverseZ", DepthStencilState.ReadReverseZ },
         { "Default", DepthStencilState.Default }
     };
 
@@ -25,6 +27,8 @@ public class JsonConverterDepthStencilState : JsonConverter<DepthStencilState>
         { DepthStencilState.None, "None" },
         { DepthStencilState.Write, "Write" },
         { DepthStencilState.Read, "Read" },
+        { DepthStencilState.WriteReverseZ, "WriteReverseZ" },
+        { DepthStencilState.ReadReverseZ, "ReadReverseZ" },
         { DepthStencilState.Default, "Default" }
     };
 

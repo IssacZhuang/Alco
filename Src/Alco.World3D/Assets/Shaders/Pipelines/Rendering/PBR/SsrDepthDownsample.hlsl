@@ -6,9 +6,9 @@
 // Two modes controlled by the push constant:
 //   isFirst = 1.0: copy full-resolution depth from the G-buffer depth buffer
 //                  into pyramid mip 0 (dispatched at full G-buffer resolution).
-//   isFirst = 0.0: 2x2 max-reduction from the previous mip (mipLevel) into
-//                  mipLevel+1. NDC z is non-inverted (1.0 = far), so max
-//                  keeps the most distant surface - conservative for raymarch
+//   isFirst = 0.0: 2x2 min-reduction from the previous mip (mipLevel) into
+//                  mipLevel+1. NDC z is inverted (1.0 = near, 0.0 = far), so
+//                  min keeps the nearest surface - conservative for raymarch
 //                  intersection tests that skip large empty tiles.
 
 struct SsrDepthConstants
@@ -58,7 +58,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
-    // 2x2 max-reduction from the previous mip (rebased to 0 in the read view).
+    // 2x2 min-reduction from the previous mip (rebased to 0 in the read view).
     int srcW = max(gbufferW >> (int)srcMip, 1);
     int srcH = max(gbufferH >> (int)srcMip, 1);
     int2 srcMax = int2(srcW - 1, srcH - 1);
@@ -75,5 +75,5 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float d01 = _depthSrc.Load(int3(p01.x, p01.y, 0)).x;
     float d11 = _depthSrc.Load(int3(p11.x, p11.y, 0)).x;
 
-    _depthOut[pixel] = float4(max(max(d00, d10), max(d01, d11)), 0.0, 0.0, 0.0);
+    _depthOut[pixel] = float4(min(min(d00, d10), min(d01, d11)), 0.0, 0.0, 0.0);
 }

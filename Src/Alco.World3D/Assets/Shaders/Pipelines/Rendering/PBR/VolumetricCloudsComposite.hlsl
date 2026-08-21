@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // Volumetric clouds composite pass: a full-screen overlay on the HDR scene
 // color that reconstructs the half-resolution cloud result (premultiplied
@@ -64,7 +65,7 @@ V2F MainVS(Vertex input)
 float CloudCompositeLinearDepth(float2 uv)
 {
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, int2(uv * viewportSize.xy));
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
         return 1e6;
     }

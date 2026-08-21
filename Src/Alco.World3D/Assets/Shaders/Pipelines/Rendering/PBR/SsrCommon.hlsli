@@ -11,6 +11,8 @@
 #ifndef SSR_COMMON_HLSLI
 #define SSR_COMMON_HLSLI
 
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
+
 #define SSR_FLOAT_MAX 3.402823466e+38
 #define SSR_DEPTH_HIERARCHY_MAX_MIP 6
 
@@ -47,10 +49,15 @@ bool SsrAdvanceRay(
     float3 boundaryPlanes = float3(xyPlane, surfaceZ);
 
     float3 t = boundaryPlanes * invDirection - origin * invDirection;
-    t.z = direction.z > 0.0 ? t.z : SSR_FLOAT_MAX;
+    // Reversed depth (near = 1, far = 0): rays marching away from the camera
+    // move toward decreasing z, so only negative-z crossings can reach the
+    // surface depth plane.
+    t.z = direction.z < 0.0 ? t.z : SSR_FLOAT_MAX;
 
     float tMin = min(min(t.x, t.y), t.z);
-    bool aboveSurface = surfaceZ > position.z;
+    // Reversed depth: "above the surface" (in front of it, nearer) is the
+    // larger NDC z.
+    bool aboveSurface = position.z > surfaceZ;
     bool skippedTile = (asuint(tMin) != asuint(t.z)) && aboveSurface;
 
     currentT = aboveSurface ? tMin : currentT;
@@ -149,7 +156,7 @@ float SsrValidateHit(float3 hit, float2 uv, float3 worldRayDirection, float2 scr
 
     int2 texelCoords = int2(floor(screenSize * hit.xy));
     float surfaceZ = _depthPyramid.Load(int3(texelCoords.x, texelCoords.y, 0)).x;
-    if (surfaceZ >= 0.9999)
+    if (IS_SKY_DEPTH(surfaceZ))
         return 0.0;
 
     float3 hitNormal = normalize(GET_PIXEL_TEX2D(_normal, texelCoords).xyz * 2.0 - 1.0);

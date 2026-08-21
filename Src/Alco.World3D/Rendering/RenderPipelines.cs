@@ -74,7 +74,10 @@ public static class RenderPipelines
                 // Linear emissive, HDR-capable.
                 new ColorAttachment(PixelFormat.RGBA16Float),
             ],
-            new DepthAttachment(PixelFormat.Depth32Float),
+            // Reversed infinite camera depth (near = 1, far at infinity = 0):
+            // cleared to 0, GreaterEqual depth tests, Depth32Float for uniform
+            // relative precision (see CameraDataPerspective.ReverseInfiniteDepth).
+            new DepthAttachment(PixelFormat.Depth32Float, clearDepth: 0.0f),
             "pbr_gbuffer_pass"));
 
         var shadowLayout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
@@ -150,7 +153,7 @@ public static class RenderPipelines
                 new ClearColorData(2, System.Numerics.Vector4.Zero),
                 new ClearColorData(3, System.Numerics.Vector4.Zero),
             ],
-            clearDepth: 1.0f)
+            clearDepth: 0.0f)
         {
             Instrumentation = new PassInstrumentation
             {

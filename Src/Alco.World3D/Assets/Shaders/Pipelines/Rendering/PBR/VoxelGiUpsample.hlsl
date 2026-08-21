@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // Voxel GI full-resolution upsample pass. Runs after VoxelDemosaic as the last
 // compute pass of the VoxelGI plugin: reads the 5x-trace-width indirect atlas
@@ -51,7 +52,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     // Sky pixels get black output — the lighting pass replaces them with sky.
     float rawDepth = GET_PIXEL_TEX2D(_gbufferDepth, int2(pixel));
-    if (rawDepth >= 0.9999)
+    if (IS_SKY_DEPTH(rawDepth))
     {
         _giDiffuseOut[pixel] = float4(0.0, 0.0, 0.0, 1.0);
         _giSpecularOut[pixel] = float4(0.0, 0.0, 0.0, 1.0);

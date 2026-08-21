@@ -1,4 +1,5 @@
 #include "Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionPostCommon.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 DEFINE_TEX2D_SAMPLE(1, _sceneColor);
 DEFINE_TEX2D_READ(1, _reflection);
@@ -68,7 +69,7 @@ float4 SsrPostGeometryAwareUpsample(
                 int2(candidateUV * float2(fullExtent)),
                 int2(0, 0), fullExtent - 1);
             float candidateDepth = GET_PIXEL_TEX2D(_gbufferDepth, candidateFullPixel);
-            if (candidateDepth >= 0.9999)
+            if (IS_SKY_DEPTH(candidateDepth))
             {
                 continue;
             }
@@ -139,7 +140,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float2 fullSize = ssrRenderSize.xy;
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, pixel);
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
         if (debugSpecular || debugConfidence)
         {

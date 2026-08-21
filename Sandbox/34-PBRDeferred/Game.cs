@@ -415,12 +415,15 @@ public class Game : GameEngine
 
         _checkerTexture = CreateCheckerTexture(256);
         // Fixed camera depth range (open-world design: parameters do not scale
-        // with the loaded scene). Forward-Z precision degrades quadratically
-        // with distance and linearly with 1/near, so near stays as large as
-        // playably acceptable; the far plane barely affects precision.
+        // with the loaded scene). The camera uses a reversed infinite-far
+        // projection (near = 1, far at infinity = 0) on the Depth32Float
+        // G-buffer: depth precision stays uniform in relative terms and nothing
+        // is ever far-clipped, so near stays as large as playably acceptable
+        // while far no longer matters at all.
         _cameraNear = 0.1f;
         _camera = RenderingSystem.CreateCameraPerspective(0.83f, 16f / 9,
             _cameraNear, 4096f);
+        _camera.ReverseInfiniteDepth = true;
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(

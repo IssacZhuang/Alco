@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // Volumetric clouds march pass for the deferred PBR pipeline: a half-
 // resolution full-screen pass that ray-marches a cloud slab (Perlin-Worley
@@ -174,8 +175,10 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 originKm = cameraPosition.xyz / 1000.0;
     float3 dir;
     float sceneDistanceKm;
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
+        // Any depth along the ray yields the same perspective direction; 1.0 is
+        // the near plane under reversed depth and numerically the safest pick.
         float4 farWorld = mul(invViewProjection, float4(ndc, 1.0, 1.0));
         dir = normalize(farWorld.xyz / farWorld.w - cameraPosition.xyz);
         sceneDistanceKm = 1e6;

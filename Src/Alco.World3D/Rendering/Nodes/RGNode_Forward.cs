@@ -318,7 +318,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     {
         var material = _rendering.CreateMaterial(_glassShader, name);
         material.BlendState = BlendState.AlphaBlendNoAccumulation;
-        material.DepthStencilState = DepthStencilState.Read; // hardware depth test (LessEqual, no write)
+        material.DepthStencilState = DepthStencilState.ReadReverseZ; // hardware depth test (GreaterEqual on reversed depth, no write)
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
         SetGlassMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);

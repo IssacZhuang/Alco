@@ -242,7 +242,9 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_gbuffer_material")
     {
         var material = _rendering.CreateMaterial(_shader, name);
-        material.DepthStencilState = DepthStencilState.Write;
+        // Reversed infinite camera depth (near = 1, far = 0): GreaterEqual keeps
+        // the nearest surface, matching the 0.0 depth clear of the G-buffer pass.
+        material.DepthStencilState = DepthStencilState.WriteReverseZ;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
         SetMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);

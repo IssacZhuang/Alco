@@ -1,4 +1,5 @@
 #include "Shaders/Libs/Core.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // Volumetric light (god rays / atmospheric scattering) pass for the deferred
 // PBR pipeline. A full-screen pass rendered after deferred lighting; the
@@ -98,11 +99,13 @@ float4 MainPS(V2F input) : SV_TARGET
         return float4(0.0, 0.0, 0.0, 0.0);
     }
 
-    // Reconstruct world position and view ray.
+    // Reconstruct world position and view ray. The clamp keeps the homogeneous
+    // w finite for sky pixels (depth 0 under reversed infinite depth); the ray
+    // direction is unchanged since any depth along the ray yields it.
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
     int2 pixelCoord = int2(input.uv * viewportSize.xy);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, pixelCoord);
-    float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
+    float4 world = mul(invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
     float3 worldPosition = world.xyz / world.w;
 
     float3 rayOrigin = cameraPosition.xyz;
@@ -112,7 +115,7 @@ float4 MainPS(V2F input) : SV_TARGET
     // Beyond the last cascade there is no shadow information, so marching
     // farther would add unshadowed (flat) radiance — clamp to the last split.
     float maxDistance = cascadeSplits.w;
-    bool isSky = depth >= 0.9999;
+    bool isSky = IS_SKY_DEPTH(depth);
     float sceneDistance = isSky ? maxDistance : length(worldPosition - rayOrigin);
     float rayEnd = min(sceneDistance, maxDistance);
 

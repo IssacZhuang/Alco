@@ -1,6 +1,7 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the configured
 // screen-space trace resolution. Reconstructs world position and normal from the
@@ -233,7 +234,7 @@ float4 GatherScreenSpaceNearField(
 
             int2 samplePixel = clamp((int2)(sampleUV * float2(resolution)), 0, (int2)resolution - 1);
             float sampleDepth = GET_PIXEL_TEX2D(_gbufferDepth, samplePixel);
-            if (sampleDepth >= 0.9999)
+            if (IS_SKY_DEPTH(sampleDepth))
             {
                 continue;
             }
@@ -570,7 +571,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     int2 gbufferPixel = int2(uv * float2(gbufferResolution));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2(gbufferResolution) - 1);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
         _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
         _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
@@ -615,7 +616,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     int2(0, 0),
                     int2(gbufferResolution) - 1);
                 float sampleDepth = GET_PIXEL_TEX2D(_gbufferDepth, normalPixel);
-                if (sampleDepth >= 0.9999)
+                if (IS_SKY_DEPTH(sampleDepth))
                 {
                     continue;
                 }

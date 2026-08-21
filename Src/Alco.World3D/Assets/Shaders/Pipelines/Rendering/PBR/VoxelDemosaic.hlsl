@@ -1,6 +1,7 @@
 #include "Shaders/Libs/Core.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/VoxelCommon.hlsli"
 #include "Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // Min/Max dual-layer spatial resolve for temporally integrated raw voxel GI.
 // One thread per trace pixel: a geometry-aware 9x9 filter reduces the small
@@ -189,7 +190,7 @@ void MainCS(
 
         float linearDepth = -1.0;
         float3 geometryNormal = float3(0.0, 0.0, 1.0);
-        if (sampleDepth < 0.9999)
+        if (!IS_SKY_DEPTH(sampleDepth))
         {
             float2 sampleGbufferUV =
                 (float2(sampleGbufferPixel) + 0.5) / float2(gbufferRes);
@@ -282,7 +283,7 @@ void MainCS(
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), gbufferMax);
 
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, gbufferPixel);
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
         WriteZeroOutputs(tracePixel, halfWidth);
         return;
@@ -356,7 +357,7 @@ void MainCS(
                 int2(0, 0),
                 int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
             float layerDepth = GET_PIXEL_TEX2D(_gbufferDepth, layerPixel);
-            if (layerDepth < 0.9999)
+            if (!IS_SKY_DEPTH(layerDepth))
             {
                 float2 layerUV =
                     (float2(layerPixel) + 0.5) / float2(gbufferRes);

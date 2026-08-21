@@ -73,4 +73,17 @@ public class CameraPerspective : BaseCameraObject<CameraDataPerspective>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set => Data.Far = value;
     }
+
+    /// <summary>
+    /// Gets or sets whether the camera uses a reversed infinite-far projection
+    /// (see <see cref="CameraDataPerspective.ReverseInfiniteDepth"/>). The far
+    /// plane moves to infinity: <see cref="Far"/> no longer clips geometry.
+    /// </summary>
+    public bool ReverseInfiniteDepth
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => Data.ReverseInfiniteDepth;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        set => Data.ReverseInfiniteDepth = value;
+    }
 }

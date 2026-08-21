@@ -1,4 +1,5 @@
 #include "Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionPostCommon.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 // This pass runs after deferred lighting and forward transparency. Unlike the
 // former GI-pass SSR, _sceneColor therefore contains the actual HDR shaded
@@ -56,7 +57,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float2 fullSize = ssrRenderSize.xy;
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, pixel);
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
         return 0.0;
     }
@@ -115,7 +116,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float2 hitUV = input.uv;
     float3 hitWorldPosition = worldPosition;
     float hitError = 1e20;
-    float hitDepth = 1.0;
+    float hitDepth = 0.0;
     int refinementCount = 0;
     bool geometryHit = false;
 
@@ -140,7 +141,7 @@ float4 MainPS(V2F input) : SV_TARGET
         // for screen-visible geometry and leave sky misses to the occlusion-aware
         // voxel specular fallback. Direct sun specular is already shadowed in the
         // deferred lighting pass.
-        if (hitDepth < 0.9999)
+        if (!IS_SKY_DEPTH(hitDepth))
         {
             hitWorldPosition = SsrPostReconstructWorldPosition(hitUV, hitDepth);
             hitError = length(rayPosition - hitWorldPosition);

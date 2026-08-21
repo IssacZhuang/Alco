@@ -31,7 +31,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     }
 
     float depth = GET_PIXEL_TEX2D(_gbufferDepth, int2(pixel));
-    if (depth >= 0.9999)
+    if (IS_SKY_DEPTH(depth))
     {
         // Sky pixels are never occluded.
         _aoOutput[pixel] = float4(1.0, 1.0, 1.0, 1.0);

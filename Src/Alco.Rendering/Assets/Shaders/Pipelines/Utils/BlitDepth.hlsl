@@ -30,8 +30,9 @@ V2F MainVS(Vertex input) {
 float4 MainPS(V2F input) : SV_TARGET {
     float2 c = input.uv * canvasSize;
     int2 position = int2(c);
+    // Reversed depth (near = 1, far = 0) already follows the visualization
+    // convention of near = white, far = black — no flip needed.
     float depth = GET_PIXEL_TEX2D(_texture, position);
-    depth = 1.0 - depth;
     // Renormalize depth: map [dynamicRange.x, dynamicRange.y] to [0, 1]
     depth = (depth - dynamicRange.x) / (dynamicRange.y - dynamicRange.x);
 

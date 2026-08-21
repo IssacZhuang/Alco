@@ -1,4 +1,5 @@
 #include "Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionPostCommon.hlsli"
+#include "Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli"
 
 DEFINE_TEX2D_SAMPLE(1, _reflectionRaw);
 DEFINE_TEX2D_SAMPLE(1, _reflectionHistory);
@@ -17,7 +18,7 @@ void MainPS(
     int2 centerPixel = clamp(
         int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float centerDepth = GET_PIXEL_TEX2D(_gbufferDepth, centerPixel);
-    if (centerDepth >= 0.9999)
+    if (IS_SKY_DEPTH(centerDepth))
     {
         reflectionOut = 0.0;
         metadataOut = 0.0;
@@ -52,7 +53,7 @@ void MainPS(
             int2 samplePixel = clamp(
                 int2(sampleUV * fullSize), int2(0, 0), int2(fullSize) - 1);
             float sampleDepth = GET_PIXEL_TEX2D(_gbufferDepth, samplePixel);
-            if (sampleDepth >= 0.9999)
+            if (IS_SKY_DEPTH(sampleDepth))
             {
                 continue;
             }
