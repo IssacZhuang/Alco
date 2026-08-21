@@ -5,9 +5,9 @@ namespace Alco.World3D;
 /// <summary>
 /// The shadow pass's material policy: composes the shadow depth template with the
 /// asset's surface and selects the alpha-tested permutation for
-/// <see cref="MeshAlphaMode.Mask"/> assets (the surface's PASS_SHADOW path evaluates
-/// alpha only), so cutout meshes cast correctly shaped shadows. Register where the
-/// renderer is created.
+/// <see cref="MeshAlphaMode.Mask"/> assets (the pass consumes only the surface's
+/// base color alpha), so cutout meshes cast correctly shaped shadows. Register
+/// where the renderer is created.
 /// </summary>
 public sealed class ShadowMaterialPass : IMaterialPass
 {
@@ -31,7 +31,7 @@ public sealed class ShadowMaterialPass : IMaterialPass
         bool cutout = asset.AlphaMode == MeshAlphaMode.Mask;
 
         Shader shader = context.ComposeShader(World3DAssetPaths.Shader_ShadowDepth);
-        List<string> defines = [.. asset.Defines, "PASS_SHADOW"];
+        List<string> defines = [.. asset.Defines];
         if (cutout)
         {
             defines.Add("SHADOW_CUTOUT");

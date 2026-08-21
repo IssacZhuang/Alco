@@ -14,10 +14,11 @@
 // only the cascade index so per-cascade render bundles never re-record.
 //
 // Compile with SHADOW_CUTOUT defined to enable alpha testing: the pixel shader
-// evaluates the surface (PASS_SHADOW permutation: alpha only in PbrStandard)
-// and discards fragments below the cutoff, so cutout meshes (foliage, fences,
-// etc.) cast correctly shaped shadows. Without the define the pixel shader is
-// empty (zero-overhead opaque depth write).
+// evaluates the surface's base color alpha (GetBaseColor — the only surface
+// function this pass consumes, so nothing else the surface declares survives
+// into the permutation) and discards fragments below the cutoff, so cutout
+// meshes (foliage, fences, etc.) cast correctly shaped shadows. Without the
+// define the pixel shader is empty (zero-overhead opaque depth write).
 
 struct Vertex
 {
@@ -108,7 +109,7 @@ void MainPS(V2F input)
         surfaceInput.emissiveFactor = inst.emissive;
         surfaceInput.alphaCutoff = alphaCutoff;
 
-        clip(EvaluateSurface(surfaceInput).alpha - alphaCutoff);
+        clip(GetBaseColor(surfaceInput).a - alphaCutoff);
     }
 #endif
 }

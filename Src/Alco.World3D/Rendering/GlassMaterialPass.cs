@@ -30,7 +30,7 @@ public sealed class GlassMaterialPass : IMaterialPass
         MaterialAsset asset = context.Asset;
         Shader shader = context.ComposeShader(World3DAssetPaths.Shader_ForwardGlass);
         GraphicsMaterial material = _forward.CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass");
-        material.SetDefines([.. asset.Defines, "PASS_GLASS"]);
+        material.SetDefines([.. asset.Defines]);
 
         // Standard-slot fallbacks until textures stream in; custom surfaces simply
         // lack these slots and keep the engine-wide white default.

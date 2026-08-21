@@ -9,8 +9,9 @@
 // albedo + world-normal color targets, so the GI cone trace can sample
 // shadow-map-resolution sun radiance where its march touches geometry.
 // All material evaluation lives in the surface shader included above
-// (contract: Shaders/Libs/Surface.hlsli; PASS_RSM permutation), so the RSM
-// resolves normal maps like the G-buffer does. The vertex layout must match
+// (contract: Shaders/Libs/Surface.hlsli — this pass consumes base color and
+// the tangent-space normal, nothing else), so the RSM resolves normal maps
+// like the G-buffer does. The vertex layout must match
 // Alco.Rendering.VertexPBR exactly.
 // Per-instance data (model matrix, base color tint, alpha cutoff) lives in the
 // _instances storage buffer and is fetched by SV_InstanceID; the push constant
@@ -121,16 +122,17 @@ void MainPS(V2F input,
     surfaceInput.emissiveFactor = inst.emissive;
     surfaceInput.alphaCutoff = inst.params_.x;
 
-    SurfaceOutput s = EvaluateSurface(surfaceInput);
+    float4 baseColor = GetBaseColor(surfaceInput);
 
     // Alpha test (mirrors GBuffer.hlsl): cutout meshes keep correctly shaped
     // bounce light, not the alpha-quantized silhouette.
-    if (surfaceInput.alphaCutoff > 0.0 && s.alpha < surfaceInput.alphaCutoff)
+    if (surfaceInput.alphaCutoff > 0.0 && baseColor.a < surfaceInput.alphaCutoff)
     {
         discard;
     }
 
-    albedoRT = float4(EncodeSRGB(s.albedo), 1.0);
-    float3 worldNormal = normalize(t * s.normalTS.x + b * s.normalTS.y + n * s.normalTS.z);
+    albedoRT = float4(EncodeSRGB(baseColor.rgb), 1.0);
+    float3 normalTS = GetNormalTS(surfaceInput);
+    float3 worldNormal = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
     normalRT = float4(worldNormal * 0.5 + 0.5, 1.0);
 }

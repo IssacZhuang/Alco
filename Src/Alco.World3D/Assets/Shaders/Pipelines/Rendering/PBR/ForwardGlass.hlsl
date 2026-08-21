@@ -89,15 +89,17 @@ float4 MainPS(V2F input) : SV_TARGET
     surfaceInput.emissiveFactor = constants.emissive;
     surfaceInput.alphaCutoff = 0.0f; // glass does not alpha-test
 
-    SurfaceOutput s = EvaluateSurface(surfaceInput);
+    float4 baseColor = GetBaseColor(surfaceInput);
+    float3 mrAO = GetMetallicRoughnessAO(surfaceInput);
+    float3 normalTS = GetNormalTS(surfaceInput);
 
-    float3 albedo = s.albedo;
-    float alpha = s.alpha;
-    float metallic = s.metallic;
-    float roughness = s.roughness;
-    float ao = s.ao;
+    float3 albedo = baseColor.rgb;
+    float alpha = baseColor.a;
+    float metallic = mrAO.x;
+    float roughness = mrAO.y;
+    float ao = mrAO.z;
 
-    float3 N = normalize(t * s.normalTS.x + b * s.normalTS.y + n * s.normalTS.z);
+    float3 N = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
 
     float3 worldPosition = input.worldPosition;
     float3 V = normalize(cameraPosition.xyz - worldPosition);
@@ -135,7 +137,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 ambient = diffuseIrradiance * albedo * (1.0 - metallic) * ao;
 
     // Emissive (surface = emissive texture times the push-constant factor).
-    float3 emissive = s.emissive;
+    float3 emissive = GetEmissive(surfaceInput);
 
     float3 color = Lo + ambient + emissive;
 

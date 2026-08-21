@@ -31,7 +31,7 @@ public sealed class RsmMaterialPass : IMaterialPass
         MaterialAsset asset = context.Asset;
         Shader shader = context.ComposeShader(World3DAssetPaths.Shader_Rsm);
         GraphicsMaterial material = _renderer.CreateRsmMaterial(shader, asset.DoubleSided, $"{asset.Name}_rsm");
-        material.SetDefines([.. asset.Defines, "PASS_RSM"]);
+        material.SetDefines([.. asset.Defines]);
 
         // Albedo fallback until textures stream in; custom surfaces without the
         // standard slots keep the engine-wide white default.

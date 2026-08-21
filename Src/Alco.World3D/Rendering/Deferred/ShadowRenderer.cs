@@ -250,8 +250,8 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// <summary>
     /// Create a caller-owned cutout shadow material — the shadow depth shader
     /// (ShadowDepth.hlsl) compiled with the <c>SHADOW_CUTOUT</c> define so the
-    /// pixel shader evaluates the surface (alpha only in the PASS_SHADOW
-    /// permutation) and discards transparent fragments.
+    /// pixel shader evaluates the surface's base color alpha
+    /// (its only consumed surface function) and discards transparent fragments.
     /// Alpha-tested meshes (foliage, fences, etc.) cast correctly shaped shadows.
     /// The material binds the shadow data buffer internally.
     /// </summary>

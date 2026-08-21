@@ -95,8 +95,8 @@ public sealed class MaterialCompiler : AutoDisposable
             material = pass.Compile(CreateContext(asset));
             if (paramsBuffer != null)
             {
-                // TrySet: permutations that dead-strip the block (e.g. a surface's
-                // PASS_SHADOW early-out) have no such resource in reflection.
+                // TrySet: permutations that dead-strip the block (e.g. the shadow
+                // pass consuming only base color alpha) have no such resource.
                 material.TrySetBuffer(MaterialParamsResource, paramsBuffer);
             }
             entry.Materials.Add(pass.Id, material);

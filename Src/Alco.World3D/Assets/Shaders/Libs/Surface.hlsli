@@ -4,15 +4,26 @@
 // The contract between pass templates (GBuffer.hlsl, ShadowDepth.hlsl, ...)
 // and surface shaders (material-owned code). A pass template owns the shader
 // entry points, the render-target layout and all pass-mandated state; it calls
-// the two functions declared here to evaluate the material. A surface shader
-// implements them and declares its own resources next to them, from binding
-// set 2 upward: the engine requires set indices contiguous from 0, and the
-// pass templates pack their own resources (camera, instances, cascade data,
-// lights, shadow map) into sets 0-1, so a surface's declared sets must continue
-// contiguously from 2 (PbrStandard uses 2-5; a surface declaring nothing — a
-// fully procedural material — leaves the templates' sets 0-1 dense on their
-// own). Multiple resources may share one set by being declared one after
-// another (see DEFINE_* in Core.hlsli); binding is by resource name.
+// only the functions below whose outputs it consumes. Whatever a pass leaves
+// uncalled — functions, textures, samplers — is dead code the compiler strips
+// from that pass's permutation, structurally: surfaces never branch on pass
+// defines and adding a pass touches no surface. Shadow depth calls
+// GetBaseColor for its alpha; the RSM adds GetNormalTS; the G-buffer consumes
+// everything.
+//
+// A surface declares its resources next to the functions, ALL in binding
+// set 2: the engine requires set indices contiguous from 0, the pass templates
+// pack their own resources into sets 0-1, and one shared set keeps the layout
+// dense no matter which subset of functions a pass consumes (multiple
+// resources may share a set by being declared one after another — see DEFINE_*
+// in Core.hlsli; binding is by resource name).
+//
+// The function grouping follows resource granularity, not field granularity:
+// base color carries albedo and alpha (one texture, one fetch), metallic,
+// roughness and AO share one fetch. A surface with expensive intermediates
+// shared across functions (e.g. triplanar weights) recomputes them per
+// function — keep such surfaces honest about what each call needs, or fold
+// the work into fewer calls.
 //
 // Surface parameters: a surface may declare a uniform block named
 // _materialParams whose members are all bare float4s (one 16-byte register
@@ -24,16 +35,15 @@
 // engine's _globalRenderData cbuffer —
 //   DEFINE_UNIFORM(2, _globalRenderData) { float4 time; }
 // with x = time, y = deltaTime, z = sinTime, w = cosTime — and read it
-// directly, in ModifyVertex (vertex stage) or EvaluateSurface alike. The
-// engine binds the per-frame GlobalRenderDataBuffer to every material it
-// creates (see RenderingSystem.CreateMaterial), so no template or pass wiring
+// directly, in ModifyVertex (vertex stage) or any Get* alike. The engine
+// binds the per-frame GlobalRenderDataBuffer to every material it creates
+// (see RenderingSystem.CreateMaterial), so no template or pass wiring
 // is involved.
 //
-// The same surface functions run in every pass that draws the mesh (G-buffer,
-// shadow depth, RSM, glass), so vertex animation applied in ModifyVertex stays
-// consistent across passes automatically. Gate expensive fragment work on the
-// pass define (PASS_GBUFFER / PASS_SHADOW / ...) when a pass only needs part of
-// the output — shadow depth, for example, only needs alpha.
+// A surface file may internally #include whatever it needs (shared noise
+// libraries, aspect implementations) — file organization is the surface's
+// own; passes only ever see the one entry file the material composer swaps
+// into the template's @SURFACE@ line.
 
 /// Interpolated geometry and per-instance factors available to a surface.
 struct SurfaceInput
@@ -48,25 +58,21 @@ struct SurfaceInput
     float alphaCutoff;          // alpha test threshold; 0 disables the test
 };
 
-/// The material evaluated at one point. albedo/emissive are linear; normalTS is
-/// tangent-space and lifted to world space by the pass template's TBN.
-struct SurfaceOutput
-{
-    float3 albedo;
-    float alpha;
-    float3 normalTS;
-    float roughness;
-    float metallic;
-    float ao;
-    float3 emissive;
-};
+/// Base color: linear albedo (rgb) and coverage alpha (a) — one fetch.
+float4 GetBaseColor(SurfaceInput input);
 
-/// Evaluate the material at one point. Implemented by every surface shader.
-SurfaceOutput EvaluateSurface(SurfaceInput input);
+/// Tangent-space normal; lifted to world space by the pass template's TBN.
+float3 GetNormalTS(SurfaceInput input);
+
+/// PBR factors: metallic (x), roughness (y), ambient occlusion (z) — one fetch.
+float3 GetMetallicRoughnessAO(SurfaceInput input);
+
+/// Linear emissive radiance.
+float3 GetEmissive(SurfaceInput input);
 
 /// Vertex deformation in world space, applied after the instance transform and
 /// before projection in every pass. Implemented by every surface shader;
 /// identity in PbrStandard. Time, when needed, comes from _globalRenderData.
 void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv);
 
-#endif // SURFACE_HLSLI
+#endif

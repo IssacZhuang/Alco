@@ -96,22 +96,24 @@ void MainPS(V2F input,
     surfaceInput.emissiveFactor = inst.emissive;
     surfaceInput.alphaCutoff = inst.params_.x;
 
-    SurfaceOutput s = EvaluateSurface(surfaceInput);
+    float4 baseColor = GetBaseColor(surfaceInput);
+    float3 mrAO = GetMetallicRoughnessAO(surfaceInput);
 
     // Alpha test: discard fragments below the cutoff (0 disables the test).
-    if (surfaceInput.alphaCutoff > 0.0 && s.alpha < surfaceInput.alphaCutoff)
+    if (surfaceInput.alphaCutoff > 0.0 && baseColor.a < surfaceInput.alphaCutoff)
     {
         discard;
     }
 
-    albedoRT = float4(EncodeSRGB(s.albedo), s.roughness);
+    albedoRT = float4(EncodeSRGB(baseColor.rgb), mrAO.y);
 
-    float3 worldNormal = normalize(t * s.normalTS.x + b * s.normalTS.y + n * s.normalTS.z);
+    float3 normalTS = GetNormalTS(surfaceInput);
+    float3 worldNormal = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
     float2 geometryNormal = EncodeGeometryNormal(n);
     normalRT = float4(worldNormal * 0.5 + 0.5, geometryNormal.x);
 
-    mrAORT = float4(s.metallic, s.roughness, s.ao, 1.0);
+    mrAORT = float4(mrAO, 1.0);
 
     // Stored linear in the RGBA16Float target; no shading applied downstream.
-    emissiveRT = float4(s.emissive, geometryNormal.y);
+    emissiveRT = float4(GetEmissive(surfaceInput), geometryNormal.y);
 }

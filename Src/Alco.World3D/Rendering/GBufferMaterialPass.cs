@@ -29,7 +29,7 @@ public sealed class GBufferMaterialPass : IMaterialPass
         MaterialAsset asset = context.Asset;
         Shader shader = context.ComposeShader(World3DAssetPaths.Shader_GBuffer);
         GraphicsMaterial material = _renderer.CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer");
-        material.SetDefines([.. asset.Defines, "PASS_GBUFFER"]);
+        material.SetDefines([.. asset.Defines]);
 
         // Standard-slot fallbacks until textures stream in; custom surfaces simply
         // lack these slots and keep the engine-wide white default.

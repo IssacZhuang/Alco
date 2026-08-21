@@ -48,26 +48,28 @@ public class TestMaterialCompiler
             {
             }
 
-            SurfaceOutput EvaluateSurface(SurfaceInput input)
+            float4 GetBaseColor(SurfaceInput input)
             {
-                SurfaceOutput output = (SurfaceOutput)0;
-
-            #if defined(PASS_SHADOW)
-                output.alpha = input.baseColorFactor.a;
-                return output;
-            #else
                 float cellsPerMeter = scale.x > 0.0 ? scale.x : 2.0;
                 float3 cell = floor(input.worldPos * cellsPerMeter - time.x);
                 float checker = fmod(cell.x + cell.y + cell.z, 2.0);
-                output.albedo = lerp(float3(0.90, 0.90, 0.92), float3(0.85, 0.12, 0.10), checker) * input.baseColorFactor.rgb;
-                output.alpha = input.baseColorFactor.a;
-                output.normalTS = float3(0.0, 0.0, 1.0);
-                output.roughness = lerp(0.55, 0.20, checker);
-                output.metallic = 0.0;
-                output.ao = 1.0;
-                output.emissive = 0.0;
-                return output;
-            #endif
+                float3 albedo = lerp(float3(0.90, 0.90, 0.92), float3(0.85, 0.12, 0.10), checker);
+                return float4(albedo * input.baseColorFactor.rgb, input.baseColorFactor.a);
+            }
+
+            float3 GetNormalTS(SurfaceInput input)
+            {
+                return float3(0.0, 0.0, 1.0);
+            }
+
+            float3 GetMetallicRoughnessAO(SurfaceInput input)
+            {
+                return float3(0.0, 0.5, 1.0);
+            }
+
+            float3 GetEmissive(SurfaceInput input)
+            {
+                return input.emissiveFactor.rgb;
             }
 
             #endif
