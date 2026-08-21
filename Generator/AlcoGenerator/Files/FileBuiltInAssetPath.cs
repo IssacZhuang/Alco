@@ -24,14 +24,12 @@ public static partial class BuiltInAssetsPath
 
     private static readonly string GenStatementVariable = @"   public const string {0} = ""{1}"";";
 
-    private readonly List<FileInfo> _files;
+    private readonly List<(FileInfo File, string RelativePath)> _files;
     private readonly Dictionary<string, string> _duplicateCheck = new Dictionary<string, string>();
-    private readonly string _assetsPath;
 
-    public FileBuiltInAssetPath(List<FileInfo> files, string assetsPath)
+    public FileBuiltInAssetPath(List<(FileInfo File, string RelativePath)> files)
     {
         _files = files;
-        _assetsPath = assetsPath;
     }
 
     public string GenerateContent()
@@ -39,10 +37,9 @@ public static partial class BuiltInAssetsPath
         StringBuilder builder = new StringBuilder();
         builder.AppendLine(GenFileContentBegin);
 
-        foreach (var file in _files)
+        foreach (var (file, localPath) in _files)
         {
             string filePath = file.FullName;
-            string localPath = GetLocalPath(filePath);
 
             if (ShouldGenerate(filePath, out string namePrefix))
             {
@@ -86,11 +83,5 @@ public static partial class BuiltInAssetsPath
                 namePrefix = string.Empty;
                 return false;
         }
-    }
-
-    private string GetLocalPath(string filePath)
-    {
-        string relativePath = Path.GetRelativePath(_assetsPath, filePath);
-        return relativePath.Replace("\\", "/");
     }
 }

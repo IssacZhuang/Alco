@@ -11,8 +11,8 @@
 - **Alco/** - Base library including math, spatial, threading, and utilities
 - **Alco.Engine/** - Main engine implementation
 - **Alco.Graphics/** - Graphics abstraction layer
-- **Alco.Rendering/** - Rendering pipeline (render graph, render pipeline framework, shared GPU resource facades)
-- **Alco.World3D/** - 3D PBR rendering module (deferred render nodes, scene environment, preset factory); references Alco.Engine like Alco.ImGUI and is consumed on demand — Alco.Engine never references it
+- **Alco.Rendering/** - Rendering pipeline (render graph, render pipeline framework, shared GPU resource facades) and its built-in shaders (Assets/Shaders)
+- **Alco.World3D/** - 3D PBR rendering module (deferred render nodes, scene environment, preset factory, PBR shaders); references only Alco.Rendering and is consumed on demand — neither Alco.Engine nor Alco.Rendering references it
 - **Alco.Audio/** - Audio system
 - **Alco.GUI/** - GUI framework
 - **Alco.IO/** - Input/Output handling
@@ -61,7 +61,7 @@
 - When writing code, if there are any ambiguities or unclear requirements, always ask for the user's intent and wait for confirmation before proceeding. Do not guess or make assumptions.
 
 ## Shader Guidelines
-- Read `Src/Alco.Engine/Assets/Shaders/Libs/Core.hlsli` before editing shaders.
+- Read `Src/Alco.Rendering/Assets/Shaders/Libs/Core.hlsli` before editing shaders (PBR-specific shader libs live under `Src/Alco.World3D/Assets/Shaders/`).
 - All comments in shaders must be English.
 - Run `dotnet test --filter "ValidateShader"` to test shaders after editing.
 

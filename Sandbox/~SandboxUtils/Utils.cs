@@ -23,6 +23,15 @@ public static class Utils
         return Path.Combine(GetSolutionFolder(), "Src", "Alco.Engine", "Assets");
     }
 
+    /// <summary>
+    /// The source asset folder of the rendering library (built-in shaders),
+    /// for development-time hot reload watchers.
+    /// </summary>
+    public static string GetRenderingAssetsPath()
+    {
+        return Path.Combine(GetSolutionFolder(), "Src", "Alco.Rendering", "Assets");
+    }
+
     public static string GetProjectPath([CallerFilePath] string? path = null)
     {
         //find .csproj file

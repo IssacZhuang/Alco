@@ -787,6 +787,7 @@ public class Game : GameEngine
             yield return fileSource;
         }
         yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), AssetSystem);
+        yield return new DirectoryWatcherFileSource(Utils.GetRenderingAssetsPath(), AssetSystem);
         yield return new DirectoryWatcherFileSource(
             Path.Combine(Utils.GetSolutionFolder(), "Src", "Alco.World3D", "Assets"), AssetSystem);
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);

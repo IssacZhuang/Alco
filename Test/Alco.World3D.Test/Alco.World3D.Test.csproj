@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TestFramework\TestFramework.csproj" />
     <ProjectReference Include="..\..\Src\Alco.World3D\Alco.World3D.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
   </ItemGroup>
 
 </Project>

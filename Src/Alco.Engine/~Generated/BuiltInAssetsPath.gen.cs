@@ -11,6 +11,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_ClearTexture = "Shaders/Pipelines/Compute/ClearTexture.hlsl";
 
+   public const string Shader_TextureCompressBC3 = "Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl";
+
    public const string Shader_FloodFillLighting = "Shaders/Pipelines/Compute/FloodFillLighting.hlsl";
 
    public const string Shader_GaussianBlurRGBA16F = "Shaders/Pipelines/Compute/GaussianBlurRGBA16F.hlsl";
@@ -21,20 +23,6 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_TextSDF = "Shaders/Pipelines/Compute/TextSDF.hlsl";
 
-   public const string Shader_ColorGrading = "Shaders/Pipelines/PostProcess/ColorGrading.hlsl";
-
-   public const string Shader_FXAA = "Shaders/Pipelines/PostProcess/FXAA.hlsl";
-
-   public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
-
-   public const string Shader_BlitDepth = "Shaders/Pipelines/Utils/BlitDepth.hlsl";
-
-   public const string Shader_BlitRegion = "Shaders/Pipelines/Utils/BlitRegion.hlsl";
-
-   public const string Shader_BlitWithColor = "Shaders/Pipelines/Utils/BlitWithColor.hlsl";
-
-   public const string Shader_TextureCompressBC3 = "Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl";
-
    public const string Shader_BloomBlit = "Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl";
 
    public const string Shader_BloomClamp = "Shaders/Pipelines/PostProcess/Bloom/BloomClamp.hlsl";
@@ -42,6 +30,10 @@ public static partial class BuiltInAssetsPath
    public const string Shader_BloomDownSample = "Shaders/Pipelines/PostProcess/Bloom/BloomDownSample.hlsl";
 
    public const string Shader_BloomUpSample = "Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl";
+
+   public const string Shader_ColorGrading = "Shaders/Pipelines/PostProcess/ColorGrading.hlsl";
+
+   public const string Shader_FXAA = "Shaders/Pipelines/PostProcess/FXAA.hlsl";
 
    public const string Shader_ACESTonemap = "Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl";
 
@@ -70,6 +62,14 @@ public static partial class BuiltInAssetsPath
    public const string Shader_TileInstanced = "Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl";
 
    public const string Shader_TileWaterInstanced = "Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl";
+
+   public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
+
+   public const string Shader_BlitDepth = "Shaders/Pipelines/Utils/BlitDepth.hlsl";
+
+   public const string Shader_BlitRegion = "Shaders/Pipelines/Utils/BlitRegion.hlsl";
+
+   public const string Shader_BlitWithColor = "Shaders/Pipelines/Utils/BlitWithColor.hlsl";
 
 
 }

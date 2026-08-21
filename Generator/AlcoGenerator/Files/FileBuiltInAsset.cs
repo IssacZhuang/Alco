@@ -30,14 +30,12 @@ public partial class BuiltInAssets
     private static readonly string GenStatementShader = @"    public Shader {0} => GetShader(""{1}"");";
     private static readonly string GenStatementFont = @"    public Font {0} => GetFont(""{1}"");";
 
-    private readonly List<FileInfo> _files;
+    private readonly List<(FileInfo File, string RelativePath)> _files;
     private readonly Dictionary<string, string> _duplicateCheck = new Dictionary<string, string>();
-    private readonly string _assetsPath;
 
-    public FileBuiltInAsset(List<FileInfo> files, string assetsPath)
+    public FileBuiltInAsset(List<(FileInfo File, string RelativePath)> files)
     {
         _files = files;
-        _assetsPath = assetsPath;
     }
 
     public string GenerateContent()
@@ -45,10 +43,9 @@ public partial class BuiltInAssets
         StringBuilder code = new StringBuilder();
         code.AppendLine(GenFileContentBegin);
 
-        foreach (var file in _files)
+        foreach (var (file, localPath) in _files)
         {
             string filePath = file.FullName;
-            string localPath = GetLocalPath(filePath);
 
             if (ShouldGenerate(filePath, out string namePrefix, out string statement))
             {
@@ -95,11 +92,5 @@ public partial class BuiltInAssets
                 namePrefix = string.Empty;
                 return false;
         }
-    }
-
-    private string GetLocalPath(string filePath)
-    {
-        string relativePath = Path.GetRelativePath(_assetsPath, filePath);
-        return relativePath.Replace("\\", "/");
     }
 }

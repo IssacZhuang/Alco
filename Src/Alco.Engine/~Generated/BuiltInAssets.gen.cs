@@ -16,6 +16,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_ClearTexture => GetShader("Shaders/Pipelines/Compute/ClearTexture.hlsl");
 
+    public Shader Shader_TextureCompressBC3 => GetShader("Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl");
+
     public Shader Shader_FloodFillLighting => GetShader("Shaders/Pipelines/Compute/FloodFillLighting.hlsl");
 
     public Shader Shader_GaussianBlurRGBA16F => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA16F.hlsl");
@@ -26,20 +28,6 @@ public partial class BuiltInAssets
 
     public Shader Shader_TextSDF => GetShader("Shaders/Pipelines/Compute/TextSDF.hlsl");
 
-    public Shader Shader_ColorGrading => GetShader("Shaders/Pipelines/PostProcess/ColorGrading.hlsl");
-
-    public Shader Shader_FXAA => GetShader("Shaders/Pipelines/PostProcess/FXAA.hlsl");
-
-    public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
-
-    public Shader Shader_BlitDepth => GetShader("Shaders/Pipelines/Utils/BlitDepth.hlsl");
-
-    public Shader Shader_BlitRegion => GetShader("Shaders/Pipelines/Utils/BlitRegion.hlsl");
-
-    public Shader Shader_BlitWithColor => GetShader("Shaders/Pipelines/Utils/BlitWithColor.hlsl");
-
-    public Shader Shader_TextureCompressBC3 => GetShader("Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl");
-
     public Shader Shader_BloomBlit => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl");
 
     public Shader Shader_BloomClamp => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomClamp.hlsl");
@@ -47,6 +35,10 @@ public partial class BuiltInAssets
     public Shader Shader_BloomDownSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomDownSample.hlsl");
 
     public Shader Shader_BloomUpSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl");
+
+    public Shader Shader_ColorGrading => GetShader("Shaders/Pipelines/PostProcess/ColorGrading.hlsl");
+
+    public Shader Shader_FXAA => GetShader("Shaders/Pipelines/PostProcess/FXAA.hlsl");
 
     public Shader Shader_ACESTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl");
 
@@ -75,6 +67,14 @@ public partial class BuiltInAssets
     public Shader Shader_TileInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl");
 
     public Shader Shader_TileWaterInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl");
+
+    public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
+
+    public Shader Shader_BlitDepth => GetShader("Shaders/Pipelines/Utils/BlitDepth.hlsl");
+
+    public Shader Shader_BlitRegion => GetShader("Shaders/Pipelines/Utils/BlitRegion.hlsl");
+
+    public Shader Shader_BlitWithColor => GetShader("Shaders/Pipelines/Utils/BlitWithColor.hlsl");
 
 
 }
