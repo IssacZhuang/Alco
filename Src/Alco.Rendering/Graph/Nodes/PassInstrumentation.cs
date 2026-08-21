@@ -28,15 +28,32 @@ public sealed class PassInstrumentation
     /// Begins a pass on <paramref name="context"/> rendering to <paramref name="target"/>,
     /// recording GPU timestamps when <see cref="ShouldRecordGpu"/> is set.
     /// </summary>
+    /// <param name="context">The render context that records the pass.</param>
+    /// <param name="target">The framebuffer to render to.</param>
+    /// <param name="clearColors">Optional color attachment clear values.</param>
+    /// <param name="clearDepth">Optional depth clear value.</param>
+    /// <param name="clearStencil">Optional stencil clear value.</param>
     /// <returns>The pass scope; dispose it (or use <c>using</c>) to close the pass.</returns>
-    public RenderPassScope BeginPass(RenderContext context, GPUFrameBuffer target, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth = null)
+    public RenderPassScope BeginPass(
+        RenderContext context,
+        GPUFrameBuffer target,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth = null,
+        uint? clearStencil = null)
     {
         if (ShouldRecordGpu)
         {
-            return context.BeginPass(target, clearColors, GpuTimestamps!.QuerySet, (uint)GpuQueryBase, (uint)GpuQueryBase + 1, clearDepth);
+            return context.BeginPass(
+                target,
+                clearColors,
+                GpuTimestamps!.QuerySet,
+                (uint)GpuQueryBase,
+                (uint)GpuQueryBase + 1,
+                clearDepth,
+                clearStencil);
         }
 
-        return context.BeginPass(target, clearColors, clearDepth);
+        return context.BeginPass(target, clearColors, clearDepth, clearStencil);
     }
 
     /// <summary>
@@ -73,11 +90,6 @@ public sealed class PassInstrumentation
         return context.BeginPass(target, clearColors, clearDepth);
     }
 
-    /// <summary>
-    /// Schedules the resolve of the GPU timestamps recorded since <see cref="BeginPass"/>
-    /// into the sampler's resolve buffer, to run when <paramref name="pass"/> closes.
-    /// No-op when <see cref="ShouldRecordGpu"/> is not set.
-    /// </summary>
     /// <summary>
     /// Schedules the resolve of the GPU timestamps recorded since <see cref="BeginPass"/>
     /// into the sampler's resolve buffer, to run when <paramref name="pass"/> closes.

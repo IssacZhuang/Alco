@@ -143,12 +143,20 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
     /// </summary>
     /// <param name="output">The node's output texture (from <see cref="OnProcess"/>).</param>
     /// <param name="context">The per-frame execution context.</param>
+    /// <param name="clearStencil">Optional stencil clear value for the process pass.</param>
     /// <returns>The pass scope; dispose it (or use <c>using</c>) to close the pass.</returns>
-    protected RenderPassScope BeginProcessPass(RenderTexture output, in RenderGraphContext context)
+    protected RenderPassScope BeginProcessPass(
+        RenderTexture output,
+        in RenderGraphContext context,
+        uint? clearStencil = null)
     {
         RenderPassScope pass = Instrumentation != null
-            ? Instrumentation.BeginPass(context.RenderContext, output.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty)
-            : context.RenderContext.BeginPass(output.FrameBuffer);
+            ? Instrumentation.BeginPass(
+                context.RenderContext,
+                output.FrameBuffer,
+                ReadOnlySpan<ClearColorData>.Empty,
+                clearStencil: clearStencil)
+            : context.RenderContext.BeginPass(output.FrameBuffer, clearStencil: clearStencil);
         Instrumentation?.ScheduleResolve(pass);
         return pass;
     }
