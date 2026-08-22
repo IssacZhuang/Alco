@@ -18,12 +18,6 @@
       <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <!-- Slang native runtimes (see Rendering/Slang); the engine's DXC toolchain is untouched. -->
-    <Content Include="$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\**">
-      <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <Visible>False</Visible>
-    </Content>
   </ItemGroup>
 
 </Project>
