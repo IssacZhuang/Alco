@@ -491,7 +491,7 @@ public sealed class Shader : AutoDisposable
         }
         //it might throw exception if the shader code is not valid
         ShaderModulesInfo shaderModule = ShaderUtility.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty, _renderingSystem.GraphicsDevice.MaxBindGroups);
-        
+
         _shaderText = shaderText;
 
         //clear cache
@@ -504,6 +504,23 @@ public sealed class Shader : AutoDisposable
         _modulesCache[hash] = shaderModule;
         Interlocked.Increment(ref _version);
     }
+
+    /// <summary>
+    /// Module-based hot reload (plan Phase 1): the ShaderSystem invalidated this shader's
+    /// module; drop every cached permutation and pipeline so the next use recompiles from
+    /// the module system's current sources. The version bump drives lazy pipeline rebuilds
+    /// through the existing TryUpdatePipelineContext mechanism.
+    /// </summary>
+    internal void UnsafeModuleReload()
+    {
+        _graphicsPipelineCache.Clear();
+        _computePipelineCache.Clear();
+        _modulesCache.Clear();
+        Interlocked.Increment(ref _version);
+    }
+
+    /// <summary>Monotonic version bumped on every reload; consumers use it to rebuild pipelines lazily.</summary>
+    public uint Version => _version;
 
 
     protected override void Dispose(bool disposing)

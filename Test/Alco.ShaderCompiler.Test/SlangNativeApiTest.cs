@@ -129,7 +129,10 @@ public class SlangNativeApiTest
             Assert.That(frameGroup.Bindings.Count, Is.EqualTo(1));
             Assert.That(frameGroup.Bindings[0].Entry.Name, Is.EqualTo("_frame"));
             Assert.That(frameGroup.Bindings[0].Entry.Type, Is.EqualTo(BindingType.UniformBuffer));
-            Assert.That(frameGroup.Bindings[0].Entry.Stage, Is.EqualTo(ShaderStage.Vertex | ShaderStage.Fragment));
+            // Bindings carry the engine's Standard (V|F|C) visibility, matching
+            // the DXC SPIR-V reflector (ResolveEffectiveStage) so pipeline
+            // layouts stay supersets of the device's default bind groups.
+            Assert.That(frameGroup.Bindings[0].Entry.Stage, Is.EqualTo(ShaderStage.Standard));
             Assert.That(frameGroup.Bindings[0].Size, Is.EqualTo(64u)); // float4x4
 
             BindGroupLayout materialGroup = reflection.BindGroups[1];
@@ -164,7 +167,7 @@ public class SlangNativeApiTest
             Assert.That(program.Reflection.BindGroups.Count, Is.EqualTo(1));
             Assert.That(program.Reflection.BindGroups[0].Group, Is.EqualTo(0u));
             Assert.That(program.Reflection.BindGroups[0].Bindings[0].Entry.Type, Is.EqualTo(BindingType.StorageBuffer));
-            Assert.That(program.Reflection.BindGroups[0].Bindings[0].Entry.Stage, Is.EqualTo(ShaderStage.Compute));
+            Assert.That(program.Reflection.BindGroups[0].Bindings[0].Entry.Stage, Is.EqualTo(ShaderStage.Standard));
         });
     }
 
@@ -235,22 +238,61 @@ public class SlangNativeApiTest
             {
                 // Search-path emulation on the managed side: try the path as
                 // given, then under every search root.
-                if (files.TryGetValue(SlangFileSystemExt.NormalizePath(path), out string? content))
+                if (files.TryGetValue(SlangPathUtility.NormalizePath(path), out string? content))
                     return content;
                 foreach (string root in searchRoots)
                 {
-                    if (files.TryGetValue(SlangFileSystemExt.NormalizePath($"{root}/{path}"), out content))
+                    if (files.TryGetValue(SlangPathUtility.NormalizePath($"{root}/{path}"), out content))
                         return content;
                 }
                 return null;
             },
-            Exists = path => files.ContainsKey(SlangFileSystemExt.NormalizePath(path)),
+            Exists = path => files.ContainsKey(SlangPathUtility.NormalizePath(path)),
         };
         using SlangCompileSession session = compiler2.CreateSession(options);
 
         SlangModuleHandle module = session.LoadModule("alco_by_name");
         using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainPS", ShaderStage.Fragment)]);
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
+    }
+
+    [Test]
+    public void ModuleIR_RoundTripsThroughSerializeAndLoadFromIRBlob()
+    {
+        using SlangCompiler compiler = SlangCompiler.Create();
+        ShaderReflectionInfo fromSource;
+        byte[] ir;
+        using (SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default))
+        {
+            SlangModuleHandle module = session.LoadModuleFromSource("alco_ir_test", "alco_ir_test.slang", GraphicsShader);
+            using SlangProgram program = session.Compile(module, [
+                new SlangEntryPointRequest("MainVS", ShaderStage.Vertex),
+                new SlangEntryPointRequest("MainPS", ShaderStage.Fragment)]);
+            fromSource = program.Reflection;
+
+            ir = module.Serialize()!;
+            Assert.That(ir.Length, Is.GreaterThan(0), "module serialization produced an empty blob");
+            Assert.That(session.IsBinaryModuleUpToDate("alco_ir_test.slang", ir), Is.True,
+                "a serialized module must be up-to-date against unchanged sources");
+        }
+
+        // Restore in a fresh session and compile the same entry points.
+        using SlangCompileSession restoreSession = compiler.CreateSession(SlangCompilerOptions.Default);
+        SlangModuleHandle restored = restoreSession.LoadModuleFromIRBlob("alco_ir_test", "alco_ir_test.slang", ir);
+        using SlangProgram restoredProgram = restoreSession.Compile(restored, [
+            new SlangEntryPointRequest("MainVS", ShaderStage.Vertex),
+            new SlangEntryPointRequest("MainPS", ShaderStage.Fragment)]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(restoredProgram.EntryCode[0].Length, Is.GreaterThan(4));
+            Assert.That(restoredProgram.EntryCode[1].Length, Is.GreaterThan(4));
+            Assert.That(restoredProgram.Reflection.BindGroups.Count, Is.EqualTo(fromSource.BindGroups.Count));
+            Assert.That(restored.Name, Is.EqualTo("alco_ir_test"));
+            // Dependency paths are a source-load-time artifact: IR-restored modules
+            // report an empty list, so ShaderSystem persists the graph in the cache
+            // sidecar instead of re-querying restored modules.
+        });
     }
 
     [Test]

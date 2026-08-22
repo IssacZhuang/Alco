@@ -84,7 +84,7 @@ public class SlangDxcParityTest
     /// </summary>
     private static string? Serve(string path)
     {
-        string key = SlangFileSystemExt.NormalizePath(path);
+        string key = SlangPathUtility.NormalizePath(path);
         lock (ResolveLock)
         {
             if (ResolveCache.TryGetValue(key, out string? cached))

@@ -90,16 +90,15 @@ internal struct SlangSessionDesc
     }
 }
 
-/// <summary>slang::SpecializationArg — type or expression argument.</summary>
-[StructLayout(LayoutKind.Sequential)]
+/// <summary>slang::SpecializationArg — type or expression argument (a union).</summary>
+[StructLayout(LayoutKind.Explicit)]
 internal struct SlangSpecializationArg
 {
-    public int Kind;       // Unknown=0, Type=1, Expr=2
-    public IntPtr Type;    // TypeReflection* when Kind==Type
-    public IntPtr Expr;    // char* when Kind==Expr
+    [FieldOffset(0)] public int Kind;       // Unknown=0, Type=1, Expr=2
+    [FieldOffset(8)] private IntPtr _value; // union { TypeReflection* type; const char* expr; }
 
-    public static SlangSpecializationArg FromType(IntPtr type) => new() { Kind = 1, Type = type };
-    public static SlangSpecializationArg FromExpr(IntPtr expr) => new() { Kind = 2, Expr = expr };
+    public static SlangSpecializationArg FromType(IntPtr type) => new() { Kind = 1, _value = type };
+    public static SlangSpecializationArg FromExpr(IntPtr expr) => new() { Kind = 2, _value = expr };
 }
 
 /// <summary>ISlangBlob wrapper (layout-compatible with IDxcBlob).</summary>
@@ -247,6 +246,44 @@ internal sealed class SlangSession
         if (hr < 0 || composite == IntPtr.Zero)
             throw new InvalidOperationException($"slang createCompositeComponentType failed: 0x{hr:X8} {diagnostics}");
         return new SlangComponentType(composite);
+    }
+
+    /// <summary>Loads a module from serialized slang IR (a .slang-module blob).</summary>
+    public unsafe SlangModule? LoadModuleFromIRBlob(string moduleName, string path, byte[] ir, out string? diagnostics)
+    {
+        using SlangPinnedUtf8 name = new(moduleName);
+        using SlangPinnedUtf8 pathUtf8 = new(path);
+        fixed (byte* irPtr = ir)
+        {
+            IntPtr diag = IntPtr.Zero;
+            IntPtr module = SlangNative.slang_loadModuleFromIRBlob(
+                NativePointer, name.Pointer, pathUtf8.Pointer, irPtr, (nuint)ir.Length, &diag);
+            diagnostics = SlangBlobText(diag);
+            return module == IntPtr.Zero ? null : new SlangModule(module);
+        }
+    }
+
+    /// <summary>
+    /// Whether a serialized module blob is up-to-date for <paramref name="modulePath"/> under the
+    /// session's options. Note: when the primary source cannot be found on the search paths the
+    /// blob is reported up-to-date without validation — callers distributing source-less builds
+    /// must stamp their own source-hash key.
+    /// </summary>
+    public unsafe bool IsBinaryModuleUpToDate(string modulePath, byte[] serializedModule)
+    {
+        using SlangPinnedUtf8 pathUtf8 = new(modulePath);
+        IntPtr blob = SlangNative.slang_createBlob(serializedModule, (nuint)serializedModule.Length);
+        if (blob == IntPtr.Zero)
+            return false;
+        try
+        {
+            return ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, byte>)Com.Vcall(NativePointer, 19))(
+                NativePointer, pathUtf8.Pointer, blob) != 0;
+        }
+        finally
+        {
+            Com.Release(blob);
+        }
     }
 
     /// <summary>Specializes an unspecialized component type with concrete arguments.</summary>
@@ -399,6 +436,27 @@ internal sealed class SlangModule
         int hr = ((delegate* unmanaged[Stdcall]<IntPtr, int, IntPtr*, int>)Com.Vcall(NativePointer, 19))(
             NativePointer, index, &ep);
         return hr >= 0 && ep != IntPtr.Zero ? new SlangEntryPoint(ep) : null;
+    }
+
+    /// <summary>
+    /// The module's serialized IR (a .slang-module blob): a checked, front-end-compiled
+    /// translation unit that <c>loadModuleFromIRBlob</c> can restore without re-parsing.
+    /// </summary>
+    public unsafe byte[]? Serialize()
+    {
+        IntPtr blob = IntPtr.Zero;
+        int hr = ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, int>)Com.Vcall(NativePointer, 20))(
+            NativePointer, &blob);
+        if (hr < 0 || blob == IntPtr.Zero)
+            return null;
+        try
+        {
+            return new SlangBlob(blob).ToArray();
+        }
+        finally
+        {
+            Com.Release(blob);
+        }
     }
 
     /// <summary>Finds an entry point by name and validates it for the requested stage.</summary>

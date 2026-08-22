@@ -7,6 +7,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Alco.Graphics\Alco.Graphics.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="9.0.0" />
+  </ItemGroup>
   
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">

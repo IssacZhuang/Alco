@@ -34,11 +34,11 @@ public static class SlangReflectionReader
         List<PushConstantsRange> pushConstants = [];
         Dictionary<string, PixelFormat> storageFormats = CollectStorageImageFormats(reflection);
 
-        // Every binding conservatively gets the union of the program's entry
-        // stages as visibility (an over-approximation WebGPU accepts, matching
-        // how the engine merges per-stage DXC reflection). A compute-only
-        // program must not claim graphics visibility — the compute pipeline
-        // layout would then exclude the compute stage itself.
+        // Every binding gets the engine's Standard (V|F|C) visibility — the
+        // same over-approximation the DXC SPIR-V reflector applies
+        // (ResolveEffectiveStage): pipeline layouts must stay supersets of the
+        // device's default bind groups (e.g. default_bind_group_buffer), which
+        // are created with Standard visibility.
         ShaderStage visibility = ShaderStage.None;
         ThreadGroupSize threadGroupSize = ThreadGroupSize.Default;
         nuint entryPointCount = SlangNative.spReflection_getEntryPointCount(reflection);
@@ -63,7 +63,11 @@ public static class SlangReflectionReader
                     break;
             }
         }
-        if (visibility == ShaderStage.None)
+        if (visibility != ShaderStage.None)
+        {
+            visibility = ShaderStage.Standard;
+        }
+        else
         {
             visibility = ShaderStage.Vertex | ShaderStage.Fragment;
         }
@@ -559,7 +563,11 @@ public static class SlangReflectionReader
         return false;
     }
 
-    /// <summary>The float component count (1-4) of a scalar/vector float type.</summary>
+    /// <summary>
+    /// The float component count of a scalar/vector type; matrices report their
+    /// total float count (e.g. float4x4 → 16) so uniform harvesting over general
+    /// constant buffers (camera matrices) tolerates them.
+    /// </summary>
     private static int FloatComponents(IntPtr type)
     {
         int kind = SlangNative.spReflectionType_GetKind(type);
@@ -573,6 +581,8 @@ public static class SlangReflectionReader
         {
             SlangNative.SLANG_TYPE_KIND_SCALAR => 1,
             SlangNative.SLANG_TYPE_KIND_VECTOR => (int)SlangNative.spReflectionType_GetColumnCount(type),
+            SlangNative.SLANG_TYPE_KIND_MATRIX => (int)(SlangNative.spReflectionType_GetRowCount(type)
+                                                       * SlangNative.spReflectionType_GetColumnCount(type)),
             _ => throw new NotSupportedException(
                 $"Material parameter blocks support scalar/vector members only (member kind {kind})."),
         };

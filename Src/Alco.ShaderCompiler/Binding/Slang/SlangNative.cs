@@ -205,6 +205,13 @@ internal static class SlangNative
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr slang_createBlob(byte[] data, nuint size);
 
+    // Flat C export restoring a module from serialized IR (slang.h):
+    // IModule* slang_loadModuleFromIRBlob(ISession*, const char* moduleName,
+    //     const char* path, const void* source, size_t sourceSize, ISlangBlob** outDiagnostics)
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern IntPtr slang_loadModuleFromIRBlob(
+        IntPtr session, IntPtr moduleName, IntPtr path, byte* source, nuint sourceSize, IntPtr* outDiagnostics);
+
     // Reflection pointers are opaque SlangReflection* family handles; the
     // compile-side interfaces hand out the same pointers (slang::ProgramLayout*
     // aliases SlangReflection).

@@ -256,7 +256,14 @@ internal sealed unsafe class SlangFileSystemExt : IDisposable
     }
 
     /// <summary>Normalizes separators to '/' and resolves '.', '..' segments lexically.</summary>
-    internal static string NormalizePath(string path)
+    internal static string NormalizePath(string path) => SlangPathUtility.NormalizePath(path);
+}
+
+/// <summary>Path normalization for the slang virtual file space ('/' separators, lexical '.'/'..' resolution).</summary>
+public static class SlangPathUtility
+{
+    /// <summary>Normalizes separators to '/' and resolves '.', '..' segments lexically.</summary>
+    public static string NormalizePath(string path)
     {
         bool absolute = path.StartsWith('/');
         Stack<string> segments = new();

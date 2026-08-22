@@ -1,0 +1,165 @@
+using Alco.Graphics;
+using Alco.ShaderCompiler;
+
+namespace Alco.Rendering;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ShaderSystem (plan §4.2, runtime service): the module-name keyed shader
+// factory on top of SlangModuleSystem. Callers ask for
+// GetShader(moduleName, specialization…) instead of Load<Shader>(path); the
+// returned Shader is the unified (module, entries, specialization) object —
+// during the transition it rides the existing provider-mode construction seam
+// (the third, temporary mode; text and provider modes are deleted in Phase 4).
+//
+// "Defines" of the provider seam carry the specialization identity: the
+// engine's per-permutation caching applies to specializations unchanged.
+//
+// Hot reload: SlangModuleSystem.ModulesInvalidated → every Shader of an
+// affected module gets UnsafeModuleReload (version bump, cache clear) and
+// ShaderInvalidated fires so consumers can re-record static render bundles.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>Owns module-backed shaders: creation, caching and hot-reload invalidation.</summary>
+public sealed class ShaderSystem : IDisposable
+{
+    private readonly RenderingSystem _renderingSystem;
+    private readonly SlangModuleSystem _modules;
+    private readonly Lock _lock = new();
+    private readonly Dictionary<(string Module, string Specialization), Shader> _shaders = new();
+    private readonly List<SlangProgram> _pinnedPrograms = [];
+
+    /// <summary>Raised for each shader whose module was invalidated (after its caches were cleared).</summary>
+    public event Action<Shader>? ShaderInvalidated;
+
+    public ShaderSystem(RenderingSystem renderingSystem, SlangCompilerOptions options, string? cacheDirectory = null)
+    {
+        _renderingSystem = renderingSystem;
+        _modules = new SlangModuleSystem(options, cacheDirectory);
+        _modules.ModulesInvalidated += OnModulesInvalidated;
+    }
+
+    /// <summary>The headless module system (module cache, dependency graph, disk caches).</summary>
+    public SlangModuleSystem Modules => _modules;
+
+    /// <summary>Gets (or creates) the shader of one module with its default specialization.</summary>
+    public Shader GetShader(string moduleName)
+        => GetShader(moduleName, ReadOnlySpan<string>.Empty);
+
+    /// <summary>
+    /// Gets (or creates) the shader of one module with the given specialization arguments
+    /// (generic type/value instantiations, plan D3).
+    /// </summary>
+    public Shader GetShader(string moduleName, params ReadOnlySpan<string> specializationArgs)
+    {
+        string specKey = string.Join("|", specializationArgs.ToArray());
+        lock (_lock)
+        {
+            if (_shaders.TryGetValue((moduleName, specKey), out Shader? cached))
+                return cached;
+
+            // Loads through the resolver's name→source conventions; entry points
+            // are the module's own [shader(...)] definitions.
+            _modules.GetOrLoadModule(moduleName);
+
+            Shader shader = _renderingSystem.CreateShader(
+                specializationArgs.Length == 0 ? moduleName : $"{moduleName}[{specKey}]",
+                defines => CompileModules(moduleName, defines));
+            _shaders[(moduleName, specKey)] = shader;
+            return shader;
+        }
+    }
+
+    /// <summary>
+    /// Forwards a file change (watcher path, in the dependency graph's path space) to module
+    /// invalidation. Returns the affected module names; every shader of an affected module was
+    /// reloaded unsafely and reported through <see cref="ShaderInvalidated"/>.
+    /// </summary>
+    public IReadOnlyList<string> InvalidateModulesContaining(string filePath)
+        => _modules.InvalidateModulesContaining(filePath);
+
+    private ShaderModulesInfo CompileModules(string moduleName, string[] specializationArgs)
+    {
+        // Re-resolve the module: after an invalidation the module cache is empty
+        // and the shader's provider runs again on first use.
+        _modules.GetOrLoadModule(moduleName);
+
+        // Programs stay pinned: ShaderModule structs reference the SPIR-V arrays.
+        SlangProgram program = _modules.GetProgramAllEntries(moduleName, specializationArgs);
+        lock (_lock)
+        {
+            _pinnedPrograms.Add(program);
+        }
+
+        ShaderModule? vertex = null, fragment = null, compute = null;
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            (string name, int stage) = program.EntryPoints[i];
+            ShaderModule module = new(
+                SlangCompileSession.SlangStageToEngine(stage),
+                ShaderLanguage.SPIRV,
+                program.EntryCode[i],
+                // slang names every SPIR-V entry point "main" regardless of
+                // the source function name (same rule the beachhead relies on).
+                "main");
+            switch (module.Stage)
+            {
+                case ShaderStage.Vertex:
+                    vertex = module;
+                    break;
+                case ShaderStage.Fragment:
+                    fragment = module;
+                    break;
+                case ShaderStage.Compute:
+                    compute = module;
+                    break;
+                default:
+                    throw new NotSupportedException($"Stage {stage} of entry point '{name}' is not supported.");
+            }
+        }
+
+        if (vertex is { } vs && fragment is { } fs)
+        {
+            return ShaderModulesInfo.CreateGraphics(moduleName, specializationArgs, vs, fs, program.Reflection);
+        }
+        if (compute is { } cs)
+        {
+            return ShaderModulesInfo.CreateCompute(moduleName, specializationArgs, cs, program.Reflection);
+        }
+        throw new InvalidOperationException(
+            $"slang module '{moduleName}' defines no usable vertex/fragment/compute entry point combination.");
+    }
+
+    private void OnModulesInvalidated(IReadOnlyList<string> affectedModules)
+    {
+        List<Shader> affectedShaders;
+        lock (_lock)
+        {
+            // Stale programs die with the session rebuild; pins are refreshed lazily.
+            _pinnedPrograms.Clear();
+            affectedShaders =
+            [
+                .. _shaders.Where(pair => affectedModules.Contains(pair.Key.Module))
+                           .Select(pair => pair.Value),
+            ];
+        }
+        foreach (Shader shader in affectedShaders)
+        {
+            shader.UnsafeModuleReload();
+            ShaderInvalidated?.Invoke(shader);
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_lock)
+        {
+            _pinnedPrograms.Clear();
+            foreach (Shader shader in _shaders.Values)
+            {
+                shader.Dispose();
+            }
+            _shaders.Clear();
+        }
+        _modules.Dispose();
+    }
+}

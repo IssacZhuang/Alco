@@ -54,17 +54,40 @@ public sealed class SlangProgram : IDisposable
     public required ShaderReflectionInfo Reflection { get; init; }
     public required IReadOnlyList<(string Name, int Stage)> EntryPoints { get; init; }
 
+    /// <summary>Uniform members by block name; filled by the compiler or restored from the disk cache.</summary>
+    public IReadOnlyDictionary<string, List<SlangUniformMember>> UniformMembers { get; internal set; }
+        = new Dictionary<string, List<SlangUniformMember>>();
+
     /// <summary>The native ProgramLayout; valid only while this program is alive.</summary>
     internal IntPtr NativeLayout { get; init; }
 
     internal SlangComponentType? Linked { get; set; }
 
+    /// <summary>Set when the program belongs to a SlangModuleSystem (tracks native lifetime).</summary>
+    internal SlangModuleSystem? Owner { get; set; }
+
+    /// <summary>Restores a program from the disk cache — no native objects are held.</summary>
+    internal static SlangProgram FromCache(string moduleName, SlangCachedProgram cached)
+        => new()
+        {
+            ModuleName = moduleName,
+            EntryCode = cached.EntryCode,
+            Reflection = cached.Reflection,
+            EntryPoints = cached.EntryPoints,
+            UniformMembers = cached.UniformMembers,
+        };
+
     /// <summary>The uniform members of a named block, from the program layout.</summary>
     public List<SlangUniformMember> GetUniformMembers(string cbufferName)
-        => NativeLayout == IntPtr.Zero ? [] : SlangReflectionReader.GetUniformMembers(NativeLayout, cbufferName);
+    {
+        if (UniformMembers.TryGetValue(cbufferName, out List<SlangUniformMember>? members))
+            return members;
+        return NativeLayout == IntPtr.Zero ? [] : SlangReflectionReader.GetUniformMembers(NativeLayout, cbufferName);
+    }
 
     public void Dispose()
     {
+        Owner?.NotifyProgramDisposed(this);
         Linked?.Release();
         Linked = null;
     }
@@ -207,12 +230,34 @@ public sealed class SlangCompileSession : IDisposable
         }
     }
 
+    /// <summary>Restores a module from serialized IR (see <see cref="SlangModuleHandle.Serialize"/>).</summary>
+    public SlangModuleHandle LoadModuleFromIRBlob(string moduleName, string path, byte[] ir)
+    {
+        lock (_lock)
+        {
+            SlangModule? module = _session.LoadModuleFromIRBlob(moduleName, path, ir, out string? diagnostics);
+            if (module == null)
+                throw new ShaderCompilationException($"slang failed to load IR module '{moduleName}' ({path}): {diagnostics}");
+            if (HasErrors(diagnostics))
+                throw new ShaderCompilationException($"slang IR module '{moduleName}' ({path}) reported errors: {diagnostics}");
+            return new SlangModuleHandle(module);
+        }
+    }
+
+    /// <summary>
+    /// Whether a serialized module blob is still valid for the module at <paramref name="path"/>
+    /// under this session's compiler options and slang version. When the source is not visible
+    /// through the session's file system the blob is accepted without validation.
+    /// </summary>
+    public bool IsBinaryModuleUpToDate(string path, byte[] serializedModule)
+        => _session.IsBinaryModuleUpToDate(path, serializedModule);
+
     /// <summary>Compiles one module's requested entry points into a linked program.</summary>
     public SlangProgram Compile(SlangModuleHandle module, IReadOnlyList<SlangEntryPointRequest> entryPoints)
     {
         lock (_lock)
         {
-            return CompileLocked(module, entryPoints, []);
+            return Compile(module, entryPoints, []);
         }
     }
 
@@ -221,29 +266,71 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
-            return CompileLocked(module, entryPoints, specializationArgs);
+            // [module, ep0, ep1, ...] — the module first keeps global parameter
+            // order equal to the single-module layout; entry-point code indices
+            // then follow the request order.
+            SlangComponentType[] components = new SlangComponentType[entryPoints.Count + 1];
+            components[0] = module.Native.AsComponentType();
+            try
+            {
+                for (int i = 0; i < entryPoints.Count; i++)
+                {
+                    SlangEntryPointRequest request = entryPoints[i];
+                    SlangEntryPoint? ep = module.Native.FindAndCheckEntryPoint(request.Name, SlangStageOf(request.Stage), out string? epDiagnostics);
+                    if (ep == null)
+                        throw new ShaderCompilationException(
+                            $"slang entry point '{request.Name}' ({request.Stage}) not found or invalid in module '{module.Name}': {epDiagnostics}");
+                    components[i + 1] = ep.AsComponentType();
+                }
+
+                return CompileComponentsLocked(module.Name, components, entryPoints.Count, specializationArgs);
+            }
+            finally
+            {
+                for (int i = 1; i < components.Length; i++)
+                    components[i]?.Release();
+            }
         }
     }
 
-    private unsafe SlangProgram CompileLocked(SlangModuleHandle module, IReadOnlyList<SlangEntryPointRequest> entryPoints, IReadOnlyList<string> specializationArgs)
+    /// <summary>
+    /// Compiles every [shader(...)] entry point the module defines, in definition order —
+    /// callers that don't know entry names up front (module-name keyed lookups).
+    /// </summary>
+    public SlangProgram CompileAllEntryPoints(SlangModuleHandle module, IReadOnlyList<string> specializationArgs)
     {
-        // [module, ep0, ep1, ...] — the module first keeps global parameter
-        // order equal to the single-module layout; entry-point code indices
-        // then follow the request order.
-        SlangComponentType[] components = new SlangComponentType[entryPoints.Count + 1];
-        components[0] = module.Native.AsComponentType();
-        try
+        lock (_lock)
         {
-            for (int i = 0; i < entryPoints.Count; i++)
+            int count = module.Native.DefinedEntryPointCount;
+            if (count == 0)
+                throw new ShaderCompilationException(
+                    $"slang module '{module.Name}' defines no [shader(...)] entry points.");
+            SlangComponentType[] components = new SlangComponentType[count + 1];
+            components[0] = module.Native.AsComponentType();
+            try
             {
-                SlangEntryPointRequest request = entryPoints[i];
-                SlangEntryPoint? ep = module.Native.FindAndCheckEntryPoint(request.Name, SlangStageOf(request.Stage), out string? epDiagnostics);
-                if (ep == null)
-                    throw new ShaderCompilationException(
-                        $"slang entry point '{request.Name}' ({request.Stage}) not found or invalid in module '{module.Name}': {epDiagnostics}");
-                components[i + 1] = ep.AsComponentType();
+                for (int i = 0; i < count; i++)
+                {
+                    SlangEntryPoint? ep = module.Native.GetDefinedEntryPoint(i);
+                    if (ep == null)
+                        throw new ShaderCompilationException(
+                            $"slang module '{module.Name}' failed to provide entry point {i}.");
+                    components[i + 1] = ep.AsComponentType();
+                }
+                return CompileComponentsLocked(module.Name, components, count, specializationArgs);
             }
+            finally
+            {
+                for (int i = 1; i < components.Length; i++)
+                    components[i]?.Release();
+            }
+        }
+    }
 
+    private unsafe SlangProgram CompileComponentsLocked(
+        string moduleName, SlangComponentType[] components, int entryCount, IReadOnlyList<string> specializationArgs)
+    {
+        {
             SlangComponentType composite = _session.CreateCompositeComponentType(components, out string? compositeDiagnostics);
             SlangComponentType? specialized = null;
             try
@@ -276,13 +363,13 @@ public sealed class SlangCompileSession : IDisposable
                     IntPtr layout = linked.GetLayout(out string? layoutDiagnostics);
                     if (layout == IntPtr.Zero)
                         throw new ShaderCompilationException(
-                            $"slang getLayout failed for '{module.Name}': {layoutDiagnostics}");
+                            $"slang getLayout failed for '{moduleName}': {layoutDiagnostics}");
                     string? worst = FirstError(compositeDiagnostics, linkDiagnostics, layoutDiagnostics);
                     if (worst != null)
-                        throw new ShaderCompilationException($"slang reported errors for '{module.Name}': {worst}");
+                        throw new ShaderCompilationException($"slang reported errors for '{moduleName}': {worst}");
 
-                    byte[][] code = new byte[entryPoints.Count][];
-                    for (int i = 0; i < entryPoints.Count; i++)
+                    byte[][] code = new byte[entryCount][];
+                    for (int i = 0; i < entryCount; i++)
                         code[i] = linked.GetEntryPointCode(i, out _);
 
                     ShaderReflectionInfo reflection = SlangReflectionReader.BuildReflectionInfo(layout);
@@ -290,7 +377,7 @@ public sealed class SlangCompileSession : IDisposable
 
                     SlangProgram program = new()
                     {
-                        ModuleName = module.Name,
+                        ModuleName = moduleName,
                         EntryCode = code,
                         Reflection = reflection,
                         EntryPoints = entries,
@@ -311,11 +398,6 @@ public sealed class SlangCompileSession : IDisposable
                 composite.Release();
             }
         }
-        finally
-        {
-            for (int i = 1; i < components.Length; i++)
-                components[i]?.Release();
-        }
     }
 
     private static int SlangStageOf(ShaderStage stage)
@@ -329,6 +411,21 @@ public sealed class SlangCompileSession : IDisposable
             ShaderStage.Domain => SlangNative.SLANG_STAGE_DOMAIN,
             ShaderStage.Geometry => SlangNative.SLANG_STAGE_GEOMETRY,
             _ => throw new NotSupportedException($"Shader stage {stage} cannot be compiled for a single entry point."),
+        };
+    }
+
+    /// <summary>Converts a slang stage id from a program layout into the engine's stage flags.</summary>
+    public static ShaderStage SlangStageToEngine(int slangStage)
+    {
+        return slangStage switch
+        {
+            SlangNative.SLANG_STAGE_VERTEX => ShaderStage.Vertex,
+            SlangNative.SLANG_STAGE_HULL => ShaderStage.Hull,
+            SlangNative.SLANG_STAGE_DOMAIN => ShaderStage.Domain,
+            SlangNative.SLANG_STAGE_GEOMETRY => ShaderStage.Geometry,
+            SlangNative.SLANG_STAGE_FRAGMENT => ShaderStage.Fragment,
+            SlangNative.SLANG_STAGE_COMPUTE => ShaderStage.Compute,
+            _ => throw new NotSupportedException($"Unknown slang stage id {slangStage}."),
         };
     }
 
@@ -377,6 +474,9 @@ public sealed class SlangModuleHandle
         }
         return paths;
     }
+
+    /// <summary>The module's serialized IR blob, or null when serialization fails.</summary>
+    public byte[]? Serialize() => Native.Serialize();
 
     internal SlangModuleHandle(SlangModule module) => Native = module;
 }
