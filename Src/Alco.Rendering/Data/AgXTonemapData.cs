@@ -1,8 +1,8 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// Parameters for the AgX tone mapping operator used by <c>AgXTonemap.hlsl</c>.
-/// Field order must match the HLSL uniform buffer: Exposure, Gamma, Look.
+/// Parameters for the AgX tone mapping operator used by <c>AgXTonemap.slang</c>.
+/// Field order must match the Slang uniform buffer: Exposure, Gamma, Look.
 /// Based on the minimal AgX implementation by Benjamin Wrensch (Iolite Engine).
 /// </summary>
 public struct AgXTonemapData

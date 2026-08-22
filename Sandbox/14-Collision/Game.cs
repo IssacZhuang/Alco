@@ -63,7 +63,7 @@ public class Game : GameEngine
             BuiltInAssets.Shader_AgXTonemap);
         MainPipeline.Use(tonemapNode);
 
-        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _shader = BuiltInAssets.Shader_Unlit;
 
         _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 

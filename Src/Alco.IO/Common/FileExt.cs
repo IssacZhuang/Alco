@@ -2,11 +2,9 @@ namespace Alco.IO;
 
 public static class FileExt
 {
-    // shader 
+    // shader
     public const string ShaderBinary = ".scb";
-    public const string ShaderHLSL = ".hlsl";
     public const string ShaderSlang = ".slang";
-    public const string ShaderHLSLInclude = ".hlsli";
     public const string ShaderGLSL = ".glsl";
     public const string ShaderGLSLInclude = ".glslinc";
     public const string ShaderWGSL = ".wgsl";

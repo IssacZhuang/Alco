@@ -21,7 +21,11 @@ public partial class GameEngine
         return new ViewPresenter(view);
     }
 
-    public virtual IShaderCache? CreateShaderCache(GraphicsSetting setting)
+    /// <summary>
+    /// Resolves the slang module system's on-disk cache directory, or null when
+    /// the setting disables shader caching.
+    /// </summary>
+    public virtual string? CreateShaderCacheDirectory(GraphicsSetting setting)
     {
         if (setting.IsShaderCacheEnabled)
         {
@@ -31,7 +35,7 @@ public partial class GameEngine
                 return null;
             }
             Log.Info("Shader cache is enabled, path: ", setting.ShaderCachePath);
-            return new ShaderCache(setting.ShaderCachePath);
+            return setting.ShaderCachePath;
         }
         return null;
     }

@@ -19,6 +19,9 @@
 // the engine-bound `_globalRenderData` cbuffer declared at the surface's
 // global scope.
 
+#language slang 2025
+module surface;
+
 public struct SurfaceInput
 {
     public float3 worldPos;            // interpolated world-space position

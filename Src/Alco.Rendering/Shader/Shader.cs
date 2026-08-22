@@ -21,13 +21,16 @@ public sealed class Shader : AutoDisposable
     private readonly Lock _lockCreateModules = new Lock();
 
     private readonly IReadOnlyList<VertexInputLayout>? _customVertexLayouts;
-    private readonly IReadOnlyList<BindGroupLayout>? _customBindGroups;
 
-    // Non-null when the shader's modules are produced by an external compiler
-    // (e.g. World3D's Slang path) instead of the engine's HLSL text pipeline.
-    private readonly Func<string[], ShaderModulesInfo>? _compileModulesProvider;
+    // The shader's modules are produced by the slang module system (directly or
+    // through a composition owner like MaterialCompiler): the compiler is called
+    // once per defines permutation, on demand.
+    private readonly Func<string[], ShaderModulesInfo> _compileModules;
 
-    private string _shaderText;
+    // Optional module source used to enumerate preprocessor permutations
+    // (TestAllDefines); null when the composition owner enumerates itself.
+    private readonly string? _permutationSource;
+
     //for hot reload
     private uint _version = 0;
 
@@ -42,40 +45,23 @@ public sealed class Shader : AutoDisposable
     public bool IsComputeShader { get; }
 
     /// <summary>
-    /// Create a new shader
-    /// </summary>
-    /// <param name="renderingSystem">The rendering system</param>
-    /// <param name="shaderText">The shader text</param>
-    /// <param name="name">The name of the shader</param>
-    internal Shader(RenderingSystem renderingSystem, string shaderText, string name, IReadOnlyList<VertexInputLayout>? customVertexLayouts = null, IReadOnlyList<BindGroupLayout>? customBindGroups = null)
-    {
-        _renderingSystem = renderingSystem;
-        _shaderText = shaderText;
-        Name = name;
-
-        //default permutation
-        ShaderModulesInfo modulesInfo = GetShaderModules(ReadOnlySpan<string>.Empty);
-        IsComputeShader = modulesInfo.IsComputeShader;
-
-        _customVertexLayouts = customVertexLayouts;
-        _customBindGroups = customBindGroups;
-    }
-
-    /// <summary>
-    /// Create a new shader whose modules are compiled by an external compiler:
-    /// the provider is called once per defines permutation (on demand) and
-    /// returns fully built modules with reflection. The engine's HLSL text
-    /// pipeline (DXC + SPIR-V reflection) is bypassed entirely for this shader.
+    /// Create a new shader whose modules are compiled through the slang module
+    /// system: the compiler is called once per compatibility permutation (on demand)
+    /// and returns fully built modules with reflection.
     /// </summary>
     /// <param name="renderingSystem">The rendering system</param>
     /// <param name="name">The name of the shader</param>
     /// <param name="compileModules">Produces the compiled modules for one set of defines.</param>
-    internal Shader(RenderingSystem renderingSystem, string name, Func<string[], ShaderModulesInfo> compileModules)
+    /// <param name="customVertexLayouts">Optional vertex layout override (e.g. ImGui's packed Unorm8x4 color).</param>
+    /// <param name="permutationSource">Optional module source whose #if blocks drive TestAllDefines.</param>
+    internal Shader(RenderingSystem renderingSystem, string name, Func<string[], ShaderModulesInfo> compileModules,
+        IReadOnlyList<VertexInputLayout>? customVertexLayouts = null, string? permutationSource = null)
     {
         _renderingSystem = renderingSystem;
-        _shaderText = string.Empty;
         Name = name;
-        _compileModulesProvider = compileModules;
+        _compileModules = compileModules;
+        _customVertexLayouts = customVertexLayouts;
+        _permutationSource = permutationSource;
 
         //default permutation
         ShaderModulesInfo modulesInfo = GetShaderModules(ReadOnlySpan<string>.Empty);
@@ -251,33 +237,10 @@ public sealed class Shader : AutoDisposable
                 return modulesInfo2;
             }
 
-            if (_compileModulesProvider != null)
-            {
-                // Externally compiled shader: no disk cache (the provider owns
-                // its own caching) and no HLSL compilation.
-                modulesInfo = _compileModulesProvider(defines.ToArray());
-                _modulesCache[hash] = modulesInfo;
-                return modulesInfo;
-            }
-
-            IShaderCache? shaderCache = _renderingSystem.ShaderCache;
-            if (shaderCache != null)
-            {
-                //load shader cache from disk
-                if (shaderCache.TryGetModules(Name, _shaderText, defines, out modulesInfo))
-                {
-                    //save shader cache into memory
-                    _modulesCache[hash] = modulesInfo;
-                    return modulesInfo;
-                }
-            }
-
-            modulesInfo = ShaderUtility.CompileHLSL(_shaderText, Name, defines, _renderingSystem.GraphicsDevice.MaxBindGroups);
+            // The module system owns its own disk caches (module IR + linked
+            // programs); the shader keeps only the in-memory permutation cache.
+            modulesInfo = _compileModules(defines.ToArray());
             _modulesCache[hash] = modulesInfo;
-
-            //save shader cache into disk
-            _ = shaderCache?.AddOrUpdateAsync(Name, _shaderText, defines, modulesInfo);
-
             return modulesInfo;
         }
     }
@@ -366,7 +329,7 @@ public sealed class Shader : AutoDisposable
             ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
             GPUDevice device = _renderingSystem.GraphicsDevice;
 
-            IReadOnlyList<BindGroupLayout> bindGroupLayouts = _customBindGroups ?? reflectionInfo.BindGroups;
+            IReadOnlyList<BindGroupLayout> bindGroupLayouts = reflectionInfo.BindGroups;
 
             GPUBindGroup[] bindGroups = new GPUBindGroup[bindGroupLayouts.Count];
             for (int i = 0; i < bindGroupLayouts.Count; i++)
@@ -477,35 +440,6 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Unsafe hot reload the shader. It might break the material that uses this shader.
-    /// So make sure the new shader has the same shader resource at the same slot.
-    /// </summary>
-    /// <param name="shaderText">The new shader text</param>
-    public void UnsafeHotReload(string shaderText)
-    {
-        if (_compileModulesProvider != null)
-        {
-            // Externally compiled shaders hot-reload through their owner
-            // (e.g. MaterialCompiler.Invalidate), not through raw text.
-            throw new InvalidOperationException($"Shader '{Name}' is compiled by an external provider and cannot be text hot-reloaded.");
-        }
-        //it might throw exception if the shader code is not valid
-        ShaderModulesInfo shaderModule = ShaderUtility.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty, _renderingSystem.GraphicsDevice.MaxBindGroups);
-
-        _shaderText = shaderText;
-
-        //clear cache
-        _graphicsPipelineCache.Clear();
-        _computePipelineCache.Clear();
-        _modulesCache.Clear();
-
-        //recompile
-        int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
-        _modulesCache[hash] = shaderModule;
-        Interlocked.Increment(ref _version);
-    }
-
-    /// <summary>
     /// Module-based hot reload (plan Phase 1): the ShaderSystem invalidated this shader's
     /// module; drop every cached permutation and pipeline so the next use recompiles from
     /// the module system's current sources. The version bump drives lazy pipeline rebuilds
@@ -544,10 +478,15 @@ public sealed class Shader : AutoDisposable
     /// <param name="onSuccess">Callback invoked when a combination compiles successfully.</param>
     public void TestAllDefines(Action<string, string[], Exception> onError, Action<string, string[]> onSuccess)
     {
-        //get defines from the shader text
-        //like #if defined(TEST)
+        // Enumerate preprocessor permutations from the module source
+        // (like #if defined(TEST)); composition-owned shaders without source
+        // enumerate nothing here — their owner tests permutations itself.
+        if (_permutationSource == null)
+        {
+            return;
+        }
         var defineRegex = new Regex(@"#if\s+defined\s*\(\s*(\w+)\s*\)", RegexOptions.Compiled);
-        var matches = defineRegex.Matches(_shaderText);
+        var matches = defineRegex.Matches(_permutationSource);
 
         // Extract unique define names
         HashSet<string> defines = new HashSet<string>();

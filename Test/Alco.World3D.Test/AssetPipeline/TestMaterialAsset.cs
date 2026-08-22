@@ -68,7 +68,7 @@ public class TestMaterialAsset
         {
             "version": "1.0",
             "name": "mossy_rock",
-            "shader": "Shaders\\Materials\\MossyRock.hlsli",
+            "shader": "Shaders\\Materials\\MossyRock.slang",
             "defines": ["MOSS_ANIMATE", " MOSS_ANIMATE ", ""],
             "textures": { "noiseMap": "Textures/noise.png" }
         }
@@ -78,7 +78,7 @@ public class TestMaterialAsset
 
         Assert.Multiple(() =>
         {
-            Assert.That(material.SurfaceShader, Is.EqualTo("Shaders/Materials/MossyRock.hlsli"));
+            Assert.That(material.SurfaceShader, Is.EqualTo("Shaders/Materials/MossyRock.slang"));
             // Defines trim to uniqueness; empty entries drop.
             Assert.That(material.Defines, Is.EqualTo(new[] { "MOSS_ANIMATE" }));
             Assert.That(material.Textures["noiseMap"], Is.EqualTo("Textures/noise.png"));

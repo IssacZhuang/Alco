@@ -1,10 +1,9 @@
 using System.IO;
-using System.Numerics;
 using System.Text;
-using System.Text.RegularExpressions;
 using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
+using Alco.ShaderCompiler;
 
 namespace Alco.World3D;
 
@@ -16,19 +15,17 @@ namespace Alco.World3D;
 /// RSM) where the feature is enabled — and each (asset, pass) pair compiles lazily on
 /// first request and is reused afterwards, so meshes sharing a material share its GPU
 /// materials too.
-/// <br/>Assets naming no <see cref="MaterialAsset.SurfaceShader"/> evaluate the built-in
-/// PbrStandard surface: their pass shaders are the templates as shipped, loaded through
-/// the asset system. Assets naming an HLSL surface (<c>.hlsli</c>) are composed per
-/// template by splicing the surface into the template's <c>@SURFACE@</c> line and
-/// resolving includes (DXC path). Assets naming a Slang surface (<c>.slang</c>) are
-/// composed by Slang instead: the compiler generates a wrapper translation unit that
-/// #includes the pass template and imports the surface module, instantiating the
-/// template's generic pass functions with the surface's <c>Surface</c> type — dynamic
-/// shader stitching becomes interface-checked generic instantiation, and the dynamic
-/// parameter mapping reads Slang's own reflection instead of regex-parsing the source
-/// (a surface's <c>_materialParams</c> block may mix scalar and vector float members;
-/// see ShadersSlang/Libs/surface.slang). Both composed-shader kinds are cached per
-/// (template, surface) and owned by the compiler.
+/// <br/>Every surface — the built-in PbrStandard included — is a Slang module exporting
+/// <c>public struct Surface : ISurface</c> (contract: ShadersSlang/Libs/surface.slang).
+/// The compiler generates a wrapper module that imports the pass template and the
+/// surface module and instantiates the template's generic pass functions with the
+/// surface's <c>Surface</c> type — dynamic shader stitching as interface-checked
+/// generic instantiation. Wrapper and define-mangled permutations are registered with
+/// the engine's shared slang module system (<see cref="ShaderSystem"/>), so composed
+/// shaders get its disk caches, dependency tracking and hot reload like any module.
+/// The parameter mapping reads Slang's own reflection instead of regex-parsing source
+/// (a surface's <c>_materialParams</c> block may mix scalar and vector float members).
+/// Composed shaders are cached per (template, surface) and owned by the compiler.
 /// <br/>Dispose the compiler to release every compiled material and composed shader; use
 /// <see cref="Invalidate"/> when an asset file was hot-reloaded into a new instance.
 /// Per-instance data (base color, metallic/roughness, emissive, alpha cutoff) rides the
@@ -36,29 +33,26 @@ namespace Alco.World3D;
 /// </summary>
 public sealed class MaterialCompiler : AutoDisposable
 {
-    /// <summary>The marker comment identifying a template's swappable surface include line.</summary>
-    private const string SurfaceMarker = "@SURFACE@";
-
-    /// <summary>The resource name of a surface's parameter block (see Surface.hlsli and surface.slang).</summary>
+    /// <summary>The resource name of a surface's parameter block (see surface.slang).</summary>
     private const string MaterialParamsResource = "_materialParams";
 
     /// <summary>The asset folder of the Slang pass templates, surface modules and interface library.</summary>
     private const string SlangFolder = "ShadersSlang/";
 
+    /// <summary>The built-in surface every pass composes with when the asset names none.</summary>
+    private const string DefaultSurfacePath = SlangFolder + "Materials/pbr_standard.slang";
+
     /// <summary>
-    /// The Slang pass templates by HLSL template asset path: a Slang surface composed
-    /// with one of these passes compiles the named template (ShadersSlang/Pipelines)
-    /// instead of splicing HLSL. The glass pass keeps its HLSL-only composition for now.
+    /// The Slang pass templates by template asset path: a pass composes the named
+    /// template (ShadersSlang/Pipelines) with the material's surface module.
     /// </summary>
     private static readonly Dictionary<string, string> SlangTemplates = new(StringComparer.Ordinal)
     {
         [World3DAssetPaths.Shader_GBuffer] = "gbuffer",
         [World3DAssetPaths.Shader_ShadowDepth] = "shadow_depth",
         [World3DAssetPaths.Shader_Rsm] = "rsm",
+        [World3DAssetPaths.Shader_ForwardGlass] = "glass",
     };
-
-    /// <summary>The Slang source folders a module/import/include name is looked up in.</summary>
-    private static readonly string[] SlangSourceFolders = ["Pipelines/", "Materials/", "Libs/"];
 
     /// <summary>Compiled materials, streamed-texture slots and the parameter buffer of one material asset.</summary>
     private sealed class Entry
@@ -73,17 +67,16 @@ public sealed class MaterialCompiler : AutoDisposable
     private readonly AssetSystem _assets;
     private readonly Dictionary<string, IMaterialPass> _passes = new(StringComparer.Ordinal);
     private readonly Dictionary<MaterialAsset, Entry> _entries = new();
-    private readonly Dictionary<(string Template, string Surface), Shader> _composedShaders = new();
-    private readonly Dictionary<string, string[]> _paramLayouts = new(StringComparer.Ordinal);
     private readonly Dictionary<(string Template, string Surface), Shader> _slangShaders = new();
     private readonly Dictionary<string, List<SlangUniformMember>> _slangParamLayouts = new(StringComparer.Ordinal);
-    private readonly SlangShaderCompiler _slang = new();
+    private readonly List<SlangProgram> _pinnedPrograms = [];
+    private readonly Lock _pinLock = new();
 
     /// <summary>
     /// Create the compiler. It starts out knowing no passes; register them as their
     /// renderers/features come up (<see cref="RegisterPass"/>).
     /// </summary>
-    /// <param name="rendering">The rendering system (material factory, fallback textures).</param>
+    /// <param name="rendering">The rendering system (material factory, fallback textures, shared ShaderSystem).</param>
     /// <param name="assets">The asset system (template shaders, surface shader sources).</param>
     public MaterialCompiler(RenderingSystem rendering, AssetSystem assets)
     {
@@ -149,6 +142,17 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
+    /// The pass-template shader composed with the built-in PbrStandard surface: what
+    /// renderer constructors receive in place of the retired load-template-as-asset.
+    /// Custom surfaces compose their own per-pass shaders through the passes'
+    /// <c>ComposeShader</c>; this is only the pipeline-level default.
+    /// </summary>
+    /// <param name="templatePath">The template asset path (e.g. <see cref="World3DAssetPaths.Shader_GBuffer"/>).</param>
+    /// <returns>The compiler-owned composed template shader.</returns>
+    public Shader GetTemplateShader(string templatePath)
+        => GetSlangShader(templatePath, DefaultSurfacePath);
+
+    /// <summary>
     /// (Re)bind the streamed textures of one asset, by material texture slot (see
     /// <see cref="StandardSurfaceSlotsUtility"/>): stores them as the binding-time values for
     /// not-yet-compiled passes and rebinds every already-compiled pass material (with
@@ -184,14 +188,18 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <param name="asset">The material asset to invalidate.</param>
     public void Invalidate(MaterialAsset asset)
     {
-        if (_entries.Remove(asset, out Entry? entry))
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ArgumentNullException.ThrowIfNull(asset);
+
+        if (!_entries.Remove(asset, out Entry? entry))
         {
-            foreach (GraphicsMaterial material in entry.Materials.Values)
-            {
-                material.Dispose();
-            }
-            entry.ParamsBuffer?.Dispose();
+            return;
         }
+        foreach (GraphicsMaterial material in entry.Materials.Values)
+        {
+            material.Dispose();
+        }
+        entry.ParamsBuffer?.Dispose();
     }
 
     private Entry GetEntry(MaterialAsset asset)
@@ -218,46 +226,44 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The pass-template shader for one asset: the template asset as shipped (built-in
-    /// PbrStandard surface included) when the asset names no surface, the template
-    /// composed with the asset's surface otherwise — via Slang for <c>.slang</c>
-    /// surfaces, via the DXC splice for <c>.hlsli</c> ones.
+    /// The pass-template shader for one asset: the template composed with the asset's
+    /// surface module, or with the built-in PbrStandard surface when the asset names
+    /// none. HLSL surfaces are retired — the composer rejects them with a pointer to
+    /// the surface contract.
     /// </summary>
     private Shader GetShader(MaterialAsset asset, string templatePath)
     {
-        if (asset.SurfaceShader == null)
+        string surfacePath = asset.SurfaceShader ?? DefaultSurfacePath;
+        if (!surfacePath.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
         {
-            return _assets.Load<Shader>(templatePath);
+            throw new InvalidDataException(
+                $"Material '{asset.Name}' names surface '{surfacePath}'; HLSL surfaces were retired by the "
+                + "slang migration — port the surface to a .slang module exporting "
+                + "'public struct Surface : ISurface' (see ShadersSlang/Libs/surface.slang).");
         }
-        if (asset.SurfaceShader.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetSlangShader(asset, templatePath);
-        }
-        return GetHlslShader(asset, templatePath);
+        return GetSlangShader(templatePath, surfacePath);
     }
 
     /// <summary>
-    /// The composed shader of one Slang (template, surface) pair: a provider-backed
-    /// shader whose every defines permutation compiles a generated wrapper through
-    /// Slang (see <see cref="CompileSlangPermutation"/>). Cached per pair.
+    /// The composed module shader of one (template, surface) pair, whose
+    /// every defines permutation generates a wrapper module through the shared slang
+    /// module system (see <see cref="CompileSlangPermutation"/>). Cached per pair.
     /// </summary>
-    private Shader GetSlangShader(MaterialAsset asset, string templatePath)
+    private Shader GetSlangShader(string templatePath, string surfacePath)
     {
         if (!SlangTemplates.TryGetValue(templatePath, out string? templateStem))
         {
             throw new InvalidDataException(
-                $"Pass template '{templatePath}' has no Slang counterpart; Slang surfaces support the "
-                + "G-buffer, shadow and RSM passes — use an HLSL surface for this pass.");
+                $"Pass template '{templatePath}' has no Slang counterpart.");
         }
 
-        string surfacePath = asset.SurfaceShader!;
+        string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
         (string Template, string Surface) key = (templatePath, surfacePath);
         if (_slangShaders.TryGetValue(key, out Shader? cached))
         {
             return cached;
         }
 
-        string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
         Shader shader = _rendering.CreateShader(
             $"{templateStem}+{surfaceModule}",
             defines => CompileSlangPermutation(templateStem, surfacePath, defines));
@@ -266,137 +272,203 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// Compile one defines permutation of a Slang (template, surface) pair: the wrapper
-    /// translation unit #includes the pass template (so the defines apply to it, exactly
-    /// like the DXC splice) and imports the surface module under a define-mangled name
-    /// (Slang caches modules per session by path; the mangling makes every permutation
-    /// import the surface with its own defines prepended), then instantiates the
-    /// template's generic pass functions with the surface's <c>Surface</c> type.
+    /// Compile one defines permutation of a (template, surface) pair through the shared
+    /// slang module system: the surface and template sources are registered with the
+    /// permutation's defines prefixed, under define-mangled module names (defines do not
+    /// cross module boundaries, so every permutation is a distinct module identity —
+    /// plan §8's interim permutation mechanism), and the generated wrapper imports both
+    /// and instantiates the template's generic pass functions with the surface's
+    /// <c>Surface</c> type. Slang checks the surface against ISurface at instantiation.
     /// </summary>
     private ShaderModulesInfo CompileSlangPermutation(string templateStem, string surfacePath, string[] defines)
     {
+        SlangModuleSystem modules = _rendering.ShaderSystem.Modules;
         string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
-        string wrapper = BuildSlangWrapper(templateStem, MangleSurfaceModule(surfaceModule, defines));
-        SlangCompiledShader compiled = _slang.CompileGraphics(
-            PermutationName(templateStem, surfaceModule, defines),
-            wrapper,
-            defines.Select(define => (define, "1")).ToArray(),
-            [MaterialParamsResource],
-            path => ResolveSlangFile(path, surfacePath, defines));
 
-        // Slang names the emitted SPIR-V entry points "main" regardless of the
-        // source function names (MainVS/MainPS).
-        ShaderModule vertex = new(ShaderStage.Vertex, ShaderLanguage.SPIRV, compiled.VertexSpirv, "main");
-        ShaderModule fragment = new(ShaderStage.Fragment, ShaderLanguage.SPIRV, compiled.FragmentSpirv, "main");
-        return ShaderModulesInfo.CreateGraphics(
-            PermutationName(templateStem, surfaceModule, defines), defines, vertex, fragment, compiled.Reflection);
+        string surfaceImport = MangleModule(surfaceModule, defines);
+        string templateImport = MangleModule(templateStem, defines);
+        string templatePath = TemplateAssetPath(templateStem);
+        RegisterDefinedModule(modules, surfaceImport, surfacePath, ReadAssetText(surfacePath), defines);
+        RegisterDefinedModule(modules, templateImport, templatePath, ReadAssetText(templatePath), defines);
+
+        string wrapperName = PermutationName(templateStem, surfaceModule, defines);
+        string wrapper = BuildSlangWrapper(templateStem, templateImport, surfaceImport);
+        modules.GetOrLoadModule(wrapperName, $"mat/{wrapperName}", wrapper);
+
+        SlangProgram program = modules.GetProgramAllEntries(wrapperName, []);
+
+        ShaderModule? vertex = null, fragment = null;
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            (string name, int stage) = program.EntryPoints[i];
+            ShaderModule module = new(
+                SlangCompileSession.SlangStageToEngine(stage),
+                ShaderLanguage.SPIRV,
+                program.EntryCode[i],
+                // Slang names the emitted SPIR-V entry points "main" regardless
+                // of the source function names (MainVS/MainPS).
+                "main");
+            switch (module.Stage)
+            {
+                case ShaderStage.Vertex:
+                    vertex = module;
+                    break;
+                case ShaderStage.Fragment:
+                    fragment = module;
+                    break;
+                default:
+                    throw new NotSupportedException(
+                        $"Stage {stage} of entry point '{name}' in composed material shader '{wrapperName}' is not supported.");
+            }
+        }
+
+        if (vertex is not { } vs || fragment is not { } fs)
+        {
+            throw new InvalidOperationException(
+                $"Composed material shader '{wrapperName}' defines no vertex/fragment entry point pair.");
+        }
+
+        // Programs stay pinned: ShaderModule structs reference the SPIR-V arrays.
+        lock (_pinLock)
+        {
+            _pinnedPrograms.Add(program);
+        }
+        return ShaderModulesInfo.CreateGraphics(wrapperName, defines, vs, fs, program.Reflection);
     }
 
     /// <summary>
-    /// The generated wrapper translation unit of one (template, surface permutation):
-    /// entry points that instantiate the template's generic pass functions with the
-    /// surface type. Slang checks the surface against ISurface at this instantiation.
+    /// Registers one define-permutation module with the module system: the source gets
+    /// the defines prefixed and loads under the (possibly mangled) name with the real
+    /// asset path as its dependency identity — file changes on that path invalidate the
+    /// permutation like any module. A mangled name is also registered as a virtual
+    /// source so the wrapper's import-by-name reaches the permutation.
     /// </summary>
-    internal static string BuildSlangWrapper(string templateStem, string surfaceModule) => templateStem switch
+    private static void RegisterDefinedModule(
+        SlangModuleSystem modules, string name, string path, string source, string[] defines)
     {
-        "gbuffer" => $$"""
-            // Generated by MaterialCompiler: {{templateStem}} + {{surfaceModule}}.
-            #include "gbuffer.slang"
-            import {{surfaceModule}};
-
-            [shader("vertex")]
-            GBufferV2F MainVS(GBufferVertex input)
-            {
-                return GBufferMainVS<Surface>(input);
-            }
-
-            [shader("pixel")]
-            void MainPS(GBufferV2F input,
-                out float4 albedoRT : SV_TARGET0,
-                out float4 normalRT : SV_TARGET1,
-                out float4 mrAORT : SV_TARGET2,
-                out float4 emissiveRT : SV_TARGET3)
-            {
-                GBufferMainPS<Surface>(input, albedoRT, normalRT, mrAORT, emissiveRT);
-            }
-            """,
-        "shadow_depth" => $$"""
-            // Generated by MaterialCompiler: {{templateStem}} + {{surfaceModule}}.
-            #include "shadow_depth.slang"
-            import {{surfaceModule}};
-
-            [shader("vertex")]
-            ShadowV2F MainVS(ShadowVertex input)
-            {
-                return ShadowMainVS<Surface>(input);
-            }
-
-            [shader("pixel")]
-            void MainPS(ShadowV2F input)
-            {
-                ShadowMainPS<Surface>(input);
-            }
-            """,
-        "rsm" => $$"""
-            // Generated by MaterialCompiler: {{templateStem}} + {{surfaceModule}}.
-            #include "rsm.slang"
-            import {{surfaceModule}};
-
-            [shader("vertex")]
-            RsmV2F MainVS(RsmVertex input)
-            {
-                return RsmMainVS<Surface>(input);
-            }
-
-            [shader("pixel")]
-            void MainPS(RsmV2F input,
-                out float4 albedoRT : SV_TARGET0,
-                out float4 normalRT : SV_TARGET1)
-            {
-                RsmMainPS<Surface>(input, albedoRT, normalRT);
-            }
-            """,
-        _ => throw new InvalidDataException($"Unknown Slang pass template '{templateStem}'."),
-    };
-
-    /// <summary>
-    /// Serve one Slang module/import/include path: the define-mangled surface module
-    /// resolves to the surface's source with the permutation defines prepended;
-    /// everything else resolves by file name in the Slang source folders. Returns null
-    /// for unknown paths (Slang reports them as missing).
-    /// </summary>
-    private string? ResolveSlangFile(string path, string surfacePath, string[] defines)
-    {
-        string stem = Path.GetFileNameWithoutExtension(path);
-        string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
-        if (stem == MangleSurfaceModule(surfaceModule, defines))
+        if (defines.Length > 0)
         {
-            StringBuilder source = new();
-            foreach (string define in defines)
-            {
-                source.AppendLine($"#define {define} 1");
-            }
-            return source.Append(ReadAssetText(surfacePath)).ToString();
+            source = string.Concat(defines.Select(define => "#define " + define + " 1\n")) + source;
+            modules.AddVirtualModule(name, source);
         }
-
-        string fileName = Path.GetFileName(path);
-        foreach (string folder in SlangSourceFolders)
-        {
-            if (_assets.TryGetStream(SlangFolder + folder + fileName, out Stream? stream))
-            {
-                using StreamReader reader = new(stream, Encoding.UTF8);
-                return reader.ReadToEnd();
-            }
-        }
-        return null;
+        modules.GetOrLoadModule(name, path, source);
     }
 
-    /// <summary>The surface module name mangled by a defines permutation (FNV-1a of the defines).</summary>
-    private static string MangleSurfaceModule(string surfaceModule, string[] defines)
+    /// <summary>
+    /// The generated wrapper module of one (template, surface permutation): entry points
+    /// that instantiate the template's generic pass functions with the surface type.
+    /// Slang checks the surface against ISurface at this instantiation.
+    /// </summary>
+    internal static string BuildSlangWrapper(string templateStem, string templateImport, string surfaceImport)
+    {
+        string module = $"mat_{SanitizeModuleName(templateImport)}_{SanitizeModuleName(surfaceImport)}";
+        return templateStem switch
+        {
+            "gbuffer" => $$"""
+                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
+                #language slang 2025
+                module {{module}};
+
+                import {{templateImport}};
+                import {{surfaceImport}};
+
+                [shader("vertex")]
+                GBufferV2F MainVS(GBufferVertex input)
+                {
+                    return GBufferMainVS<Surface>(input);
+                }
+
+                [shader("fragment")]
+                void MainPS(GBufferV2F input,
+                    out float4 albedoRT : SV_TARGET0,
+                    out float4 normalRT : SV_TARGET1,
+                    out float4 mrAORT : SV_TARGET2,
+                    out float4 emissiveRT : SV_TARGET3,
+                    out float depthRT : SV_TARGET4)
+                {
+                    GBufferMainPS<Surface>(input, albedoRT, normalRT, mrAORT, emissiveRT, depthRT);
+                }
+                """,
+            "shadow_depth" => $$"""
+                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
+                #language slang 2025
+                module {{module}};
+
+                import {{templateImport}};
+                import {{surfaceImport}};
+
+                [shader("vertex")]
+                ShadowV2F MainVS(ShadowVertex input)
+                {
+                    return ShadowMainVS<Surface>(input);
+                }
+
+                [shader("fragment")]
+                void MainPS(ShadowV2F input)
+                {
+                    ShadowMainPS<Surface>(input);
+                }
+                """,
+            "rsm" => $$"""
+                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
+                #language slang 2025
+                module {{module}};
+
+                import {{templateImport}};
+                import {{surfaceImport}};
+
+                [shader("vertex")]
+                RsmV2F MainVS(RsmVertex input)
+                {
+                    return RsmMainVS<Surface>(input);
+                }
+
+                [shader("fragment")]
+                void MainPS(RsmV2F input,
+                    out float4 albedoRT : SV_TARGET0,
+                    out float4 normalRT : SV_TARGET1,
+                    out float depthRT : SV_TARGET2)
+                {
+                    RsmMainPS<Surface>(input, albedoRT, normalRT, depthRT);
+                }
+                """,
+            "glass" => $$"""
+                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
+                #language slang 2025
+                module {{module}};
+
+                import {{templateImport}};
+                import {{surfaceImport}};
+
+                [shader("vertex")]
+                GlassV2F MainVS(GlassVertex input)
+                {
+                    return GlassMainVS<Surface>(input);
+                }
+
+                [shader("fragment")]
+                float4 MainPS(GlassV2F input) : SV_TARGET
+                {
+                    return GlassMainPS<Surface>(input);
+                }
+                """,
+            _ => throw new InvalidDataException($"Unknown Slang pass template '{templateStem}'."),
+        };
+    }
+
+    private static string TemplateAssetPath(string templateStem)
+        => SlangFolder + "Pipelines/" + templateStem + ".slang";
+
+    /// <summary>A module-name-safe form (module names allow word characters only).</summary>
+    private static string SanitizeModuleName(string name)
+        => string.Concat(name.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
+
+    /// <summary>A module name mangled by a defines permutation (FNV-1a of the defines).</summary>
+    private static string MangleModule(string moduleName, string[] defines)
     {
         if (defines.Length == 0)
         {
-            return surfaceModule;
+            return moduleName;
         }
         ulong hash = 14695981039346656037;
         foreach (char c in string.Join(';', defines))
@@ -404,7 +476,7 @@ public sealed class MaterialCompiler : AutoDisposable
             hash ^= c;
             hash *= 1099511628211;
         }
-        return $"{surfaceModule}_d{hash & 0xFFFFFFFF:X8}";
+        return $"{moduleName}_d{hash & 0xFFFFFFFF:X8}";
     }
 
     private static string PermutationName(string templateStem, string surfaceModule, string[] defines)
@@ -412,59 +484,6 @@ public sealed class MaterialCompiler : AutoDisposable
         return defines.Length == 0
             ? $"{templateStem}+{surfaceModule}"
             : $"{templateStem}+{surfaceModule}+{string.Join("+", defines)}";
-    }
-
-    /// <summary>
-    /// The composed shader of one HLSL (template, surface) pair (DXC splice path).
-    /// Cached per pair; the compiler owns the shader.
-    /// </summary>
-    private Shader GetHlslShader(MaterialAsset asset, string templatePath)
-    {
-        string surfacePath = asset.SurfaceShader!;
-        (string Template, string Surface) key = (templatePath, surfacePath);
-        if (_composedShaders.TryGetValue(key, out Shader? cached))
-        {
-            return cached;
-        }
-
-        string templateText = ReadAssetText(templatePath);
-        string surfaceText = ReadAssetText(surfacePath);
-        string composed = ReplaceSurfaceLine(templateText, surfaceText, templatePath);
-        string resolved = new IncludeHelper().ProcessInclude(composed, templatePath, ReadAssetText);
-        string name = $"{Path.GetFileNameWithoutExtension(templatePath)}+{Path.GetFileNameWithoutExtension(surfacePath)}";
-        Shader shader = _rendering.CreateShader(resolved, name);
-        _composedShaders.Add(key, shader);
-        return shader;
-    }
-
-    /// <summary>
-    /// Splice a surface shader into a template: the template line carrying the
-    /// <see cref="SurfaceMarker"/> comment (its default-surface include) is replaced by
-    /// the surface's source text.
-    /// </summary>
-    private static string ReplaceSurfaceLine(string templateText, string surfaceText, string templatePath)
-    {
-        StringBuilder builder = new();
-        using StringReader reader = new(templateText);
-        string? line;
-        bool replaced = false;
-        while ((line = reader.ReadLine()) != null)
-        {
-            if (line.Contains(SurfaceMarker))
-            {
-                builder.AppendLine(surfaceText);
-                replaced = true;
-            }
-            else
-            {
-                builder.AppendLine(line);
-            }
-        }
-        if (!replaced)
-        {
-            throw new InvalidDataException($"Pass template '{templatePath}' has no '{SurfaceMarker}' surface line to swap.");
-        }
-        return builder.ToString();
     }
 
     private string ReadAssetText(string path)
@@ -480,18 +499,21 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <summary>
     /// The parameter buffer of an asset: the surface's <c>_materialParams</c> block
     /// members, filled from <see cref="MaterialAsset.Parameters"/> by member name —
-    /// members the asset leaves out read zero. Slang surfaces pack at the offsets
-    /// Slang reflected (scalars and vectors may mix); HLSL surfaces keep the one
-    /// float4-per-member register convention. Created on first compile, reused by
+    /// members the asset leaves out read zero. The compiler packs at the offsets Slang
+    /// reflected (scalars and vectors may mix). Created on first compile, reused by
     /// every pass material of the asset.
     /// </summary>
     private GraphicsBuffer? GetParamsBuffer(MaterialAsset asset, Entry entry)
     {
-        bool slangSurface = asset.SurfaceShader != null &&
-            asset.SurfaceShader.EndsWith(".slang", StringComparison.OrdinalIgnoreCase);
-        if (asset.SurfaceShader == null || !slangSurface)
+        if (asset.SurfaceShader == null)
         {
-            return GetHlslParamsBuffer(asset, entry);
+            // The built-in surface declares no parameter block.
+            if (asset.Parameters.Count > 0)
+            {
+                throw new InvalidDataException(
+                    $"Material '{asset.Name}' has parameters, but the built-in PbrStandard surface declares no _materialParams block.");
+            }
+            return null;
         }
 
         List<SlangUniformMember> members = GetSlangParamLayout(asset.SurfaceShader);
@@ -514,25 +536,28 @@ public sealed class MaterialCompiler : AutoDisposable
     /// reflection: a probe compile of the G-buffer wrapper (no defines) whose layout is
     /// the block's declaration. Cached per surface path; empty means no block.
     /// </summary>
-    private List<SlangUniformMember> GetSlangParamLayout(string surfacePath)
+    internal List<SlangUniformMember> GetSlangParamLayout(string surfacePath)
     {
         if (_slangParamLayouts.TryGetValue(surfacePath, out List<SlangUniformMember>? cached))
         {
             return cached;
         }
 
+        SlangModuleSystem modules = _rendering.ShaderSystem.Modules;
         string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
-        SlangCompiledShader probe = _slang.CompileGraphics(
-            $"{surfaceModule}+params",
-            BuildSlangWrapper("gbuffer", surfaceModule),
-            [],
-            [MaterialParamsResource],
-            path => ResolveSlangFile(path, surfacePath, []));
+        RegisterDefinedModule(modules, surfaceModule, surfacePath, ReadAssetText(surfacePath), Array.Empty<string>());
+
+        string wrapperName = $"{surfaceModule}+params";
+        modules.GetOrLoadModule(
+            wrapperName, $"mat/{wrapperName}", BuildSlangWrapper("gbuffer", "gbuffer", surfaceModule));
+        SlangProgram program = modules.GetProgramAllEntries(wrapperName, []);
+        lock (_pinLock)
+        {
+            _pinnedPrograms.Add(program);
+        }
 
         List<SlangUniformMember> members =
-            probe.UniformMembers.TryGetValue(MaterialParamsResource, out List<SlangUniformMember>? layout)
-                ? layout
-                : [];
+            program.GetUniformMembers(MaterialParamsResource);
         _slangParamLayouts.Add(surfacePath, members);
         return members;
     }
@@ -580,102 +605,6 @@ public sealed class MaterialCompiler : AutoDisposable
         return buffer;
     }
 
-    /// <summary>
-    /// The parameter buffer of an asset with an HLSL surface (or none): one float4
-    /// register per member of the surface's <c>_materialParams</c> block (declaration
-    /// order). Created on first compile, reused by every pass material of the asset.
-    /// </summary>
-    private GraphicsBuffer? GetHlslParamsBuffer(MaterialAsset asset, Entry entry)
-    {
-        if (asset.SurfaceShader == null || GetParamLayout(asset.SurfaceShader).Length == 0)
-        {
-            if (asset.Parameters.Count > 0)
-            {
-                throw new InvalidDataException(
-                    $"Material '{asset.Name}' has parameters, but its surface ({asset.SurfaceShader ?? "the built-in PbrStandard"}) declares no _materialParams block.");
-            }
-            return null;
-        }
-
-        entry.ParamsBuffer ??= CreateParamsBuffer(asset, GetParamLayout(asset.SurfaceShader));
-        return entry.ParamsBuffer;
-    }
-
-    private GraphicsBuffer CreateParamsBuffer(MaterialAsset asset, string[] members)
-    {
-        // An unknown parameter name is a typo in the asset: fail listing the valid ones.
-        foreach (string name in asset.Parameters.Keys)
-        {
-            if (!members.Contains(name))
-            {
-                throw new InvalidDataException(
-                    $"Material '{asset.Name}' parameter '{name}' matches no _materialParams member of '{asset.SurfaceShader}'; expected one of: {string.Join(", ", members)}.");
-            }
-        }
-
-        Vector4[] registers = new Vector4[members.Length];
-        for (int i = 0; i < members.Length; i++)
-        {
-            if (asset.Parameters.TryGetValue(members[i], out float[]? components))
-            {
-                registers[i] = new Vector4(
-                    components[0],
-                    components.Length > 1 ? components[1] : 0.0f,
-                    components.Length > 2 ? components[2] : 0.0f,
-                    components.Length > 3 ? components[3] : 0.0f);
-            }
-        }
-
-        GraphicsArrayBuffer<Vector4> buffer =
-            _rendering.CreateGraphicsArrayBuffer<Vector4>(registers.Length, $"{asset.Name}_params");
-        buffer.UpdateBuffer(registers.AsSpan());
-        return buffer;
-    }
-
-    /// <summary>
-    /// The member names of an HLSL surface's <c>_materialParams</c> block, in declaration
-    /// order (one float4 register each — the packing convention of Shaders/Libs/Surface.hlsli).
-    /// Cached per surface path; empty means the surface declares no block.
-    /// </summary>
-    private string[] GetParamLayout(string surfacePath)
-    {
-        if (_paramLayouts.TryGetValue(surfacePath, out string[]? cached))
-        {
-            return cached;
-        }
-
-        Match block = Regex.Match(
-            ReadAssetText(surfacePath),
-            @"DEFINE_UNIFORM\(\s*\d+\s*,\s*_materialParams\s*\)\s*\{([^}]*)\}",
-            RegexOptions.CultureInvariant);
-        List<string> names = new();
-        if (block.Success)
-        {
-            // Drop line comments first: a member may carry a trailing "// ..." note.
-            string body = Regex.Replace(block.Groups[1].Value, @"//[^\n]*", "", RegexOptions.CultureInvariant);
-            foreach (string raw in body.Split(';', StringSplitOptions.RemoveEmptyEntries))
-            {
-                string statement = raw.Trim();
-                if (statement.Length == 0)
-                {
-                    continue;
-                }
-                Match member = Regex.Match(statement, @"^float4\s+([A-Za-z_]\w*)$", RegexOptions.CultureInvariant);
-                if (!member.Success)
-                {
-                    throw new InvalidDataException(
-                        $"Surface '{surfacePath}' _materialParams member '{statement}' must be a bare 'float4 name;' declaration — "
-                        + "one register per member is what keeps the material parameter mapping in step with HLSL packing.");
-                }
-                names.Add(member.Groups[1].Value);
-            }
-        }
-
-        string[] members = [.. names];
-        _paramLayouts.Add(surfacePath, members);
-        return members;
-    }
-
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
@@ -691,19 +620,16 @@ public sealed class MaterialCompiler : AutoDisposable
             }
             _entries.Clear();
 
-            foreach (Shader shader in _composedShaders.Values)
-            {
-                shader.Dispose();
-            }
-            _composedShaders.Clear();
-
             foreach (Shader shader in _slangShaders.Values)
             {
                 shader.Dispose();
             }
             _slangShaders.Clear();
 
-            _slang.Dispose();
+            lock (_pinLock)
+            {
+                _pinnedPrograms.Clear();
+            }
         }
     }
 }

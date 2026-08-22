@@ -14,67 +14,67 @@ public partial class BuiltInAssets
     
     public Font Font_Default => GetFont("Fonts/Default.ttf");
 
-    public Shader Shader_ClearTexture => GetShader("Shaders/Pipelines/Compute/ClearTexture.hlsl");
+    public Shader Shader_ClearTexture => GetShader("ClearTexture");
 
-    public Shader Shader_TextureCompressBC3 => GetShader("Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl");
+    public Shader Shader_TextureCompressBC3 => GetShader("TextureCompressBC3");
 
-    public Shader Shader_FloodFillLighting => GetShader("Shaders/Pipelines/Compute/FloodFillLighting.hlsl");
+    public Shader Shader_FloodFillLighting => GetShader("FloodFillLighting");
 
-    public Shader Shader_GaussianBlurRGBA16F => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA16F.hlsl");
+    public Shader Shader_GaussianBlurRGBA16F => GetShader("GaussianBlurRGBA16F");
 
-    public Shader Shader_GaussianBlurRGBA32F => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA32F.hlsl");
+    public Shader Shader_GaussianBlurRGBA32F => GetShader("GaussianBlurRGBA32F");
 
-    public Shader Shader_GaussianBlurRGBA8 => GetShader("Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl");
+    public Shader Shader_GaussianBlurRGBA8 => GetShader("GaussianBlurRGBA8");
 
-    public Shader Shader_TextSDF => GetShader("Shaders/Pipelines/Compute/TextSDF.hlsl");
+    public Shader Shader_TextSDF => GetShader("TextSDF");
 
-    public Shader Shader_BloomBlit => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl");
+    public Shader Shader_BloomBlit => GetShader("BloomBlit");
 
-    public Shader Shader_BloomClamp => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomClamp.hlsl");
+    public Shader Shader_BloomClamp => GetShader("BloomClamp");
 
-    public Shader Shader_BloomDownSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomDownSample.hlsl");
+    public Shader Shader_BloomDownSample => GetShader("BloomDownSample");
 
-    public Shader Shader_BloomUpSample => GetShader("Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl");
+    public Shader Shader_BloomUpSample => GetShader("BloomUpSample");
 
-    public Shader Shader_ColorGrading => GetShader("Shaders/Pipelines/PostProcess/ColorGrading.hlsl");
+    public Shader Shader_ColorGrading => GetShader("ColorGrading");
 
-    public Shader Shader_FXAA => GetShader("Shaders/Pipelines/PostProcess/FXAA.hlsl");
+    public Shader Shader_FXAA => GetShader("FXAA");
 
-    public Shader Shader_ACESTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl");
+    public Shader Shader_ACESTonemap => GetShader("ACESTonemap");
 
-    public Shader Shader_AgXTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/AgXTonemap.hlsl");
+    public Shader Shader_AgXTonemap => GetShader("AgXTonemap");
 
-    public Shader Shader_FilmicTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/FilmicTonemap.hlsl");
+    public Shader Shader_FilmicTonemap => GetShader("FilmicTonemap");
 
-    public Shader Shader_NeutralTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/NeutralTonemap.hlsl");
+    public Shader Shader_NeutralTonemap => GetShader("NeutralTonemap");
 
-    public Shader Shader_ReinhardLuminanceTonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/ReinhardLuminanceTonemap.hlsl");
+    public Shader Shader_ReinhardLuminanceTonemap => GetShader("ReinhardLuminanceTonemap");
 
-    public Shader Shader_Uncharted2Tonemap => GetShader("Shaders/Pipelines/PostProcess/Tonemap/Uncharted2Tonemap.hlsl");
+    public Shader Shader_Uncharted2Tonemap => GetShader("Uncharted2Tonemap");
 
-    public Shader Shader_Unlit => GetShader("Shaders/Pipelines/Rendering/Basic/Unlit.hlsl");
+    public Shader Shader_Unlit => GetShader("Unlit");
 
-    public Shader Shader_Particle2D => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl");
+    public Shader Shader_Particle2D => GetShader("Particle2D");
 
-    public Shader Shader_Particle2DAnimated => GetShader("Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl");
+    public Shader Shader_Particle2DAnimated => GetShader("Particle2DAnimated");
 
-    public Shader Shader_Sprite => GetShader("Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl");
+    public Shader Shader_Sprite => GetShader("Sprite");
 
-    public Shader Shader_SpriteInstanced => GetShader("Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl");
+    public Shader Shader_SpriteInstanced => GetShader("SpriteInstanced");
 
-    public Shader Shader_Text => GetShader("Shaders/Pipelines/Rendering/Text/Text.hlsl");
+    public Shader Shader_Text => GetShader("Text");
 
-    public Shader Shader_TileInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl");
+    public Shader Shader_TileInstanced => GetShader("TileInstanced");
 
-    public Shader Shader_TileWaterInstanced => GetShader("Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl");
+    public Shader Shader_TileWaterInstanced => GetShader("TileWaterInstanced");
 
-    public Shader Shader_Blit => GetShader("Shaders/Pipelines/Utils/Blit.hlsl");
+    public Shader Shader_Blit => GetShader("Blit");
 
-    public Shader Shader_BlitDepth => GetShader("Shaders/Pipelines/Utils/BlitDepth.hlsl");
+    public Shader Shader_BlitDepth => GetShader("BlitDepth");
 
-    public Shader Shader_BlitRegion => GetShader("Shaders/Pipelines/Utils/BlitRegion.hlsl");
+    public Shader Shader_BlitRegion => GetShader("BlitRegion");
 
-    public Shader Shader_BlitWithColor => GetShader("Shaders/Pipelines/Utils/BlitWithColor.hlsl");
+    public Shader Shader_BlitWithColor => GetShader("BlitWithColor");
 
 
 }

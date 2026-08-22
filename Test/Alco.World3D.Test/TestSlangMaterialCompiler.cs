@@ -1,49 +1,37 @@
+#nullable enable
+
 using System.IO;
-using System.Text;
 using NUnit.Framework;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
+using Alco.ShaderCompiler;
 
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// The Slang material path of <see cref="MaterialCompiler"/>: hand-written P/Invoke
-/// over the Slang C API compiling the module's Slang pass templates with surface
-/// modules (interface-checked generic instantiation), Slang's own reflection translated
-/// into the engine's shader reflection, and the reflection-driven mapping of mixed-type
-/// <c>_materialParams</c> blocks. Uses a NoGPU engine with the module's real Slang
-/// sources, mirroring <see cref="TestMaterialCompiler"/>; the engine's DXC toolchain is
-/// not involved in any of these compiles.
+/// The Slang material path of <see cref="MaterialCompiler"/>: pass templates compose
+/// with surface modules through the shared slang module system (interface-checked
+/// generic instantiation of generated wrapper modules), Slang's own reflection
+/// translated into the engine's shader reflection, and the reflection-driven mapping
+/// of mixed-type <c>_materialParams</c> blocks. Uses a NoGPU engine with the module's
+/// real Slang sources, mirroring <see cref="AssetPipeline.TestMaterialCompiler"/>; the
+/// retired DXC toolchain and the retired beachhead compiler are not involved anywhere.
 /// </summary>
 public class TestSlangMaterialCompiler
 {
-    /// <summary>
-    /// Serve a Slang module/import/include request from the module's Slang source
-    /// folders in the asset system (the same lookup MaterialCompiler's resolver does).
-    /// </summary>
-    private static string? TryReadSlangAsset(AssetSystem assets, string path)
-    {
-        string fileName = Path.GetFileName(path);
-        foreach (string folder in new[] { "Pipelines/", "Materials/", "Libs/" })
-        {
-            if (assets.TryGetStream("ShadersSlang/" + folder + fileName, out Stream? stream))
-            {
-                using StreamReader reader = new(stream, Encoding.UTF8);
-                return reader.ReadToEnd();
-            }
-        }
-        return null;
-    }
+    private const string ParameterizedSurfacePath = "ShadersSlang/Materials/parameterized_surface.slang";
 
     [Test]
-    public void TrivialShaderCompilesWithoutAFileSystem()
+    public void TrivialShaderCompilesFromRegisteredSource()
     {
-        // Bisects the bridge: a self-contained shader touching neither the file
-        // system callback nor modules, so any failure here is the session/request/
-        // entry-point plumbing, not asset resolution.
+        // Bisects the bridge: a self-contained module touching no imports, so any
+        // failure here is the session/module/entry-point plumbing, not assets.
+        using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
         string source = """
+            module trivial_probe;
+
             [shader("vertex")]
             float4 MainVS(float3 position : POSITION) : SV_POSITION
             {
@@ -56,90 +44,72 @@ public class TestSlangMaterialCompiler
                 return float4(1.0, 0.0, 1.0, 1.0);
             }
             """;
-        using SlangShaderCompiler slang = new();
-        SlangCompiledShader compiled = slang.CompileGraphics(
-            "trivial", source, Array.Empty<(string, string)>(), [],
-            _ => null);
+        Shader shader = engine.RenderingSystem.ShaderSystem.GetShaderFromModule(
+            "trivial_probe", "trivial_probe.slang", source);
+        ShaderModulesInfo modules = shader.GetShaderModules();
 
         Assert.Multiple(() =>
         {
-            Assert.That(BitConverter.ToUInt32(compiled.VertexSpirv, 0), Is.EqualTo(0x07230203u));
-            Assert.That(BitConverter.ToUInt32(compiled.FragmentSpirv, 0), Is.EqualTo(0x07230203u));
-            Assert.That(compiled.Reflection.BindGroups.Count, Is.EqualTo(0));
+            Assert.That(BitConverter.ToUInt32(modules.VertexShader.GetValueOrDefault().Source.ToArray(), 0), Is.EqualTo(0x07230203u));
+            Assert.That(BitConverter.ToUInt32(modules.FragmentShader.GetValueOrDefault().Source.ToArray(), 0), Is.EqualTo(0x07230203u));
+            Assert.That(modules.ReflectionInfo.BindGroups.Count, Is.EqualTo(0));
         });
     }
 
     [Test]
-    public void BuiltInPbrSurfaceCompilesAsNativeSlang()
+    public void BuiltInPbrSurfaceComposesIntoTheGBufferTemplate()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        using SlangShaderCompiler slang = new();
+        using MaterialCompiler compiler = new(engine.RenderingSystem, engine.AssetSystem);
 
-        string wrapper = MaterialCompiler.BuildSlangWrapper("gbuffer", "pbr_standard");
-        SlangCompiledShader compiled = slang.CompileGraphics(
-            "gbuffer+pbr_standard", wrapper, Array.Empty<(string, string)>(), [],
-            path => TryReadSlangAsset(assets, path));
+        Shader shader = compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer);
+        ShaderModulesInfo modules = shader.GetShaderModules();
+        ShaderReflectionInfo info = modules.ReflectionInfo;
 
-        Dictionary<string, BindGroupEntryInfo> entries = compiled.Reflection.BindGroups[0].Bindings
-            .ToDictionary(entry => entry.Entry.Name, entry => entry);
         Assert.Multiple(() =>
         {
-            Assert.That(BitConverter.ToUInt32(compiled.VertexSpirv, 0), Is.EqualTo(0x07230203u));
-            Assert.That(BitConverter.ToUInt32(compiled.FragmentSpirv, 0), Is.EqualTo(0x07230203u));
-            Assert.That(entries.Keys, Is.SupersetOf(new[]
+            Assert.That(BitConverter.ToUInt32(modules.VertexShader.GetValueOrDefault().Source.ToArray(), 0), Is.EqualTo(0x07230203u));
+            Assert.That(BitConverter.ToUInt32(modules.FragmentShader.GetValueOrDefault().Source.ToArray(), 0), Is.EqualTo(0x07230203u));
+
+            // Explicit source-declared bindings (plan D2): camera set 0, instances
+            // set 1, surface resources set 2.
+            Assert.That(info.BindGroups.Count, Is.EqualTo(3));
+            foreach (string name in new[]
+                     {
+                         "_camera", "_instances", "_albedoTexture", "_normalTexture",
+                         "_metallicRoughnessTexture", "_emissiveTexture",
+                     })
             {
-                "_albedoTexture", "_normalTexture", "_metallicRoughnessTexture", "_emissiveTexture",
-            }));
+                Assert.That(info.TryGetResourceLocation(name, out _), Is.True, $"Missing {name}");
+            }
         });
     }
 
     [Test]
-    public void SlangReflectionReportsTheEngineLayout()
+    public void ComposedReflectionReportsTheEngineLayout()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        using SlangShaderCompiler slang = new();
+        using MaterialCompiler compiler = new(engine.RenderingSystem, engine.AssetSystem);
 
-        // The real wrapper the material compiler generates for the G-buffer template
-        // with the test surface (mixed-type parameter block).
-        string wrapper = MaterialCompiler.BuildSlangWrapper("gbuffer", "parameterized_surface");
-        SlangCompiledShader compiled = slang.CompileGraphics(
-            "gbuffer+parameterized_surface", wrapper, Array.Empty<(string, string)>(), ["_materialParams"],
-            path => TryReadSlangAsset(assets, path));
+        // The real composition the material compiler produces for the G-buffer
+        // template with the test surface (mixed-type parameter block).
+        Shader shader = Compose(compiler, "gbuffer", World3DAssetPaths.Shader_GBuffer, ParameterizedSurfacePath);
+        ShaderReflectionInfo info = shader.GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>
         {
-            // Both entry points produced SPIR-V modules.
-            Assert.That(BitConverter.ToUInt32(compiled.VertexSpirv, 0), Is.EqualTo(0x07230203u));
-            Assert.That(BitConverter.ToUInt32(compiled.FragmentSpirv, 0), Is.EqualTo(0x07230203u));
+            AssertResource(info, "_camera", 0, 0, BindingType.UniformBuffer);
+            AssertResource(info, "_instances", 1, 0, BindingType.StorageBuffer);
+            AssertResource(info, "_materialParams", 2, 0, BindingType.UniformBuffer);
+            AssertResource(info, "_globalRenderData", 2, 1, BindingType.UniformBuffer);
+            AssertResource(info, "_albedoTexture", 2, 2, BindingType.Texture);
+            AssertResource(info, "_normalTexture", 2, 4, BindingType.Texture);
+            AssertResource(info, "_metallicRoughnessTexture", 2, 6, BindingType.Texture);
 
-            ShaderReflectionInfo info = compiled.Reflection;
-
-            // One bind group (set 0) holding every parameter; names address them.
-            Assert.That(info.BindGroups.Count, Is.EqualTo(1));
-            Dictionary<string, BindGroupEntryInfo> entries = info.BindGroups[0].Bindings
-                .ToDictionary(entry => entry.Entry.Name, entry => entry);
-            Assert.That(entries["_camera"].Entry.Type, Is.EqualTo(BindingType.UniformBuffer));
-            Assert.That(entries["_camera"].Size, Is.EqualTo(64u), "One float4x4 view-projection.");
-            Assert.That(entries["_instances"].Entry.Type, Is.EqualTo(BindingType.StorageBuffer));
-            Assert.That(entries["_materialParams"].Entry.Type, Is.EqualTo(BindingType.UniformBuffer));
-            Assert.That(entries["_materialParams"].Size, Is.EqualTo(32u), "4+4+12+4 with std140 padding.");
-            Assert.That(entries["_globalRenderData"].Entry.Type, Is.EqualTo(BindingType.UniformBuffer));
-            Assert.That(entries["_albedoTexture"].Entry.Type, Is.EqualTo(BindingType.Texture));
-            Assert.That(entries["_albedoTextureSampler"].Entry.Type, Is.EqualTo(BindingType.Sampler));
-            Assert.That(entries["_normalTexture"].Entry.Type, Is.EqualTo(BindingType.Texture));
-            Assert.That(entries["_metallicRoughnessTexture"].Entry.Type, Is.EqualTo(BindingType.Texture));
-            Assert.That(entries.Keys, Is.SupersetOf(new[]
-            {
-                "_camera", "_instances", "_materialParams", "_globalRenderData",
-                "_albedoTexture", "_albedoTextureSampler", "_normalTexture", "_normalTextureSampler",
-                "_metallicRoughnessTexture", "_metallicRoughnessTextureSampler",
-            }), "Slang assigns all parameters to set 0; the engine addresses them by name.");
-
-            // Bindings within the group are sorted and unique.
-            List<uint> bindings = info.BindGroups[0].Bindings.Select(entry => entry.Entry.Binding).ToList();
-            Assert.That(bindings, Is.EqualTo(bindings.Distinct().ToList()), "Binding indices are unique.");
+            // Samplers are companion entries bound with their owning texture
+            // (ShaderParameterSet's OwnerSampler plan), not name-addressable
+            // resources — assert them through the bind group layouts.
+            AssertLayoutEntry(info, "_albedoTextureSampler", 2, 3, BindingType.Sampler);
 
             // The vertex layout matches Alco.Rendering.VertexPBR exactly.
             Assert.That(info.VertexLayouts.Count, Is.EqualTo(1));
@@ -153,12 +123,12 @@ public class TestSlangMaterialCompiler
                 Is.EqualTo(new[] { VertexFormat.Float32x3, VertexFormat.Float32x3, VertexFormat.Float32x2, VertexFormat.Float32x4 }));
 
             // The G-buffer writes four color targets.
-            Assert.That(info.FragmentOutputCount, Is.EqualTo(4));
+            Assert.That(info.FragmentOutputCount, Is.EqualTo(5));
 
             // The surface's mixed-type parameter block: member types and byte offsets
-            // come from Slang's own reflection - the mapping the material compiler
-            // writes parameters at (no more regex parsing of the source).
-            List<SlangUniformMember> members = compiled.UniformMembers["_materialParams"];
+            // come from Slang's own reflection — the mapping the material compiler
+            // writes parameters at (no regex parsing of the source).
+            List<SlangUniformMember> members = compiler.GetSlangParamLayout(ParameterizedSurfacePath);
             Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.FloatComponentCount)),
                 Is.EqualTo(new[]
                 {
@@ -171,45 +141,34 @@ public class TestSlangMaterialCompiler
     }
 
     [Test]
-    public void SlangTemplatesReportPushConstantsAndHonorDefines()
+    public void TemplatesReportPushConstantsAndHonorDefines()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        using SlangShaderCompiler slang = new();
+        using MaterialCompiler compiler = new(engine.RenderingSystem, engine.AssetSystem);
 
-        string wrapper = MaterialCompiler.BuildSlangWrapper("shadow_depth", "parameterized_surface");
-
-        SlangCompiledShader plain = slang.CompileGraphics(
-            "shadow_depth+parameterized_surface", wrapper, Array.Empty<(string, string)>(), ["_materialParams"],
-            path => TryReadSlangAsset(assets, path));
-        SlangCompiledShader cutout = slang.CompileGraphics(
-            "shadow_depth+parameterized_surface+SHADOW_CUTOUT", wrapper, [("SHADOW_CUTOUT", "1")], ["_materialParams"],
-            path => TryReadSlangAsset(assets, path));
+        Shader shader = Compose(compiler, "shadow_depth", World3DAssetPaths.Shader_ShadowDepth, ParameterizedSurfacePath);
+        ShaderModulesInfo plain = shader.GetShaderModules();
+        ShaderModulesInfo cutout = shader.GetShaderModules("SHADOW_CUTOUT");
 
         Assert.Multiple(() =>
         {
             // The shadow template carries its cascade index as a push constant; the
             // engine reflects one range covering the float4 payload.
-            Assert.That(plain.Reflection.PushConstantsSize, Is.EqualTo(16));
-            Assert.That(cutout.Reflection.PushConstantsSize, Is.EqualTo(16));
+            Assert.That(plain.ReflectionInfo.PushConstantsSize, Is.EqualTo(16));
+            Assert.That(cutout.ReflectionInfo.PushConstantsSize, Is.EqualTo(16));
 
-            // The program layout is the union of both entry points, so the surface's
-            // resources stay at stable bindings across permutations (Slang assigns
-            // per-permutation binding numbers that would otherwise shift).
-            Dictionary<string, BindGroupEntryInfo> plainEntries = plain.Reflection.BindGroups[0].Bindings
-                .ToDictionary(entry => entry.Entry.Name, entry => entry);
-            Dictionary<string, BindGroupEntryInfo> cutoutEntries = cutout.Reflection.BindGroups[0].Bindings
-                .ToDictionary(entry => entry.Entry.Name, entry => entry);
-            Assert.That(plainEntries["_albedoTexture"].Entry.Binding,
-                Is.EqualTo(cutoutEntries["_albedoTexture"].Entry.Binding),
+            // Bindings are explicit in the source, so the surface's resources keep
+            // their slots across permutations by construction.
+            ShaderResourceLocation plainAlbedo = GetResource(plain.ReflectionInfo, "_albedoTexture");
+            ShaderResourceLocation cutoutAlbedo = GetResource(cutout.ReflectionInfo, "_albedoTexture");
+            Assert.That((cutoutAlbedo.GroupIndex, cutoutAlbedo.Binding),
+                Is.EqualTo((plainAlbedo.GroupIndex, plainAlbedo.Binding)),
                 "The albedo texture keeps its binding across permutations.");
-            Assert.That(plainEntries.ContainsKey("_materialParams"), Is.True,
-                "The parameter block stays bound in every permutation (unbound slots default to white).");
 
-            // Preprocessor defines reach the template through the wrapper translation
-            // unit: only the cutout permutation evaluates the surface, so its pixel
-            // module dwarfs the plain depth write.
-            Assert.That(cutout.FragmentSpirv.Length, Is.GreaterThan(plain.FragmentSpirv.Length * 4),
+            // Preprocessor defines reach the template through its define-mangled
+            // module permutation: only the cutout permutation evaluates the surface,
+            // so its pixel module dwarfs the plain depth write.
+            Assert.That(cutout.FragmentShader.GetValueOrDefault().Source.Length, Is.GreaterThan(plain.FragmentShader.GetValueOrDefault().Source.Length * 4),
                 "SHADOW_CUTOUT keeps the surface's texture sampling alive in the pixel stage.");
         });
     }
@@ -221,9 +180,9 @@ public class TestSlangMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-        Shader gbufferShader = assets.Load<Shader>(World3DAssetPaths.Shader_GBuffer);
-        using GBufferRenderer gbuffer = new(engine.RenderingSystem, gbufferShader);
         using MaterialCompiler compiler = new(engine.RenderingSystem, assets);
+        using GBufferRenderer gbuffer = new(
+            engine.RenderingSystem, compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer));
         GBufferMaterialPass gbufferPass = new(gbuffer);
         compiler.RegisterPass(gbufferPass);
 
@@ -231,7 +190,7 @@ public class TestSlangMaterialCompiler
         MaterialAsset parameterized = new()
         {
             Name = "parameterized",
-            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
+            SurfaceShader = ParameterizedSurfacePath,
             Parameters = new Dictionary<string, float[]>
             {
                 ["pulseSpeed"] = [1.5f],
@@ -259,7 +218,7 @@ public class TestSlangMaterialCompiler
         MaterialAsset typo = new()
         {
             Name = "typo",
-            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
+            SurfaceShader = ParameterizedSurfacePath,
             Parameters = new Dictionary<string, float[]> { ["nonsense"] = [1.0f] },
         };
         Assert.That(() => compiler.Get(typo, gbufferPass), Throws.TypeOf<InvalidDataException>());
@@ -268,38 +227,113 @@ public class TestSlangMaterialCompiler
         MaterialAsset tooWide = new()
         {
             Name = "tooWide",
-            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
+            SurfaceShader = ParameterizedSurfacePath,
             Parameters = new Dictionary<string, float[]> { ["pulseSpeed"] = [1.0f, 2.0f] },
         };
         Assert.That(() => compiler.Get(tooWide, gbufferPass), Throws.TypeOf<InvalidDataException>());
 
-        // A Slang surface composed with a pass that has no Slang template (glass)
-        // fails with a clear message instead of splicing nonsense.
+        // The glass pass now composes like every other template (it was the last
+        // HLSL-only composition of the retired splice path).
         MaterialAsset glass = new()
         {
             Name = "glass",
-            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
+            SurfaceShader = ParameterizedSurfacePath,
         };
-        Assert.That(() => compiler.Get(glass, new TemplatePass("glass", World3DAssetPaths.Shader_ForwardGlass)),
-            Throws.TypeOf<InvalidDataException>(), "The glass pass has no Slang counterpart yet.");
+        GraphicsMaterial glassMaterial = compiler.Get(glass, new MaterializingPass("glass", World3DAssetPaths.Shader_ForwardGlass));
+        Assert.That(glassMaterial.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
+            "The glass template declares the camera binding.");
     }
 
     /// <summary>
-    /// A minimal pass that only composes one template — enough to drive
-    /// <see cref="MaterialCompiler"/>'s template dispatch without a renderer.
+    /// Compose one (template, surface) pair through the compiler and capture the
+    /// composed shader — the pass adapter pattern the renderers use, reduced to the
+    /// composition call. The capture pass aborts compilation after composing; the
+    /// abort is part of the capture, not a failure.
     /// </summary>
-    private sealed class TemplatePass(string id, string template) : IMaterialPass
+    private static Shader Compose(MaterialCompiler compiler, string id, string templatePath, string surfacePath)
+    {
+        MaterialAsset asset = new() { Name = id, SurfaceShader = surfacePath };
+        CapturePass pass = new(id, templatePath);
+        try
+        {
+            compiler.Get(asset, pass);
+        }
+        catch (InvalidOperationException e) when (e.Message.Contains("capture: composition done"))
+        {
+            // The capture pass aborted after composing — the shader is captured.
+        }
+        return pass.Composed!;
+    }
+
+    private sealed class CapturePass(string id, string template) : IMaterialPass
     {
         public string Id { get; } = id;
+        public Shader? Composed { get; private set; }
 
         public GraphicsMaterial Compile(MaterialCompileContext context)
         {
-            context.ComposeShader(template);
-            throw new InvalidOperationException("unreachable: composition throws first");
+            Composed = context.ComposeShader(template);
+            throw new InvalidOperationException("capture: composition done, no material needed");
         }
 
         public void RebindTextures(MaterialCompileContext context, GraphicsMaterial material, IReadOnlyDictionary<string, Texture2D?> slots)
         {
         }
+    }
+
+    /// <summary>A pass that composes the template and returns a real material.</summary>
+    private sealed class MaterializingPass(string id, string template) : IMaterialPass
+    {
+        public string Id { get; } = id;
+
+        public GraphicsMaterial Compile(MaterialCompileContext context)
+        {
+            Shader shader = context.ComposeShader(template);
+            return context.Rendering.CreateMaterial(shader, $"{Id}_material");
+        }
+
+        public void RebindTextures(MaterialCompileContext context, GraphicsMaterial material, IReadOnlyDictionary<string, Texture2D?> slots)
+        {
+        }
+    }
+
+    private static void AssertResource(
+        ShaderReflectionInfo info,
+        string name,
+        int group,
+        uint binding,
+        BindingType type)
+    {
+        ShaderResourceLocation location = GetResource(info, name);
+        Assert.That(location.GroupIndex, Is.EqualTo(group), $"{name} descriptor set");
+        Assert.That(location.Binding, Is.EqualTo(binding), $"{name} binding");
+        Assert.That(location.Type, Is.EqualTo(type), $"{name} binding type");
+    }
+
+    private static ShaderResourceLocation GetResource(ShaderReflectionInfo info, string name)
+    {
+        Assert.That(info.TryGetResourceLocation(name, out ShaderResourceLocation location),
+            Is.True, $"Missing reflected resource {name}");
+        return location;
+    }
+
+    private static void AssertLayoutEntry(
+        ShaderReflectionInfo info, string name, int group, uint binding, BindingType type)
+    {
+        (int GroupIndex, BindGroupEntry Entry)? found = null;
+        for (int groupIndex = 0; groupIndex < info.BindGroups.Count; groupIndex++)
+        {
+            foreach (BindGroupEntryInfo entryInfo in info.BindGroups[groupIndex].Bindings)
+            {
+                if (entryInfo.Entry.Name == name)
+                {
+                    found = (groupIndex, entryInfo.Entry);
+                }
+            }
+        }
+        Assert.That(found, Is.Not.Null, $"Missing bind group entry {name}");
+        Assert.That(found!.Value.GroupIndex, Is.EqualTo(group), $"{name} descriptor set");
+        Assert.That(found.Value.Entry.Binding, Is.EqualTo(binding), $"{name} binding");
+        Assert.That(found.Value.Entry.Type, Is.EqualTo(type), $"{name} binding type");
     }
 }

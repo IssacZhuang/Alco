@@ -55,7 +55,7 @@ public sealed class MaterialCompileContext
     /// <summary>
     /// Pass-template asset path → the compiled shader for this asset's surface: the
     /// template as shipped when the asset uses the built-in surface, the template with
-    /// the asset's surface spliced into its <c>@SURFACE@</c> line otherwise.
+    /// the asset's surface module supplied as a generic specialization otherwise.
     /// </summary>
     public required Func<string, Shader> ComposeShader { get; init; }
 }

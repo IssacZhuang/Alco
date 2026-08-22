@@ -21,6 +21,6 @@ public interface IRsmPassContent : IRenderNode
     /// </summary>
     /// <param name="context">The live RSM pass scope, already open on the RSM target.</param>
     /// <param name="cascadeIndex">The CSM cascade whose sun view-projection defines
-    /// the RSM view (the shared folded cascade matrices are unfolded in Rsm.hlsl).</param>
+    /// the RSM view (the shared folded cascade matrices are unfolded in Rsm.slang).</param>
     void OnRenderRsm(RenderPassScope context, int cascadeIndex);
 }

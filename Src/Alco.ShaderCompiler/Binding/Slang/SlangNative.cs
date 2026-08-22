@@ -254,6 +254,33 @@ internal static class SlangNative
     public static extern IntPtr spReflectionVariable_GetName(IntPtr variable);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionVariable_GetUserAttributeCount(IntPtr variable);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionVariable_GetUserAttribute(IntPtr variable, uint index);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionUserAttribute_GetName(IntPtr attribute);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionType_GetUserAttributeCount(IntPtr type);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionEntryPoint_getFunction(IntPtr entryPoint);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionFunction_GetUserAttributeCount(IntPtr function);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionFunction_GetUserAttribute(IntPtr function, uint index);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionUserAttribute_GetArgumentCount(IntPtr attribute);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionUserAttribute_GetArgumentValueString(IntPtr attribute, uint index, IntPtr outDiagnostics);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint spReflectionParameter_GetBindingIndex(IntPtr parameter);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
@@ -319,6 +346,9 @@ internal static class SlangNative
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern int spReflectionType_GetResourceAccess(IntPtr type);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionType_GetResourceResultType(IntPtr type);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint spReflectionType_GetColumnCount(IntPtr type);

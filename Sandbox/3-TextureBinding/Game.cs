@@ -114,33 +114,12 @@ public class Game : GameEngine
 
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroupBuffer, GPUBindGroup bindGroupTexture)
     {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
+        // slang module program: every [shader(...)] entry point compiled to SPIR-V
+        SlangProgram program = CompileProgram("sandbox3_shader", "Shader.slang");
+        ShaderModule vertexShader = StageModule(program, "MainVS");
+        ShaderModule fragmentShader = StageModule(program, "MainPS");
 
-        //dxc
-        ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
-        ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
-
-        //shaderc hlsl
-        // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
-        // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
-
-        //shaderc glsl
-        // shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.glsl"));
-        // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Vertex, "main", "Shader.glsl");
-        // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
-
-
-        ShaderReflectionInfo vertexReflection = ShaderReflectionUtility.GetSpirvReflection(vertexShader.Source);
-        ShaderReflectionInfo fragmentReflection = ShaderReflectionUtility.GetSpirvReflection(fragmentShader.Source);
-
-        Log.Info(vertexReflection);
-        Log.Info(fragmentReflection);
-        Log.Info(ShaderReflectionUtility.MergeReflectionInfo(vertexReflection, fragmentReflection));
-
-        // byte[] ShaderCode = LoadFile("Shader.wgsl");
-
-        // ShaderStageSource vertexShader = new ShaderStageSource(ShaderStage.Vertex, ShaderLanguage.WGSL, ShaderCode, "MainVS");
-        // ShaderStageSource fragmentShader = new ShaderStageSource(ShaderStage.Fragment, ShaderLanguage.WGSL, ShaderCode, "MainPS");
+        Log.Info(program.Reflection);
 
         VertexInputLayout vertexLayout = new VertexInputLayout
         {
@@ -197,6 +176,30 @@ public class Game : GameEngine
     private void UpdateColor(Vector3 color)
     {
         GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
+    }
+
+    private SlangProgram CompileProgram(string moduleName, string fileName)
+    {
+        string path = Path.Combine("Assets", fileName);
+        SlangModuleSystem modules = RenderingSystem.ShaderSystem.Modules;
+        modules.GetOrLoadModule(moduleName, path, File.ReadAllText(path));
+        return modules.GetProgramAllEntries(moduleName, []);
+    }
+
+    private static ShaderModule StageModule(SlangProgram program, string entryName)
+    {
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            if (program.EntryPoints[i].Name == entryName)
+            {
+                return new ShaderModule(
+                    SlangCompileSession.SlangStageToEngine(program.EntryPoints[i].Stage),
+                    ShaderLanguage.SPIRV,
+                    program.EntryCode[i],
+                    "main");
+            }
+        }
+        throw new ArgumentException($"Entry point '{entryName}' not found in module '{program.ModuleName}'.");
     }
 
     private static byte[] LoadFile(string path)

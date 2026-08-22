@@ -356,13 +356,16 @@ call frequency and resource-identity stability. Findings, grouped by stability c
 
 ## 8. Out of scope (documented future directions)
 
-- **Bindless / binding arrays** (Wicked Engine / UE5.5 / Bevy partial-bindless style): one
-  group of texture arrays indexed dynamically. wgpu native supports it; web does not.
-  Revisit when material count per draw becomes the bottleneck.
-- **Fully automatic binding assignment** (PlayCanvas/UE style, no positions in shader):
-  requires a pre-reflection pass + generated include header fed to DXC (CRYENGINE Vulkan
-  does this). The explicit `_AT` macros already solve the problem at hand with better
-  shader readability.
+- **Bindless / binding arrays**: Slang's future-facing path is
+  `DescriptorHandle<T>` backed by `ResourceDescriptorHeap[]`, with one material
+  descriptor index selected per draw. wgpu-native can expose the required
+  binding-array capabilities, while the web target still needs a bounded
+  fallback. Revisit when material count per draw becomes the bottleneck.
+- **Automatic physical binding assignment**: the public engine contract is
+  already name-based, but today's Slang sources retain explicit
+  `[[vk::binding(binding, set)]]` declarations for deterministic WebGPU layouts.
+  A future offline link step may generate these positions from parameter-block
+  declarations without changing C# call sites.
 - **Shared sampler bank in group 0** (CRYENGINE/Godot style, samplers out of the material
   group): natural follow-up once materials move to `ALCO_GROUP_MATERIAL`; halves binding
   counts but is not needed to fix the 8-group ceiling.

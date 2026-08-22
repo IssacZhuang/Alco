@@ -70,7 +70,7 @@ public class Game : GameEngine
 
         AddSystem(new ImGUISystem(this));
 
-        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _shader = BuiltInAssets.Shader_Unlit;
 
         // _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
         // _camaraChild.position.Z = -10;

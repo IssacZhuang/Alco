@@ -7,7 +7,7 @@ namespace Alco.Engine.Test;
 public class ValidateShader
 {
     // Uses the plain NoGPU setting (shader cache disabled): this test must exercise
-    // real DXC compilation, so a cached hit would defeat its purpose.
+    // real Slang compilation, so a cached hit would defeat its purpose.
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine
@@ -23,8 +23,15 @@ public class ValidateShader
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
         var assets = engine.AssetSystem;
-        //query all .hlsl files
-        var files = assets.AllAssetNames.Where(x => x.EndsWith(".hlsl"));
+        // Query every entry-point module shipped by Alco.Rendering. Import-only
+        // libraries live under ShadersSlang/Libs and are compiled by their importers.
+        var files = assets.AllAssetNames
+            .Where(x => x.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
+            .Where(x => !x.Contains("ShadersSlang/Libs/", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.That(files, Is.Not.Empty,
+            "No Slang shader modules were found; built-in shader assets failed to reach the test output.");
 
         List<Task<Shader>> tasks = new();
 
@@ -45,18 +52,18 @@ public class ValidateShader
         Parallel.ForEach(tasks, task =>
         {
             var shader = task.Result;
-            shader.TestAllDefines(OnTestPipleineError, OnTestPipleineSuccess);
+            shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
         });
 
     }
 
-    public static void OnTestPipleineError(string name, string[] defines, Exception e)
+    public static void OnTestPipelineError(string name, string[] defines, Exception e)
     {
         Assert.Fail($"Failed to compile shader: ({name}) with defines: [{string.Join(", ", defines)}]: {e}");
     }
 
 
-    public static void OnTestPipleineSuccess(string name, string[] defines)
+    public static void OnTestPipelineSuccess(string name, string[] defines)
     {
         // Intentionally not logged: the success path fires once per define
         // combination and would dump hundreds of lines into the test output.

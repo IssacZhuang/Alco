@@ -1,4 +1,6 @@
 using System.IO;
+#nullable enable
+
 using NUnit.Framework;
 using Alco.Engine;
 using Alco.Graphics;
@@ -16,66 +18,66 @@ namespace Alco.World3D.Test;
 public class TestMaterialCompiler
 {
     /// <summary>
-    /// Write a minimal procedural surface into a temp directory mounted on the asset
-    /// system: no textures, one <c>_materialParams</c> register (<c>scale</c>), engine
-    /// time via <c>_globalRenderData</c>. Its includes (Core/Surface) resolve from the
-    /// engine's own asset source, so the temp source carries only the surface file.
-    /// Returns the surface's asset path; <paramref name="directory"/> receives the temp
-    /// directory to delete when the test ends.
+    /// Write a minimal procedural surface module into a temp directory mounted on the
+    /// asset system: no textures, one <c>_materialParams</c> member (<c>scale</c>),
+    /// engine time via <c>_globalRenderData</c>. The surface contract (ISurface)
+    /// resolves from the engine's own asset source, so the temp source carries only
+    /// the surface file. Returns the surface's asset path;
+    /// <paramref name="directory"/> receives the temp directory to delete when the
+    /// test ends.
     /// </summary>
     private static string WriteTestSurface(AssetSystem assets, out string directory)
     {
         directory = Path.Combine(Path.GetTempPath(), "alco_surface_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        File.WriteAllText(Path.Combine(directory, "TestSurface.hlsli"), """
-            #ifndef TEST_SURFACE_HLSLI
-            #define TEST_SURFACE_HLSLI
+        File.WriteAllText(Path.Combine(directory, "TestSurface.slang"), """
+            module test_surface;
 
-            #include "Shaders/Libs/Core.hlsli"
-            #include "Shaders/Libs/Surface.hlsli"
+            import surface;
 
-            DEFINE_UNIFORM(2, _materialParams)
+            [[vk::binding(0, 2)]] cbuffer _materialParams
             {
                 float4 scale; // x = cells per meter; 0 = the default 2
             };
 
-            DEFINE_UNIFORM(2, _globalRenderData)
+            [[vk::binding(1, 2)]] cbuffer _globalRenderData
             {
                 float4 time; // x = time, y = deltaTime, z = sinTime, w = cosTime
             };
 
-            void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv)
+            public struct Surface : ISurface
             {
-            }
+                public void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv)
+                {
+                }
 
-            float4 GetBaseColor(SurfaceInput input)
-            {
-                float cellsPerMeter = scale.x > 0.0 ? scale.x : 2.0;
-                float3 cell = floor(input.worldPos * cellsPerMeter - time.x);
-                float checker = fmod(cell.x + cell.y + cell.z, 2.0);
-                float3 albedo = lerp(float3(0.90, 0.90, 0.92), float3(0.85, 0.12, 0.10), checker);
-                return float4(albedo * input.baseColorFactor.rgb, input.baseColorFactor.a);
-            }
+                public float4 GetBaseColor(SurfaceInput input)
+                {
+                    float cellsPerMeter = scale.x > 0.0 ? scale.x : 2.0;
+                    float3 cell = floor(input.worldPos * cellsPerMeter - time.x);
+                    float checker = fmod(cell.x + cell.y + cell.z, 2.0);
+                    float3 albedo = lerp(float3(0.90, 0.90, 0.92), float3(0.85, 0.12, 0.10), checker);
+                    return float4(albedo * input.baseColorFactor.rgb, input.baseColorFactor.a);
+                }
 
-            float3 GetNormalTS(SurfaceInput input)
-            {
-                return float3(0.0, 0.0, 1.0);
-            }
+                public float3 GetNormalTS(SurfaceInput input)
+                {
+                    return float3(0.0, 0.0, 1.0);
+                }
 
-            float3 GetMetallicRoughnessAO(SurfaceInput input)
-            {
-                return float3(0.0, 0.5, 1.0);
-            }
+                public float3 GetMetallicRoughnessAO(SurfaceInput input)
+                {
+                    return float3(0.0, 0.5, 1.0);
+                }
 
-            float3 GetEmissive(SurfaceInput input)
-            {
-                return input.emissiveFactor.rgb;
+                public float3 GetEmissive(SurfaceInput input)
+                {
+                    return input.emissiveFactor.rgb;
+                }
             }
-
-            #endif
             """);
         assets.AddFileSource(new DirectoryFileSource(directory));
-        return "TestSurface.hlsli";
+        return "TestSurface.slang";
     }
 
     [Test]
@@ -85,9 +87,11 @@ public class TestMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-        Shader gbufferShader = assets.Load<Shader>(World3DAssetPaths.Shader_GBuffer);
-        using GBufferRenderer gbuffer = new(engine.RenderingSystem, gbufferShader);
+        // Templates compose with the built-in surface through the compiler (the
+        // direct template-as-asset load was retired: templates own no entry points).
         using MaterialCompiler compiler = new(engine.RenderingSystem, assets);
+        using GBufferRenderer gbuffer = new(
+            engine.RenderingSystem, compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer));
         GBufferMaterialPass gbufferPass = new(gbuffer);
         compiler.RegisterPass(gbufferPass);
 
@@ -136,9 +140,9 @@ public class TestMaterialCompiler
         {
             World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-            Shader gbufferShader = assets.Load<Shader>(World3DAssetPaths.Shader_GBuffer);
-            using GBufferRenderer gbuffer = new(engine.RenderingSystem, gbufferShader);
             using MaterialCompiler compiler = new(engine.RenderingSystem, assets);
+            using GBufferRenderer gbuffer = new(
+                engine.RenderingSystem, compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer));
             GBufferMaterialPass gbufferPass = new(gbuffer);
             compiler.RegisterPass(gbufferPass);
 
@@ -174,9 +178,9 @@ public class TestMaterialCompiler
         {
             World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-            Shader gbufferShader = assets.Load<Shader>(World3DAssetPaths.Shader_GBuffer);
-            using GBufferRenderer gbuffer = new(engine.RenderingSystem, gbufferShader);
             using MaterialCompiler compiler = new(engine.RenderingSystem, assets);
+            using GBufferRenderer gbuffer = new(
+                engine.RenderingSystem, compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer));
             GBufferMaterialPass gbufferPass = new(gbuffer);
             compiler.RegisterPass(gbufferPass);
 

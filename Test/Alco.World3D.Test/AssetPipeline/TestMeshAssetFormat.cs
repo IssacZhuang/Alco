@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Buffers.Binary;
 using System.Numerics;
 using NUnit.Framework;

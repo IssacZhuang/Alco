@@ -37,7 +37,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private const int CompositeQueryBase = 6;
     private const int TimestampSlotCount = 8;
 
-    // Must match SSR_BLUE_NOISE_SIZE in ScreenSpaceReflectionBlueNoise.hlsl.
+    // Must match SSR_BLUE_NOISE_SIZE in ScreenSpaceReflectionBlueNoise.slang.
     private const uint BlueNoiseTextureSize = 128;
 
     private readonly RenderingSystem _rendering;
@@ -289,14 +289,14 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _traceMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
         _traceMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
         _traceMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
-        _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
+        _traceMaterial.SetRenderTexture("_gbufferDepth", gbufferTexture, 4);
         _traceMaterial.SetRenderTexture("_blueNoise", _blueNoiseTexture);
 
         _resolveMaterial.SetBuffer("_ssrData", _dataBuffer);
         _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0], 0);
         _resolveMaterial.SetRenderTexture("_historyMetadata", _reflectionHistory[0], 1);
         _resolveMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
-        _resolveMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
+        _resolveMaterial.SetRenderTexture("_gbufferDepth", gbufferTexture, 4);
 
         _compositeMaterial.SetBuffer("_ssrData", _dataBuffer);
         _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1], 0);
@@ -304,7 +304,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _compositeMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
         _compositeMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
         _compositeMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
-        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
+        _compositeMaterial.SetRenderTexture("_gbufferDepth", gbufferTexture, 4);
     }
 
     /// <summary>
@@ -431,7 +431,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         // Bake the blue-noise lookup once (the scrambling-table bake is a
         // one-time cost); every frame afterwards samples the persistent tile.
         // Bake the blue-noise lookup once (procedural neighborhood-rank
-        // construction, see ScreenSpaceReflectionBlueNoise.hlsl); every frame
+        // construction, see ScreenSpaceReflectionBlueNoise.slang); every frame
         // afterwards samples the persistent tile.
         if (!_blueNoiseBaked)
         {
@@ -541,7 +541,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         }
 
         bool measureGpu = _gpuTimestamps != null && _gpuTimestamps.ShouldRecord;
-        Render(context.RenderContext, _input!.Texture.FrameBuffer, measureGpu);
+        Render(context.RenderContext, _input!.Texture.ColorFrameBuffer, measureGpu);
 
         // Lazily register the GPU counters; the cached GPU durations are re-pushed
         // every frame (BeginFrame cleared the buffers). The readback below is

@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json.Serialization;
 using Alco.Rendering;
 using Alco.IO;
@@ -14,8 +13,7 @@ public partial class GameEngine
         var jsonConvertersList = jsonConverters.ToList();
 
         // shader
-        yield return new AssetLoaderShaderHLSLInclude();
-        yield return new AssetLoaderShaderHLSL(RenderingSystem);
+        yield return new AssetLoaderShaderSlang(RenderingSystem);
 
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
@@ -47,15 +45,6 @@ public partial class GameEngine
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
     {
-        yield return new AssetHotReloaderShaderHLSL((string includeName) =>
-        {
-            if (AssetSystem.TryLoadRaw(includeName, out SafeMemoryHandle data))
-            {
-                return Encoding.UTF8.GetString(data.AsReadOnlySpan());
-            }
-            throw new Exception($"Can not find the include file: {includeName}");
-        });
-
         yield return new AssetHotReloaderTexture2D(RenderingSystem);
 
         if (Setting.HasAudio)

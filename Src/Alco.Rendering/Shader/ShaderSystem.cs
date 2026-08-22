@@ -7,12 +7,10 @@ namespace Alco.Rendering;
 // ShaderSystem (plan §4.2, runtime service): the module-name keyed shader
 // factory on top of SlangModuleSystem. Callers ask for
 // GetShader(moduleName, specialization…) instead of Load<Shader>(path); the
-// returned Shader is the unified (module, entries, specialization) object —
-// during the transition it rides the existing provider-mode construction seam
-// (the third, temporary mode; text and provider modes are deleted in Phase 4).
+// returned Shader is the unified (module, entries, specialization) object.
 //
-// "Defines" of the provider seam carry the specialization identity: the
-// engine's per-permutation caching applies to specializations unchanged.
+// Compatibility defines and specialization arguments are both part of the
+// module/program cache identity.
 //
 // Hot reload: SlangModuleSystem.ModulesInvalidated → every Shader of an
 // affected module gets UnsafeModuleReload (version bump, cache clear) and
@@ -52,6 +50,7 @@ public sealed class ShaderSystem : IDisposable
     public Shader GetShader(string moduleName, params ReadOnlySpan<string> specializationArgs)
     {
         string specKey = string.Join("|", specializationArgs.ToArray());
+        string[] specialization = specializationArgs.ToArray();
         lock (_lock)
         {
             if (_shaders.TryGetValue((moduleName, specKey), out Shader? cached))
@@ -63,8 +62,40 @@ public sealed class ShaderSystem : IDisposable
 
             Shader shader = _renderingSystem.CreateShader(
                 specializationArgs.Length == 0 ? moduleName : $"{moduleName}[{specKey}]",
-                defines => CompileModules(moduleName, defines));
+                defines => CompileModules(moduleName, specialization, defines),
+                permutationSource: _modules.GetModuleSource(moduleName));
             _shaders[(moduleName, specKey)] = shader;
+            return shader;
+        }
+    }
+
+    /// <summary>
+    /// Gets (or creates) the shader of a module registered from explicit source instead of
+    /// the file resolver — embedded resources (ImGui) and generated wrappers (the material
+    /// compiler's template+surface compositions) enter the module system this way. The
+    /// module keeps its source identity: dependency tracking and invalidation treat
+    /// <paramref name="path"/> like any other module file. Defines permutations are not
+    /// supported for source-registered modules (their permutations are distinct module
+    /// identities owned by the source generator).
+    /// </summary>
+    /// <param name="moduleName">The module identity (its import name).</param>
+    /// <param name="path">The virtual path carrying the module's identity in dependency graphs and caches.</param>
+    /// <param name="source">The module source.</param>
+    /// <param name="customVertexLayouts">Optional vertex layout override (e.g. ImGui's packed vertex color).</param>
+    public Shader GetShaderFromModule(string moduleName, string path, string source,
+        IReadOnlyList<VertexInputLayout>? customVertexLayouts = null)
+    {
+        lock (_lock)
+        {
+            if (_shaders.TryGetValue((moduleName, ""), out Shader? cached))
+                return cached;
+
+            _modules.GetOrLoadModule(moduleName, path, source);
+
+            Shader shader = _renderingSystem.CreateShader(
+                moduleName, defines => CompileModules(moduleName, [], defines), customVertexLayouts,
+                permutationSource: source);
+            _shaders[(moduleName, "")] = shader;
             return shader;
         }
     }
@@ -77,18 +108,23 @@ public sealed class ShaderSystem : IDisposable
     public IReadOnlyList<string> InvalidateModulesContaining(string filePath)
         => _modules.InvalidateModulesContaining(filePath);
 
-    private ShaderModulesInfo CompileModules(string moduleName, string[] specializationArgs)
+    private ShaderModulesInfo CompileModules(string moduleName, string[] specializationArgs, string[] defines)
     {
         // Re-resolve the module: after an invalidation the module cache is empty
-        // and the shader's provider runs again on first use.
-        _modules.GetOrLoadModule(moduleName);
+        // and the shader's provider runs again on first use. Defines select a
+        // preprocessor permutation (a distinct module identity in the cache).
+        _modules.GetOrLoadModule(moduleName, defines);
 
         // Programs stay pinned: ShaderModule structs reference the SPIR-V arrays.
-        SlangProgram program = _modules.GetProgramAllEntries(moduleName, specializationArgs);
+        SlangProgram program = _modules.GetProgramAllEntries(moduleName, specializationArgs, defines);
         lock (_lock)
         {
             _pinnedPrograms.Add(program);
         }
+
+        // Device-limit check (set contiguity is already enforced by the reflection reader).
+        ShaderReflectionUtility.ValidateBindGroupLayouts(
+            program.Reflection, _renderingSystem.GraphicsDevice.MaxBindGroups, moduleName);
 
         ShaderModule? vertex = null, fragment = null, compute = null;
         for (int i = 0; i < program.EntryPoints.Count; i++)

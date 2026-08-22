@@ -4,7 +4,7 @@ namespace Alco.World3D;
 
 /// <summary>
 /// Per-frame data uploaded to the deferred lighting pass. Layout must match the
-/// <c>_data</c> cbuffer in DeferredLighting.hlsl exactly. Assembled by the pipeline
+/// <c>_data</c> cbuffer in DeferredLighting.slang exactly. Assembled by the pipeline
 /// from caller-set scene properties (sun direction/color, sky params, GI strength,
 /// debug flags) and pipeline-owned data (camera, cascades, viewport).
 /// </summary>
@@ -26,7 +26,7 @@ public struct DeferredLightingData
     public Vector4 SunDirection;
     /// <summary>Sun linear color (rgb) and intensity (w).</summary>
     public Vector4 SunColorAndIntensity;
-    /// <summary>Atmosphere parameters: x=rayleighScale, y=mieScale, z=miePhaseG, w=exposure (see Atmosphere.hlsli).</summary>
+    /// <summary>Atmosphere parameters: x=rayleighScale, y=mieScale, z=miePhaseG, w=exposure (see Atmosphere.slang).</summary>
     public Vector4 SkyParams;
     /// <summary>Atmosphere parameters: x=starIntensity, y=nightFloor, z=sunRadianceScale, w=ambientFloor (minimum hemisphere ambient multiplier).</summary>
     public Vector4 SkyParams2;

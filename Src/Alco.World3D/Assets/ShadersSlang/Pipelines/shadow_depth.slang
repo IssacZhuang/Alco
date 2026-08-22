@@ -9,7 +9,7 @@
 // evaluation lives in the surface module (contract: surface.slang); this
 // template owns the entry points, the depth write and the cascade bindings.
 // Per-instance data (model matrix, cutout scalars) lives in the _instances
-// storage buffer and is fetched by SV_InstanceID; the push constant carries
+// storage buffer and is fetched by SV_VulkanInstanceID; the push constant carries
 // only the cascade index so per-cascade render bundles never re-record.
 //
 // Compile with SHADOW_CUTOUT defined to enable alpha testing: the pixel
@@ -18,6 +18,9 @@
 // cutoff, so cutout meshes (foliage, fences, etc.) cast correctly shaped
 // shadows. Without the define the pixel shader is empty (zero-overhead
 // opaque depth write).
+
+#language slang 2025
+module shadow_depth;
 
 import surface;
 import pbr_instance;
@@ -28,7 +31,7 @@ public struct ShadowVertex
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float4 tangent : TANGENT;
-    uint instanceId : SV_InstanceID;
+    uint instanceId : SV_VulkanInstanceID;
 }
 
 public struct ShadowV2F
@@ -57,12 +60,12 @@ struct ShadowConstants
 // Per-cascade light view-projection matrices, updated per frame on the CPU.
 // Kept in a uniform buffer (reference semantics) instead of push constants so
 // recorded render bundles stay valid while the camera-fitted cascades move.
-cbuffer _data
+[[vk::binding(0, 0)]] cbuffer _data
 {
     float4x4 lightViewProjections[4];
 }
 
-RWStructuredBuffer<PbrInstance> _instances;
+[[vk::binding(0, 1)]] RWStructuredBuffer<PbrInstance> _instances;
 
 [[vk::push_constant]]
 cbuffer constants

@@ -14,6 +14,8 @@ public sealed class RenderTexture : AutoDisposable
     private readonly RenderingSystem _rendering;
     private readonly GPUSampler _sampler;
     private GPUFrameBuffer _frameBuffer;
+    private GPUAttachmentLayout? _colorOnlyLayout;
+    private GPUFrameBuffer? _colorOnlyFrameBuffer;
     private GPUResourceGroup? _groupDepthSample;
     private GPUResourceGroup? _groupDepthComparison;
     private readonly Texture2D[] _colorTextures;
@@ -27,6 +29,43 @@ public sealed class RenderTexture : AutoDisposable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _frameBuffer;
+    }
+
+    /// <summary>
+    /// A framebuffer over the same color attachments without the depth attachment.
+    /// Full-screen passes that sample this render texture's depth must render through
+    /// this view to avoid binding one depth texture as both an attachment and a sampled
+    /// resource in the same pass.
+    /// </summary>
+    public GPUFrameBuffer ColorFrameBuffer
+    {
+        get
+        {
+            if (!HasDepth)
+            {
+                return _frameBuffer;
+            }
+
+            if (_colorOnlyFrameBuffer == null)
+            {
+                _colorOnlyLayout ??= _rendering.GraphicsDevice.CreateAttachmentLayout(
+                    new AttachmentLayoutDescriptor(
+                        _frameBuffer.AttachmentLayout.Colors.ToArray(),
+                        null,
+                        _frameBuffer.Name + "_color_layout"));
+
+                _colorOnlyFrameBuffer = _rendering.GraphicsDevice.CreateExternalFrameBuffer(
+                    new ExternalFrameBufferDescriptor(
+                        _colorOnlyLayout,
+                        _frameBuffer.Colors.ToArray(),
+                        _frameBuffer.ColorViews.ToArray(),
+                        Width,
+                        Height,
+                        _frameBuffer.Name + "_color_framebuffer"));
+            }
+
+            return _colorOnlyFrameBuffer;
+        }
     }
 
     /// <summary>
@@ -247,6 +286,9 @@ public sealed class RenderTexture : AutoDisposable
     /// </summary>
     private void ReplaceFrameBuffer(GPUFrameBuffer frameBuffer)
     {
+        _colorOnlyFrameBuffer?.Dispose();
+        _colorOnlyFrameBuffer = null;
+
         // The cached depth sample groups reference the old depth view; they are
         // recreated lazily from the new frame buffer on next access.
         _groupDepthSample?.Dispose();
@@ -316,6 +358,8 @@ public sealed class RenderTexture : AutoDisposable
 
             _groupDepthSample?.Dispose();
             _groupDepthComparison?.Dispose();
+            _colorOnlyFrameBuffer?.Dispose();
+            _colorOnlyLayout?.Dispose();
             _frameBuffer.Dispose();
         }
     }

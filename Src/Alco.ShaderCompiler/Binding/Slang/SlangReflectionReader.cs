@@ -32,10 +32,10 @@ public static class SlangReflectionReader
     {
         List<(uint Space, BindGroupEntryInfo Entry)> entries = [];
         List<PushConstantsRange> pushConstants = [];
-        Dictionary<string, PixelFormat> storageFormats = CollectStorageImageFormats(reflection);
+        Dictionary<string, PixelFormat> imageFormats = CollectImageFormats(reflection);
 
         // Every binding gets the engine's Standard (V|F|C) visibility — the
-        // same over-approximation the DXC SPIR-V reflector applies
+        // Conservative visibility for parameters Slang reports outside an entry-point layout.
         // (ResolveEffectiveStage): pipeline layouts must stay supersets of the
         // device's default bind groups (e.g. default_bind_group_buffer), which
         // are created with Standard visibility.
@@ -118,12 +118,18 @@ public static class SlangReflectionReader
 
             if (kind == SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE)
             {
+                // SamplerComparisonState is a distinct slang type (SPIR-V carries no
+                // comparison marker — naga derives it from Dref usage), so the
+                // declared type name is the reflection fact.
+                IntPtr samplerType = SlangNative.spReflectionTypeLayout_GetType(typeLayout);
+                bool comparison = SlangNative.StringFromPtr(
+                    SlangNative.spReflectionType_GetName(samplerType)) == "SamplerComparisonState";
                 entries.Add((SlangNative.spReflectionParameter_GetBindingSpace(parameter), new BindGroupEntryInfo
                 {
                     Entry = new BindGroupEntry(
                         SlangNative.spReflectionParameter_GetBindingIndex(parameter),
                         visibility,
-                        BindingType.Sampler,
+                        comparison ? BindingType.SamplerComparison : BindingType.Sampler,
                         name: name),
                 }));
                 continue;
@@ -132,7 +138,7 @@ public static class SlangReflectionReader
             if (kind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
                 kind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
             {
-                AddResourceEntry(parameter, typeLayout, kind, name, entries, storageFormats, visibility);
+                AddResourceEntry(parameter, typeLayout, kind, name, entries, imageFormats, visibility);
                 continue;
             }
 
@@ -218,11 +224,11 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// Collects storage-image formats from the binding ranges of the global
+    /// Collects explicitly declared image formats from the binding ranges of the global
     /// parameters layout — the sanctioned cross-target route. The map is keyed
     /// by the leaf variable name of each range.
     /// </summary>
-    private static unsafe Dictionary<string, PixelFormat> CollectStorageImageFormats(IntPtr reflection)
+    private static unsafe Dictionary<string, PixelFormat> CollectImageFormats(IntPtr reflection)
     {
         Dictionary<string, PixelFormat> formats = [];
         IntPtr globalLayout = SlangNative.spReflection_getGlobalParamsTypeLayout(reflection);
@@ -278,6 +284,8 @@ public static class SlangReflectionReader
             SlangNative.SLANG_IMAGE_FORMAT_rgba32f => PixelFormat.RGBA32Float,
             SlangNative.SLANG_IMAGE_FORMAT_r32f => PixelFormat.R32Float,
             SlangNative.SLANG_IMAGE_FORMAT_rg16f => PixelFormat.RG16Float,
+            SlangNative.SLANG_IMAGE_FORMAT_r8 => PixelFormat.R8Unorm,
+            SlangNative.SLANG_IMAGE_FORMAT_rg8 => PixelFormat.RG8Unorm,
             SlangNative.SLANG_IMAGE_FORMAT_rgba32ui => PixelFormat.RGBA32Uint,
             SlangNative.SLANG_IMAGE_FORMAT_r32ui => PixelFormat.R32Uint,
             SlangNative.SLANG_IMAGE_FORMAT_rg32ui => PixelFormat.RG32Uint,
@@ -291,7 +299,7 @@ public static class SlangReflectionReader
         int kind,
         string name,
         List<(uint Space, BindGroupEntryInfo Entry)> entries,
-        Dictionary<string, PixelFormat> storageFormats,
+        Dictionary<string, PixelFormat> imageFormats,
         ShaderStage visibility)
     {
         IntPtr type = SlangNative.spReflectionTypeLayout_GetType(typeLayout);
@@ -319,6 +327,10 @@ public static class SlangReflectionReader
                 $"Slang parameter '{name}' is a texture array; the reflection bridge does not handle arrays.");
         }
 
+        // DepthTexture* types carry slang's shadow flag and emit a Depth=1
+        // OpTypeImage — the sample type must match for wgpu's layout check.
+        bool isDepthTexture = (shape & SlangNative.SLANG_TEXTURE_SHADOW_FLAG) != 0;
+
         TextureViewDimension dimension = baseShape switch
         {
             SlangNative.SLANG_TEXTURE_1D => TextureViewDimension.Texture1D,
@@ -331,7 +343,7 @@ public static class SlangReflectionReader
         if (access == SlangNative.SLANG_RESOURCE_ACCESS_READ_WRITE ||
             access == SlangNative.SLANG_RESOURCE_ACCESS_WRITE)
         {
-            if (!storageFormats.TryGetValue(name, out PixelFormat format))
+            if (!imageFormats.TryGetValue(name, out PixelFormat format))
             {
                 throw new NotSupportedException(
                     $"Slang storage image '{name}' has no declared image format; storage images must declare "
@@ -349,15 +361,45 @@ public static class SlangReflectionReader
             return;
         }
 
+        TextureSampleType sampleType = isDepthTexture
+            ? TextureSampleType.Depth
+            : GetSampleType(type, name, imageFormats);
+
         entries.Add((space, new BindGroupEntryInfo
         {
             Entry = new BindGroupEntry(
                 binding,
                 visibility,
                 BindingType.Texture,
-                new TextureBindingInfo(dimension, TextureSampleType.Float),
+                new TextureBindingInfo(dimension, sampleType),
                 name: name),
         }));
+    }
+
+    private static TextureSampleType GetSampleType(
+        IntPtr resourceType,
+        string name,
+        IReadOnlyDictionary<string, PixelFormat> imageFormats)
+    {
+        if (!imageFormats.TryGetValue(name, out PixelFormat format))
+        {
+            return TextureSampleType.Float;
+        }
+
+        IntPtr resultType = SlangNative.spReflectionType_GetResourceResultType(resourceType);
+        int scalarType = resultType == IntPtr.Zero
+            ? SlangNative.SLANG_SCALAR_TYPE_NONE
+            : SlangNative.spReflectionType_GetScalarType(resultType);
+
+        return format switch
+        {
+            PixelFormat.R32Float or PixelFormat.RGBA32Float
+                when scalarType == SlangNative.SLANG_SCALAR_TYPE_FLOAT32
+                => TextureSampleType.UnfilterableFloat,
+            PixelFormat.R32Uint or PixelFormat.RGBA32Uint
+                => TextureSampleType.Uint,
+            _ => TextureSampleType.Float,
+        };
     }
 
     private static IReadOnlyList<BindGroupLayout> GroupBySpace(List<(uint Space, BindGroupEntryInfo Entry)> entries)
@@ -388,7 +430,7 @@ public static class SlangReflectionReader
             group.Sort((a, b) => a.Entry.Binding.CompareTo(b.Entry.Binding));
             // Bindings must be an array: post-processing (depth-texture and
             // comparison-sampler marking) mutates entries in place through the
-            // array pattern match, mirroring the engine's DXC reflection.
+            // Array pattern match for reflected aggregate resources.
             bindGroups.Add(new BindGroupLayout { Group = (uint)i, Bindings = group.ToArray() });
         }
         return bindGroups;

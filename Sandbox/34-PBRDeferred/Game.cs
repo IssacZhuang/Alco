@@ -189,7 +189,7 @@ public class Game : GameEngine
     // Every World3D pipeline shader of this sandbox is compiled through the
     // Slang front end instead of the engine's DXC toolchain (engine built-ins
     // such as BuiltInAssets.Shader_Blit stay on the engine path).
-    private SlangPipelineShaderFactory? _slangShaders;
+    private MaterialCompiler? _materialCompiler;
     private GraphicsMaterial[]? _modelMaterials;
     private GraphicsMaterial[]? _modelShadowMaterials;
     private GraphicsMaterial[]? _modelRsmMaterials;
@@ -247,7 +247,7 @@ public class Game : GameEngine
     private readonly float _cameraNear;
 
     // Time of day and physically-based sky (atmosphere parameters are packed
-    // into DeferredLightingData.SkyParams/SkyParams2, see Atmosphere.hlsli).
+    // into DeferredLightingData.SkyParams/SkyParams2, see Atmosphere.slang).
     private float _timeOfDay = 10.0f;
     private float _timeSpeed = 0.5f;
     private float _skyExposure = 1.0f;
@@ -428,30 +428,31 @@ public class Game : GameEngine
             _cameraNear, 4096f);
         _camera.ReverseInfiniteDepth = true;
 
-        // Every World3D pipeline shader below is compiled through the Slang
-        // front end (same HLSL sources, Slang reflection); the engine's DXC
-        // path still serves engine built-ins (Shader_Blit).
-        _slangShaders = new SlangPipelineShaderFactory(RenderingSystem, AssetSystem);
+        // Every World3D shader below is a slang module compiled through the
+        // shared ShaderSystem; plain modules load through the asset system and
+        // the four material-pass templates compose with the built-in PbrStandard
+        // surface through the MaterialCompiler.
+        _materialCompiler = new MaterialCompiler(RenderingSystem, AssetSystem);
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            _slangShaders.Load(World3DAssetPaths.Shader_DeferredLighting),
+            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_DeferredLighting),
             BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            volumetricLightShader: _slangShaders.Load(World3DAssetPaths.Shader_VolumetricLight));
+            volumetricLightShader: AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricLight));
         _environment = _preset.Environment;
         _environment.VolumetricLightEnabled = true;
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
-            _slangShaders.Load(World3DAssetPaths.Shader_GBuffer));
+            _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer));
 
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
-            _slangShaders.Load(World3DAssetPaths.Shader_ShadowDepth),
+            _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_ShadowDepth),
             _preset.ShadowLayout,
             _environment.ShadowDataBuffer);
 
@@ -464,11 +465,15 @@ public class Game : GameEngine
         {
             _rsmLayout = RenderingSystem.GraphicsDevice.CreateAttachmentLayout(
                 new AttachmentLayoutDescriptor(
-                    [new ColorAttachment(PixelFormat.RGBA8Unorm), new ColorAttachment(PixelFormat.RGBA8Unorm)],
+                    [
+                        new ColorAttachment(PixelFormat.RGBA8Unorm),
+                        new ColorAttachment(PixelFormat.RGBA8Unorm),
+                        new ColorAttachment(PixelFormat.R32Float),
+                    ],
                     new DepthAttachment(PixelFormat.Depth32Float),
                     "pbr_rsm_pass"));
             _shadowRenderer.EnableRsm(
-                _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/Rsm.hlsl"), _rsmLayout);
+                _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_Rsm), _rsmLayout);
         }
 
         // Materials created by the renderer bind this camera; the sandbox
@@ -495,8 +500,8 @@ public class Game : GameEngine
         {
             _hbaoRenderer = new RGNode_HBAO(
                 RenderingSystem,
-                _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
-                _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"));
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_HBAO),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_HBAOBlur));
             _hbaoRenderer.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
         }
 
@@ -505,7 +510,7 @@ public class Game : GameEngine
             RenderingSystem,
             _preset.Graph,
             _preset.PostChain,
-            _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/ForwardGlass.hlsl"),
+            _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_ForwardGlass),
             _environment.LightingDataBuffer,
             _environment.PointLightBuffer,
             _preset.ShadowMap);
@@ -523,13 +528,12 @@ public class Game : GameEngine
             float cloudResolutionScale = float.TryParse(GetArgValue(args, "--cloud-res="), out float parsedCloudRes)
                 ? Math.Clamp(parsedCloudRes, 0.25f, 1.0f)
                 : 0.5f;
-            string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
             _clouds = new RGNode_VolumetricClouds(
                 RenderingSystem,
-                _slangShaders.Load(shaderDir + "VolumetricClouds.hlsl"),
-                _slangShaders.Load(shaderDir + "VolumetricCloudsComposite.hlsl"),
-                _slangShaders.Load(shaderDir + "VolumetricCloudNoise.hlsl"),
-                _slangShaders.Load(shaderDir + "VolumetricCloudShadow.hlsl"))
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricClouds),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudsComposite),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudNoise),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudShadow))
             {
                 MarchResolutionScale = cloudResolutionScale,
             };
@@ -659,21 +663,20 @@ public class Game : GameEngine
         // the node's default 0.25m base voxels give level coverage of 32/64/128/256m).
         if (_giEnabled)
         {
-            string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
             _voxelGI = new RGNode_VoxelGI(
                 RenderingSystem,
                 new VoxelGiShaders
                 {
-                    Clear = _slangShaders.Load(shaderDir + "VoxelClear.hlsl"),
-                    Voxelize = _slangShaders.Load(shaderDir + "Voxelize.hlsl"),
-                    Inject = _slangShaders.Load(shaderDir + "VoxelInject.hlsl"),
-                    Mip = _slangShaders.Load(shaderDir + "VoxelMip.hlsl"),
-                    MipChain = _slangShaders.Load(shaderDir + "VoxelMipChain.hlsl"),
-                    Propagate = _slangShaders.Load(shaderDir + "VoxelPropagate.hlsl"),
-                    Trace = _slangShaders.Load(shaderDir + "VoxelTrace.hlsl"),
-                    Demosaic = _slangShaders.Load(shaderDir + "VoxelDemosaic.hlsl"),
-                    BlueNoise = _slangShaders.Load(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
-                    Upsample = _slangShaders.Load(shaderDir + "VoxelGiUpsample.hlsl"),
+                    Clear = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelClear),
+                    Voxelize = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_Voxelize),
+                    Inject = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelInject),
+                    Mip = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelMip),
+                    MipChain = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelMipChain),
+                    Propagate = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelPropagate),
+                    Trace = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelTrace),
+                    Demosaic = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelDemosaic),
+                    BlueNoise = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrBlueNoise),
+                    Upsample = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelGiUpsample),
                 },
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
@@ -704,7 +707,7 @@ public class Game : GameEngine
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
             // The trace pass draws its stochastic samples from a blue-noise
-            // tile baked once at runtime by ScreenSpaceReflectionBlueNoise.hlsl
+            // tile baked once at runtime by ScreenSpaceReflectionBlueNoise.slang
             // (Heitz Owen-scrambled Sobol over an optimized scrambling table).
             _ssrRenderer = new RGNode_SSR(
                 RenderingSystem,
@@ -715,11 +718,11 @@ public class Game : GameEngine
                 _voxelGI,
                 _camera,
                 _environment,
-                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionTrace.hlsl"),
-                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionResolve.hlsl"),
-                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionComposite.hlsl"),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrTrace),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrResolve),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrComposite),
                 BuiltInAssets.Shader_Blit,
-                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
+                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrBlueNoise),
                 (uint)MainView.Size.X,
                 (uint)MainView.Size.Y,
                 traceResolutionScale: GiTraceResolutionScales[_ssrResolutionPreset]);
@@ -878,7 +881,7 @@ public class Game : GameEngine
         _gbufferRenderer.Dispose();
         _shadowRenderer.Dispose();
         _preset.Dispose();
-        _slangShaders?.Dispose();
+        _materialCompiler?.Dispose();
     }
 
     /// <summary>
@@ -1492,7 +1495,7 @@ public class Game : GameEngine
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
             _shadowRenderer.SetShadowCutoutMaterialTextures(_modelShadowMaterials![i], material.AlbedoTexture);
-            // Rsm.hlsl binds the same _albedoTexture slot as the cutout shadow
+            // Rsm.slang binds the same _albedoTexture slot as the cutout shadow
             // shader, so streaming albedo rebinds cover the RSM materials too.
             if (_modelRsmMaterials != null)
             {
@@ -1743,11 +1746,14 @@ public class Game : GameEngine
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Reflective shadow map sun bounce: an extra sun-view pass captures albedo + normals; the GI trace injects shadow-map-resolution first-bounce sunlight. 0 skips the pass.");
-            bool giSsrOnly = _voxelGI.SsrOnly;
-            if (ImGui.Checkbox("SSR Only", ref giSsrOnly))
-                _voxelGI.SsrOnly = giSsrOnly;
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Disable the voxel specular-cone fallback so indirect specular contains only screen-space reflections.");
+            if (_voxelGI is { } voxelGi)
+            {
+                bool giSsrOnly = voxelGi.SsrOnly;
+                if (ImGui.Checkbox("SSR Only", ref giSsrOnly))
+                    voxelGi.SsrOnly = giSsrOnly;
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Disable the voxel specular-cone fallback so indirect specular contains only screen-space reflections.");
+            }
             if (_ssrRenderer != null)
             {
                 float ssrMaxDistance = _ssrRenderer.MaxTraceDistance;
@@ -2269,6 +2275,11 @@ public class Game : GameEngine
 
         int vertexIndex = 0;
         int indexIndex = 0;
+        Span<Vector2> uvs = stackalloc Vector2[]
+        {
+            new(0, 0), new(1, 0), new(1, 1), new(0, 1),
+        };
+        Span<Vector3> corners = stackalloc Vector3[4];
         for (int face = 0; face < 6; face++)
         {
             Vector3 normal = normals[face];
@@ -2278,14 +2289,10 @@ public class Game : GameEngine
             Vector3 aHalf = a * 0.5f;
             Vector3 bHalf = b * 0.5f;
 
-            Span<Vector2> uvs = stackalloc Vector2[]
-            {
-                new(0, 0), new(1, 0), new(1, 1), new(0, 1),
-            };
-            Span<Vector3> corners = stackalloc Vector3[]
-            {
-                center - aHalf - bHalf, center + aHalf - bHalf, center + aHalf + bHalf, center - aHalf + bHalf,
-            };
+            corners[0] = center - aHalf - bHalf;
+            corners[1] = center + aHalf - bHalf;
+            corners[2] = center + aHalf + bHalf;
+            corners[3] = center - aHalf + bHalf;
 
             for (int i = 0; i < 4; i++)
             {

@@ -16,6 +16,9 @@
 // unfolds the quadrant back to full NDC here, so no separate matrix upload
 // exists for this pass.
 
+#language slang 2025
+module rsm;
+
 import surface;
 import pbr_instance;
 
@@ -25,7 +28,7 @@ public struct RsmVertex
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float4 tangent : TANGENT;
-    uint instanceId : SV_InstanceID;
+    uint instanceId : SV_VulkanInstanceID;
 }
 
 public struct RsmV2F
@@ -50,12 +53,12 @@ struct RsmConstants
 // Per-cascade light view-projection matrices, updated per frame on the CPU and
 // shared with shadow_depth.slang (reference semantics keep render bundles
 // valid while the camera-fitted cascades move).
-cbuffer _data
+[[vk::binding(0, 0)]] cbuffer _data
 {
     float4x4 lightViewProjections[4];
 }
 
-RWStructuredBuffer<PbrInstance> _instances;
+[[vk::binding(0, 1)]] RWStructuredBuffer<PbrInstance> _instances;
 
 [[vk::push_constant]]
 cbuffer constants
@@ -103,7 +106,8 @@ public RsmV2F RsmMainVS<T : ISurface>(RsmVertex input)
 public void RsmMainPS<T : ISurface>(
     RsmV2F input,
     out float4 albedoRT,
-    out float4 normalRT)
+    out float4 normalRT,
+    out float depthRT)
 {
     PbrInstance inst = _instances[input.instanceId];
 
@@ -137,4 +141,5 @@ public void RsmMainPS<T : ISurface>(
     float3 normalTS = surface.GetNormalTS(surfaceInput);
     float3 worldNormal = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
     normalRT = float4(worldNormal * 0.5 + 0.5, 1.0);
+    depthRT = input.position.z;
 }

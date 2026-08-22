@@ -59,7 +59,10 @@ public static partial class BuiltInAssetsPath
                 }
 
                 _duplicateCheck.Add(variableName, filePath);
-                builder.AppendLine(string.Format(GenStatementVariable, variableName, localPath));
+                string value = Path.GetExtension(filePath) == ".slang"
+                    ? fileName.Replace('_', '-')
+                    : localPath;
+                builder.AppendLine(string.Format(GenStatementVariable, variableName, value));
                 builder.AppendLine();
             }
         }
@@ -76,7 +79,7 @@ public static partial class BuiltInAssetsPath
             case ".ttf":
                 namePrefix = PrefixFont;
                 return true;
-            case ".hlsl":
+            case ".slang":
                 namePrefix = PrefixShader;
                 return true;
             default:

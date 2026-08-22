@@ -9,7 +9,7 @@ namespace Alco.World3D;
 /// <summary>
 /// Volumetric clouds renderer for deferred PBR compositions: a half-resolution
 /// ray-marched cloud slab (Perlin-Worley base + Worley-detail erosion, Nubis
-/// style — see <c>Shaders/Pipelines/Rendering/PBR/VolumetricClouds.hlsl</c>)
+/// style — see <c>Shaders/Pipelines/Rendering/PBR/VolumetricClouds.slang</c>)
 /// composited over the HDR scene color with a depth-aware bilateral upsample,
 /// plus a small cloud-shadow coverage bake the deferred lighting pass uses to
 /// dim the direct sun, so cloud shadows drift across the terrain.
@@ -19,7 +19,7 @@ namespace Alco.World3D;
 /// the ambient is the CPU-filtered sky gradient — both arrive through the
 /// shared lighting data buffer, so no sky state is duplicated here.
 /// <br/>The 3D noise textures (128³ base + 32³ detail, RGBA8) are generated
-/// once by <c>VolumetricCloudNoise.hlsl</c> on the first frame. The shadow
+/// once by <c>VolumetricCloudNoise.slang</c> on the first frame. The shadow
 /// coverage texture is node-owned (not a graph transient): the lighting pass
 /// reads the previous frame's bake, one frame behind the visible clouds but
 /// always in lockstep with its own uniforms.
@@ -35,8 +35,8 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     /// <summary>
     /// Per-frame cloud data uploaded to the march, composite and shadow bake
     /// passes. Layout must match the <c>_cloudData</c> cbuffer in
-    /// VolumetricClouds.hlsl / VolumetricCloudsComposite.hlsl /
-    /// VolumetricCloudShadow.hlsl exactly.
+    /// VolumetricClouds.slang / VolumetricCloudsComposite.slang /
+    /// VolumetricCloudShadow.slang exactly.
     /// </summary>
     private struct VolumetricCloudsData
     {
@@ -201,10 +201,10 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     /// first <see cref="Execute"/>; no GPU work is submitted eagerly.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="marchShader">The cloud march shader (VolumetricClouds.hlsl).</param>
-    /// <param name="compositeShader">The composite shader (VolumetricCloudsComposite.hlsl).</param>
-    /// <param name="noiseShader">The noise bake compute shader (VolumetricCloudNoise.hlsl).</param>
-    /// <param name="shadowShader">The shadow coverage bake compute shader (VolumetricCloudShadow.hlsl).</param>
+    /// <param name="marchShader">The cloud march shader (VolumetricClouds.slang).</param>
+    /// <param name="compositeShader">The composite shader (VolumetricCloudsComposite.slang).</param>
+    /// <param name="noiseShader">The noise bake compute shader (VolumetricCloudNoise.slang).</param>
+    /// <param name="shadowShader">The shadow coverage bake compute shader (VolumetricCloudShadow.slang).</param>
     public RGNode_VolumetricClouds(
         RenderingSystem rendering,
         Shader marchShader,
@@ -314,11 +314,11 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             _rendering.PreferredLightMapPass, resolutionScale: MarchResolutionScale, name: "volumetric_clouds_march"));
 
         RenderTexture gbufferFacade = gbuffer.Texture;
-        _marchMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferFacade);
-        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferFacade);
+        _marchMaterial.SetRenderTexture("_gbufferDepth", gbufferFacade, 4);
+        _compositeMaterial.SetRenderTexture("_gbufferDepth", gbufferFacade, 4);
         _boundGBuffer = gbufferFacade;
 
-        // The march and composite passes include PBRCommon.hlsli, whose
+        // The march and composite passes include PBRCommon.slang, whose
         // reflection may declare the shared lighting cbuffer, the point-light
         // storage buffer and the shadow map. The cbuffer is always sampled;
         // the other two may be dead-code-eliminated, so bind them
@@ -437,8 +437,8 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         RenderTexture marchTarget = _marchResource!.Texture;
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _marchMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-            _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _marchMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
+            _compositeMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
             _boundGBuffer = gbuffer;
         }
         if (!ReferenceEquals(_boundMarchTarget, marchTarget))
@@ -482,9 +482,9 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             marchPass.Draw(_fullScreenMesh, _marchMaterial);
         }
         using (RenderPassScope compositePass = measureGpu
-            ? context.RenderContext.BeginPass(_compositeTarget!.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+            ? context.RenderContext.BeginPass(_compositeTarget!.Texture.ColorFrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
                 _gpuTimestamps!.QuerySet, CompositeQueryBase, CompositeQueryBase + 1)
-            : context.RenderContext.BeginPass(_compositeTarget!.Texture.FrameBuffer))
+            : context.RenderContext.BeginPass(_compositeTarget!.Texture.ColorFrameBuffer))
         {
             compositePass.Draw(_fullScreenMesh, _compositeMaterial);
             if (measureGpu)

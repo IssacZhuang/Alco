@@ -54,7 +54,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
 {
     /// <summary>
     /// Push constant payload for a forward glass draw. Layout must match the
-    /// <c>Constants</c> struct in ForwardGlass.hlsl exactly.
+    /// <c>Constants</c> struct in ForwardGlass.slang exactly.
     /// </summary>
     public struct DrawConstants
     {
@@ -116,7 +116,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     /// <param name="rendering">The rendering system.</param>
     /// <param name="graph">The render graph the node is registered in.</param>
     /// <param name="chain">The pipeline's content chain (the node draws into its current target).</param>
-    /// <param name="glassShader">The ForwardGlass.hlsl shader.</param>
+    /// <param name="glassShader">The ForwardGlass.slang shader.</param>
     /// <param name="lightingDataBuffer">The deferred lighting data buffer (shared with the pipeline).</param>
     /// <param name="pointLightBuffer">The point light buffer (shared with the pipeline).</param>
     /// <param name="shadowRT">The shadow map render texture (for shadow comparison sampling).</param>

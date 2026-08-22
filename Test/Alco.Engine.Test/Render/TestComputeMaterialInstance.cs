@@ -8,13 +8,13 @@ namespace Alco.Engine.Test;
 public class TestComputeMaterialInstance
 {
     // Mirrors the legacy one-set-per-resource layout of the game shader
-    // Shaders/Compute/GaussianBlurWithColorGrading.hlsl (4 sets, 1 resource each).
-    // The kernel is used through a function parameter, which makes DXC emit an
-    // implicit counter buffer ("counter.var._gaussianKernel") for the structured
-    // buffer, like it does for the real shader.
-    private const string ComputeShaderText = """
-        [[vk::binding(0, 0)]] RWTexture2D<float4> _input;
-        [[vk::binding(0, 1)]] RWTexture2D<float4> _output;
+    // Shaders/Compute/GaussianBlurWithColorGrading.slang (4 sets, 1 resource each),
+    // as a self-contained slang module.
+    private const string ComputeShaderSource = """
+        module test_compute_instance;
+
+        [[vk::binding(0, 0)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _input;
+        [[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
         [[vk::binding(0, 2)]] RWStructuredBuffer<float> _gaussianKernel;
         [[vk::binding(0, 3)]] cbuffer _data { float4 baseColor; };
 
@@ -38,7 +38,8 @@ public class TestComputeMaterialInstance
         RenderingSystem renderingSystem = engine.RenderingSystem;
         GPUDevice device = renderingSystem.GraphicsDevice;
 
-        Shader shader = renderingSystem.CreateShader(ComputeShaderText, "test_compute_instance");
+        Shader shader = renderingSystem.ShaderSystem.GetShaderFromModule(
+            "test_compute_instance", "test_compute_instance.slang", ComputeShaderSource);
         ComputeMaterial parent = renderingSystem.CreateComputeMaterial(shader);
 
         GraphicsValueBuffer<Vector4> dataBuffer = renderingSystem.CreateGraphicsValueBuffer<Vector4>();

@@ -64,9 +64,10 @@ public sealed class RGNode_FullscreenOverlay : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
+        GPUFrameBuffer target = _target!.Texture.ColorFrameBuffer;
         RenderPassScope pass = Instrumentation != null
-            ? Instrumentation.BeginPass(context.RenderContext, _target!.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty)
-            : context.RenderContext.BeginPass(_target!.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty);
+            ? Instrumentation.BeginPass(context.RenderContext, target, ReadOnlySpan<ClearColorData>.Empty)
+            : context.RenderContext.BeginPass(target, ReadOnlySpan<ClearColorData>.Empty);
         using (pass)
         {
             pass.Draw(_fullScreenMesh, _material);

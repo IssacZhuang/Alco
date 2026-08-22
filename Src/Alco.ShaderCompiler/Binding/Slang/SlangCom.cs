@@ -5,7 +5,7 @@ namespace Alco.ShaderCompiler;
 // ─────────────────────────────────────────────────────────────────────────────
 // Hand-rolled COM vtable wrappers over slang's modern API
 // (IGlobalSession / ISession / IModule / IComponentType / IEntryPoint),
-// in the same style as Binding/Dxc/DXCNative.cs: raw pointers, hard-coded
+// with raw pointers and vtable slots verified against the pinned slang headers:
 // vtable slot indices, C# 9 function pointers, manual Release().
 //
 // Vtable layouts verified against slang.h of the pinned release (2026.16);

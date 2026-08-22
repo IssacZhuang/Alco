@@ -9,7 +9,7 @@ namespace Alco.World3D;
 /// A reflective shadow map (RSM) graph node for the voxel GI's sun-bounce
 /// injection (CRYENGINE SVOTI style, see docs/GI_Sun_RSM_Injection.md): renders
 /// the scene once per frame from the selected CSM cascade's sun view into a
-/// depth + albedo + world-normal target (Rsm.hlsl), clearing all attachments.
+/// depth + albedo + world-normal target (Rsm.slang), clearing all attachments.
 /// Insert it after the shadow pass — typically
 /// <c>graph.InsertBefore(gbufferNode, rsmNode)</c> — and register content
 /// providers on <see cref="Content"/> (e.g. the same <see cref="ShadowRenderer"/>
@@ -35,7 +35,7 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
     /// Creates the RSM pass node.
     /// </summary>
     /// <param name="rsmMap">The RSM target resource: a texture whose layout
-    /// carries two RGBA8 color attachments (albedo, world normal) and a
+    /// carries albedo and world-normal attachments, an R32Float depth mirror, and a
     /// <see cref="PixelFormat.Depth32Float"/> depth attachment.</param>
     /// <param name="cascadeIndex">The CSM cascade whose sun view-projection
     /// defines the RSM view.</param>
@@ -85,6 +85,7 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
         [
             new ClearColorData(0, Vector4.Zero),
             new ClearColorData(1, Vector4.Zero),
+            new ClearColorData(2, Vector4.Zero),
         ];
         RenderPassScope pass = Instrumentation != null
             ? Instrumentation.BeginPass(context.RenderContext, _rsmMap.Texture.FrameBuffer, clearColors, 1.0f)

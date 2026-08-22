@@ -12,8 +12,8 @@ namespace Alco.Rendering;
 /// lazily from the slot values: a group is (re)built only when one of its values
 /// changed, and identical contents are served from a per-group cache, so ping-pong
 /// updates (e.g. double buffering) do not recreate bind groups every frame.
-/// <br/>Groups that resolve from a single slot (one resource plus its sampler or
-/// counter companion) are cached on the resource itself, keyed by the group
+/// <br/>Groups that resolve from a single slot (one resource plus its sampler)
+/// are cached on the resource itself, keyed by the group
 /// layout: they are created once per resource and reused across frames and
 /// materials, so slots whose value changes per instance (e.g. the voxel GI
 /// voxelize dispatch cycling mesh buffers) do not allocate new bind groups.
@@ -33,8 +33,7 @@ public sealed class ShaderParameterSet
         TextureRead,
         TextureStorage,
         UniformBuffer,
-        StorageBuffer,
-        StorageBufferWithCounter
+        StorageBuffer
     }
 
     private struct Slot
@@ -57,8 +56,7 @@ public sealed class ShaderParameterSet
     private enum EntryKind : byte
     {
         Resource,
-        OwnerSampler,
-        OwnerCounter
+        OwnerSampler
     }
 
     // How to fill one binding of a bind group during assembly.
@@ -242,8 +240,7 @@ public sealed class ShaderParameterSet
 
         ref Slot slot = ref _slots[id];
         if (slot.type != ResourceType.UniformBuffer
-        && slot.type != ResourceType.StorageBuffer
-        && slot.type != ResourceType.StorageBufferWithCounter)
+        && slot.type != ResourceType.StorageBuffer)
         {
             return false;
         }
@@ -287,8 +284,7 @@ public sealed class ShaderParameterSet
 
         ref Slot slot = ref _slots[id];
         if (slot.type != ResourceType.UniformBuffer
-        && slot.type != ResourceType.StorageBuffer
-        && slot.type != ResourceType.StorageBufferWithCounter)
+        && slot.type != ResourceType.StorageBuffer)
         {
             throw new InvalidOperationException($"The resource {id}({_reflectionInfo.GetResourceName(id)}) is not for a buffer but {slot.type}.");
         }
@@ -338,7 +334,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots[id];
-        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer || slot.type == ResourceType.StorageBufferWithCounter)
+        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer)
         {
             buffer = slot.buffer;
             return buffer != null;
@@ -376,7 +372,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots[id];
-        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer || slot.type == ResourceType.StorageBufferWithCounter)
+        if (slot.type == ResourceType.UniformBuffer || slot.type == ResourceType.StorageBuffer)
         {
             return slot.buffer;
         }
@@ -881,7 +877,7 @@ public sealed class ShaderParameterSet
     /// <summary>
     /// Set the depth texture in the render texture to the shader parameter set.
     /// The target resource must be a depth texture (a texture declared with the
-    /// DEFINE_TEX2D_DEPTH or DEFINE_TEX2D_DEPTH_SAMPLE macro); a texture-only
+    /// Slang depth-texture type); a texture-only
     /// resource gets the depth view, a texture-and-comparison-sampler resource
     /// additionally gets the device default comparison sampler.
     /// </summary>
@@ -902,7 +898,7 @@ public sealed class ShaderParameterSet
         ref Slot slot = ref _slots[id];
         if (!slot.isDepth)
         {
-            throw new InvalidOperationException($"The resource {id}({_reflectionInfo.GetResourceName(id)}) is not a depth texture. Declare the texture with the DEFINE_TEX2D_DEPTH or DEFINE_TEX2D_DEPTH_SAMPLE macro.");
+            throw new InvalidOperationException($"The resource {id}({_reflectionInfo.GetResourceName(id)}) is not a depth texture. Declare it with a Slang depth texture type.");
         }
 
         if (slot.type != ResourceType.TextureRead && slot.type != ResourceType.TextureWithSampler)
@@ -1123,7 +1119,7 @@ public sealed class ShaderParameterSet
             hash = (hash ^ (ulong)RuntimeHelpers.GetHashCode(value)) * 1099511628211UL;
         }
 
-        // Single-slot groups (one resource plus its sampler/counter companions)
+        // Single-slot groups (one resource plus its sampler companion)
         // are fully determined by the slot value and the group layout, so their
         // bind groups are cached on the resource itself and shared across frames
         // and materials. Binding new instances into such a group stops being a
@@ -1139,8 +1135,7 @@ public sealed class ShaderParameterSet
         }
 
         // Pass 2 (cache miss only): resolve again into the binding entries and
-        // build the group. Resolution is idempotent (a camera flush or a counter
-        // buffer creation happens at most once), so resolving twice is safe.
+        // build the group. Resolution is idempotent, so resolving twice is safe.
         group.layout ??= _device.CreateBindGroup(_reflectionInfo.BindGroups[groupIndex].ToDescriptor($"material_bind_group_layout_{groupIndex}"));
 
         ResourceBindingEntry[] resources = new ResourceBindingEntry[plans.Length];
@@ -1164,7 +1159,7 @@ public sealed class ShaderParameterSet
 
     /// <summary>
     /// Assembles a group whose plans all resolve from one slot: one Resource
-    /// entry plus optional sampler/counter companions of that same slot. The
+    /// entry plus an optional sampler companion of that same slot. The
     /// bind group of such a group is a pure function of the slot value and the
     /// group layout, so it is cached on the buffer or texture itself (see
     /// <see cref="GraphicsBuffer.GetOrCreateResourceGroup"/> and
@@ -1198,7 +1193,6 @@ public sealed class ShaderParameterSet
         }
 
         int resourceSlot = plans[resourceIndex].slotIndex;
-        uint counterBinding = GraphicsBuffer.NoCounterBinding;
         uint samplerBinding = 0;
         bool hasSampler = false;
         bool comparisonSampler = false;
@@ -1221,10 +1215,6 @@ public sealed class ShaderParameterSet
                 samplerBinding = plans[i].binding;
                 comparisonSampler = plans[i].entryType == BindingType.SamplerComparison;
             }
-            else
-            {
-                counterBinding = plans[i].binding;
-            }
         }
 
         ref Slot slot = ref _slots[resourceSlot];
@@ -1232,7 +1222,7 @@ public sealed class ShaderParameterSet
         if (slot.buffer != null)
         {
             group.layout ??= _device.CreateBindGroup(_reflectionInfo.BindGroups[groupIndex].ToDescriptor($"material_bind_group_layout_{groupIndex}"));
-            resourceGroup = slot.buffer.GetOrCreateResourceGroup(group.layout, resourceBinding, counterBinding);
+            resourceGroup = slot.buffer.GetOrCreateResourceGroup(group.layout, resourceBinding);
             return true;
         }
 
@@ -1293,7 +1283,6 @@ public sealed class ShaderParameterSet
                 {
                     case ResourceType.UniformBuffer:
                     case ResourceType.StorageBuffer:
-                    case ResourceType.StorageBufferWithCounter:
                         return slot.buffer?.NativeBuffer;
                     case ResourceType.TextureWithSampler:
                     case ResourceType.TextureRead:
@@ -1309,8 +1298,6 @@ public sealed class ShaderParameterSet
                 }
 
                 return ResolveSampler(in slot);
-            case EntryKind.OwnerCounter:
-                return slot.buffer?.CounterBuffer;
             default:
                 return null;
         }
@@ -1433,8 +1420,8 @@ public sealed class ShaderParameterSet
             };
         }
 
-        // Pass 2: per-group entry plans; resolve the sampler and counter companions
-        // to the resource that owns them.
+        // Pass 2: per-group entry plans; resolve sampler companions to the
+        // texture resource that owns them.
         for (int groupIndex = 0; groupIndex < groupCount; groupIndex++)
         {
             IReadOnlyList<BindGroupEntryInfo> bindings = reflection.BindGroups[groupIndex].Bindings;
@@ -1450,29 +1437,13 @@ public sealed class ShaderParameterSet
                     case BindingType.Sampler:
                     case BindingType.SamplerComparison:
                     {
-                        string? samplerOwner = entry.Name.EndsWith(ShaderReflectionInfo.SamplerSuffix, StringComparison.Ordinal)
-                            ? entry.Name.Substring(0, entry.Name.Length - ShaderReflectionInfo.SamplerSuffix.Length)
-                            : null;
-                        int owner = FindOwnerSlot(locations, groupIndex, entry, BindingType.Texture, samplerOwner);
+                        int owner = FindOwnerSlot(locations, groupIndex, entry, BindingType.Texture);
                         plans[entryIndex].kind = EntryKind.OwnerSampler;
                         plans[entryIndex].slotIndex = owner;
                         ref Slot ownerSlot = ref _slots[owner];
                         if (ownerSlot.type == ResourceType.TextureRead)
                         {
                             ownerSlot.type = ResourceType.TextureWithSampler;
-                        }
-
-                        break;
-                    }
-                    case BindingType.StorageBuffer when ShaderReflectionInfo.IsCounterCompanion(entry, out string? counterOwner):
-                    {
-                        int owner = FindOwnerSlot(locations, groupIndex, entry, BindingType.StorageBuffer, counterOwner);
-                        plans[entryIndex].kind = EntryKind.OwnerCounter;
-                        plans[entryIndex].slotIndex = owner;
-                        ref Slot ownerSlot = ref _slots[owner];
-                        if (ownerSlot.type == ResourceType.StorageBuffer)
-                        {
-                            ownerSlot.type = ResourceType.StorageBufferWithCounter;
                         }
 
                         break;
@@ -1513,24 +1484,11 @@ public sealed class ShaderParameterSet
         throw new InvalidOperationException($"The entry at binding {entryIndex} of bind group {groupIndex} is not a settable resource.");
     }
 
-    // A companion entry (sampler or counter) belongs to the resource of the given
-    // type in the same bind group with the given owner name; as a fallback the
-    // resource at the previous binding is used.
-    private static int FindOwnerSlot(IReadOnlyList<ShaderResourceLocation> locations, int groupIndex, in BindGroupEntry entry, BindingType ownerType, string? ownerName)
+    // A sampler companion belongs to the texture at the preceding reflected
+    // binding in the same bind group. Slang reflects the sampler kind directly;
+    // no resource-name suffix participates in the decision.
+    private static int FindOwnerSlot(IReadOnlyList<ShaderResourceLocation> locations, int groupIndex, in BindGroupEntry entry, BindingType ownerType)
     {
-        if (ownerName != null)
-        {
-            for (int i = 0; i < locations.Count; i++)
-            {
-                if (locations[i].GroupIndex == groupIndex
-                && locations[i].Type == ownerType
-                && locations[i].Name == ownerName)
-                {
-                    return i;
-                }
-            }
-        }
-
         if (entry.Binding > 0)
         {
             for (int i = 0; i < locations.Count; i++)
@@ -1544,6 +1502,6 @@ public sealed class ShaderParameterSet
             }
         }
 
-        throw new InvalidOperationException($"The companion entry '{entry.Name}' in bind group {groupIndex} has no owning {ownerType} resource. Pair it by name ('<resource name>{ShaderReflectionInfo.SamplerSuffix}' or '{ShaderReflectionInfo.CounterPrefix}<resource name>') or place it at the binding next to its owner.");
+        throw new InvalidOperationException($"The sampler entry '{entry.Name}' in bind group {groupIndex} has no owning {ownerType} resource at the preceding binding.");
     }
 }

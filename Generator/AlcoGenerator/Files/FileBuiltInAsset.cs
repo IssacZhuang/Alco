@@ -65,7 +65,10 @@ public partial class BuiltInAssets
                 }
 
                 _duplicateCheck.Add(variableName, filePath);
-                code.AppendLine(string.Format(statement, variableName, localPath));
+                string value = Path.GetExtension(filePath) == ".slang"
+                    ? fileName.Replace('_', '-')
+                    : localPath;
+                code.AppendLine(string.Format(statement, variableName, value));
                 code.AppendLine();
             }
         }
@@ -83,7 +86,7 @@ public partial class BuiltInAssets
                 statement = GenStatementFont;
                 namePrefix = PrefixFont;
                 return true;
-            case ".hlsl":
+            case ".slang":
                 statement = GenStatementShader;
                 namePrefix = PrefixShader;
                 return true;

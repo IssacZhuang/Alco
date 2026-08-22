@@ -231,10 +231,16 @@ IDisposable
             _graphicsDevice,
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat,
-            CreateShaderCache(_setting.Graphics)
+            CreateShaderCacheDirectory(_setting.Graphics)
             );
 
-        _builtInAssets = new BuiltInAssets(_assetSystem);
+        // Slang modules resolve through the asset system (plan D1): module-name
+        // probes are answered by dashed-name matching over the asset list.
+        _renderingSystem.SetShaderModuleResolver(ShaderModuleResolver.Create(
+            path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
+            () => _assetSystem.AllAssetNames));
+
+        _builtInAssets = new BuiltInAssets(_assetSystem, _renderingSystem);
 
         _audioDevice = CreateAudioDevice(_setting.Audio);
 

@@ -10,9 +10,9 @@ public static class TestEngineSettings
 {
     /// <summary>
     /// Returns a NoGPU setting with the on-disk shader cache enabled, so engine unit
-    /// tests don't recompile every shader (DXC, 100-300ms each) on every fresh engine
-    /// instance. The first run compiles and writes SPIR-V + reflection; subsequent runs
-    /// decode the cached ShaderModulesInfo (SPIRV-Reflect only, no DXC). The cache lives
+    /// tests don't recompile every Slang module on every fresh engine instance.
+    /// The first run compiles and writes serialized module IR plus linked programs;
+    /// subsequent runs restore the cached program and reflection. The cache lives
     /// under the test output directory (gitignored) and is shared across engine instances.
     /// </summary>
     /// <remarks>

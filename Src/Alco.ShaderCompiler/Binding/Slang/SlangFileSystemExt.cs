@@ -7,7 +7,7 @@ namespace Alco.ShaderCompiler;
 // A managed ISlangFileSystemExt COM object that serves slang's module loads
 // (`import`, `#include`) from a managed resolver delegate, so pak files,
 // embedded assets and directory watchers keep working — slang imports are
-// fully virtualizable. Same hand-built-vtable pattern as the engine's DXC
+// fully virtualizable. Uses the same hand-built-vtable pattern as the other
 // include handler. Slang holds the pointer for the session's lifetime.
 //
 // Vtable layout (ISlangFileSystemExt):

@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Alco.Graphics;
 using Alco.World3D;
 using Alco.Rendering;
+using Alco.ShaderCompiler;
 
 namespace Alco.World3D.Test;
 
@@ -16,77 +17,81 @@ namespace Alco.World3D.Test;
 [TestFixture]
 public sealed class TestPBRDeferredPreset
 {
-    // Minimal deferred lighting shader declaring every resource the pipeline binds
-    // by name (the cbuffer layout itself is irrelevant to the NoGPU backend). The
-    // depth textures must go through the DEFINE_TEX2D_DEPTH* macro patterns so the
-    // reflection marks them as depth textures (see ShaderUtility / SpirvDepthTexturePatcher).
-    private const string LightingShaderText = @"
-#define ALCO_PASTE_(a, b) a##b
-#define ALCO_PASTE(a, b) ALCO_PASTE_(a, b)
-#define ALCO_SET(set) register(ALCO_PASTE(space, set))
-#define DEFINE_UNIFORM(index, name) cbuffer name : ALCO_SET(index)
-#define DEFINE_STORAGE(index, type, name) RWStructuredBuffer<type> name : ALCO_SET(index)
-#define DEFINE_TEX2D_SAMPLE(index, name) Texture2D name : ALCO_SET(index); SamplerState name##Sampler : ALCO_SET(index)
-#define DEFINE_TEX2D_DEPTH(index, name) Texture2D<float> name : ALCO_SET(index)
-#define DEFINE_TEX2D_DEPTH_SAMPLE(index, name) Texture2D<float> name : ALCO_SET(index); SamplerComparisonState name##Sampler : ALCO_SET(index)
+    // Minimal deferred lighting module declaring every resource the pipeline binds
+    // by name (the cbuffer layout itself is irrelevant to the NoGPU backend).
+    // Bindings are explicit set/binding pairs — the slang module convention — with
+    // depth textures as native DepthTexture2D.
+    private const string LightingShaderSource = """
+        module test_lighting;
 
-struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
-struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
+        [[vk::binding(0, 0)]] cbuffer _data { float4 dummy0; float4 dummy1; };
 
-DEFINE_UNIFORM(0, _data) { float4 dummy0; float4 dummy1; };
+        [[vk::binding(0, 1)]] Texture2D _albedo;
+        [[vk::binding(1, 1)]] SamplerState _albedoSampler;
+        [[vk::binding(2, 1)]] Texture2D _normal;
+        [[vk::binding(3, 1)]] SamplerState _normalSampler;
+        [[vk::binding(4, 1)]] Texture2D _mrAO;
+        [[vk::binding(5, 1)]] SamplerState _mrAOSampler;
+        [[vk::binding(6, 1)]] DepthTexture2D _gbufferDepth;
+        [[vk::binding(7, 1)]] Texture2D _emissive;
+        [[vk::binding(8, 1)]] SamplerState _emissiveSampler;
+        [[vk::binding(9, 1)]] Texture2D _giDiffuse;
+        [[vk::binding(10, 1)]] SamplerState _giDiffuseSampler;
+        [[vk::binding(11, 1)]] Texture2D _giSpecular;
+        [[vk::binding(12, 1)]] SamplerState _giSpecularSampler;
+        [[vk::binding(13, 1)]] Texture2D _aoTexture;
+        [[vk::binding(14, 1)]] SamplerState _aoTextureSampler;
+        [[vk::binding(15, 1)]] Texture2D _cloudShadow;
+        [[vk::binding(16, 1)]] SamplerState _cloudShadowSampler;
+        [[vk::binding(17, 1)]] DepthTexture2D _shadowMap;
+        [[vk::binding(18, 1)]] SamplerComparisonState _shadowMapSampler;
 
-DEFINE_TEX2D_SAMPLE(1, _albedo);
-DEFINE_TEX2D_SAMPLE(1, _normal);
-DEFINE_TEX2D_SAMPLE(1, _mrAO);
-DEFINE_TEX2D_DEPTH(1, _gbufferDepth);
-DEFINE_TEX2D_SAMPLE(1, _emissive);
-DEFINE_TEX2D_SAMPLE(1, _giDiffuse);
-DEFINE_TEX2D_SAMPLE(1, _giSpecular);
-DEFINE_TEX2D_SAMPLE(1, _aoTexture);
-DEFINE_TEX2D_SAMPLE(1, _cloudShadow);
-DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap);
+        struct PointLightData { float4 positionRange; float4 colorIntensity; };
+        [[vk::binding(19, 1)]] RWStructuredBuffer<PointLightData> _pointLights;
 
-struct PointLightData { float4 positionRange; float4 colorIntensity; };
-DEFINE_STORAGE(1, PointLightData, _pointLights);
+        struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
+        struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
 
-[shader(""vertex"")]
-V2F MainVS(Vertex input)
-{
-    V2F o;
-    o.position = float4(input.position, 1.0f);
-    o.uv = input.uv;
-    return o;
-}
+        [shader("vertex")]
+        V2F MainVS(Vertex input)
+        {
+            V2F o;
+            o.position = float4(input.position, 1.0f);
+            o.uv = input.uv;
+            return o;
+        }
 
-[shader(""pixel"")]
-float4 MainPS(V2F input) : SV_TARGET
-{
-    return _albedo.Sample(_albedoSampler, input.uv);
-}
-";
+        [shader("pixel")]
+        float4 MainPS(V2F input) : SV_TARGET
+        {
+            return _albedo.Sample(_albedoSampler, input.uv);
+        }
+        """;
 
-    private const string BlitShaderText = @"
-Texture2D _texture : register(space0);
-SamplerState _textureSampler : register(space0);
+    private const string BlitShaderSource = """
+        module test_blit;
 
-struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
-struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
+        [[vk::binding(0, 0)]] Texture2D _texture;
+        [[vk::binding(1, 0)]] SamplerState _textureSampler;
 
-[shader(""vertex"")]
-V2F MainVS(Vertex input)
-{
-    V2F o;
-    o.position = float4(input.position, 1.0f);
-    o.uv = input.uv;
-    return o;
-}
+        struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
+        struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
 
-[shader(""pixel"")]
-float4 MainPS(V2F input) : SV_TARGET
-{
-    return _texture.Sample(_textureSampler, input.uv);
-}
-";
+        [shader("vertex")]
+        V2F MainVS(Vertex input)
+        {
+            V2F o;
+            o.position = float4(input.position, 1.0f);
+            o.uv = input.uv;
+            return o;
+        }
+
+        [shader("pixel")]
+        float4 MainPS(V2F input) : SV_TARGET
+        {
+            return _texture.Sample(_textureSampler, input.uv);
+        }
+        """;
 
     private sealed class FakeShadowContent : IShadowPassContent
     {
@@ -152,6 +157,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
     private DummyRenderingSystemHost _host;
     private RenderingSystem _rendering;
+    private ShaderSystem _shaderSystem;
     private GPUDevice _device;
     private Shader _blitShader;
     private Shader _lightingShader;
@@ -163,8 +169,10 @@ float4 MainPS(V2F input) : SV_TARGET
         _host = Utility.CreateRenderingSystem();
         _rendering = _host.RenderingSystem;
         _device = _rendering.GraphicsDevice;
-        _blitShader = _rendering.CreateShader(BlitShaderText, "test_blit");
-        _lightingShader = _rendering.CreateShader(LightingShaderText, "test_lighting");
+        _shaderSystem = new ShaderSystem(
+            _rendering, new SlangCompilerOptions { Resolver = _ => null }, cacheDirectory: null);
+        _blitShader = _shaderSystem.GetShaderFromModule("test_blit", "test_blit.slang", BlitShaderSource);
+        _lightingShader = _shaderSystem.GetShaderFromModule("test_lighting", "test_lighting.slang", LightingShaderSource);
         _destinationLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "test_destination"));
     }
@@ -172,6 +180,7 @@ float4 MainPS(V2F input) : SV_TARGET
     [TearDown]
     public void TearDown()
     {
+        _shaderSystem.Dispose();
         _blitShader.Dispose();
         _lightingShader.Dispose();
         _destinationLayout.Dispose();

@@ -1,5 +1,7 @@
 using Alco.Graphics;
 using Alco.ShaderCompiler;
+#nullable enable
+
 using NUnit.Framework;
 
 namespace Alco.Rendering.Test;

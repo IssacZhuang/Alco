@@ -48,6 +48,22 @@ public float4 GetPixelTex2D(Texture2D textureName, int2 position)
     return textureName.Load(int3(position, 0));
 }
 
+// Raw scene/RSM depth is mirrored into an R32Float color attachment by the
+// producing pass. Reading that mirror keeps the heavy glslang compatibility
+// path free of samplerless depth-image ambiguity while the real depth texture
+// remains available for depth testing and comparison sampling.
+public float GetPixelDepth2D(Texture2D<float> textureName, int2 position)
+{
+    __target_switch
+    {
+    case glsl:
+        __requireTargetExtension("GL_EXT_samplerless_texture_functions");
+        __intrinsic_asm "texelFetch($0, ivec2($1), 0).x";
+    default:
+        return textureName.Load(int3(position, 0));
+    }
+}
+
 public float4 LoadTex3D(Texture3D textureName, int3 coord, int mip)
 {
     return textureName.Load(int4(coord, mip));

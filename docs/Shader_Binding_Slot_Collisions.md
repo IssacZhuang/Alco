@@ -1,37 +1,43 @@
-# Shader Binding Slot Assignment
+# Slang shader binding assignment
 
-Bindings are no longer assigned by hand. All resource declaration macros in
-`Core.hlsli` take only the bind group (set) index and expand to
-`register(spaceN)` without a register number, so DXC assigns binding numbers
-automatically — sequentially per set, in declaration order. A texture declared
-with a sample macro and its companion sampler simply take two consecutive
-assignments; no binding numbers need to be planned.
+The runtime shader contract is name-based. Slang reflection produces each
+resource's descriptor set, binding, kind, visibility, texture sample type and
+storage format; C# resolves the resource by name through
+`ShaderReflectionInfo`. Callers must never treat a binding number as a public
+resource identifier.
 
-```hlsl
-DEFINE_TEX2D_SAMPLE(1, _albedo);        // texture + companion sampler
-DEFINE_STORAGE(1, MyData, _data);       // next automatic binding — always safe
+Shader sources declare the physical Vulkan layout explicitly:
+
+```slang
+[[vk::binding(0, 0)]] ConstantBuffer<FrameData> _frame;
+[[vk::binding(0, 1)]] Texture2D<float4> _albedo;
+[[vk::binding(1, 1)]] SamplerState _albedoSampler;
 ```
 
-The engine resolves resources by name, never by binding number, so the exact
-numbers are irrelevant to C# code. Resources that share one set (e.g. the
-per-pass inputs of the PBR deferred pipeline) are just declared one after
-another.
+The two arguments are `(binding, set)`. Sets follow the engine frequency
+layout:
 
-## Historical Note
+- set 0: frame resources;
+- set 1: pass resources;
+- set 2: material resources;
+- set 3: draw resources.
 
-This document previously described "binding slot collisions": the removed
-`*_AT` macros required manual binding numbers, and a texture+sampler pair
-silently occupied two consecutive slots (`bind` and `bind + 1`), which was
-easy to overlook when multiple resources shared one set. The SPIR-V reflector
-did not detect the collisions; they surfaced at runtime as
-`ArgumentException: An item with the same key has already been added` in
-`ShaderReflectionUtility.MergeBindGroupEntries` or as the WebGPU validation
-error `Conflicting binding at index N`. Two incidents were found in the PBR
-deferred pipeline (Sandbox 34):
+Bindings must be unique inside a set and contiguous from zero. Keep a texture
+and its sampler as separate reflected resources; the runtime pairs them by the
+texture resource entry, not by arithmetic performed by callers. Depth textures
+use Slang depth texture types and `SamplerComparisonState`, so neither source
+regexes nor SPIR-V patching participate in layout construction.
 
-1. **`DeferredLighting.hlsl`** — `_albedo` (texture+sampler) occupied bindings 1–2, but `_pointLights` was declared at binding 2.
-2. **`VoxelInject.hlsl`** — `_shadowMap` (texture+comparison sampler) occupied bindings 3–4, but `_pointLights` was declared at binding 4.
+`ShaderReflectionUtility.ValidateBindGroupLayouts` rejects non-contiguous sets,
+duplicate bindings and layouts beyond the device limit. The Slang validation
+tests compile every module and verify the reflected layout before a shader can
+reach a GPU pipeline.
 
-With compiler-assigned bindings this class of bug cannot occur: a declaration
-always receives the next free slot in its set, whatever the declarations
-around it reserve.
+## Historical note
+
+The removed DXC pipeline used `DEFINE_*` macros, `register(spaceN)` automatic
+assignment, source-level sampler suffix conventions and a custom SPIR-V
+reflector. Earlier `_AT` macros could accidentally overlap a texture's sampler
+binding with the next resource. Explicit Slang declarations plus compiler
+reflection make those collisions visible during headless validation rather
+than at WebGPU pipeline creation.

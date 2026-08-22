@@ -8,20 +8,23 @@ namespace Alco.Engine;
 
 public partial class BuiltInAssets
 {
-    private readonly AssetSystem _system;
-    public BuiltInAssets(AssetSystem system)
+    private readonly AssetSystem _assets;
+    private readonly RenderingSystem _rendering;
+
+    public BuiltInAssets(AssetSystem assets, RenderingSystem rendering)
     {
-        _system = system;
+        _assets = assets;
+        _rendering = rendering;
     }
 
-    private Shader GetShader(string path)
+    private Shader GetShader(string moduleName)
     {
-        return _system.Load<Shader>(path);
+        return _rendering.ShaderSystem.GetShader(moduleName);
     }
 
     private Font GetFont(string path)
     {
-        return _system.Load<Font>(path);
+        return _assets.Load<Font>(path);
     }
 
     // the rest parts is auto generated 

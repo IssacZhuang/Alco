@@ -7,13 +7,16 @@
 // packing. The material compiler reads each member's type and byte offset from
 // Slang reflection and fills the buffer by name.
 
+#language slang 2025
+module parameterized_surface;
+
 import surface;
 
 // Mixed-type parameter block: reflection reports pulseSpeed/pulseIntensity at
 // offset 0/4, pulseColor at 16, bandFrequency at 28 - packing the material
 // compiler does not need to know, it just writes floats at the reflected
 // offsets.
-cbuffer _materialParams
+[[vk::binding(0, 2)]] cbuffer _materialParams
 {
     float pulseSpeed;       // pulses per second
     float pulseIntensity;   // peak emissive multiplier
@@ -23,17 +26,19 @@ cbuffer _materialParams
 
 // The engine binds the per-frame global render data buffer to every material;
 // x = time, y = deltaTime, z = sinTime, w = cosTime.
-cbuffer _globalRenderData
+[[vk::binding(1, 2)]] cbuffer _globalRenderData
 {
     float4 time;
 }
 
-Texture2D<float4> _albedoTexture;
-SamplerState _albedoTextureSampler;
-Texture2D<float4> _normalTexture;
-SamplerState _normalTextureSampler;
-Texture2D<float4> _metallicRoughnessTexture;
-SamplerState _metallicRoughnessTextureSampler;
+// Surface resources live in set 2 (the surface contract): explicit, stable
+// across pass permutations and define permutations alike.
+[[vk::binding(2, 2)]] Texture2D<float4> _albedoTexture;
+[[vk::binding(3, 2)]] SamplerState _albedoTextureSampler;
+[[vk::binding(4, 2)]] Texture2D<float4> _normalTexture;
+[[vk::binding(5, 2)]] SamplerState _normalTextureSampler;
+[[vk::binding(6, 2)]] Texture2D<float4> _metallicRoughnessTexture;
+[[vk::binding(7, 2)]] SamplerState _metallicRoughnessTextureSampler;
 
 public struct Surface : ISurface
 {

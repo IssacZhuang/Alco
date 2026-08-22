@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Hashing;
+using System.Text.RegularExpressions;
 using Alco.Graphics;
 
 namespace Alco.ShaderCompiler;
@@ -24,9 +27,10 @@ namespace Alco.ShaderCompiler;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>Owns slang modules, their dependency graph and the shader disk caches.</summary>
-public sealed class SlangModuleSystem : IDisposable
+public sealed partial class SlangModuleSystem : IDisposable
 {
     private const int MetaVersion = 1;
+    private const int ProgramCacheKeyVersion = 2;
 
     private readonly SlangCompilerOptions _options;
     private readonly string? _cacheDirectory;
@@ -39,6 +43,13 @@ public sealed class SlangModuleSystem : IDisposable
     private readonly Dictionary<string, HashSet<string>> _fileToModules = new(); // file → module names
     private readonly Dictionary<string, SlangProgram> _programs = new();         // cache key → program
     private readonly List<SlangProgram> _livePrograms = [];
+    private readonly HashSet<string> _rootLoadedPaths = new(StringComparer.OrdinalIgnoreCase);
+
+    // Virtual module sources, resolved by name ahead of the file resolver:
+    // generated wrapper modules and define-mangled permutations (the material
+    // compiler's template+surface compositions). Sources survive session
+    // rebuilds — they are inputs, like files.
+    private readonly ConcurrentDictionary<string, string> _virtualSources = new(StringComparer.Ordinal);
 
     /// <summary>The pinned slang release's build tag — part of every cache key.</summary>
     public string BuildTag { get; }
@@ -64,7 +75,40 @@ public sealed class SlangModuleSystem : IDisposable
     private void CreateSession()
     {
         _compiler = SlangCompiler.Create();
-        _session = _compiler.CreateSession(_options);
+        // Virtual modules resolve ahead of the asset resolver so a wrapper's
+        // import-by-name reaches generated and define-mangled modules.
+        SlangCompilerOptions sessionOptions = _options.Resolver == null
+            ? _options
+            : new SlangCompilerOptions
+            {
+                SearchPaths = _options.SearchPaths,
+                PreprocessorMacros = _options.PreprocessorMacros,
+                Resolver = ResolveWithVirtualSources,
+                Exists = _options.Exists,
+                OptimizationLevel = _options.OptimizationLevel,
+                EmitSpirvDirectly = _options.EmitSpirvDirectly,
+            };
+        _session = _compiler.CreateSession(sessionOptions);
+    }
+
+    /// <summary>
+    /// Registers a virtual module source: the name resolves to the source before the file
+    /// resolver is consulted, so other modules can <c>import</c> it by name. Registering does
+    /// not load the module — pair with <see cref="GetOrLoadModule(string, string, string)"/>
+    /// to give it a real path identity in the dependency graph.
+    /// </summary>
+    public void AddVirtualModule(string name, string source)
+    {
+        _virtualSources[name] = source;
+    }
+
+    private string? ResolveWithVirtualSources(string path)
+    {
+        if (_virtualSources.TryGetValue(SlangPathUtility.NormalizePath(path), out string? source))
+        {
+            return source;
+        }
+        return _options.Resolver!(path);
     }
 
     /// <summary>Loads a module from virtual source (the engine's asset system is the file provider).</summary>
@@ -81,12 +125,19 @@ public sealed class SlangModuleSystem : IDisposable
         }
     }
 
-    /// <summary>Loads a module by name through the session's search paths / resolver.</summary>
-    public SlangModuleHandle GetOrLoadModule(string moduleName)
+    /// <summary>
+    /// Loads a module by name through the session's search paths / resolver.
+    /// <paramref name="defines"/> selects a preprocessor permutation of the
+    /// module (plan §8: interim define sets until permutations become generic
+    /// specializations): each set is a distinct module identity with its own
+    /// caches, realized as #define lines prefixed to the resolved source.
+    /// </summary>
+    public SlangModuleHandle GetOrLoadModule(string moduleName, IReadOnlyList<string>? defines = null)
     {
         lock (_lock)
         {
-            if (_modules.TryGetValue(moduleName, out ModuleEntry? existing))
+            string key = ModuleKey(moduleName, defines);
+            if (_modules.TryGetValue(key, out ModuleEntry? existing))
                 return existing.Module;
 
             // The disk cache is keyed by content hashes served through the
@@ -96,11 +147,12 @@ public sealed class SlangModuleSystem : IDisposable
                 SlangModuleHandle module = _session.LoadModule(moduleName);
                 ModuleEntry raw = new()
                 {
+                    LogicalName = moduleName,
                     Module = module,
                     Dependencies = [.. module.GetDependencyFilePaths().Select(SlangPathUtility.NormalizePath)],
                 };
-                _modules[moduleName] = raw;
-                IndexDependenciesLocked(moduleName, raw);
+                _modules[key] = raw;
+                IndexDependenciesLocked(key, raw);
                 return module;
             }
 
@@ -109,12 +161,26 @@ public sealed class SlangModuleSystem : IDisposable
             string? source = ResolveModuleSource(moduleName);
             if (source == null)
                 throw new ShaderCompilationException($"slang module '{moduleName}' not found through the resolver.");
-            ModuleEntry entry = LoadModuleLocked(moduleName, moduleName, source);
-            _modules[moduleName] = entry;
-            IndexDependenciesLocked(moduleName, entry);
+            if (defines is { Count: > 0 })
+            {
+                string suffix = string.Concat(defines.Select(define => "_" + define));
+                source = string.Concat(defines.Select(define => "#define " + define + " 1\n")) + source;
+                // A define permutation reuses the file's source, including its
+                // `module X;` declaration — slang keys a session's module table
+                // by the DECLARED name, so the permutation must declare a
+                // mangled one or the second load trips slang's dictionary assert.
+                source = ModuleDeclarationRegex().Replace(
+                    source, m => $"{m.Groups[1].Value}module {m.Groups[2].Value}{suffix};");
+            }
+            ModuleEntry entry = LoadModuleLocked(key, moduleName, source);
+            _modules[key] = entry;
+            IndexDependenciesLocked(key, entry);
             return entry.Module;
         }
     }
+
+    internal static string ModuleKey(string moduleName, IReadOnlyList<string>? defines)
+        => defines is { Count: > 0 } ? $"{moduleName}|{string.Join("|", defines)}" : moduleName;
 
     /// <summary>Every file the module (transitively) depends on, normalized; empty when not loaded.</summary>
     public IReadOnlyList<string> GetModuleDependencies(string moduleName)
@@ -141,7 +207,7 @@ public sealed class SlangModuleSystem : IDisposable
     {
         lock (_lock)
         {
-            return [.. _modules.Keys];
+            return [.. _modules.Values.Select(entry => entry.LogicalName).Distinct()];
         }
     }
 
@@ -150,16 +216,17 @@ public sealed class SlangModuleSystem : IDisposable
     /// defines the EntryCode order.
     /// </summary>
     public SlangProgram GetProgram(
-        string moduleName, IReadOnlyList<SlangEntryPointRequest> entryPoints, IReadOnlyList<string> specializationArgs)
+        string moduleName, IReadOnlyList<SlangEntryPointRequest> entryPoints, IReadOnlyList<string> specializationArgs,
+        IReadOnlyList<string>? defines = null)
     {
         lock (_lock)
         {
-            if (!_modules.TryGetValue(moduleName, out ModuleEntry? entry))
+            if (!_modules.TryGetValue(ModuleKey(moduleName, defines), out ModuleEntry? entry))
                 throw new InvalidOperationException(
                     $"Module '{moduleName}' is not loaded; call GetOrLoadModule first.");
 
             string entriesKey = string.Join(";", entryPoints.Select(request => $"{request.Name}:{(int)request.Stage}"));
-            return GetProgramLocked(moduleName, entry, entriesKey,
+            return GetProgramLocked(ModuleKey(moduleName, defines), entry, entriesKey,
                 specArgs => _session.Compile(entry.Module, entryPoints, specArgs), specializationArgs);
         }
     }
@@ -168,15 +235,16 @@ public sealed class SlangModuleSystem : IDisposable
     /// Links (or restores) the program of every [shader(...)] entry point the module defines,
     /// in definition order — the module-name keyed lookup path.
     /// </summary>
-    public SlangProgram GetProgramAllEntries(string moduleName, IReadOnlyList<string> specializationArgs)
+    public SlangProgram GetProgramAllEntries(
+        string moduleName, IReadOnlyList<string> specializationArgs, IReadOnlyList<string>? defines = null)
     {
         lock (_lock)
         {
-            if (!_modules.TryGetValue(moduleName, out ModuleEntry? entry))
+            if (!_modules.TryGetValue(ModuleKey(moduleName, defines), out ModuleEntry? entry))
                 throw new InvalidOperationException(
                     $"Module '{moduleName}' is not loaded; call GetOrLoadModule first.");
 
-            return GetProgramLocked(moduleName, entry, "all",
+            return GetProgramLocked(ModuleKey(moduleName, defines), entry, "all",
                 specArgs => _session.CompileAllEntryPoints(entry.Module, specArgs), specializationArgs);
         }
     }
@@ -218,7 +286,7 @@ public sealed class SlangModuleSystem : IDisposable
         lock (_lock)
         {
             List<string> affected = _fileToModules.TryGetValue(normalized, out HashSet<string>? modules)
-                ? [.. modules]
+                ? [.. modules.Select(key => _modules.TryGetValue(key, out ModuleEntry? entry) ? entry.LogicalName : key).Distinct()]
                 : [];
             if (affected.Count == 0)
                 return [];
@@ -251,6 +319,7 @@ public sealed class SlangModuleSystem : IDisposable
         _programs.Clear();
         _modules.Clear();
         _fileToModules.Clear();
+        _rootLoadedPaths.Clear();
         _session.Dispose();
         _compiler.Dispose();
         CreateSession();
@@ -258,22 +327,48 @@ public sealed class SlangModuleSystem : IDisposable
 
     private void TrackProgramLocked(SlangProgram program) => _livePrograms.Add(program);
 
-    private ModuleEntry LoadModuleLocked(string moduleName, string path, string source)
+    private ModuleEntry LoadModuleLocked(string key, string moduleName, string source)
     {
-        if (_cacheDirectory != null && TryReadModuleCache(moduleName, out ModuleEntry? cached))
+        if (_cacheDirectory != null && TryReadModuleCache(key, out ModuleEntry? cached))
             return cached!;
 
-        SlangModuleHandle module = _session.LoadModuleFromSource(moduleName, path, source);
+        // slang keys root-loaded modules by PATH identity: a second module made
+        // from the same file (a define permutation registered under a distinct
+        // name) must enter under a distinct one, or slang's dictionary assert
+        // fires on the duplicate add.
+        string loadName = key.Replace('|', '_');
+        string pathIdentity = moduleName;
+        if (_rootLoadedPaths.Contains(pathIdentity))
+        {
+            string directory = Path.GetDirectoryName(moduleName) ?? "";
+            string stem = Path.GetFileNameWithoutExtension(moduleName);
+            string extension = Path.GetExtension(moduleName);
+            string disambiguator = Convert.ToHexString(XxHash3.Hash(
+                System.Text.Encoding.UTF8.GetBytes(key)))[..8];
+            pathIdentity = Path.Combine(directory, $"{stem}_{disambiguator}{extension}");
+        }
+        _rootLoadedPaths.Add(pathIdentity);
+        SlangModuleHandle module = _session.LoadModuleFromSource(loadName, pathIdentity, source);
         byte[]? ir = module.Serialize();
         ModuleEntry entry = new()
         {
+            // The key (not the path identity) names the module for consumers:
+            // InvalidateModulesContaining/GetLoadedModuleNames report logical names.
+            LogicalName = key.Split('|')[0],
             Module = module,
             Dependencies = [.. module.GetDependencyFilePaths().Select(SlangPathUtility.NormalizePath)],
             SerializedIR = ir,
             IrHash = ir != null ? Convert.ToHexString(XxHash3.Hash(ir)) : "",
         };
+        if (pathIdentity != moduleName && !entry.Dependencies.Contains(moduleName))
+        {
+            // The entry's path identity was disambiguated, so record the ORIGINAL
+            // path as a dependency too — file invalidation must reach the
+            // permutation together with its base module.
+            entry.Dependencies.Add(moduleName);
+        }
         if (_cacheDirectory != null)
-            WriteModuleCache(moduleName, path, entry);
+            WriteModuleCache(key, moduleName, entry);
         return entry;
     }
 
@@ -311,9 +406,10 @@ public sealed class SlangModuleSystem : IDisposable
                 dependencies.Add(depPath);
             }
 
-            SlangModuleHandle module = _session.LoadModuleFromIRBlob(moduleName, blobPath, ir);
+            SlangModuleHandle module = _session.LoadModuleFromIRBlob(moduleName.Replace('|', '_'), blobPath, ir);
             entry = new ModuleEntry
             {
+                LogicalName = moduleName.Split('|')[0],
                 Module = module,
                 Dependencies = dependencies,
                 SerializedIR = ir,
@@ -364,7 +460,10 @@ public sealed class SlangModuleSystem : IDisposable
     {
         using MemoryStream stream = new();
         using var writer = new System.IO.BinaryWriter(stream);
+        writer.Write(ProgramCacheKeyVersion);
         writer.Write(BuildTag);
+        writer.Write(_options.OptimizationLevel);
+        writer.Write(_options.EmitSpirvDirectly);
         writer.Write(moduleName);
         writer.Write(irHash);
         writer.Write(entriesKey);
@@ -375,7 +474,7 @@ public sealed class SlangModuleSystem : IDisposable
         return Convert.ToHexString(XxHash3.Hash(stream.ToArray()));
     }
 
-    private bool TryReadProgram(string key, out SlangCachedProgram? payload)
+    private bool TryReadProgram(string key, [NotNullWhen(true)] out SlangCachedProgram? payload)
     {
         payload = null;
         string path = ProgramCachePath(key);
@@ -419,6 +518,11 @@ public sealed class SlangModuleSystem : IDisposable
 
     private void HarvestUniformMembers(SlangProgram program)
     {
+        // Best-effort pre-harvest for the disk cache: only material-parameter
+        // blocks fit the float-only contract. Engine-managed buffers (uint
+        // frame counters, nested camera/data structs) are skipped here; a
+        // material block with non-float members still throws when the caller
+        // requests it by name through the lazy path.
         Dictionary<string, List<SlangUniformMember>> members = new();
         foreach (BindGroupLayout group in program.Reflection.BindGroups)
         {
@@ -426,7 +530,14 @@ public sealed class SlangModuleSystem : IDisposable
             {
                 if (binding.Entry.Type == BindingType.UniformBuffer)
                 {
-                    members[binding.Entry.Name] = program.GetUniformMembers(binding.Entry.Name);
+                    try
+                    {
+                        members[binding.Entry.Name] = program.GetUniformMembers(binding.Entry.Name);
+                    }
+                    catch (NotSupportedException)
+                    {
+                        // Not a material parameter block — leave uncached.
+                    }
                 }
             }
         }
@@ -434,6 +545,18 @@ public sealed class SlangModuleSystem : IDisposable
     }
 
     /// <summary>Resolves a module by slang's name→file conventions ('a.b' → 'a/b.slang', 'a-b.slang', …).</summary>
+    /// <summary>
+    /// The resolved source of a module name (the same probing GetOrLoadModule
+    /// uses), or null — e.g. for permutation enumeration on the shader side.
+    /// </summary>
+    public string? GetModuleSource(string moduleName)
+    {
+        lock (_lock)
+        {
+            return _options.Resolver == null ? null : ResolveModuleSource(moduleName);
+        }
+    }
+
     private string? ResolveModuleSource(string moduleName)
     {
         string dotted = moduleName.Replace('.', '/');
@@ -487,10 +610,14 @@ public sealed class SlangModuleSystem : IDisposable
 
     private sealed class ModuleEntry
     {
+        public string LogicalName { get; init; } = "";
         public required SlangModuleHandle Module { get; init; }
         public required List<string> Dependencies { get; init; }
         public byte[]? SerializedIR { get; init; }
         public string IrHash { get; init; } = "";
         public bool LoadedFromIR { get; init; }
     }
+
+    [GeneratedRegex(@"(^|\n)[ \t]*module[ \t]+([A-Za-z_][A-Za-z0-9_.]*)[ \t]*;")]
+    private static partial Regex ModuleDeclarationRegex();
 }

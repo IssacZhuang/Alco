@@ -25,9 +25,9 @@ public sealed class MaterialAsset
     public string Name { get; init; } = string.Empty;
 
     /// <summary>
-    /// Asset path of the surface shader the material evaluates; null selects the built-in
-    /// PbrStandard surface. Pass templates splice the referenced file into their
-    /// <c>@SURFACE@</c> line (contract: Shaders/Libs/Surface.hlsli).
+    /// Asset path of the surface module the material evaluates; null selects the built-in
+    /// PbrStandard surface. Pass templates specialize their generic entry points with the
+    /// module's public <c>Surface : ISurface</c> implementation.
     /// </summary>
     public string? SurfaceShader { get; init; }
 
@@ -48,7 +48,7 @@ public sealed class MaterialAsset
 
     /// <summary>
     /// Surface parameter values by member name of the surface's
-    /// <c>_materialParams</c> block (see the convention in Shaders/Libs/Surface.hlsli):
+    /// <c>_materialParams</c> block (see the convention in Shaders/Libs/Surface.slang):
     /// 1-4 float components per value, one <c>float4</c> register each. Only custom
     /// surfaces declare such a block; the built-in surface's knobs are the flat factor
     /// fields, which ride the instance buffers instead.

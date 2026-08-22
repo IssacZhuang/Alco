@@ -12,8 +12,11 @@
 // octahedrally packed into two spare channels for stable diffuse GI. The
 // vertex layout must match Alco.Rendering.VertexPBR exactly. All per-item
 // data (model matrix, factors, alpha cutoff) lives in the _instances storage
-// buffer and is fetched by SV_InstanceID; the pixel shader re-reads it
+// buffer and is fetched by SV_VulkanInstanceID; the pixel shader re-reads it
 // through the instance id interpolant.
+
+#language slang 2025
+module gbuffer;
 
 import surface;
 import pbr_instance;
@@ -24,7 +27,7 @@ public struct GBufferVertex
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float4 tangent : TANGENT; // xyz = tangent, w = bitangent sign
-    uint instanceId : SV_InstanceID;
+    uint instanceId : SV_VulkanInstanceID;
 }
 
 public struct GBufferV2F
@@ -37,12 +40,12 @@ public struct GBufferV2F
     float3 worldPos : TEXCOORD4;
 }
 
-cbuffer _camera
+[[vk::binding(0, 0)]] cbuffer _camera
 {
     float4x4 viewProjection;
 }
 
-RWStructuredBuffer<PbrInstance> _instances;
+[[vk::binding(0, 1)]] RWStructuredBuffer<PbrInstance> _instances;
 
 // Octahedral encoding keeps the interpolated mesh normal in the two half-float
 // alpha channels of the normal and emissive G-buffer targets.
@@ -93,7 +96,8 @@ public void GBufferMainPS<T : ISurface>(
     out float4 albedoRT,
     out float4 normalRT,
     out float4 mrAORT,
-    out float4 emissiveRT)
+    out float4 emissiveRT,
+    out float depthRT)
 {
     PbrInstance inst = _instances[input.instanceId];
 
@@ -134,4 +138,7 @@ public void GBufferMainPS<T : ISurface>(
 
     // Stored linear in the RGBA16Float target; no shading applied downstream.
     emissiveRT = float4(surface.GetEmissive(surfaceInput), geometryNormal.y);
+    // Exact hardware depth mirror for passes compiled through Slang's
+    // GLSL/glslang compatibility backend. Empty pixels retain the 0 clear.
+    depthRT = input.position.z;
 }

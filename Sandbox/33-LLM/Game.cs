@@ -65,7 +65,7 @@ public class Game : GameEngine
         }
 
         // Initialize rendering components
-        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _shader = BuiltInAssets.Shader_Unlit;
         _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
         _camera.Transform.Position.X = -10;
         _camera.UpdateMatrixToGPU();

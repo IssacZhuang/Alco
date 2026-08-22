@@ -42,7 +42,7 @@ public static class RenderPipelines
     /// <see cref="RGNode_DeferredLighting.GiDiffuseInput"/>.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="lightingShader">The deferred lighting shader (DeferredLighting.hlsl). Caller-owned, like every shader the composition takes. It must declare its depth textures with the <c>DEFINE_TEX2D_DEPTH*</c> macros so the reflection carries the depth sample type and comparison sampler.</param>
+    /// <param name="lightingShader">The deferred lighting shader (DeferredLighting.slang). Caller-owned, like every shader the composition takes. Comparison-sampled shadow maps use Slang depth types; raw G-buffer depth uses the reflected R32Float mirror.</param>
     /// <param name="blitShader">The shader the final blit uses for plain copies.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="PBRSceneEnvironment.ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
@@ -73,6 +73,8 @@ public static class RenderPipelines
                 new ColorAttachment(PixelFormat.RGBA8Unorm),
                 // Linear emissive, HDR-capable.
                 new ColorAttachment(PixelFormat.RGBA16Float),
+                // Exact mirror of SV_Position.z for non-comparison depth reads.
+                new ColorAttachment(PixelFormat.R32Float),
             ],
             // Reversed infinite camera depth (near = 1, far at infinity = 0):
             // cleared to 0, GreaterEqual depth tests, Depth32Float for uniform
@@ -152,6 +154,7 @@ public static class RenderPipelines
                 new ClearColorData(1, new System.Numerics.Vector4(0.5f, 0.5f, 1.0f, 1.0f)),
                 new ClearColorData(2, System.Numerics.Vector4.Zero),
                 new ClearColorData(3, System.Numerics.Vector4.Zero),
+                new ClearColorData(4, System.Numerics.Vector4.Zero),
             ],
             clearDepth: 0.0f)
         {
@@ -196,7 +199,7 @@ public static class RenderPipelines
             volumetricLightMaterial.BlendState = BlendState.Additive;
             volumetricLightMaterial.SetBuffer(ShaderResourceId.Data, environment.LightingDataBuffer);
             volumetricLightMaterial.SetBuffer(ShaderResourceId.PointLights, environment.PointLightBuffer);
-            volumetricLightMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferResource.Texture);
+            volumetricLightMaterial.SetRenderTexture("_gbufferDepth", gbufferResource.Texture, 4);
             volumetricLightMaterial.SetRenderTextureDepth("_shadowMap", shadowMapResource.Texture);
             volumetricLightNode = new RGNode_FullscreenOverlay(rendering, graph, chain,
                 volumetricLightMaterial)
@@ -294,7 +297,7 @@ public static class RenderPipelines
         lightingMaterial.SetRenderTexture("_normal",   gbuffer, 1);
         lightingMaterial.SetRenderTexture("_mrAO",     gbuffer, 2);
         lightingMaterial.SetRenderTexture("_emissive", gbuffer, 3);
-        lightingMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+        lightingMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
         lightingMaterial.SetRenderTextureDepth("_shadowMap", shadowMapResource.Texture);
         // Plugin output textures default to white/black until a plugin sets them.
         lightingMaterial.SetTexture("_aoTexture", rendering.TextureWhite);

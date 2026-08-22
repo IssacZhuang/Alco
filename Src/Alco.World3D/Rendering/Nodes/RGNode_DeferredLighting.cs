@@ -133,9 +133,10 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
         // rewritten after recording would leak the newer value into this pass.
         PrepareData?.Invoke(this);
 
+        GPUFrameBuffer target = SceneColor.Texture.ColorFrameBuffer;
         RenderPassScope pass = Instrumentation != null
-            ? Instrumentation.BeginPass(context.RenderContext, SceneColor.Texture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty)
-            : context.RenderContext.BeginPass(SceneColor.Texture.FrameBuffer);
+            ? Instrumentation.BeginPass(context.RenderContext, target, ReadOnlySpan<ClearColorData>.Empty)
+            : context.RenderContext.BeginPass(target);
         using (pass)
         {
             pass.Draw(_fullScreenMesh, Material);

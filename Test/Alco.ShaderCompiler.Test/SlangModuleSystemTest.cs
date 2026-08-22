@@ -50,6 +50,49 @@ public class SlangModuleSystemTest
         }
         """;
 
+    // A file module with its own `module` declaration and a define-selected body —
+    // the shape of RGNode_VolumetricClouds' noise bake permutations.
+    private const string DefinePermutedModule = """
+        module define_permuted;
+
+        [[vk::binding(0, 0)]] RWStructuredBuffer<float4> _output;
+
+        [shader("compute")]
+        [numthreads(1, 1, 1)]
+        void MainCS(uint3 id : SV_DispatchThreadID)
+        {
+        #ifdef NOISE_DETAIL
+            _output[id.x] = float4(1);
+        #else
+            _output[id.x] = float4(0);
+        #endif
+        }
+        """;
+
+    [Test]
+    public void DefinePermutations_OfOneModule_CoexistInOneSession()
+    {
+        Dictionary<string, string> files = new() { ["define_permuted.slang"] = DefinePermutedModule };
+        using SlangModuleSystem system = new(OptionsFor(files), null);
+
+        // Both permutations share the file's source, including its `module X;`
+        // declaration. slang keys a session's module table by the DECLARED name,
+        // so the permutation must re-declare a mangled one — a second load under
+        // the original declaration trips slang's dictionary assert.
+        system.GetOrLoadModule("define_permuted");
+        Assert.DoesNotThrow(() => system.GetOrLoadModule("define_permuted", ["NOISE_DETAIL"]));
+
+        using SlangProgram plain = system.GetProgramAllEntries("define_permuted", []);
+        using SlangProgram detailed = system.GetProgramAllEntries("define_permuted", [], ["NOISE_DETAIL"]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(plain.EntryCode[0].Length, Is.GreaterThan(4));
+            Assert.That(detailed.EntryCode[0].Length, Is.GreaterThan(4));
+            Assert.That(system.GetLoadedModuleNames(), Is.EquivalentTo(new[] { "define_permuted" }));
+        });
+    }
+
     private static SlangCompilerOptions OptionsFor(Dictionary<string, string> files) => new()
     {
         // Beachhead-style resolution: exact virtual path, then filename lookup

@@ -80,7 +80,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     /// Create the G-buffer renderer with the given shader.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="gbufferShader">The G-buffer shader (GBuffer.hlsl).</param>
+    /// <param name="gbufferShader">The G-buffer shader (GBuffer.slang).</param>
     public GBufferRenderer(
         RenderingSystem rendering,
         Shader gbufferShader)

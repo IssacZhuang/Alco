@@ -126,32 +126,32 @@ public enum VoxelGiDebugMode
 
 /// <summary>
 /// The complete set of shaders required by <see cref="RGNode_VoxelGI"/>.
-/// Load each from its HLSL file and pass to the constructor.
+/// Load each from its Slang module and pass it to the constructor.
 /// </summary>
 public readonly struct VoxelGiShaders
 {
-    /// <summary>The voxel clear shader (VoxelClear.hlsl).</summary>
+    /// <summary>The voxel clear shader (VoxelClear.slang).</summary>
     public required Shader Clear { get; init; }
-    /// <summary>The triangle voxelization shader (Voxelize.hlsl).</summary>
+    /// <summary>The triangle voxelization shader (Voxelize.slang).</summary>
     public required Shader Voxelize { get; init; }
-    /// <summary>The direct light injection shader (VoxelInject.hlsl).</summary>
+    /// <summary>The direct light injection shader (VoxelInject.slang).</summary>
     public required Shader Inject { get; init; }
-    /// <summary>The radiance mip downsample shader (VoxelMip.hlsl).</summary>
+    /// <summary>The radiance mip downsample shader (VoxelMip.slang).</summary>
     public required Shader Mip { get; init; }
-    /// <summary>The cascading mip chain shader (VoxelMipChain.hlsl).</summary>
+    /// <summary>The cascading mip chain shader (VoxelMipChain.slang).</summary>
     public required Shader MipChain { get; init; }
-    /// <summary>The multi-bounce propagation shader (VoxelPropagate.hlsl).</summary>
+    /// <summary>The multi-bounce propagation shader (VoxelPropagate.slang).</summary>
     public required Shader Propagate { get; init; }
-    /// <summary>The cone tracing shader (VoxelTrace.hlsl).</summary>
+    /// <summary>The cone tracing shader (VoxelTrace.slang).</summary>
     public required Shader Trace { get; init; }
-    /// <summary>The temporal demosaic shader (VoxelDemosaic.hlsl).</summary>
+    /// <summary>The temporal demosaic shader (VoxelDemosaic.slang).</summary>
     public required Shader Demosaic { get; init; }
     /// <summary>
-    /// The blue-noise tile bake shader (ScreenSpaceReflectionBlueNoise.hlsl),
+    /// The blue-noise tile bake shader (ScreenSpaceReflectionBlueNoise.slang),
     /// shared with the SSR trace. The baked tile jitters the cone march.
     /// </summary>
     public required Shader BlueNoise { get; init; }
-    /// <summary>The full-resolution upsample shader (VoxelGiUpsample.hlsl), or null when not used as a plugin.</summary>
+    /// <summary>The full-resolution upsample shader (VoxelGiUpsample.slang), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
 }
 
@@ -178,7 +178,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Per-frame data uploaded to every voxel GI shader. Layout must match the
-    /// <c>_data</c> cbuffer in VoxelCommon.hlsli exactly. Assembled internally by
+    /// <c>_data</c> cbuffer in VoxelCommon.slang exactly. Assembled internally by
     /// the renderer from pipeline data and user-tunable properties.
     /// </summary>
     private struct VoxelGiData
@@ -245,7 +245,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     /// <summary>
     /// Per-frame data uploaded to the VoxelGiUpsample compute pass. Layout must
-    /// match the <c>_data</c> cbuffer in VoxelGiUpsample.hlsl exactly.
+    /// match the <c>_data</c> cbuffer in VoxelGiUpsample.slang exactly.
     /// </summary>
     public struct VoxelGiUpsampleData
     {
@@ -257,7 +257,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     /// <summary>
     /// Push constant payload for one voxelize dispatch. Layout must match the
-    /// <c>VoxelizeConstants</c> struct in Voxelize.hlsl exactly (128 bytes, the
+    /// <c>VoxelizeConstants</c> struct in Voxelize.slang exactly (128 bytes, the
     /// device push-constant limit — the dirty-brick range is bit-packed into
     /// Params2 to keep the payload at that size).
     /// </summary>
@@ -326,7 +326,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly ComputeMaterial _traceMaterial;
     private readonly ComputeMaterial _demosaicMaterial;
     // The blue-noise tile is baked once with a graphics pass, then sampled by
-    // the compute trace. Must match BLUE_NOISE_TILE in VoxelTrace.hlsl and
+    // the compute trace. Must match BLUE_NOISE_TILE in VoxelTrace.slang and
     // SSR_BLUE_NOISE_SIZE in the bake shader.
     private const uint BlueNoiseTextureSize = 128;
     private readonly Mesh _fullScreenMesh;
@@ -461,7 +461,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     // fallback before any real map exists).
     private RenderGraphTexture? _rsmMapResource;
     private RenderTexture? _boundRsmMap;
-    private RenderTexture? _rsmFallbackDepth;
     private bool _rsmBound;
     private int _rsmCascadeIndex = 2;
 
@@ -540,7 +539,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// static scenes but collapses to single-cone noise wherever its own
     /// reprojection rejects history (camera motion across depth edges), so the
     /// demosaic stage keeps a second, neighbourhood-clamped accumulation. The
-    /// effective hysteresis halves under camera motion (see VoxelDemosaic.hlsl)
+    /// effective hysteresis halves under camera motion (see VoxelDemosaic.slang)
     /// to stay responsive to the scrolling voxel field; zero disables it.
     /// </summary>
     public float DiffuseTemporalHysteresis { get; set; } = 0.85f;
@@ -874,7 +873,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
 
         // The full-resolution GI outputs (upsampled from the trace-resolution
-        // atlas by VoxelGiUpsample.hlsl, consumed by the deferred lighting pass)
+        // atlas by VoxelGiUpsample.slang, consumed by the deferred lighting pass)
         // are graph transients created by Attach.
 
         // Create the upsample compute pass eagerly when the shader is supplied.
@@ -912,20 +911,16 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _rsmBound = true;
         if (rsmMap != null)
         {
-            _traceMaterial.SetRenderTextureDepth("_rsmDepth", rsmMap);
+            _traceMaterial.SetRenderTexture("_rsmDepth", rsmMap, 2);
             _traceMaterial.SetRenderTexture("_rsmAlbedo", rsmMap, 0);
             _traceMaterial.SetRenderTexture("_rsmNormal", rsmMap, 1);
             RsmResolution = (int)rsmMap.Width;
         }
         else
         {
-            // A depth-only 1x1 texture cleared once to far (1.0); its depth can
-            // never match a receiver, and black albedo has alpha 0.
-            _rsmFallbackDepth ??= _rendering.CreateRenderTexture(
-                _rendering.GraphicsDevice.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
-                    [], new DepthAttachment(PixelFormat.Depth32Float), "voxel_gi_rsm_fallback")),
-                1, 1, "voxel_gi_rsm_fallback");
-            _traceMaterial.SetRenderTextureDepth("_rsmDepth", _rsmFallbackDepth);
+            // Black albedo has alpha 0, so the injection gate rejects the
+            // fallback before its mirrored depth value is relevant.
+            _traceMaterial.SetTexture("_rsmDepth", _rendering.TextureBlack);
             _traceMaterial.SetTexture("_rsmAlbedo", _rendering.TextureBlack);
             _traceMaterial.SetTexture("_rsmNormal", _rendering.TextureBlack);
         }
@@ -1416,16 +1411,16 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // (recreated on resize); avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _traceMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
             _traceMaterial.SetRenderTexture("_albedo", gbuffer, 0);
             _traceMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _traceMaterial.SetRenderTexture("_emissive", gbuffer, 3);
-            _demosaicMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _demosaicMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
             _demosaicMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _demosaicMaterial.SetRenderTexture("_emissive", gbuffer, 3);
             if (_upsampleMaterial != null)
             {
-                _upsampleMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+                _upsampleMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
                 _upsampleMaterial.SetRenderTexture("_normal", gbuffer, 1);
             }
             _boundGBuffer = gbuffer;
@@ -1459,7 +1454,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         // Bake the blue-noise lookup once (procedural neighborhood-rank
-        // construction, see ScreenSpaceReflectionBlueNoise.hlsl); every frame
+        // construction, see ScreenSpaceReflectionBlueNoise.slang); every frame
         // afterwards the cone-trace march samples the persistent tile.
         if (!_blueNoiseBaked)
         {
@@ -2359,7 +2354,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _blueNoiseLayout.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
-            _rsmFallbackDepth?.Dispose();
             _gpuTimestamps?.Dispose();
             _staticBvh.Dispose();
             _dynamicBvh.Dispose();

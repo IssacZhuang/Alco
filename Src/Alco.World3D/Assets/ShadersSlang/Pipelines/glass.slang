@@ -1,0 +1,160 @@
+// Forward-lit glass pass template for surface materials of the PBR deferred
+// pipeline's transparency pass. Slang counterpart of Shaders/Pipelines/
+// Rendering/PBR/ForwardGlass.hlsl: the material compiler generates a wrapper
+// module that imports this template and the material's surface module, then
+// instantiates the generic pass functions with the surface's Surface type -
+// dynamic shader stitching as interface-checked generic instantiation.
+//
+// Renders semi-transparent glass objects after deferred lighting, blending
+// onto the lit HDR scene: hardware depth testing against the opaque scene
+// (the pipeline pre-fills the forward RT's depth from the G-buffer), alpha
+// blending with Max on alpha (no sorting). Opacity is driven by the
+// transmission factor (texture alpha only raises it further), so glass stays
+// visible even when the albedo texture's alpha channel is zero. Lighting
+// functions and the shared _data cbuffer come from alco_world3d_pbr_common;
+// the material textures live in the surface module (set 2).
+
+#language slang 2025
+module glass;
+
+import surface;
+import alco_world3d_pbr_common;
+
+public struct GlassVertex
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD0;
+    float4 tangent : TANGENT;
+}
+
+public struct GlassV2F
+{
+    float4 position : SV_POSITION;
+    float3 normal : TEXCOORD0;
+    float2 uv : TEXCOORD1;
+    float4 tangent : TEXCOORD2; // xyz = world tangent, w = bitangent sign
+    float3 worldPosition : TEXCOORD3;
+}
+
+// Push constant payload: per-draw model and factors (non-instanced draw path).
+// Layout must match the constants the forward node records exactly.
+struct GlassConstants
+{
+    float4x4 model;
+    float4 baseColor;
+    float4 metallicRoughnessAO; // x=metallic y=roughness z=ambientOcclusion
+    float4 params_;             // x=transmissionFactor (0=opaque, 1=fully transparent)
+    float4 emissive;            // rgb = emissive factor
+}
+
+// _data (set 0, binding 0) is owned by alco_world3d_pbr_common; the camera
+// takes the next set-0 binding. The engine binds both by name.
+[[vk::binding(1, 0)]] cbuffer _camera
+{
+    float4x4 viewProjection;
+}
+
+[[vk::push_constant]]
+cbuffer constants
+{
+    GlassConstants glassConstants;
+}
+
+public GlassV2F GlassMainVS<T : ISurface>(GlassVertex input)
+{
+    GlassV2F output;
+    float3 worldPosition = mul(glassConstants.model, float4(input.position, 1.0f)).xyz;
+    float3 worldNormal = mul((float3x3)glassConstants.model, input.normal);
+    float3 worldTangent = mul((float3x3)glassConstants.model, input.tangent.xyz);
+    // The surface may deform the vertex; every pass applies this identically.
+    T surface = T();
+    surface.ModifyVertex(worldPosition, worldNormal, input.uv);
+    output.position = mul(viewProjection, float4(worldPosition, 1.0f));
+    output.worldPosition = worldPosition;
+    output.normal = worldNormal;
+    output.tangent = float4(worldTangent, input.tangent.w);
+    output.uv = input.uv;
+    return output;
+}
+
+public float4 GlassMainPS<T : ISurface>(GlassV2F input) : SV_TARGET
+{
+    // TBN frame: re-orthogonalize the interpolated tangent against the normal.
+    float3 n = normalize(input.normal);
+    float3 t = input.tangent.xyz - n * dot(n, input.tangent.xyz);
+    t = normalize(t);
+    float3 b = cross(n, t) * input.tangent.w;
+
+    SurfaceInput surfaceInput;
+    surfaceInput.worldPos = input.worldPosition;
+    surfaceInput.normalWS = n;
+    surfaceInput.tangentWS = float4(t, input.tangent.w);
+    surfaceInput.uv = input.uv;
+    surfaceInput.baseColorFactor = glassConstants.baseColor;
+    surfaceInput.metallicRoughnessAO = glassConstants.metallicRoughnessAO;
+    surfaceInput.emissiveFactor = glassConstants.emissive;
+    surfaceInput.alphaCutoff = 0.0f; // glass does not alpha-test
+
+    T surface = T();
+    float4 baseColor = surface.GetBaseColor(surfaceInput);
+    float3 mrAO = surface.GetMetallicRoughnessAO(surfaceInput);
+    float3 normalTS = surface.GetNormalTS(surfaceInput);
+
+    float3 albedo = baseColor.rgb;
+    float alpha = baseColor.a;
+    float metallic = mrAO.x;
+    float roughness = mrAO.y;
+    float ao = mrAO.z;
+
+    float3 N = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
+
+    float3 worldPosition = input.worldPosition;
+    float3 V = normalize(cameraPosition.xyz - worldPosition);
+
+    float3 Lo = 0.0;
+
+    // Directional sun light with cascaded shadows.
+    {
+        float3 L = normalize(-sunDirection.xyz);
+        float sunNdotL = dot(N, L);
+        float sunShadow = 1.0;
+        float viewDistance = length(worldPosition - cameraPosition.xyz);
+        int cascade = SelectCascade(viewDistance);
+        if (pbrParams.x > 0.5 && sunNdotL > 0.0)
+        {
+            sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
+        }
+
+        Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
+            * sunColorAndIntensity.rgb
+            * sunColorAndIntensity.w
+            * sunShadow;
+    }
+
+    // Point lights (shared loop from alco_world3d_pbr_common).
+    Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
+
+    // Ambient / environment lighting.
+    float3 skyAmbient = EvaluateDiffuseSky(N);
+    float upDot = saturate(N.z * 0.5 + 0.5);
+    float3 skyBounce = float3(0.10, 0.12, 0.15);
+    float3 groundBounce = float3(0.05, 0.045, 0.04);
+    float3 ambientFloor = skyParams2.w * lerp(groundBounce, skyBounce, upDot);
+    float3 diffuseIrradiance = skyAmbient + ambientFloor;
+    float3 ambient = diffuseIrradiance * albedo * (1.0 - metallic) * ao;
+
+    // Emissive (surface = emissive texture times the push-constant factor).
+    float3 emissive = surface.GetEmissive(surfaceInput);
+
+    float3 color = Lo + ambient + emissive;
+
+    // Output alpha: blend factor onto the lit scene. Opacity comes from the
+    // transmission factor and the texture alpha (whichever is larger — the
+    // Bistro glass textures carry a zero alpha channel, so transmission must
+    // not rely on it).
+    float transmission = glassConstants.params_.x;
+    float outputAlpha = saturate(max(alpha, 1.0 - transmission));
+
+    return float4(color, outputAlpha);
+}

@@ -1,8 +1,8 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// Parameters for the Khronos PBR Neutral tone mapping operator used by <c>NeutralTonemap.hlsl</c>.
-/// Field order must match the HLSL uniform buffer: Exposure, Gamma, StartCompression, Desaturation.
+/// Parameters for the Khronos PBR Neutral tone mapping operator used by <c>NeutralTonemap.slang</c>.
+/// Field order must match the Slang uniform buffer: Exposure, Gamma, StartCompression, Desaturation.
 /// </summary>
 public struct NeutralTonemapData
 {

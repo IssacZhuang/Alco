@@ -8,8 +8,8 @@ namespace Alco.World3D;
 /// <summary>
 /// HBAO+ (horizon-based ambient occlusion) renderer for deferred PBR compositions.
 /// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
-/// horizon rays in a compute pass (HBAO.hlsl) and filters the noisy result with a
-/// depth/normal-aware bilateral blur (HBAOBlur.hlsl). The blur pass writes the
+/// horizon rays in a compute pass (HBAO.slang) and filters the noisy result with a
+/// depth/normal-aware bilateral blur (HBAOBlur.slang). The blur pass writes the
 /// filtered AO to a full-resolution texture (<see cref="AOResult"/>),
 /// which the deferred lighting material samples through its _aoTexture slot.
 /// <br/>Attach the renderer to a deferred composition via <see cref="Attach"/>: it
@@ -22,7 +22,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Per-frame HBAO data uploaded to both compute passes. Layout must match the
-    /// <c>_data</c> cbuffer in HBAOCommon.hlsli exactly. Assembled internally by
+    /// <c>_data</c> cbuffer in HBAOCommon.slang exactly. Assembled internally by
     /// the renderer from camera data and user-tunable properties.
     /// </summary>
     private struct HbaoData
@@ -115,8 +115,8 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     /// allocated here — the AO textures are graph transients created by <see cref="Attach"/>.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="hbaoShader">The raw AO shader (HBAO.hlsl).</param>
-    /// <param name="blurShader">The bilateral blur shader (HBAOBlur.hlsl).</param>
+    /// <param name="hbaoShader">The raw AO shader (HBAO.slang).</param>
+    /// <param name="blurShader">The bilateral blur shader (HBAOBlur.slang).</param>
     public RGNode_HBAO(RenderingSystem rendering, Shader hbaoShader, Shader blurShader)
     {
         _rendering = rendering;
@@ -272,9 +272,9 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         // The G-buffer render texture is recreated on resize; avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _hbaoMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _hbaoMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
             _hbaoMaterial.SetRenderTexture("_normal", gbuffer, 1);
-            _blurMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _blurMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
             _blurMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _boundGBuffer = gbuffer;
         }

@@ -6,11 +6,11 @@ namespace Alco.World3D;
 
 /// <summary>
 /// Helpers for the engine's physically-based procedural sky (see
-/// <c>Shaders/Libs/Atmosphere.hlsli</c>): a parametric sun orbit driven by the
+/// <c>Shaders/Libs/Atmosphere.slang</c>): a parametric sun orbit driven by the
 /// time of day, plus the sun's atmosphere-transmittance tint evaluated on the
 /// CPU so scene lighting matches the sky (white sun at noon, red at sunset,
 /// fading out through twilight).
-/// <br/>The atmosphere constants MUST stay in sync with Atmosphere.hlsli.
+/// <br/>The atmosphere constants MUST stay in sync with Atmosphere.slang.
 /// </summary>
 public static class ProceduralSkyUtility
 {

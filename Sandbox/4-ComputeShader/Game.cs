@@ -192,26 +192,13 @@ public class Game : GameEngine
 
     private GPUPipeline CreateComputePipeline()
     {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
-
-        //dxc
-        ShaderModule computeShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Compute, "MainCS", "BoxBlur.hlsl");
-
-        //shaderc hlsl
-        //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "MainCS", "BoxBlur.hlsl");
-
-        //shaderc glsl
-        // string ShaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.glsl"));
-        // ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(ShaderCode, ShaderStage.Compute, "main", "BoxBlur.glsl");
-
-
-        // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
-        // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "MainCS");
+        // slang module program: every [shader(...)] entry point compiled to SPIR-V
+        SlangProgram program = CompileProgram("sandbox4_box_blur", "BoxBlur.slang");
+        ShaderModule computeShader = StageModule(program, "MainCS");
 
         DebugSaveFile("BoxBlur.spv", computeShader.Source);
-        ShaderReflectionInfo reflectionInfo = ShaderReflectionUtility.GetSpirvReflection(computeShader.Source);
-        Log.Info(reflectionInfo);
-        
+        Log.Info(program.Reflection);
+
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
@@ -255,6 +242,30 @@ public class Game : GameEngine
     private void UpdateColor(Vector3 color)
     {
         GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
+    }
+
+    private SlangProgram CompileProgram(string moduleName, string fileName)
+    {
+        string path = Path.Combine("Assets", fileName);
+        SlangModuleSystem modules = RenderingSystem.ShaderSystem.Modules;
+        modules.GetOrLoadModule(moduleName, path, File.ReadAllText(path));
+        return modules.GetProgramAllEntries(moduleName, []);
+    }
+
+    private static ShaderModule StageModule(SlangProgram program, string entryName)
+    {
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            if (program.EntryPoints[i].Name == entryName)
+            {
+                return new ShaderModule(
+                    SlangCompileSession.SlangStageToEngine(program.EntryPoints[i].Stage),
+                    ShaderLanguage.SPIRV,
+                    program.EntryCode[i],
+                    "main");
+            }
+        }
+        throw new ArgumentException($"Entry point '{entryName}' not found in module '{program.ModuleName}'.");
     }
 
     private static byte[] LoadFile(string path)

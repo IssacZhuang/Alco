@@ -2,38 +2,44 @@ using NUnit.Framework;
 using Alco.Graphics;
 using Alco.Rendering;
 using Alco.Engine;
+using Alco.IO;
 
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Compiles every shader shipped with the Alco.World3D module (all define
-/// combinations) through the same compiler path used at runtime. The module's shaders and their engine-side
-/// include libraries both flow into the test output's <c>Assets</c> folder,
-/// so the default engine asset source serves them.
+/// Compiles every shader module shipped with the Alco.World3D module through the
+/// shared slang module system (the same compiler path used at runtime). The
+/// module's shader modules flow into the test output's <c>Assets</c> folder, so
+/// the default engine asset source serves them; the asset loader derives each
+/// module's identity from its file name. The four material-pass templates
+/// (gbuffer/shadow_depth/rsm/glass) are surface-generic and define no entry
+/// points — <see cref="TestSlangMaterialCompiler"/> covers their composition.
 /// </summary>
 public class ValidateShader
 {
     // Uses the plain NoGPU setting (shader cache disabled): this test must exercise
-    // real shader compilation, so a cached hit would defeat its purpose.
+    // real slang compilation, so a cached hit would defeat its purpose.
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine
     {
         public ShaderValidator(GameEngineSetting setting) : base(setting)
         {
-
         }
     }
 
-    [Test(Description = "Validate all Alco.World3D shaders")]
+    [Test(Description = "Validate all Alco.World3D shader modules")]
     public void ValidateAllWorld3DShaders()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
         var assets = engine.AssetSystem;
-        // Query every .hlsl file of the module's shader folder.
-        var files = assets.AllAssetNames.Where(x => x.EndsWith(".hlsl") && x.StartsWith(World3DAssetPaths.Folder));
+        // Query every entry-point-owning .slang module of the module's shader tree.
+        var files = assets.AllAssetNames
+            .Where(x => x.EndsWith(".slang") && x.StartsWith(World3DAssetPaths.Folder))
+            .Where(IsEntryPointModule)
+            .ToArray();
 
-        Assert.That(files, Is.Not.Empty, "No World3D shaders were found; the module assets failed to flow into the test output.");
+        Assert.That(files, Is.Not.Empty, "No World3D shader modules were found; the module assets failed to flow into the test output.");
 
         List<Task<Shader>> tasks = new();
 
@@ -56,39 +62,44 @@ public class ValidateShader
             var shader = task.Result;
             shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
         });
-
     }
 
-    [Test(Description = "Validate all Alco.World3D shaders through Slang")]
-    public void ValidateAllWorld3DShadersWithSlang()
+    [Test(Description = "Validate all Alco.World3D shader modules through direct module-system loads")]
+    public void ValidateAllWorld3DShadersByModule()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
         var assets = engine.AssetSystem;
         string[] files = assets.AllAssetNames
-            .Where(x => x.EndsWith(".hlsl") && x.StartsWith(World3DAssetPaths.Folder))
+            .Where(x => x.EndsWith(".slang") && x.StartsWith(World3DAssetPaths.Folder))
+            .Where(IsEntryPointModule)
             .ToArray();
 
         Assert.That(files, Is.Not.Empty,
-            "No World3D shaders were found; the module assets failed to flow into the test output.");
+            "No World3D shader modules were found; the module assets failed to flow into the test output.");
 
-        using SlangPipelineShaderFactory slang = new(engine.RenderingSystem, assets);
+        // The module-name keyed lookup path: the same route hot reload and the
+        // material composition use (name → resolver → module system).
         foreach (string file in files)
         {
-            Shader shader = slang.Load(file);
+            string moduleName = Path.GetFileNameWithoutExtension(file);
+            Shader shader = engine.RenderingSystem.ShaderSystem.GetShader(moduleName);
             shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
         }
     }
 
     [Test]
-    public void SlangPipelineReflectionMatchesWorld3DResourceConventions()
+    public void ModuleReflectionMatchesWorld3DResourceConventions()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
-        using SlangPipelineShaderFactory slang = new(engine.RenderingSystem, engine.AssetSystem);
+        AssetSystem assets = engine.AssetSystem;
 
-        ShaderReflectionInfo gbuffer = slang.Load(World3DAssetPaths.Shader_GBuffer)
+        // The G-buffer template composed with the built-in surface: explicit
+        // source-declared bindings (plan D2) — camera set 0, instances set 1,
+        // material resources set 2.
+        using MaterialCompiler compiler = new(engine.RenderingSystem, assets);
+        ShaderReflectionInfo gbuffer = compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer)
             .GetShaderModules().ReflectionInfo;
-        ShaderReflectionInfo hbao = slang.Load(
-            "Shaders/Pipelines/Rendering/PBR/HBAO.hlsl")
+        ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader("HBAO")
             .GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>
@@ -106,13 +117,32 @@ public class ValidateShader
             AssertResource(hbao, "_gbufferDepth", 1, 0, BindingType.Texture);
             ShaderResourceLocation depth = GetResource(hbao, "_gbufferDepth");
             Assert.That(hbao.BindGroups[depth.GroupIndex].Bindings[depth.EntryIndex]
-                .Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
+                .Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.UnfilterableFloat));
 
             AssertResource(hbao, "_aoOutput", 3, 0, BindingType.StorageTexture);
             ShaderResourceLocation output = GetResource(hbao, "_aoOutput");
             Assert.That(hbao.BindGroups[output.GroupIndex].Bindings[output.EntryIndex]
                 .Entry.StorageTextureInfo.Format, Is.EqualTo(PixelFormat.RGBA16Float));
         });
+    }
+
+    /// <summary>
+    /// Whether a World3D shader asset can own entry points: the import-only trees
+    /// (Libs, Materials, the alco-world3d-* libs converted from .slang) and the
+    /// four surface-generic pass templates define none — their files are excluded
+    /// from entry-point validation (see <see cref="TestSlangMaterialCompiler"/> and
+    /// <see cref="ValidateWorld3DSlangModules.LibModule_Loads"/> for their coverage).
+    /// </summary>
+    private static bool IsEntryPointModule(string assetPath)
+    {
+        string fileName = Path.GetFileName(assetPath);
+        if (assetPath.Contains("ShadersSlang/Libs/", StringComparison.OrdinalIgnoreCase) ||
+            assetPath.Contains("ShadersSlang/Materials/", StringComparison.OrdinalIgnoreCase) ||
+            fileName.StartsWith("alco-world3d-", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        return fileName is not ("gbuffer.slang" or "rsm.slang" or "shadow_depth.slang" or "glass.slang");
     }
 
     private static void AssertResource(

@@ -3,8 +3,11 @@
 // Per-instance draw data shared by the G-buffer (gbuffer.slang), CSM shadow
 // (shadow_depth.slang) and RSM (rsm.slang) pass templates. The layout must
 // match Alco.Rendering.PbrInstanceData exactly. Vertex shaders fetch by
-// SV_InstanceID; pixel shaders re-read per-instance scalars through the
+// SV_VulkanInstanceID; pixel shaders re-read per-instance scalars through the
 // instance id interpolant (the SpriteInstanced pattern).
+
+#language slang 2025
+module pbr_instance;
 
 public struct PbrInstance
 {

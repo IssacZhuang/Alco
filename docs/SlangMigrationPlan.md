@@ -1,6 +1,32 @@
 # Native Slang Migration Plan
 
-Status: plan. Supersedes the World3D slang proof-of-concept integration.
+Status: implemented. Supersedes the World3D slang proof-of-concept integration.
+
+Implementation note: the completed runtime uses source-declared
+`[[vk::binding(binding, set)]]` positions for deterministic WebGPU layouts while
+preserving the name-based C# contract. This replaces the plan's proposed
+set-only compiler assignment, which the pinned Slang toolchain cannot express
+without a remapping pass. The migration deliberately chose explicit source
+layout over retaining SPIR-V binding surgery.
+
+Slang's direct SPIR-V emitter remains the default backend. The renderer-shaped
+World3D PBR entry modules use the isolated GLSL → glslang compatibility system
+in `SpirvCompat.cs`; `ScreenSpaceReflectionBlueNoise.slang` is the one direct
+exception because its via-GLSL SPIR-V is rejected by naga. Both choices have
+upstream issue links and backend identity is included in the program-cache key.
+Raw scene/RSM depth reads use an `R32Float` color mirror of `SV_Position.z`
+(`Texture2D<float>` + reflected `r32f`), while the `Depth32Float` attachment is
+retained for depth tests and comparison sampling. Consequently no SPIR-V binary
+rewriter or depth patcher remains.
+
+Final validation (2026-08-23): all 92 Slang sources carry the 2025 language
+pin; no `.hlsl`/`.hlsli`, DXC/DXIL native binary, legacy compiler, custom
+SPIR-V reflector, or SPIR-V rewriting implementation remains. `dotnet build
+Alco.slnx` completes with zero errors and the full solution test run passes
+953/953 tests across 11 test assemblies. Sandbox 34's complete procedural PBR
+pipeline ran 60 frames on an NVIDIA RTX 4070 Ti through Vulkan with HBAO,
+volumetric clouds/light, Voxel GI/RSM, SSR and Bloom enabled, then shut down
+without validation errors or device loss.
 
 ## 1. Background
 

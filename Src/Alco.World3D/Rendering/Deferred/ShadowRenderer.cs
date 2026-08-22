@@ -68,8 +68,8 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 
     /// <summary>
     /// Push constant payload for the instanced shadow map / RSM draws. Layout
-    /// must match the <c>ShadowConstants</c> struct in ShadowDepth.hlsl and the
-    /// <c>RsmConstants</c> struct in Rsm.hlsl exactly. All other per-item data
+    /// must match the <c>ShadowConstants</c> struct in ShadowDepth.slang and the
+    /// <c>RsmConstants</c> struct in Rsm.slang exactly. All other per-item data
     /// comes from the <c>_instances</c> storage buffer, so this constant stays
     /// static per cascade (render-bundle friendly).
     /// </summary>
@@ -119,7 +119,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// Create the shadow renderer.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="shadowShader">The shadow depth shader (ShadowDepth.hlsl).</param>
+    /// <param name="shadowShader">The shadow depth shader (ShadowDepth.slang).</param>
     /// <param name="shadowLayout">The shadow pass attachment layout (owned by the composition, e.g. <see cref="PBRDeferredPreset.ShadowLayout"/>).</param>
     /// <param name="shadowDataBuffer">The cascade VP data buffer (owned by the scene environment, see <see cref="PBRSceneEnvironment.ShadowDataBuffer"/>).</param>
     public ShadowRenderer(
@@ -240,7 +240,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     // ── Material factory ──
 
     /// <summary>
-    /// Create an opaque shadow depth material (ShadowDepth.hlsl with its default
+    /// Create an opaque shadow depth material (ShadowDepth.slang with its default
     /// surface). The renderer applies the pass-mandated state (depth write, rasterizer,
     /// data buffer binding); the caller owns the material and must dispose it.
     /// </summary>
@@ -251,7 +251,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 
     /// <summary>
     /// Create a caller-owned cutout shadow material — the shadow depth shader
-    /// (ShadowDepth.hlsl) compiled with the <c>SHADOW_CUTOUT</c> define so the
+    /// (ShadowDepth.slang) compiled with the <c>SHADOW_CUTOUT</c> define so the
     /// pixel shader evaluates the surface's base color alpha
     /// (its only consumed surface function) and discards transparent fragments.
     /// Alpha-tested meshes (foliage, fences, etc.) cast correctly shaped shadows.
@@ -319,7 +319,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// registered as an <see cref="IRsmPassContent"/> on an <see cref="RGNode_RsmPass"/>
     /// and RSM materials can be created via <see cref="CreateRsmMaterial"/>.
     /// </summary>
-    /// <param name="rsmShader">The RSM pass shader (Rsm.hlsl).</param>
+    /// <param name="rsmShader">The RSM pass shader (Rsm.slang).</param>
     /// <param name="rsmLayout">The RSM pass attachment layout (two RGBA8 colors +
     /// depth; the layout of the RSM render texture the pass draws into).</param>
     public void EnableRsm(Shader rsmShader, GPUAttachmentLayout rsmLayout)
@@ -460,7 +460,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     }
 
     /// <summary>
-    /// Create a caller-owned RSM material — the RSM pass shader (Rsm.hlsl with its
+    /// Create a caller-owned RSM material — the RSM pass shader (Rsm.slang with its
     /// default surface) sampling the albedo texture and writing sRGB albedo + world
     /// normal. Requires <see cref="EnableRsm"/> first; the material binds the shared
     /// shadow cascade data buffer internally (the RSM vertex shader unfolds the

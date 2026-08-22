@@ -108,7 +108,12 @@ public partial class RenderingSystem
         get => _preferredLightMapPass;
     }
 
-    public IShaderCache? ShaderCache { get; }
+    /// <summary>
+    /// The slang module system's disk-cache directory (`.slang-module` IR blobs and
+    /// linked programs), or null when caching is disabled — replaces the retired
+    /// Slang module/program cache (plan §4.2).
+    /// </summary>
+    public string? SlangCacheDirectory { get; }
 
     private WeakReference<ICamera>? _mainCameraWeakRef;
 
@@ -151,7 +156,7 @@ public partial class RenderingSystem
         GPUDevice device,
         PixelFormat preferredHDRFormat,
         PixelFormat preferredDepthStencilFormat,
-        IShaderCache? shaderCache = null
+        string? slangCacheDirectory = null
     )
     {
         _device = device;
@@ -191,7 +196,7 @@ public partial class RenderingSystem
             "light_map_pass"
         ));
 
-        ShaderCache = shaderCache;
+        SlangCacheDirectory = slangCacheDirectory;
 
         _host.OnUpdate += OnUpdate;
         _host.OnDispose += OnDispose;
@@ -236,5 +241,6 @@ public partial class RenderingSystem
         _preferredRGBATexturePass.Dispose();
         _preferredRTexturePass.Dispose();
         _preferredLightMapPass.Dispose();
+        OnDisposeShaderSystem();
     }
 }

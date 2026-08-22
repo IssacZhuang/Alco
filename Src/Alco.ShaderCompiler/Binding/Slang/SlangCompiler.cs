@@ -145,21 +145,18 @@ public sealed class SlangCompileSession : IDisposable
         {
             SlangTargetDesc target = SlangTargetDesc.Create(SlangNative.SLANG_SPIRV);
 
-            int optionCount = 1 + (options.EmitSpirvDirectly ? 1 : 0);
+            int optionCount = 2;
             SlangCompilerOptionEntry* optionEntries = stackalloc SlangCompilerOptionEntry[optionCount];
             optionEntries[0] = new SlangCompilerOptionEntry
             {
                 Name = SlangNative.SLANG_COMPILER_OPTION_OPTIMIZATION,
                 Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = options.OptimizationLevel },
             };
-            if (options.EmitSpirvDirectly)
+            optionEntries[1] = new SlangCompilerOptionEntry
             {
-                optionEntries[1] = new SlangCompilerOptionEntry
-                {
-                    Name = SlangNative.SLANG_COMPILER_OPTION_EMIT_SPIRV_DIRECTLY,
-                    Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = 1 },
-                };
-            }
+                Name = SlangNative.SLANG_COMPILER_OPTION_EMIT_SPIRV_DIRECTLY,
+                Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = options.EmitSpirvDirectly ? 1 : 0 },
+            };
             target.CompilerOptionEntries = optionEntries;
             target.CompilerOptionEntryCount = (uint)optionCount;
 
@@ -357,7 +354,7 @@ public sealed class SlangCompileSession : IDisposable
                     current = specialized;
                 }
 
-                SlangComponentType linked = current.Link(out string? linkDiagnostics);
+                SlangComponentType? linked = current.Link(out string? linkDiagnostics);
                 try
                 {
                     IntPtr layout = linked.GetLayout(out string? layoutDiagnostics);
