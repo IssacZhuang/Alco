@@ -6,8 +6,8 @@ namespace Alco.World3D;
 /// Raw P/Invoke surface over the Slang shader compiler's flat C API
 /// (slang-deprecated.h of the slang SDK - despite the header name it is the
 /// live C ABI the C++ wrappers call). The engine's own DXC + SPIR-V-reflect
-/// toolchain is untouched; this binding exists solely for World3D's Slang
-/// material path. Function order mirrors the header for reviewability.
+/// toolchain is untouched; this binding serves World3D's Slang material and
+/// pipeline shader paths. Function order mirrors the header for reviewability.
 /// </summary>
 internal static class SlangNative
 {
@@ -16,6 +16,12 @@ internal static class SlangNative
     // ── SlangCompileTarget ──
     public const int SLANG_SPIRV = 6;
 
+    // ── SlangOptimizationLevel ──
+    public const int SLANG_OPTIMIZATION_LEVEL_MAXIMAL = 3;
+
+    // ── SlangMatrixLayoutMode ──
+    public const int SLANG_MATRIX_LAYOUT_COLUMN_MAJOR = 2;
+
     // ── SlangSourceLanguage ──
     public const int SLANG_SOURCE_LANGUAGE_SLANG = 1;
 
@@ -23,6 +29,7 @@ internal static class SlangNative
     public const int SLANG_STAGE_NONE = 0;
     public const int SLANG_STAGE_VERTEX = 1;
     public const int SLANG_STAGE_FRAGMENT = 5;
+    public const int SLANG_STAGE_COMPUTE = 6;
 
     // ── SlangTypeKind ──
     public const int SLANG_TYPE_KIND_NONE = 0;
@@ -90,10 +97,25 @@ internal static class SlangNative
     public static extern void spSetCodeGenTarget(IntPtr request, int target);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int spAddTranslationUnit(IntPtr request, int language, string name);
+    public static extern void spSetOptimizationLevel(IntPtr request, int level);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void spAddTranslationUnitSourceString(IntPtr request, int translationUnitIndex, string path, string source);
+    public static extern void spSetMatrixLayoutMode(IntPtr request, int mode);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int spProcessCommandLineArguments(
+        IntPtr request,
+        IntPtr[] arguments,
+        int argumentCount);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int spAddTranslationUnit(IntPtr request, int language, string name);
+
+    // The source must be UTF-8 bytes (Slang parses UTF-8; the default ANSI
+    // string marshalling would corrupt non-ASCII characters in comments).
+    // The caller appends the NUL terminator.
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void spAddTranslationUnitSourceString(IntPtr request, int translationUnitIndex, string path, byte[] source);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern void spTranslationUnit_addPreprocessorDefine(IntPtr request, int translationUnitIndex, string name, string value);

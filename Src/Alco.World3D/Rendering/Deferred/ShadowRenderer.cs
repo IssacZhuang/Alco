@@ -229,8 +229,10 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 
         if (!_shadowDynamicBatch.Segments.IsEmpty)
         {
-            using RenderPassScope bundle = _dynamicBundle.BeginPass(_shadowLayout);
-            RecordInstancedPass(bundle, _shadowDynamicBatch, cascadeIndex);
+            using (RenderPassScope bundle = _dynamicBundle.BeginPass(_shadowLayout))
+            {
+                RecordInstancedPass(bundle, _shadowDynamicBatch, cascadeIndex);
+            }
             context.ExecuteSubContext(_dynamicBundle);
         }
     }
@@ -371,8 +373,10 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
         RebuildRsmBatch(_rsmDynamicBatch, _dynamicItems, "pbr_rsm_dynamic_instances");
         if (!_rsmDynamicBatch.Segments.IsEmpty)
         {
-            using RenderPassScope bundle = dynamicBundle.BeginPass(_rsmLayout!);
-            RecordInstancedPass(bundle, _rsmDynamicBatch, cascadeIndex);
+            using (RenderPassScope bundle = dynamicBundle.BeginPass(_rsmLayout!))
+            {
+                RecordInstancedPass(bundle, _rsmDynamicBatch, cascadeIndex);
+            }
             context.ExecuteSubContext(dynamicBundle);
         }
     }

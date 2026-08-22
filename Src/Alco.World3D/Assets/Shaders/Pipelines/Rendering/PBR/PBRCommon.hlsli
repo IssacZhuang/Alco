@@ -282,7 +282,20 @@ float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 screenPos
 float3 GetSkyColor(float3 direction)
 {
     float3 dirToSun = normalize(-sunDirection.xyz);
+#if defined(__SLANG__)
+    // Slang's direct SPIR-V representation of the nested 16x8 atmosphere
+    // march can time out current Vulkan drivers. The CPU already evaluates
+    // the same physical model into horizon/zenith radiance every frame for
+    // ambient lighting, so use that stable low-frequency representation for
+    // the Slang path while retaining the procedural stars and sun disc below.
+    float elevation = saturate(direction.z);
+    float skyBlend = pow(elevation, 0.35);
+    float3 sky = lerp(skyHorizonColor.rgb, skyZenithColor.rgb, skyBlend);
+    float groundBlend = smoothstep(0.0, 1.0, saturate(-direction.z / 0.27));
+    sky = lerp(sky, skyHorizonColor.rgb * 0.55, groundBlend);
+#else
     float3 sky = AtmosphereSkyRadiance(direction, dirToSun, skyParams, skyParams2, 16, 8);
+#endif
     sky += AtmosphereStars(direction, dirToSun, skyParams2.x);
 
     if (pbrParams.w > 0.5)

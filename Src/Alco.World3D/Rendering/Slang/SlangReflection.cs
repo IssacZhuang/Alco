@@ -29,8 +29,49 @@ internal static class SlangReflection
     /// <returns>The engine reflection info.</returns>
     public static unsafe ShaderReflectionInfo BuildReflectionInfo(IntPtr reflection)
     {
+        return BuildReflectionInfo(reflection, null, null);
+    }
+
+    /// <summary>
+    /// Build the engine reflection info with the extras Slang reflection cannot
+    /// provide for engine pipeline shaders: the compute thread group size and
+    /// the pixel format of storage images (both read from the compiled SPIR-V
+    /// by the caller - see <see cref="SlangSpirvFacts"/>).
+    /// </summary>
+    /// <param name="reflection">The Slang reflection (spGetReflection).</param>
+    /// <param name="threadGroupSize">The compute thread group size, or null for graphics shaders.</param>
+    /// <param name="storageFormatLookup">Resolves a storage-image variable name to its declared pixel format; required when the program declares storage images.</param>
+    /// <returns>The engine reflection info.</returns>
+    public static unsafe ShaderReflectionInfo BuildReflectionInfo(
+        IntPtr reflection,
+        ThreadGroupSize? threadGroupSize,
+        Func<string, PixelFormat?>? storageFormatLookup)
+    {
         List<(uint Space, BindGroupEntryInfo Entry)> entries = [];
         List<PushConstantsRange> pushConstants = [];
+
+        // Every binding conservatively gets the union of the program's entry
+        // stages as visibility (an over-approximation WebGPU accepts, matching
+        // how the engine merges per-stage DXC reflection). A compute-only
+        // program must not claim graphics visibility - the compute pipeline
+        // layout would then exclude the compute stage itself.
+        ShaderStage visibility = ShaderStage.None;
+        if (FindEntryPoint(reflection, SlangNative.SLANG_STAGE_VERTEX) != IntPtr.Zero)
+        {
+            visibility |= ShaderStage.Vertex;
+        }
+        if (FindEntryPoint(reflection, SlangNative.SLANG_STAGE_FRAGMENT) != IntPtr.Zero)
+        {
+            visibility |= ShaderStage.Fragment;
+        }
+        if (FindEntryPoint(reflection, SlangNative.SLANG_STAGE_COMPUTE) != IntPtr.Zero)
+        {
+            visibility |= ShaderStage.Compute;
+        }
+        if (visibility == ShaderStage.None)
+        {
+            visibility = ShaderStage.Vertex | ShaderStage.Fragment;
+        }
 
         uint parameterCount = SlangNative.spReflection_GetParameterCount(reflection);
         for (uint i = 0; i < parameterCount; i++)
@@ -68,7 +109,7 @@ internal static class SlangReflection
                 {
                     Entry = new BindGroupEntry(
                         SlangNative.spReflectionParameter_GetBindingIndex(parameter),
-                        ShaderStage.Vertex | ShaderStage.Fragment,
+                        visibility,
                         BindingType.UniformBuffer,
                         name: name),
                     Size = uniformSize,
@@ -82,7 +123,7 @@ internal static class SlangReflection
                 {
                     Entry = new BindGroupEntry(
                         SlangNative.spReflectionParameter_GetBindingIndex(parameter),
-                        ShaderStage.Vertex | ShaderStage.Fragment,
+                        visibility,
                         BindingType.Sampler,
                         name: name),
                 }));
@@ -92,7 +133,7 @@ internal static class SlangReflection
             if (kind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
                 kind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
             {
-                AddResourceEntry(parameter, typeLayout, kind, name, entries);
+                AddResourceEntry(parameter, typeLayout, kind, name, entries, storageFormatLookup, visibility);
                 continue;
             }
 
@@ -105,7 +146,61 @@ internal static class SlangReflection
         IReadOnlyList<VertexInputLayout> vertexLayouts = BuildVertexLayouts(reflection);
         int fragmentOutputCount = CountFragmentOutputs(reflection);
 
-        return new ShaderReflectionInfo(vertexLayouts, bindGroups, pushConstants, ThreadGroupSize.Default, fragmentOutputCount);
+        return new ShaderReflectionInfo(
+            vertexLayouts, bindGroups, pushConstants,
+            threadGroupSize ?? ThreadGroupSize.Default, fragmentOutputCount);
+    }
+
+    /// <summary>
+    /// Apply the engine's depth-texture source conventions to a built
+    /// reflection: textures declared with <c>DEFINE_TEX2D_DEPTH(_SAMPLE)</c>
+    /// become depth-sample textures and their companion samplers become
+    /// comparison samplers. Slang reflection has no notion of depth textures
+    /// (neither does DXC - the engine applies the same name-based marking after
+    /// its own compiles; the SPIR-V image rewrite itself is
+    /// <see cref="SlangDepthTexturePatcher"/>).
+    /// </summary>
+    /// <param name="info">The reflection to patch in place.</param>
+    /// <param name="depthTextureNames">Depth texture names from the source macros.</param>
+    /// <param name="comparisonSamplerNames">Comparison sampler names (depth texture name + "Sampler").</param>
+    public static void MarkDepthTextures(
+        ShaderReflectionInfo info,
+        IReadOnlyList<string> depthTextureNames,
+        IReadOnlyList<string> comparisonSamplerNames)
+    {
+        foreach (BindGroupLayout layout in info.BindGroups)
+        {
+            if (layout.Bindings is not BindGroupEntryInfo[] bindings)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < bindings.Length; i++)
+            {
+                ref BindGroupEntryInfo infoEntry = ref bindings[i];
+                if (infoEntry.Entry.Type == BindingType.Texture &&
+                    depthTextureNames.Contains(infoEntry.Entry.Name))
+                {
+                    infoEntry.Entry = new BindGroupEntry(
+                        infoEntry.Entry.Binding,
+                        infoEntry.Entry.Stage,
+                        BindingType.Texture,
+                        new TextureBindingInfo(
+                            infoEntry.Entry.TextureInfo.ViewDimension,
+                            TextureSampleType.Depth),
+                        name: infoEntry.Entry.Name);
+                }
+                else if (infoEntry.Entry.Type == BindingType.Sampler &&
+                    comparisonSamplerNames.Contains(infoEntry.Entry.Name))
+                {
+                    infoEntry.Entry = new BindGroupEntry(
+                        infoEntry.Entry.Binding,
+                        infoEntry.Entry.Stage,
+                        BindingType.SamplerComparison,
+                        name: infoEntry.Entry.Name);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -163,7 +258,9 @@ internal static class SlangReflection
         IntPtr typeLayout,
         int kind,
         string name,
-        List<(uint Space, BindGroupEntryInfo Entry)> entries)
+        List<(uint Space, BindGroupEntryInfo Entry)> entries,
+        Func<string, PixelFormat?>? storageFormatLookup,
+        ShaderStage visibility)
     {
         IntPtr type = SlangNative.spReflectionTypeLayout_GetType(typeLayout);
         int shape = kind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER
@@ -177,19 +274,17 @@ internal static class SlangReflection
         {
             entries.Add((space, new BindGroupEntryInfo
             {
-                Entry = new BindGroupEntry(binding, ShaderStage.Vertex | ShaderStage.Fragment, BindingType.StorageBuffer, name: name),
+                Entry = new BindGroupEntry(binding, visibility, BindingType.StorageBuffer, name: name),
             }));
             return;
         }
 
         int baseShape = shape & 0x0F;
         bool isArray = (shape & SlangNative.SLANG_TEXTURE_ARRAY_FLAG) != 0;
-        if (isArray || access == SlangNative.SLANG_RESOURCE_ACCESS_READ_WRITE ||
-            access == SlangNative.SLANG_RESOURCE_ACCESS_WRITE)
+        if (isArray)
         {
             throw new NotSupportedException(
-                $"Slang parameter '{name}' is an array or storage resource; the material bridge only "
-                + "handles sampled textures and (RW)StructuredBuffers.");
+                $"Slang parameter '{name}' is a texture array; the reflection bridge does not handle arrays.");
         }
 
         TextureViewDimension dimension = baseShape switch
@@ -200,11 +295,31 @@ internal static class SlangReflection
             SlangNative.SLANG_TEXTURE_CUBE => TextureViewDimension.Cube,
             _ => throw new NotSupportedException($"Slang parameter '{name}' has unsupported resource shape {baseShape}."),
         };
+
+        if (access == SlangNative.SLANG_RESOURCE_ACCESS_READ_WRITE ||
+            access == SlangNative.SLANG_RESOURCE_ACCESS_WRITE)
+        {
+            PixelFormat? format = storageFormatLookup?.Invoke(name)
+                ?? throw new NotSupportedException(
+                    $"Slang storage image '{name}' has no declared image format in the compiled SPIR-V; "
+                    + "the engine's DEFINE_TEX*_STORAGE macros declare one via [[vk::image_format]].");
+            entries.Add((space, new BindGroupEntryInfo
+            {
+                Entry = new BindGroupEntry(
+                    binding,
+                    visibility,
+                    BindingType.StorageTexture,
+                    storageTextureInfo: new StorageTextureBindingInfo(AccessMode.ReadWrite, dimension, format.Value),
+                    name: name),
+            }));
+            return;
+        }
+
         entries.Add((space, new BindGroupEntryInfo
         {
             Entry = new BindGroupEntry(
                 binding,
-                ShaderStage.Vertex | ShaderStage.Fragment,
+                visibility,
                 BindingType.Texture,
                 new TextureBindingInfo(dimension, TextureSampleType.Float),
                 name: name),
@@ -237,7 +352,10 @@ internal static class SlangReflection
             }
             List<BindGroupEntryInfo> group = groups[spaces[i]];
             group.Sort((a, b) => a.Entry.Binding.CompareTo(b.Entry.Binding));
-            bindGroups.Add(new BindGroupLayout { Group = (uint)i, Bindings = group });
+            // Bindings must be an array: post-processing (depth-texture and
+            // comparison-sampler marking) mutates entries in place through the
+            // array pattern match, mirroring the engine's DXC reflection.
+            bindGroups.Add(new BindGroupLayout { Group = (uint)i, Bindings = group.ToArray() });
         }
         return bindGroups;
     }

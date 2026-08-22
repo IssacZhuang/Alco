@@ -24,12 +24,30 @@
 // before token pasting.
 #define ALCO_PASTE_(a, b) a##b
 #define ALCO_PASTE(a, b) ALCO_PASTE_(a, b)
-#define ALCO_SET(set) register(ALCO_PASTE(space, set))
 
 // Resource declaration macros. `index` is the bind group (set) index; bindings
 // inside a set are assigned automatically by the compiler in declaration order,
 // so multiple resources can share one set simply by being declared one after
 // another. The engine resolves resources by name, never by binding number.
+//
+// Slang rejects set-only register annotations (a register name is required), so
+// under the Slang front end the DEFINE_ macros temporarily drop the annotation.
+// The Slang pipeline compiler restores the source-declared sets and sequential
+// per-set bindings in SPIR-V and reflection after compilation. DXC never defines
+// __SLANG__, so its path compiles exactly as before.
+#ifdef __SLANG__
+#define DEFINE_UNIFORM(index, name) cbuffer name
+#define DEFINE_STORAGE(index, type, name) RWStructuredBuffer<type> name
+#define DEFINE_TEX2D_SAMPLE(index, name) Texture2D name; SamplerState name##Sampler
+#define DEFINE_TEX2D_READ(index, name) Texture2D name
+#define DEFINE_TEX2D_STORAGE(index, name, type, format) IMAGE_FORMAT(format) RWTexture2D<type> name
+#define DEFINE_TEX3D_SAMPLE(index, name) Texture3D name; SamplerState name##Sampler
+#define DEFINE_TEX3D_READ(index, name) Texture3D name
+#define DEFINE_TEX3D_STORAGE(index, name, type, format) IMAGE_FORMAT(format) RWTexture3D<type> name
+#define DEFINE_TEX2D_DEPTH(index, name) Texture2D<float> name
+#define DEFINE_TEX2D_DEPTH_SAMPLE(index, name) Texture2D<float> name; SamplerComparisonState name##Sampler
+#else
+#define ALCO_SET(set) register(ALCO_PASTE(space, set))
 #define DEFINE_UNIFORM(index, name) cbuffer name : ALCO_SET(index)
 #define DEFINE_STORAGE(index, type, name) RWStructuredBuffer<type> name : ALCO_SET(index)
 #define DEFINE_TEX2D_SAMPLE(index, name) Texture2D name : ALCO_SET(index); SamplerState name##Sampler : ALCO_SET(index)
@@ -38,14 +56,15 @@
 #define DEFINE_TEX3D_SAMPLE(index, name) Texture3D name : ALCO_SET(index); SamplerState name##Sampler : ALCO_SET(index)
 #define DEFINE_TEX3D_READ(index, name) Texture3D name : ALCO_SET(index)
 #define DEFINE_TEX3D_STORAGE(index, name, type, format) IMAGE_FORMAT(format) RWTexture3D<type> name : ALCO_SET(index)
-
-// Depth textures. DXC cannot mark a texture as a depth image in SPIR-V, so textures
-// declared with these macros are rewritten to depth images after compilation
-// (see SpirvDepthTexturePatcher) and must be bound via SetRenderTextureDepth.
-// DEFINE_TEX2D_DEPTH: Load-only depth texture (raw depth reads).
-// DEFINE_TEX2D_DEPTH_SAMPLE: depth texture + comparison sampler pair (shadow map PCF).
 #define DEFINE_TEX2D_DEPTH(index, name) Texture2D<float> name : ALCO_SET(index)
 #define DEFINE_TEX2D_DEPTH_SAMPLE(index, name) Texture2D<float> name : ALCO_SET(index); SamplerComparisonState name##Sampler : ALCO_SET(index)
+#endif
+
+// Depth textures. Neither front end emits the exact depth-image type required
+// by wgpu for these HLSL declarations, so the compiler path patches their
+// SPIR-V image types before creating the shader module.
+// DEFINE_TEX2D_DEPTH: Load-only depth texture (raw depth reads).
+// DEFINE_TEX2D_DEPTH_SAMPLE: depth texture + comparison sampler pair (shadow map PCF).
 
 // Triangular-PDF dither based on interleaved gradient noise (Jimenez 2014), scaled to
 // +/-1 code of an 8-bit UNORM target. Add it to the final LDR color before the output

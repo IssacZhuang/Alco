@@ -191,6 +191,10 @@ public class Game : GameEngine
     private GraphicsMaterial? _proceduralRsmMaterial;
     // The Slang material compiler serving the pulse surface (see the procedural scene).
     private MaterialCompiler? _materialCompiler;
+    // Every World3D pipeline shader of this sandbox is compiled through the
+    // Slang front end instead of the engine's DXC toolchain (engine built-ins
+    // such as BuiltInAssets.Shader_Blit stay on the engine path).
+    private SlangPipelineShaderFactory? _slangShaders;
     private GraphicsMaterial[]? _modelMaterials;
     private GraphicsMaterial[]? _modelShadowMaterials;
     private GraphicsMaterial[]? _modelRsmMaterials;
@@ -429,25 +433,30 @@ public class Game : GameEngine
             _cameraNear, 4096f);
         _camera.ReverseInfiniteDepth = true;
 
+        // Every World3D pipeline shader below is compiled through the Slang
+        // front end (same HLSL sources, Slang reflection); the engine's DXC
+        // path still serves engine built-ins (Shader_Blit).
+        _slangShaders = new SlangPipelineShaderFactory(RenderingSystem, AssetSystem);
+
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_DeferredLighting),
+            _slangShaders.Load(World3DAssetPaths.Shader_DeferredLighting),
             BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            volumetricLightShader: AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricLight));
+            volumetricLightShader: _slangShaders.Load(World3DAssetPaths.Shader_VolumetricLight));
         _environment = _preset.Environment;
         _environment.VolumetricLightEnabled = true;
 
         _gbufferRenderer = new GBufferRenderer(
             RenderingSystem,
-            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_GBuffer));
+            _slangShaders.Load(World3DAssetPaths.Shader_GBuffer));
 
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
-            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_ShadowDepth),
+            _slangShaders.Load(World3DAssetPaths.Shader_ShadowDepth),
             _preset.ShadowLayout,
             _environment.ShadowDataBuffer);
 
@@ -464,7 +473,7 @@ public class Game : GameEngine
                     new DepthAttachment(PixelFormat.Depth32Float),
                     "pbr_rsm_pass"));
             _shadowRenderer.EnableRsm(
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/Rsm.hlsl"), _rsmLayout);
+                _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/Rsm.hlsl"), _rsmLayout);
         }
 
         // Materials created by the renderer bind this camera; the sandbox
@@ -491,8 +500,8 @@ public class Game : GameEngine
         {
             _hbaoRenderer = new RGNode_HBAO(
                 RenderingSystem,
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
-                AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"));
+                _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/HBAO.hlsl"),
+                _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl"));
             _hbaoRenderer.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
         }
 
@@ -501,7 +510,7 @@ public class Game : GameEngine
             RenderingSystem,
             _preset.Graph,
             _preset.PostChain,
-            AssetSystem.Load<Shader>("Shaders/Pipelines/Rendering/PBR/ForwardGlass.hlsl"),
+            _slangShaders.Load("Shaders/Pipelines/Rendering/PBR/ForwardGlass.hlsl"),
             _environment.LightingDataBuffer,
             _environment.PointLightBuffer,
             _preset.ShadowMap);
@@ -522,10 +531,10 @@ public class Game : GameEngine
             string shaderDir = "Shaders/Pipelines/Rendering/PBR/";
             _clouds = new RGNode_VolumetricClouds(
                 RenderingSystem,
-                AssetSystem.Load<Shader>(shaderDir + "VolumetricClouds.hlsl"),
-                AssetSystem.Load<Shader>(shaderDir + "VolumetricCloudsComposite.hlsl"),
-                AssetSystem.Load<Shader>(shaderDir + "VolumetricCloudNoise.hlsl"),
-                AssetSystem.Load<Shader>(shaderDir + "VolumetricCloudShadow.hlsl"))
+                _slangShaders.Load(shaderDir + "VolumetricClouds.hlsl"),
+                _slangShaders.Load(shaderDir + "VolumetricCloudsComposite.hlsl"),
+                _slangShaders.Load(shaderDir + "VolumetricCloudNoise.hlsl"),
+                _slangShaders.Load(shaderDir + "VolumetricCloudShadow.hlsl"))
             {
                 MarchResolutionScale = cloudResolutionScale,
             };
@@ -729,16 +738,16 @@ public class Game : GameEngine
                 RenderingSystem,
                 new VoxelGiShaders
                 {
-                    Clear = AssetSystem.Load<Shader>(shaderDir + "VoxelClear.hlsl"),
-                    Voxelize = AssetSystem.Load<Shader>(shaderDir + "Voxelize.hlsl"),
-                    Inject = AssetSystem.Load<Shader>(shaderDir + "VoxelInject.hlsl"),
-                    Mip = AssetSystem.Load<Shader>(shaderDir + "VoxelMip.hlsl"),
-                    MipChain = AssetSystem.Load<Shader>(shaderDir + "VoxelMipChain.hlsl"),
-                    Propagate = AssetSystem.Load<Shader>(shaderDir + "VoxelPropagate.hlsl"),
-                    Trace = AssetSystem.Load<Shader>(shaderDir + "VoxelTrace.hlsl"),
-                    Demosaic = AssetSystem.Load<Shader>(shaderDir + "VoxelDemosaic.hlsl"),
-                    BlueNoise = AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
-                    Upsample = AssetSystem.Load<Shader>(shaderDir + "VoxelGiUpsample.hlsl"),
+                    Clear = _slangShaders.Load(shaderDir + "VoxelClear.hlsl"),
+                    Voxelize = _slangShaders.Load(shaderDir + "Voxelize.hlsl"),
+                    Inject = _slangShaders.Load(shaderDir + "VoxelInject.hlsl"),
+                    Mip = _slangShaders.Load(shaderDir + "VoxelMip.hlsl"),
+                    MipChain = _slangShaders.Load(shaderDir + "VoxelMipChain.hlsl"),
+                    Propagate = _slangShaders.Load(shaderDir + "VoxelPropagate.hlsl"),
+                    Trace = _slangShaders.Load(shaderDir + "VoxelTrace.hlsl"),
+                    Demosaic = _slangShaders.Load(shaderDir + "VoxelDemosaic.hlsl"),
+                    BlueNoise = _slangShaders.Load(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
+                    Upsample = _slangShaders.Load(shaderDir + "VoxelGiUpsample.hlsl"),
                 },
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
@@ -780,11 +789,11 @@ public class Game : GameEngine
                 _voxelGI,
                 _camera,
                 _environment,
-                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionTrace.hlsl"),
-                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionResolve.hlsl"),
-                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionComposite.hlsl"),
+                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionTrace.hlsl"),
+                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionResolve.hlsl"),
+                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionComposite.hlsl"),
                 BuiltInAssets.Shader_Blit,
-                AssetSystem.Load<Shader>(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
+                _slangShaders.Load(shaderDir + "ScreenSpaceReflectionBlueNoise.hlsl"),
                 (uint)MainView.Size.X,
                 (uint)MainView.Size.Y,
                 traceResolutionScale: GiTraceResolutionScales[_ssrResolutionPreset]);
@@ -944,6 +953,7 @@ public class Game : GameEngine
         _gbufferRenderer.Dispose();
         _shadowRenderer.Dispose();
         _preset.Dispose();
+        _slangShaders?.Dispose();
     }
 
     /// <summary>

@@ -237,35 +237,37 @@ void MainCS(
     }
 
     // Diffuse and ALD share the 16x16 footprint.
-    for (uint tileIndex = groupIndex;
-        tileIndex < DEMOSAIC_DIFFUSE_TILE_COUNT;
-        tileIndex += DEMOSAIC_GROUP_THREAD_COUNT)
+    // (separate loop-variable names: slang scopes for-init declarations to the
+    // function, so redeclaring tileIndex here would be ambiguous)
+    for (uint diffuseTileIndex = groupIndex;
+        diffuseTileIndex < DEMOSAIC_DIFFUSE_TILE_COUNT;
+        diffuseTileIndex += DEMOSAIC_GROUP_THREAD_COUNT)
     {
         uint2 tileCoord = uint2(
-            tileIndex % DEMOSAIC_DIFFUSE_TILE_SIZE,
-            tileIndex / DEMOSAIC_DIFFUSE_TILE_SIZE);
+            diffuseTileIndex % DEMOSAIC_DIFFUSE_TILE_SIZE,
+            diffuseTileIndex / DEMOSAIC_DIFFUSE_TILE_SIZE);
         int2 sampleTracePixel = clamp(
             groupOrigin + int2(tileCoord) - int(DEMOSAIC_DIFFUSE_RADIUS),
             int2(0, 0),
             traceMax);
-        gsDiffuse[tileIndex] = _traceInput.Load(int3(sampleTracePixel, 0));
-        gsAld[tileIndex] = _traceInput.Load(
+        gsDiffuse[diffuseTileIndex] = _traceInput.Load(int3(sampleTracePixel, 0));
+        gsAld[diffuseTileIndex] = _traceInput.Load(
             int3(sampleTracePixel + int2(halfWidth * 2, 0), 0));
     }
 
     // Specular only needs the tighter 10x10 footprint.
-    for (uint tileIndex = groupIndex;
-        tileIndex < DEMOSAIC_SPECULAR_TILE_COUNT;
-        tileIndex += DEMOSAIC_GROUP_THREAD_COUNT)
+    for (uint specularTileIndex = groupIndex;
+        specularTileIndex < DEMOSAIC_SPECULAR_TILE_COUNT;
+        specularTileIndex += DEMOSAIC_GROUP_THREAD_COUNT)
     {
         uint2 tileCoord = uint2(
-            tileIndex % DEMOSAIC_SPECULAR_TILE_SIZE,
-            tileIndex / DEMOSAIC_SPECULAR_TILE_SIZE);
+            specularTileIndex % DEMOSAIC_SPECULAR_TILE_SIZE,
+            specularTileIndex / DEMOSAIC_SPECULAR_TILE_SIZE);
         int2 sampleTracePixel = clamp(
             groupOrigin + int2(tileCoord) - int(DEMOSAIC_SPECULAR_RADIUS),
             int2(0, 0),
             traceMax);
-        gsSpecular[tileIndex] = _traceInput.Load(
+        gsSpecular[specularTileIndex] = _traceInput.Load(
             int3(sampleTracePixel + int2(halfWidth, 0), 0));
     }
     GroupMemoryBarrierWithGroupSync();

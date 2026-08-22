@@ -179,8 +179,10 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
             RebuildBatch(_dynamicBatch, _dynamicItems, "pbr_gbuffer_dynamic_instances");
             if (!_dynamicBatch.Segments.IsEmpty)
             {
-                using RenderPassScope bundle = _dynamicBundle.BeginPass(layout);
-                RecordBatch(bundle, _dynamicBatch);
+                using (RenderPassScope bundle = _dynamicBundle.BeginPass(layout))
+                {
+                    RecordBatch(bundle, _dynamicBatch);
+                }
                 context.ExecuteSubContext(_dynamicBundle);
             }
         }
