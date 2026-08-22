@@ -47,6 +47,8 @@ public class Game : GameEngine
         public float SpinSpeed;
         public float FloatSpeed;
         public float FloatPhase;
+        /// <summary>Whether this object uses the Slang pulse material instead of the checker material.</summary>
+        public bool UsePulseSurface;
 
         /// <summary>The shared voxel mesh-material handle.</summary>
         public int VoxelMeshHandle = -1;
@@ -187,6 +189,8 @@ public class Game : GameEngine
     private GraphicsMaterial? _proceduralMaterial;
     private GraphicsMaterial? _proceduralShadowMaterial;
     private GraphicsMaterial? _proceduralRsmMaterial;
+    // The Slang material compiler serving the pulse surface (see the procedural scene).
+    private MaterialCompiler? _materialCompiler;
     private GraphicsMaterial[]? _modelMaterials;
     private GraphicsMaterial[]? _modelShadowMaterials;
     private GraphicsMaterial[]? _modelRsmMaterials;
@@ -599,6 +603,70 @@ public class Game : GameEngine
             {
                 IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
                 IReadOnlyList<ModelMaterial> materials = _modelScene.Materials;
+
+                // One Slang-material showcase object: the draw item with the largest
+                // on-screen footprint at the initial camera (the model-load framing
+                // set in the constructor: orbit position looking at the scene center),
+                // so the pulse is guaranteed visible in screenshots.
+                var (pulseGBuffer, pulseShadow, pulseRsm) = CreatePulseMaterials();
+                Vector3 initialCamera = _sceneCenter + Direction(0.12f, 0.6f) * (_sceneRadius * 0.6f);
+                Vector3 initialView = Vector3.Normalize(_sceneCenter - initialCamera);
+                int pulseItemIndex = -1;
+                float pulseItemAngularSize = 0.0f;
+                for (int i = 0; i < drawItems.Count; i++)
+                {
+                    ModelDrawItem candidate = drawItems[i];
+                    if (IsGlassMaterial(materials[candidate.MaterialIndex]))
+                    {
+                        continue;
+                    }
+                    Vector3 worldCenter = Vector3.Transform((candidate.LocalBoundsMin + candidate.LocalBoundsMax) * 0.5f, candidate.World);
+                    // World-space bounds from the 8 corners (the world matrix scales
+                    // the mesh-local centimeter bounds).
+                    Vector3 worldMin = new(float.MaxValue);
+                    Vector3 worldMax = new(float.MinValue);
+                    for (int corner = 0; corner < 8; corner++)
+                    {
+                        Vector3 local = new(
+                            (corner & 1) == 0 ? candidate.LocalBoundsMin.X : candidate.LocalBoundsMax.X,
+                            (corner & 2) == 0 ? candidate.LocalBoundsMin.Y : candidate.LocalBoundsMax.Y,
+                            (corner & 4) == 0 ? candidate.LocalBoundsMin.Z : candidate.LocalBoundsMax.Z);
+                        Vector3 worldCorner = Vector3.Transform(local, candidate.World);
+                        worldMin = Vector3.Min(worldMin, worldCorner);
+                        worldMax = Vector3.Max(worldMax, worldCorner);
+                    }
+                    Vector3 worldExtent = worldMax - worldMin;
+                    float boundsRadius = (worldExtent * 0.5f).Length();
+                    // Skip flat ground/roof sheets: real buildings have height
+                    // (Z is up) comparable to their horizontal spread.
+                    if (worldExtent.Z < MathF.Max(worldExtent.X, worldExtent.Y) * 0.15f)
+                    {
+                        continue;
+                    }
+                    Vector3 toObject = worldCenter - initialCamera;
+                    float distance = toObject.Length();
+                    if (distance < 0.001f)
+                    {
+                        continue;
+                    }
+                    float angularRadius = MathF.Atan2(boundsRadius, distance);
+                    float offAxis = MathF.Acos(Math.Clamp(Vector3.Dot(toObject / distance, initialView), -1.0f, 1.0f));
+                    // Skip scene-spanning ground sheets and enclosures (bounds rival
+                    // the scene radius, the camera sits inside them) and tiny props;
+                    // the bounds must reach into the central view region.
+                    if (boundsRadius > _sceneRadius * 0.5f || angularRadius > 0.6f || angularRadius < 0.05f ||
+                        offAxis - angularRadius * 0.5f > 0.45f)
+                    {
+                        continue;
+                    }
+                    if (angularRadius > pulseItemAngularSize)
+                    {
+                        pulseItemAngularSize = angularRadius;
+                        pulseItemIndex = i;
+                    }
+                }
+                Console.WriteLine($"[slang] pulse surface on draw item {pulseItemIndex} (angular size {pulseItemAngularSize:F2})");
+
                 for (int i = 0; i < drawItems.Count; i++)
                 {
                     ModelDrawItem item = drawItems[i];
@@ -611,13 +679,16 @@ public class Game : GameEngine
                     }
                     else
                     {
+                        bool pulse = i == pulseItemIndex;
                         // The emissive boost is resolved at bundle record time so
                         // the Point Lights toggle / Emissive Boost slider take
                         // effect on the next re-record (MarkStaticBundleDirty).
-                        _gbufferRenderer.Add(new ModelRenderable(item, material, _modelMaterials![item.MaterialIndex],
+                        _gbufferRenderer.Add(new ModelRenderable(item, material,
+                            pulse ? pulseGBuffer! : _modelMaterials![item.MaterialIndex],
                             () => material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
-                        _shadowRenderer.Add(new ModelShadowRenderable(item, material, _modelShadowMaterials![item.MaterialIndex],
-                            _modelRsmMaterials?[item.MaterialIndex]));
+                        _shadowRenderer.Add(new ModelShadowRenderable(item, material,
+                            pulse ? pulseShadow! : _modelShadowMaterials![item.MaterialIndex],
+                            pulse ? pulseRsm : _modelRsmMaterials?[item.MaterialIndex]));
                     }
                 }
             }
@@ -635,12 +706,15 @@ public class Game : GameEngine
             _proceduralRsmMaterial = _rsmLayout != null
                 ? _shadowRenderer.CreateRsmMaterial(_checkerTexture, name: "checker_rsm")
                 : null;
+            var (pulseGBuffer, pulseShadow, pulseRsm) = CreatePulseMaterials();
+
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
             {
-                obj.GBufferMaterial = _proceduralMaterial;
-                obj.ShadowMaterial = _proceduralShadowMaterial;
-                obj.RsmMaterial = _proceduralRsmMaterial;
+                bool pulse = obj.UsePulseSurface;
+                obj.GBufferMaterial = pulse ? pulseGBuffer : _proceduralMaterial;
+                obj.ShadowMaterial = pulse ? pulseShadow : _proceduralShadowMaterial;
+                obj.RsmMaterial = pulse ? pulseRsm : _proceduralRsmMaterial;
                 _gbufferRenderer.Add(obj);
                 _shadowRenderer.Add(obj);
             }
@@ -866,6 +940,7 @@ public class Game : GameEngine
         AssetSystem.OnHotReload -= OnShaderHotReload;
         // Pass content providers are not owned by the graph (see the Content
         // ownership note on RGNode_GeometryPass/RGNode_ShadowPass): dispose them here.
+        _materialCompiler?.Dispose();
         _gbufferRenderer.Dispose();
         _shadowRenderer.Dispose();
         _preset.Dispose();
@@ -2102,6 +2177,46 @@ public class Game : GameEngine
         return _textBuilder.ToString();
     }
 
+    /// <summary>
+    /// Compile the Slang demo material through the <see cref="MaterialCompiler"/>:
+    /// a pulse-emissive surface (ShadersSlang/Materials/pulse_emissive.slang) with a
+    /// mixed-type <c>_materialParams</c> block (scalar + float3 members mapped by
+    /// Slang reflection). Exercises the whole bridge — generated wrapper with
+    /// interface-checked generic instantiation, Slang-compiled SPIR-V and the
+    /// reflection-built engine layout. AlphaMode.Mask additionally compiles the
+    /// SHADOW_CUTOUT permutation of the shadow template (define-mangled surface
+    /// module import). The compiler owns the returned materials.
+    /// </summary>
+    /// <returns>The G-buffer, shadow and RSM materials of the pulse surface.</returns>
+    private (GraphicsMaterial? GBuffer, GraphicsMaterial? Shadow, GraphicsMaterial? Rsm) CreatePulseMaterials()
+    {
+        _materialCompiler = new MaterialCompiler(RenderingSystem, AssetSystem);
+        _materialCompiler.RegisterPass(new GBufferMaterialPass(_gbufferRenderer));
+        _materialCompiler.RegisterPass(new ShadowMaterialPass(_shadowRenderer));
+        if (_rsmLayout != null)
+        {
+            _materialCompiler.RegisterPass(new RsmMaterialPass(_shadowRenderer));
+        }
+        MaterialAsset pulseAsset = new()
+        {
+            Name = "pulse",
+            SurfaceShader = "ShadersSlang/Materials/pulse_emissive.slang",
+            AlphaMode = MeshAlphaMode.Mask,
+            Parameters = new Dictionary<string, float[]>
+            {
+                ["pulseSpeed"] = [0.1f],
+                ["pulseIntensity"] = [4.0f],
+                ["pulseColor"] = [0.15f, 0.85f, 1.0f],
+                ["bandFrequency"] = [3.0f],
+            },
+        };
+        GraphicsMaterial? gbuffer = _materialCompiler.TryGet(pulseAsset, "gbuffer");
+        GraphicsMaterial? shadow = _materialCompiler.TryGet(pulseAsset, "shadow");
+        GraphicsMaterial? rsm = _materialCompiler.TryGet(pulseAsset, "rsm");
+        Console.WriteLine($"[slang] pulse materials: gbuffer={gbuffer != null}, shadow={shadow != null}, rsm={rsm != null}");
+        return (gbuffer, shadow, rsm);
+    }
+
     private void BuildScene()
     {
         // Ground.
@@ -2193,7 +2308,10 @@ public class Game : GameEngine
             BaseColor = new Vector3(0.25f, 0.3f, 0.35f),
             Metallic = 0.85f,
             Roughness = 0.45f,
-            CastsShadow = false,
+            // The center sphere evaluates the Slang pulse surface: a sinusoidal
+            // emissive pulse with world-space traveling bands, driven by the
+            // mixed-type _materialParams block (scalar + float3 members).
+            UsePulseSurface = true,
         });
     }
 

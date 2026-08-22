@@ -23,6 +23,10 @@ public sealed class Shader : AutoDisposable
     private readonly IReadOnlyList<VertexInputLayout>? _customVertexLayouts;
     private readonly IReadOnlyList<BindGroupLayout>? _customBindGroups;
 
+    // Non-null when the shader's modules are produced by an external compiler
+    // (e.g. World3D's Slang path) instead of the engine's HLSL text pipeline.
+    private readonly Func<string[], ShaderModulesInfo>? _compileModulesProvider;
+
     private string _shaderText;
     //for hot reload
     private uint _version = 0;
@@ -55,6 +59,27 @@ public sealed class Shader : AutoDisposable
 
         _customVertexLayouts = customVertexLayouts;
         _customBindGroups = customBindGroups;
+    }
+
+    /// <summary>
+    /// Create a new shader whose modules are compiled by an external compiler:
+    /// the provider is called once per defines permutation (on demand) and
+    /// returns fully built modules with reflection. The engine's HLSL text
+    /// pipeline (DXC + SPIR-V reflection) is bypassed entirely for this shader.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system</param>
+    /// <param name="name">The name of the shader</param>
+    /// <param name="compileModules">Produces the compiled modules for one set of defines.</param>
+    internal Shader(RenderingSystem renderingSystem, string name, Func<string[], ShaderModulesInfo> compileModules)
+    {
+        _renderingSystem = renderingSystem;
+        _shaderText = string.Empty;
+        Name = name;
+        _compileModulesProvider = compileModules;
+
+        //default permutation
+        ShaderModulesInfo modulesInfo = GetShaderModules(ReadOnlySpan<string>.Empty);
+        IsComputeShader = modulesInfo.IsComputeShader;
     }
 
     /// <summary>
@@ -225,7 +250,16 @@ public sealed class Shader : AutoDisposable
             {
                 return modulesInfo2;
             }
-            
+
+            if (_compileModulesProvider != null)
+            {
+                // Externally compiled shader: no disk cache (the provider owns
+                // its own caching) and no HLSL compilation.
+                modulesInfo = _compileModulesProvider(defines.ToArray());
+                _modulesCache[hash] = modulesInfo;
+                return modulesInfo;
+            }
+
             IShaderCache? shaderCache = _renderingSystem.ShaderCache;
             if (shaderCache != null)
             {
@@ -449,6 +483,12 @@ public sealed class Shader : AutoDisposable
     /// <param name="shaderText">The new shader text</param>
     public void UnsafeHotReload(string shaderText)
     {
+        if (_compileModulesProvider != null)
+        {
+            // Externally compiled shaders hot-reload through their owner
+            // (e.g. MaterialCompiler.Invalidate), not through raw text.
+            throw new InvalidOperationException($"Shader '{Name}' is compiled by an external provider and cannot be text hot-reloaded.");
+        }
         //it might throw exception if the shader code is not valid
         ShaderModulesInfo shaderModule = ShaderUtility.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty, _renderingSystem.GraphicsDevice.MaxBindGroups);
         
