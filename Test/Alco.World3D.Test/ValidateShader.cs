@@ -7,15 +7,14 @@ namespace Alco.World3D.Test;
 
 /// <summary>
 /// Compiles every shader shipped with the Alco.World3D module (all define
-/// combinations) through real DXC, mirroring the engine's own
-/// <c>ValidateShader</c> test. The module's shaders and their engine-side
+/// combinations) through the same compiler path used at runtime. The module's shaders and their engine-side
 /// include libraries both flow into the test output's <c>Assets</c> folder,
 /// so the default engine asset source serves them.
 /// </summary>
 public class ValidateShader
 {
     // Uses the plain NoGPU setting (shader cache disabled): this test must exercise
-    // real DXC compilation, so a cached hit would defeat its purpose.
+    // real shader compilation, so a cached hit would defeat its purpose.
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine

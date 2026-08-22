@@ -1,5 +1,6 @@
 using System.Text;
 using Alco.Graphics;
+using Alco.Graphics.Spirv;
 
 namespace Alco.ShaderCompiler;
 
@@ -67,7 +68,14 @@ public static class ShaderCompilerDxc
             // DXC declares every texture with the OpTypeImage Depth operand set to
             // "unknown" (2), which wgpu cannot bind a real depth texture to. Rewrite
             // the depth textures to Depth = 1 so naga validates them as depth images.
-            return SpirvDepthTexturePatcher.MarkDepthTextures(result.objectBytes, depthTextures);
+            try
+            {
+                return SpirvDepthTexturePatcher.MarkDepthTexturesByName(result.objectBytes, depthTextures);
+            }
+            catch (ShaderReflectionException ex)
+            {
+                throw new ShaderCompilationException(ex.Message);
+            }
         }
 
         return result.objectBytes;

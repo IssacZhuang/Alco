@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Alco.Graphics;
+using Alco.Graphics.Spirv;
 using Alco.Rendering;
 
 namespace Alco.World3D;
@@ -304,8 +305,16 @@ internal sealed class SlangShaderCompiler : IDisposable
                 {
                     for (int i = 0; i < modules.Length; i++)
                     {
-                        modules[i] = SlangDepthTexturePatcher.MarkDepthTextures(
-                            modules[i], depthTextureBindings);
+                        try
+                        {
+                            modules[i] = SpirvDepthTexturePatcher.MarkDepthTexturesByBinding(
+                                modules[i], depthTextureBindings);
+                        }
+                        catch (ShaderReflectionException ex)
+                        {
+                            throw new ShaderValidationException(
+                                $"Slang produced invalid depth-texture SPIR-V: {ex.Message}");
+                        }
                     }
                     vertexSpirv = modules[0];
                     fragmentSpirv = modules.Length > 1 ? modules[1] : [];

@@ -75,7 +75,6 @@ public sealed class SlangPipelineShaderFactory : IDisposable
             defines => _compiler.CompileEngineShader(
                 assetPath, source, defines, ResolveInclude));
         _shaders[assetPath] = shader;
-        Console.WriteLine($"[slang-pipeline] {assetPath}");
         return true;
     }
 

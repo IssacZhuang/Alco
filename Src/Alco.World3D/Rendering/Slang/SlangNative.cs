@@ -26,16 +26,12 @@ internal static class SlangNative
     public const int SLANG_SOURCE_LANGUAGE_SLANG = 1;
 
     // ── SlangStage ──
-    public const int SLANG_STAGE_NONE = 0;
     public const int SLANG_STAGE_VERTEX = 1;
     public const int SLANG_STAGE_FRAGMENT = 5;
     public const int SLANG_STAGE_COMPUTE = 6;
 
     // ── SlangTypeKind ──
-    public const int SLANG_TYPE_KIND_NONE = 0;
     public const int SLANG_TYPE_KIND_STRUCT = 1;
-    public const int SLANG_TYPE_KIND_ARRAY = 2;
-    public const int SLANG_TYPE_KIND_MATRIX = 3;
     public const int SLANG_TYPE_KIND_VECTOR = 4;
     public const int SLANG_TYPE_KIND_SCALAR = 5;
     public const int SLANG_TYPE_KIND_CONSTANT_BUFFER = 6;
@@ -44,12 +40,9 @@ internal static class SlangNative
     public const int SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER = 10;
 
     // ── SlangParameterCategory ──
-    public const int SLANG_PARAMETER_CATEGORY_CONSTANT_BUFFER = 2;
     public const int SLANG_PARAMETER_CATEGORY_VARYING_INPUT = 5;
     public const int SLANG_PARAMETER_CATEGORY_VARYING_OUTPUT = 6;
-    public const int SLANG_PARAMETER_CATEGORY_SAMPLER_STATE = 7;
     public const int SLANG_PARAMETER_CATEGORY_UNIFORM = 8;
-    public const int SLANG_PARAMETER_CATEGORY_DESCRIPTOR_TABLE_SLOT = 9;
     public const int SLANG_PARAMETER_CATEGORY_PUSH_CONSTANT_BUFFER = 11;
 
     // ── SlangResourceShape (base shapes; array flag 0x40) ──
@@ -61,16 +54,10 @@ internal static class SlangNative
     public const int SLANG_TEXTURE_ARRAY_FLAG = 0x40;
 
     // ── SlangResourceAccess ──
-    public const int SLANG_RESOURCE_ACCESS_NONE = 0;
-    public const int SLANG_RESOURCE_ACCESS_READ = 1;
     public const int SLANG_RESOURCE_ACCESS_READ_WRITE = 2;
     public const int SLANG_RESOURCE_ACCESS_WRITE = 6;
 
     // ── SlangScalarType ──
-    public const int SLANG_SCALAR_TYPE_NONE = 0;
-    public const int SLANG_SCALAR_TYPE_BOOL = 2;
-    public const int SLANG_SCALAR_TYPE_INT32 = 3;
-    public const int SLANG_SCALAR_TYPE_UINT32 = 4;
     public const int SLANG_SCALAR_TYPE_FLOAT32 = 8;
 
     /// <summary>SlangResult success value (SLANG_OK).</summary>
@@ -172,9 +159,6 @@ internal static class SlangNative
     public static extern IntPtr spReflectionVariable_GetName(IntPtr variable);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr spReflectionVariable_GetType(IntPtr variable);
-
-    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint spReflectionParameter_GetBindingIndex(IntPtr parameter);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
@@ -201,9 +185,6 @@ internal static class SlangNative
     public static extern IntPtr spReflectionTypeLayout_GetFieldByIndex(IntPtr typeLayout, uint index);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int spReflectionTypeLayout_GetParameterCategory(IntPtr typeLayout);
-
-    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint spReflectionTypeLayout_GetCategoryCount(IntPtr typeLayout);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
@@ -219,9 +200,6 @@ internal static class SlangNative
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern int spReflectionType_GetResourceAccess(IntPtr type);
-
-    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
-    public static extern uint spReflectionType_GetRowCount(IntPtr type);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint spReflectionType_GetColumnCount(IntPtr type);

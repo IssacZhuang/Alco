@@ -1,4 +1,5 @@
 using Alco.Graphics;
+using Alco.Graphics.Spirv;
 
 namespace Alco.World3D;
 
@@ -157,8 +158,8 @@ internal static class SlangReflection
     /// become depth-sample textures and their companion samplers become
     /// comparison samplers. Slang reflection has no notion of depth textures
     /// (neither does DXC - the engine applies the same name-based marking after
-    /// its own compiles; the SPIR-V image rewrite itself is
-    /// <see cref="SlangDepthTexturePatcher"/>).
+    /// its own compiles; the SPIR-V image rewrite itself is shared by both paths in
+    /// <see cref="SpirvDepthTexturePatcher"/>).
     /// </summary>
     /// <param name="info">The reflection to patch in place.</param>
     /// <param name="depthTextureNames">Depth texture names from the source macros.</param>

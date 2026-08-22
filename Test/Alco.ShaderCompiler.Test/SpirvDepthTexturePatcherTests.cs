@@ -159,7 +159,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     {
         byte[] spirv = Compile(SharedTypeShader);
 
-        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTextures(spirv, new[] { "_depthTex" });
+        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTexturesByName(spirv, new[] { "_depthTex" });
 
         Assert.That(GetImageDepthOperand(patched, "_depthTex"), Is.EqualTo(1));
     }
@@ -169,7 +169,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     {
         byte[] spirv = Compile(SharedTypeShader);
 
-        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTextures(spirv, new[] { "_depthTex" });
+        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTexturesByName(spirv, new[] { "_depthTex" });
 
         Assert.That(GetImageDepthOperand(patched, "_colorTex"), Is.EqualTo(2));
     }
@@ -179,7 +179,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     {
         byte[] spirv = Compile(SharedTypeShader);
 
-        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTextures(spirv, new[] { "_depthTex" });
+        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTexturesByName(spirv, new[] { "_depthTex" });
 
         AssertTypeChainConsistent(patched, "_depthTex");
         AssertTypeChainConsistent(patched, "_colorTex");
@@ -190,7 +190,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     {
         byte[] spirv = Compile(ComparisonSampledShader);
 
-        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTextures(spirv, new[] { "_shadowMap" });
+        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTexturesByName(spirv, new[] { "_shadowMap" });
 
         Assert.That(GetImageDepthOperand(patched, "_shadowMap"), Is.EqualTo(1));
         AssertTypeChainConsistent(patched, "_shadowMap");
@@ -201,7 +201,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     {
         byte[] spirv = Compile(SharedTypeShader);
 
-        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTextures(spirv, new[] { "_depthTex" });
+        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTexturesByName(spirv, new[] { "_depthTex" });
 
         Assert.That(GetBound(patched), Is.GreaterThan(GetBound(spirv)));
     }
@@ -211,7 +211,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     {
         byte[] spirv = Compile(SharedTypeShader);
 
-        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTextures(spirv, new[] { "_doesNotExist" });
+        byte[] patched = SpirvDepthTexturePatcher.MarkDepthTexturesByName(spirv, new[] { "_doesNotExist" });
 
         Assert.That(patched, Is.EqualTo(spirv));
     }
@@ -219,7 +219,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
     [Test(Description = "Garbage input is reported, not silently swallowed")]
     public void MarkDepthTextures_MalformedModule_Throws()
     {
-        Assert.Throws<ShaderCompilationException>(() =>
-            SpirvDepthTexturePatcher.MarkDepthTextures(new byte[] { 1, 2, 3 }, new[] { "_depthTex" }));
+        Assert.Throws<Graphics.ShaderReflectionException>(() =>
+            SpirvDepthTexturePatcher.MarkDepthTexturesByName(new byte[] { 1, 2, 3 }, new[] { "_depthTex" }));
     }
 }

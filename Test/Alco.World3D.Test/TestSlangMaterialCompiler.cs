@@ -70,6 +70,31 @@ public class TestSlangMaterialCompiler
     }
 
     [Test]
+    public void BuiltInPbrSurfaceCompilesAsNativeSlang()
+    {
+        using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
+        AssetSystem assets = engine.AssetSystem;
+        using SlangShaderCompiler slang = new();
+
+        string wrapper = MaterialCompiler.BuildSlangWrapper("gbuffer", "pbr_standard");
+        SlangCompiledShader compiled = slang.CompileGraphics(
+            "gbuffer+pbr_standard", wrapper, Array.Empty<(string, string)>(), [],
+            path => TryReadSlangAsset(assets, path));
+
+        Dictionary<string, BindGroupEntryInfo> entries = compiled.Reflection.BindGroups[0].Bindings
+            .ToDictionary(entry => entry.Entry.Name, entry => entry);
+        Assert.Multiple(() =>
+        {
+            Assert.That(BitConverter.ToUInt32(compiled.VertexSpirv, 0), Is.EqualTo(0x07230203u));
+            Assert.That(BitConverter.ToUInt32(compiled.FragmentSpirv, 0), Is.EqualTo(0x07230203u));
+            Assert.That(entries.Keys, Is.SupersetOf(new[]
+            {
+                "_albedoTexture", "_normalTexture", "_metallicRoughnessTexture", "_emissiveTexture",
+            }));
+        });
+    }
+
+    [Test]
     public void SlangReflectionReportsTheEngineLayout()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
@@ -77,10 +102,10 @@ public class TestSlangMaterialCompiler
         using SlangShaderCompiler slang = new();
 
         // The real wrapper the material compiler generates for the G-buffer template
-        // with the demo surface (mixed-type parameter block).
-        string wrapper = MaterialCompiler.BuildSlangWrapper("gbuffer", "pulse_emissive");
+        // with the test surface (mixed-type parameter block).
+        string wrapper = MaterialCompiler.BuildSlangWrapper("gbuffer", "parameterized_surface");
         SlangCompiledShader compiled = slang.CompileGraphics(
-            "gbuffer+pulse_emissive", wrapper, Array.Empty<(string, string)>(), ["_materialParams"],
+            "gbuffer+parameterized_surface", wrapper, Array.Empty<(string, string)>(), ["_materialParams"],
             path => TryReadSlangAsset(assets, path));
 
         Assert.Multiple(() =>
@@ -152,13 +177,13 @@ public class TestSlangMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         using SlangShaderCompiler slang = new();
 
-        string wrapper = MaterialCompiler.BuildSlangWrapper("shadow_depth", "pulse_emissive");
+        string wrapper = MaterialCompiler.BuildSlangWrapper("shadow_depth", "parameterized_surface");
 
         SlangCompiledShader plain = slang.CompileGraphics(
-            "shadow_depth+pulse_emissive", wrapper, Array.Empty<(string, string)>(), ["_materialParams"],
+            "shadow_depth+parameterized_surface", wrapper, Array.Empty<(string, string)>(), ["_materialParams"],
             path => TryReadSlangAsset(assets, path));
         SlangCompiledShader cutout = slang.CompileGraphics(
-            "shadow_depth+pulse_emissive+SHADOW_CUTOUT", wrapper, [("SHADOW_CUTOUT", "1")], ["_materialParams"],
+            "shadow_depth+parameterized_surface+SHADOW_CUTOUT", wrapper, [("SHADOW_CUTOUT", "1")], ["_materialParams"],
             path => TryReadSlangAsset(assets, path));
 
         Assert.Multiple(() =>
@@ -202,11 +227,11 @@ public class TestSlangMaterialCompiler
         GBufferMaterialPass gbufferPass = new(gbuffer);
         compiler.RegisterPass(gbufferPass);
 
-        // The demo surface with all four mixed-type parameters set.
-        MaterialAsset pulsing = new()
+        // The test surface with all four mixed-type parameters set.
+        MaterialAsset parameterized = new()
         {
-            Name = "pulsing",
-            SurfaceShader = "ShadersSlang/Materials/pulse_emissive.slang",
+            Name = "parameterized",
+            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
             Parameters = new Dictionary<string, float[]>
             {
                 ["pulseSpeed"] = [1.5f],
@@ -215,11 +240,11 @@ public class TestSlangMaterialCompiler
                 ["bandFrequency"] = [4.0f],
             },
         };
-        GraphicsMaterial material = compiler.Get(pulsing, gbufferPass);
+        GraphicsMaterial material = compiler.Get(parameterized, gbufferPass);
 
         Assert.Multiple(() =>
         {
-            Assert.That(compiler.Get(pulsing, gbufferPass), Is.SameAs(material), "Composed Slang materials cache per (asset, pass).");
+            Assert.That(compiler.Get(parameterized, gbufferPass), Is.SameAs(material), "Composed Slang materials cache per (asset, pass).");
             Assert.That(material.TryGetResourceId("_materialParams", out _), Is.True,
                 "The surface's parameter block binds by name.");
             Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True,
@@ -234,7 +259,7 @@ public class TestSlangMaterialCompiler
         MaterialAsset typo = new()
         {
             Name = "typo",
-            SurfaceShader = "ShadersSlang/Materials/pulse_emissive.slang",
+            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
             Parameters = new Dictionary<string, float[]> { ["nonsense"] = [1.0f] },
         };
         Assert.That(() => compiler.Get(typo, gbufferPass), Throws.TypeOf<InvalidDataException>());
@@ -243,7 +268,7 @@ public class TestSlangMaterialCompiler
         MaterialAsset tooWide = new()
         {
             Name = "tooWide",
-            SurfaceShader = "ShadersSlang/Materials/pulse_emissive.slang",
+            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
             Parameters = new Dictionary<string, float[]> { ["pulseSpeed"] = [1.0f, 2.0f] },
         };
         Assert.That(() => compiler.Get(tooWide, gbufferPass), Throws.TypeOf<InvalidDataException>());
@@ -253,7 +278,7 @@ public class TestSlangMaterialCompiler
         MaterialAsset glass = new()
         {
             Name = "glass",
-            SurfaceShader = "ShadersSlang/Materials/pulse_emissive.slang",
+            SurfaceShader = "ShadersSlang/Materials/parameterized_surface.slang",
         };
         Assert.That(() => compiler.Get(glass, new TemplatePass("glass", World3DAssetPaths.Shader_ForwardGlass)),
             Throws.TypeOf<InvalidDataException>(), "The glass pass has no Slang counterpart yet.");

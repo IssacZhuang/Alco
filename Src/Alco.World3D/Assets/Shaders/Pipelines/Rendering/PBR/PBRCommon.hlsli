@@ -283,7 +283,7 @@ float3 GetSkyColor(float3 direction)
 {
     float3 dirToSun = normalize(-sunDirection.xyz);
 #if defined(__SLANG__)
-    // Slang's direct SPIR-V representation of the nested 16x8 atmosphere
+    // Slang-generated SPIR-V for the nested 16x8 atmosphere
     // march can time out current Vulkan drivers. The CPU already evaluates
     // the same physical model into horizon/zenith radiance every frame for
     // ambient lighting, so use that stable low-frequency representation for

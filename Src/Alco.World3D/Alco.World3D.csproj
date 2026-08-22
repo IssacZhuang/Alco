@@ -5,9 +5,6 @@
     <AssemblyName>Alco.World3D</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- Fallback to the SDK host RID so plain test builds (no -r) still copy the natives. -->
-    <SlangRid Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</SlangRid>
-    <SlangRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</SlangRid>
   </PropertyGroup>
 
   <ItemGroup>
