@@ -115,7 +115,7 @@ public class ValidateWorld3DSlangModules
             if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase) ||
                 relative.StartsWith("Materials/", StringComparison.OrdinalIgnoreCase) ||
                 fileName.StartsWith("alco-world3d-", StringComparison.OrdinalIgnoreCase) ||
-                fileName is "gbuffer.slang" or "rsm.slang" or "shadow_depth.slang" or "glass.slang")
+                fileName is "gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang")
             {
                 continue;
             }

@@ -4,7 +4,7 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Represents 2D particle data containing position, velocity, color, rotation, lifetime, and size information.
-/// <br/> Also a same struct in Particle2D.slang shader
+/// <br/> Also a same struct in particle2d.slang shader
 /// </summary>
 public struct ParticleData2D
 {

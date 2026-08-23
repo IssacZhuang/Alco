@@ -117,7 +117,7 @@ public class Game : GameEngine
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroup)
     {
         // slang module program: every [shader(...)] entry point compiled to SPIR-V
-        SlangProgram program = CompileProgram("sandbox2_shader", "Shader.slang");
+        SlangProgram program = CompileProgram("sandbox2_shader", "shader.slang");
         ShaderModule vertexShader = StageModule(program, "MainVS");
         ShaderModule fragmentShader = StageModule(program, "MainPS");
         string appPath = Environment.CurrentDirectory;

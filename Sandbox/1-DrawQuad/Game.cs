@@ -88,7 +88,7 @@ public class Game : GameEngine
     private GPUPipeline CreatePipeline()
     {
         // slang module program: every [shader(...)] entry point compiled to SPIR-V
-        SlangProgram program = CompileProgram("sandbox1_shader", "Shader.slang");
+        SlangProgram program = CompileProgram("sandbox1_shader", "shader.slang");
         ShaderModule vertexShader = StageModule(program, "MainVS");
         ShaderModule fragmentShader = StageModule(program, "MainPS");
 

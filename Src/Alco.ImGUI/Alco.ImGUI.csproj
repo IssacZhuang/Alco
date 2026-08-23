@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="ImGui.slang" />
+    <EmbeddedResource Include="imgui.slang" />
   </ItemGroup>
 
 </Project>

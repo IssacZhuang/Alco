@@ -65,7 +65,7 @@ public class LightingManager : AutoDisposable
         _lightMap = rendering.CreateTileLightMap(computeMaterial, width, height);
 
         // Create Gaussian blur
-        ComputeMaterial gaussianBlurMaterial = rendering.CreateComputeMaterial(builtInAssets.Shader_GaussianBlurRGBA16F);
+        ComputeMaterial gaussianBlurMaterial = rendering.CreateComputeMaterial(builtInAssets.Shader_GaussianBlurRgba16f);
         _blurTexture = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, (uint)width, (uint)height);
 
         // Initialize with default kernel values

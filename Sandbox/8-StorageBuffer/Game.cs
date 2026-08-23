@@ -136,7 +136,7 @@ public class Game : GameEngine
     private unsafe GPUPipeline CreateGraphicsPipeline()
     {
         // slang module program: every [shader(...)] entry point compiled to SPIR-V
-        SlangProgram program = CompileProgram("sandbox8_shader", "Shader.slang");
+        SlangProgram program = CompileProgram("sandbox8_shader", "shader.slang");
         ShaderModule vertSource = StageModule(program, "MainVS");
         ShaderModule fragSource = StageModule(program, "MainPS");
 
@@ -177,7 +177,7 @@ public class Game : GameEngine
 
     private GPUPipeline CreateComputePipeline()
     {
-        SlangProgram program = CompileProgram("sandbox8_compute_position", "ComputePosition.slang");
+        SlangProgram program = CompileProgram("sandbox8_compute_position", "compute-position.slang");
         ShaderModule computeSource = StageModule(program, "MainCS");
 
         ShaderReflectionInfo info = program.Reflection;

@@ -44,8 +44,8 @@ public class Game : GameEngine
         Bloom bloom = RenderingSystem.CreateBloom(
             BuiltInAssets.Shader_BloomBlit,
             BuiltInAssets.Shader_BloomClamp,
-            BuiltInAssets.Shader_BloomDownSample,
-            BuiltInAssets.Shader_BloomUpSample,
+            BuiltInAssets.Shader_BloomDownsample,
+            BuiltInAssets.Shader_BloomUpsample,
             11);
         MainPipeline.Use(new RGNode_Bloom(RenderingSystem, MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit));
 
@@ -58,9 +58,9 @@ public class Game : GameEngine
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_AcesTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgXTonemap);
+            BuiltInAssets.Shader_AgxTonemap);
         MainPipeline.Use(tonemapNode);
 
         _shader = BuiltInAssets.Shader_Unlit;

@@ -1,7 +1,7 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// Data for generic filmic curve (Narkowicz-like) used in FilmicTonemap.slang.
+/// Data for generic filmic curve (Narkowicz-like) used in filmic-tonemap.slang.
 /// </summary>
 public struct FilmicTonemapData
 {

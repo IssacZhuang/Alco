@@ -43,12 +43,21 @@ public static partial class BuiltInAssetsPath
 
             if (ShouldGenerate(filePath, out string namePrefix))
             {
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                string variableName = namePrefix + fileName;
-
-                if (!VariableNameRegex.IsMatch(fileName))
+                // Import-only shader libraries own no entry points; loading them
+                // as shaders would fail to link, so no accessors are generated.
+                if (Path.GetExtension(filePath) == ".slang" && localPath.Contains("ShadersSlang/Libs/"))
                 {
-                    Console.WriteLine($"Warning: Invalid variable name '{fileName}', should match regex '{VariableNameRegex}' in '{filePath}'. Skipped");
+                    continue;
+                }
+
+                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                // Asset stems are kebab-case (slang convention); the generated
+                // identifier PascalCases each dashed word (fxaa → Fxaa).
+                string variableName = namePrefix + FileBuiltInAsset.ToPascalIdentifier(fileName);
+
+                if (!VariableNameRegex.IsMatch(variableName))
+                {
+                    Console.WriteLine($"Warning: Invalid variable name '{variableName}' in '{filePath}'. Skipped");
                     continue;
                 }
 

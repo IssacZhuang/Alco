@@ -37,7 +37,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private const int CompositeQueryBase = 6;
     private const int TimestampSlotCount = 8;
 
-    // Must match SSR_BLUE_NOISE_SIZE in ScreenSpaceReflectionBlueNoise.slang.
+    // Must match SSR_BLUE_NOISE_SIZE in screen-space-reflection-blue-noise.slang.
     private const uint BlueNoiseTextureSize = 128;
 
     private readonly RenderingSystem _rendering;
@@ -431,7 +431,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         // Bake the blue-noise lookup once (the scrambling-table bake is a
         // one-time cost); every frame afterwards samples the persistent tile.
         // Bake the blue-noise lookup once (procedural neighborhood-rank
-        // construction, see ScreenSpaceReflectionBlueNoise.slang); every frame
+        // construction, see screen-space-reflection-blue-noise.slang); every frame
         // afterwards samples the persistent tile.
         if (!_blueNoiseBaked)
         {

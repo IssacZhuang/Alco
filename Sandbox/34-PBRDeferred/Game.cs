@@ -247,7 +247,7 @@ public class Game : GameEngine
     private readonly float _cameraNear;
 
     // Time of day and physically-based sky (atmosphere parameters are packed
-    // into DeferredLightingData.SkyParams/SkyParams2, see Atmosphere.slang).
+    // into DeferredLightingData.SkyParams/SkyParams2, see alco-world3d-atmosphere.slang).
     private float _timeOfDay = 10.0f;
     private float _timeSpeed = 0.5f;
     private float _skyExposure = 1.0f;
@@ -706,7 +706,7 @@ public class Game : GameEngine
             // Complementary-style SSR runs after deferred lighting and forward
             // transparency, so its hit color is the actual completed HDR scene.
             // The trace pass draws its stochastic samples from a blue-noise
-            // tile baked once at runtime by ScreenSpaceReflectionBlueNoise.slang
+            // tile baked once at runtime by screen-space-reflection-blue-noise.slang
             // (Heitz Owen-scrambled Sobol over an optimized scrambling table).
             _ssrRenderer = new RGNode_SSR(
                 RenderingSystem,
@@ -745,8 +745,8 @@ public class Game : GameEngine
             RenderingSystem.CreateBloom(
                 BuiltInAssets.Shader_BloomBlit,
                 BuiltInAssets.Shader_BloomClamp,
-                BuiltInAssets.Shader_BloomDownSample,
-                BuiltInAssets.Shader_BloomUpSample,
+                BuiltInAssets.Shader_BloomDownsample,
+                BuiltInAssets.Shader_BloomUpsample,
                 11),
             BuiltInAssets.Shader_Blit)
         {
@@ -762,7 +762,7 @@ public class Game : GameEngine
             _preset.PostChain,
             _preset.PostProcessLayout,
             RenderingSystem.CreateFXAA(
-                BuiltInAssets.Shader_FXAA,
+                BuiltInAssets.Shader_Fxaa,
                 BuiltInAssets.Shader_Blit)));
 
         // HDR tone mapping node (registered last, after bloom and FXAA).
@@ -775,9 +775,9 @@ public class Game : GameEngine
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_AcesTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgXTonemap);
+            BuiltInAssets.Shader_AgxTonemap);
         _preset.Pipeline.Use(_tonemapStage);
 
         MainPresenter.OnResize += OnMainWindowResize;
@@ -1494,7 +1494,7 @@ public class Game : GameEngine
                 material.AlbedoTexture, material.NormalTexture,
                 material.MetallicRoughnessTexture, material.EmissiveTexture);
             _shadowRenderer.SetShadowCutoutMaterialTextures(_modelShadowMaterials![i], material.AlbedoTexture);
-            // Rsm.slang binds the same _albedoTexture slot as the cutout shadow
+            // rsm.slang binds the same _albedoTexture slot as the cutout shadow
             // shader, so streaming albedo rebinds cover the RSM materials too.
             if (_modelRsmMaterials != null)
             {

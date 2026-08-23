@@ -193,10 +193,10 @@ public class Game : GameEngine
     private GPUPipeline CreateComputePipeline()
     {
         // slang module program: every [shader(...)] entry point compiled to SPIR-V
-        SlangProgram program = CompileProgram("sandbox4_box_blur", "BoxBlur.slang");
+        SlangProgram program = CompileProgram("sandbox4_box_blur", "box-blur.slang");
         ShaderModule computeShader = StageModule(program, "MainCS");
 
-        DebugSaveFile("BoxBlur.spv", computeShader.Source);
+        DebugSaveFile("box-blur.spv", computeShader.Source);
         Log.Info(program.Reflection);
 
 

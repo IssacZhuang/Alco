@@ -42,7 +42,7 @@ public static class RenderPipelines
     /// <see cref="RGNode_DeferredLighting.GiDiffuseInput"/>.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="lightingShader">The deferred lighting shader (DeferredLighting.slang). Caller-owned, like every shader the composition takes. Scene and shadow depth are bound as native Slang depth textures.</param>
+    /// <param name="lightingShader">The deferred lighting shader (deferred-lighting.slang). Caller-owned, like every shader the composition takes. Scene and shadow depth are bound as native Slang depth textures.</param>
     /// <param name="blitShader">The shader the final blit uses for plain copies.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="PBRSceneEnvironment.ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>

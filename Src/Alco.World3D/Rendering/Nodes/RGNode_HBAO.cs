@@ -8,8 +8,8 @@ namespace Alco.World3D;
 /// <summary>
 /// HBAO+ (horizon-based ambient occlusion) renderer for deferred PBR compositions.
 /// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
-/// horizon rays in a compute pass (HBAO.slang) and filters the noisy result with a
-/// depth/normal-aware bilateral blur (HBAOBlur.slang). The blur pass writes the
+/// horizon rays in a compute pass (hbao.slang) and filters the noisy result with a
+/// depth/normal-aware bilateral blur (hbao-blur.slang). The blur pass writes the
 /// filtered AO to a full-resolution texture (<see cref="AOResult"/>),
 /// which the deferred lighting material samples through its _aoTexture slot.
 /// <br/>Attach the renderer to a deferred composition via <see cref="Attach"/>: it
@@ -115,8 +115,8 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     /// allocated here — the AO textures are graph transients created by <see cref="Attach"/>.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="hbaoShader">The raw AO shader (HBAO.slang).</param>
-    /// <param name="blurShader">The bilateral blur shader (HBAOBlur.slang).</param>
+    /// <param name="hbaoShader">The raw AO shader (hbao.slang).</param>
+    /// <param name="blurShader">The bilateral blur shader (hbao-blur.slang).</param>
     public RGNode_HBAO(RenderingSystem rendering, Shader hbaoShader, Shader blurShader)
     {
         _rendering = rendering;

@@ -4,7 +4,7 @@ namespace Alco.World3D;
 
 /// <summary>
 /// Per-frame data uploaded to the deferred lighting pass. Layout must match the
-/// <c>_data</c> cbuffer in DeferredLighting.slang exactly. Assembled by the pipeline
+/// <c>_data</c> cbuffer in deferred-lighting.slang exactly. Assembled by the pipeline
 /// from caller-set scene properties (sun direction/color, sky params, GI strength,
 /// debug flags) and pipeline-owned data (camera, cascades, viewport).
 /// </summary>

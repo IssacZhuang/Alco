@@ -25,10 +25,10 @@ public static class World3DAssetPaths
     public const string Shader_GBuffer = TemplateFolder + "gbuffer.slang";
 
     /// <summary>Deferred lighting pass: resolves the G-buffer into scene color.</summary>
-    public const string Shader_DeferredLighting = Folder + "DeferredLighting.slang";
+    public const string Shader_DeferredLighting = Folder + "deferred-lighting.slang";
 
     /// <summary>Cascaded shadow map depth pass template: composes with a surface (MaterialCompiler).</summary>
-    public const string Shader_ShadowDepth = TemplateFolder + "shadow_depth.slang";
+    public const string Shader_ShadowDepth = TemplateFolder + "shadow-depth.slang";
 
     /// <summary>Reflective shadow map pass template: composes with a surface (MaterialCompiler).</summary>
     public const string Shader_Rsm = TemplateFolder + "rsm.slang";
@@ -37,65 +37,65 @@ public static class World3DAssetPaths
     public const string Shader_ForwardGlass = TemplateFolder + "glass.slang";
 
     /// <summary>Volumetric light (god rays) additive overlay pass.</summary>
-    public const string Shader_VolumetricLight = Folder + "VolumetricLight.slang";
+    public const string Shader_VolumetricLight = Folder + "volumetric-light.slang";
 
     /// <summary>Horizon-based ambient occlusion pass.</summary>
-    public const string Shader_HBAO = Folder + "HBAO.slang";
+    public const string Shader_HBAO = Folder + "hbao.slang";
 
     /// <summary>Bilateral blur pass of the HBAO output.</summary>
-    public const string Shader_HBAOBlur = Folder + "HBAOBlur.slang";
+    public const string Shader_HBAOBlur = Folder + "hbao-blur.slang";
 
     /// <summary>Screen space reflection ray tracing pass.</summary>
-    public const string Shader_SsrTrace = Folder + "ScreenSpaceReflectionTrace.slang";
+    public const string Shader_SsrTrace = Folder + "screen-space-reflection-trace.slang";
 
     /// <summary>Screen space reflection spatial/Temporal resolve pass.</summary>
-    public const string Shader_SsrResolve = Folder + "ScreenSpaceReflectionResolve.slang";
+    public const string Shader_SsrResolve = Folder + "screen-space-reflection-resolve.slang";
 
     /// <summary>Screen space reflection composite pass.</summary>
-    public const string Shader_SsrComposite = Folder + "ScreenSpaceReflectionComposite.slang";
+    public const string Shader_SsrComposite = Folder + "screen-space-reflection-composite.slang";
 
     /// <summary>Blue noise texture generator for SSR and voxel GI tracing.</summary>
-    public const string Shader_SsrBlueNoise = Folder + "ScreenSpaceReflectionBlueNoise.slang";
+    public const string Shader_SsrBlueNoise = Folder + "screen-space-reflection-blue-noise.slang";
 
     /// <summary>Depth downsample pass feeding SSR tracing.</summary>
-    public const string Shader_SsrDepthDownsample = Folder + "SsrDepthDownsample.slang";
+    public const string Shader_SsrDepthDownsample = Folder + "ssr-depth-downsample.slang";
 
     /// <summary>Volumetric clouds main render pass.</summary>
-    public const string Shader_VolumetricClouds = Folder + "VolumetricClouds.slang";
+    public const string Shader_VolumetricClouds = Folder + "volumetric-clouds.slang";
 
     /// <summary>Volumetric clouds composite (scene blend) pass.</summary>
-    public const string Shader_VolumetricCloudsComposite = Folder + "VolumetricCloudsComposite.slang";
+    public const string Shader_VolumetricCloudsComposite = Folder + "volumetric-clouds-composite.slang";
 
     /// <summary>Volumetric clouds 3D noise baking pass.</summary>
-    public const string Shader_VolumetricCloudNoise = Folder + "VolumetricCloudNoise.slang";
+    public const string Shader_VolumetricCloudNoise = Folder + "volumetric-cloud-noise.slang";
 
     /// <summary>Volumetric clouds shadow lookup pass.</summary>
-    public const string Shader_VolumetricCloudShadow = Folder + "VolumetricCloudShadow.slang";
+    public const string Shader_VolumetricCloudShadow = Folder + "volumetric-cloud-shadow.slang";
 
     /// <summary>Voxel GI: clears the clipmap page pool.</summary>
-    public const string Shader_VoxelClear = Folder + "VoxelClear.slang";
+    public const string Shader_VoxelClear = Folder + "voxel-clear.slang";
 
     /// <summary>Voxel GI: surface voxelization pass.</summary>
-    public const string Shader_Voxelize = Folder + "Voxelize.slang";
+    public const string Shader_Voxelize = Folder + "voxelize.slang";
 
     /// <summary>Voxel GI: direct + RSM light injection pass.</summary>
-    public const string Shader_VoxelInject = Folder + "VoxelInject.slang";
+    public const string Shader_VoxelInject = Folder + "voxel-inject.slang";
 
     /// <summary>Voxel GI: single-level mip filter pass.</summary>
-    public const string Shader_VoxelMip = Folder + "VoxelMip.slang";
+    public const string Shader_VoxelMip = Folder + "voxel-mip.slang";
 
     /// <summary>Voxel GI: whole mip chain filter pass.</summary>
-    public const string Shader_VoxelMipChain = Folder + "VoxelMipChain.slang";
+    public const string Shader_VoxelMipChain = Folder + "voxel-mip-chain.slang";
 
     /// <summary>Voxel GI: multi-bounce light propagation pass.</summary>
-    public const string Shader_VoxelPropagate = Folder + "VoxelPropagate.slang";
+    public const string Shader_VoxelPropagate = Folder + "voxel-propagate.slang";
 
     /// <summary>Voxel GI: diffuse cone tracing pass.</summary>
-    public const string Shader_VoxelTrace = Folder + "VoxelTrace.slang";
+    public const string Shader_VoxelTrace = Folder + "voxel-trace.slang";
 
     /// <summary>Voxel GI: demosaic pass of the traced probe grid.</summary>
-    public const string Shader_VoxelDemosaic = Folder + "VoxelDemosaic.slang";
+    public const string Shader_VoxelDemosaic = Folder + "voxel-demosaic.slang";
 
     /// <summary>Voxel GI: specular tracing + full-resolution upsample pass.</summary>
-    public const string Shader_VoxelGiUpsample = Folder + "VoxelGiUpsample.slang";
+    public const string Shader_VoxelGiUpsample = Folder + "voxel-gi-upsample.slang";
 }

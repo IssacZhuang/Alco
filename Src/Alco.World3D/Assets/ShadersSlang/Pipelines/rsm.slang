@@ -28,7 +28,7 @@ public struct RsmVertex
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float4 tangent : TANGENT;
-    uint instanceId : SV_VulkanInstanceID;
+    uint instanceID : SV_VulkanInstanceID;
 }
 
 public struct RsmV2F
@@ -38,7 +38,7 @@ public struct RsmV2F
     float4 tangent : TEXCOORD1; // xyz = world tangent, w = bitangent sign
     float3 worldPos : TEXCOORD2;
     float2 uv : TEXCOORD3;
-    uint instanceId : TEXCOORD4;
+    uint instanceID : TEXCOORD4;
 }
 
 // Push constant payload: only the RSM cascade index remains per-draw
@@ -51,7 +51,7 @@ struct RsmConstants
 }
 
 // Per-cascade light view-projection matrices, updated per frame on the CPU and
-// shared with shadow_depth.slang (reference semantics keep render bundles
+// shared with shadow-depth.slang (reference semantics keep render bundles
 // valid while the camera-fitted cascades move).
 [[vk::binding(0, 0)]] cbuffer _data
 {
@@ -78,7 +78,7 @@ float3 EncodeSRGB(float3 color)
 public RsmV2F RsmMainVS<T : ISurface>(RsmVertex input)
 {
     RsmV2F output;
-    PbrInstance inst = _instances[input.instanceId];
+    PbrInstance inst = _instances[input.instanceID];
     float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
     float3 worldNormal = mul((float3x3)inst.model, input.normal);
     float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
@@ -99,7 +99,7 @@ public RsmV2F RsmMainVS<T : ISurface>(RsmVertex input)
     output.tangent = float4(worldTangent, input.tangent.w);
     output.worldPos = worldPos;
     output.uv = input.uv;
-    output.instanceId = input.instanceId;
+    output.instanceID = input.instanceID;
     return output;
 }
 
@@ -108,7 +108,7 @@ public void RsmMainPS<T : ISurface>(
     out float4 albedoRT,
     out float4 normalRT)
 {
-    PbrInstance inst = _instances[input.instanceId];
+    PbrInstance inst = _instances[input.instanceID];
 
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);

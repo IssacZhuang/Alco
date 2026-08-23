@@ -33,6 +33,13 @@ public partial class BuiltInAssets
     private readonly List<(FileInfo File, string RelativePath)> _files;
     private readonly Dictionary<string, string> _duplicateCheck = new Dictionary<string, string>();
 
+    /// <summary>Turns a kebab/snake asset stem into a PascalCase identifier
+    /// ('gaussian-blur-rgba16f' → 'GaussianBlurRgba16f').</summary>
+    public static string ToPascalIdentifier(string stem) =>
+        string.Join(string.Empty, stem
+            .Split('-', '_')
+            .Select(word => word.Length == 0 ? word : char.ToUpper(word[0]) + word[1..]));
+
     public FileBuiltInAsset(List<(FileInfo File, string RelativePath)> files)
     {
         _files = files;
@@ -49,12 +56,21 @@ public partial class BuiltInAssets
 
             if (ShouldGenerate(filePath, out string namePrefix, out string statement))
             {
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                string variableName = namePrefix + fileName;
-
-                if (!VariableNameRegex.IsMatch(fileName))
+                // Import-only shader libraries own no entry points; loading them
+                // as shaders would fail to link, so no accessors are generated.
+                if (Path.GetExtension(filePath) == ".slang" && localPath.Contains("ShadersSlang/Libs/"))
                 {
-                    Console.WriteLine($"Warning: Invalid variable name '{fileName}', should match regex '{VariableNameRegex}' in '{filePath}'. Skipped");
+                    continue;
+                }
+
+                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                // Asset stems are kebab-case (slang convention); the generated
+                // identifier PascalCases each dashed word (fxaa → Fxaa).
+                string variableName = namePrefix + ToPascalIdentifier(fileName);
+
+                if (!VariableNameRegex.IsMatch(variableName))
+                {
+                    Console.WriteLine($"Warning: Invalid variable name '{variableName}' in '{filePath}'. Skipped");
                     continue;
                 }
 

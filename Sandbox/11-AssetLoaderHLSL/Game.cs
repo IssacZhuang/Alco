@@ -57,7 +57,7 @@ public class Game : GameEngine
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
-        _shader = AssetSystem.Load<Shader>("Shader.slang");
+        _shader = AssetSystem.Load<Shader>("shader.slang");
         _pipelineInfo = _shader.GetGraphicsPipeline(
             RenderingSystem.PreferredHDRPass,
             DepthStencilState.Default,

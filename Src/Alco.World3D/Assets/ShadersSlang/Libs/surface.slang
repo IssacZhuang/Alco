@@ -1,7 +1,7 @@
 // file "surface.slang" - module "surface"
 //
 // The Slang surface contract between pass templates (gbuffer.slang-template,
-// shadow_depth.slang-template, rsm.slang-template) and surface modules
+// shadow-depth.slang-template, rsm.slang-template) and surface modules
 // (material-owned code). The Slang-native replacement of Shaders/Libs/Surface.hlsli:
 // the contract is an interface, so the material compiler type-checks every
 // surface against it at compile time instead of relying on textual conventions.

@@ -142,7 +142,7 @@ public class ValidateShader
         {
             return false;
         }
-        return fileName is not ("gbuffer.slang" or "rsm.slang" or "shadow_depth.slang" or "glass.slang");
+        return fileName is not ("gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang");
     }
 
     private static void AssertResource(

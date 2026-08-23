@@ -49,9 +49,9 @@ public class Game : GameEngine
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_AcesTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgXTonemap);
+            BuiltInAssets.Shader_AgxTonemap);
         _mainPipeline.Use(tonemapNode);
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);

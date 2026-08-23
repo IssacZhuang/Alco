@@ -27,7 +27,7 @@ public struct GBufferVertex
     float3 normal : NORMAL;
     float2 uv : TEXCOORD0;
     float4 tangent : TANGENT; // xyz = tangent, w = bitangent sign
-    uint instanceId : SV_VulkanInstanceID;
+    uint instanceID : SV_VulkanInstanceID;
 }
 
 public struct GBufferV2F
@@ -36,7 +36,7 @@ public struct GBufferV2F
     float3 normal : TEXCOORD0;
     float2 uv : TEXCOORD1;
     float4 tangent : TEXCOORD2; // xyz = world tangent, w = bitangent sign
-    uint instanceId : TEXCOORD3;
+    uint instanceID : TEXCOORD3;
     float3 worldPos : TEXCOORD4;
 }
 
@@ -73,7 +73,7 @@ float3 EncodeSRGB(float3 color)
 public GBufferV2F GBufferMainVS<T : ISurface>(GBufferVertex input)
 {
     GBufferV2F output;
-    PbrInstance inst = _instances[input.instanceId];
+    PbrInstance inst = _instances[input.instanceID];
     // Rigid transform only (uniform scale); fine for the demo scene.
     float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
     float3 worldNormal = mul((float3x3)inst.model, input.normal);
@@ -86,7 +86,7 @@ public GBufferV2F GBufferMainVS<T : ISurface>(GBufferVertex input)
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
     output.uv = input.uv;
-    output.instanceId = input.instanceId;
+    output.instanceID = input.instanceID;
     output.worldPos = worldPos;
     return output;
 }
@@ -98,7 +98,7 @@ public void GBufferMainPS<T : ISurface>(
     out float4 mrAORT,
     out float4 emissiveRT)
 {
-    PbrInstance inst = _instances[input.instanceId];
+    PbrInstance inst = _instances[input.instanceID];
 
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);

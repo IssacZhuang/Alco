@@ -9,7 +9,7 @@ namespace Alco.World3D;
 /// <summary>
 /// Volumetric clouds renderer for deferred PBR compositions: a half-resolution
 /// ray-marched cloud slab (Perlin-Worley base + Worley-detail erosion, Nubis
-/// style — see <c>Shaders/Pipelines/Rendering/PBR/VolumetricClouds.slang</c>)
+/// style — see <c>Shaders/Pipelines/Rendering/PBR/volumetric-clouds.slang</c>)
 /// composited over the HDR scene color with a depth-aware bilateral upsample,
 /// plus a small cloud-shadow coverage bake the deferred lighting pass uses to
 /// dim the direct sun, so cloud shadows drift across the terrain.
@@ -19,7 +19,7 @@ namespace Alco.World3D;
 /// the ambient is the CPU-filtered sky gradient — both arrive through the
 /// shared lighting data buffer, so no sky state is duplicated here.
 /// <br/>The 3D noise textures (128³ base + 32³ detail, RGBA8) are generated
-/// once by <c>VolumetricCloudNoise.slang</c> on the first frame. The shadow
+/// once by <c>volumetric-cloud-noise.slang</c> on the first frame. The shadow
 /// coverage texture is node-owned (not a graph transient): the lighting pass
 /// reads the previous frame's bake, one frame behind the visible clouds but
 /// always in lockstep with its own uniforms.
@@ -35,8 +35,8 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     /// <summary>
     /// Per-frame cloud data uploaded to the march, composite and shadow bake
     /// passes. Layout must match the <c>_cloudData</c> cbuffer in
-    /// VolumetricClouds.slang / VolumetricCloudsComposite.slang /
-    /// VolumetricCloudShadow.slang exactly.
+    /// volumetric-clouds.slang / volumetric-clouds-composite.slang /
+    /// volumetric-cloud-shadow.slang exactly.
     /// </summary>
     private struct VolumetricCloudsData
     {
@@ -201,10 +201,10 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     /// first <see cref="Execute"/>; no GPU work is submitted eagerly.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="marchShader">The cloud march shader (VolumetricClouds.slang).</param>
-    /// <param name="compositeShader">The composite shader (VolumetricCloudsComposite.slang).</param>
-    /// <param name="noiseShader">The noise bake compute shader (VolumetricCloudNoise.slang).</param>
-    /// <param name="shadowShader">The shadow coverage bake compute shader (VolumetricCloudShadow.slang).</param>
+    /// <param name="marchShader">The cloud march shader (volumetric-clouds.slang).</param>
+    /// <param name="compositeShader">The composite shader (volumetric-clouds-composite.slang).</param>
+    /// <param name="noiseShader">The noise bake compute shader (volumetric-cloud-noise.slang).</param>
+    /// <param name="shadowShader">The shadow coverage bake compute shader (volumetric-cloud-shadow.slang).</param>
     public RGNode_VolumetricClouds(
         RenderingSystem rendering,
         Shader marchShader,

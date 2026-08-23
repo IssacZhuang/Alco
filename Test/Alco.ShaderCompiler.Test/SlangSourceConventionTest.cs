@@ -90,11 +90,54 @@ public partial class SlangSourceConventionTest
         });
     }
 
+    [Test]
+    public void FileNamesAreKebabCaseAndModulesMatchStems()
+    {
+        string root = RepoRoot();
+        Assert.Multiple(() =>
+        {
+            foreach (string file in ShaderFiles())
+            {
+                string relative = Path.GetRelativePath(root, file);
+                string stem = Path.GetFileNameWithoutExtension(file);
+                Match module = ModuleNameRegex().Match(File.ReadAllText(file));
+
+                // Lowercase kebab-case files survive case-sensitive asset
+                // systems (Linux/Android targets) and mirror Slang's own
+                // file-name rule.
+                Assert.That(stem, Does.Match("^[a-z0-9]+(-[a-z0-9]+)*$"),
+                    $"{relative}: file name must be lowercase kebab-case");
+
+                if (module.Success)
+                {
+                    string moduleName = module.Groups[1].Value;
+
+                    // Acronyms stay intact: 'fxaa', never 'f_x_a_a'.
+                    Assert.That(moduleName, Does.Match("^[a-z0-9]+(_[a-z0-9]+)*$"),
+                        $"{relative}: module name must be lowercase snake_case");
+
+                    // Sandbox samples carry their own module identity (e.g.
+                    // 'sandbox1_shader' inside 'shader.slang'); engine and test
+                    // modules must pair stem and module exactly ('gaussian-blur-…'
+                    // file, 'gaussian_blur_…' module) so import probes resolve.
+                    if (!relative.StartsWith("Sandbox"))
+                    {
+                        Assert.That(moduleName, Is.EqualTo(stem.Replace('-', '_')),
+                            $"{relative}: module name must be the file stem in snake_case");
+                    }
+                }
+            }
+        });
+    }
+
     [GeneratedRegex(@"(?m)^#language[ \t]+slang[ \t]+2025[ \t]*$")]
     private static partial Regex LanguageDirectiveRegex();
 
     [GeneratedRegex(@"(?m)^[ \t]*module[ \t]+[A-Za-z_][A-Za-z0-9_.]*[ \t]*;")]
     private static partial Regex ModuleDeclarationRegex();
+
+    [GeneratedRegex(@"(?m)^[ \t]*module[ \t]+([A-Za-z0-9_]+)[ \t]*;")]
+    private static partial Regex ModuleNameRegex();
 
     [GeneratedRegex(@"(?m)^[ \t]*#include\b")]
     private static partial Regex IncludeDirectiveRegex();

@@ -130,7 +130,7 @@ public class Game : GameEngine
         // ShaderStageSource fragSource = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(shaderCode, ShaderStage.Fragment, "main", "Shader.glsl");
 
         // slang module program: every [shader(...)] entry point compiled to SPIR-V
-        SlangProgram program = CompileProgram("sandbox7_shader", "Shader.slang");
+        SlangProgram program = CompileProgram("sandbox7_shader", "shader.slang");
         ShaderModule vertSource = StageModule(program, "MainVS");
         ShaderModule fragSource = StageModule(program, "MainPS");
 

@@ -75,7 +75,7 @@ public class Game : GameEngine
         AddSystem(new ImGUISystem(this));
 
         var fxaaNode = new RGNode_FXAA(MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, RenderingSystem.CreateFXAA(
-            BuiltInAssets.Shader_FXAA,
+            BuiltInAssets.Shader_Fxaa,
             BuiltInAssets.Shader_Blit));
         MainPipeline.Use(fxaaNode);
 
@@ -88,9 +88,9 @@ public class Game : GameEngine
             BuiltInAssets.Shader_ReinhardLuminanceTonemap,
             BuiltInAssets.Shader_Uncharted2Tonemap,
             BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_ACESTonemap,
+            BuiltInAssets.Shader_AcesTonemap,
             BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgXTonemap);
+            BuiltInAssets.Shader_AgxTonemap);
         MainPipeline.Use(tonemapNode);
 
         int width = 64;
@@ -143,7 +143,7 @@ public class Game : GameEngine
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
 
-        _wallMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("Shaders/TileConnectable.slang"));
+        _wallMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("Shaders/tile-connectable.slang"));
         _wallMaterial.BlendState = BlendState.Opaque;
         _wallMaterial.DepthStencilState = DepthStencilState.Write;
         _wallMaterial.SetTexture(ShaderResourceId.Texture, textureWall);

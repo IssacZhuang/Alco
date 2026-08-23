@@ -130,28 +130,28 @@ public enum VoxelGiDebugMode
 /// </summary>
 public readonly struct VoxelGiShaders
 {
-    /// <summary>The voxel clear shader (VoxelClear.slang).</summary>
+    /// <summary>The voxel clear shader (voxel-clear.slang).</summary>
     public required Shader Clear { get; init; }
-    /// <summary>The triangle voxelization shader (Voxelize.slang).</summary>
+    /// <summary>The triangle voxelization shader (voxelize.slang).</summary>
     public required Shader Voxelize { get; init; }
-    /// <summary>The direct light injection shader (VoxelInject.slang).</summary>
+    /// <summary>The direct light injection shader (voxel-inject.slang).</summary>
     public required Shader Inject { get; init; }
-    /// <summary>The radiance mip downsample shader (VoxelMip.slang).</summary>
+    /// <summary>The radiance mip downsample shader (voxel-mip.slang).</summary>
     public required Shader Mip { get; init; }
-    /// <summary>The cascading mip chain shader (VoxelMipChain.slang).</summary>
+    /// <summary>The cascading mip chain shader (voxel-mip-chain.slang).</summary>
     public required Shader MipChain { get; init; }
-    /// <summary>The multi-bounce propagation shader (VoxelPropagate.slang).</summary>
+    /// <summary>The multi-bounce propagation shader (voxel-propagate.slang).</summary>
     public required Shader Propagate { get; init; }
-    /// <summary>The cone tracing shader (VoxelTrace.slang).</summary>
+    /// <summary>The cone tracing shader (voxel-trace.slang).</summary>
     public required Shader Trace { get; init; }
-    /// <summary>The temporal demosaic shader (VoxelDemosaic.slang).</summary>
+    /// <summary>The temporal demosaic shader (voxel-demosaic.slang).</summary>
     public required Shader Demosaic { get; init; }
     /// <summary>
-    /// The blue-noise tile bake shader (ScreenSpaceReflectionBlueNoise.slang),
+    /// The blue-noise tile bake shader (screen-space-reflection-blue-noise.slang),
     /// shared with the SSR trace. The baked tile jitters the cone march.
     /// </summary>
     public required Shader BlueNoise { get; init; }
-    /// <summary>The full-resolution upsample shader (VoxelGiUpsample.slang), or null when not used as a plugin.</summary>
+    /// <summary>The full-resolution upsample shader (voxel-gi-upsample.slang), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
 }
 
@@ -178,7 +178,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Per-frame data uploaded to every voxel GI shader. Layout must match the
-    /// <c>_data</c> cbuffer in VoxelCommon.slang exactly. Assembled internally by
+    /// <c>_data</c> cbuffer in alco-world3d-voxel-common.slang exactly. Assembled internally by
     /// the renderer from pipeline data and user-tunable properties.
     /// </summary>
     private struct VoxelGiData
@@ -245,7 +245,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     /// <summary>
     /// Per-frame data uploaded to the VoxelGiUpsample compute pass. Layout must
-    /// match the <c>_data</c> cbuffer in VoxelGiUpsample.slang exactly.
+    /// match the <c>_data</c> cbuffer in voxel-gi-upsample.slang exactly.
     /// </summary>
     public struct VoxelGiUpsampleData
     {
@@ -257,7 +257,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     /// <summary>
     /// Push constant payload for one voxelize dispatch. Layout must match the
-    /// <c>VoxelizeConstants</c> struct in Voxelize.slang exactly (128 bytes, the
+    /// <c>VoxelizeConstants</c> struct in voxelize.slang exactly (128 bytes, the
     /// device push-constant limit — the dirty-brick range is bit-packed into
     /// Params2 to keep the payload at that size).
     /// </summary>
@@ -326,7 +326,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly ComputeMaterial _traceMaterial;
     private readonly ComputeMaterial _demosaicMaterial;
     // The blue-noise tile is baked once with a graphics pass, then sampled by
-    // the compute trace. Must match BLUE_NOISE_TILE in VoxelTrace.slang and
+    // the compute trace. Must match BLUE_NOISE_TILE in voxel-trace.slang and
     // SSR_BLUE_NOISE_SIZE in the bake shader.
     private const uint BlueNoiseTextureSize = 128;
     private readonly Mesh _fullScreenMesh;
@@ -540,7 +540,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// static scenes but collapses to single-cone noise wherever its own
     /// reprojection rejects history (camera motion across depth edges), so the
     /// demosaic stage keeps a second, neighbourhood-clamped accumulation. The
-    /// effective hysteresis halves under camera motion (see VoxelDemosaic.slang)
+    /// effective hysteresis halves under camera motion (see voxel-demosaic.slang)
     /// to stay responsive to the scrolling voxel field; zero disables it.
     /// </summary>
     public float DiffuseTemporalHysteresis { get; set; } = 0.85f;
@@ -874,7 +874,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
 
         // The full-resolution GI outputs (upsampled from the trace-resolution
-        // atlas by VoxelGiUpsample.slang, consumed by the deferred lighting pass)
+        // atlas by voxel-gi-upsample.slang, consumed by the deferred lighting pass)
         // are graph transients created by Attach.
 
         // Create the upsample compute pass eagerly when the shader is supplied.
@@ -1460,7 +1460,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         // Bake the blue-noise lookup once (procedural neighborhood-rank
-        // construction, see ScreenSpaceReflectionBlueNoise.slang); every frame
+        // construction, see screen-space-reflection-blue-noise.slang); every frame
         // afterwards the cone-trace march samples the persistent tile.
         if (!_blueNoiseBaked)
         {

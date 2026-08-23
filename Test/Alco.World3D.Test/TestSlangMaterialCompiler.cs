@@ -21,7 +21,7 @@ namespace Alco.World3D.Test;
 /// </summary>
 public class TestSlangMaterialCompiler
 {
-    private const string ParameterizedSurfacePath = "ShadersSlang/Materials/parameterized_surface.slang";
+    private const string ParameterizedSurfacePath = "ShadersSlang/Materials/parameterized-surface.slang";
 
     [Test]
     public void TrivialShaderCompilesFromRegisteredSource()
