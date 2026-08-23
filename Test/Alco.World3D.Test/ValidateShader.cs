@@ -139,8 +139,8 @@ public class ValidateShader
     private static bool IsEntryPointModule(string assetPath)
     {
         string fileName = Path.GetFileName(assetPath);
-        if (assetPath.Contains("ShadersSlang/Libs/", StringComparison.OrdinalIgnoreCase) ||
-            assetPath.Contains("ShadersSlang/Materials/", StringComparison.OrdinalIgnoreCase) ||
+        if (assetPath.Contains("Shaders/Libs/", StringComparison.OrdinalIgnoreCase) ||
+            assetPath.Contains("Shaders/Materials/", StringComparison.OrdinalIgnoreCase) ||
             fileName.StartsWith("alco-world3d-", StringComparison.OrdinalIgnoreCase))
         {
             return false;

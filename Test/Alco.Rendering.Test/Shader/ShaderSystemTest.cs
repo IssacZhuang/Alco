@@ -69,7 +69,7 @@ public class ShaderSystemTest
     private static SlangCompilerOptions OptionsWithQuadModule()
     {
         string corePath = Path.Combine(
-            RepoRoot(), "Src", "Alco.Rendering", "Assets", "ShadersSlang", "Libs", "alco-rendering-core.slang");
+            RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders", "Libs", "alco-rendering-core.slang");
         string core = File.ReadAllText(corePath);
         return new SlangCompilerOptions
         {

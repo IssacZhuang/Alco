@@ -7,10 +7,10 @@ namespace Alco.World3D.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Slang-mode validation of Alco.World3D's plain pipeline shaders (migration
-// plan Phase 2): every converted .slang module under Alco.World3D's ShadersSlang
+// plan Phase 2): every converted .slang module under Alco.World3D's Shaders
 // tree must load through SlangModuleSystem headlessly and link every
 // [shader(...)] entry point to non-empty SPIR-V. The file-tree resolver spans
-// BOTH the Alco.Rendering and Alco.World3D ShadersSlang roots (World3D modules
+// BOTH the Alco.Rendering and Alco.World3D Shaders roots (World3D modules
 // import alco_rendering_core) and mirrors the engine resolver's dashed
 // module-name matching conventions.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,8 +19,8 @@ public class ValidateWorld3DSlangModules
 {
     private static readonly string[] Roots =
     [
-        Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "ShadersSlang"),
-        Path.Combine(RepoRoot(), "Src", "Alco.World3D", "Assets", "ShadersSlang"),
+        Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders"),
+        Path.Combine(RepoRoot(), "Src", "Alco.World3D", "Assets", "Shaders"),
     ];
 
     // The nine Phase-2 lib modules (converted from .slang); import-only, so
@@ -63,7 +63,7 @@ public class ValidateWorld3DSlangModules
     }
 
     /// <summary>
-    /// Resolves a slang module/import probe against both ShadersSlang trees:
+    /// Resolves a slang module/import probe against both Shaders trees:
     /// exact relative path first, then dashed EndsWith matching (the engine's
     /// ShaderModuleResolver convention — 'alco_rendering_core' answers to
     /// 'Libs/alco-rendering-core.slang' wherever it sits in the tree).

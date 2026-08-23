@@ -114,7 +114,7 @@ The 10 oldest sandbox shaders lack `[shader(...)]` attributes and use explicit
 `Src/Alco.World3D/Rendering/Slang/` already compiles the whole World3D pipeline
 set through slang (Sandbox 34 runs all-slang) and proves the material-model
 direction: `ISurface` interface + generic pass entry points
-(`GBufferMainVS<Surface>` in `Assets/ShadersSlang/Pipelines/gbuffer.slang`)
+(`GBufferMainVS<Surface>` in `Assets/Shaders/Pipelines/gbuffer.slang`)
 replace the `@SURFACE@` text splice, and `_materialParams` packing uses
 slang-reflected member offsets.
 

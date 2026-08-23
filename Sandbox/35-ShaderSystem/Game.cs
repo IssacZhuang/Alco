@@ -32,8 +32,8 @@ public class Game : GameEngine
 
     private const string QuadModule = "alco-sandbox-shadersystem-quad";
     // AssetSystem paths are relative to the Assets/ root.
-    private const string CoreAssetPath = "ShadersSlang/Libs/alco-rendering-core.slang";
-    private const string QuadAssetPath = "ShadersSlang/alco-sandbox-shadersystem-quad.slang";
+    private const string CoreAssetPath = "Shaders/Libs/alco-rendering-core.slang";
+    private const string QuadAssetPath = "Shaders/alco-sandbox-shadersystem-quad.slang";
 
     private GPUCommandBuffer _commandBuffer = null!;
     private GPUBuffer _vertexBuffer = null!;
@@ -75,7 +75,7 @@ public class Game : GameEngine
 
         // The module-name keyed factory (plan §4.2): no asset load, no text mode.
         // The virtual file system resolves module names against the game's own
-        // Assets/ShadersSlang tree plus the engine's ported core module.
+        // Assets/Shaders tree plus the engine's ported core module.
         _shaderSystem = new ShaderSystem(RenderingSystem, new SlangCompilerOptions
         {
             Resolver = ResolveShaderModule,
@@ -187,7 +187,7 @@ public class Game : GameEngine
 
     private void WatchShaderSources()
     {
-        string directory = Path.Combine(AppContext.BaseDirectory, "Assets", "ShadersSlang");
+        string directory = Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders");
         if (!Directory.Exists(directory))
         {
             return;

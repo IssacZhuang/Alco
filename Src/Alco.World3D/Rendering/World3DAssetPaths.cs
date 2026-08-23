@@ -16,10 +16,10 @@ namespace Alco.World3D;
 public static class World3DAssetPaths
 {
     /// <summary>The asset folder all module shader modules live under.</summary>
-    public const string Folder = "ShadersSlang/Pipelines/Rendering/PBR/";
+    public const string Folder = "Shaders/Pipelines/Rendering/PBR/";
 
     /// <summary>The asset folder of the material pass templates (surface-generic, no entry points).</summary>
-    public const string TemplateFolder = "ShadersSlang/Pipelines/";
+    public const string TemplateFolder = "Shaders/Pipelines/";
 
     /// <summary>Deferred G-buffer pass template: composes with a surface (MaterialCompiler).</summary>
     public const string Shader_GBuffer = TemplateFolder + "gbuffer.slang";

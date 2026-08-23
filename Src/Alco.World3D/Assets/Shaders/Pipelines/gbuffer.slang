@@ -5,7 +5,7 @@
 // the generic pass functions with the material's surface type:
 //     GBufferMainVS<Surface>(...), GBufferMainPS<Surface>(...)
 // The surface itself arrives through a module import, giving compile-time
-// conformance checking against ISurface (ShadersSlang/Libs/surface.slang).
+// conformance checking against ISurface (Shaders/Libs/surface.slang).
 //
 // Writes albedo, world-space normal (from the surface's tangent-space normal
 // via TBN), material and emissive data. The interpolated mesh normal is

@@ -16,7 +16,7 @@ namespace Alco.World3D;
 /// first request and is reused afterwards, so meshes sharing a material share its GPU
 /// materials too.
 /// <br/>Every surface — the built-in PbrStandard included — is a Slang module exporting
-/// <c>public struct Surface : ISurface</c> (contract: ShadersSlang/Libs/surface.slang).
+/// <c>public struct Surface : ISurface</c> (contract: Shaders/Libs/surface.slang).
 /// The compiler generates a wrapper module that imports the pass template and the
 /// surface module and instantiates the template's generic pass functions with the
 /// surface's <c>Surface</c> type — dynamic shader stitching as interface-checked
@@ -37,14 +37,14 @@ public sealed class MaterialCompiler : AutoDisposable
     private const string MaterialParamsResource = "_materialParams";
 
     /// <summary>The asset folder of the Slang pass templates, surface modules and interface library.</summary>
-    private const string SlangFolder = "ShadersSlang/";
+    private const string SlangFolder = "Shaders/";
 
     /// <summary>The built-in surface every pass composes with when the asset names none.</summary>
     private const string DefaultSurfacePath = SlangFolder + "Materials/pbr-standard.slang";
 
     /// <summary>
     /// The Slang pass templates by template asset path: a pass composes the named
-    /// template (ShadersSlang/Pipelines) with the material's surface module.
+    /// template (Shaders/Pipelines) with the material's surface module.
     /// </summary>
     private static readonly Dictionary<string, string> SlangTemplates = new(StringComparer.Ordinal)
     {
@@ -239,7 +239,7 @@ public sealed class MaterialCompiler : AutoDisposable
             throw new InvalidDataException(
                 $"Material '{asset.Name}' names surface '{surfacePath}'; HLSL surfaces were retired by the "
                 + "slang migration — port the surface to a .slang module exporting "
-                + "'public struct Surface : ISurface' (see ShadersSlang/Libs/surface.slang).");
+                + "'public struct Surface : ISurface' (see Shaders/Libs/surface.slang).");
         }
         return GetSlangShader(templatePath, surfacePath);
     }

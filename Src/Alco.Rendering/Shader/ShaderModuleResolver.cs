@@ -40,7 +40,7 @@ public static class ShaderModuleResolver
 
             // 2) dashed probe matching: 'Libs/alco-rendering-core.slang' answers
             //    'alco/rendering/core.slang', 'alco-rendering-core.slang', …
-            //    Relative import probes ('ShadersSlang/Materials/surface.slang' for
+            //    Relative import probes ('Shaders/Materials/surface.slang' for
             //    'import surface;' from a module in that folder) retry on the probe's
             //    base name: module names are global, so a module's directory
             //    position is never load-bearing (plan D5).

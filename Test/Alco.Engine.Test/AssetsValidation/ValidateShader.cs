@@ -24,14 +24,14 @@ public class ValidateShader
         using ShaderValidator engine = new ShaderValidator(Setting);
         var assets = engine.AssetSystem;
         // Query every entry-point module shipped by Alco.Rendering. Import-only
-        // libraries live under ShadersSlang/Libs and are compiled by their importers.
+        // libraries live under Shaders/Libs and are compiled by their importers.
         // Generic modules (fxaa, texture-compress-bc3) cannot be loaded
         // unspecialized — ValidateSlangModules (Alco.Rendering.Test) covers them
         // through their specialization argument table.
         string[] genericModules = ["fxaa.slang", "texture-compress-bc3.slang"];
         var files = assets.AllAssetNames
             .Where(x => x.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
-            .Where(x => !x.Contains("ShadersSlang/Libs/", StringComparison.OrdinalIgnoreCase))
+            .Where(x => !x.Contains("Shaders/Libs/", StringComparison.OrdinalIgnoreCase))
             .Where(x => !genericModules.Contains(Path.GetFileName(x), StringComparer.OrdinalIgnoreCase))
             .ToArray();
 

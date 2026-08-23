@@ -7,7 +7,7 @@ namespace Alco.Rendering.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Slang-mode ValidateShader (plan §7): every engine .slang module under
-// Alco.Rendering's ShadersSlang tree must load through the module system and
+// Alco.Rendering's Shaders tree must load through the module system and
 // link every [shader(...)] entry point headlessly. File-tree resolver mirrors
 // the engine's asset resolver conventions (dashed module-name matching).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ public class ValidateSlangModules
 
     public static IEnumerable<TestCaseData> ModuleCases()
     {
-        string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "ShadersSlang");
+        string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders");
         foreach (string file in Directory.GetFiles(root, "*.slang", SearchOption.AllDirectories))
         {
             // Libs are imported, not entry modules — only pipeline modules own
@@ -58,7 +58,7 @@ public class ValidateSlangModules
     [TestCaseSource(nameof(ModuleCases))]
     public void Module_CompilesAllEntryPoints(string moduleName, string file)
     {
-        string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "ShadersSlang");
+        string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders");
         var files = Directory.GetFiles(root, "*.slang", SearchOption.AllDirectories)
             .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/'))
             .ToList();

@@ -45,7 +45,7 @@ public static partial class BuiltInAssetsPath
             {
                 // Import-only shader libraries own no entry points; loading them
                 // as shaders would fail to link, so no accessors are generated.
-                if (Path.GetExtension(filePath) == ".slang" && localPath.Contains("ShadersSlang/Libs/"))
+                if (Path.GetExtension(filePath) == ".slang" && localPath.Contains("Shaders/Libs/"))
                 {
                     continue;
                 }
