@@ -14,8 +14,14 @@ struct Constants {
     uint2 size;
 };
 
-[[vk::binding(0, 0)]] RWStructuredBuffer<uint4> _output;
-[[vk::binding(0, 1)]] Texture2D _input;
+cbuffer _pass : register(b0, space0)
+{
+    RWStructuredBuffer<uint4> _output;
+};
+cbuffer _input : register(b0, space1)
+{
+    Texture2D _input;
+};
 
 [[vk::push_constant]] Constants constants;
 

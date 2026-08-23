@@ -2,12 +2,15 @@
 
 Status: implemented. Supersedes the World3D slang proof-of-concept integration.
 
-Implementation note: the completed runtime uses source-declared
-`[[vk::binding(binding, set)]]` positions for deterministic WebGPU layouts while
-preserving the name-based C# contract. This replaces the plan's proposed
-set-only compiler assignment, which the pinned Slang toolchain cannot express
-without a remapping pass. The migration deliberately chose explicit source
-layout over retaining SPIR-V binding surgery.
+Implementation note: the completed runtime first used source-declared
+`[[vk::binding(binding, set)]]` positions for deterministic WebGPU layouts
+while preserving the name-based C# contract — at the time, the pinned Slang
+toolchain could not express the plan's set-only design without a remapping
+pass. Slang 2026.16 lifted that limit: resources now live in set-scoped
+cbuffer blocks (`cbuffer _name : register(b0, spaceN) { ... }`), the engine
+reflection bridge enumerates block members by bare name, and explicit
+`vk::binding` decorations are gone from every shader source (see
+`Shader_Binding_Slot_Collisions.md` and `SlangCodingStandard.md`).
 
 Slang's direct SPIR-V emitter is the only backend. The compiler pins the
 `spirv_1_3` target profile explicitly, the public options no longer expose a

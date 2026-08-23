@@ -19,11 +19,21 @@ struct Constants {
 };
 
 // Input and output textures
-[[vk::binding(0, 0)]] [[vk::image_format("rgba8")]] RWTexture2D<float4> _input;
-[[vk::binding(0, 1)]] [[vk::image_format("rgba8")]] RWTexture2D<float4> _output;
+cbuffer _input : register(b0, space0)
+{
+    [[vk::image_format("rgba8")]] RWTexture2D<float4> _input;
+};
+
+cbuffer _output : register(b0, space1)
+{
+    [[vk::image_format("rgba8")]] RWTexture2D<float4> _output;
+};
 
 // Gaussian kernel buffer (precomputed on CPU)
-[[vk::binding(0, 2)]] RWStructuredBuffer<float> _gaussianKernel;
+cbuffer _gaussianKernel : register(b0, space2)
+{
+    RWStructuredBuffer<float> _gaussianKernel;
+};
 
 [[vk::push_constant]] Constants constants;
 

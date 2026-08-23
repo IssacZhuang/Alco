@@ -31,7 +31,7 @@ import alco_world3d_reversed_depth;
 // migrated here verbatim from the old DeferredLighting.hlsl inline GI path so
 // the lighting shader can be a thin consumer.
 
-[[vk::binding(0, 0)]] cbuffer _data {
+cbuffer _data : register(b0, space0) {
     float4x4 invViewProjection;
     float4 params; // xy = G-buffer size in pixels, z = 1/traceWidth (= 5/atlasWidth), w = 1/traceHeight
 };
@@ -40,14 +40,18 @@ import alco_world3d_reversed_depth;
 // Indirect atlas (5x trace width), output of VoxelDemosaic. Uses explicit
 // LOD-0 sampling (SampleLevel) so the compute shader does not require
 // derivative capabilities.
-[[vk::binding(0, 1)]] Texture2D _indirectGI;
-[[vk::binding(1, 1)]] SamplerState _indirectGISampler;
-// G-buffer depth (for linear-depth-weighted blending) and normal (for ALD).
-[[vk::binding(0, 2)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(0, 3)]] Texture2D _normal;
-// Full-resolution outputs consumed by DeferredLighting.
-[[vk::binding(0, 4)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giDiffuseOut;
-[[vk::binding(0, 5)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giSpecularOut;
+// This pass's resources take set 1 (set 0 is the _data block above).
+cbuffer _pass : register(b0, space1)
+{
+    Texture2D _indirectGI;
+    SamplerState _indirectGISampler;
+    // G-buffer depth (for linear-depth-weighted blending) and normal (for ALD).
+    DepthTexture2D _gbufferDepth;
+    Texture2D _normal;
+    // Full-resolution outputs consumed by DeferredLighting.
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giDiffuseOut;
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giSpecularOut;
+};
 
 #define SAMPLE_ATLAS(tex, uv) tex.SampleLevel(tex##Sampler, uv, 0)
 

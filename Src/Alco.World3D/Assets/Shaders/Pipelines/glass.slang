@@ -48,9 +48,10 @@ struct GlassConstants
     float4 emissive;            // rgb = emissive factor
 }
 
-// _data (set 0, binding 0) is owned by alco_world3d_pbr_common; the camera
-// takes the next set-0 binding. The engine binds both by name.
-[[vk::binding(1, 0)]] cbuffer _camera
+// Sets 0 and 1 are owned by alco_world3d_pbr_common and set 2 by the composed
+// surface module; the camera takes this template's own set 3. The engine binds
+// everything by name.
+cbuffer _camera : register(b0, space3)
 {
     float4x4 viewProjection;
 }

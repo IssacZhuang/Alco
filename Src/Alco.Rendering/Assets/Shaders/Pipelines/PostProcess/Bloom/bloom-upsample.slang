@@ -24,10 +24,18 @@ struct Constants {
     float spread;
 };
 
-[[vk::binding(0, 0)]] Texture2D _previousTexture;
-[[vk::binding(1, 0)]] SamplerState _previousTextureSampler;
-[[vk::binding(0, 1)]] Texture2D _currentTexture;
-[[vk::binding(1, 1)]] SamplerState _currentTextureSampler;
+cbuffer _previous : register(b0, space0)
+{
+    Texture2D _previousTexture;
+    SamplerState _previousTextureSampler;
+};
+
+cbuffer _current : register(b0, space1)
+{
+    Texture2D _currentTexture;
+    SamplerState _currentTextureSampler;
+};
+
 [[vk::push_constant]] Constants constants;
 
 struct Vertex {

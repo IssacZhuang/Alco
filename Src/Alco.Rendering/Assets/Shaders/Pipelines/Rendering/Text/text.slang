@@ -46,13 +46,19 @@ struct TextData {
   float2 size;
 };
 
-[[vk::binding(0, 0)]] cbuffer _camera { float4x4 viewProjection; };
+cbuffer _camera : register(b0, space0) { float4x4 viewProjection; };
 
 
-[[vk::binding(0, 1)]] RWStructuredBuffer<TextData> _textBuffer;
+cbuffer _textBuffer : register(b0, space1)
+{
+    RWStructuredBuffer<TextData> _textBuffer;
+};
 
-[[vk::binding(0, 2)]] Texture2D _font;
-[[vk::binding(1, 2)]] SamplerState _fontSampler;
+cbuffer _material : register(b0, space2)
+{
+    Texture2D _font;
+    SamplerState _fontSampler;
+};
 
 [[vk::push_constant]] Constants constants;
 

@@ -32,17 +32,21 @@ struct VoxelizeConstants
     float4 params2;        // x=triangleCount, yz=packed voxel-space dirty range lo/hi (x|y<<8|z<<16), w=unused
 };
 
-[[vk::binding(0, 1)]] RWStructuredBuffer<uint> _vertices;
-[[vk::binding(0, 2)]] RWStructuredBuffer<uint> _indices;
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    RWStructuredBuffer<uint> _vertices;
+    RWStructuredBuffer<uint> _indices;
 // Use a flat uint view for atomics. The same buffer is read as uint4 by later
 // passes; the byte layout is identical, while Vulkan atomics require the target
 // expression to be a direct runtime-array element rather than a vector member.
-[[vk::binding(0, 3)]] RWStructuredBuffer<uint> _attrOut;
-[[vk::binding(0, 4)]] Texture2D _albedoTexture;
-[[vk::binding(1, 4)]] SamplerState _albedoTextureSampler;
-[[vk::binding(0, 5)]] Texture2D _emissiveTexture;
-[[vk::binding(1, 5)]] SamplerState _emissiveTextureSampler;
-[[vk::binding(0, 6)]] RWStructuredBuffer<uint> _pageTable;
+    RWStructuredBuffer<uint> _attrOut;
+    Texture2D _albedoTexture;
+    SamplerState _albedoTextureSampler;
+    Texture2D _emissiveTexture;
+    SamplerState _emissiveTextureSampler;
+    RWStructuredBuffer<uint> _pageTable;
+};
 
 [[vk::push_constant]] VoxelizeConstants constants;
 

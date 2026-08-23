@@ -23,8 +23,11 @@ struct Constants {
     float gamma;
 };
 
-[[vk::binding(0, 0)]] Texture2D _texture;
-[[vk::binding(1, 0)]] SamplerState _textureSampler;
+cbuffer _pass : register(b0, space0)
+{
+    Texture2D _texture;
+    SamplerState _textureSampler;
+};
 [[vk::push_constant]] Constants constants;
 
 struct Vertex {

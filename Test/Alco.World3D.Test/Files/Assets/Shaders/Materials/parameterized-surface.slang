@@ -12,33 +12,32 @@ module parameterized_surface;
 
 import surface;
 
-// Mixed-type parameter block: reflection reports pulseSpeed/pulseIntensity at
-// offset 0/4, pulseColor at 16, bandFrequency at 28 - packing the material
-// compiler does not need to know, it just writes floats at the reflected
-// offsets.
-[[vk::binding(0, 2)]] cbuffer _materialParams
+// The engine binds the per-frame global render data buffer to every material;
+// x = time, y = deltaTime, z = sinTime, w = cosTime. Pure UBO blocks come
+// first in the surface's set.
+cbuffer _globalRenderData : register(b0, space2)
+{
+    float4 time;
+}
+
+// Mixed-type parameter block plus the surface's resources, in one block that
+// owns the rest of the set: the UBO takes b1 and resources continue after it.
+// The material compiler reads each member's type and byte offset from Slang
+// reflection and fills the buffer by name.
+cbuffer _materialParams : register(b1, space2)
 {
     float pulseSpeed;       // pulses per second
     float pulseIntensity;   // peak emissive multiplier
     float3 pulseColor;      // linear pulse color
     float bandFrequency;    // world-space bands per unit (0 = uniform pulse)
-}
 
-// The engine binds the per-frame global render data buffer to every material;
-// x = time, y = deltaTime, z = sinTime, w = cosTime.
-[[vk::binding(1, 2)]] cbuffer _globalRenderData
-{
-    float4 time;
+    Texture2D<float4> _albedoTexture;
+    SamplerState _albedoTextureSampler;
+    Texture2D<float4> _normalTexture;
+    SamplerState _normalTextureSampler;
+    Texture2D<float4> _metallicRoughnessTexture;
+    SamplerState _metallicRoughnessTextureSampler;
 }
-
-// Surface resources live in set 2 (the surface contract): explicit, stable
-// across pass permutations and define permutations alike.
-[[vk::binding(2, 2)]] Texture2D<float4> _albedoTexture;
-[[vk::binding(3, 2)]] SamplerState _albedoTextureSampler;
-[[vk::binding(4, 2)]] Texture2D<float4> _normalTexture;
-[[vk::binding(5, 2)]] SamplerState _normalTextureSampler;
-[[vk::binding(6, 2)]] Texture2D<float4> _metallicRoughnessTexture;
-[[vk::binding(7, 2)]] SamplerState _metallicRoughnessTextureSampler;
 
 public struct Surface : ISurface
 {

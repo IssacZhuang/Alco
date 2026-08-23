@@ -19,35 +19,38 @@ public sealed class TestPBRDeferredPreset
 {
     // Minimal deferred lighting module declaring every resource the pipeline binds
     // by name (the cbuffer layout itself is irrelevant to the NoGPU backend).
-    // Bindings are explicit set/binding pairs — the slang module convention — with
-    // depth textures as native DepthTexture2D.
+    // One cbuffer block per set — the slang module convention — with depth
+    // textures as native DepthTexture2D.
     private const string LightingShaderSource = """
         module test_lighting;
 
-        [[vk::binding(0, 0)]] cbuffer _data { float4 dummy0; float4 dummy1; };
-
-        [[vk::binding(0, 1)]] Texture2D _albedo;
-        [[vk::binding(1, 1)]] SamplerState _albedoSampler;
-        [[vk::binding(2, 1)]] Texture2D _normal;
-        [[vk::binding(3, 1)]] SamplerState _normalSampler;
-        [[vk::binding(4, 1)]] Texture2D _mrAO;
-        [[vk::binding(5, 1)]] SamplerState _mrAOSampler;
-        [[vk::binding(6, 1)]] DepthTexture2D _gbufferDepth;
-        [[vk::binding(7, 1)]] Texture2D _emissive;
-        [[vk::binding(8, 1)]] SamplerState _emissiveSampler;
-        [[vk::binding(9, 1)]] Texture2D _giDiffuse;
-        [[vk::binding(10, 1)]] SamplerState _giDiffuseSampler;
-        [[vk::binding(11, 1)]] Texture2D _giSpecular;
-        [[vk::binding(12, 1)]] SamplerState _giSpecularSampler;
-        [[vk::binding(13, 1)]] Texture2D _aoTexture;
-        [[vk::binding(14, 1)]] SamplerState _aoTextureSampler;
-        [[vk::binding(15, 1)]] Texture2D _cloudShadow;
-        [[vk::binding(16, 1)]] SamplerState _cloudShadowSampler;
-        [[vk::binding(17, 1)]] DepthTexture2D _shadowMap;
-        [[vk::binding(18, 1)]] SamplerComparisonState _shadowMapSampler;
+        cbuffer _data : register(b0, space0) { float4 dummy0; float4 dummy1; };
 
         struct PointLightData { float4 positionRange; float4 colorIntensity; };
-        [[vk::binding(19, 1)]] RWStructuredBuffer<PointLightData> _pointLights;
+
+        cbuffer _lighting : register(b0, space1)
+        {
+            Texture2D _albedo;
+            SamplerState _albedoSampler;
+            Texture2D _normal;
+            SamplerState _normalSampler;
+            Texture2D _mrAO;
+            SamplerState _mrAOSampler;
+            DepthTexture2D _gbufferDepth;
+            Texture2D _emissive;
+            SamplerState _emissiveSampler;
+            Texture2D _giDiffuse;
+            SamplerState _giDiffuseSampler;
+            Texture2D _giSpecular;
+            SamplerState _giSpecularSampler;
+            Texture2D _aoTexture;
+            SamplerState _aoTextureSampler;
+            Texture2D _cloudShadow;
+            SamplerState _cloudShadowSampler;
+            DepthTexture2D _shadowMap;
+            SamplerComparisonState _shadowMapSampler;
+            RWStructuredBuffer<PointLightData> _pointLights;
+        };
 
         struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
         struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
@@ -71,8 +74,11 @@ public sealed class TestPBRDeferredPreset
     private const string BlitShaderSource = """
         module test_blit;
 
-        [[vk::binding(0, 0)]] Texture2D _texture;
-        [[vk::binding(1, 0)]] SamplerState _textureSampler;
+        cbuffer _pass : register(b0, space0)
+        {
+            Texture2D _texture;
+            SamplerState _textureSampler;
+        };
 
         struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
         struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };

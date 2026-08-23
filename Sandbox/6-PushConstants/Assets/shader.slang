@@ -2,7 +2,7 @@
 //
 // Slang module converted from Shader.hlsl (Phase 4 migration): the low-level
 // sandbox compiles it through the native slang module API. The SLOT macro
-// became explicit vk::binding decorations.
+// became set-scoped cbuffer blocks (bindings are compiler-assigned).
 
 #language slang 2025
 module sandbox6_shader;
@@ -21,12 +21,15 @@ struct Constants{
     float4x4 model;
 };
 
-[[vk::binding(0, 0)]] cbuffer ViewProjection{
+cbuffer ViewProjection : register(b0, space0) {
     float4x4 viewProjection;
 };
 
-[[vk::binding(0, 1)]] Texture2D image;
-[[vk::binding(1, 1)]] SamplerState imageSampler;
+cbuffer _material : register(b0, space1)
+{
+    Texture2D image;
+    SamplerState imageSampler;
+};
 
 [[vk::push_constant]] Constants constants;
 

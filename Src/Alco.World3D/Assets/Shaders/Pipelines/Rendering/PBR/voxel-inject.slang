@@ -35,27 +35,30 @@ struct VoxelInjectConstants
     float4 params; // x=levelIndex, yzw=unused
 };
 
-// Bind groups: set 0 packs the per-dispatch inputs together with the shared
-// uniform (binding 0, from VoxelCommon.hlsli); set 1 holds the output textures,
-// so the pass needs two of the eight available sets.
-[[vk::binding(1, 0)]] RWStructuredBuffer<uint4> _attrStatic;
-[[vk::binding(2, 0)]] RWStructuredBuffer<uint4> _attrDynamic;
-[[vk::binding(6, 0)]] DepthTexture2D _shadowMap;
-[[vk::binding(7, 0)]] SamplerComparisonState _shadowMapSampler;
-// Combined page table: x=static page entry, y=dynamic page entry. Merging the
-// two pools into one buffer frees a binding for the brick list.
-[[vk::binding(3, 0)]] RWStructuredBuffer<uint2> _pageTable;
-[[vk::binding(4, 0)]] RWStructuredBuffer<uint4> _brickList;
-
-// Point lights shared with the deferred lighting pass (same StructuredBuffer).
+// alco_world3d_voxel_common owns set 0 (the shared uniform); this pass's
+// resources take set 1 as one block.
 struct PointLightData
 {
     float4 positionRange;    // xyz = world-space position, w = cutoff radius
     float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
 };
-[[vk::binding(5, 0)]] RWStructuredBuffer<PointLightData> _pointLights;
-[[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
-[[vk::binding(1, 1)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    RWStructuredBuffer<uint4> _attrStatic;
+    RWStructuredBuffer<uint4> _attrDynamic;
+    DepthTexture2D _shadowMap;
+    SamplerComparisonState _shadowMapSampler;
+// Combined page table: x=static page entry, y=dynamic page entry. Merging the
+// two pools into one buffer frees a binding for the brick list.
+    RWStructuredBuffer<uint2> _pageTable;
+    RWStructuredBuffer<uint4> _brickList;
+
+// Point lights shared with the deferred lighting pass (same StructuredBuffer).
+    RWStructuredBuffer<PointLightData> _pointLights;
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
+};
 
 [[vk::push_constant]] VoxelInjectConstants constants;
 

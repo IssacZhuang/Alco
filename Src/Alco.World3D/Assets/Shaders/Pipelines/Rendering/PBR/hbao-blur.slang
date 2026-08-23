@@ -34,10 +34,14 @@ import alco_world3d_reversed_depth;
 #define HBAO_BLUR_DEPTH_SIGMA 0.02
 #define HBAO_BLUR_NORMAL_POWER 16.0
 
-[[vk::binding(0, 1)]] Texture2D _aoInput;
-[[vk::binding(0, 2)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(0, 3)]] Texture2D _normal;
-[[vk::binding(0, 4)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _aoResult;
+// alco_world3d_hbao_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture2D _aoInput;
+    DepthTexture2D _gbufferDepth;
+    Texture2D _normal;
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _aoResult;
+};
 
 [shader("compute")]
 [numthreads(8, 8, 1)]

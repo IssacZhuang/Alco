@@ -51,7 +51,11 @@ struct V2F
 };
 
 // G-buffer depth (for reconstructing world position and determining ray length).
-[[vk::binding(0, 1)]] DepthTexture2D _gbufferDepth;
+// Sets 0 and 1 are alco_world3d_pbr_common's; this pass's resources take set 2.
+cbuffer _pass : register(b0, space2)
+{
+    DepthTexture2D _gbufferDepth;
+};
 
 
 [shader("vertex")]

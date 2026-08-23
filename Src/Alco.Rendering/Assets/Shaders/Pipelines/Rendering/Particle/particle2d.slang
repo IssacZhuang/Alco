@@ -44,13 +44,19 @@ struct ParticleData2D{
     float depthVelocity;
 };
 
-[[vk::binding(0, 0)]] cbuffer _camera { float4x4 viewProjection; };
+cbuffer _camera : register(b0, space0) { float4x4 viewProjection; };
 
 
-[[vk::binding(0, 1)]] Texture2D _texture;
-[[vk::binding(1, 1)]] SamplerState _textureSampler;
+cbuffer _material : register(b0, space1)
+{
+    Texture2D _texture;
+    SamplerState _textureSampler;
+};
 
-[[vk::binding(0, 2)]] RWStructuredBuffer<ParticleData2D> _particles;
+cbuffer _particles : register(b0, space2)
+{
+    RWStructuredBuffer<ParticleData2D> _particles;
+};
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {

@@ -6,38 +6,50 @@ storage format; C# resolves the resource by name through
 `ShaderReflectionInfo`. Callers must never treat a binding number as a public
 resource identifier.
 
-Shader sources declare the physical Vulkan layout explicitly:
+Shader sources declare only **which set they own**; Slang assigns member
+bindings in declaration order. Every set is one cbuffer block:
 
 ```slang
-[[vk::binding(0, 0)]] ConstantBuffer<FrameData> _frame;
-[[vk::binding(0, 1)]] Texture2D<float4> _albedo;
-[[vk::binding(1, 1)]] SamplerState _albedoSampler;
+cbuffer _pass : register(b0, space1)
+{
+    Texture2D<float4> _albedo;   // binding 0 in the set
+    SamplerState _albedoSampler; // binding 1
+};
 ```
 
-The two arguments are `(binding, set)`. Sets follow the engine frequency
-layout:
+Sets follow the engine frequency layout:
 
 - set 0: frame resources;
 - set 1: pass resources;
 - set 2: material resources;
 - set 3: draw resources.
 
-Bindings must be unique inside a set and contiguous from zero. Keep a texture
-and its sampler as separate reflected resources; the runtime pairs them by the
-texture resource entry, not by arithmetic performed by callers. Depth textures
-use Slang depth texture types and `SamplerComparisonState`, so neither source
-regexes nor SPIR-V patching participate in layout construction.
+Each set belongs to exactly one module; a program composed of several modules
+allocates the first free set to each importing module's own block. A block
+with uniform data emits its buffer at the block's register and members
+continue after it; a resource-only block emits no buffer and its members take
+the set's bindings from zero. Blocks sharing one set use sequential registers
+(`b0`, `b1`, …) with any mixed parameters+resources block last. Keep a texture
+and its sampler as separate reflected block members; the runtime pairs them by
+the texture resource entry, not by arithmetic performed by callers. Depth
+textures use Slang depth texture types and `SamplerComparisonState`, so
+neither source regexes nor SPIR-V patching participate in layout construction.
 
 `ShaderReflectionUtility.ValidateBindGroupLayouts` rejects non-contiguous sets,
-duplicate bindings and layouts beyond the device limit. The Slang validation
-tests compile every module and verify the reflected layout before a shader can
-reach a GPU pipeline.
+duplicate bindings and layouts beyond the device limit; the reflection reader
+additionally rejects duplicate resource names across sets. `SlangBlockBindingTest`
+pins the block reflection contract and `SlangSourceConventionTest` rejects
+`[[vk::binding]]` in sources. The Slang validation tests compile every module
+and verify the reflected layout before a shader can reach a GPU pipeline.
 
 ## Historical note
 
 The removed DXC pipeline used `DEFINE_*` macros, `register(spaceN)` automatic
 assignment, source-level sampler suffix conventions and a custom SPIR-V
 reflector. Earlier `_AT` macros could accidentally overlap a texture's sampler
-binding with the next resource. Explicit Slang declarations plus compiler
-reflection make those collisions visible during headless validation rather
-than at WebGPU pipeline creation.
+binding with the next resource. The first Slang migration answered with explicit
+`[[vk::binding(binding, set)]]` pairs on every resource, which made collisions
+visible during headless validation but pinned every binding number in source.
+The set-scoped block convention (Slang 2026.16) removed that last coupling:
+only the set is written, bindings are compiler-owned, and inserting a member
+shifts bindings without touching any C# call site.

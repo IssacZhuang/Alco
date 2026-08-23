@@ -48,11 +48,10 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-// The half-resolution cloud march result.
-[[vk::binding(0, 1)]] Texture2D _clouds;
-[[vk::binding(1, 1)]] SamplerState _cloudsSampler;
-// Shared G-buffer depth for the bilateral weights.
-[[vk::binding(2, 1)]] DepthTexture2D _gbufferDepth;
+// This pass's resources take one block on its own set 2 (sets 0 and 1 are
+// alco_world3d_pbr_common's): the half-resolution cloud march result and the
+// shared G-buffer depth for the bilateral weights, joined with the same
+// _cloudData cbuffer the march pass binds.
 
 // Squared gaussian width of the upsample kernel, in half-resolution texels
 // (sigma ~ 0.67 texels): wide enough to average the march jitter grain into
@@ -63,12 +62,16 @@ static const float CLOUD_UPSAMPLE_SIGMA2 = 0.45;
 // The same _cloudData cbuffer the march pass binds (RGNode_VolumetricClouds
 // fills it); only cloudParams2.z (march resolution scale) and cloudDebug are
 // read here.
-[[vk::binding(0, 2)]] cbuffer _cloudData {
+cbuffer _cloudData : register(b0, space2) {
     float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
     float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
     float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
     float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
     float4 cloudDebug;   // x=opacity debug view (grayscale) yzw=unused
+
+    Texture2D _clouds;
+    SamplerState _cloudsSampler;
+    DepthTexture2D _gbufferDepth;
 };
 
 

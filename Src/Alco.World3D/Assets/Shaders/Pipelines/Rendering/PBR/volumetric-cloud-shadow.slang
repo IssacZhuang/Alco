@@ -33,7 +33,7 @@ import alco_world3d_clouds;
 // come out slightly softer than the visible cloud edges, which reads as
 // scattering softness rather than a mismatch.
 
-[[vk::binding(0, 0)]] cbuffer _cloudData {
+cbuffer _cloudData : register(b0, space0) {
     float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
     float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
     float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
@@ -41,10 +41,16 @@ import alco_world3d_clouds;
     float4 cloudDebug;   // x=opacity debug view y=bake half extent km zw=bake window center (world xz, km)
 };
 
+cbuffer _cloudNoise : register(b0, space1)
+{
+    Texture3D _cloudBaseNoise;
+    SamplerState _cloudBaseNoiseSampler;
+};
 
-[[vk::binding(0, 1)]] Texture3D _cloudBaseNoise;
-[[vk::binding(1, 1)]] SamplerState _cloudBaseNoiseSampler;
-[[vk::binding(0, 2)]] [[vk::image_format("rgba8")]] RWTexture2D<float4> _shadowOut;
+cbuffer _shadowOut : register(b0, space2)
+{
+    [[vk::image_format("rgba8")]] RWTexture2D<float4> _shadowOut;
+};
 
 static const float CLOUD_SHADOW_BASE_SCALE = 1.0 / 24.0;
 static const float CLOUD_SHADOW_COVERAGE_SCALE = 1.0 / 72.0;

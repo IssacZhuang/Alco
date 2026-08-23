@@ -34,9 +34,13 @@ import alco_world3d_reversed_depth;
 static const int HBAO_NUM_DIRECTIONS = 6;
 static const int HBAO_NUM_STEPS = 4;
 
-[[vk::binding(0, 1)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(0, 2)]] Texture2D _normal;
-[[vk::binding(0, 3)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _aoOutput;
+// alco_world3d_hbao_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    DepthTexture2D _gbufferDepth;
+    Texture2D _normal;
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _aoOutput;
+};
 
 [shader("compute")]
 [numthreads(8, 8, 1)]

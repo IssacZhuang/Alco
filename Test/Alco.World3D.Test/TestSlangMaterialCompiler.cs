@@ -100,8 +100,8 @@ public class TestSlangMaterialCompiler
         {
             AssertResource(info, "_camera", 0, 0, BindingType.UniformBuffer);
             AssertResource(info, "_instances", 1, 0, BindingType.StorageBuffer);
-            AssertResource(info, "_materialParams", 2, 0, BindingType.UniformBuffer);
-            AssertResource(info, "_globalRenderData", 2, 1, BindingType.UniformBuffer);
+            AssertResource(info, "_globalRenderData", 2, 0, BindingType.UniformBuffer);
+            AssertResource(info, "_materialParams", 2, 1, BindingType.UniformBuffer);
             AssertResource(info, "_albedoTexture", 2, 2, BindingType.Texture);
             AssertResource(info, "_normalTexture", 2, 4, BindingType.Texture);
             AssertResource(info, "_metallicRoughnessTexture", 2, 6, BindingType.Texture);

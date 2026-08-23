@@ -20,9 +20,12 @@ import alco_rendering_core;
 #define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Texture input and parameters
-[[vk::binding(0, 0)]] Texture2D _texture;
-[[vk::binding(1, 0)]] SamplerState _textureSampler;
-[[vk::binding(0, 1)]] cbuffer _data {
+cbuffer _pass : register(b0, space0)
+{
+    Texture2D _texture;
+    SamplerState _textureSampler;
+};
+cbuffer _data : register(b0, space1) {
     float Exposure;
     float Gamma;
     float Look; // 0: Default, 1: Golden, 2: Punchy

@@ -55,16 +55,19 @@ struct VoxelDemosaicConstants
     float4 params; // x=specularHysteresis, y=spatialSigma, z=diffuseHysteresis, w=unused
 };
 
-// Bind groups: set 0 packs the per-dispatch inputs together with the shared
-// uniform (binding 0, from VoxelCommon.hlsli); set 1 holds the output textures,
-// so the pass needs two of the eight available sets.
-[[vk::binding(1, 0)]] Texture2D _traceInput;
-[[vk::binding(5, 0)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(2, 0)]] Texture2D _normal;
-[[vk::binding(3, 0)]] Texture2D _historyInput;
-[[vk::binding(4, 0)]] Texture2D _emissive;
-[[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
-[[vk::binding(1, 1)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _historyOut;
+// alco_world3d_voxel_common owns set 0 (the shared uniform); this pass's
+// resources take set 1 as one block.
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture2D _traceInput;
+    DepthTexture2D _gbufferDepth;
+    Texture2D _normal;
+    Texture2D _historyInput;
+    Texture2D _emissive;
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _historyOut;
+};
 
 [[vk::push_constant]] VoxelDemosaicConstants constants;
 

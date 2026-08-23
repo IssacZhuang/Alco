@@ -12,7 +12,7 @@ import alco_rendering_core;
 
 // Shared by the post-lighting SSR trace, temporal resolve and composite passes.
 // The layout must match ScreenSpaceReflectionRenderer.SsrData exactly.
-[[vk::binding(0, 0)]] public cbuffer _ssrData {
+public cbuffer _ssrData : register(b0, space0) {
     public float4x4 ssrInvViewProjection;
     public float4x4 ssrViewProjection;
     public float4x4 ssrPreviousViewProjection;

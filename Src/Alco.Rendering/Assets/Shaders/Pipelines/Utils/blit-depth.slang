@@ -19,9 +19,12 @@ import alco_rendering_core;
 #define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
 #define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
-[[vk::binding(0, 0)]] DepthTexture2D _texture;
+cbuffer _texture : register(b0, space0)
+{
+    DepthTexture2D _texture;
+};
 
-[[vk::binding(0, 1)]] cbuffer _data {
+cbuffer _data : register(b0, space1) {
     float2 canvasSize;
     float2 dynamicRange;
 };

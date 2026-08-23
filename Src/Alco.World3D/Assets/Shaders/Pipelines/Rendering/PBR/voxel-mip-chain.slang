@@ -38,10 +38,14 @@ struct VoxelMipChainConstants
     float4 params; // x=srcMip, y=mode(0=radiance,1=opacity), zw=unused
 };
 
-[[vk::binding(0, 1)]] Texture3D _srcTex;
-[[vk::binding(0, 2)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex1; // mip srcMip+1
-[[vk::binding(0, 3)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex2; // mip srcMip+2
-[[vk::binding(0, 4)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex3; // mip srcMip+3
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture3D _srcTex;
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex1; // mip srcMip+1
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex2; // mip srcMip+2
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex3; // mip srcMip+3
+};
 
 [[vk::push_constant]] VoxelMipChainConstants constants;
 

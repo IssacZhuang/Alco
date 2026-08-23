@@ -19,9 +19,13 @@ struct VoxelClearConstants
     float4 params; // x=levelIndex
 };
 
-[[vk::binding(0, 1)]] RWStructuredBuffer<uint4> _attrOut;
-[[vk::binding(0, 2)]] RWStructuredBuffer<uint4> _dirtyBricks;
-[[vk::binding(0, 3)]] RWStructuredBuffer<uint> _pageTable;
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    RWStructuredBuffer<uint4> _attrOut;
+    RWStructuredBuffer<uint4> _dirtyBricks;
+    RWStructuredBuffer<uint> _pageTable;
+};
 
 [[vk::push_constant]] VoxelClearConstants constants;
 

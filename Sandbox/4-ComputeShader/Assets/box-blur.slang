@@ -8,10 +8,17 @@
 #language slang 2025
 module sandbox4_box_blur;
 
-[[vk::binding(0, 0)]] Texture2D inputTexture;
-[[vk::binding(0, 1)]] [[vk::image_format("rgba8")]] RWTexture2D<float4> outputTexture;
+cbuffer inputTexture : register(b0, space0)
+{
+    Texture2D inputTexture;
+};
 
-[[vk::binding(0, 2)]] cbuffer Constants { int iterations; };
+cbuffer outputTexture : register(b0, space1)
+{
+    [[vk::image_format("rgba8")]] RWTexture2D<float4> outputTexture;
+};
+
+cbuffer Constants : register(b0, space2) { int iterations; };
 
 [shader("compute")]
 [numthreads(8, 8, 1)]

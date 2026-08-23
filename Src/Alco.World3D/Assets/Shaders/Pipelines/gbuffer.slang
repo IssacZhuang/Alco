@@ -40,12 +40,15 @@ public struct GBufferV2F
     float3 worldPos : TEXCOORD4;
 }
 
-[[vk::binding(0, 0)]] cbuffer _camera
+cbuffer _camera : register(b0, space0)
 {
     float4x4 viewProjection;
 }
 
-[[vk::binding(0, 1)]] RWStructuredBuffer<PbrInstance> _instances;
+cbuffer _draw : register(b0, space1)
+{
+    RWStructuredBuffer<PbrInstance> _instances;
+}
 
 // Octahedral encoding keeps the interpolated mesh normal in the two half-float
 // alpha channels of the normal and emissive G-buffer targets.

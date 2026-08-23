@@ -19,11 +19,14 @@ import alco_rendering_core;
 #define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
 #define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
-[[vk::binding(0, 0)]] Texture2D _texture;
-[[vk::binding(1, 0)]] SamplerState _textureSampler;
+cbuffer _pass : register(b0, space0)
+{
+    Texture2D _texture;
+    SamplerState _textureSampler;
+};
 
 // FXAA configuration constants
-[[vk::binding(0, 1)]] cbuffer _fxaaData {
+cbuffer _fxaaData : register(b0, space1) {
   float2 InvFrameSize; // 1.0 / FrameSize
   float Threshold;     // Edge detection threshold (0.063-0.333)
   float _padding;      // Padding for alignment

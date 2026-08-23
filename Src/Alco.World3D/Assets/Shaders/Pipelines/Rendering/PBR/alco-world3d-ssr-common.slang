@@ -28,9 +28,12 @@ import alco_world3d_voxel_common;
 // Nothing imports this module today; these keep it loadable and give a future
 // importer the documented surface (the Hi-Z pyramid, the G-buffer normal and
 // depth, world reconstruction and screen-radiance approximation).
-[[vk::binding(0, 1)]] public Texture2D<float4> _depthPyramid;
-[[vk::binding(1, 1)]] public Texture2D _normal;
-[[vk::binding(2, 1)]] public DepthTexture2D _gbufferDepth;
+public cbuffer _ssrInputs : register(b0, space1)
+{
+    public Texture2D<float4> _depthPyramid;
+    public Texture2D _normal;
+    public DepthTexture2D _gbufferDepth;
+};
 
 public float3 ReconstructWorldPosition(float2 uv, float depth)
 {

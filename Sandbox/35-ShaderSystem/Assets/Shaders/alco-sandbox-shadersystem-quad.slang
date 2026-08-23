@@ -10,16 +10,18 @@ module alco_sandbox_shadersystem_quad;
 
 import alco_rendering_core;
 
-[[vk::binding(0, 0)]] cbuffer _frame
-{
+cbuffer _frame : register(b0, space0)
     float4x4 viewProjection;
     float4 tintColor;
 };
 
 // Engine convention: one binding index per resource within a set (WebGPU
 // layouts reject a texture and sampler sharing an index).
-[[vk::binding(0, 1)]] Texture2D _albedo;
-[[vk::binding(1, 1)]] SamplerState _albedoSampler;
+cbuffer _material : register(b0, space1)
+{
+    Texture2D _albedo;
+    SamplerState _albedoSampler;
+};
 
 struct Vertex
 {

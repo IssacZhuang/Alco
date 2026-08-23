@@ -31,7 +31,7 @@ module alco_world3d_voxel_common;
 
 #define VOXEL_MAX_LEVELS 4
 
-[[vk::binding(0, 0)]] public cbuffer _data {
+public cbuffer _data : register(b0, space0) {
     public float4x4 invViewProjection;
     public float4x4 viewProjectionPrev; // previous frame's view-projection (for temporal reprojection)
     public float4x4 viewProjection;

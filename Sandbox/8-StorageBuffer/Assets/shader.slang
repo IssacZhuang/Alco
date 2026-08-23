@@ -24,14 +24,17 @@ struct Constants{
     float4x4 model;
 };
 
-[[vk::binding(0, 0)]] cbuffer ViewProjection{
+cbuffer ViewProjection : register(b0, space0) {
     float4x4 viewProjection;
 };
 
-[[vk::binding(0, 1)]] Texture2D image;
-[[vk::binding(1, 1)]] SamplerState imageSampler;
+cbuffer _material : register(b0, space1)
+{
+    Texture2D image;
+    SamplerState imageSampler;
+};
 
-[[vk::binding(0, 2)]] cbuffer PositionsBuffer{
+cbuffer PositionsBuffer : register(b0, space2) {
     float4 Positions[MAX_INSTANCE_COUNT];
 }
 

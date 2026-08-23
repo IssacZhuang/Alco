@@ -35,14 +35,14 @@ public class TestMaterialCompiler
 
             import surface;
 
-            [[vk::binding(0, 2)]] cbuffer _materialParams
-            {
-                float4 scale; // x = cells per meter; 0 = the default 2
-            };
-
-            [[vk::binding(1, 2)]] cbuffer _globalRenderData
+            cbuffer _globalRenderData : register(b0, space2)
             {
                 float4 time; // x = time, y = deltaTime, z = sinTime, w = cosTime
+            };
+
+            cbuffer _materialParams : register(b1, space2)
+            {
+                float4 scale; // x = cells per meter; 0 = the default 2
             };
 
             public struct Surface : ISurface

@@ -39,10 +39,14 @@ struct VoxelMipConstants
     float4 params; // x=mipIndex, yzw=unused (level derived from dispatch z)
 };
 
-[[vk::binding(0, 1)]] Texture3D _radianceLoad;
-[[vk::binding(0, 2)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
-[[vk::binding(0, 3)]] Texture3D _opacityLoad;
-[[vk::binding(0, 4)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture3D _radianceLoad;
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
+    Texture3D _opacityLoad;
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
+};
 
 [[vk::push_constant]] VoxelMipConstants constants;
 

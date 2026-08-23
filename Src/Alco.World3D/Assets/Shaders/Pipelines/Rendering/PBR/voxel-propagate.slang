@@ -43,19 +43,22 @@ struct VoxelPropagateConstants
     float4 params; // x=levelIndex, y=bounceStrength, z=bounceIndex, w=unused
 };
 
-// Bind groups: set 0 packs the per-dispatch inputs together with the shared
-// uniform (binding 0, from VoxelCommon.hlsli); set 1 is the output texture, so
-// the pass needs two of the eight available sets.
-[[vk::binding(5, 0)]] Texture3D _radiance;
-[[vk::binding(6, 0)]] SamplerState _radianceSampler;
-[[vk::binding(1, 0)]] RWStructuredBuffer<uint4> _attrStatic;
-[[vk::binding(2, 0)]] RWStructuredBuffer<uint4> _attrDynamic;
+// alco_world3d_voxel_common owns set 0 (the shared uniform); this pass's
+// resources take set 1 as one block.
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture3D _radiance;
+    SamplerState _radianceSampler;
+    RWStructuredBuffer<uint4> _attrStatic;
+    RWStructuredBuffer<uint4> _attrDynamic;
 // Combined page table: x=static, y=dynamic. Saves a binding for the brick list.
-[[vk::binding(3, 0)]] RWStructuredBuffer<uint2> _pageTable;
-[[vk::binding(7, 0)]] Texture3D _opacity;
-[[vk::binding(8, 0)]] SamplerState _opacitySampler;
-[[vk::binding(4, 0)]] RWStructuredBuffer<uint4> _brickList;
-[[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture3D<float4> _propagateOut;
+    RWStructuredBuffer<uint2> _pageTable;
+    Texture3D _opacity;
+    SamplerState _opacitySampler;
+    RWStructuredBuffer<uint4> _brickList;
+    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _propagateOut;
+};
 
 [[vk::push_constant]] VoxelPropagateConstants constants;
 

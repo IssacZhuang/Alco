@@ -15,7 +15,7 @@ struct PixelInput{
     float4 position : SV_POSITION;
 };
 
-[[vk::binding(0,0)]]cbuffer color{
+cbuffer color : register(b0, space0) {
     float4 color;
 }
 

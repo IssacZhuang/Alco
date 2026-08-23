@@ -15,7 +15,7 @@ import alco_world3d_reversed_depth;
 // must match HbaoRenderer.HbaoData on the C# side exactly.
 
 
-[[vk::binding(0, 0)]] public cbuffer _data {
+public cbuffer _data : register(b0, space0) {
     public float4x4 invViewProjection;
     public float4 cameraPosition; // xyz = world-space camera position
     public float4 cameraRight;    // xyz = world-space camera right axis

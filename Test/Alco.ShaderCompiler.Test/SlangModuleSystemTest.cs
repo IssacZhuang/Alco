@@ -55,7 +55,10 @@ public class SlangModuleSystemTest
     private const string DefinePermutedModule = """
         module define_permuted;
 
-        [[vk::binding(0, 0)]] RWStructuredBuffer<float4> _output;
+        cbuffer _output : register(b0, space0)
+        {
+            RWStructuredBuffer<float4> _output;
+        };
 
         [shader("compute")]
         [numthreads(1, 1, 1)]

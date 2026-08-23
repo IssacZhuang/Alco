@@ -14,16 +14,32 @@ namespace Alco.Rendering.Test;
 [TestFixture]
 public class TestShaderResourceMapping
 {
-    // One set per resource, packed with a companion: a sampler paired to _albedo
-    // by the engine's name##Sampler convention.
+    // A mixed block (uniform data plus resource members, one set), then one set
+    // per remaining resource, with a sampler paired to _albedo by the engine's
+    // name##Sampler convention.
     private const string PackedShader = """
         module packed_shader;
 
-        [[vk::binding(0, 0)]] cbuffer _data { float4 value; };
-        [[vk::binding(1, 0)]] Texture2D _albedo;
-        [[vk::binding(1, 1)]] SamplerState _albedoSampler;
-        [[vk::binding(0, 2)]] RWStructuredBuffer<float> _buffer;
-        [[vk::binding(0, 3)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _storage;
+        cbuffer _data : register(b0, space0)
+        {
+            float4 value;
+            Texture2D _albedo;
+        };
+
+        cbuffer _albedoSampler : register(b0, space1)
+        {
+            SamplerState _albedoSampler;
+        };
+
+        cbuffer _buffer : register(b0, space2)
+        {
+            RWStructuredBuffer<float> _buffer;
+        };
+
+        cbuffer _storage : register(b0, space3)
+        {
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _storage;
+        };
 
         [shader("compute")]
         [numthreads(1, 1, 1)]

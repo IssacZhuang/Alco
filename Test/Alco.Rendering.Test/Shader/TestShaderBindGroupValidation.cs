@@ -19,8 +19,8 @@ public class TestShaderBindGroupValidation
     private const string SkippedGroupShader = """
         module skipped_group_shader;
 
-        [[vk::binding(0, 0)]] cbuffer C0 { float4 v0; };
-        [[vk::binding(0, 2)]] cbuffer C2 { float4 v2; };
+        cbuffer C0 : register(b0, space0) { float4 v0; };
+        cbuffer C2 : register(b0, space2) { float4 v2; };
 
         struct Vertex { float3 position : POSITION; };
         struct V2F { float4 position : SV_POSITION; };
@@ -44,9 +44,9 @@ public class TestShaderBindGroupValidation
     private const string ThreeContiguousGroupsShader = """
         module three_contiguous_groups_shader;
 
-        [[vk::binding(0, 0)]] cbuffer C0 { float4 v0; };
-        [[vk::binding(0, 1)]] cbuffer C1 { float4 v1; };
-        [[vk::binding(0, 2)]] cbuffer C2 { float4 v2; };
+        cbuffer C0 : register(b0, space0) { float4 v0; };
+        cbuffer C1 : register(b0, space1) { float4 v1; };
+        cbuffer C2 : register(b0, space2) { float4 v2; };
 
         struct Vertex { float3 position : POSITION; };
         struct V2F { float4 position : SV_POSITION; };
@@ -70,15 +70,15 @@ public class TestShaderBindGroupValidation
     private const string TooManyGroupsShader = """
         module too_many_groups_shader;
 
-        [[vk::binding(0, 0)]] cbuffer C0 { float4 v0; };
-        [[vk::binding(0, 1)]] cbuffer C1 { float4 v1; };
-        [[vk::binding(0, 2)]] cbuffer C2 { float4 v2; };
-        [[vk::binding(0, 3)]] cbuffer C3 { float4 v3; };
-        [[vk::binding(0, 4)]] cbuffer C4 { float4 v4; };
-        [[vk::binding(0, 5)]] cbuffer C5 { float4 v5; };
-        [[vk::binding(0, 6)]] cbuffer C6 { float4 v6; };
-        [[vk::binding(0, 7)]] cbuffer C7 { float4 v7; };
-        [[vk::binding(0, 8)]] cbuffer C8 { float4 v8; };
+        cbuffer C0 : register(b0, space0) { float4 v0; };
+        cbuffer C1 : register(b0, space1) { float4 v1; };
+        cbuffer C2 : register(b0, space2) { float4 v2; };
+        cbuffer C3 : register(b0, space3) { float4 v3; };
+        cbuffer C4 : register(b0, space4) { float4 v4; };
+        cbuffer C5 : register(b0, space5) { float4 v5; };
+        cbuffer C6 : register(b0, space6) { float4 v6; };
+        cbuffer C7 : register(b0, space7) { float4 v7; };
+        cbuffer C8 : register(b0, space8) { float4 v8; };
 
         struct Vertex { float3 position : POSITION; };
         struct V2F { float4 position : SV_POSITION; };

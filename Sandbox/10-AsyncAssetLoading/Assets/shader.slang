@@ -6,12 +6,15 @@
 #language slang 2025
 module sandbox10_shader;
 
-[[vk::binding(0,0)]] cbuffer Constants{
+cbuffer Constants : register(b0, space0) {
     float3 color;
 };
 
-[[vk::binding(0,1)]] Texture2D image;
-[[vk::binding(1,1)]] SamplerState imageSampler;
+cbuffer _material : register(b0, space1)
+{
+    Texture2D image;
+    SamplerState imageSampler;
+};
 
 struct VertexInput {
     float3 position : POSITION0;

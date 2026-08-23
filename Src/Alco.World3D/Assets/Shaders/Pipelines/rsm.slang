@@ -53,12 +53,15 @@ struct RsmConstants
 // Per-cascade light view-projection matrices, updated per frame on the CPU and
 // shared with shadow-depth.slang (reference semantics keep render bundles
 // valid while the camera-fitted cascades move).
-[[vk::binding(0, 0)]] cbuffer _data
+cbuffer _data : register(b0, space0)
 {
     float4x4 lightViewProjections[4];
 }
 
-[[vk::binding(0, 1)]] RWStructuredBuffer<PbrInstance> _instances;
+cbuffer _draw : register(b0, space1)
+{
+    RWStructuredBuffer<PbrInstance> _instances;
+}
 
 [[vk::push_constant]]
 cbuffer constants

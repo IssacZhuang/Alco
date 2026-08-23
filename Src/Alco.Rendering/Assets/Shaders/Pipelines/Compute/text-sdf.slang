@@ -14,8 +14,15 @@ struct Constants {
 };
 
 // Font atlas textures (single channel but read as float4 to avoid compiler errors)
-[[vk::binding(0, 0)]] [[vk::image_format("r8")]] RWTexture2D<float4> _frontBuffer;
-[[vk::binding(0, 1)]] [[vk::image_format("r8")]] RWTexture2D<float4> _backBuffer;
+cbuffer _frontBuffer : register(b0, space0)
+{
+    [[vk::image_format("r8")]] RWTexture2D<float4> _frontBuffer;
+};
+
+cbuffer _backBuffer : register(b0, space1)
+{
+    [[vk::image_format("r8")]] RWTexture2D<float4> _backBuffer;
+};
 
 [[vk::push_constant]] Constants constants;
 

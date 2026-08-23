@@ -43,34 +43,38 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-// Pass-specific G-buffer textures (set 1). The shared _data cbuffer,
-// _pointLights buffer and _shadowMap texture live in PBRCommon.hlsli.
-[[vk::binding(0, 1)]] Texture2D _albedo;
-[[vk::binding(1, 1)]] SamplerState _albedoSampler;
-[[vk::binding(2, 1)]] Texture2D _normal;
-[[vk::binding(3, 1)]] SamplerState _normalSampler;
-[[vk::binding(4, 1)]] Texture2D _mrAO;
-[[vk::binding(5, 1)]] SamplerState _mrAOSampler;
-[[vk::binding(16, 1)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(6, 1)]] Texture2D _emissive;
-[[vk::binding(7, 1)]] SamplerState _emissiveSampler;
+// Pass-specific G-buffer textures: one block on this pass's own set 2
+// (sets 0 and 1 are alco_world3d_pbr_common's). Bindings within the block are
+// compiler-assigned in declaration order; the engine binds members by name.
+cbuffer _lighting : register(b0, space2)
+{
+    Texture2D _albedo;
+    SamplerState _albedoSampler;
+    Texture2D _normal;
+    SamplerState _normalSampler;
+    Texture2D _mrAO;
+    SamplerState _mrAOSampler;
+    DepthTexture2D _gbufferDepth;
+    Texture2D _emissive;
+    SamplerState _emissiveSampler;
 // Indirect GI textures from the GI render plugin (full-resolution):
 // diffuse irradiance with ALD directional modulation pre-applied, and
 // specular radiance. White/black fallbacks are bound by the pipeline when
 // no GI plugin is active.
-[[vk::binding(8, 1)]] Texture2D _giDiffuse;
-[[vk::binding(9, 1)]] SamplerState _giDiffuseSampler;
-[[vk::binding(10, 1)]] Texture2D _giSpecular;
-[[vk::binding(11, 1)]] SamplerState _giSpecularSampler;
+    Texture2D _giDiffuse;
+    SamplerState _giDiffuseSampler;
+    Texture2D _giSpecular;
+    SamplerState _giSpecularSampler;
 // Screen-space ambient occlusion from an AO render plugin (full-resolution,
 // white = unoccluded). The pipeline binds white when no AO plugin is active.
-[[vk::binding(12, 1)]] Texture2D _aoTexture;
-[[vk::binding(13, 1)]] SamplerState _aoTextureSampler;
+    Texture2D _aoTexture;
+    SamplerState _aoTextureSampler;
 // Cloud shadow coverage from the volumetric clouds plugin (r = 1 - column
 // transmittance at the cloud slab, camera-centered world grid; white when no
 // clouds plugin is active).
-[[vk::binding(14, 1)]] Texture2D _cloudShadow;
-[[vk::binding(15, 1)]] SamplerState _cloudShadowSampler;
+    Texture2D _cloudShadow;
+    SamplerState _cloudShadowSampler;
+}
 
 
 [shader("vertex")]

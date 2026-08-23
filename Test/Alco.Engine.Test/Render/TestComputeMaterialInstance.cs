@@ -13,10 +13,22 @@ public class TestComputeMaterialInstance
     private const string ComputeShaderSource = """
         module test_compute_instance;
 
-        [[vk::binding(0, 0)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _input;
-        [[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
-        [[vk::binding(0, 2)]] RWStructuredBuffer<float> _gaussianKernel;
-        [[vk::binding(0, 3)]] cbuffer _data { float4 baseColor; };
+        cbuffer _input : register(b0, space0)
+        {
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _input;
+        };
+
+        cbuffer _output : register(b0, space1)
+        {
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
+        };
+
+        cbuffer _gaussianKernel : register(b0, space2)
+        {
+            RWStructuredBuffer<float> _gaussianKernel;
+        };
+
+        cbuffer _data : register(b0, space3) { float4 baseColor; };
 
         float4 Blur(RWTexture2D<float4> input, RWStructuredBuffer<float> kernel, uint2 id)
         {

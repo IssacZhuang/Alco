@@ -8,8 +8,12 @@
 #language slang 2025
 module sandbox8_compute_position;
 
-[[vk::binding(0, 0)]] RWStructuredBuffer<float4> positions;
-[[vk::binding(0, 1)]] cbuffer Time{
+cbuffer positions : register(b0, space0)
+{
+    RWStructuredBuffer<float4> positions;
+};
+
+cbuffer Time : register(b0, space1) {
     float time;
 };
 

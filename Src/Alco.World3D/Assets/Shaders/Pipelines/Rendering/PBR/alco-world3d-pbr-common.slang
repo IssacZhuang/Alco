@@ -1,9 +1,9 @@
 // file "alco-world3d-pbr-common.slang" - module "alco_world3d_pbr_common"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
-// Lib declarations are public so importing modules see them.
+// Each set is one block declared with its register space; bindings within a
+// set are assigned by the compiler in declaration order. Lib declarations are
+// public so importing modules see them.
 
 #language slang 2025
 module alco_world3d_pbr_common;
@@ -28,7 +28,7 @@ import alco_world3d_atmosphere;
 // texture (DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap)) BEFORE including this file,
 // so the globals referenced below are visible.
 
-[[vk::binding(0, 0)]] public cbuffer _data {
+public cbuffer _data : register(b0, space0) {
     public float4x4 invViewProjection;
     public float4x4 sunViewProjection[4];
     public float4 cameraPosition;
@@ -59,10 +59,12 @@ public struct PointLightData {
 
 };
 
-[[vk::binding(17, 1)]] public RWStructuredBuffer<PointLightData> _pointLights;
-
-[[vk::binding(18, 1)]] public DepthTexture2D _shadowMap;
-[[vk::binding(19, 1)]] public SamplerComparisonState _shadowMapSampler;
+public cbuffer _lightsAndShadow : register(b0, space1)
+{
+    public RWStructuredBuffer<PointLightData> _pointLights;
+    public DepthTexture2D _shadowMap;
+    public SamplerComparisonState _shadowMapSampler;
+};
 
 public float DistributionGGX(float NdotH, float roughness)
 {

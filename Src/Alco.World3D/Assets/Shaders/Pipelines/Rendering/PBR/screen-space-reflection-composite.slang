@@ -22,14 +22,18 @@ import alco_rendering_core;
 #define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
 #define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
-[[vk::binding(0, 1)]] Texture2D _sceneColor;
-[[vk::binding(1, 1)]] SamplerState _sceneColorSampler;
-[[vk::binding(2, 1)]] Texture2D _reflection;
-[[vk::binding(3, 1)]] Texture2D _reflectionMetadata;
-[[vk::binding(4, 1)]] Texture2D _albedo;
-[[vk::binding(5, 1)]] Texture2D _normal;
-[[vk::binding(6, 1)]] Texture2D _mrAO;
-[[vk::binding(7, 1)]] DepthTexture2D _gbufferDepth;
+// alco_world3d_ssr_post_common owns set 0 (_ssrData); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture2D _sceneColor;
+    SamplerState _sceneColorSampler;
+    Texture2D _reflection;
+    Texture2D _reflectionMetadata;
+    Texture2D _albedo;
+    Texture2D _normal;
+    Texture2D _mrAO;
+    DepthTexture2D _gbufferDepth;
+};
 
 // Upsample the trace-resolution history without allowing hardware bilinear
 // filtering to mix unrelated receivers across a foreground/background edge.

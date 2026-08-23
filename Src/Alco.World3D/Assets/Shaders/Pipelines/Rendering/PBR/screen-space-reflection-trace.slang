@@ -25,13 +25,17 @@ import alco_rendering_core;
 // This pass runs after deferred lighting and forward transparency. Unlike the
 // former GI-pass SSR, _sceneColor therefore contains the actual HDR shaded
 // result (direct light, shadows, GI, emissive and transparent content).
-[[vk::binding(0, 1)]] Texture2D _sceneColor;
-[[vk::binding(1, 1)]] SamplerState _sceneColorSampler;
-[[vk::binding(2, 1)]] Texture2D _albedo;
-[[vk::binding(3, 1)]] Texture2D _normal;
-[[vk::binding(4, 1)]] Texture2D _mrAO;
-[[vk::binding(6, 1)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(5, 1)]] Texture2D _blueNoise;
+// alco_world3d_ssr_post_common owns set 0 (_ssrData); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture2D _sceneColor;
+    SamplerState _sceneColorSampler;
+    Texture2D _albedo;
+    Texture2D _normal;
+    Texture2D _mrAO;
+    DepthTexture2D _gbufferDepth;
+    Texture2D _blueNoise;
+};
 
 // Runtime-baked Heitz blue-noise lookup (see ScreenSpaceReflectionBlueNoise.hlsl).
 static const uint SSR_BLUE_NOISE_TILE = 128u;

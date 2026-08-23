@@ -93,9 +93,10 @@ public class ValidateShader
         using ShaderValidator engine = new ShaderValidator(Setting);
         AssetSystem assets = engine.AssetSystem;
 
-        // The G-buffer template composed with the built-in surface: explicit
-        // source-declared bindings (plan D2) — camera set 0, instances set 1,
-        // material resources set 2.
+        // The G-buffer template composed with the built-in surface: one block
+        // per set with its register space — camera set 0, instances set 1,
+        // material resources set 2 — and compiler-assigned bindings inside
+        // each block, resolved by name.
         using MaterialCompiler compiler = new(engine.RenderingSystem, assets);
         ShaderReflectionInfo gbuffer = compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer)
             .GetShaderModules().ReflectionInfo;
@@ -114,12 +115,14 @@ public class ValidateShader
             Assert.That(vertices.Elements.Select(element => element.Offset),
                 Is.EqualTo(new uint[] { 0, 12, 24, 32 }));
 
+            // hbao-common owns set 0 (_data); the pass block on set 1 packs the
+            // depth (member 0), normal (member 1) and AO output (member 2).
             AssertResource(hbao, "_gbufferDepth", 1, 0, BindingType.Texture);
             ShaderResourceLocation depth = GetResource(hbao, "_gbufferDepth");
             Assert.That(hbao.BindGroups[depth.GroupIndex].Bindings[depth.EntryIndex]
                 .Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
 
-            AssertResource(hbao, "_aoOutput", 3, 0, BindingType.StorageTexture);
+            AssertResource(hbao, "_aoOutput", 1, 2, BindingType.StorageTexture);
             ShaderResourceLocation output = GetResource(hbao, "_aoOutput");
             Assert.That(hbao.BindGroups[output.GroupIndex].Bindings[output.EntryIndex]
                 .Entry.StorageTextureInfo.Format, Is.EqualTo(PixelFormat.RGBA16Float));

@@ -15,11 +15,20 @@ struct Constants {
 };
 
 // light map texture
-[[vk::binding(0, 0)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _frontBuffer;
-[[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _backBuffer;
+cbuffer _pass : register(b0, space0)
+{
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _frontBuffer;
+};
+cbuffer _backBuffer : register(b0, space1)
+{
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _backBuffer;
+};
 
 // opacity map texture
-[[vk::binding(0, 2)]] [[vk::image_format("rgba8")]] RWTexture2D<float4> _opacityMap;
+cbuffer _opacityMap : register(b0, space2)
+{
+    [[vk::image_format("rgba8")]] RWTexture2D<float4> _opacityMap;
+};
 
 [[vk::push_constant]] Constants constants;
 

@@ -121,7 +121,7 @@ float CloudRemapBake(float v, float l0, float l1, float r0, float r1)
     return r0 + (v - l0) * (r1 - r0) / max(l1 - l0, 1e-6);
 }
 
-[[vk::binding(0, 0)]] [[vk::image_format("rgba8")]] RWTexture3D<float4> _noiseOut;
+[[vk::image_format("rgba8")]] RWTexture3D<float4> _noiseOut;
 
 // The bake kind is a generic value specialization (plan D3): 1 = detail bake
 // (32^3 Worley FBM), 0 = base shape bake (128^3 Perlin-Worley). The C# owner

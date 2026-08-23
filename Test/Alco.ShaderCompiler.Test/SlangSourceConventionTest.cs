@@ -91,6 +91,41 @@ public partial class SlangSourceConventionTest
     }
 
     [Test]
+    public void EverySlangSourceBindsBySetScopedBlocksOnly()
+    {
+        string root = RepoRoot();
+        Assert.Multiple(() =>
+        {
+            foreach (string file in ShaderFiles())
+            {
+                string source = File.ReadAllText(file);
+                string relative = Path.GetRelativePath(root, file);
+
+                // The set-only contract: resources live in cbuffer blocks that
+                // declare just their set (`register(b0, spaceN)`); binding
+                // numbers are compiler-assigned. Explicit vk::binding pairs
+                // pin every member and defeat the convention.
+                Assert.That(source, Does.Not.Contain("[[vk::binding"),
+                    $"{relative}: declare the set with a cbuffer block instead of vk::binding");
+
+                foreach (Match register in RegisterRegex().Matches(source))
+                {
+                    string line = LineOf(source, register.Index);
+                    Assert.That(line, Does.Match(@"\b(cbuffer|ConstantBuffer<)"),
+                        $"{relative}: register() is only for set-scoped cbuffer/ConstantBuffer blocks");
+                }
+            }
+        });
+    }
+
+    private static string LineOf(string source, int index)
+    {
+        int start = source.LastIndexOf('\n', index) + 1;
+        int end = source.IndexOf('\n', index);
+        return source[start..(end < 0 ? source.Length : end)];
+    }
+
+    [Test]
     public void FileNamesAreKebabCaseAndModulesMatchStems()
     {
         string root = RepoRoot();

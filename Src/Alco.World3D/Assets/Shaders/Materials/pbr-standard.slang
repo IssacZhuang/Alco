@@ -12,14 +12,17 @@ module pbr_standard;
 
 import surface;
 
-[[vk::binding(0, 2)]] Texture2D<float4> _albedoTexture;
-[[vk::binding(1, 2)]] SamplerState _albedoTextureSampler;
-[[vk::binding(2, 2)]] Texture2D<float4> _normalTexture;
-[[vk::binding(3, 2)]] SamplerState _normalTextureSampler;
-[[vk::binding(4, 2)]] Texture2D<float4> _metallicRoughnessTexture;
-[[vk::binding(5, 2)]] SamplerState _metallicRoughnessTextureSampler;
-[[vk::binding(6, 2)]] Texture2D<float4> _emissiveTexture;
-[[vk::binding(7, 2)]] SamplerState _emissiveTextureSampler;
+cbuffer _material : register(b0, space2)
+{
+    Texture2D<float4> _albedoTexture;
+    SamplerState _albedoTextureSampler;
+    Texture2D<float4> _normalTexture;
+    SamplerState _normalTextureSampler;
+    Texture2D<float4> _metallicRoughnessTexture;
+    SamplerState _metallicRoughnessTextureSampler;
+    Texture2D<float4> _emissiveTexture;
+    SamplerState _emissiveTextureSampler;
+}
 
 public struct Surface : ISurface
 {

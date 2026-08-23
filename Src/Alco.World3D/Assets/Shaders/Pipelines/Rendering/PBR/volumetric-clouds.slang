@@ -62,28 +62,33 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-// Shared G-buffer depth for ray-length clamping (declared before PBRCommon,
-// which expects the pass-specific declarations to precede it).
-[[vk::binding(0, 1)]] DepthTexture2D _gbufferDepth;
+// This pass's resources take one block on its own set 2 (sets 0 and 1 are
+// alco_world3d_pbr_common's): the shared G-buffer depth for ray-length
+// clamping, the cloud parameters and the noise textures below.
 
 
 // Cloud parameters, assembled by RGNode_VolumetricClouds. Layout must match
 // the VolumetricCloudsData struct in RGNode_VolumetricClouds.cs exactly.
-[[vk::binding(0, 2)]] cbuffer _cloudData {
+cbuffer _cloudData : register(b0, space2) {
     float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
     float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
     float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
     float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
     float4 cloudDebug;   // x=opacity debug view (grayscale, composite pass) y=shadow bake half extent km zw=shadow bake center (world xz, km)
+
+    DepthTexture2D _gbufferDepth;
 };
 
 
-// Cloud noise (set 3, generated once by VolumetricCloudNoise.hlsl). The
-// samplers live inside the textures' own resource groups (linear repeat).
-[[vk::binding(0, 3)]] Texture3D _cloudBaseNoise;
-[[vk::binding(1, 3)]] SamplerState _cloudBaseNoiseSampler;
-[[vk::binding(2, 3)]] Texture3D _cloudDetailNoise;
-[[vk::binding(3, 3)]] SamplerState _cloudDetailNoiseSampler;
+// Cloud noise (generated once by volumetric-cloud-noise.slang). The samplers
+// live inside the textures' own resource groups (linear repeat).
+cbuffer _cloudNoise : register(b0, space3)
+{
+    Texture3D _cloudBaseNoise;
+    SamplerState _cloudBaseNoiseSampler;
+    Texture3D _cloudDetailNoise;
+    SamplerState _cloudDetailNoiseSampler;
+};
 
 // World periods of the noise textures (one texture repeat per period), km.
 static const float CLOUD_BASE_SCALE = 1.0 / 24.0;

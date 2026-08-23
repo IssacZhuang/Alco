@@ -24,11 +24,14 @@ struct Constants {
   float4 color;
 };
 
-[[vk::binding(0, 0)]] cbuffer _camera { float4x4 viewProjection; };
+cbuffer _camera : register(b0, space0) { float4x4 viewProjection; };
 
 
-[[vk::binding(0, 1)]] Texture2D _texture;
-[[vk::binding(1, 1)]] SamplerState _textureSampler;
+cbuffer _material : register(b0, space1)
+{
+    Texture2D _texture;
+    SamplerState _textureSampler;
+};
 
 [[vk::push_constant]] Constants constants;
 

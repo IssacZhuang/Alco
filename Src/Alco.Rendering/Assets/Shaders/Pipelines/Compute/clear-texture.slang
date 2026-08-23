@@ -13,7 +13,10 @@ struct Constants{
     float4 color;
 };
 
-[[vk::binding(0, 0)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _texture;
+cbuffer _texture : register(b0, space0)
+{
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _texture;
+};
 
 [shader("compute")]
 [numthreads(16, 16, 1)]

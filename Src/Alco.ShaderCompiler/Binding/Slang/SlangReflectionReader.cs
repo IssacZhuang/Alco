@@ -101,18 +101,27 @@ public static class SlangReflectionReader
                     continue;
                 }
 
+                // A block carries ordinary (uniform) data as one buffer, plus any
+                // number of resource members the compiler assigns bindings after
+                // that buffer, in declaration order. A block without uniform data
+                // emits no buffer in SPIR-V, so it must not claim a binding here.
                 uint uniformSize = (uint)SlangNative.spReflectionTypeLayout_GetSize(
                     SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout),
                     SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
-                entries.Add((SlangNative.spReflectionParameter_GetBindingSpace(parameter), new BindGroupEntryInfo
+                if (uniformSize > 0)
                 {
-                    Entry = new BindGroupEntry(
-                        SlangNative.spReflectionParameter_GetBindingIndex(parameter),
-                        visibility,
-                        BindingType.UniformBuffer,
-                        name: name),
-                    Size = uniformSize,
-                }));
+                    entries.Add((SlangNative.spReflectionParameter_GetBindingSpace(parameter), new BindGroupEntryInfo
+                    {
+                        Entry = new BindGroupEntry(
+                            SlangNative.spReflectionParameter_GetBindingIndex(parameter),
+                            visibility,
+                            BindingType.UniformBuffer,
+                            name: name),
+                        Size = uniformSize,
+                    }));
+                }
+
+                AddBlockResourceMembers(parameter, typeLayout, entries, imageFormats, visibility);
                 continue;
             }
 
@@ -145,6 +154,24 @@ public static class SlangReflectionReader
             throw new NotSupportedException(
                 $"Slang parameter '{name}' has unsupported type kind {kind}; the reflection bridge handles "
                 + "constant buffers, push constants, textures, samplers and structured buffers.");
+        }
+
+        // The by-name contract needs unique resource names across the whole
+        // program; blocks (and multi-module programs) make accidental shadowing
+        // possible, so surface it at compile time instead of silently dropping
+        // one of the duplicates from the name index.
+        HashSet<string> seenNames = new(StringComparer.Ordinal);
+        foreach ((uint _, BindGroupEntryInfo entry) in entries)
+        {
+            if (entry.Entry.Type is BindingType.Sampler or BindingType.SamplerComparison)
+            {
+                continue;
+            }
+            if (!seenNames.Add(entry.Entry.Name))
+            {
+                throw new ShaderReflectionException(
+                    $"Duplicate shader resource name '{entry.Entry.Name}'; resource names must be unique across all sets of a program.");
+            }
         }
 
         IReadOnlyList<BindGroupLayout> bindGroups = GroupBySpace(entries);
@@ -189,6 +216,18 @@ public static class SlangReflectionReader
                 {
                     continue;
                 }
+
+                // A block groups uniform data and resource members; the resource
+                // members are binding entries, not uniform members.
+                IntPtr fieldLayoutType = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
+                int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldLayoutType);
+                if (fieldKind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
+                    fieldKind == SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE ||
+                    fieldKind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
+                {
+                    continue;
+                }
+
                 uint offset = (uint)SlangNative.spReflectionVariableLayout_GetOffset(
                     fieldLayout, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
                 IntPtr fieldType = SlangNative.spReflectionTypeLayout_GetType(
@@ -232,19 +271,47 @@ public static class SlangReflectionReader
     {
         Dictionary<string, PixelFormat> formats = [];
         IntPtr globalLayout = SlangNative.spReflection_getGlobalParamsTypeLayout(reflection);
-        if (globalLayout == IntPtr.Zero)
+        if (globalLayout != IntPtr.Zero)
         {
-            return formats;
+            CollectImageFormatsFromLayout(globalLayout, formats);
         }
-        int rangeCount = SlangNative.spReflectionTypeLayout_getBindingRangeCount(globalLayout);
+
+        // Storage images declared as block members are not leaves of the global
+        // layout's binding ranges (the block itself is); walk each block's
+        // element layout so their formats resolve by the same bare member name.
+        uint parameterCount = SlangNative.spReflection_GetParameterCount(reflection);
+        for (uint i = 0; i < parameterCount; i++)
+        {
+            IntPtr parameter = SlangNative.spReflection_GetParameterByIndex(reflection, i);
+            if (parameter == IntPtr.Zero)
+            {
+                continue;
+            }
+            IntPtr typeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(parameter);
+            if (SlangNative.spReflectionTypeLayout_getKind(typeLayout) != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER)
+            {
+                continue;
+            }
+            IntPtr elementLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
+            if (elementLayout != IntPtr.Zero)
+            {
+                CollectImageFormatsFromLayout(elementLayout, formats);
+            }
+        }
+        return formats;
+    }
+
+    private static unsafe void CollectImageFormatsFromLayout(IntPtr typeLayout, Dictionary<string, PixelFormat> formats)
+    {
+        int rangeCount = SlangNative.spReflectionTypeLayout_getBindingRangeCount(typeLayout);
         for (int i = 0; i < rangeCount; i++)
         {
-            uint rangeType = SlangNative.spReflectionTypeLayout_getBindingRangeType(globalLayout, i);
+            uint rangeType = (uint)SlangNative.spReflectionTypeLayout_getBindingRangeType(typeLayout, i);
             if ((rangeType & SlangNative.SLANG_BINDING_TYPE_BASE_MASK) != SlangNative.SLANG_BINDING_TYPE_TEXTURE)
             {
                 continue;
             }
-            IntPtr leafVariable = SlangNative.spReflectionTypeLayout_getBindingRangeLeafVariable(globalLayout, i);
+            IntPtr leafVariable = SlangNative.spReflectionTypeLayout_getBindingRangeLeafVariable(typeLayout, i);
             string? name = leafVariable == IntPtr.Zero
                 ? null
                 : SlangNative.StringFromPtr(SlangNative.spReflectionVariable_GetName(leafVariable));
@@ -252,14 +319,13 @@ public static class SlangReflectionReader
             {
                 continue;
             }
-            int imageFormat = SlangNative.spReflectionTypeLayout_getBindingRangeImageFormat(globalLayout, i);
+            int imageFormat = SlangNative.spReflectionTypeLayout_getBindingRangeImageFormat(typeLayout, i);
             PixelFormat format = ConvertImageFormat(imageFormat);
             if (format != PixelFormat.Undefined)
             {
                 formats[name] = format;
             }
         }
-        return formats;
     }
 
     private static ThreadGroupSize ReadThreadGroupSize(IntPtr entryPoint)
@@ -293,6 +359,72 @@ public static class SlangReflectionReader
         };
     }
 
+    /// <summary>
+    /// Enumerates the resource members (textures, samplers, structured and
+    /// storage buffers) of a uniform block declared as
+    /// <c>cbuffer _name : register(b0, spaceN) { ... }</c>. Members resolve by
+    /// their bare field name — the C# contract keeps the flat name the shader
+    /// body uses for unqualified member access. A member's binding index and
+    /// space are compiler-assigned relative to the block's register
+    /// (b0/spaceN), so both must be rebased onto the block's own indices.
+    /// </summary>
+    private static void AddBlockResourceMembers(
+        IntPtr parameter,
+        IntPtr typeLayout,
+        List<(uint Space, BindGroupEntryInfo Entry)> entries,
+        Dictionary<string, PixelFormat> imageFormats,
+        ShaderStage visibility)
+    {
+        uint blockSpace = SlangNative.spReflectionParameter_GetBindingSpace(parameter);
+        uint blockBinding = SlangNative.spReflectionParameter_GetBindingIndex(parameter);
+        IntPtr elementLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
+        uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(elementLayout);
+        for (uint field = 0; field < fieldCount; field++)
+        {
+            IntPtr fieldLayout = SlangNative.spReflectionTypeLayout_GetFieldByIndex(elementLayout, field);
+            if (fieldLayout == IntPtr.Zero)
+            {
+                continue;
+            }
+
+            string? fieldName = VariableLayoutName(fieldLayout);
+            if (fieldName == null)
+            {
+                continue;
+            }
+
+            IntPtr fieldTypeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
+            int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldTypeLayout);
+
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE)
+            {
+                // Same comparison-type fact as a top-level sampler declaration.
+                IntPtr samplerType = SlangNative.spReflectionTypeLayout_GetType(fieldTypeLayout);
+                bool comparison = SlangNative.StringFromPtr(
+                    SlangNative.spReflectionType_GetName(samplerType)) == "SamplerComparisonState";
+                entries.Add((blockSpace, new BindGroupEntryInfo
+                {
+                    Entry = new BindGroupEntry(
+                        blockBinding + SlangNative.spReflectionParameter_GetBindingIndex(fieldLayout),
+                        visibility,
+                        comparison ? BindingType.SamplerComparison : BindingType.Sampler,
+                        name: fieldName),
+                }));
+                continue;
+            }
+
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
+                fieldKind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
+            {
+                AddResourceEntry(fieldLayout, fieldTypeLayout, fieldKind, fieldName, entries, imageFormats, visibility, blockSpace, blockBinding);
+                continue;
+            }
+
+            // Anything else is ordinary uniform data covered by the block's
+            // buffer entry (or nothing, when the block has no uniform data).
+        }
+    }
+
     private static void AddResourceEntry(
         IntPtr parameter,
         IntPtr typeLayout,
@@ -300,15 +432,17 @@ public static class SlangReflectionReader
         string name,
         List<(uint Space, BindGroupEntryInfo Entry)> entries,
         Dictionary<string, PixelFormat> imageFormats,
-        ShaderStage visibility)
+        ShaderStage visibility,
+        uint? spaceOverride = null,
+        uint bindingBase = 0)
     {
         IntPtr type = SlangNative.spReflectionTypeLayout_GetType(typeLayout);
         int shape = kind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER
             ? SlangNative.SLANG_STRUCTURED_BUFFER
             : SlangNative.spReflectionType_GetResourceShape(type);
         int access = SlangNative.spReflectionType_GetResourceAccess(type);
-        uint binding = SlangNative.spReflectionParameter_GetBindingIndex(parameter);
-        uint space = SlangNative.spReflectionParameter_GetBindingSpace(parameter);
+        uint binding = bindingBase + SlangNative.spReflectionParameter_GetBindingIndex(parameter);
+        uint space = spaceOverride ?? SlangNative.spReflectionParameter_GetBindingSpace(parameter);
 
         if (shape == SlangNative.SLANG_STRUCTURED_BUFFER)
         {

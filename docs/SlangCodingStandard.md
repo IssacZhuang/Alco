@@ -73,11 +73,36 @@ Use real Slang resource types (`Texture*`, `SamplerState`,
 must not add `DEFINE_*`, `SLOT`, sampler-token-concatenation or depth-marker
 macros.
 
-Declare both binding and set with `[[vk::binding(binding, set)]]`. Sets are
-frequency grouped: frame 0, pass 1, material 2 and draw 3. Bindings are
-contiguous from zero within each used set. C# resolves resources by reflected
-name; binding numbers are private physical layout and must not appear in caller
-logic.
+Resources are declared inside **set-scoped cbuffer blocks** — the shader states
+only which set it owns, and Slang assigns member bindings in declaration order:
+
+```slang
+cbuffer _pass : register(b0, space1)
+{
+    Texture2D _sceneColor;      // binding 0 in the set
+    SamplerState _sceneSampler; // binding 1
+    RWStructuredBuffer<float4> _output; // binding 2
+};
+```
+
+Never write `[[vk::binding(binding, set)]]`; it pins every member and defeats
+the convention (`SlangSourceConventionTest` rejects it). The rules:
+
+- One set = one block. A block without uniform data emits no UBO; members take
+  the set's bindings from zero. A block with uniform data emits its buffer at
+  the block's register (`b0`) and members continue after it.
+- Sets are frequency grouped: frame 0, pass 1, material 2, draw 3 (World3D
+  programs layer: common modules own the low sets, the entry module's own
+  resources take the first free set — each set belongs to exactly one module).
+- Pure UBO blocks sharing one set use sequential registers (`b0`, `b1`, …);
+  if a mixed parameters+resources block shares the set, it comes last so its
+  members run past the UBOs (see the parameterized-surface test fixture). A
+  register on a resource-only block is ignored by Slang — resource-only blocks
+  always own their set alone.
+- Block members keep their bare field names (`_output`, not
+  `_pass._output`) — the shader body and every C# call site address resources
+  by name; binding numbers are private physical layout and must not appear in
+  caller logic.
 
 Use the actual depth texture and comparison-sampler types. Do not add SPIR-V
 rewriters, source regex reflection, implicit structured-buffer counter naming
@@ -107,6 +132,9 @@ dotnet test Test/Alco.World3D.Test/Alco.World3D.Test.csproj --no-build
 
 `SlangSourceConventionTest` enforces module headers, file/module naming
 (kebab-case files paired with snake_case module names), removes legacy HLSL
-and rejects textual includes or a `register(...)` declaration without a set.
-Rendering and World3D validation compile every entry-point module and inspect
-Slang reflection headlessly.
+and rejects textual includes, a `register(...)` declaration without a set,
+`[[vk::binding]]` decorations, and registers outside cbuffer/ConstantBuffer
+blocks. `SlangBlockBindingTest` pins the block reflection contract (bare member
+names, compiler-assigned order, multi-block sets). Rendering and World3D
+validation compile every entry-point module and inspect Slang reflection
+headlessly.

@@ -36,47 +36,50 @@ import alco_world3d_reversed_depth;
 // irradiance plus diagnostic visibility, voxel specular fallback, and average
 // light direction data.
 
-// Bind groups: set 0 packs the per-dispatch inputs together with the shared
-// uniform (binding 0, from VoxelCommon.hlsli); set 1 is the output atlas, so the
-// pass needs two of the eight available sets.
-[[vk::binding(11, 0)]] Texture3D _radiance;
-[[vk::binding(12, 0)]] SamplerState _radianceSampler;
-[[vk::binding(15, 0)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(4, 0)]] Texture2D _normal;
-[[vk::binding(5, 0)]] Texture2D _emissive;
-[[vk::binding(13, 0)]] Texture3D _opacity;
-[[vk::binding(14, 0)]] SamplerState _opacitySampler;
-[[vk::binding(6, 0)]] Texture2D _albedo;
-[[vk::binding(17, 0)]] DepthTexture2D _shadowMap;
-[[vk::binding(18, 0)]] SamplerComparisonState _shadowMapSampler;
-// Previous frame's raw trace atlas. Diffuse and ALD are accumulated here
-// before spatial demosaic so every trace pixel integrates its own directions.
-[[vk::binding(7, 0)]] Texture2D _traceHistory;
-// Previous demosaic metadata, segment 5: x = linear depth, yzw = world normal.
-[[vk::binding(8, 0)]] Texture2D _giHistoryMetadata;
-// 128x128 blue-noise tile baked once from
-// ScreenSpaceReflectionBlueNoise.hlsl (the same tile the SSR trace samples).
-// Its B channel jitters the cone march below.
-[[vk::binding(9, 0)]] Texture2D _blueNoise;
-// Point lights are included in the compact screen-space near-field diffuse
-// gather below.
+// alco_world3d_voxel_common owns set 0 (the shared uniform); this pass's
+// resources take set 1 as one block.
 struct PointLightData
 {
     float4 positionRange;
     float4 colorIntensity;
 };
-[[vk::binding(1, 0)]] RWStructuredBuffer<PointLightData> _pointLights;
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    Texture3D _radiance;
+    SamplerState _radianceSampler;
+    DepthTexture2D _gbufferDepth;
+    Texture2D _normal;
+    Texture2D _emissive;
+    Texture3D _opacity;
+    SamplerState _opacitySampler;
+    Texture2D _albedo;
+    DepthTexture2D _shadowMap;
+    SamplerComparisonState _shadowMapSampler;
+// Previous frame's raw trace atlas. Diffuse and ALD are accumulated here
+// before spatial demosaic so every trace pixel integrates its own directions.
+    Texture2D _traceHistory;
+// Previous demosaic metadata, segment 5: x = linear depth, yzw = world normal.
+    Texture2D _giHistoryMetadata;
+// 128x128 blue-noise tile baked once from
+// ScreenSpaceReflectionBlueNoise.hlsl (the same tile the SSR trace samples).
+// Its B channel jitters the cone march below.
+    Texture2D _blueNoise;
+// Point lights are included in the compact screen-space near-field diffuse
+// gather below.
+    RWStructuredBuffer<PointLightData> _pointLights;
 // Reflective shadow map (sun view of the selected CSM cascade): depth + sRGB
 // albedo (alpha=1 marks rendered texels) + world normal. Bound by the voxel GI
 // node; the fallback (valid 1x1 depth view, black albedo with alpha=0) disables
 // sun-bounce injection before depth is read. The albedo slot is sampled (bilinear) so
 // the bounce colour a receiver gathers is filtered instead of snapping to
 // single RSM texels.
-[[vk::binding(16, 0)]] DepthTexture2D _rsmDepth;
-[[vk::binding(2, 0)]] Texture2D _rsmAlbedo;
-[[vk::binding(3, 0)]] SamplerState _rsmAlbedoSampler;
-[[vk::binding(10, 0)]] Texture2D _rsmNormal;
-[[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
+    DepthTexture2D _rsmDepth;
+    Texture2D _rsmAlbedo;
+    SamplerState _rsmAlbedoSampler;
+    Texture2D _rsmNormal;
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
+};
 
 // A large cosine-hemisphere kernel starts with a different direction at each
 // 8x8 screen phase, then every pixel traverses all 64 members through raw

@@ -18,9 +18,16 @@ public class TestRenderTextureResize
     private const string ResizeTestShader = """
         module rt_resize_shader;
 
-        [[vk::binding(0, 0)]] Texture2D _texture;
-        [[vk::binding(1, 0)]] SamplerState _textureSampler;
-        [[vk::binding(0, 1)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
+        cbuffer _pass : register(b0, space0)
+        {
+            Texture2D _texture;
+            SamplerState _textureSampler;
+        };
+
+        cbuffer _output : register(b0, space1)
+        {
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
+        };
 
         [shader("compute")]
         [numthreads(1, 1, 1)]

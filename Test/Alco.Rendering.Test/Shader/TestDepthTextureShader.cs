@@ -18,9 +18,16 @@ public class TestDepthTextureShader
     private const string DepthShaderSource = """
         module test_depth_texture;
 
-        [[vk::binding(0, 0)]] DepthTexture2D _gbufferDepth;
-        [[vk::binding(1, 1)]] DepthTexture2D _shadowMap;
-        [[vk::binding(2, 1)]] SamplerComparisonState _shadowMapSampler;
+        cbuffer _gbufferDepth : register(b0, space0)
+        {
+            DepthTexture2D _gbufferDepth;
+        };
+
+        cbuffer _shadow : register(b0, space1)
+        {
+            DepthTexture2D _shadowMap;
+            SamplerComparisonState _shadowMapSampler;
+        };
 
         struct V2F
         {

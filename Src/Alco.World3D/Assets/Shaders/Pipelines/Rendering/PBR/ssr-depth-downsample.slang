@@ -36,9 +36,13 @@ struct SsrDepthConstants
     float4 params; // x = srcMipLevel, y = isFirst(1.0|0.0), zw = unused
 };
 
-[[vk::binding(1, 0)]] DepthTexture2D _gbufferDepth;
-[[vk::binding(0, 1)]] Texture2D _depthSrc;
-[[vk::binding(0, 2)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _depthOut;
+// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+cbuffer _pass : register(b0, space1)
+{
+    DepthTexture2D _gbufferDepth;
+    Texture2D _depthSrc;
+    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _depthOut;
+};
 
 [[vk::push_constant]] SsrDepthConstants constants;
 
