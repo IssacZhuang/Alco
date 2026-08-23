@@ -66,9 +66,6 @@ V2F MainVS(Vertex input) {
     float3 position = input.position;
     position.xy *= particle.transform.scale;
     position.xy = rotate(position.xy, particle.transform.rotation);
-#if defined(IS_FACADE)
-    position.z = -position.y;
-#endif
     position.z += particle.depth;
 
     position.xy += particle.transform.position;

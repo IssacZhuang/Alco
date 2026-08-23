@@ -75,7 +75,6 @@ public class Game : GameEngine
         AddSystem(new ImGUISystem(this));
 
         var fxaaNode = new RGNode_FXAA(MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, RenderingSystem.CreateFXAA(
-            BuiltInAssets.Shader_Fxaa,
             BuiltInAssets.Shader_Blit));
         MainPipeline.Use(fxaaNode);
 

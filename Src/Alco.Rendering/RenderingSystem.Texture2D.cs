@@ -409,13 +409,14 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a BC3 texture compressor.
+    /// Creates a BC3 texture compressor. The compressor requests its linear/sRGB
+    /// compression materials itself as generic specializations of the
+    /// texture-compress-bc3 module.
     /// </summary>
-    /// <param name="material">The compute material to use for compression.</param>
     /// <returns>A new TextureCompressorBC3 instance.</returns>
-    public TextureCompressorBC3 CreateTextureCompressorBC3(ComputeMaterial material)
+    public TextureCompressorBC3 CreateTextureCompressorBC3()
     {
-        return new TextureCompressorBC3(this, material);
+        return new TextureCompressorBC3(this);
     }
 
     /// <summary>

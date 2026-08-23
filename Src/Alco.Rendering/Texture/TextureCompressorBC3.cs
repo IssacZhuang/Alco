@@ -9,9 +9,6 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class TextureCompressorBC3 : AutoDisposable
 {
-    public const string ShaderDefine_IS_SRGB = "IS_SRGB";
-
-    private readonly ComputeMaterial _material;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandCompress;
@@ -19,7 +16,10 @@ public sealed class TextureCompressorBC3 : AutoDisposable
 
     private GraphicsArrayBuffer<uint4> _blocks;//resizeable
 
-    private readonly List<string> _defines = new();
+    // One compute material per sRGB state; each wraps a generic specialization
+    // of the texture-compress-bc3 module (MainCS<let IsSRGB>).
+    private readonly Dictionary<bool, ComputeMaterial> _materials = new();
+    private ComputeMaterial _material = null!;
     private bool _isSRGB;
 
     public bool IsSRGB
@@ -27,8 +27,11 @@ public sealed class TextureCompressorBC3 : AutoDisposable
         get => _isSRGB;
         set
         {
-            _isSRGB = value;
-            UpdateDefines();
+            if (_isSRGB != value)
+            {
+                _isSRGB = value;
+                ApplyMaterial();
+            }
         }
     }
 
@@ -37,19 +40,18 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// Initializes a new instance of the <see cref="TextureCompressorBC3"/> class.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance.</param>
-    /// <param name="material">The compute material containing the BC3 compression shader.</param>
-    internal TextureCompressorBC3(RenderingSystem renderingSystem, ComputeMaterial material, int defaultBufferSize = 256 * 256)
+    /// <param name="defaultBufferSize">Initial capacity of the block staging buffer.</param>
+    internal TextureCompressorBC3(RenderingSystem renderingSystem, int defaultBufferSize = 256 * 256)
     {
         _renderingSystem = renderingSystem;
-        _material = material.CreateInstance();
         _device = renderingSystem.GraphicsDevice;
         _commandCompress = _device.CreateCommandBuffer("texture_compressor_command_buffer");
         _commandCopy = _device.CreateCommandBuffer("texture_compressor_copy_command_buffer");
-      
+
         _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
         _blocks.UpdateBuffer();
 
-        _material.TrySetBuffer(ShaderResourceId.Output, _blocks);
+        ApplyMaterial();
     }
 
     /// <summary>
@@ -161,17 +163,27 @@ public sealed class TextureCompressorBC3 : AutoDisposable
             }
 
             _blocks = _renderingSystem.CreateGraphicsArrayBuffer<uint4>((int)newSize);
+            // The staging buffer was replaced: rebind it on the active material.
+            _material.TrySetBuffer(ShaderResourceId.Output, _blocks);
         }
     }
 
-    private void UpdateDefines()
+    /// <summary>
+    /// Switches to the compute material of the current sRGB state. The sRGB
+    /// choice is a generic value specialization of the compression module
+    /// (MainCS&lt;let IsSRGB&gt;): 1 selects the sRGB output path, 0 the linear one.
+    /// </summary>
+    private void ApplyMaterial()
     {
-        _defines.Clear();
-        if (_isSRGB)
+        if (!_materials.TryGetValue(_isSRGB, out ComputeMaterial? material))
         {
-            _defines.Add(ShaderDefine_IS_SRGB);
+            Shader shader = _renderingSystem.ShaderSystem.GetShader(
+                "texture-compress-bc3", _isSRGB ? "1" : "0");
+            material = _renderingSystem.CreateComputeMaterial(shader);
+            material.TrySetBuffer(ShaderResourceId.Output, _blocks);
+            _materials[_isSRGB] = material;
         }
-        _material.SetDefines(_defines.ToArray());
+        _material = material;
     }
 
     /// <summary>

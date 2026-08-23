@@ -349,4 +349,37 @@ public class SlangModuleSystemTest
             Assert.That(green.EntryCode[0].Length, Is.GreaterThan(4));
         });
     }
+
+    [Test]
+    public void GetProgram_IntValueSpecializationsAreDistinctPrograms()
+    {
+        // Generic value parameters (plan D3): integer-literal arguments drive the
+        // engine's variant axes (fxaa quality, sRGB compression, cloud noise bake).
+        const string valueGenericModule = """
+            [shader("fragment")]
+            float4 MainPS<let Channel : int>() : SV_TARGET
+            {
+                if (Channel == 0) { return float4(1, 0, 0, 1); }
+                return float4(0, 1, 0, 1);
+            }
+            """;
+        Dictionary<string, string> files = new() { ["shaders/value-generic.slang"] = valueGenericModule };
+        using SlangModuleSystem system = new(OptionsFor(files), null);
+        system.GetOrLoadModule("value_generic", "shaders/value-generic.slang", valueGenericModule);
+
+        List<SlangEntryPointRequest> entries = [new("MainPS", Alco.Graphics.ShaderStage.Fragment)];
+        using SlangProgram zero = system.GetProgram("value_generic", entries, ["0"]);
+        using SlangProgram one = system.GetProgram("value_generic", entries, ["1"]);
+        using SlangProgram zeroAgain = system.GetProgram("value_generic", entries, ["0"]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(zeroAgain, Is.SameAs(zero), "same value specialization must return the cached program");
+            Assert.That(one, Is.Not.SameAs(zero), "different value specialization must compile separately");
+            Assert.That(zero.EntryCode[0].Length, Is.GreaterThan(4));
+            Assert.That(one.EntryCode[0].Length, Is.GreaterThan(4));
+            Assert.That(one.EntryCode[0], Is.Not.EqualTo(zero.EntryCode[0]),
+                "distinct values must produce distinct target code");
+        });
+    }
 }

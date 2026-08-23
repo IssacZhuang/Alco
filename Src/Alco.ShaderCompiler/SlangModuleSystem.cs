@@ -133,9 +133,11 @@ public sealed partial class SlangModuleSystem : IDisposable
     /// <summary>
     /// Loads a module by name through the session's search paths / resolver.
     /// <paramref name="defines"/> selects a preprocessor permutation of the
-    /// module (plan §8: interim define sets until permutations become generic
-    /// specializations): each set is a distinct module identity with its own
-    /// caches, realized as #define lines prefixed to the resolved source.
+    /// module — the material-keyword mechanism (user asset keywords,
+    /// SHADOW_CUTOUT, REPEATED): each set is a distinct module identity with
+    /// its own caches, realized as #define lines prefixed to the resolved
+    /// source. Engine-owned variant axes use generic value specializations
+    /// instead (see GetProgram's specialization arguments).
     /// </summary>
     public SlangModuleHandle GetOrLoadModule(string moduleName, IReadOnlyList<string>? defines = null)
     {

@@ -18,7 +18,6 @@ public class Game : GameEngine
     private readonly Material _materialCompressed;
     private readonly Texture2D _texture;
     private readonly Texture2D _compressedTexture;
-    private readonly ComputeMaterial _compressMaterial;
     private readonly TextureCompressorBC3 _compressor;
     private bool _isShowCompressed = false;
     public Game(GameEngineSetting setting) : base(setting)
@@ -35,9 +34,7 @@ public class Game : GameEngine
         
         
        
-        _compressMaterial = RenderingSystem.CreateComputeMaterial(BuiltInAssets.Shader_TextureCompressBc3);
-        //_compressMaterial.SetDefines("IS_SRGB");
-        _compressor = RenderingSystem.CreateTextureCompressorBC3(_compressMaterial);
+        _compressor = RenderingSystem.CreateTextureCompressorBC3();
         _compressor.IsSRGB = false;
         _compressedTexture = _compressor.Compress(_texture);
 

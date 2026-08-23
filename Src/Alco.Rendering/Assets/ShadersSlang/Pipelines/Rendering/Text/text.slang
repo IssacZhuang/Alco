@@ -77,12 +77,6 @@ float4 MainPS(V2F input) : SV_TARGET {
   TextData data = _textBuffer[input.instanceID];
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
   float r = SAMPLE_TEX2D(_font, uv).r;
-#if defined(ALPHA_TEST)
-  if (r < 0.01f)
-  {
-    discard;
-  }
-#endif
   // Emit premultiplied alpha for BlendState.PremultipliedAlpha (src=One, dst=OneMinusSrcAlpha).
   // Glyph coverage (r) is the geometric alpha; multiplying it with data.color.a gives the final
   // alpha, then RGB is premultiplied by that alpha. This zeroes both RGB and A when the parent

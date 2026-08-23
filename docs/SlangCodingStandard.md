@@ -54,11 +54,17 @@ float4 MainPS(Varyings input) : SV_TARGET { /* ... */ }
 Use `vertex`, `fragment` and `compute`; do not add the HLSL alias `pixel`.
 Compute entry points also declare `[numthreads(x, y, z)]`.
 
-Prefer generic type/value parameters and link-time specialization for new
-variants. Preprocessor defines remain only for migrated compatibility variants;
-do not introduce a new `#if` permutation when a generic specialization can
-express it. ShaderSystem specialization arguments are part of the program cache
-identity.
+Variant axes split by owner. Engine-owned variant axes (fxaa quality,
+sRGB compression, cloud-noise bake kind) are generic value parameters:
+the entry point declares `<let Quality : int>` and the C# owner requests a
+specialized shader through `ShaderSystem.GetShader(module, args)` — the
+arguments are slang expressions (`"0"`, `"1"`, type names). Never convert
+these back to `#if` permutations. Preprocessor defines are reserved for the
+material-keyword domain only: user-authored `MaterialAsset.Defines`,
+`SHADOW_CUTOUT` (gates varying-struct shape a value parameter cannot
+express) and `REPEATED` (a per-material texture-wrap toggle). Do not
+introduce a new `#if` permutation outside that domain. ShaderSystem
+specialization arguments are part of the program cache identity.
 
 ## Resources and bindings
 

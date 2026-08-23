@@ -27,12 +27,13 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a new FXAA (Fast Approximate Anti-Aliasing) post-processing effect.
+    /// The effect requests its quality-preset shaders itself as generic
+    /// specializations of the fxaa module.
     /// </summary>
-    /// <param name="fxaaShader">The FXAA shader to use for the effect</param>
     /// <param name="blitShader">The blit shader to use for copying the result to the final target</param>
     /// <returns>A new FXAA post-processing effect instance</returns>
-    public FXAA CreateFXAA(Shader fxaaShader, Shader blitShader)
+    public FXAA CreateFXAA(Shader blitShader)
     {
-        return new FXAA(this, fxaaShader, blitShader);
+        return new FXAA(this, blitShader);
     }
 }

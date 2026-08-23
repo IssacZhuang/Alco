@@ -531,7 +531,6 @@ public class Game : GameEngine
                 RenderingSystem,
                 AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricClouds),
                 AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudsComposite),
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudNoise),
                 AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudShadow))
             {
                 MarchResolutionScale = cloudResolutionScale,
@@ -762,7 +761,6 @@ public class Game : GameEngine
             _preset.PostChain,
             _preset.PostProcessLayout,
             RenderingSystem.CreateFXAA(
-                BuiltInAssets.Shader_Fxaa,
                 BuiltInAssets.Shader_Blit)));
 
         // HDR tone mapping node (registered last, after bloom and FXAA).

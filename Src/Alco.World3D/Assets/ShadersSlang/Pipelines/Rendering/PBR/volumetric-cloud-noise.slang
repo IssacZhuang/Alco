@@ -123,30 +123,37 @@ float CloudRemapBake(float v, float l0, float l1, float r0, float r1)
 
 [[vk::binding(0, 0)]] [[vk::image_format("rgba8")]] RWTexture3D<float4> _noiseOut;
 
+// The bake kind is a generic value specialization (plan D3): 1 = detail bake
+// (32^3 Worley FBM), 0 = base shape bake (128^3 Perlin-Worley). The C# owner
+// requests the specialized entry (MainCS<1> / MainCS<0>) instead of passing a
+// preprocessor permutation.
 [shader("compute")]
 [numthreads(4, 4, 4)]
-void MainCS(uint3 dispatchId : SV_DispatchThreadID)
+void MainCS<let IsDetail : int>(uint3 dispatchId : SV_DispatchThreadID)
 {
-#ifdef NOISE_DETAIL
-    const float size = 32.0;
-    float3 uvw = (dispatchId + 0.5) / size;
-    float3 octaves = float3(
-        CloudNoiseWorleyFbm(uvw, 2, 2),
-        CloudNoiseWorleyFbm(uvw, 4, 2),
-        CloudNoiseWorleyFbm(uvw, 8, 2));
-    _noiseOut[dispatchId] = float4(octaves, octaves.z);
-#else // NOISE_BASE
-    const float size = 128.0;
-    float3 uvw = (dispatchId + 0.5) / size;
-    float perlin = CloudNoisePerlinFbm(uvw, 4, 4);
-    float worley = CloudNoiseWorleyFbm(uvw, 4, 3);
-    // Perlin-Worley: carve the Perlin FBM by the Worley FBM so the resulting
-    // shape has both large billows and cauliflower detail (Nubis R channel).
-    float perlinWorley = saturate(CloudRemapBake(perlin, worley, 1.0, 0.0, 1.0));
-    _noiseOut[dispatchId] = float4(
-        perlinWorley,
-        CloudNoiseWorleyFbm(uvw, 8, 2),
-        CloudNoiseWorleyFbm(uvw, 16, 2),
-        CloudNoiseWorleyFbm(uvw, 32, 1));
-#endif
+    if (IsDetail != 0)
+    {
+        const float size = 32.0;
+        float3 uvw = (dispatchId + 0.5) / size;
+        float3 octaves = float3(
+            CloudNoiseWorleyFbm(uvw, 2, 2),
+            CloudNoiseWorleyFbm(uvw, 4, 2),
+            CloudNoiseWorleyFbm(uvw, 8, 2));
+        _noiseOut[dispatchId] = float4(octaves, octaves.z);
+    }
+    else // base shape bake
+    {
+        const float size = 128.0;
+        float3 uvw = (dispatchId + 0.5) / size;
+        float perlin = CloudNoisePerlinFbm(uvw, 4, 4);
+        float worley = CloudNoiseWorleyFbm(uvw, 4, 3);
+        // Perlin-Worley: carve the Perlin FBM by the Worley FBM so the resulting
+        // shape has both large billows and cauliflower detail (Nubis R channel).
+        float perlinWorley = saturate(CloudRemapBake(perlin, worley, 1.0, 0.0, 1.0));
+        _noiseOut[dispatchId] = float4(
+            perlinWorley,
+            CloudNoiseWorleyFbm(uvw, 8, 2),
+            CloudNoiseWorleyFbm(uvw, 16, 2),
+            CloudNoiseWorleyFbm(uvw, 32, 1));
+    }
 }

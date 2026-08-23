@@ -51,23 +51,24 @@ struct V2F {
                         FXAA 3.11 QUALITY PRESETS
 ============================================================================*/
 
-// Define quality presets - only one should be defined via shader defines
-// FXAA_QUALITY_LOW    - 4 steps,  fastest performance
-// FXAA_QUALITY_MEDIUM - 8 steps,  balanced
-// FXAA_QUALITY_HIGH   - 12 steps, high quality (default)
-// FXAA_QUALITY_ULTRA  - 29 steps, maximum quality
+// Quality is a generic value parameter (plan D3): the C# owner requests a
+// specialized shader per quality (0=Low, 1=Medium, 2=High, 3=Ultra) instead of
+// compiling preprocessor permutations. The tables stay verbatim; the selector
+// functions fold to one table after specialization (dead branches eliminate).
 
-#if defined(FXAA_QUALITY_LOW)
-#define NUM_SAMPLES 4
-static const float s_SampleDistances[NUM_SAMPLES] = {
+// 0 = FXAA_QUALITY_LOW    - 4 steps,  fastest performance
+// 1 = FXAA_QUALITY_MEDIUM - 8 steps,  balanced
+// 2 = FXAA_QUALITY_HIGH   - 12 steps, high quality
+// 3 = FXAA_QUALITY_ULTRA  - 29 steps, maximum quality
+
+static const float s_SampleDistances_Low[4] = {
   1.5,
   3.0,
   12.0,
   12.0
 };
-#elif defined(FXAA_QUALITY_MEDIUM)
-#define NUM_SAMPLES 8
-static const float s_SampleDistances[NUM_SAMPLES] = {
+
+static const float s_SampleDistances_Medium[8] = {
   1.0,
   1.5,
   2.0,
@@ -77,9 +78,8 @@ static const float s_SampleDistances[NUM_SAMPLES] = {
   4.0,
   8.0
 };
-#elif defined(FXAA_QUALITY_HIGH)
-#define NUM_SAMPLES 12
-static const float s_SampleDistances[NUM_SAMPLES] = {
+
+static const float s_SampleDistances_High[12] = {
   1.0,
   1.5,
   2.0,
@@ -93,9 +93,8 @@ static const float s_SampleDistances[NUM_SAMPLES] = {
   8.0,
   8.0
 };
-#elif defined(FXAA_QUALITY_ULTRA)
-#define NUM_SAMPLES 29
-static const float s_SampleDistances[NUM_SAMPLES] = {
+
+static const float s_SampleDistances_Ultra[29] = {
   1.0,
   1.0,
   1.0,
@@ -126,24 +125,22 @@ static const float s_SampleDistances[NUM_SAMPLES] = {
   8.0,
   8.0
 };
-#else
-// Default to HIGH quality if no preset is defined
-#define NUM_SAMPLES 12
-static const float s_SampleDistances[NUM_SAMPLES] = {
-  1.0,
-  1.5,
-  2.0,
-  2.0,
-  2.0,
-  2.0,
-  2.0,
-  2.0,
-  2.0,
-  4.0,
-  8.0,
-  8.0
-};
-#endif
+
+/// The number of edge-search steps of one quality preset (0=Low..3=Ultra).
+int FxaaNumSamples<let Quality : int>() {
+  if (Quality == 0) { return 4; }
+  else if (Quality == 1) { return 8; }
+  else if (Quality == 3) { return 29; }
+  else { return 12; }
+}
+
+/// The i-th search-step distance of one quality preset.
+float FxaaSampleDistance<let Quality : int>(int i) {
+  if (Quality == 0) { return s_SampleDistances_Low[i]; }
+  else if (Quality == 1) { return s_SampleDistances_Medium[i]; }
+  else if (Quality == 3) { return s_SampleDistances_Ultra[i]; }
+  else { return s_SampleDistances_High[i]; }
+}
 
 /*============================================================================
                         FXAA 3.11 ALGORITHM
@@ -154,8 +151,8 @@ float FxaaLuma(float3 rgb) {
   return rgb.y * (0.587 / 0.299) + rgb.x;
 }
 
-float4 FxaaPixelShader(float2 pos,     // Pixel position
-                       float2 rcpFrame // 1.0 / screen size
+float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
+                                          float2 rcpFrame // 1.0 / screen size
 ) {
   // FXAA algorithm parameters
   float fxaaQualitySubpix = 0.75; // Subpixel aliasing removal amount (standard value)
@@ -276,17 +273,17 @@ float4 FxaaPixelShader(float2 pos,     // Pixel position
   bool doneN = false;
   bool doneP = false;
 
-  // Variable step search using the sample distances array
+  // Variable step search using the quality preset's sample distances
   [unroll]
-  for (int i = 0; i < NUM_SAMPLES; i++) {
+  for (int i = 0; i < FxaaNumSamples<Quality>(); i++) {
     if (!doneN) {
-      posN -= offNP * s_SampleDistances[i];
+      posN -= offNP * FxaaSampleDistance<Quality>(i);
       lumaEndN = FxaaLuma(SAMPLE_TEX2D(_texture, posN).rgb);
       doneN = abs(lumaEndN - lumaN) >= gradientN;
     }
-    
+
     if (!doneP) {
-      posP += offNP * s_SampleDistances[i];
+      posP += offNP * FxaaSampleDistance<Quality>(i);
       lumaEndP = FxaaLuma(SAMPLE_TEX2D(_texture, posP).rgb);
       doneP = abs(lumaEndP - lumaN) >= gradientN;
     }
@@ -329,6 +326,6 @@ float3 rgbF =
 return float4(lerp(rgbF, rgbL, blendL), 1.0);
 }
 
-[shader("fragment")] float4 MainPS(V2F input) : SV_TARGET {
-  return FxaaPixelShader(input.uv, InvFrameSize);
+[shader("fragment")] float4 MainPS<let Quality : int>(V2F input) : SV_TARGET {
+  return FxaaPixelShader<Quality>(input.uv, InvFrameSize);
 }

@@ -46,6 +46,18 @@ streamed texture images) each ran 60 frames on an NVIDIA RTX 4070 Ti through
 Vulkan with HBAO, volumetric clouds/light, Voxel GI/RSM, SSR and Bloom enabled,
 then shut down without validation errors or device loss.
 
+Permutation cleanup (2026-08-24, D3 follow-up): dead `#if` branches
+(`ALPHA_TEST`, particle/water `IS_FACADE`, water `TEXTURE_BOMBING`) were
+deleted, and the engine-owned variant axes became generic value
+specializations requested through `ShaderSystem.GetShader(module, args)` —
+fxaa `<let Quality>` (4 presets), volumetric-cloud-noise `<let IsDetail>`,
+texture-compress-bc3 `<let IsSRGB>`; the `#ifndef` default guards (HBAO,
+volumetric light) became `static const`. Preprocessor defines now serve only
+the material-keyword domain: `MaterialAsset.Defines`, `SHADOW_CUTOUT` (gates
+varying-struct shape) and `REPEATED`. Generic modules cannot link
+unspecialized, so headless validation covers them through per-module
+specialization tables instead of the no-argument asset-load sweep.
+
 ## 1. Background
 
 ### 1.1 Current dxc-based pipeline (as-built)

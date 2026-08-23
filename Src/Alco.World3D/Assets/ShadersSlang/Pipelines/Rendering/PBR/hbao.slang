@@ -29,12 +29,10 @@ import alco_world3d_reversed_depth;
 // the NVIDIA HBAO+ refinements: per-pixel rotation/jitter noise, distance
 // falloff and an angle bias). Writes raw (noisy) AO; HBAOBlur.hlsl filters it.
 
-#ifndef HBAO_NUM_DIRECTIONS
-#define HBAO_NUM_DIRECTIONS 6
-#endif
-#ifndef HBAO_NUM_STEPS
-#define HBAO_NUM_STEPS 4
-#endif
+// Quality knobs as compile-time constants (nobody overrides them; the previous
+// #ifndef default guards are gone with the preprocessor permutation cleanup).
+static const int HBAO_NUM_DIRECTIONS = 6;
+static const int HBAO_NUM_STEPS = 4;
 
 [[vk::binding(0, 1)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(0, 2)]] Texture2D _normal;

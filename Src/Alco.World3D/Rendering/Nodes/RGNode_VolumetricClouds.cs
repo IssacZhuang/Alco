@@ -196,20 +196,20 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Creates the volumetric clouds renderer with its three shaders. The 3D
+    /// Creates the volumetric clouds renderer with its shaders. The 3D
     /// noise textures are created here and baked by a compute dispatch on the
-    /// first <see cref="Execute"/>; no GPU work is submitted eagerly.
+    /// first <see cref="Execute"/>; no GPU work is submitted eagerly. The noise
+    /// bake module's base/detail variants are requested as generic
+    /// specializations (MainCS&lt;let IsDetail&gt;), not defines permutations.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="marchShader">The cloud march shader (volumetric-clouds.slang).</param>
     /// <param name="compositeShader">The composite shader (volumetric-clouds-composite.slang).</param>
-    /// <param name="noiseShader">The noise bake compute shader (volumetric-cloud-noise.slang).</param>
     /// <param name="shadowShader">The shadow coverage bake compute shader (volumetric-cloud-shadow.slang).</param>
     public RGNode_VolumetricClouds(
         RenderingSystem rendering,
         Shader marchShader,
         Shader compositeShader,
-        Shader noiseShader,
         Shader shadowShader)
     {
         _rendering = rendering;
@@ -240,9 +240,13 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VolumetricCloudsData>("volumetric_clouds_data");
 
-        _noiseBaseMaterial = rendering.CreateComputeMaterial(noiseShader);
+        // The bake kind is a generic value specialization of the noise module:
+        // 0 = base shape bake, 1 = detail bake.
+        _noiseBaseMaterial = rendering.CreateComputeMaterial(
+            rendering.ShaderSystem.GetShader("volumetric-cloud-noise", "0"));
         _noiseBaseMaterial.SetTexture3DStorage("_noiseOut", _baseNoise, 0);
-        _noiseDetailMaterial = rendering.CreateComputeMaterial(noiseShader, ["NOISE_DETAIL"]);
+        _noiseDetailMaterial = rendering.CreateComputeMaterial(
+            rendering.ShaderSystem.GetShader("volumetric-cloud-noise", "1"));
         _noiseDetailMaterial.SetTexture3DStorage("_noiseOut", _detailNoise, 0);
         _shadowBakeMaterial = rendering.CreateComputeMaterial(shadowShader);
         _shadowBakeMaterial.SetBuffer("_cloudData", _dataBuffer);

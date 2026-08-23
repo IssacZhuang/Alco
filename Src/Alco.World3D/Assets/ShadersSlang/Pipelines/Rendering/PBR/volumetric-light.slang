@@ -35,11 +35,8 @@ import alco_world3d_pbr_common;
 // Density model: exponential height falloff (denser near ground, thinner
 // at altitude). Scale height H is controlled via vlParams.z.
 //
-// Quality (sample count) is set via VL_SAMPLES define (default 24).
-
-#ifndef VL_SAMPLES
-    #define VL_SAMPLES 24
-#endif
+// Quality (sample count) is a compile-time constant (default 24).
+static const int VL_SAMPLES = 24;
 
 struct Vertex
 {

@@ -26,7 +26,7 @@ uint GetOutputIndex(uint2 pos)
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void MainCS(uint3 id : SV_DispatchThreadID)
+void MainCS<let IsSRGB : int>(uint3 id : SV_DispatchThreadID)
 
 {
     uint2 SamplePos = id.xy * 4;
@@ -35,11 +35,15 @@ void MainCS(uint3 id : SV_DispatchThreadID)
     float BlockA[16];
     ReadBlockRGBA(_input, SamplePos, BlockBaseColor, BlockA);
 
-    // The sRGB choice is a compile-time define of this module (set by the
-    // CPU compressor per texture format); the library exports both paths.
-#if defined(IS_SRGB)
-    _output[GetOutputIndex(id.xy)] = CompressBC3BlockSrgb(BlockBaseColor, BlockA);
-#else
-    _output[GetOutputIndex(id.xy)] = CompressBC3Block(BlockBaseColor, BlockA);
-#endif
+    // The sRGB choice is a generic value specialization of this module (the
+    // CPU compressor requests MainCS<1> or MainCS<0> per texture format); the
+    // library exports both paths.
+    if (IsSRGB != 0)
+    {
+        _output[GetOutputIndex(id.xy)] = CompressBC3BlockSrgb(BlockBaseColor, BlockA);
+    }
+    else
+    {
+        _output[GetOutputIndex(id.xy)] = CompressBC3Block(BlockBaseColor, BlockA);
+    }
 }

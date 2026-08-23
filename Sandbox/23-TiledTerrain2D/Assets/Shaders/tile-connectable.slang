@@ -54,11 +54,5 @@ V2F MainVS(Vertex input) {
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
   float4 color = SAMPLE_TEX2D(_texture, input.uv) * constants.color;
-#if defined(ALPHA_TEST)
-  if (color.a < 0.01f)
-  {
-    discard;
-  }
-#endif
   return color;
 }

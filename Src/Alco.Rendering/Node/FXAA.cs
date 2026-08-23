@@ -52,14 +52,15 @@ public class FXAA : TextureProcessor
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
 
-    // FXAA shader and pipeline
-    private readonly Shader _fxaaShader;
+    // FXAA shader and pipeline: one specialized shader per quality preset (the
+    // fxaa module's MainPS<let Quality : int> generic), keyed by preset.
+    private readonly Dictionary<FXAAQuality, Shader> _fxaaShaders = new();
+    private Shader _fxaaShader = null!;
     private GraphicsPipelineContext _fxaaPipelineInfo;
     private uint _fxaaShaderId_texture;
     private uint _fxaaShaderId_fxaaData;
 
     private FXAAQuality _quality = FXAAQuality.Medium;
-    private string[] _currentDefines = Array.Empty<string>();
 
     // Blit shader and pipeline for final copy
     private readonly Shader _blitShader;
@@ -73,7 +74,7 @@ public class FXAA : TextureProcessor
 
     /// <summary>
     /// Gets or sets the FXAA quality preset.
-    /// Changes will require recompiling the shader with appropriate defines.
+    /// Changes switch to the preset's specialized shader and rebuild the pipeline.
     /// </summary>
     public FXAAQuality Quality
     {
@@ -83,7 +84,7 @@ public class FXAA : TextureProcessor
             if (_quality != value)
             {
                 _quality = value;
-                UpdateShaderDefines();
+                ApplyQuality();
             }
         }
     }
@@ -109,17 +110,15 @@ public class FXAA : TextureProcessor
     /// Initializes a new instance of the FXAA post-processing effect.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance</param>
-    /// <param name="fxaaShader">The FXAA shader</param>
     /// <param name="blitShader">The blit shader for final copy</param>
-    internal FXAA(RenderingSystem renderingSystem, Shader fxaaShader, Shader blitShader) : base(renderingSystem)
+    internal FXAA(RenderingSystem renderingSystem, Shader blitShader) : base(renderingSystem)
     {
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
-        _fxaaShader = fxaaShader;
         _blitShader = blitShader;
 
-        // Initialize FXAA pipeline context with default HIGH quality
-        UpdateShaderDefines();
+        // Initialize the FXAA pipeline context with the default quality preset
+        ApplyQuality();
 
         // Initialize blit pipeline context (placeholder layout only: Blit re-creates
         // the pipeline against the real target layout on first use).
@@ -254,26 +253,23 @@ public class FXAA : TextureProcessor
     }
 
     /// <summary>
-    /// Updates the shader defines based on the current quality setting.
+    /// Switches to the current quality preset's specialized shader and rebuilds
+    /// the FXAA pipeline against a placeholder layout (the real intermediate
+    /// layout replaces it on the next Blit). The fxaa module's quality axis is a
+    /// generic value specialization (MainPS&lt;let Quality : int&gt;), so each preset
+    /// is its own specialized Shader, not a defines permutation.
     /// </summary>
-    private void UpdateShaderDefines()
+    private void ApplyQuality()
     {
-        string qualityDefine = _quality switch
+        if (!_fxaaShaders.TryGetValue(_quality, out Shader? shader))
         {
-            FXAAQuality.Low => "FXAA_QUALITY_LOW",
-            FXAAQuality.Medium => "FXAA_QUALITY_MEDIUM",
-            FXAAQuality.High => "FXAA_QUALITY_HIGH",
-            FXAAQuality.Ultra => "FXAA_QUALITY_ULTRA",
-            _ => "FXAA_QUALITY_HIGH"
-        };
+            shader = _renderingSystem.ShaderSystem.GetShader("fxaa", ((int)_quality).ToString());
+            _fxaaShaders[_quality] = shader;
+        }
+        _fxaaShader = shader;
 
-        _currentDefines = new[] { qualityDefine };
-
-        // Get a new pipeline with the specified defines (the placeholder layout is
-        // replaced by the intermediate texture's real layout on the next Blit).
-        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_intermediateLayout ?? _renderingSystem.PreferredLightMapPass, _currentDefines);
-
-        // Update resource IDs after pipeline recreation
+        // Fresh context: the new shader's pipeline differs from the previous one's.
+        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PreferredLightMapPass);
         _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
         _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
     }

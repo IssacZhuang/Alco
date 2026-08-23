@@ -125,6 +125,17 @@ public class ValidateWorld3DSlangModules
         }
     }
 
+    // Modules with generic entry points (plan D3 specialization): every valid
+    // specialization must link — a generic entry point cannot link unspecialized,
+    // so these modules are only tested through their argument sets. Modules not
+    // listed here have no generic parameters and link with empty arguments.
+    //   volumetric-cloud-noise: <let IsDetail : int> — 0=base shape, 1=detail.
+    private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
+        new Dictionary<string, string[][]>
+        {
+            ["volumetric-cloud-noise"] = [["0"], ["1"]],
+        };
+
     [Test]
     [TestCaseSource(nameof(ModuleCases))]
     public void Module_CompilesAllEntryPoints(string moduleName, string file)
@@ -135,12 +146,18 @@ public class ValidateWorld3DSlangModules
         }, null);
 
         system.GetOrLoadModule(moduleName);
-        using SlangProgram program = system.GetProgramAllEntries(moduleName, []);
-        Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
-        Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
-        foreach (ReadOnlyMemory<byte> code in program.EntryCode)
+        string[][] argSets = Specializations.TryGetValue(moduleName, out string[][]? sets)
+            ? sets
+            : [[]];
+        foreach (string[] args in argSets)
         {
-            Assert.That(code.Length, Is.GreaterThan(4), $"{moduleName}: empty SPIR-V blob");
+            using SlangProgram program = system.GetProgramAllEntries(moduleName, args);
+            Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
+            Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
+            foreach (ReadOnlyMemory<byte> code in program.EntryCode)
+            {
+                Assert.That(code.Length, Is.GreaterThan(4), $"{moduleName}: empty SPIR-V blob");
+            }
         }
         _ = file;
     }

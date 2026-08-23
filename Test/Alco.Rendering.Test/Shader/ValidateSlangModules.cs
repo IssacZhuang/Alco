@@ -41,6 +41,19 @@ public class ValidateSlangModules
         }
     }
 
+    // Modules with generic entry points (plan D3 specialization): every valid
+    // specialization must link — a generic entry point cannot link unspecialized,
+    // so these modules are only tested through their argument sets. Modules not
+    // listed here have no generic parameters and link with empty arguments.
+    //   fxaa: <let Quality : int> — 0=Low, 1=Medium, 2=High, 3=Ultra.
+    //   texture-compress-bc3: <let IsSRGB : int> — 0=linear, 1=sRGB.
+    private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
+        new Dictionary<string, string[][]>
+        {
+            ["fxaa"] = [["0"], ["1"], ["2"], ["3"]],
+            ["texture-compress-bc3"] = [["0"], ["1"]],
+        };
+
     [Test]
     [TestCaseSource(nameof(ModuleCases))]
     public void Module_CompilesAllEntryPoints(string moduleName, string file)
@@ -64,12 +77,18 @@ public class ValidateSlangModules
         });
 
         system.Modules.GetOrLoadModule(moduleName);
-        using SlangProgram program = system.Modules.GetProgramAllEntries(moduleName, []);
-        Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
-        Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
-        foreach (ReadOnlyMemory<byte> code in program.EntryCode)
+        string[][] argSets = Specializations.TryGetValue(moduleName, out string[][]? sets)
+            ? sets
+            : [[]];
+        foreach (string[] args in argSets)
         {
-            Assert.That(code.Length, Is.GreaterThan(4), "empty SPIR-V blob");
+            using SlangProgram program = system.Modules.GetProgramAllEntries(moduleName, args);
+            Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
+            Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
+            foreach (ReadOnlyMemory<byte> code in program.EntryCode)
+            {
+                Assert.That(code.Length, Is.GreaterThan(4), "empty SPIR-V blob");
+            }
         }
         _ = file;
     }

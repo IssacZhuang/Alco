@@ -98,17 +98,11 @@ int GetTileId(int2 tilePos, int defaultValue) {
     uv.x += checkX.x * blendFactor;
   }
 
-#if defined(IS_FACADE)
-  // make it render as a facade
-  pos.z = 0.5f - pos.y;
-  pos.y -= 1;
-#else
   tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
   if (tileId != constants.currentTileId) {
     tilePos.y += check.y * blendFactor;
     uv.y -= checkY.y * blendFactor;
   }
-#endif
 
   float3 worldPosition = pos + float3(tilePos, 0.0);
 
@@ -125,13 +119,8 @@ int GetTileId(int2 tilePos, int defaultValue) {
     : SV_TARGET {
   float2 uv = input.uv;
 
-#if defined(TEXTURE_BOMBING)
-  float4 color = TextureBombing(_texture, _textureSampler, input.worldPos,
-                                constants.tiling);
-#else
   float2 uvFrac = frac(uv * constants.tiling);
   float4 color = SAMPLE_TEX2D(_texture, uvFrac);
-#endif
 
     color *= constants.color;
 

@@ -132,6 +132,9 @@ public class ValidateShader
     /// four surface-generic pass templates define none — their files are excluded
     /// from entry-point validation (see <see cref="TestSlangMaterialCompiler"/> and
     /// <see cref="ValidateWorld3DSlangModules.LibModule_Loads"/> for their coverage).
+    /// The volumetric-cloud-noise module owns generic entry points
+    /// (&lt;let IsDetail&gt;) that cannot link unspecialized — its specializations are
+    /// validated by <see cref="ValidateWorld3DSlangModules"/>'s argument table.
     /// </summary>
     private static bool IsEntryPointModule(string assetPath)
     {
@@ -142,7 +145,8 @@ public class ValidateShader
         {
             return false;
         }
-        return fileName is not ("gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang");
+        return fileName is not ("gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang"
+            or "volumetric-cloud-noise.slang");
     }
 
     private static void AssertResource(
