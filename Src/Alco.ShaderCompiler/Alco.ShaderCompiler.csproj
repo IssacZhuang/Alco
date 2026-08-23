@@ -13,7 +13,8 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
+    <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**"
+             Exclude="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\*glslang*">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>False</Visible>

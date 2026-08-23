@@ -64,7 +64,7 @@ struct V2F
 
 // Shared G-buffer depth for ray-length clamping (declared before PBRCommon,
 // which expects the pass-specific declarations to precede it).
-[[vk::binding(0, 1)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(0, 1)]] DepthTexture2D _gbufferDepth;
 
 
 // Cloud parameters, assembled by RGNode_VolumetricClouds. Layout must match

@@ -33,14 +33,14 @@ public sealed class SlangCompilerOptions
     /// <summary>Optionally classifies known paths (used for unique-identity and existence checks).</summary>
     public SlangPathExists? Exists { get; init; }
 
-    /// <summary>Optimization level (0-3); defaults to maximal, matching the DXC path's O3.</summary>
+    /// <summary>Optimization level (0-3); defaults to maximal.</summary>
     public int OptimizationLevel { get; init; } = SlangNative.SLANG_OPTIMIZATION_LEVEL_MAXIMAL;
 
     /// <summary>
-    /// When true (default), SPIR-V is emitted by slang's direct backend. When false, code goes
-    /// slang → GLSL → glslang; only needed as a compatibility fallback.
+    /// SPIR-V target profile. The engine pins SPIR-V 1.3 so a bundled compiler
+    /// update cannot silently change the generated dialect.
     /// </summary>
-    public bool EmitSpirvDirectly { get; init; } = true;
+    public string TargetProfile { get; init; } = "spirv_1_3";
 }
 
 /// <summary>One entry point to compile, selected by name and validated for the stage.</summary>
@@ -144,6 +144,12 @@ public sealed class SlangCompileSession : IDisposable
         unsafe
         {
             SlangTargetDesc target = SlangTargetDesc.Create(SlangNative.SLANG_SPIRV);
+            target.Profile = globalSession.FindProfile(options.TargetProfile);
+            if (target.Profile == SlangNative.SLANG_PROFILE_UNKNOWN)
+            {
+                throw new ArgumentException(
+                    $"Unknown Slang target profile '{options.TargetProfile}'.", nameof(options));
+            }
 
             int optionCount = 2;
             SlangCompilerOptionEntry* optionEntries = stackalloc SlangCompilerOptionEntry[optionCount];
@@ -155,7 +161,7 @@ public sealed class SlangCompileSession : IDisposable
             optionEntries[1] = new SlangCompilerOptionEntry
             {
                 Name = SlangNative.SLANG_COMPILER_OPTION_EMIT_SPIRV_DIRECTLY,
-                Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = options.EmitSpirvDirectly ? 1 : 0 },
+                Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = 1 },
             };
             target.CompilerOptionEntries = optionEntries;
             target.CompilerOptionEntryCount = (uint)optionCount;

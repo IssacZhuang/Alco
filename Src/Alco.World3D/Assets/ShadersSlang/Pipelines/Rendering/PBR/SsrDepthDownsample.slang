@@ -36,7 +36,7 @@ struct SsrDepthConstants
     float4 params; // x = srcMipLevel, y = isFirst(1.0|0.0), zw = unused
 };
 
-[[vk::binding(1, 0)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(1, 0)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(0, 1)]] Texture2D _depthSrc;
 [[vk::binding(0, 2)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _depthOut;
 

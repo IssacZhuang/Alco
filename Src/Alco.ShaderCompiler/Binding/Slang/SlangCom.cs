@@ -175,6 +175,13 @@ internal sealed class SlangGlobalSession
         return SlangNative.StringFromPtr(ptr) ?? "unknown";
     }
 
+    public unsafe int FindProfile(string name)
+    {
+        using SlangPinnedUtf8 profileName = new(name);
+        return ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr, int>)Com.Vcall(NativePointer, 4))(
+            NativePointer, profileName.Pointer);
+    }
+
     public void Release() => Com.Release(NativePointer);
 }
 

@@ -30,7 +30,7 @@ import alco_rendering_core;
 [[vk::binding(2, 1)]] Texture2D _albedo;
 [[vk::binding(3, 1)]] Texture2D _normal;
 [[vk::binding(4, 1)]] Texture2D _mrAO;
-[[vk::binding(6, 1)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(6, 1)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(5, 1)]] Texture2D _blueNoise;
 
 // Runtime-baked Heitz blue-noise lookup (see ScreenSpaceReflectionBlueNoise.hlsl).

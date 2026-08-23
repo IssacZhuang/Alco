@@ -35,7 +35,7 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
     /// Creates the RSM pass node.
     /// </summary>
     /// <param name="rsmMap">The RSM target resource: a texture whose layout
-    /// carries albedo and world-normal attachments, an R32Float depth mirror, and a
+    /// carries albedo and world-normal attachments plus a
     /// <see cref="PixelFormat.Depth32Float"/> depth attachment.</param>
     /// <param name="cascadeIndex">The CSM cascade whose sun view-projection
     /// defines the RSM view.</param>
@@ -85,7 +85,6 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
         [
             new ClearColorData(0, Vector4.Zero),
             new ClearColorData(1, Vector4.Zero),
-            new ClearColorData(2, Vector4.Zero),
         ];
         RenderPassScope pass = Instrumentation != null
             ? Instrumentation.BeginPass(context.RenderContext, _rsmMap.Texture.FrameBuffer, clearColors, 1.0f)

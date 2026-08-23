@@ -30,7 +30,7 @@ namespace Alco.ShaderCompiler;
 public sealed partial class SlangModuleSystem : IDisposable
 {
     private const int MetaVersion = 1;
-    private const int ProgramCacheKeyVersion = 2;
+    private const int ProgramCacheKeyVersion = 3;
 
     private readonly SlangCompilerOptions _options;
     private readonly string? _cacheDirectory;
@@ -86,7 +86,7 @@ public sealed partial class SlangModuleSystem : IDisposable
                 Resolver = ResolveWithVirtualSources,
                 Exists = _options.Exists,
                 OptimizationLevel = _options.OptimizationLevel,
-                EmitSpirvDirectly = _options.EmitSpirvDirectly,
+                TargetProfile = _options.TargetProfile,
             };
         _session = _compiler.CreateSession(sessionOptions);
     }
@@ -463,7 +463,7 @@ public sealed partial class SlangModuleSystem : IDisposable
         writer.Write(ProgramCacheKeyVersion);
         writer.Write(BuildTag);
         writer.Write(_options.OptimizationLevel);
-        writer.Write(_options.EmitSpirvDirectly);
+        writer.Write(_options.TargetProfile);
         writer.Write(moduleName);
         writer.Write(irHash);
         writer.Write(entriesKey);

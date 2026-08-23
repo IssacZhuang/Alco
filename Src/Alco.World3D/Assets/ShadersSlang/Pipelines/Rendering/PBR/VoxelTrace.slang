@@ -41,7 +41,7 @@ import alco_world3d_reversed_depth;
 // pass needs two of the eight available sets.
 [[vk::binding(11, 0)]] Texture3D _radiance;
 [[vk::binding(12, 0)]] SamplerState _radianceSampler;
-[[vk::binding(15, 0)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(15, 0)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(4, 0)]] Texture2D _normal;
 [[vk::binding(5, 0)]] Texture2D _emissive;
 [[vk::binding(13, 0)]] Texture3D _opacity;
@@ -68,11 +68,11 @@ struct PointLightData
 [[vk::binding(1, 0)]] RWStructuredBuffer<PointLightData> _pointLights;
 // Reflective shadow map (sun view of the selected CSM cascade): depth + sRGB
 // albedo (alpha=1 marks rendered texels) + world normal. Bound by the voxel GI
-// node; the fallback (1x1 far depth, black albedo with alpha=0) disables the
-// sun-bounce injection in TraceCone. The albedo slot is sampled (bilinear) so
+// node; the fallback (valid 1x1 depth view, black albedo with alpha=0) disables
+// sun-bounce injection before depth is read. The albedo slot is sampled (bilinear) so
 // the bounce colour a receiver gathers is filtered instead of snapping to
 // single RSM texels.
-[[vk::binding(16, 0)]] [[vk::image_format("r32f")]] Texture2D<float> _rsmDepth;
+[[vk::binding(16, 0)]] DepthTexture2D _rsmDepth;
 [[vk::binding(2, 0)]] Texture2D _rsmAlbedo;
 [[vk::binding(3, 0)]] SamplerState _rsmAlbedoSampler;
 [[vk::binding(10, 0)]] Texture2D _rsmNormal;

@@ -43,7 +43,7 @@ import alco_world3d_reversed_depth;
 [[vk::binding(0, 1)]] Texture2D _indirectGI;
 [[vk::binding(1, 1)]] SamplerState _indirectGISampler;
 // G-buffer depth (for linear-depth-weighted blending) and normal (for ALD).
-[[vk::binding(0, 2)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(0, 2)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(0, 3)]] Texture2D _normal;
 // Full-resolution outputs consumed by DeferredLighting.
 [[vk::binding(0, 4)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giDiffuseOut;

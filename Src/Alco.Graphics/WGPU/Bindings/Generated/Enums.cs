@@ -836,6 +836,7 @@ internal enum WGPUNativeFeature
 	ShaderInt64AtomicMinMax = 0x0003002C,
 	ShaderInt64AtomicAllOps = 0x0003002D,
 	TextureInt64Atomic = 0x00030030,
+	PassthroughShaders = 0x00030036,
 	ShaderBarycentrics = 0x00030037,
 	SelectiveMultiview = 0x00030038,
 	MultisampleArray = 0x0003003A,

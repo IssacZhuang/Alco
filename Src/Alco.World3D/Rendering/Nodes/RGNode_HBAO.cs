@@ -272,9 +272,9 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         // The G-buffer render texture is recreated on resize; avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _hbaoMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
+            _hbaoMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _hbaoMaterial.SetRenderTexture("_normal", gbuffer, 1);
-            _blurMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
+            _blurMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _blurMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _boundGBuffer = gbuffer;
         }

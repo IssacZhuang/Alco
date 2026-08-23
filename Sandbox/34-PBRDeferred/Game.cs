@@ -468,7 +468,6 @@ public class Game : GameEngine
                     [
                         new ColorAttachment(PixelFormat.RGBA8Unorm),
                         new ColorAttachment(PixelFormat.RGBA8Unorm),
-                        new ColorAttachment(PixelFormat.R32Float),
                     ],
                     new DepthAttachment(PixelFormat.Depth32Float),
                     "pbr_rsm_pass"));

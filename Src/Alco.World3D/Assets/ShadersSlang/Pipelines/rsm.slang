@@ -106,8 +106,7 @@ public RsmV2F RsmMainVS<T : ISurface>(RsmVertex input)
 public void RsmMainPS<T : ISurface>(
     RsmV2F input,
     out float4 albedoRT,
-    out float4 normalRT,
-    out float depthRT)
+    out float4 normalRT)
 {
     PbrInstance inst = _instances[input.instanceId];
 
@@ -141,5 +140,4 @@ public void RsmMainPS<T : ISurface>(
     float3 normalTS = surface.GetNormalTS(surfaceInput);
     float3 worldNormal = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
     normalRT = float4(worldNormal * 0.5 + 0.5, 1.0);
-    depthRT = input.position.z;
 }

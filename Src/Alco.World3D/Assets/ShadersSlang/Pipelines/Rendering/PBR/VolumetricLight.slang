@@ -54,7 +54,7 @@ struct V2F
 };
 
 // G-buffer depth (for reconstructing world position and determining ray length).
-[[vk::binding(0, 1)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(0, 1)]] DepthTexture2D _gbufferDepth;
 
 
 [shader("vertex")]

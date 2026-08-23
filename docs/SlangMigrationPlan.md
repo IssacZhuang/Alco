@@ -9,24 +9,42 @@ set-only compiler assignment, which the pinned Slang toolchain cannot express
 without a remapping pass. The migration deliberately chose explicit source
 layout over retaining SPIR-V binding surgery.
 
-Slang's direct SPIR-V emitter remains the default backend. The renderer-shaped
-World3D PBR entry modules use the isolated GLSL → glslang compatibility system
-in `SpirvCompat.cs`; `ScreenSpaceReflectionBlueNoise.slang` is the one direct
-exception because its via-GLSL SPIR-V is rejected by naga. Both choices have
-upstream issue links and backend identity is included in the program-cache key.
-Raw scene/RSM depth reads use an `R32Float` color mirror of `SV_Position.z`
-(`Texture2D<float>` + reflected `r32f`), while the `Depth32Float` attachment is
-retained for depth tests and comparison sampling. Consequently no SPIR-V binary
-rewriter or depth patcher remains.
+Slang's direct SPIR-V emitter is the only backend. The compiler pins the
+`spirv_1_3` target profile explicitly, the public options no longer expose a
+via-GLSL switch, `SpirvCompat.cs` is deleted, and glslang is excluded from
+runtime outputs. Generated GBuffer/Shadow/RSM/Glass material wrappers all use
+the same module system, so asset/template selection cannot change the backend.
+Raw scene and RSM depth reads use native `DepthTexture2D.Load`; the actual
+`Depth32Float` framebuffer attachment is bound with `SetRenderTextureDepth`.
+The temporary `R32Float` color mirrors and their fragment outputs are removed.
+No SPIR-V binary rewriter or depth patcher remains.
+
+Runtime bisection proved that the remaining NVIDIA/Vulkan device loss was not
+invalid Slang output: the same `spirv-val`-clean bytes, including native depth
+loads and the renderer's original loop control flow, run reliably when submitted
+through wgpu's Vulkan SPIR-V passthrough API. The failure occurs only after the
+SPIR-V is imported and re-emitted by Naga. This area has required explicit
+depth-result shape handling upstream (wgpu
+[#4551](https://github.com/gfx-rs/wgpu/issues/4551), fixed by
+[#6384](https://github.com/gfx-rs/wgpu/pull/6384)); the validated result here
+does not depend on another translator pass.
+
+wgpu-native 29.0.1.1 exports `wgpuDeviceCreateShaderModuleSpirV`, but its C API
+leaves the required `PASSTHROUGH_SHADERS` feature mapping commented out. The
+pinned native patch exposes that existing wgpu-core feature; the engine requests
+it when advertised and submits Slang's words unchanged on Vulkan. Patched
+win-x64 and linux-x64 runtimes are bundled. Other runtime identifiers detect the
+missing feature and safely retain wgpu's normal translation path.
 
 Final validation (2026-08-23): all 92 Slang sources carry the 2025 language
 pin; no `.hlsl`/`.hlsli`, DXC/DXIL native binary, legacy compiler, custom
 SPIR-V reflector, or SPIR-V rewriting implementation remains. `dotnet build
 Alco.slnx` completes with zero errors and the full solution test run passes
-953/953 tests across 11 test assemblies. Sandbox 34's complete procedural PBR
-pipeline ran 60 frames on an NVIDIA RTX 4070 Ti through Vulkan with HBAO,
-volumetric clouds/light, Voxel GI/RSM, SSR and Bloom enabled, then shut down
-without validation errors or device loss.
+951/951 tests across 11 test assemblies. Sandbox 34's complete procedural PBR
+pipeline and restored Bistro scene (1,591 draw items, 133 materials, 405
+streamed texture images) each ran 60 frames on an NVIDIA RTX 4070 Ti through
+Vulkan with HBAO, volumetric clouds/light, Voxel GI/RSM, SSR and Bloom enabled,
+then shut down without validation errors or device loss.
 
 ## 1. Background
 
@@ -428,8 +446,7 @@ Ordered, each behind the Phase-0 parity harness:
 4. Verify and delete workarounds one by one against the pinned slang version:
    `SlangBaseInstanceZeroer`, DrawParameters-capability stripping,
    `-emit-spirv-via-glsl` (including the `ScreenSpaceReflectionBlueNoise`
-   exception). Any that must stay are isolated in one
-   `SpirvCompat.cs` with an upstream-issue link each.
+   exception). No compatibility backend remains; direct SPIR-V is mandatory.
 5. Depth textures: verify slang emits a naga-accepted `Depth` operand for the
    engine's depth-texture declarations; if not universally, keep a minimal
    patcher driven by slang reflection/`[AlcoDepth]` — source regexes are deleted
@@ -476,12 +493,18 @@ tests; all rendering sandboxes screenshot-clean.
 
 ## 8. Risks and mitigations
 
-- **slang SPIR-V vs naga/wgpu gaps** (already observed: `BaseInstance`,
-  `DrawParameters`, glslang path). Mitigation: pinned version; every workaround
-  isolated + linked to an upstream issue; Phase 3 re-verifies each before and
-  after removal; report upstream — fixes land quickly.
-- **Depth-texture `Depth` operand**. Mitigation: Phase 3.5 probes it first with
-  a minimal shader; worst case keeps one reflection-driven patcher (no regexes).
+- **slang SPIR-V vs naga/wgpu gaps** (previously observed: `BaseInstance` and
+  `DrawParameters`). Mitigation: pinned version and direct-output validation;
+  do not add a second compiler backend as a workaround.
+- **Depth-texture `Depth` operand**. Mitigation: dedicated reflection tests prove
+  that `DepthTexture2D` maps to WebGPU's depth sample type; the renderer binds
+  the real depth attachment, with no mirror or binary patcher.
+- **Naga SPIR-V import/re-emission on Vulkan**. Valid Slang output containing
+  native depth loads and ordinary loop control flow caused device loss only
+  after the Naga round trip. Mitigation: request wgpu-core's existing
+  `PASSTHROUGH_SHADERS` feature and submit validated SPIR-V directly to Vulkan;
+  the C API exposure is a pinned, reproducible wgpu-native patch rather than a
+  shader rewrite or alternate compiler backend.
 - **Vertex input layout drift** (semantics vs the current Location-scan packing).
   Mitigation: parity harness compares `VertexInputLayout` for every migrated
   shader before cut-over.

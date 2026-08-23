@@ -289,14 +289,14 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _traceMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
         _traceMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
         _traceMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
-        _traceMaterial.SetRenderTexture("_gbufferDepth", gbufferTexture, 4);
+        _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
         _traceMaterial.SetRenderTexture("_blueNoise", _blueNoiseTexture);
 
         _resolveMaterial.SetBuffer("_ssrData", _dataBuffer);
         _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0], 0);
         _resolveMaterial.SetRenderTexture("_historyMetadata", _reflectionHistory[0], 1);
         _resolveMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
-        _resolveMaterial.SetRenderTexture("_gbufferDepth", gbufferTexture, 4);
+        _resolveMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
 
         _compositeMaterial.SetBuffer("_ssrData", _dataBuffer);
         _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1], 0);
@@ -304,7 +304,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _compositeMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
         _compositeMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
         _compositeMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
-        _compositeMaterial.SetRenderTexture("_gbufferDepth", gbufferTexture, 4);
+        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
     }
 
     /// <summary>

@@ -314,8 +314,8 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             _rendering.PreferredLightMapPass, resolutionScale: MarchResolutionScale, name: "volumetric_clouds_march"));
 
         RenderTexture gbufferFacade = gbuffer.Texture;
-        _marchMaterial.SetRenderTexture("_gbufferDepth", gbufferFacade, 4);
-        _compositeMaterial.SetRenderTexture("_gbufferDepth", gbufferFacade, 4);
+        _marchMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferFacade);
+        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferFacade);
         _boundGBuffer = gbufferFacade;
 
         // The march and composite passes include PBRCommon.slang, whose
@@ -437,8 +437,8 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         RenderTexture marchTarget = _marchResource!.Texture;
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _marchMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
-            _compositeMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
+            _marchMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _boundGBuffer = gbuffer;
         }
         if (!ReferenceEquals(_boundMarchTarget, marchTarget))

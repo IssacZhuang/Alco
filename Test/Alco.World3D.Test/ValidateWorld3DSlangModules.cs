@@ -131,7 +131,6 @@ public class ValidateWorld3DSlangModules
     {
         using SlangModuleSystem system = new(new SlangCompilerOptions
         {
-            EmitSpirvDirectly = false,
             Resolver = CreateResolver(),
         }, null);
 

@@ -108,8 +108,9 @@ internal static partial class WebGPUUtility
         return wgpuInstanceCreateSurface(instance, &descriptor);
     }
 
-    public unsafe static WGPUShaderModule CreateShaderModule(this WGPUDevice device, in ShaderModule source)
+    public unsafe static WGPUShaderModule CreateShaderModule(this WebGPUDevice device, in ShaderModule source)
     {
+        WGPUDevice nativeDevice = device.Native;
         WGPUShaderModuleDescriptor shaderDesc = new()
         {
             label = WGPUStringView.Empty
@@ -118,9 +119,30 @@ internal static partial class WebGPUUtility
         
         if (source.Language == ShaderLanguage.SPIRV)
         {
+            if ((source.Source.Length & (sizeof(uint) - 1)) != 0)
+            {
+                throw new GraphicsException("SPIR-V shader bytecode length must be a multiple of four bytes.");
+            }
+
             fixed (byte* ptr = source.Source.Span)
             {
-                WGPUShaderSourceSPIRV descriptor = new WGPUShaderSourceSPIRV()
+                if (device.SpirvPassthroughEnabled)
+                {
+                    // Slang reflection builds the pipeline layout and the
+                    // compiler tests validate every emitted module with the
+                    // pinned SPIR-V profile. Keep the Vulkan bytecode intact
+                    // instead of importing and re-emitting it through Naga.
+                    WGPUShaderModuleDescriptorSpirV passthroughDescriptor = new()
+                    {
+                        label = WGPUStringView.Empty,
+                        sourceSize = (uint)source.Source.Length / sizeof(uint),
+                        source = (uint*)ptr,
+                    };
+
+                    return wgpuDeviceCreateShaderModuleSpirV(nativeDevice, &passthroughDescriptor);
+                }
+
+                WGPUShaderSourceSPIRV descriptor = new()
                 {
                     codeSize = (uint)source.Source.Length / sizeof(uint),
                     code = (uint*)ptr,
@@ -133,7 +155,7 @@ internal static partial class WebGPUUtility
 
                 shaderDesc.nextInChain = &descriptor.chain;
 
-                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
+                return wgpuDeviceCreateShaderModule(nativeDevice, &shaderDesc);
             }
         }
         else if (source.Language == ShaderLanguage.WGSL)
@@ -153,7 +175,7 @@ internal static partial class WebGPUUtility
 
                 shaderDesc.nextInChain = &descriptor.chain;
 
-                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
+                return wgpuDeviceCreateShaderModule(nativeDevice, &shaderDesc);
             }
         }
 

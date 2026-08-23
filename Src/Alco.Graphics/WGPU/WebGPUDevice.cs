@@ -44,6 +44,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     public bool IsDebug { get; }
 
+    internal bool SpirvPassthroughEnabled { get; }
+
     #endregion
 
     private unsafe struct PendingTextureReadback
@@ -976,6 +978,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         WGPUAdapterInfo info = default;
         wgpuAdapterGetInfo(adapter, &info);
+        WGPUBackendType backendType = info.backendType;
         _host.LogSuccess($"Adapter name: {info.device}");
         _host.LogSuccess($"Graphics backend: {info.backendType}");
 
@@ -1012,6 +1015,22 @@ internal sealed partial class WebGPUDevice : GPUDevice
             TimestampQueryInsidePassesSupported = true;
             featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses);
             _host.LogSuccess("GPU timestamp queries inside passes are supported");
+        }
+
+        if (backendType == WGPUBackendType.Vulkan)
+        {
+            WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
+            if (IsFeatureSupported(passthroughShaders, supportedFeatures))
+            {
+                SpirvPassthroughEnabled = true;
+                featuresList.Add(passthroughShaders);
+                _host.LogSuccess("Native Vulkan SPIR-V shader passthrough is enabled");
+            }
+            else
+            {
+                _host.LogWarning(
+                    "Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
+            }
         }
 
 

@@ -461,6 +461,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     // fallback before any real map exists).
     private RenderGraphTexture? _rsmMapResource;
     private RenderTexture? _boundRsmMap;
+    private RenderTexture? _rsmFallbackDepth;
     private bool _rsmBound;
     private int _rsmCascadeIndex = 2;
 
@@ -911,16 +912,21 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _rsmBound = true;
         if (rsmMap != null)
         {
-            _traceMaterial.SetRenderTexture("_rsmDepth", rsmMap, 2);
+            _traceMaterial.SetRenderTextureDepth("_rsmDepth", rsmMap);
             _traceMaterial.SetRenderTexture("_rsmAlbedo", rsmMap, 0);
             _traceMaterial.SetRenderTexture("_rsmNormal", rsmMap, 1);
             RsmResolution = (int)rsmMap.Width;
         }
         else
         {
-            // Black albedo has alpha 0, so the injection gate rejects the
-            // fallback before its mirrored depth value is relevant.
-            _traceMaterial.SetTexture("_rsmDepth", _rendering.TextureBlack);
+            // The shader rejects the black fallback albedo (alpha 0) before
+            // reading depth, but a real depth view is still required by the
+            // reflected binding layout.
+            _rsmFallbackDepth ??= _rendering.CreateRenderTexture(
+                _rendering.GraphicsDevice.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+                    [], new DepthAttachment(PixelFormat.Depth32Float), "voxel_gi_rsm_fallback")),
+                1, 1, "voxel_gi_rsm_fallback");
+            _traceMaterial.SetRenderTextureDepth("_rsmDepth", _rsmFallbackDepth);
             _traceMaterial.SetTexture("_rsmAlbedo", _rendering.TextureBlack);
             _traceMaterial.SetTexture("_rsmNormal", _rendering.TextureBlack);
         }
@@ -1411,16 +1417,16 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // (recreated on resize); avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _traceMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
+            _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _traceMaterial.SetRenderTexture("_albedo", gbuffer, 0);
             _traceMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _traceMaterial.SetRenderTexture("_emissive", gbuffer, 3);
-            _demosaicMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
+            _demosaicMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
             _demosaicMaterial.SetRenderTexture("_normal", gbuffer, 1);
             _demosaicMaterial.SetRenderTexture("_emissive", gbuffer, 3);
             if (_upsampleMaterial != null)
             {
-                _upsampleMaterial.SetRenderTexture("_gbufferDepth", gbuffer, 4);
+                _upsampleMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
                 _upsampleMaterial.SetRenderTexture("_normal", gbuffer, 1);
             }
             _boundGBuffer = gbuffer;
@@ -2354,6 +2360,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _blueNoiseLayout.Dispose();
             _dataBuffer.Dispose();
             _upsampleDataBuffer?.Dispose();
+            _rsmFallbackDepth?.Dispose();
             _gpuTimestamps?.Dispose();
             _staticBvh.Dispose();
             _dynamicBvh.Dispose();

@@ -59,15 +59,16 @@ Use the actual depth texture and comparison-sampler types. Do not add SPIR-V
 rewriters, source regex reflection, implicit structured-buffer counter naming
 rules or binding remappers.
 
-When a pass needs an unfiltered raw depth value, read the pipeline's
-`R32Float` depth-mirror attachment through an explicitly formatted
-`[[vk::image_format("r32f")]] Texture2D<float>`. Keep `DepthTexture*` for
-comparison sampling and depth semantics. Slang reflection maps the explicit
-format to WebGPU's `UnfilterableFloat` sample type.
+When a pass needs an unfiltered raw depth value, declare `DepthTexture2D`, call
+`Load`, and bind the framebuffer's native depth attachment with
+`SetRenderTextureDepth`. Do not add a color depth mirror or an explicitly
+formatted `Texture2D<float>` substitute.
 
-Direct SPIR-V is the default. Do not select a compiler backend in shader-loading
-code; all pinned-toolchain exceptions belong in `SpirvCompat.cs`, must link an
-upstream issue, and must have deterministic route tests.
+Direct SPIR-V compiler output is mandatory. Do not select a compiler backend in
+shader-loading code or introduce a via-GLSL/glslang fallback. On Vulkan,
+wgpu-native's SPIR-V passthrough capability submits the validated Slang output
+without a Naga import/re-emission round trip. Non-Vulkan backends retain wgpu's
+normal target translation path.
 
 ## Validation
 

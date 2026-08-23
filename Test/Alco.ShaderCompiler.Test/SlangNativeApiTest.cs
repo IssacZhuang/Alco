@@ -12,6 +12,8 @@ namespace Alco.ShaderCompiler;
 [TestFixture]
 public class SlangNativeApiTest
 {
+    private const uint Spirv13 = 0x00010300;
+
     private const string GraphicsShader = """
         cbuffer _frame : register(b0, space0)
         {
@@ -86,6 +88,19 @@ public class SlangNativeApiTest
     }
 
     [Test]
+    public void CreateSession_RejectsUnknownTargetProfile()
+    {
+        using SlangCompiler compiler = SlangCompiler.Create();
+        ArgumentException error = Assert.Throws<ArgumentException>(() =>
+            compiler.CreateSession(new SlangCompilerOptions
+            {
+                TargetProfile = "not_a_spirv_profile",
+            }))!;
+
+        Assert.That(error.Message, Does.Contain("not_a_spirv_profile"));
+    }
+
+    [Test]
     public void Compile_GraphicsShader_ReturnsSpirvAndReflection()
     {
         using SlangCompiler compiler = SlangCompiler.Create();
@@ -103,6 +118,10 @@ public class SlangNativeApiTest
             Assert.That(program.EntryCode.Length, Is.EqualTo(2));
             Assert.That(program.EntryCode[0][0..4], Is.EqualTo(new byte[] { 0x03, 0x02, 0x23, 0x07 }));
             Assert.That(program.EntryCode[1][0..4], Is.EqualTo(new byte[] { 0x03, 0x02, 0x23, 0x07 }));
+            Assert.That(BitConverter.ToUInt32(program.EntryCode[0], 4), Is.EqualTo(Spirv13),
+                "The engine target profile must pin the stable SPIR-V 1.3 baseline.");
+            Assert.That(BitConverter.ToUInt32(program.EntryCode[1], 4), Is.EqualTo(Spirv13),
+                "The engine target profile must pin the stable SPIR-V 1.3 baseline.");
         });
     }
 

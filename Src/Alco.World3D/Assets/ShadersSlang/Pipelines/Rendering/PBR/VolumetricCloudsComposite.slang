@@ -52,7 +52,7 @@ struct V2F
 [[vk::binding(0, 1)]] Texture2D _clouds;
 [[vk::binding(1, 1)]] SamplerState _cloudsSampler;
 // Shared G-buffer depth for the bilateral weights.
-[[vk::binding(2, 1)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(2, 1)]] DepthTexture2D _gbufferDepth;
 
 // Squared gaussian width of the upsample kernel, in half-resolution texels
 // (sigma ~ 0.67 texels): wide enough to average the march jitter grain into

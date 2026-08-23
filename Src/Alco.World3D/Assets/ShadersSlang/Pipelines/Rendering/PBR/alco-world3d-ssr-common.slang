@@ -30,7 +30,7 @@ import alco_world3d_voxel_common;
 // depth, world reconstruction and screen-radiance approximation).
 [[vk::binding(0, 1)]] public Texture2D<float4> _depthPyramid;
 [[vk::binding(1, 1)]] public Texture2D _normal;
-[[vk::binding(2, 1)]] [[vk::image_format("r32f")]] public Texture2D<float> _gbufferDepth;
+[[vk::binding(2, 1)]] public DepthTexture2D _gbufferDepth;
 
 public float3 ReconstructWorldPosition(float2 uv, float depth)
 {

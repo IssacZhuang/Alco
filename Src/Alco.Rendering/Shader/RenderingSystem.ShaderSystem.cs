@@ -12,7 +12,6 @@ namespace Alco.Rendering;
 public partial class RenderingSystem
 {
     private ShaderSystem? _shaderSystem;
-    private ShaderSystem? _glslangShaderSystem;
     private SlangFileResolver? _moduleResolver;
     private readonly Lock _shaderSystemLock = new();
 
@@ -29,8 +28,6 @@ public partial class RenderingSystem
             // A resolver change invalidates everything a previous system knew.
             _shaderSystem?.Dispose();
             _shaderSystem = null;
-            _glslangShaderSystem?.Dispose();
-            _glslangShaderSystem = null;
         }
     }
 
@@ -52,48 +49,9 @@ public partial class RenderingSystem
                     _shaderSystem = new ShaderSystem(this, new SlangCompilerOptions
                     {
                         Resolver = _moduleResolver,
-                        EmitSpirvDirectly = true,
                     }, ShaderModuleCacheDirectory);
                 }
                 return _shaderSystem;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets a module shader for an asset path, selecting the isolated glslang
-    /// compatibility backend only for paths listed by <see cref="SpirvCompat"/>.
-    /// Generated material modules and all ordinary engine shaders stay on
-    /// Slang's direct SPIR-V backend.
-    /// </summary>
-    public Shader GetShaderForAsset(string assetPath, string moduleName)
-    {
-        return SpirvCompat.RequiresGlslang(assetPath)
-            ? GlslangShaderSystem.GetShader(moduleName)
-            : ShaderSystem.GetShader(moduleName);
-    }
-
-    private ShaderSystem GlslangShaderSystem
-    {
-        get
-        {
-            lock (_shaderSystemLock)
-            {
-                if (_glslangShaderSystem == null)
-                {
-                    if (_moduleResolver == null)
-                    {
-                        throw new InvalidOperationException(
-                            "The slang module resolver is not installed; the host must call " +
-                            "SetShaderModuleResolver before any module shader is requested.");
-                    }
-                    _glslangShaderSystem = new ShaderSystem(this, new SlangCompilerOptions
-                    {
-                        Resolver = _moduleResolver,
-                        EmitSpirvDirectly = false,
-                    }, GlslangShaderModuleCacheDirectory);
-                }
-                return _glslangShaderSystem;
             }
         }
     }
@@ -106,14 +64,9 @@ public partial class RenderingSystem
     protected internal virtual string? ShaderModuleCacheDirectory
         => SlangCacheDirectory ?? ".cache/shader-slang";
 
-    private string? GlslangShaderModuleCacheDirectory
-        => ShaderModuleCacheDirectory is { } root ? Path.Combine(root, "glslang") : null;
-
     private void OnDisposeShaderSystem()
     {
         _shaderSystem?.Dispose();
         _shaderSystem = null;
-        _glslangShaderSystem?.Dispose();
-        _glslangShaderSystem = null;
     }
 }

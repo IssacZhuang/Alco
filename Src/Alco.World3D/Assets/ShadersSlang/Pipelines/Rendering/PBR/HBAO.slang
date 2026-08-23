@@ -36,7 +36,7 @@ import alco_world3d_reversed_depth;
 #define HBAO_NUM_STEPS 4
 #endif
 
-[[vk::binding(0, 1)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(0, 1)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(0, 2)]] Texture2D _normal;
 [[vk::binding(0, 3)]] [[vk::image_format("rgba16f")]] RWTexture2D<float4> _aoOutput;
 

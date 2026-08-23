@@ -34,6 +34,6 @@ public class AssetLoaderShaderSlang : IAssetLoader
     public object CreateAsset(in AssetLoadContext context)
     {
         string moduleName = Path.GetFileNameWithoutExtension(context.Filename).Replace('_', '-');
-        return _renderingSystem.GetShaderForAsset(context.Filename, moduleName);
+        return _renderingSystem.ShaderSystem.GetShader(moduleName);
     }
 }

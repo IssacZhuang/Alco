@@ -641,7 +641,7 @@ typedef enum WGPUNativeFeature
     // WGPUNativeFeature_RayHitVertexReturn = 0x00030033,
     // WGPUNativeFeature_MeshShaderMultiview = 0x00030034,
     // WGPUNativeFeature_ExtendedAccelerationStructureVertexFormats = 0x00030035,
-    // WGPUNativeFeature_PassthroughShaders = 0x00030036,
+    WGPUNativeFeature_PassthroughShaders = 0x00030036,
     /**
      * Enables shader barycentric coordinates.
      * 

@@ -117,7 +117,7 @@ public class ValidateShader
             AssertResource(hbao, "_gbufferDepth", 1, 0, BindingType.Texture);
             ShaderResourceLocation depth = GetResource(hbao, "_gbufferDepth");
             Assert.That(hbao.BindGroups[depth.GroupIndex].Bindings[depth.EntryIndex]
-                .Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.UnfilterableFloat));
+                .Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
 
             AssertResource(hbao, "_aoOutput", 3, 0, BindingType.StorageTexture);
             ShaderResourceLocation output = GetResource(hbao, "_aoOutput");

@@ -123,7 +123,7 @@ public class TestSlangMaterialCompiler
                 Is.EqualTo(new[] { VertexFormat.Float32x3, VertexFormat.Float32x3, VertexFormat.Float32x2, VertexFormat.Float32x4 }));
 
             // The G-buffer writes four color targets.
-            Assert.That(info.FragmentOutputCount, Is.EqualTo(5));
+            Assert.That(info.FragmentOutputCount, Is.EqualTo(4));
 
             // The surface's mixed-type parameter block: member types and byte offsets
             // come from Slang's own reflection — the mapping the material compiler

@@ -59,7 +59,7 @@ struct VoxelDemosaicConstants
 // uniform (binding 0, from VoxelCommon.hlsli); set 1 holds the output textures,
 // so the pass needs two of the eight available sets.
 [[vk::binding(1, 0)]] Texture2D _traceInput;
-[[vk::binding(5, 0)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(5, 0)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(2, 0)]] Texture2D _normal;
 [[vk::binding(3, 0)]] Texture2D _historyInput;
 [[vk::binding(4, 0)]] Texture2D _emissive;

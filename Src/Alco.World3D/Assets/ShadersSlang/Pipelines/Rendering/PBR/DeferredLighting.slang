@@ -51,7 +51,7 @@ struct V2F
 [[vk::binding(3, 1)]] SamplerState _normalSampler;
 [[vk::binding(4, 1)]] Texture2D _mrAO;
 [[vk::binding(5, 1)]] SamplerState _mrAOSampler;
-[[vk::binding(16, 1)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(16, 1)]] DepthTexture2D _gbufferDepth;
 [[vk::binding(6, 1)]] Texture2D _emissive;
 [[vk::binding(7, 1)]] SamplerState _emissiveSampler;
 // Indirect GI textures from the GI render plugin (full-resolution):

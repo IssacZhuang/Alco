@@ -283,11 +283,11 @@ public sealed class MaterialCompiler : AutoDisposable
     private ShaderModulesInfo CompileSlangPermutation(string templateStem, string surfacePath, string[] defines)
     {
         SlangModuleSystem modules = _rendering.ShaderSystem.Modules;
+        string templatePath = TemplateAssetPath(templateStem);
         string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
 
         string surfaceImport = MangleModule(surfaceModule, defines);
         string templateImport = MangleModule(templateStem, defines);
-        string templatePath = TemplateAssetPath(templateStem);
         RegisterDefinedModule(modules, surfaceImport, surfacePath, ReadAssetText(surfacePath), defines);
         RegisterDefinedModule(modules, templateImport, templatePath, ReadAssetText(templatePath), defines);
 
@@ -383,10 +383,9 @@ public sealed class MaterialCompiler : AutoDisposable
                     out float4 albedoRT : SV_TARGET0,
                     out float4 normalRT : SV_TARGET1,
                     out float4 mrAORT : SV_TARGET2,
-                    out float4 emissiveRT : SV_TARGET3,
-                    out float depthRT : SV_TARGET4)
+                    out float4 emissiveRT : SV_TARGET3)
                 {
-                    GBufferMainPS<Surface>(input, albedoRT, normalRT, mrAORT, emissiveRT, depthRT);
+                    GBufferMainPS<Surface>(input, albedoRT, normalRT, mrAORT, emissiveRT);
                 }
                 """,
             "shadow_depth" => $$"""
@@ -426,10 +425,9 @@ public sealed class MaterialCompiler : AutoDisposable
                 [shader("fragment")]
                 void MainPS(RsmV2F input,
                     out float4 albedoRT : SV_TARGET0,
-                    out float4 normalRT : SV_TARGET1,
-                    out float depthRT : SV_TARGET2)
+                    out float4 normalRT : SV_TARGET1)
                 {
-                    RsmMainPS<Surface>(input, albedoRT, normalRT, depthRT);
+                    RsmMainPS<Surface>(input, albedoRT, normalRT);
                 }
                 """,
             "glass" => $$"""

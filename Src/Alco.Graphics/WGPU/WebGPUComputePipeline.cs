@@ -47,7 +47,7 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
         fixed (byte* ptrEntry = entryPoint)
         fixed (byte* ptrName = name)
         {
-            WGPUShaderModule module = nativeDevice.CreateShaderModule(descriptor.Source);
+            WGPUShaderModule module = device.CreateShaderModule(descriptor.Source);
 
             WGPUComputeState stageDescriptor = new WGPUComputeState()
             {

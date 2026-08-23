@@ -96,8 +96,7 @@ public void GBufferMainPS<T : ISurface>(
     out float4 albedoRT,
     out float4 normalRT,
     out float4 mrAORT,
-    out float4 emissiveRT,
-    out float depthRT)
+    out float4 emissiveRT)
 {
     PbrInstance inst = _instances[input.instanceId];
 
@@ -138,7 +137,4 @@ public void GBufferMainPS<T : ISurface>(
 
     // Stored linear in the RGBA16Float target; no shading applied downstream.
     emissiveRT = float4(surface.GetEmissive(surfaceInput), geometryNormal.y);
-    // Exact hardware depth mirror for passes compiled through Slang's
-    // GLSL/glslang compatibility backend. Empty pixels retain the 0 clear.
-    depthRT = input.position.z;
 }

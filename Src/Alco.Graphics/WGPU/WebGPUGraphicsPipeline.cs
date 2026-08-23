@@ -65,8 +65,8 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
             _stages |= descriptor.ShaderModules[i].Stage;
         }
 
-        WGPUShaderModule vertexShader = nativeDevice.CreateShaderModule(vertex);
-        WGPUShaderModule pixelShader = nativeDevice.CreateShaderModule(pixel);
+        WGPUShaderModule vertexShader = device.CreateShaderModule(vertex);
+        WGPUShaderModule pixelShader = device.CreateShaderModule(pixel);
         //wgpuShaderModuleGetCompilationInfo(vertexShader, &ShaderCompileErrorCallback, 0);
 
         // === Create vertex layout ======================================

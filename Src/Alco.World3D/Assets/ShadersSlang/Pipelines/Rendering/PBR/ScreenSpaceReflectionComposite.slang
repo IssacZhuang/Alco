@@ -29,7 +29,7 @@ import alco_rendering_core;
 [[vk::binding(4, 1)]] Texture2D _albedo;
 [[vk::binding(5, 1)]] Texture2D _normal;
 [[vk::binding(6, 1)]] Texture2D _mrAO;
-[[vk::binding(7, 1)]] [[vk::image_format("r32f")]] Texture2D<float> _gbufferDepth;
+[[vk::binding(7, 1)]] DepthTexture2D _gbufferDepth;
 
 // Upsample the trace-resolution history without allowing hardware bilinear
 // filtering to mix unrelated receivers across a foreground/background edge.

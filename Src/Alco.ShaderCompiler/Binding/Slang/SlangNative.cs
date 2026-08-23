@@ -27,6 +27,9 @@ internal static class SlangNative
     public const int SLANG_TARGET_NONE = 1;
     public const int SLANG_SPIRV = 6;
 
+    // ── SlangProfileID ──
+    public const int SLANG_PROFILE_UNKNOWN = 0;
+
     // ── SlangStage ──
     public const int SLANG_STAGE_NONE = 0;
     public const int SLANG_STAGE_VERTEX = 1;
