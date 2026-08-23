@@ -297,17 +297,19 @@ public sealed class MaterialCompiler : AutoDisposable
 
         SlangProgram program = modules.GetProgramAllEntries(wrapperName, []);
 
+        SlangCodeTarget target = modules.Target;
         ShaderModule? vertex = null, fragment = null;
         for (int i = 0; i < program.EntryPoints.Count; i++)
         {
             (string name, int stage) = program.EntryPoints[i];
             ShaderModule module = new(
                 SlangCompileSession.SlangStageToEngine(stage),
-                ShaderLanguage.SPIRV,
+                target.Language(),
                 program.EntryCode[i],
-                // Slang names the emitted SPIR-V entry points "main" regardless
-                // of the source function names (MainVS/MainPS).
-                "main");
+                // slang names every SPIR-V entry point "main" regardless of the
+                // source function names (MainVS/MainPS); DXIL containers and MSL
+                // libraries keep the declared names.
+                target.EntryPointName(name));
             switch (module.Stage)
             {
                 case ShaderStage.Vertex:

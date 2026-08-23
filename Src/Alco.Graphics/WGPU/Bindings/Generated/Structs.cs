@@ -884,6 +884,25 @@ internal partial struct WGPUShaderModuleDescriptorSpirV
 	public unsafe uint* source;
 }
 
+internal partial struct WGPUShaderModuleDescriptorDxil
+{
+	public WGPUStringView label;
+	public uint codeSize;
+	public unsafe byte* code;
+	public uint workgroupSizeX;
+	public uint workgroupSizeY;
+	public uint workgroupSizeZ;
+}
+
+internal partial struct WGPUShaderModuleDescriptorMsl
+{
+	public WGPUStringView label;
+	public WGPUStringView code;
+	public uint workgroupSizeX;
+	public uint workgroupSizeY;
+	public uint workgroupSizeZ;
+}
+
 internal partial struct WGPURegistryReport
 {
 	public nuint numAllocated;

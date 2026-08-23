@@ -26,6 +26,8 @@ internal static class SlangNative
     // ── SlangCompileTarget ──
     public const int SLANG_TARGET_NONE = 1;
     public const int SLANG_SPIRV = 6;
+    public const int SLANG_DXIL = 10;
+    public const int SLANG_METAL = 24;
 
     // ── SlangProfileID ──
     public const int SLANG_PROFILE_UNKNOWN = 0;

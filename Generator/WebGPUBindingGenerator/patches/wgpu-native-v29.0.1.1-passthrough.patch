@@ -1,0 +1,38 @@
+diff --git a/ffi/wgpu.h b/ffi/wgpu.h
+index 8a9db42..c73bca6 100644
+--- a/ffi/wgpu.h
++++ b/ffi/wgpu.h
+@@ -641,6 +641,6 @@ typedef enum WGPUNativeFeature
+     // WGPUNativeFeature_RayHitVertexReturn = 0x00030033,
+     // WGPUNativeFeature_MeshShaderMultiview = 0x00030034,
+     // WGPUNativeFeature_ExtendedAccelerationStructureVertexFormats = 0x00030035,
+-    // WGPUNativeFeature_PassthroughShaders = 0x00030036,
++    WGPUNativeFeature_PassthroughShaders = 0x00030036,
+     /**
+      * Enables shader barycentric coordinates.
+diff --git a/src/conv.rs b/src/conv.rs
+index a9a6825..31913ed 100644
+--- a/src/conv.rs
++++ b/src/conv.rs
+@@ -1405,9 +1405,9 @@ pub fn features_to_native(features: wgt::Features) -> Vec<native::WGPUFeatureNam
+     // if features.contains(wgt::Features::EXTENDED_ACCELERATION_STRUCTURE_VERTEX_FORMATS) {
+     //     temp.push(native::WGPUNativeFeature_ExtendedAccelerationStructureVertexFormats);
+     // }
+-    // if features.contains(wgt::Features::PASSTHROUGH_SHADERS) {
+-    //     temp.push(native::WGPUNativeFeature_PassthroughShaders);
+-    // }
++    if features.contains(wgt::Features::PASSTHROUGH_SHADERS) {
++        temp.push(native::WGPUNativeFeature_PassthroughShaders);
++    }
+     if features.contains(wgt::Features::SHADER_BARYCENTRICS) {
+         temp.push(native::WGPUNativeFeature_ShaderBarycentrics);
+     }
+@@ -1520,7 +1520,7 @@ pub fn map_feature(feature: native::WGPUFeatureName) -> Option<wgt::Features> {
+         // native::WGPUNativeFeature_RayHitVertexReturn => Some(Features::EXPERIMENTAL_RAY_HIT_VERTEX_RETURN),
+         // native::WGPUNativeFeature_MeshShaderMultiview => Some(Features::EXPERIMENTAL_MESH_SHADER_MULTIVIEW),
+         // native::WGPUNativeFeature_ExtendedAccelerationStructureVertexFormats => Some(Features::EXTENDED_ACCELERATION_STRUCTURE_VERTEX_FORMATS),
+-        // native::WGPUNativeFeature_PassthroughShaders => Some(Features::PASSTHROUGH_SHADERS),
++        native::WGPUNativeFeature_PassthroughShaders => Some(Features::PASSTHROUGH_SHADERS),
+         native::WGPUNativeFeature_ShaderBarycentrics => Some(Features::SHADER_BARYCENTRICS),
+         native::WGPUNativeFeature_SelectiveMultiview => Some(Features::SELECTIVE_MULTIVIEW),
+         // TODO: requires wgpu.h api change

@@ -40,6 +40,13 @@ public abstract class GPUDevice
     public abstract bool TextureCompressBC3Supported { get; }
 
     /// <summary>
+    /// The backend the active adapter selected (an <c>Auto</c> request resolves per
+    /// platform). Shader compilation keys off this: Vulkan consumes slang SPIR-V,
+    /// D3D12 DXIL and Metal MSL.
+    /// </summary>
+    public abstract GraphicsBackend Backend { get; }
+
+    /// <summary>
     /// The maximum number of bind groups (descriptor sets / <c>@group</c>) supported by this device.
     /// </summary>
     public abstract int MaxBindGroups { get; }

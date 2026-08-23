@@ -101,6 +101,55 @@ public class SlangNativeApiTest
     }
 
     [Test]
+    public void Compile_GraphicsShader_DxilTarget_ReturnsContainers()
+    {
+        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompileSession session = compiler.CreateSession(new SlangCompilerOptions
+        {
+            Target = SlangCodeTarget.Dxil,
+        });
+        SlangModuleHandle module = session.LoadModuleFromSource("alco_test_dxil", "alco_test_dxil.slang", GraphicsShader);
+        using SlangProgram program = session.Compile(module,
+        [
+            new SlangEntryPointRequest("MainVS", ShaderStage.Vertex),
+            new SlangEntryPointRequest("MainPS", ShaderStage.Fragment),
+        ]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(program.EntryCode.Length, Is.EqualTo(2));
+            // DXIL is wrapped in a DXBC container whose magic leads the blob.
+            Assert.That(program.EntryCode[0][0..4], Is.EqualTo(new byte[] { (byte)'D', (byte)'X', (byte)'B', (byte)'C' }));
+            Assert.That(program.EntryCode[1][0..4], Is.EqualTo(new byte[] { (byte)'D', (byte)'X', (byte)'B', (byte)'C' }));
+            Assert.That(program.EntryCode[0].Length, Is.GreaterThan(64));
+            Assert.That(program.EntryCode[1].Length, Is.GreaterThan(64));
+        });
+    }
+
+    [Test]
+    public void Compile_ComputeShader_MslTarget_ReturnsNamedEntrySource()
+    {
+        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompileSession session = compiler.CreateSession(new SlangCompilerOptions
+        {
+            Target = SlangCodeTarget.Msl,
+        });
+        SlangModuleHandle module = session.LoadModuleFromSource("alco_test_msl", "alco_test_msl.slang", ComputeShader);
+        using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainCS", ShaderStage.Compute)]);
+
+        // MSL is source text; the entry function keeps its declared name
+        // (wgpu's Metal passthrough resolves pipeline entry points by name).
+        string source = System.Text.Encoding.UTF8.GetString(program.EntryCode[0]);
+        Assert.Multiple(() =>
+        {
+            Assert.That(source, Does.Contain("MainCS"));
+            Assert.That(source, Does.Contain("[[kernel]] void"));
+            Assert.That(program.Reflection.Size, Is.EqualTo(new ThreadGroupSize(8, 4, 1)),
+                "the Metal passthrough threadgroup size comes from reflection");
+        });
+    }
+
+    [Test]
     public void Compile_GraphicsShader_ReturnsSpirvAndReflection()
     {
         using SlangCompiler compiler = SlangCompiler.Create();

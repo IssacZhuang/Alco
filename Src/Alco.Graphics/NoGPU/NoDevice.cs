@@ -65,6 +65,8 @@ internal class NoDevice : GPUDevice
 
     public override PixelFormat PreferredSurfaceFormat {get;}
 
+    public override GraphicsBackend Backend => GraphicsBackend.None;
+
     public override bool TextureCompressBC3Supported => false;
 
     public override bool TimestampQuerySupported => false;

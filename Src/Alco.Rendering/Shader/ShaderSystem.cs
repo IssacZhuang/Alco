@@ -126,17 +126,26 @@ public sealed class ShaderSystem : IDisposable
         ShaderReflectionUtility.ValidateBindGroupLayouts(
             program.Reflection, _renderingSystem.GraphicsDevice.MaxBindGroups, moduleName);
 
+        SlangCodeTarget target = _modules.Target;
         ShaderModule? vertex = null, fragment = null, compute = null;
         for (int i = 0; i < program.EntryPoints.Count; i++)
         {
             (string name, int stage) = program.EntryPoints[i];
+            ShaderStage engineStage = SlangCompileSession.SlangStageToEngine(stage);
             ShaderModule module = new(
-                SlangCompileSession.SlangStageToEngine(stage),
-                ShaderLanguage.SPIRV,
+                engineStage,
+                target.Language(),
                 program.EntryCode[i],
-                // slang names every SPIR-V entry point "main" regardless of
-                // the source function name (same rule the beachhead relies on).
-                "main");
+                // slang names every SPIR-V entry point "main" regardless of the
+                // source function; DXIL containers and MSL libraries keep the
+                // declared names (same rule the beachhead relies on).
+                target.EntryPointName(name))
+            {
+                // DXIL/MSL passthrough cannot reflect [numthreads]; carry it for compute.
+                WorkgroupSize = engineStage == ShaderStage.Compute
+                    ? (program.Reflection.Size.X, program.Reflection.Size.Y, program.Reflection.Size.Z)
+                    : (1u, 1u, 1u),
+            };
             switch (module.Stage)
             {
                 case ShaderStage.Vertex:

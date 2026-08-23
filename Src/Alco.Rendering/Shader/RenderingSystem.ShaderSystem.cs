@@ -1,3 +1,4 @@
+using Alco.Graphics;
 using Alco.ShaderCompiler;
 
 namespace Alco.Rendering;
@@ -49,12 +50,25 @@ public partial class RenderingSystem
                     _shaderSystem = new ShaderSystem(this, new SlangCompilerOptions
                     {
                         Resolver = _moduleResolver,
+                        Target = SlangCodeTargetFor(GraphicsDevice.Backend),
                     }, ShaderModuleCacheDirectory);
                 }
                 return _shaderSystem;
             }
         }
     }
+
+    /// <summary>
+    /// The slang code format wgpu's shader passthrough consumes per backend:
+    /// Vulkan/SPIR-V, D3D12/DXIL, Metal/MSL. Unknown backends keep SPIR-V, which
+    /// still has the Naga-import fallback when passthrough is unavailable.
+    /// </summary>
+    internal static SlangCodeTarget SlangCodeTargetFor(GraphicsBackend backend) => backend switch
+    {
+        GraphicsBackend.D3D12 => SlangCodeTarget.Dxil,
+        GraphicsBackend.Metal => SlangCodeTarget.Msl,
+        _ => SlangCodeTarget.Spirv,
+    };
 
     /// <summary>
     /// Disk-cache root for slang modules/programs; null disables caching.

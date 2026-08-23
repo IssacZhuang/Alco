@@ -8,9 +8,9 @@ namespace Alco.Graphics
         SLANG,
         SPIRV,
         WGSL,
-        // curently not supported
-        GLSL,
+        DXIL,
         MSL,
-        DXIL
+        // currently not supported
+        GLSL
     }
 }

@@ -11,8 +11,10 @@ namespace Alco.ShaderCompiler;
 // code generation on a fully linked program.
 //
 // Compile = load module → select entry points → composite → (specialize) →
-// link → ProgramLayout + per-entry SPIR-V. Reflection is materialized into
-// the engine's ShaderReflectionInfo by SlangReflectionReader; no SPIR-V
+// link → ProgramLayout + per-entry target code (SPIR-V / DXIL / MSL, one
+// format per session, selected by the runtime backend for wgpu's shader
+// passthrough). Reflection is materialized into the engine's
+// ShaderReflectionInfo by SlangReflectionReader; no target-code
 // post-processing happens here.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -37,16 +39,34 @@ public sealed class SlangCompilerOptions
     public int OptimizationLevel { get; init; } = SlangNative.SLANG_OPTIMIZATION_LEVEL_MAXIMAL;
 
     /// <summary>
-    /// SPIR-V target profile. The engine pins SPIR-V 1.3 so a bundled compiler
-    /// update cannot silently change the generated dialect.
+    /// The code format this session emits — selected from the runtime graphics
+    /// backend (Vulkan/SPIR-V, D3D12/DXIL, Metal/MSL); see <see cref="SlangCodeTarget"/>.
     /// </summary>
-    public string TargetProfile { get; init; } = "spirv_1_3";
+    public SlangCodeTarget Target { get; init; } = SlangCodeTarget.Spirv;
+
+    /// <summary>
+    /// Optional profile override for the target (e.g. "spirv_1_5", "sm_6_6").
+    /// Null selects the target's pinned default: SPIR-V 1.3 (so a bundled compiler
+    /// update cannot silently change the dialect) and DXIL shader model 6.0 (the
+    /// only level every SM6 driver guarantees). MSL has no profile name in slang;
+    /// an override must be null for it.
+    /// </summary>
+    public string? TargetProfile { get; init; }
+
+    /// <summary>The effective profile name for the target (its default unless overridden).</summary>
+    public string EffectiveTargetProfile =>
+        TargetProfile ?? Target switch
+        {
+            SlangCodeTarget.Spirv => "spirv_1_3",
+            SlangCodeTarget.Dxil => "sm_6_0",
+            _ => "",
+        };
 }
 
 /// <summary>One entry point to compile, selected by name and validated for the stage.</summary>
 public readonly record struct SlangEntryPointRequest(string Name, ShaderStage Stage);
 
-/// <summary>The result of one linked slang program: per-entry SPIR-V plus materialized reflection.</summary>
+/// <summary>The result of one linked slang program: per-entry target code plus materialized reflection.</summary>
 public sealed class SlangProgram : IDisposable
 {
     public required string ModuleName { get; init; }
@@ -143,26 +163,43 @@ public sealed class SlangCompileSession : IDisposable
 
         unsafe
         {
-            SlangTargetDesc target = SlangTargetDesc.Create(SlangNative.SLANG_SPIRV);
-            target.Profile = globalSession.FindProfile(options.TargetProfile);
-            if (target.Profile == SlangNative.SLANG_PROFILE_UNKNOWN)
+            int targetFormat = options.Target switch
             {
-                throw new ArgumentException(
-                    $"Unknown Slang target profile '{options.TargetProfile}'.", nameof(options));
+                SlangCodeTarget.Spirv => SlangNative.SLANG_SPIRV,
+                SlangCodeTarget.Dxil => SlangNative.SLANG_DXIL,
+                SlangCodeTarget.Msl => SlangNative.SLANG_METAL,
+                _ => throw new ArgumentException($"Unsupported slang code target {options.Target}.", nameof(options)),
+            };
+
+            SlangTargetDesc target = SlangTargetDesc.Create(targetFormat);
+            string profileName = options.EffectiveTargetProfile;
+            if (profileName.Length > 0)
+            {
+                target.Profile = globalSession.FindProfile(profileName);
+                if (target.Profile == SlangNative.SLANG_PROFILE_UNKNOWN)
+                {
+                    throw new ArgumentException(
+                        $"Unknown Slang target profile '{profileName}'.", nameof(options));
+                }
             }
 
-            int optionCount = 2;
-            SlangCompilerOptionEntry* optionEntries = stackalloc SlangCompilerOptionEntry[optionCount];
+            int optionCount = 1;
+            SlangCompilerOptionEntry* optionEntries = stackalloc SlangCompilerOptionEntry[2];
             optionEntries[0] = new SlangCompilerOptionEntry
             {
                 Name = SlangNative.SLANG_COMPILER_OPTION_OPTIMIZATION,
                 Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = options.OptimizationLevel },
             };
-            optionEntries[1] = new SlangCompilerOptionEntry
+            if (options.Target == SlangCodeTarget.Spirv)
             {
-                Name = SlangNative.SLANG_COMPILER_OPTION_EMIT_SPIRV_DIRECTLY,
-                Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = 1 },
-            };
+                // slang's direct SPIR-V emitter skips the glslang detour.
+                optionEntries[1] = new SlangCompilerOptionEntry
+                {
+                    Name = SlangNative.SLANG_COMPILER_OPTION_EMIT_SPIRV_DIRECTLY,
+                    Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = 1 },
+                };
+                optionCount = 2;
+            }
             target.CompilerOptionEntries = optionEntries;
             target.CompilerOptionEntryCount = (uint)optionCount;
 

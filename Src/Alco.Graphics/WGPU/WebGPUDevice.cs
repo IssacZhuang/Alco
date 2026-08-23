@@ -44,7 +44,15 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     public bool IsDebug { get; }
 
-    internal bool SpirvPassthroughEnabled { get; }
+    /// <summary>
+    /// Whether the device was created with wgpu's PassthroughShaders feature: slang's
+    /// SPIR-V (Vulkan), DXIL (D3D12) and MSL (Metal) reach the backend as-is. Required
+    /// for DXIL/MSL (no translation fallback exists); SPIR-V falls back to Naga import.
+    /// </summary>
+    internal bool ShaderPassthroughEnabled { get; }
+
+    /// <summary>The backend the adapter actually selected (Auto resolves per platform).</summary>
+    public override GraphicsBackend Backend { get; }
 
     #endregion
 
@@ -979,6 +987,13 @@ internal sealed partial class WebGPUDevice : GPUDevice
         WGPUAdapterInfo info = default;
         wgpuAdapterGetInfo(adapter, &info);
         WGPUBackendType backendType = info.backendType;
+        Backend = backendType switch
+        {
+            WGPUBackendType.Vulkan => GraphicsBackend.Vulkan,
+            WGPUBackendType.D3D12 => GraphicsBackend.D3D12,
+            WGPUBackendType.Metal => GraphicsBackend.Metal,
+            _ => GraphicsBackend.WebGPU,
+        };
         _host.LogSuccess($"Adapter name: {info.device}");
         _host.LogSuccess($"Graphics backend: {info.backendType}");
 
@@ -1022,7 +1037,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
             if (IsFeatureSupported(passthroughShaders, supportedFeatures))
             {
-                SpirvPassthroughEnabled = true;
+                ShaderPassthroughEnabled = true;
                 featuresList.Add(passthroughShaders);
                 _host.LogSuccess("Native Vulkan SPIR-V shader passthrough is enabled");
             }
@@ -1031,6 +1046,22 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 _host.LogWarning(
                     "Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
             }
+        }
+        else if (backendType == WGPUBackendType.D3D12 || backendType == WGPUBackendType.Metal)
+        {
+            // Slang emits DXIL for D3D12 and MSL for Metal; wgpu can only consume
+            // them through passthrough, so the feature is required, not optional.
+            WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
+            if (!IsFeatureSupported(passthroughShaders, supportedFeatures))
+            {
+                throw new GraphicsException(
+                    $"{backendType} requires wgpu's PassthroughShaders feature for slang DXIL/MSL shaders, " +
+                    "but the adapter or wgpu-native build does not expose it. " +
+                    "Use a wgpu-native build with the Alco passthrough patch (Generator/WebGPUBindingGenerator/patches).");
+            }
+            ShaderPassthroughEnabled = true;
+            featuresList.Add(passthroughShaders);
+            _host.LogSuccess($"Native {backendType} shader passthrough is enabled");
         }
 
 

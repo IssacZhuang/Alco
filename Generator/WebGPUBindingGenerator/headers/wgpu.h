@@ -1268,6 +1268,29 @@ typedef struct WGPUShaderModuleDescriptorSpirV
     uint32_t const *source;
 } WGPUShaderModuleDescriptorSpirV;
 
+typedef struct WGPUShaderModuleDescriptorDxil
+{
+    WGPUStringView label;
+    /** Number of bytes in @c code. */
+    uint32_t codeSize;
+    uint8_t const *code;
+    /** Compute threadgroup size ([numthreads]); graphics stages ignore it. */
+    uint32_t workgroupSizeX;
+    uint32_t workgroupSizeY;
+    uint32_t workgroupSizeZ;
+} WGPUShaderModuleDescriptorDxil;
+
+typedef struct WGPUShaderModuleDescriptorMsl
+{
+    WGPUStringView label;
+    /** MSL source code. */
+    WGPUStringView code;
+    /** Compute threadgroup size; graphics stages ignore it. */
+    uint32_t workgroupSizeX;
+    uint32_t workgroupSizeY;
+    uint32_t workgroupSizeZ;
+} WGPUShaderModuleDescriptorMsl;
+
 typedef struct WGPURegistryReport
 {
     size_t numAllocated;
@@ -1488,6 +1511,8 @@ extern "C"
     // Returns true if the queue is empty, or false if there are more queue submissions still in flight.
     WGPUBool wgpuDevicePoll(WGPUDevice device, WGPUBool wait, WGPU_NULLABLE WGPUSubmissionIndex const *submissionIndex);
     WGPUShaderModule wgpuDeviceCreateShaderModuleSpirV(WGPUDevice device, WGPUShaderModuleDescriptorSpirV const *descriptor);
+    WGPUShaderModule wgpuDeviceCreateShaderModuleDxil(WGPUDevice device, WGPUShaderModuleDescriptorDxil const *descriptor);
+    WGPUShaderModule wgpuDeviceCreateShaderModuleMsl(WGPUDevice device, WGPUShaderModuleDescriptorMsl const *descriptor);
 
     void wgpuSetLogCallback(WGPULogCallback callback, void *userdata);
 

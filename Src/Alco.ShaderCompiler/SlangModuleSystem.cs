@@ -12,12 +12,13 @@ namespace Alco.ShaderCompiler;
 // disk-cache layers that replace ShaderCache:
 //
 //   (a) modules/<hash>.slang-module + .meta — serialized module IR. The meta
-//       sidecar stamps the slang build tag and every dependency's content hash,
-//       because isBinaryModuleUpToDate accepts source-less blobs without
-//       validation (the plan's explicit caveat).
-//   (b) programs/<hash>.bin — linked programs (per-entry SPIR-V + materialized
-//       reflection + uniform members), keyed by module IR hash, entry set,
-//       specialization and build tag.
+//       sidecar stamps the slang build tag, the session's code target and
+//       every dependency's content hash, because isBinaryModuleUpToDate
+//       accepts source-less blobs without validation (the plan's explicit
+//       caveat).
+//   (b) programs/<hash>.bin — linked programs (per-entry target code +
+//       materialized reflection + uniform members), keyed by module IR hash,
+//       entry set, specialization, code target and build tag.
 //
 // Invalidation rebuilds the whole session: slang caches imported modules inside
 // the session and modules are immutable, so a changed lib can only be observed
@@ -29,8 +30,8 @@ namespace Alco.ShaderCompiler;
 /// <summary>Owns slang modules, their dependency graph and the shader disk caches.</summary>
 public sealed partial class SlangModuleSystem : IDisposable
 {
-    private const int MetaVersion = 1;
-    private const int ProgramCacheKeyVersion = 3;
+    private const int MetaVersion = 2;
+    private const int ProgramCacheKeyVersion = 4;
 
     private readonly SlangCompilerOptions _options;
     private readonly string? _cacheDirectory;
@@ -53,6 +54,9 @@ public sealed partial class SlangModuleSystem : IDisposable
 
     /// <summary>The pinned slang release's build tag — part of every cache key.</summary>
     public string BuildTag { get; }
+
+    /// <summary>The code format this system's session emits (part of every cache key).</summary>
+    public SlangCodeTarget Target => _options.Target;
 
     /// <summary>Raised after modules were dropped due to source changes; carries the affected module names.</summary>
     public event Action<IReadOnlyList<string>>? ModulesInvalidated;
@@ -86,6 +90,7 @@ public sealed partial class SlangModuleSystem : IDisposable
                 Resolver = ResolveWithVirtualSources,
                 Exists = _options.Exists,
                 OptimizationLevel = _options.OptimizationLevel,
+                Target = _options.Target,
                 TargetProfile = _options.TargetProfile,
             };
         _session = _compiler.CreateSession(sessionOptions);
@@ -374,8 +379,11 @@ public sealed partial class SlangModuleSystem : IDisposable
 
     // ── module disk cache ────────────────────────────────────────────────────
 
+    // The cache file identity includes the code target: one machine may switch
+    // graphics backends (Vulkan ↔ D3D12) and both targets' IR must coexist.
     private string ModuleCachePath(string moduleName, string extension) =>
-        Path.Combine(_cacheDirectory!, "modules", $"{Convert.ToHexString(XxHash3.Hash(System.Text.Encoding.UTF8.GetBytes(moduleName)))}.{extension}");
+        Path.Combine(_cacheDirectory!, "modules",
+            $"{Convert.ToHexString(XxHash3.Hash(System.Text.Encoding.UTF8.GetBytes($"{moduleName}|{(int)_options.Target}")))}.{extension}");
 
     private bool TryReadModuleCache(string moduleName, out ModuleEntry? entry)
     {
@@ -392,6 +400,10 @@ public sealed partial class SlangModuleSystem : IDisposable
             if (reader.ReadInt32() != MetaVersion)
                 return false;
             if (reader.ReadString() != BuildTag)
+                return false;
+            // Serialized IR is stamped with the code target: a blob front-end-
+            // compiled under one target must not be restored into another's session.
+            if (reader.ReadInt32() != (int)_options.Target)
                 return false;
             int depCount = reader.ReadInt32();
             List<string> dependencies = new(depCount);
@@ -437,6 +449,7 @@ public sealed partial class SlangModuleSystem : IDisposable
             using var writer = new System.IO.BinaryWriter(stream);
             writer.Write(MetaVersion);
             writer.Write(BuildTag);
+            writer.Write((int)_options.Target);
             writer.Write(entry.Dependencies.Count);
             foreach (string dep in entry.Dependencies)
             {
@@ -463,7 +476,8 @@ public sealed partial class SlangModuleSystem : IDisposable
         writer.Write(ProgramCacheKeyVersion);
         writer.Write(BuildTag);
         writer.Write(_options.OptimizationLevel);
-        writer.Write(_options.TargetProfile);
+        writer.Write((int)_options.Target);
+        writer.Write(_options.EffectiveTargetProfile);
         writer.Write(moduleName);
         writer.Write(irHash);
         writer.Write(entriesKey);

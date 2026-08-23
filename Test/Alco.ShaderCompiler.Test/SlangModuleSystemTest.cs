@@ -108,6 +108,19 @@ public class SlangModuleSystemTest
         Exists = path => files.ContainsKey(SlangPathUtility.NormalizePath(path)),
     };
 
+    private static SlangCompilerOptions OptionsFor(Dictionary<string, string> files, SlangCodeTarget target)
+    {
+        SlangCompilerOptions options = OptionsFor(files);
+        return new SlangCompilerOptions
+        {
+            SearchPaths = options.SearchPaths,
+            PreprocessorMacros = options.PreprocessorMacros,
+            Resolver = options.Resolver,
+            Exists = options.Exists,
+            Target = target,
+        };
+    }
+
     private static Dictionary<string, string> DefaultFiles() => new()
     {
         ["shaders/alco_sys_main.slang"] = MainModule,
@@ -246,6 +259,50 @@ public class SlangModuleSystemTest
         system.GetOrLoadModule("alco_sys_main", "shaders/alco_sys_main.slang", MainModule);
         using SlangProgram after = system.GetProgram("alco_sys_main", GraphicsEntries(), []);
         Assert.That(after.EntryCode[1].Length, Is.GreaterThan(4));
+    }
+
+    [Test]
+    public void ProgramAndModuleCaches_AreKeyedByCodeTarget()
+    {
+        // One cache directory serves a machine that switches graphics backends
+        // (Vulkan ↔ D3D12): a module/program compiled for one code target must
+        // never be restored by a session emitting another.
+        Dictionary<string, string> files = DefaultFiles();
+        string cache = TempCache();
+        try
+        {
+            byte[][] spirvCode;
+            using (SlangModuleSystem spirvSystem = new(OptionsFor(files, SlangCodeTarget.Spirv), cache))
+            {
+                spirvSystem.GetOrLoadModule("alco_sys_main", "shaders/alco_sys_main.slang", MainModule);
+                using SlangProgram program = spirvSystem.GetProgram("alco_sys_main", GraphicsEntries(), []);
+                spirvCode = program.EntryCode;
+            }
+
+            using SlangModuleSystem dxilSystem = new(OptionsFor(files, SlangCodeTarget.Dxil), cache);
+            dxilSystem.GetOrLoadModule("alco_sys_main", "shaders/alco_sys_main.slang", MainModule);
+            using SlangProgram dxilProgram = dxilSystem.GetProgram("alco_sys_main", GraphicsEntries(), []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(dxilSystem.IsModuleLoadedFromCache("alco_sys_main"), Is.False,
+                    "a DXIL session must not restore a module IR stamped for SPIR-V");
+                Assert.That(dxilProgram.EntryCode[0][0..4],
+                    Is.EqualTo(new byte[] { (byte)'D', (byte)'X', (byte)'B', (byte)'C' }),
+                    "DXIL session must emit DXBC containers");
+                Assert.That(spirvCode[0][0..4],
+                    Is.EqualTo(new byte[] { 0x03, 0x02, 0x23, 0x07 }),
+                    "the SPIR-V session's bytecode is untouched");
+                Assert.That(Directory.GetFiles(Path.Combine(cache, "modules"), "*.slang-module"),
+                    Has.Length.EqualTo(2), "module IR entries per target");
+                Assert.That(Directory.GetFiles(Path.Combine(cache, "programs"), "*.bin"),
+                    Has.Length.EqualTo(2), "program entries per target");
+            });
+        }
+        finally
+        {
+            Directory.Delete(cache, true);
+        }
     }
 
     [Test]
