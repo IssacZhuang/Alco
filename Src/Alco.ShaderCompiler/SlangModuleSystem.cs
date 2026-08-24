@@ -319,6 +319,19 @@ public sealed partial class SlangModuleSystem : IDisposable
         return _session.GetModuleUniformMembers(module, cbufferName);
     }
 
+    /// <summary>
+    /// Every uniform block of a module carrying the given user-defined attribute (e.g.
+    /// <c>[MaterialParams]</c>), read from the module's own layout — no entry points,
+    /// no link. The material-parameter discovery probe: blocks are found by the marker,
+    /// not by a fixed name, so a surface names and splits its parameter blocks freely.
+    /// </summary>
+    public List<(string BlockName, List<SlangUniformMember> Members)> GetModuleMarkedUniformBlocks(
+        string moduleName, string attributeName, IReadOnlyList<string>? defines = null)
+    {
+        SlangModuleHandle module = GetOrLoadModule(moduleName, defines);
+        return _session.GetModuleMarkedUniformBlocks(module, attributeName);
+    }
+
     private SlangProgram GetProgramLocked(
         string moduleName, ModuleEntry entry, string entriesKey,
         Func<IReadOnlyList<string>, SlangProgram> compile, IReadOnlyList<string> specializationArgs)

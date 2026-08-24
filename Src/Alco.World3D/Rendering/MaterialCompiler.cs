@@ -24,7 +24,8 @@ namespace Alco.World3D;
 /// pass-private defines (the shadow pass's alpha test is the template's
 /// <c>let AlphaTest : bool</c> parameter, fed from <see cref="MaterialAsset.AlphaMode"/>).
 /// <br/>The parameter mapping reads slang's module-level reflection (a surface's
-/// <c>_materialParams</c> block may mix scalar and vector float members); texture
+/// <c>[MaterialParams]</c>-marked blocks may mix scalar and vector float members,
+/// under any block names); texture
 /// slots are validated against the composed reflection at compile time and bound
 /// by name with pattern fallbacks (<c>_normal*</c> → flat normal,
 /// <c>_emissive*</c> → black, everything else → white).
@@ -41,13 +42,13 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <summary>The descriptor set index the surface contract reserves for surface resources.</summary>
     public const int SurfaceResourceSet = 2;
 
-    /// <summary>Compiled materials, streamed-texture slots and the parameter buffer of one material asset.</summary>
+    /// <summary>Compiled materials, streamed-texture slots and the parameter buffers of one material asset.</summary>
     private sealed class Entry
     {
         public required MaterialAsset Asset { get; init; }
         public Dictionary<string, GraphicsMaterial> Materials { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, Texture2D?> Textures { get; } = new(StringComparer.Ordinal);
-        public GraphicsBuffer? ParamsBuffer { get; set; }
+        public IReadOnlyDictionary<string, GraphicsBuffer>? ParamsBuffers { get; set; }
     }
 
     private readonly RenderingSystem _rendering;
@@ -242,7 +243,13 @@ public sealed class MaterialCompiler : AutoDisposable
         {
             material.Dispose();
         }
-        entry.ParamsBuffer?.Dispose();
+        if (entry.ParamsBuffers != null)
+        {
+            foreach (GraphicsBuffer buffer in entry.ParamsBuffers.Values)
+            {
+                buffer.Dispose();
+            }
+        }
     }
 
     private GraphicsMaterial Compile(MaterialAsset asset, MaterialPassDesc desc, Entry entry)
@@ -265,14 +272,16 @@ public sealed class MaterialCompiler : AutoDisposable
 
         GraphicsMaterial material = desc.CreateMaterial(asset, shader);
 
-        // The parameter block, packed once per asset and shared by its pass
-        // materials; bound where the pass's reflection keeps it (a pass that
-        // never samples the block's consumers strips it from its layout).
-        GraphicsBuffer? paramsBuffer = GetParamsBuffer(asset, entry);
-        if (paramsBuffer != null
-            && reflection.TryGetResourceId(MaterialComposer.DefaultParamsBlockName, out _))
+        // The parameter blocks, packed once per asset and shared by its pass
+        // materials; each block is bound where the pass's reflection keeps it
+        // (a pass that never samples the block's consumers strips it from its
+        // layout).
+        foreach (KeyValuePair<string, GraphicsBuffer> block in GetParamsBuffers(asset, entry))
         {
-            material.SetBuffer(MaterialComposer.DefaultParamsBlockName, paramsBuffer);
+            if (reflection.TryGetResourceId(block.Key, out _))
+            {
+                material.SetBuffer(block.Key, block.Value);
+            }
         }
 
         // Fallback-bind every surface texture slot (streamed values that arrived
@@ -290,38 +299,36 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The parameter buffer of an asset: the surface's <c>_materialParams</c> block,
-    /// packed from <see cref="MaterialAsset.Parameters"/> by member name at the
-    /// offsets slang reflected. Created on first compile, reused by every pass
-    /// material of the asset.
+    /// The parameter buffers of an asset: every block of its surface marked
+    /// <c>[MaterialParams]</c> (free names, any number), packed from
+    /// <see cref="MaterialAsset.Parameters"/> by member name at the offsets slang
+    /// reflected. Created on first compile, shared by every pass material of the
+    /// asset.
     /// </summary>
-    private GraphicsBuffer? GetParamsBuffer(MaterialAsset asset, Entry entry)
+    private IReadOnlyDictionary<string, GraphicsBuffer> GetParamsBuffers(MaterialAsset asset, Entry entry)
     {
-        if (asset.SurfaceShader == null)
+        if (entry.ParamsBuffers != null)
         {
-            // The built-in surface declares no parameter block.
-            if (asset.Parameters.Count > 0)
-            {
-                throw new InvalidDataException(
-                    $"Material '{asset.Name}' has parameters, but the built-in PbrStandard surface declares no _materialParams block.");
-            }
-            return null;
+            return entry.ParamsBuffers;
         }
 
-        IReadOnlyList<SlangUniformMember> layout =
-            Composer.GetParamsLayout(SurfaceModuleName(asset), defines: asset.Defines);
-        if (layout.Count == 0)
+        IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts = asset.SurfaceShader == null
+            ? new Dictionary<string, IReadOnlyList<SlangUniformMember>>() // the built-in surface marks no blocks
+            : Composer.GetParamsLayouts(SurfaceModuleName(asset), defines: asset.Defines);
+        if (layouts.Count == 0)
         {
             if (asset.Parameters.Count > 0)
             {
                 throw new InvalidDataException(
-                    $"Material '{asset.Name}' has parameters, but its surface '{asset.SurfaceShader}' declares no _materialParams block.");
+                    $"Material '{asset.Name}' has parameters, but its surface '{asset.SurfaceShader ?? "pbr-standard (built-in)"}' " +
+                    $"declares no [{MaterialComposer.ParamsMarkerAttribute}] parameter block.");
             }
-            return null;
+            entry.ParamsBuffers = new Dictionary<string, GraphicsBuffer>();
+            return entry.ParamsBuffers;
         }
 
-        entry.ParamsBuffer ??= Composer.PackParamsBuffer(layout, asset.Parameters, asset.Name);
-        return entry.ParamsBuffer;
+        entry.ParamsBuffers = Composer.PackParamsBuffers(layouts, asset.Parameters, asset.Name);
+        return entry.ParamsBuffers;
     }
 
     /// <summary>The shader resource name a material texture slot binds to: the slot name with a leading underscore.</summary>
@@ -374,7 +381,13 @@ public sealed class MaterialCompiler : AutoDisposable
                 {
                     material.Dispose();
                 }
-                entry.ParamsBuffer?.Dispose();
+                if (entry.ParamsBuffers != null)
+                {
+                    foreach (GraphicsBuffer buffer in entry.ParamsBuffers.Values)
+                    {
+                        buffer.Dispose();
+                    }
+                }
             }
             _entries.Clear();
             Composer.Dispose();

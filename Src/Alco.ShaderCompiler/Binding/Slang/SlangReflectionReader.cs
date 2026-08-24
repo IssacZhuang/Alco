@@ -184,7 +184,7 @@ public static class SlangReflectionReader
 
     /// <summary>
     /// The members of a named uniform block (e.g. a surface's
-    /// <c>_materialParams</c>), in declaration order, from slang reflection.
+    /// parameter block), in declaration order, from slang reflection.
     /// Empty when the program declares no such block. Non-float members make
     /// the method throw — the material parameter system writes floats only.
     /// </summary>
@@ -205,40 +205,117 @@ public static class SlangReflectionReader
                 continue;
             }
 
-            IntPtr structLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
-            List<SlangUniformMember> members = [];
-            uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(structLayout);
-            for (uint field = 0; field < fieldCount; field++)
-            {
-                IntPtr fieldLayout = SlangNative.spReflectionTypeLayout_GetFieldByIndex(structLayout, field);
-                string? fieldName = VariableLayoutName(fieldLayout);
-                if (fieldName == null)
-                {
-                    continue;
-                }
-
-                // A block groups uniform data and resource members; the resource
-                // members are binding entries, not uniform members.
-                IntPtr fieldLayoutType = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
-                int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldLayoutType);
-                if (fieldKind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
-                    fieldKind == SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE ||
-                    fieldKind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
-                {
-                    continue;
-                }
-
-                uint offset = (uint)SlangNative.spReflectionVariableLayout_GetOffset(
-                    fieldLayout, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
-                IntPtr fieldType = SlangNative.spReflectionTypeLayout_GetType(
-                    SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout));
-                int components = FloatComponents(fieldType);
-                uint size = (uint)(components * sizeof(float));
-                members.Add(new SlangUniformMember(fieldName, offset, size, components));
-            }
-            return members;
+            return ReadUniformMembers(typeLayout);
         }
         return [];
+    }
+
+    /// <summary>
+    /// Every uniform block carrying the given user-defined attribute (e.g.
+    /// <c>[MaterialParams]</c>), with its scalar/vector float members, from slang
+    /// reflection. Blocks are discovered by the marker, not by name — a surface
+    /// names and splits its parameter blocks freely (and may mix texture/sampler
+    /// members in, as before). A marked block whose uniform members are all
+    /// non-float, or that declares no uniform members at all, throws: the
+    /// material parameter system writes floats only.
+    /// </summary>
+    public static unsafe List<(string BlockName, List<SlangUniformMember> Members)> GetMarkedUniformBlocks(
+        IntPtr reflection, string attributeName)
+    {
+        List<(string, List<SlangUniformMember>)> blocks = [];
+        uint parameterCount = SlangNative.spReflection_GetParameterCount(reflection);
+        for (uint i = 0; i < parameterCount; i++)
+        {
+            IntPtr parameter = SlangNative.spReflection_GetParameterByIndex(reflection, i);
+            if (parameter == IntPtr.Zero)
+            {
+                continue;
+            }
+
+            IntPtr typeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(parameter);
+            if (SlangNative.spReflectionTypeLayout_getKind(typeLayout) != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER)
+            {
+                continue;
+            }
+
+            IntPtr variable = SlangNative.spReflectionVariableLayout_GetVariable(parameter);
+            if (!HasUserAttribute(variable, attributeName))
+            {
+                continue;
+            }
+
+            string? name = VariableLayoutName(parameter);
+            List<SlangUniformMember> members = ReadUniformMembers(typeLayout);
+            if (members.Count == 0)
+            {
+                throw new NotSupportedException(
+                    $"Parameter block '{name}' is marked [{attributeName}] but declares no scalar/vector members; " +
+                    "unmark it or add the members it should carry.");
+            }
+            blocks.Add((name!, members));
+        }
+        return blocks;
+    }
+
+    /// <summary>Whether a slang variable carries the named user-defined attribute.</summary>
+    private static unsafe bool HasUserAttribute(IntPtr variable, string attributeName)
+    {
+        if (variable == IntPtr.Zero)
+        {
+            return false;
+        }
+        uint count = SlangNative.spReflectionVariable_GetUserAttributeCount(variable);
+        for (uint i = 0; i < count; i++)
+        {
+            IntPtr attribute = SlangNative.spReflectionVariable_GetUserAttribute(variable, i);
+            if (attribute != IntPtr.Zero
+                && SlangNative.StringFromPtr(SlangNative.spReflectionUserAttribute_GetName(attribute)) == attributeName)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The scalar/vector float members of a constant-buffer type layout, in
+    /// declaration order. Resource members (textures, samplers, storage
+    /// buffers) are binding entries, not uniform members, and are skipped;
+    /// other non-float members throw.
+    /// </summary>
+    private static unsafe List<SlangUniformMember> ReadUniformMembers(IntPtr typeLayout)
+    {
+        IntPtr structLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
+        List<SlangUniformMember> members = [];
+        uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(structLayout);
+        for (uint field = 0; field < fieldCount; field++)
+        {
+            IntPtr fieldLayout = SlangNative.spReflectionTypeLayout_GetFieldByIndex(structLayout, field);
+            string? fieldName = VariableLayoutName(fieldLayout);
+            if (fieldName == null)
+            {
+                continue;
+            }
+
+            // A block groups uniform data and resource members; the resource
+            // members are binding entries, not uniform members.
+            IntPtr fieldLayoutType = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
+            int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldLayoutType);
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
+                fieldKind == SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE ||
+                fieldKind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
+            {
+                continue;
+            }
+
+            uint offset = (uint)SlangNative.spReflectionVariableLayout_GetOffset(
+                fieldLayout, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
+            IntPtr fieldType = SlangNative.spReflectionTypeLayout_GetType(fieldLayoutType);
+            int components = FloatComponents(fieldType);
+            uint size = (uint)(components * sizeof(float));
+            members.Add(new SlangUniformMember(fieldName, offset, size, components));
+        }
+        return members;
     }
 
     /// <summary>The names and stages of every entry point in a program layout.</summary>

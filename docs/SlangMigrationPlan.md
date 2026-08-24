@@ -369,7 +369,8 @@ shape is preserved (D4). Changes are confined to composition:
 - `MaterialCompiler`: the `@SURFACE@` text splice and the HLSL-surface float4
   regex packing are deleted. Every material surface is an `ISurface`
   implementation; per-(asset, pass) shaders are generic instantiations;
-  `_materialParams` packing continues via slang-reflected member offsets and is
+  parameter-block packing continues via slang-reflected member offsets
+  (`[MaterialParams]`-marked blocks, discovered by marker not name) and is
   promoted out of World3D into the shared path.
 - Material parameter block becomes `ParameterBlock<MaterialParams>` in set 2,
   matching the frequency-group design.

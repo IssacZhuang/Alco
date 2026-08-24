@@ -411,6 +411,25 @@ public sealed class SlangCompileSession : IDisposable
     }
 
     /// <summary>
+    /// Every uniform block of a module carrying the given user-defined attribute (e.g.
+    /// <c>[MaterialParams]</c>), read from the module's own layout — no entry points,
+    /// no link. The material-parameter discovery probe: blocks are found by the marker,
+    /// not by a fixed name, so a surface names and splits its parameter blocks freely.
+    /// </summary>
+    public List<(string BlockName, List<SlangUniformMember> Members)> GetModuleMarkedUniformBlocks(
+        SlangModuleHandle module, string attributeName)
+    {
+        lock (_lock)
+        {
+            IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
+            if (layout == IntPtr.Zero)
+                throw new ShaderCompilationException(
+                    $"slang getLayout failed for module '{module.Name}': {diagnostics}");
+            return SlangReflectionReader.GetMarkedUniformBlocks(layout, attributeName);
+        }
+    }
+
+    /// <summary>
     /// Compiles every [shader(...)] entry point the module defines, in definition order —
     /// callers that don't know entry names up front (module-name keyed lookups).
     /// </summary>

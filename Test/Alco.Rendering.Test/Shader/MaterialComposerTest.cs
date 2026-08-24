@@ -13,7 +13,8 @@ namespace Alco.Rendering.Test;
 // hot-reload invalidation. Runs on the NoGPU device; only module/reflection
 // level behavior is asserted (pipelines need a real device). The in-memory
 // modules mirror the shipped convention: surface resources live in set-scoped
-// cbuffer blocks, the parameter block mixes scalar/vector float members.
+// cbuffer blocks, parameter blocks are discovered by the [MaterialParams] marker
+// and mix scalar/vector float members.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class MaterialComposerTest
@@ -27,6 +28,11 @@ public class MaterialComposerTest
             public float2 uv;
             public float4 tint;
         }
+
+        // Marks a cbuffer as a material-parameter block (the engine discovers
+        // parameter blocks by this marker, not by name).
+        [__AttributeUsage(_AttributeTargets.Var)]
+        public struct MaterialParams {};
 
         public interface IVertexSurface
         {
@@ -176,7 +182,8 @@ public class MaterialComposerTest
             SamplerState _albedoTextureSampler;
         }
 
-        cbuffer _materialParams : register(b1, space2)
+        [MaterialParams]
+        cbuffer _surfaceParams : register(b1, space2)
         {
             float pulseSpeed;
             float3 pulseColor;
@@ -202,6 +209,34 @@ public class MaterialComposerTest
         public struct Surface : ISurface { }
         """;
 
+    private const string MultiBlockSurface = """
+        #language slang 2025
+        module test_surface_multiblock;
+
+        import test_contract;
+
+        [MaterialParams]
+        cbuffer _pulse : register(b0, space2)
+        {
+            float pulseSpeed;
+            float3 pulseColor;
+        }
+
+        [MaterialParams]
+        cbuffer _bands : register(b1, space2)
+        {
+            float bandFrequency;
+        }
+
+        public struct Surface : ISurface
+        {
+            public override float4 GetBaseColor(SurfaceInput input)
+            {
+                return input.tint * pulseSpeed * bandFrequency;
+            }
+        }
+        """;
+
     private static readonly Dictionary<string, string> Files = new()
     {
         ["test-contract.slang"] = Contract,
@@ -210,6 +245,7 @@ public class MaterialComposerTest
         ["test-feed-template.slang"] = FeedTemplate,
         ["test-surface.slang"] = Surface,
         ["test-surface-minimal.slang"] = MinimalSurface,
+        ["test-surface-multiblock.slang"] = MultiBlockSurface,
     };
 
     private static MaterialComposer CreateComposer(DummyRenderingSystemHost host, out ShaderSystem shaderSystem)
@@ -251,7 +287,7 @@ public class MaterialComposerTest
                 Assert.That(modules.VertexShader!.Value.Source.Length, Is.GreaterThan(4));
                 Assert.That(modules.FragmentShader!.Value.Source.Length, Is.GreaterThan(4));
                 Assert.That(modules.ReflectionInfo.TryGetResourceId("_albedoTexture", out _), Is.True);
-                Assert.That(modules.ReflectionInfo.TryGetResourceId("_materialParams", out _), Is.True);
+                Assert.That(modules.ReflectionInfo.TryGetResourceId("_surfaceParams", out _), Is.True);
                 Assert.That(composer.ComposeGraphics("test_lit_template", "test_surface"),
                     Is.SameAs(shader), "same composition must return the cached shader");
             });
@@ -339,23 +375,28 @@ public class MaterialComposerTest
     }
 
     [Test]
-    public void GetParamsLayout_ReadsBlockMembers_WithoutLinking()
+    public void GetParamsLayouts_ReadsMarkedBlockMembers_WithoutLinking()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         using MaterialComposer composer = CreateComposer(host, out ShaderSystem shaderSystem);
         using (shaderSystem)
         {
-            IReadOnlyList<SlangUniformMember> members = composer.GetParamsLayout("test_surface");
+            IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+                composer.GetParamsLayouts("test_surface");
 
             Assert.Multiple(() =>
             {
+                // Only the [MaterialParams]-marked block is reported — the unmarked
+                // resource block above it is not a parameter block.
+                Assert.That(layouts.Keys, Is.EqualTo(new[] { "_surfaceParams" }));
+                IReadOnlyList<SlangUniformMember> members = layouts["_surfaceParams"];
                 Assert.That(members.Select(member => member.Name),
                     Is.EqualTo(new[] { "pulseSpeed", "pulseColor", "bandFrequency" }));
                 Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
                 Assert.That(members[1].OffsetBytes, Is.EqualTo(16u));
                 Assert.That(members[2].OffsetBytes, Is.EqualTo(28u));
-                Assert.That(composer.GetParamsLayout("test_surface_minimal"), Is.Empty,
-                    "a module without the block reports empty");
+                Assert.That(composer.GetParamsLayouts("test_surface_minimal"), Is.Empty,
+                    "a module without a marked block reports empty");
             });
         }
     }
@@ -367,7 +408,8 @@ public class MaterialComposerTest
         using MaterialComposer composer = CreateComposer(host, out ShaderSystem shaderSystem);
         using (shaderSystem)
         {
-            IReadOnlyList<SlangUniformMember> layout = composer.GetParamsLayout("test_surface");
+            IReadOnlyList<SlangUniformMember> layout =
+                composer.GetParamsLayouts("test_surface")["_surfaceParams"];
 
             Assert.Multiple(() =>
             {
@@ -387,6 +429,42 @@ public class MaterialComposerTest
                         }, "mat");
                 });
             });
+        }
+    }
+
+    [Test]
+    public void PackParamsBuffers_PacksEveryMarkedBlock()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using MaterialComposer composer = CreateComposer(host, out ShaderSystem shaderSystem);
+        using (shaderSystem)
+        {
+            // A surface may split its parameters across several marked blocks;
+            // discovery reports each one.
+            IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+                composer.GetParamsLayouts("test_surface_multiblock");
+            Assert.That(layouts.Keys, Is.EqualTo(new[] { "_pulse", "_bands" }));
+
+            // One value table spans blocks by member name; each marked block gets
+            // its own buffer. An unknown name fails against the union of members.
+            IReadOnlyDictionary<string, GraphicsBuffer> buffers = composer.PackParamsBuffers(
+                layouts,
+                new Dictionary<string, float[]>
+                {
+                    ["pulseSpeed"] = [2f],
+                    ["pulseColor"] = [1f, 0.5f, 0.25f],
+                    ["bandFrequency"] = [4f],
+                }, "mat");
+            using (buffers["_pulse"])
+            using (buffers["_bands"])
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(buffers.Keys, Is.EquivalentTo(layouts.Keys));
+                    Assert.Throws<InvalidDataException>(() => composer.PackParamsBuffers(
+                        layouts, new Dictionary<string, float[]> { ["typo"] = [1f] }, "mat"));
+                });
+            }
         }
     }
 
@@ -418,7 +496,7 @@ public class MaterialComposerTest
         using (shaderSystem)
         {
             Shader shader = composer.ComposeGraphics("test_lit_template", "test_surface");
-            Assert.That(composer.GetParamsLayout("test_surface"), Is.Not.Empty);
+            Assert.That(composer.GetParamsLayouts("test_surface"), Is.Not.Empty);
             uint versionBefore = shader.Version;
             List<Shader> invalidated = [];
             composer.ShaderInvalidated += invalidated.Add;
@@ -435,7 +513,7 @@ public class MaterialComposerTest
                 Assert.That(shader.Version, Is.GreaterThan(versionBefore));
                 Assert.DoesNotThrow(() => _ = shader.GetShaderModules());
                 // The layout was recomputed from the rebuilt session.
-                Assert.That(composer.GetParamsLayout("test_surface"), Is.Not.Empty);
+                Assert.That(composer.GetParamsLayouts("test_surface"), Is.Not.Empty);
             });
         }
     }

@@ -3,8 +3,9 @@
 // Test-only surface for exercising the native Slang material-parameter path:
 // the standard glTF surface plus a sinusoidal emissive pulse. Unlike the HLSL
 // surface contract (bare float4 members only, one register each, parsed by regex),
-// the _materialParams block here mixes scalar and vector types with natural HLSL
-// packing. The material compiler reads each member's type and byte offset from
+// the [MaterialParams] block here mixes scalar and vector types with natural HLSL
+// packing — and is named freely (the marker, not the name, makes it a parameter
+// block). The material compiler reads each member's type and byte offset from
 // Slang reflection and fills the buffer by name.
 
 #language slang 2025
@@ -14,7 +15,7 @@ import alco_world3d_surface;
 
 // The engine binds the per-frame global render data buffer to every material;
 // x = time, y = deltaTime, z = sinTime, w = cosTime. Pure UBO blocks come
-// first in the surface's set.
+// first in the surface's set. Unmarked: engine data, not a material parameter.
 cbuffer _globalRenderData : register(b0, space2)
 {
     float4 time;
@@ -24,7 +25,8 @@ cbuffer _globalRenderData : register(b0, space2)
 // owns the rest of the set: the UBO takes b1 and resources continue after it.
 // The material compiler reads each member's type and byte offset from Slang
 // reflection and fills the buffer by name.
-cbuffer _materialParams : register(b1, space2)
+[MaterialParams]
+cbuffer PulseParams : register(b1, space2)
 {
     float pulseSpeed;       // pulses per second
     float pulseIntensity;   // peak emissive multiplier

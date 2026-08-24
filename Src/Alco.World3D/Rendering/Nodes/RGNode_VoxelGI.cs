@@ -286,14 +286,14 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// <summary>
     /// The composed voxelize feed of one material asset: the compute material of the
     /// <c>voxelize</c> template × the asset's surface, the surface's reflected texture
-    /// slots (resource names) and the packed <c>_materialParams</c> buffer when the
-    /// surface declares one.
+    /// slots (resource names) and the packed parameter buffers when the surface
+    /// marks <c>[MaterialParams]</c> blocks.
     /// </summary>
     private sealed class VoxelizeFeed
     {
         public required ComputeMaterial Material;
         public required IReadOnlyList<string> TextureSlots;
-        public GraphicsBuffer? ParamsBuffer;
+        public IReadOnlyDictionary<string, GraphicsBuffer>? ParamsBuffers;
     }
 
     /// <summary>A registered GI material view of shared mesh geometry.</summary>
@@ -1141,22 +1141,31 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             TextureSlots = MaterialComposer.EnumerateTextureSlots(reflection, MaterialCompiler.SurfaceResourceSet),
         };
 
-        // The surface's parameter block, packed from the asset's values (same
-        // policy as the graphics passes: an asset with parameters but no block
-        // is an asset error).
-        string moduleName = MaterialCompiler.SurfaceModuleName(asset);
-        IReadOnlyList<SlangUniformMember> layout = asset != null
-            ? _materialCompiler.Composer.GetParamsLayout(moduleName, defines: asset.Defines)
-            : [];
-        if (layout.Count > 0 && reflection.TryGetResourceId(MaterialComposer.DefaultParamsBlockName, out _))
+        // The surface's parameter blocks, packed from the asset's values (same
+        // policy as the graphics passes: an asset with parameters but no marked
+        // block is an asset error).
+        if (asset != null)
         {
-            feed.ParamsBuffer = _materialCompiler.Composer.PackParamsBuffer(layout, asset!.Parameters, key.Name);
-            material.SetBuffer(MaterialComposer.DefaultParamsBlockName, feed.ParamsBuffer);
-        }
-        else if (asset != null && asset.Parameters.Count > 0)
-        {
-            throw new InvalidDataException(
-                $"Material '{asset.Name}' has parameters, but its surface '{asset.SurfaceShader}' declares no {MaterialComposer.DefaultParamsBlockName} block.");
+            string moduleName = MaterialCompiler.SurfaceModuleName(asset);
+            IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+                _materialCompiler.Composer.GetParamsLayouts(moduleName, defines: asset.Defines);
+            if (layouts.Count == 0 && asset.Parameters.Count > 0)
+            {
+                throw new InvalidDataException(
+                    $"Material '{asset.Name}' has parameters, but its surface '{asset.SurfaceShader}' " +
+                    $"declares no [{MaterialComposer.ParamsMarkerAttribute}] parameter block.");
+            }
+            if (layouts.Count > 0)
+            {
+                feed.ParamsBuffers = _materialCompiler.Composer.PackParamsBuffers(layouts, asset.Parameters, key.Name);
+                foreach (KeyValuePair<string, GraphicsBuffer> block in feed.ParamsBuffers)
+                {
+                    if (reflection.TryGetResourceId(block.Key, out _))
+                    {
+                        material.SetBuffer(block.Key, block.Value);
+                    }
+                }
+            }
         }
 
         _voxelizeFeeds.Add(key, feed);
@@ -2439,7 +2448,14 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _historyGI[1].Dispose();
             foreach (VoxelizeFeed feed in _voxelizeFeeds.Values)
             {
-                feed.ParamsBuffer?.Dispose();
+                if (feed.ParamsBuffers == null)
+                {
+                    continue;
+                }
+                foreach (GraphicsBuffer buffer in feed.ParamsBuffers.Values)
+                {
+                    buffer.Dispose();
+                }
             }
             // Unlike the compute materials, the graphics bake material owns
             // pass state and must be disposed with its texture and layout.

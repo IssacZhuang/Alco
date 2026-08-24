@@ -20,8 +20,9 @@ public class TestMaterialCompiler
 {
     /// <summary>
     /// Write a minimal procedural surface module into a temp directory mounted on the
-    /// asset system: no textures, one <c>_materialParams</c> member (<c>scale</c>),
-    /// engine time via <c>_globalRenderData</c>. The surface contract (ISurface)
+    /// asset system: no textures, one <c>[MaterialParams]</c>-marked block member
+    /// (<c>scale</c>, the block name itself is free), engine time via
+    /// <c>_globalRenderData</c>. The surface contract (ISurface)
     /// resolves from the engine's own asset source, so the temp source carries only
     /// the surface file; every uncustomized attribute rides the interface defaults.
     /// Returns the surface's asset path;
@@ -42,7 +43,8 @@ public class TestMaterialCompiler
                 float4 time; // x = time, y = deltaTime, z = sinTime, w = cosTime
             };
 
-            cbuffer _materialParams : register(b1, space2)
+            [MaterialParams]
+            cbuffer _surfaceParams : register(b1, space2)
             {
                 float4 scale; // x = cells per meter; 0 = the default 2
             };
@@ -267,8 +269,9 @@ public class TestMaterialCompiler
             using MaterialCompiler compiler = new(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
-            // The test surface declares one _materialParams member; the asset's
-            // parameter binds as the block's buffer resource.
+            // The test surface declares one [MaterialParams] block member; the
+            // asset's parameter binds as the block's buffer resource, addressed by
+            // the block's own (free) name.
             MaterialAsset scaled = new()
             {
                 Name = "scaled",
@@ -276,7 +279,7 @@ public class TestMaterialCompiler
                 Parameters = new Dictionary<string, float[]> { ["scale"] = [4.0f] },
             };
             GraphicsMaterial material = compiler.Get(scaled, "gbuffer");
-            Assert.That(material.TryGetResourceId("_materialParams", out _), Is.True,
+            Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
                 "The composed shader exposes the surface's parameter block.");
 
             // Unknown parameter names fail loudly (typo in the asset).

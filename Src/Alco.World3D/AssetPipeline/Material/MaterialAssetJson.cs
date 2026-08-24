@@ -126,8 +126,8 @@ internal sealed class MaterialAssetJson
 
     /// <summary>
     /// Normalize the parameter dictionary: each value is a JSON number (one component)
-    /// or an array of 1-4 numbers (the components of one float4 register of the
-    /// surface's _materialParams block).
+    /// or an array of 1-4 numbers (the components of one member of a
+    /// [MaterialParams]-marked parameter block of the surface).
     /// </summary>
     private static IReadOnlyDictionary<string, float[]> ParseParameters(Dictionary<string, JsonElement>? parameters, string filename)
     {

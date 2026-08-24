@@ -15,8 +15,8 @@ namespace Alco.World3D.Test;
 /// with surface modules through slang's component system (composite + link-time
 /// specialization of the template's generic entry points — no generated wrappers),
 /// Slang's own reflection translated into the engine's shader reflection, and the
-/// reflection-driven mapping of mixed-type <c>_materialParams</c> blocks. Uses a
-/// NoGPU engine with the module's real Slang sources, mirroring
+/// reflection-driven mapping of <c>[MaterialParams]</c>-marked parameter blocks.
+/// Uses a NoGPU engine with the module's real Slang sources, mirroring
 /// <see cref="AssetPipeline.TestMaterialCompiler"/>; the retired DXC toolchain and
 /// the retired wrapper generator are not involved anywhere.
 /// </summary>
@@ -103,7 +103,7 @@ public class TestSlangMaterialCompiler
             AssertResource(info, "_camera", 0, 0, BindingType.UniformBuffer);
             AssertResource(info, "_instances", 1, 0, BindingType.StorageBuffer);
             AssertResource(info, "_globalRenderData", 2, 0, BindingType.UniformBuffer);
-            AssertResource(info, "_materialParams", 2, 1, BindingType.UniformBuffer);
+            AssertResource(info, "PulseParams", 2, 1, BindingType.UniformBuffer);
             AssertResource(info, "_albedoTexture", 2, 2, BindingType.Texture);
             AssertResource(info, "_normalTexture", 2, 4, BindingType.Texture);
             AssertResource(info, "_metallicRoughnessTexture", 2, 6, BindingType.Texture);
@@ -127,10 +127,15 @@ public class TestSlangMaterialCompiler
             // The G-buffer writes four color targets.
             Assert.That(info.FragmentOutputCount, Is.EqualTo(4));
 
-            // The surface's mixed-type parameter block: member types and byte
-            // offsets come from Slang's module-level reflection — no entry points,
-            // no link, no probe compile of a pass template.
-            IReadOnlyList<SlangUniformMember> members = compiler.Composer.GetParamsLayout("parameterized_surface");
+            // The surface's parameter blocks are discovered by the [MaterialParams]
+            // marker, not by name; member types and byte offsets come from Slang's
+            // module-level reflection — no entry points, no link, no probe compile
+            // of a pass template. The unmarked _globalRenderData block is engine
+            // data and stays out.
+            IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+                compiler.Composer.GetParamsLayouts("parameterized_surface");
+            Assert.That(layouts.Keys, Is.EqualTo(new[] { "PulseParams" }));
+            IReadOnlyList<SlangUniformMember> members = layouts["PulseParams"];
             Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.FloatComponentCount)),
                 Is.EqualTo(new[]
                 {
@@ -213,8 +218,8 @@ public class TestSlangMaterialCompiler
         Assert.Multiple(() =>
         {
             Assert.That(compiler.Get(parameterized, "gbuffer"), Is.SameAs(material), "Composed Slang materials cache per (asset, pass).");
-            Assert.That(material.TryGetResourceId("_materialParams", out _), Is.True,
-                "The surface's parameter block binds by name.");
+            Assert.That(material.TryGetResourceId("PulseParams", out _), Is.True,
+                "The surface's parameter block binds by its (free) name.");
             Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True,
                 "The surface's textures bind by name.");
             Assert.That(material.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,

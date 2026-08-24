@@ -85,9 +85,21 @@ compiler.RegisterPass(new MaterialPassDesc(
 
 ## 参数块规则
 
-- surface 声明 `cbuffer _materialParams`(space2)，成员可以是任意标量/向量 float 组合 → `GetParamsLayout` 从反射读每个成员的类型和字节偏移，`PackParamsBuffer` 把 `Dictionary<string, object>` 按 std430 打包成 GPU buffer。
-- 传了 `Parameters` 但 surface 没有参数块 → `InvalidDataException`（拼写错误的快速失败）。
-- 参数块没声明任何成员时其 binding 会被编译器裁掉，composer 容忍（`GetParamsLayout` 返回 null)。
+- surface 用 `[MaterialParams]` 标记自己的参数 cbuffer（属性由 `alco_world3d_surface` 契约模块声明）——块名自由，可以有多块：
+
+  ```slang
+  [MaterialParams]
+  cbuffer PulseParams : register(b1, space2)
+  {
+      float pulseSpeed;
+      float3 pulseColor;
+  }
+  ```
+
+- 发现靠标记不靠名字：`GetParamsLayouts` 枚举模块里所有带标记的 cbuffer，从反射读每个成员的类型和字节偏移；`PackParamsBuffers` 把 `Parameters` 按成员名跨块分发、逐块打包成 GPU buffer，按块名绑定。
+- 未标记的块天然排除——surface 重声明的引擎数据块（如 `_globalRenderData`）不需要进排除名单。
+- 块里可以混声明纹理/sampler 成员（自描述资源块），只有标量/向量 float 成员参与参数打包；标记块一个 float 成员都没有 → `NotSupportedException`。
+- 快速失败：参数名对不上任何块的成员 → `InvalidDataException`（列出有效成员）；同一成员名出现在两个块 → 跨块歧义报错；传了 `Parameters` 但 surface 没标记任何参数块 → `InvalidDataException`。
 
 ## 值特化优先于 define
 

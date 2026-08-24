@@ -49,10 +49,11 @@ public sealed class MaterialAsset
 
     /// <summary>
     /// Surface parameter values by member name of the surface's
-    /// <c>_materialParams</c> block (see the convention in Shaders/Libs/Surface.slang):
-    /// 1-4 float components per value, one <c>float4</c> register each. Only custom
-    /// surfaces declare such a block; the built-in surface's knobs are the flat factor
-    /// fields, which ride the instance buffers instead.
+    /// <c>[MaterialParams]</c>-marked blocks (see the convention in
+    /// Shaders/Libs/alco-world3d-surface.slang): 1-4 float components per value,
+    /// packed at the member offsets slang reflects. Only custom surfaces declare
+    /// such blocks; the built-in surface's knobs are the flat factor fields,
+    /// which ride the instance buffers instead.
     /// </summary>
     public IReadOnlyDictionary<string, float[]> Parameters { get; init; } = new Dictionary<string, float[]>();
 
