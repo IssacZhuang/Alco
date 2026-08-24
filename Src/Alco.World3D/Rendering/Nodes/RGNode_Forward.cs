@@ -52,7 +52,7 @@ public interface IForwardRenderable
 /// are drawn immediately each frame. The pass scope comes from the graph's
 /// frame-shared render context — the node no longer owns a render context of its own.
 /// </summary>
-public sealed unsafe class RGNode_Forward : RGNode_SceneContent
+public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<PbrMaterialAsset>
 {
     /// <summary>The material-pass identifier this node registers ("glass").</summary>
     public const string PassId = "glass";
@@ -145,13 +145,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
             _gpuTimestamps = new GpuTimestampSampler(rendering.GraphicsDevice, 2, "forward_pass");
         }
 
-        compiler.RegisterPass(new MaterialPassDesc
-        {
-            Id = PassId,
-            TemplateModule = "glass",
-            CreateMaterial = (asset, shader) => CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass"),
-            Accepts = asset => asset.AlphaMode == MeshAlphaMode.Blend,
-        });
+        compiler.RegisterPass(this);
     }
 
     /// <summary>
@@ -346,6 +340,18 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         material.SetRenderTextureDepth("_shadowMap", _shadowRT);
         return material;
     }
+
+    // ── IMaterialPass<PbrMaterialAsset> ──
+
+    string IMaterialPass.Id => PassId;
+
+    string IMaterialPass.TemplateModule => "glass";
+
+    GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
+        => CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass");
+
+    bool IMaterialPass<PbrMaterialAsset>.Accepts(PbrMaterialAsset asset)
+        => asset.AlphaMode == MeshAlphaMode.Blend;
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)

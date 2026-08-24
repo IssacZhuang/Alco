@@ -5,7 +5,7 @@ using Alco.World3D;
 
 /// <summary>
 /// Maps the glTF loader's runtime <see cref="ModelMaterial"/> (Alco.Engine) to the
-/// data-only <see cref="MaterialAsset"/> (Alco.World3D) the material compiler
+/// data-only <see cref="PbrMaterialAsset"/> (Alco.World3D) the material compiler
 /// consumes — the game-side glue between the direct glTF scene load and the
 /// material system (the .amat asset chain describes the same data from files).
 /// Textures stay live objects: the glTF pipeline streams them outside the asset
@@ -24,11 +24,11 @@ internal static class ModelMaterialAdapter
     /// BLEND, so they map to <see cref="MeshAlphaMode.Mask"/> with the conventional
     /// 0.5 cutoff and stay in the deferred passes.
     /// </summary>
-    public static MaterialAsset ToAsset(ModelMaterial material)
+    public static PbrMaterialAsset ToAsset(ModelMaterial material)
     {
         bool glass = material.AlphaMode == GltfAlphaMode.Blend &&
             material.Name.Contains("Glass", StringComparison.OrdinalIgnoreCase);
-        return new MaterialAsset
+        return new PbrMaterialAsset
         {
             Name = material.Name,
             BaseColorFactor = material.BaseColorFactor,
@@ -67,6 +67,6 @@ internal static class ModelMaterialAdapter
     /// shadow, RSM, voxelization); blend materials route to the glass pass and never
     /// reach these.
     /// </summary>
-    public static float ResolveAlphaCutoff(MaterialAsset asset)
+    public static float ResolveAlphaCutoff(PbrMaterialAsset asset)
         => asset.AlphaMode == MeshAlphaMode.Mask ? asset.AlphaCutoff : 0.0f;
 }

@@ -291,6 +291,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// </summary>
     private sealed class VoxelizeFeed
     {
+        /// <summary>The material asset whose surface composed this feed (its fallback policy binds unstreamed slots).</summary>
+        public required MaterialAsset Asset;
         public required ComputeMaterial Material;
         public required IReadOnlyList<string> TextureSlots;
         public IReadOnlyDictionary<string, GraphicsBuffer>? ParamsBuffers;
@@ -336,7 +338,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly GPUCommandBuffer _commandBuffer;
     private readonly ComputeMaterial _clearMaterial;
     // The voxelize feed composes per material asset surface (see RegisterMesh);
-    // the built-in surface's feed is keyed by the compiler's shared DefaultAsset.
+    // the built-in surface's feed is keyed by the shared PbrMaterialAsset.Default.
     private readonly Dictionary<MaterialAsset, VoxelizeFeed> _voxelizeFeeds = new();
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
@@ -1124,7 +1126,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// </summary>
     private VoxelizeFeed GetVoxelizeFeed(MaterialAsset? asset)
     {
-        MaterialAsset key = asset ?? _materialCompiler.DefaultAsset;
+        MaterialAsset key = asset ?? PbrMaterialAsset.Default;
         if (_voxelizeFeeds.TryGetValue(key, out VoxelizeFeed? cached))
         {
             return cached;
@@ -1137,6 +1139,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
         var feed = new VoxelizeFeed
         {
+            Asset = key,
             Material = material,
             TextureSlots = MaterialComposer.EnumerateTextureSlots(reflection, MaterialCompiler.SurfaceResourceSet),
         };
@@ -1146,7 +1149,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // block is an asset error).
         if (asset != null)
         {
-            string moduleName = MaterialCompiler.SurfaceModuleName(asset);
+            string moduleName = _materialCompiler.SurfaceModuleName(asset);
             IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
                 _materialCompiler.Composer.GetParamsLayouts(moduleName, defines: asset.Defines);
             if (layouts.Count == 0 && asset.Parameters.Count > 0)
@@ -2318,12 +2321,12 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         material.SetBuffer("_pageTable", pageTable);
         // The surface's texture slots rebind per dispatch: specialization folds
         // keep the full surface resource set in the layout, and streamed textures
-        // that have not arrived bind the pattern fallbacks.
+        // that have not arrived bind the asset's fallback policy.
         foreach (string resource in registration.Feed.TextureSlots)
         {
             if (!registration.Textures.TryGetValue(resource[1..], out Texture2D? texture) || texture == null)
             {
-                texture = _materialCompiler.GetFallbackTexture(resource);
+                texture = _materialCompiler.ResolveFallbackTexture(registration.Feed.Asset, resource);
             }
             material.SetTexture(resource, texture);
         }

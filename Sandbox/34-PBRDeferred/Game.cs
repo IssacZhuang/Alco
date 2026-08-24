@@ -87,11 +87,11 @@ public class Game : GameEngine
     private sealed class ModelRenderable : IGBufferRenderable
     {
         private readonly ModelDrawItem _item;
-        private readonly MaterialAsset _asset;
+        private readonly PbrMaterialAsset _asset;
         private readonly GraphicsMaterial _gbufferMaterial;
         private readonly Func<Vector3> _getEmissiveFactor;
 
-        public ModelRenderable(ModelDrawItem item, MaterialAsset asset, GraphicsMaterial gbufferMaterial,
+        public ModelRenderable(ModelDrawItem item, PbrMaterialAsset asset, GraphicsMaterial gbufferMaterial,
             Func<Vector3> getEmissiveFactor)
         {
             _item = item;
@@ -117,11 +117,11 @@ public class Game : GameEngine
     private sealed class ModelShadowRenderable : IShadowRenderable
     {
         private readonly ModelDrawItem _item;
-        private readonly MaterialAsset _asset;
+        private readonly PbrMaterialAsset _asset;
         private readonly GraphicsMaterial _shadowMaterial;
         private readonly GraphicsMaterial? _rsmMaterial;
 
-        public ModelShadowRenderable(ModelDrawItem item, MaterialAsset asset, GraphicsMaterial shadowMaterial,
+        public ModelShadowRenderable(ModelDrawItem item, PbrMaterialAsset asset, GraphicsMaterial shadowMaterial,
             GraphicsMaterial? rsmMaterial = null)
         {
             _item = item;
@@ -148,11 +148,11 @@ public class Game : GameEngine
     private sealed class ModelGlassRenderable : IForwardRenderable
     {
         private readonly ModelDrawItem _item;
-        private readonly MaterialAsset _asset;
+        private readonly PbrMaterialAsset _asset;
         private readonly GraphicsMaterial _glassMaterial;
         private readonly Func<float> _getTransmission;
 
-        public ModelGlassRenderable(ModelDrawItem item, MaterialAsset asset, GraphicsMaterial glassMaterial,
+        public ModelGlassRenderable(ModelDrawItem item, PbrMaterialAsset asset, GraphicsMaterial glassMaterial,
             Func<float> getTransmission)
         {
             _item = item;
@@ -191,7 +191,7 @@ public class Game : GameEngine
     private MaterialCompiler? _materialCompiler;
     // One material asset per glTF material: the data-only descriptors the
     // MaterialCompiler compiles into per-pass GPU materials (compiler-owned).
-    private MaterialAsset[]? _modelAssets;
+    private PbrMaterialAsset[]? _modelAssets;
 
     // Forward transparency renderer for glass materials.
     private RGNode_Forward? _forwardRenderer;
@@ -430,7 +430,7 @@ public class Game : GameEngine
         // shared ShaderSystem; plain modules load through the asset system and
         // the material-pass templates compose with each material asset's surface
         // through the MaterialCompiler — the renderers register their passes on it.
-        _materialCompiler = new MaterialCompiler(RenderingSystem);
+        _materialCompiler = World3DAssetPipeline.CreateMaterialCompiler(RenderingSystem);
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
@@ -563,7 +563,7 @@ public class Game : GameEngine
             // One material asset per glTF material — data-only descriptors the
             // MaterialCompiler compiles per pass on first request. Textures still
             // streaming in start as the fallbacks and are synced in PrepareModelFrame.
-            _modelAssets = new MaterialAsset[_modelScene.Materials.Count];
+            _modelAssets = new PbrMaterialAsset[_modelScene.Materials.Count];
             for (int i = 0; i < _modelAssets.Length; i++)
             {
                 _modelAssets[i] = ModelMaterialAdapter.ToAsset(_modelScene.Materials[i]);
@@ -582,7 +582,7 @@ public class Game : GameEngine
                 for (int i = 0; i < drawItems.Count; i++)
                 {
                     ModelDrawItem item = drawItems[i];
-                    MaterialAsset asset = _modelAssets[item.MaterialIndex];
+                    PbrMaterialAsset asset = _modelAssets[item.MaterialIndex];
                     GraphicsMaterial? glass = _materialCompiler.TryGet(asset, RGNode_Forward.PassId);
                     if (glass != null)
                     {
@@ -615,7 +615,7 @@ public class Game : GameEngine
             // One material asset for all procedural objects: the built-in
             // PbrStandard surface with the checker texture on the albedo slot.
             // The compiler owns the compiled per-pass materials.
-            _proceduralAsset = new MaterialAsset { Name = "checker" };
+            _proceduralAsset = new PbrMaterialAsset { Name = "checker" };
             GraphicsMaterial proceduralMaterial = _materialCompiler.Get(_proceduralAsset, GBufferRenderer.PassId);
             GraphicsMaterial proceduralShadowMaterial = _materialCompiler.Get(_proceduralAsset, ShadowRenderer.PassId);
             GraphicsMaterial? proceduralRsmMaterial = _materialCompiler.TryGet(_proceduralAsset, ShadowRenderer.RsmPassId);
@@ -1363,7 +1363,7 @@ public class Game : GameEngine
             {
                 ModelDrawItem item = drawItems[i];
                 ModelMaterial material = materials[item.MaterialIndex];
-                MaterialAsset asset = _modelAssets![item.MaterialIndex];
+                PbrMaterialAsset asset = _modelAssets![item.MaterialIndex];
                 // The surface feeds the voxelization; the emissive factor is
                 // registered unboosted (the boost is a runtime cbuffer scale at
                 // injection time).

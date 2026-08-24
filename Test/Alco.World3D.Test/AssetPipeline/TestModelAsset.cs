@@ -1,5 +1,6 @@
 using System.Numerics;
 using NUnit.Framework;
+using Alco.Engine;
 using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
@@ -106,6 +107,9 @@ public class TestModelAsset
         {
             assets.AddFileSource(new DirectoryFileSource(directory));
             World3DAssetPipeline.RegisterLoaders(assets);
+            // The material loader is engine infrastructure (GameEngine's default
+            // loaders); this raw AssetSystem registers it directly.
+            assets.RegisterAssetLoader(new AssetLoaderMaterialAsset());
             test(assets, directory);
         }
         finally

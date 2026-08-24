@@ -1,19 +1,37 @@
 using System.Numerics;
 using System.Text;
 using NUnit.Framework;
+using Alco.Engine;
 using Alco.IO;
+using Alco.Rendering;
 
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Parsing and loading of material asset files (.amat): field mapping, defaults,
-/// version/enum/vector validation and the loader round trip through the asset system.
+/// Parsing and loading of World3D material asset files (.amat with the "pbr" type
+/// discriminator): field mapping, defaults, version/enum/vector validation and the
+/// loader round trip through the asset system.
 /// </summary>
 public class TestMaterialAsset
 {
+    [OneTimeSetUp]
+    public void RegisterSchemas()
+    {
+        // The pipeline family's schema registration (production: World3DAssetPipeline.
+        // RegisterLoaders); idempotent, so the test order against other fixtures is free.
+        MaterialAssetJson.RegisterType<PbrMaterialAssetJson>("pbr");
+    }
+
     private static MaterialAsset Parse(string json, string filename = "test.amat")
     {
         return MaterialAssetJson.Parse(Encoding.UTF8.GetBytes(json), filename);
+    }
+
+    private static PbrMaterialAsset ParsePbr(string json, string filename = "test.amat")
+    {
+        MaterialAsset material = Parse(json, filename);
+        Assert.That(material, Is.TypeOf<PbrMaterialAsset>());
+        return (PbrMaterialAsset)material;
     }
 
     [Test]
@@ -22,6 +40,7 @@ public class TestMaterialAsset
         const string json = """
         {
             "version": "1.0",
+            "type": "pbr",
             "name": "wall_brick",
             "baseColorFactor": [0.5, 0.6, 0.7, 0.9],
             "metallicFactor": 0.2,
@@ -39,7 +58,7 @@ public class TestMaterialAsset
         }
         """;
 
-        MaterialAsset material = Parse(json);
+        PbrMaterialAsset material = ParsePbr(json);
 
         Assert.Multiple(() =>
         {
@@ -74,10 +93,12 @@ public class TestMaterialAsset
         }
         """;
 
+        // No type discriminator: the pipeline-agnostic base schema parses.
         MaterialAsset material = Parse(json);
 
         Assert.Multiple(() =>
         {
+            Assert.That(material, Is.TypeOf<MaterialAsset>());
             Assert.That(material.SurfaceShader, Is.EqualTo("Shaders/Materials/MossyRock.slang"));
             // Defines trim to uniqueness; empty entries drop.
             Assert.That(material.Defines, Is.EqualTo(new[] { "MOSS_ANIMATE" }));
@@ -96,7 +117,7 @@ public class TestMaterialAsset
     [Test]
     public void ParseAppliesDefaultsToMinimalFile()
     {
-        MaterialAsset material = Parse("""{ "version": "1.0" }""", "mat_wall.amat");
+        PbrMaterialAsset material = ParsePbr("""{ "version": "1.0", "type": "pbr" }""", "mat_wall.amat");
 
         Assert.Multiple(() =>
         {
@@ -130,18 +151,25 @@ public class TestMaterialAsset
     }
 
     [Test]
+    public void ParseRejectsUnknownType()
+    {
+        Assert.That(() => Parse("""{ "version": "1.0", "type": "toon" }"""),
+            Throws.TypeOf<InvalidDataException>());
+    }
+
+    [Test]
     public void ParseRejectsUnknownAlphaMode()
     {
-        Assert.That(() => Parse("""{ "version": "1.0", "alphaMode": "Dithered" }"""),
+        Assert.That(() => Parse("""{ "version": "1.0", "type": "pbr", "alphaMode": "Dithered" }"""),
             Throws.TypeOf<InvalidDataException>());
     }
 
     [Test]
     public void ParseRejectsMalformedVectors()
     {
-        Assert.That(() => Parse("""{ "version": "1.0", "baseColorFactor": [1, 1, 1] }"""),
+        Assert.That(() => Parse("""{ "version": "1.0", "type": "pbr", "baseColorFactor": [1, 1, 1] }"""),
             Throws.TypeOf<InvalidDataException>());
-        Assert.That(() => Parse("""{ "version": "1.0", "emissiveFactor": [1, 2, 3, 4] }"""),
+        Assert.That(() => Parse("""{ "version": "1.0", "type": "pbr", "emissiveFactor": [1, 2, 3, 4] }"""),
             Throws.TypeOf<InvalidDataException>());
     }
 
@@ -155,6 +183,7 @@ public class TestMaterialAsset
             File.WriteAllText(Path.Combine(directory, "wall.amat"), """
                 {
                     "version": "1.0",
+                    "type": "pbr",
                     "textures": { "albedo": "wall.png" }
                 }
                 """);
@@ -162,13 +191,14 @@ public class TestMaterialAsset
             using TestAssetHost host = new();
             AssetSystem assets = new(host);
             assets.AddFileSource(new DirectoryFileSource(directory));
-            World3DAssetPipeline.RegisterLoaders(assets);
+            assets.RegisterAssetLoader(new AssetLoaderMaterialAsset());
 
             MaterialAsset first = assets.Load<MaterialAsset>("wall.amat");
             MaterialAsset second = assets.Load<MaterialAsset>("wall.amat");
 
             Assert.Multiple(() =>
             {
+                Assert.That(first, Is.TypeOf<PbrMaterialAsset>());
                 Assert.That(first.Name, Is.EqualTo("wall"));
                 Assert.That(first.Textures["albedo"], Is.EqualTo("wall.png"));
                 Assert.That(second, Is.SameAs(first), "The asset system must cache material assets per file.");

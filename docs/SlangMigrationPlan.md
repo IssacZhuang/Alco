@@ -354,10 +354,15 @@ Responsibilities:
 
 ### 4.5 Material system
 
-> **Status: done (slang branch).** The text splice and regex packing are gone.
-> `MaterialComposer` (Alco.Rendering) composes pass templates with surface
-> modules via generic entry-point specialization; `MaterialCompiler`
-> (World3D) is an open pass registry (`RegisterPass`/`MaterialPassDesc`).
+> **Status: done (slang branch), promoted to engine infrastructure.** The text
+> splice and regex packing are gone. `MaterialComposer` (Alco.Rendering)
+> composes pass templates with surface modules via generic entry-point
+> specialization; `MaterialCompiler`, `MaterialAsset` and `IMaterialPass`
+> (all Alco.Rendering) form the pipeline-agnostic pass registry — passes are
+> interface implementations (`RegisterPass(IMaterialPass)`), assets are
+> polymorphic (a `.amat` file's `type` discriminator selects the pipeline
+> family's schema; the loader lives in Alco.Engine). World3D contributes the
+> `PbrMaterialAsset` family and its pass-carrying renderers.
 > One deviation from the sketch below: surface resources use set-scoped
 > cbuffer blocks in space2 (the engine-wide block convention), not
 > `ParameterBlock<T>`. See `docs/MaterialSystem.md`.

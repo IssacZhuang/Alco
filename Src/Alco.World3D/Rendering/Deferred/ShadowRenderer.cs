@@ -65,7 +65,7 @@ public interface IShadowRenderable
 /// render context or cascade VP data buffer — those are owned by the pass node and
 /// the pipeline.
 /// </summary>
-public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, IRsmPassContent
+public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, IRsmPassContent, IMaterialPass<PbrMaterialAsset>
 {
     /// <summary>The material-pass identifier of the shadow depth pass ("shadow").</summary>
     public const string PassId = "shadow";
@@ -152,14 +152,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
         }
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_shadow_dynamic");
 
-        compiler.RegisterPass(new MaterialPassDesc
-        {
-            Id = PassId,
-            TemplateModule = "shadow_depth",
-            CreateMaterial = (asset, shader) => CreateShadowMaterial(shader, asset.DoubleSided, $"{asset.Name}_shadow"),
-            ValueSpecArgs = asset => [asset.AlphaMode == MeshAlphaMode.Mask ? "true" : "false"],
-            Accepts = asset => asset.AlphaMode != MeshAlphaMode.Blend,
-        });
+        compiler.RegisterPass(this);
     }
 
     // ── Renderable registry ──
@@ -280,6 +273,35 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
         return material;
     }
 
+    // ── IMaterialPass<PbrMaterialAsset> ("shadow") ──
+
+    string IMaterialPass.Id => PassId;
+
+    string IMaterialPass.TemplateModule => "shadow_depth";
+
+    GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
+        => CreateShadowMaterial(shader, asset.DoubleSided, $"{asset.Name}_shadow");
+
+    IReadOnlyList<string>? IMaterialPass<PbrMaterialAsset>.GetValueSpecArgs(PbrMaterialAsset asset)
+        => [asset.AlphaMode == MeshAlphaMode.Mask ? "true" : "false"];
+
+    bool IMaterialPass<PbrMaterialAsset>.Accepts(PbrMaterialAsset asset)
+        => asset.AlphaMode != MeshAlphaMode.Blend;
+
+    /// <summary>The "rsm" material pass, registered by <see cref="EnableRsm"/>.</summary>
+    private sealed class RsmPass(ShadowRenderer renderer) : IMaterialPass<PbrMaterialAsset>
+    {
+        public string Id => RsmPassId;
+
+        public string TemplateModule => "rsm";
+
+        public GraphicsMaterial CreateMaterial(PbrMaterialAsset asset, Shader shader)
+            => renderer.CreateRsmMaterial(shader, asset.DoubleSided, $"{asset.Name}_rsm");
+
+        public bool Accepts(PbrMaterialAsset asset)
+            => asset.AlphaMode != MeshAlphaMode.Blend;
+    }
+
     // ── RSM pass (reflective shadow map for the voxel GI sun bounce) ──
 
     /// <summary>Whether the RSM pass support is enabled (see <see cref="EnableRsm"/>).</summary>
@@ -301,13 +323,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
         _rsmStaticBundle ??= _rendering.CreateSubRenderContext("pbr_rsm_static");
         _rsmDynamicBundle ??= _rendering.CreateSubRenderContext("pbr_rsm_dynamic");
         _rsmRecordedCascade = -1;
-        _materialCompiler.RegisterPass(new MaterialPassDesc
-        {
-            Id = RsmPassId,
-            TemplateModule = "rsm",
-            CreateMaterial = (asset, shader) => CreateRsmMaterial(shader, asset.DoubleSided, $"{asset.Name}_rsm"),
-            Accepts = asset => asset.AlphaMode != MeshAlphaMode.Blend,
-        });
+        _materialCompiler.RegisterPass(new RsmPass(this));
     }
 
     /// <summary>

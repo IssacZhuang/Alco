@@ -1,14 +1,14 @@
 using System.Text.Json;
 
-namespace Alco.World3D;
+namespace Alco.Rendering;
 
 /// <summary>
-/// Shared JSON plumbing of the authorable World3D asset formats (<c>.amat</c>/<c>.amdl</c>).
+/// Shared JSON plumbing of the authorable asset formats (<c>.amat</c>/<c>.amdl</c>).
 /// Version handling follows the mesh asset format convention: a version whose major digit
 /// exceeds the supported major is rejected, minor differences are forward compatible, and
 /// unknown fields are ignored.
 /// </summary>
-internal static class AssetJson
+public static class AssetJson
 {
     /// <summary>
     /// Author-friendly serializer options: camelCase names (case-insensitive reads),

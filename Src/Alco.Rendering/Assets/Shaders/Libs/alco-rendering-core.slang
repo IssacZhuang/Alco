@@ -26,6 +26,17 @@ public static const int ALCO_GROUP_PASS = 1;     // per-pass resources
 public static const int ALCO_GROUP_MATERIAL = 2; // per-material parameters
 public static const int ALCO_GROUP_DRAW = 3;     // per-draw instance data
 
+// ── material-parameter blocks ───────────────────────────────────────────────
+// The material system's one shader-side convention every pipeline family shares:
+// a surface marks its material-parameter cbuffers with [MaterialParams] (any
+// block name, any number of blocks, scalar/vector float members may mix) in its
+// material set; the engine discovers the marked blocks from Slang reflection
+// and packs them from the material asset's parameter table. Unmarked blocks
+// (engine data such as _globalRenderData) are never treated as parameters.
+
+[__AttributeUsage(_AttributeTargets.Var)]
+public struct MaterialParams {};
+
 // ── sampling helpers (real sampler types; the name##Sampler macro retires) ──
 
 public float4 SampleTex2D(Texture2D textureName, SamplerState samplerState, float2 uv)

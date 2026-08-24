@@ -86,7 +86,7 @@ generated wrapper shader anywhere in the pipeline. The rules:
   otherwise) — intent is explicit.
 - Behavior branches inside a pass template use **value specialization**
   (`where let AlphaTest : bool`), requested from C# via
-  `MaterialPassDesc.ValueSpecArgs`. This is the same mechanism as
+  `IMaterialPass.GetValueSpecArgs`. This is the same mechanism as
   engine-owned generic value parameters; retired textual permutations
   (e.g. `SHADOW_CUTOUT`) must not come back.
 - Surface-declared resources follow the same set-scoped cbuffer-block

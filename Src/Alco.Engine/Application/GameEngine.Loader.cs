@@ -15,6 +15,9 @@ public partial class GameEngine
         // shader
         yield return new AssetLoaderShaderSlang(RenderingSystem);
 
+        // material
+        yield return new AssetLoaderMaterialAsset();
+
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {

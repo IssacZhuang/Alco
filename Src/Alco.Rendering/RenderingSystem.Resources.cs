@@ -1,4 +1,5 @@
 using System.Numerics;
+using Alco.Graphics;
 
 namespace Alco.Rendering;
 
@@ -36,6 +37,20 @@ public partial class RenderingSystem
         {
             _textureTransparent ??= CreateTexture2D(4, 4, new Color32(0,0,0,0));
             return _textureTransparent;
+        }
+    }
+
+    private Texture2D? _textureFlatNormal;
+
+    /// <summary>The 1x1 flat-normal fallback texture (decodes to the identity tangent-space normal).</summary>
+    public Texture2D TextureFlatNormal
+    {
+        get
+        {
+            _textureFlatNormal ??= CreateTexture2D([128, 128, 255, 255], 1, 1,
+                new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat,
+                    filterMode: FilterMode.Linear, name: "flat_normal"));
+            return _textureFlatNormal;
         }
     }
 

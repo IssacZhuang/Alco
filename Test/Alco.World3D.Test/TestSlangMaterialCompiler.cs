@@ -61,7 +61,7 @@ public class TestSlangMaterialCompiler
     public void BuiltInPbrSurfaceComposesIntoTheGBufferTemplate()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
 
         Shader shader = compiler.ComposeSurfaceShader(null, "gbuffer");
         ShaderModulesInfo modules = shader.GetShaderModules();
@@ -90,7 +90,7 @@ public class TestSlangMaterialCompiler
     public void ComposedReflectionReportsTheEngineLayout()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
 
         // The real composition the material compiler produces for the G-buffer
         // template with the test surface (mixed-type parameter block).
@@ -151,7 +151,7 @@ public class TestSlangMaterialCompiler
     public void ShadowPassSpecializesAlphaTestByValue()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
 
         // The shadow template's alpha test is a value specialization parameter of
         // its fragment entry (<let AlphaTest : bool>) — the SHADOW_CUTOUT define's
@@ -195,13 +195,13 @@ public class TestSlangMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
-        // The renderer's constructor registers the "gbuffer" pass (template × asset
-        // surface, the renderer's factory as the pass state).
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
+        // The renderer's constructor registers itself as the "gbuffer" pass (template
+        // × asset surface, the renderer's factory as the pass state).
         using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
         // The test surface with all four mixed-type parameters set.
-        MaterialAsset parameterized = new()
+        PbrMaterialAsset parameterized = new()
         {
             Name = "parameterized",
             SurfaceShader = ParameterizedSurfacePath,
@@ -229,7 +229,7 @@ public class TestSlangMaterialCompiler
         });
 
         // Unknown parameter names fail loudly (typo in the asset).
-        MaterialAsset typo = new()
+        PbrMaterialAsset typo = new()
         {
             Name = "typo",
             SurfaceShader = ParameterizedSurfacePath,
@@ -238,7 +238,7 @@ public class TestSlangMaterialCompiler
         Assert.That(() => compiler.Get(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
 
         // A parameter wider than its reflected member is a mismatch, not padding.
-        MaterialAsset tooWide = new()
+        PbrMaterialAsset tooWide = new()
         {
             Name = "tooWide",
             SurfaceShader = ParameterizedSurfacePath,
@@ -248,13 +248,8 @@ public class TestSlangMaterialCompiler
 
         // A game-registered pass composes like the built-in ones: open registration
         // is the extension point (here: a minimal materializing factory).
-        compiler.RegisterPass(new MaterialPassDesc
-        {
-            Id = "glass",
-            TemplateModule = "glass",
-            CreateMaterial = (asset, shader) => engine.RenderingSystem.CreateMaterial(shader, $"{asset.Name}_glass"),
-        });
-        MaterialAsset glass = new()
+        compiler.RegisterPass(new StubMaterialPass("glass", "glass", engine.RenderingSystem));
+        PbrMaterialAsset glass = new()
         {
             Name = "glass",
             SurfaceShader = ParameterizedSurfacePath,

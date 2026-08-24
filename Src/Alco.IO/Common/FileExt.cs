@@ -57,6 +57,9 @@ public static class FileExt
     public const string ModelGLTF = ".gltf";
     public const string ModelGLB = ".glb";
 
+    //material
+    public const string Material = ".amat";
+
     //meta
     public const string Meta = ".meta";
 }

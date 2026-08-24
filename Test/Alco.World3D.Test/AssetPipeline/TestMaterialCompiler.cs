@@ -11,8 +11,8 @@ namespace Alco.World3D.Test;
 
 /// <summary>
 /// Compilation of material assets into per-pass GPU materials: pass registration
-/// (<see cref="MaterialPassDesc"/>), the (asset, pass) cache, derived pipeline state,
-/// <see cref="MaterialPassDesc.Accepts"/> routing, texture-slot validation and the
+/// (<see cref="IMaterialPass"/>), the (asset, pass) cache, derived pipeline state,
+/// <see cref="IMaterialPass.Accepts"/> routing, texture-slot validation and the
 /// optional-pass guards. Uses a NoGPU engine with the module's real shaders,
 /// mirroring <see cref="ValidateShader"/>.
 /// </summary>
@@ -37,6 +37,7 @@ public class TestMaterialCompiler
             module test_surface;
 
             import alco_world3d_surface;
+            import alco_rendering_core;
 
             cbuffer _globalRenderData : register(b0, space2)
             {
@@ -70,17 +71,6 @@ public class TestMaterialCompiler
         return "test-surface.slang";
     }
 
-    /// <summary>
-    /// The G-buffer pass the renderer registers in its constructor — used here to
-    /// prove that registering a second pass under a live id is rejected.
-    /// </summary>
-    private static MaterialPassDesc GBufferPassDesc(GBufferRenderer renderer) => new()
-    {
-        Id = "gbuffer",
-        TemplateModule = "gbuffer",
-        CreateMaterial = (asset, shader) => renderer.CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer"),
-    };
-
     [Test]
     public void GBufferMaterialsCompileCacheAndInvalidate()
     {
@@ -88,14 +78,14 @@ public class TestMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-        // The renderer's constructor registers the "gbuffer" pass: the template
-        // composes with each asset's surface, the renderer factory applies the
-        // pass-mandated state.
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        // The renderer's constructor registers itself as the "gbuffer" pass: the
+        // template composes with each asset's surface, the renderer factory applies
+        // the pass-mandated state.
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
-        MaterialAsset opaque = new() { Name = "opaque" };
-        MaterialAsset doubled = new() { Name = "doubled", DoubleSided = true };
+        PbrMaterialAsset opaque = new() { Name = "opaque" };
+        PbrMaterialAsset doubled = new() { Name = "doubled", DoubleSided = true };
 
         GraphicsMaterial material = compiler.Get(opaque, "gbuffer");
 
@@ -117,7 +107,8 @@ public class TestMaterialCompiler
             Assert.That(compiler.TryGet(opaque, "rsm"), Is.Null);
 
             // Registering a duplicate pass id is rejected.
-            Assert.That(() => compiler.RegisterPass(GBufferPassDesc(gbuffer)), Throws.ArgumentException);
+            Assert.That(() => compiler.RegisterPass(
+                new StubMaterialPass("gbuffer", "gbuffer", engine.RenderingSystem)), Throws.ArgumentException);
         });
 
         // Streaming textures (still null here) rebind without disturbing the compiled material.
@@ -136,19 +127,13 @@ public class TestMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The glass pass participates only for blend materials — the routing that
         // replaces game-side alpha-mode special cases.
-        compiler.RegisterPass(new MaterialPassDesc
-        {
-            Id = "glass",
-            TemplateModule = "glass",
-            CreateMaterial = (asset, shader) => engine.RenderingSystem.CreateMaterial(shader, $"{asset.Name}_glass"),
-            Accepts = asset => asset.AlphaMode == MeshAlphaMode.Blend,
-        });
+        compiler.RegisterPass(new StubGlassPass(engine.RenderingSystem));
 
-        MaterialAsset opaque = new() { Name = "opaque" };
-        MaterialAsset blend = new() { Name = "blend", AlphaMode = MeshAlphaMode.Blend };
+        PbrMaterialAsset opaque = new() { Name = "opaque" };
+        PbrMaterialAsset blend = new() { Name = "blend", AlphaMode = MeshAlphaMode.Blend };
 
         Assert.Multiple(() =>
         {
@@ -168,20 +153,14 @@ public class TestMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The shadow pass feeds its template's <let AlphaTest : bool> parameter
         // from the asset's alpha mode — value specialization, not a define.
-        compiler.RegisterPass(new MaterialPassDesc
-        {
-            Id = "shadow",
-            TemplateModule = "shadow_depth",
-            CreateMaterial = (asset, shader) => engine.RenderingSystem.CreateMaterial(shader, $"{asset.Name}_shadow"),
-            ValueSpecArgs = asset => [asset.AlphaMode == MeshAlphaMode.Mask ? "true" : "false"],
-        });
+        compiler.RegisterPass(new StubShadowPass(engine.RenderingSystem));
 
-        GraphicsMaterial opaque = compiler.Get(new MaterialAsset { Name = "opaque" }, "shadow");
+        GraphicsMaterial opaque = compiler.Get(new PbrMaterialAsset { Name = "opaque" }, "shadow");
         GraphicsMaterial mask = compiler.Get(
-            new MaterialAsset { Name = "mask", AlphaMode = MeshAlphaMode.Mask }, "shadow");
+            new PbrMaterialAsset { Name = "mask", AlphaMode = MeshAlphaMode.Mask }, "shadow");
 
         Assert.Multiple(() =>
         {
@@ -199,12 +178,12 @@ public class TestMaterialCompiler
         AssetSystem assets = engine.AssetSystem;
         World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
         // A declared slot of the built-in surface passes validation (the texture
         // path itself is never loaded by the compiler).
-        MaterialAsset textured = new()
+        PbrMaterialAsset textured = new()
         {
             Name = "textured",
             Textures = new Dictionary<string, string> { ["albedoTexture"] = "wall.png" },
@@ -213,7 +192,7 @@ public class TestMaterialCompiler
 
         // An undeclared slot is a typo in the asset: fail at compile time with
         // the valid slot names, not later at BindTextures.
-        MaterialAsset typo = new()
+        PbrMaterialAsset typo = new()
         {
             Name = "typo",
             Textures = new Dictionary<string, string> { ["albedo"] = "wall.png" },
@@ -231,12 +210,12 @@ public class TestMaterialCompiler
         {
             World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-            using MaterialCompiler compiler = new(engine.RenderingSystem);
+            using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
             // A procedural surface: composed into the G-buffer template, declaring no
             // texture slots at all (nothing to stream).
-            MaterialAsset checker = new() { Name = "checker", SurfaceShader = surfacePath };
+            PbrMaterialAsset checker = new() { Name = "checker", SurfaceShader = surfacePath };
             GraphicsMaterial material = compiler.Get(checker, "gbuffer");
 
             Assert.Multiple(() =>
@@ -266,13 +245,13 @@ public class TestMaterialCompiler
         {
             World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-            using MaterialCompiler compiler = new(engine.RenderingSystem);
+            using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
             // The test surface declares one [MaterialParams] block member; the
             // asset's parameter binds as the block's buffer resource, addressed by
             // the block's own (free) name.
-            MaterialAsset scaled = new()
+            PbrMaterialAsset scaled = new()
             {
                 Name = "scaled",
                 SurfaceShader = surfacePath,
@@ -283,7 +262,7 @@ public class TestMaterialCompiler
                 "The composed shader exposes the surface's parameter block.");
 
             // Unknown parameter names fail loudly (typo in the asset).
-            MaterialAsset typo = new()
+            PbrMaterialAsset typo = new()
             {
                 Name = "typo",
                 SurfaceShader = surfacePath,
@@ -293,7 +272,7 @@ public class TestMaterialCompiler
 
             // The built-in surface declares no parameter block; parameters without a
             // custom surface are rejected instead of silently ignored.
-            MaterialAsset builtinParams = new()
+            PbrMaterialAsset builtinParams = new()
             {
                 Name = "builtin",
                 Parameters = new Dictionary<string, float[]> { ["scale"] = [4.0f] },
@@ -337,13 +316,13 @@ public class TestMaterialCompiler
         {
             World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
-            using MaterialCompiler compiler = new(engine.RenderingSystem);
+            using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
             // The zero-override surface composes into the G-buffer template like any
             // other: the pass bindings come from the template, and the surface
             // declares no texture slots of its own.
-            MaterialAsset minimal = new() { Name = "minimal", SurfaceShader = surfacePath };
+            PbrMaterialAsset minimal = new() { Name = "minimal", SurfaceShader = surfacePath };
             GraphicsMaterial material = compiler.Get(minimal, "gbuffer");
             Assert.Multiple(() =>
             {

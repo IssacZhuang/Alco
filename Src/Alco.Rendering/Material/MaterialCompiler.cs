@@ -1,45 +1,40 @@
 using System.IO;
 using Alco.Graphics;
-using Alco.Rendering;
 using Alco.ShaderCompiler;
 
-namespace Alco.World3D;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Compiles data-only <see cref="MaterialAsset"/>s into per-pass GPU materials: a
-/// passive registry and cache between assets and material passes. Passes register
-/// as data (<see cref="MaterialPassDesc"/> — the standard G-buffer/shadow/glass
-/// passes where their renderers are created, feature passes like the voxel GI's
-/// RSM where the feature is enabled, game-defined passes anywhere), and each
-/// (asset, pass) pair compiles lazily on first request, so meshes sharing a
-/// material share its GPU materials too.
-/// <br/>Every surface — the built-in PbrStandard included — is a Slang module
-/// exporting <c>public struct Surface : ISurface</c> (contract:
-/// Shaders/Libs/alco-world3d-surface.slang). Compilation is slang's own component
-/// system: the pass template owns the surface-generic <c>[shader]</c> entry
-/// points and composes with the surface module directly (composite + link-time
-/// specialization, no generated wrapper modules, no preprocessor stitching) —
-/// see <see cref="MaterialComposer"/>, the pipeline-agnostic composition core
-/// this class builds its asset policy on. Value specialization replaces
-/// pass-private defines (the shadow pass's alpha test is the template's
-/// <c>let AlphaTest : bool</c> parameter, fed from <see cref="MaterialAsset.AlphaMode"/>).
+/// passive registry and cache between assets and material passes, pipeline-agnostic.
+/// Passes register as <see cref="IMaterialPass"/> implementations where their
+/// renderers/features come up (a 2D pipeline's sprite pass, a deferred pipeline's
+/// G-buffer/shadow/glass passes, a feature pass like a voxel GI's RSM where the
+/// feature is enabled, game-defined passes anywhere), and each (asset, pass) pair
+/// compiles lazily on first request, so meshes sharing a material share its GPU
+/// materials too.
+/// <br/>Every surface is a Slang module exporting the pipeline family's surface
+/// contract (e.g. <c>public struct Surface : ISurface</c>). Compilation is slang's
+/// own component system: the pass template owns the surface-generic <c>[shader]</c>
+/// entry points and composes with the surface module directly (composite + link-time
+/// specialization, no generated wrapper modules, no preprocessor stitching) — see
+/// <see cref="MaterialComposer"/>, the composition core this class builds its asset
+/// policy on. Value specialization replaces pass-private defines (a shadow pass's
+/// alpha test is the template's <c>let AlphaTest : bool</c> parameter, fed from the
+/// pass's <see cref="IMaterialPass.GetValueSpecArgs"/>).
 /// <br/>The parameter mapping reads slang's module-level reflection (a surface's
 /// <c>[MaterialParams]</c>-marked blocks may mix scalar and vector float members,
-/// under any block names); texture
-/// slots are validated against the composed reflection at compile time and bound
-/// by name with pattern fallbacks (<c>_normal*</c> → flat normal,
-/// <c>_emissive*</c> → black, everything else → white).
-/// <br/>Dispose the compiler to release every compiled material and composed
-/// shader; use <see cref="Invalidate"/> when an asset file was hot-reloaded into
-/// a new instance. Per-instance data (base color, metallic/roughness, emissive,
-/// alpha cutoff) rides the renderers' instance buffers, not the material.
+/// under any block names); texture slots are validated against the composed
+/// reflection at compile time and bound by name, with the asset's own fallback
+/// policy (<see cref="MaterialAsset.GetTextureFallback"/>) for slots still streaming.
+/// <br/>Dispose the compiler to release every compiled material and composed shader;
+/// use <see cref="Invalidate"/> when an asset file was hot-reloaded into a new
+/// instance.
 /// </summary>
 public sealed class MaterialCompiler : AutoDisposable
 {
-    /// <summary>The asset path of the built-in surface every pass composes with when the asset names none.</summary>
-    public const string DefaultSurfacePath = "Shaders/Materials/pbr-standard.slang";
-
-    /// <summary>The descriptor set index the surface contract reserves for surface resources.</summary>
+    /// <summary>The descriptor set index the surface contract reserves for surface resources
+    /// (the material frequency group, <c>ALCO_GROUP_MATERIAL</c>).</summary>
     public const int SurfaceResourceSet = 2;
 
     /// <summary>Compiled materials, streamed-texture slots and the parameter buffers of one material asset.</summary>
@@ -52,58 +47,57 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     private readonly RenderingSystem _rendering;
-    private readonly Dictionary<string, MaterialPassDesc> _passes = new(StringComparer.Ordinal);
+    private readonly string? _defaultSurfacePath;
+    private readonly Dictionary<string, IMaterialPass> _passes = new(StringComparer.Ordinal);
     private readonly Dictionary<MaterialAsset, Entry> _entries = new();
-    private Texture2D? _flatNormalTexture;
-    private MaterialAsset? _defaultAsset;
 
     /// <summary>
     /// Create the compiler. It starts out knowing no passes; register them as their
     /// renderers/features come up (<see cref="RegisterPass"/>).
     /// </summary>
     /// <param name="rendering">The rendering system (material factory, fallback textures, shared ShaderSystem).</param>
-    public MaterialCompiler(RenderingSystem rendering)
+    /// <param name="defaultSurfacePath">
+    /// The asset path of the pipeline family's default surface, composed when a material
+    /// names no <see cref="MaterialAsset.SurfaceShader"/> (e.g. World3D's PbrStandard);
+    /// null requires every material to name its surface.
+    /// </param>
+    public MaterialCompiler(RenderingSystem rendering, string? defaultSurfacePath = null)
     {
         _rendering = rendering;
+        _defaultSurfacePath = defaultSurfacePath;
         Composer = new MaterialComposer(rendering);
     }
 
     /// <summary>
     /// The pipeline-agnostic composition core (template×surface shaders, parameter
     /// layouts, parameter packing). Facilities composing outside the graphics pass
-    /// registry — e.g. the voxel GI's compute feed — use it directly.
+    /// registry — e.g. a voxel GI's compute feed — use it directly.
     /// </summary>
     public MaterialComposer Composer { get; }
-
-    /// <summary>The shared asset selecting the built-in PbrStandard surface, for pipeline-level defaults.</summary>
-    public MaterialAsset DefaultAsset => _defaultAsset ??= new MaterialAsset { Name = "pbr_standard" };
-
-    /// <summary>The 1x1 flat-normal fallback texture of the <c>_normal*</c> slots (decodes to the identity tangent-space normal).</summary>
-    public Texture2D FlatNormalTexture => _flatNormalTexture ??= CreateFlatNormalTexture();
 
     /// <summary>
     /// Register a material pass. Pass identifiers must be unique; registering a second
     /// pass under a live id throws.
     /// </summary>
-    /// <param name="desc">The pass descriptor to register.</param>
-    public void RegisterPass(MaterialPassDesc desc)
+    /// <param name="pass">The pass to register.</param>
+    public void RegisterPass(IMaterialPass pass)
     {
-        ArgumentNullException.ThrowIfNull(desc);
-        if (!_passes.TryAdd(desc.Id, desc))
+        ArgumentNullException.ThrowIfNull(pass);
+        if (!_passes.TryAdd(pass.Id, pass))
         {
-            throw new ArgumentException($"A material pass '{desc.Id}' is already registered.");
+            throw new ArgumentException($"A material pass '{pass.Id}' is already registered.");
         }
     }
 
     /// <summary>
     /// Whether a pass is registered and accepts the asset — the pass-participation
-    /// routing that replaces game-side alpha-mode special cases.
+    /// routing that replaces game-side special cases.
     /// </summary>
     public bool Accepts(MaterialAsset asset, string passId)
     {
         ArgumentNullException.ThrowIfNull(asset);
-        return _passes.TryGetValue(passId, out MaterialPassDesc? desc)
-            && (desc.Accepts?.Invoke(asset) ?? true);
+        return _passes.TryGetValue(passId, out IMaterialPass? pass)
+            && pass.Accepts(asset);
     }
 
     /// <summary>
@@ -118,11 +112,11 @@ public sealed class MaterialCompiler : AutoDisposable
     public GraphicsMaterial Get(MaterialAsset asset, string passId)
     {
         ArgumentNullException.ThrowIfNull(asset);
-        if (!_passes.TryGetValue(passId, out MaterialPassDesc? desc))
+        if (!_passes.TryGetValue(passId, out IMaterialPass? pass))
         {
             throw new ArgumentException($"No material pass '{passId}' is registered.", nameof(passId));
         }
-        if (desc.Accepts != null && !desc.Accepts(asset))
+        if (!pass.Accepts(asset))
         {
             throw new InvalidDataException(
                 $"Material pass '{passId}' does not accept material '{asset.Name}'.");
@@ -131,7 +125,7 @@ public sealed class MaterialCompiler : AutoDisposable
         Entry entry = GetEntry(asset);
         if (!entry.Materials.TryGetValue(passId, out GraphicsMaterial? material))
         {
-            material = Compile(asset, desc, entry);
+            material = Compile(asset, pass, entry);
             entry.Materials.Add(passId, material);
         }
         return material;
@@ -140,19 +134,19 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <summary>
     /// The compiled material of an asset for the pass registered under an id, or null
     /// when no such pass exists or the pass does not accept the asset — e.g. the
-    /// optional pass of a feature that is disabled this run, or the glass pass for an
-    /// opaque material.
+    /// optional pass of a feature that is disabled this run, a transparency pass for
+    /// an opaque material, or a pass of a different pipeline family.
     /// </summary>
     public GraphicsMaterial? TryGet(MaterialAsset asset, string passId)
         => Accepts(asset, passId) ? Get(asset, passId) : null;
 
     /// <summary>
-    /// The shader of one pass template composed with an asset's surface (the built-in
-    /// PbrStandard surface when <paramref name="asset"/> is null or names none): what
+    /// The shader of one pass template composed with an asset's surface (the compiler's
+    /// default surface when <paramref name="asset"/> is null or names none): what
     /// renderer constructors receive as their pipeline-level default shader. Custom
     /// passes go through <see cref="Composer"/> for non-graphics stage mixes.
     /// </summary>
-    /// <param name="asset">The material asset whose surface composes; null selects the built-in surface.</param>
+    /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
     /// <param name="templateModule">The pass-template module name.</param>
     /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
     public Shader ComposeSurfaceShader(
@@ -162,9 +156,9 @@ public sealed class MaterialCompiler : AutoDisposable
 
     /// <summary>
     /// The compute counterpart of <see cref="ComposeSurfaceShader"/>, for facilities
-    /// whose surface feed is a compute pass (e.g. the voxel GI's voxelization).
+    /// whose surface feed is a compute pass (e.g. a voxel GI's voxelization).
     /// </summary>
-    /// <param name="asset">The material asset whose surface composes; null selects the built-in surface.</param>
+    /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
     /// <param name="templateModule">The pass-template module name.</param>
     /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
     public Shader ComposeSurfaceComputeShader(
@@ -173,21 +167,47 @@ public sealed class MaterialCompiler : AutoDisposable
             templateModule, SurfaceModuleName(asset), valueSpecArgs, defines: asset?.Defines);
 
     /// <summary>
-    /// The fallback texture of one surface texture resource (<c>_normal*</c> → flat
-    /// normal, <c>_emissive*</c> → black, everything else → white) — the same policy
-    /// the compiler applies when binding asset textures. Facilities composing surface
-    /// feeds outside the graphics pass registry (e.g. the voxel GI) bind through this.
+    /// The fallback texture of one surface texture resource of an asset — the asset's
+    /// own policy (<see cref="MaterialAsset.GetTextureFallback"/>) resolved to a device
+    /// texture. Facilities composing surface feeds outside the graphics pass registry
+    /// (e.g. the voxel GI) bind through this.
     /// </summary>
-    public Texture2D GetFallbackTexture(string resourceName) => FallbackFor(resourceName);
+    /// <param name="asset">The material asset whose policy resolves.</param>
+    /// <param name="resourceName">The shader resource name of the texture slot (a leading underscore is stripped).</param>
+    public Texture2D ResolveFallbackTexture(MaterialAsset asset, string resourceName)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        string slot = resourceName.StartsWith('_') ? resourceName[1..] : resourceName;
+        return asset.GetTextureFallback(slot) switch
+        {
+            MaterialTextureFallback.Black => _rendering.TextureBlack,
+            MaterialTextureFallback.FlatNormal => _rendering.TextureFlatNormal,
+            _ => _rendering.TextureWhite,
+        };
+    }
 
     /// <summary>
-    /// The slang module name of an asset's surface (the built-in PbrStandard module
-    /// when the asset names none): the file stem with module-name characters
+    /// The slang module name of an asset's surface (the compiler's default surface when
+    /// the asset names none): the file stem with module-name characters
     /// ('pbr-standard' → 'pbr_standard', matching the source's module declaration).
     /// </summary>
-    public static string SurfaceModuleName(MaterialAsset? asset)
+    /// <exception cref="InvalidDataException">The asset names no surface and the compiler has no default.</exception>
+    public string SurfaceModuleName(MaterialAsset? asset)
     {
-        string stem = Path.GetFileNameWithoutExtension(asset?.SurfaceShader ?? DefaultSurfacePath);
+        string? path = asset?.SurfaceShader ?? _defaultSurfacePath;
+        if (path == null)
+        {
+            throw new InvalidDataException(asset == null
+                ? "No surface module named and the compiler has no default surface."
+                : $"Material '{asset.Name}' names no surface shader and the compiler has no default surface.");
+        }
+        return ToModuleName(path);
+    }
+
+    /// <summary>The slang module name of a surface asset path (file stem, module-name characters).</summary>
+    public static string ToModuleName(string surfacePath)
+    {
+        string stem = Path.GetFileNameWithoutExtension(surfacePath);
         return string.Concat(stem.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
     }
 
@@ -195,9 +215,9 @@ public sealed class MaterialCompiler : AutoDisposable
     /// (Re)bind the streamed textures of one asset, by material texture slot (slot
     /// name = shader resource name without the leading underscore): stores them as
     /// the binding-time values for not-yet-compiled passes and rebinds every
-    /// already-compiled pass material (with the pattern fallbacks for slots still
-    /// streaming). Render bundles recorded with the materials must be re-recorded
-    /// afterwards — call the renderers' <c>MarkStaticBundleDirty</c>.
+    /// already-compiled pass material (with the asset's fallback policy for slots
+    /// still streaming). Render bundles recorded with the materials must be
+    /// re-recorded afterwards — call the renderers' <c>MarkStaticBundleDirty</c>.
     /// </summary>
     /// <param name="asset">The material asset.</param>
     /// <param name="textures">The streamed textures by material texture slot; null
@@ -219,7 +239,7 @@ public sealed class MaterialCompiler : AutoDisposable
             foreach (KeyValuePair<string, Texture2D?> slot in textures)
             {
                 string resource = ResourceName(slot.Key);
-                pair.Value.SetTexture(resource, slot.Value ?? FallbackFor(resource));
+                pair.Value.SetTexture(resource, slot.Value ?? ResolveFallbackTexture(asset, resource));
             }
         }
     }
@@ -252,9 +272,9 @@ public sealed class MaterialCompiler : AutoDisposable
         }
     }
 
-    private GraphicsMaterial Compile(MaterialAsset asset, MaterialPassDesc desc, Entry entry)
+    private GraphicsMaterial Compile(MaterialAsset asset, IMaterialPass pass, Entry entry)
     {
-        Shader shader = ComposeSurfaceShader(asset, desc.TemplateModule, desc.ValueSpecArgs?.Invoke(asset));
+        Shader shader = ComposeSurfaceShader(asset, pass.TemplateModule, pass.GetValueSpecArgs(asset));
         ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
@@ -270,7 +290,7 @@ public sealed class MaterialCompiler : AutoDisposable
             }
         }
 
-        GraphicsMaterial material = desc.CreateMaterial(asset, shader);
+        GraphicsMaterial material = pass.CreateMaterial(asset, shader);
 
         // The parameter blocks, packed once per asset and shared by its pass
         // materials; each block is bound where the pass's reflection keeps it
@@ -291,7 +311,7 @@ public sealed class MaterialCompiler : AutoDisposable
         {
             if (!entry.Textures.TryGetValue(resource[1..], out Texture2D? texture) || texture == null)
             {
-                texture = FallbackFor(resource);
+                texture = ResolveFallbackTexture(asset, resource);
             }
             material.SetTexture(resource, texture);
         }
@@ -312,15 +332,15 @@ public sealed class MaterialCompiler : AutoDisposable
             return entry.ParamsBuffers;
         }
 
-        IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts = asset.SurfaceShader == null
-            ? new Dictionary<string, IReadOnlyList<SlangUniformMember>>() // the built-in surface marks no blocks
-            : Composer.GetParamsLayouts(SurfaceModuleName(asset), defines: asset.Defines);
+        string surfaceModule = SurfaceModuleName(asset);
+        IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+            Composer.GetParamsLayouts(surfaceModule, defines: asset.Defines);
         if (layouts.Count == 0)
         {
             if (asset.Parameters.Count > 0)
             {
                 throw new InvalidDataException(
-                    $"Material '{asset.Name}' has parameters, but its surface '{asset.SurfaceShader ?? "pbr-standard (built-in)"}' " +
+                    $"Material '{asset.Name}' has parameters, but its surface '{surfaceModule}' " +
                     $"declares no [{MaterialComposer.ParamsMarkerAttribute}] parameter block.");
             }
             entry.ParamsBuffers = new Dictionary<string, GraphicsBuffer>();
@@ -333,31 +353,6 @@ public sealed class MaterialCompiler : AutoDisposable
 
     /// <summary>The shader resource name a material texture slot binds to: the slot name with a leading underscore.</summary>
     private static string ResourceName(string slot) => "_" + slot;
-
-    /// <summary>
-    /// The fallback texture of one surface texture slot: flat normal for normal maps
-    /// (decodes to the identity tangent-space normal), black for emissive (keeps
-    /// unstreamed emissive maps dark), white otherwise.
-    /// </summary>
-    private Texture2D FallbackFor(string resource)
-    {
-        if (resource.StartsWith("_normal", StringComparison.OrdinalIgnoreCase))
-        {
-            return FlatNormalTexture;
-        }
-        if (resource.StartsWith("_emissive", StringComparison.OrdinalIgnoreCase))
-        {
-            return _rendering.TextureBlack;
-        }
-        return _rendering.TextureWhite;
-    }
-
-    private Texture2D CreateFlatNormalTexture()
-    {
-        byte[] data = [128, 128, 255, 255];
-        return _rendering.CreateTexture2D(data, 1, 1,
-            new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "material_flat_normal"));
-    }
 
     private Entry GetEntry(MaterialAsset asset)
     {

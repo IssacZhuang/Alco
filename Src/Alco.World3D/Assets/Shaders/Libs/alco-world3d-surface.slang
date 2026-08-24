@@ -28,11 +28,12 @@
 // surface module's global scope in set-scoped blocks (a cbuffer that declares
 // only its set, e.g. `cbuffer _material` in space2); the engine binds them by
 // name. A surface marks its material-parameter cbuffers with [MaterialParams]
-// — any names, any number of blocks, members mixing ANY scalar/vector float
-// types; the engine discovers the marked blocks from Slang reflection, reads
-// each member's type and byte offset, and fills the buffers from the material
-// asset's parameter table. Unmarked blocks (engine data such as
-// _globalRenderData) are never treated as material parameters.
+// (declared in alco_rendering_core — import it) — any names, any number of
+// blocks, members mixing ANY scalar/vector float types; the engine discovers
+// the marked blocks from Slang reflection, reads each member's type and byte
+// offset, and fills the buffers from the material asset's parameter table.
+// Unmarked blocks (engine data such as _globalRenderData) are never treated
+// as material parameters.
 //
 // Fragment-domain methods (GetBaseColor & co.) run in vertex/fragment stages
 // and may sample with implicit derivatives (Sample). The voxel-GI feed runs in
@@ -44,12 +45,6 @@
 
 #language slang 2025
 module alco_world3d_surface;
-
-/// Marks a cbuffer as a material-parameter block: the engine reflects its
-/// scalar/vector float members and packs them from the material asset's
-/// parameter table. Any block name, any number of blocks per surface.
-[__AttributeUsage(_AttributeTargets.Var)]
-public struct MaterialParams {};
 
 public struct SurfaceInput
 {

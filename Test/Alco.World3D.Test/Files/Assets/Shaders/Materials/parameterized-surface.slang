@@ -11,6 +11,7 @@
 #language slang 2025
 module parameterized_surface;
 
+import alco_rendering_core; // [MaterialParams]
 import alco_world3d_surface;
 
 // The engine binds the per-frame global render data buffer to every material;

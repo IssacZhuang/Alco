@@ -51,7 +51,7 @@ public interface IGBufferRenderable
 /// <br/>The renderer does <b>not</b> own the G-buffer render texture, attachment layout
 /// or render context — those are owned by the pass node.
 /// </summary>
-public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
+public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent, IMaterialPass<PbrMaterialAsset>
 {
     /// <summary>The material-pass identifier this renderer registers ("gbuffer").</summary>
     public const string PassId = "gbuffer";
@@ -91,13 +91,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         _rendering = rendering;
         _staticBundle = rendering.CreateSubRenderContext("pbr_gbuffer_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_gbuffer_dynamic");
-        compiler.RegisterPass(new MaterialPassDesc
-        {
-            Id = PassId,
-            TemplateModule = "gbuffer",
-            CreateMaterial = (asset, shader) => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer"),
-            Accepts = asset => asset.AlphaMode != MeshAlphaMode.Blend,
-        });
+        compiler.RegisterPass(this);
     }
 
     /// <summary>
@@ -266,6 +260,18 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         }
         return material;
     }
+
+    // ── IMaterialPass<PbrMaterialAsset> ──
+
+    string IMaterialPass.Id => PassId;
+
+    string IMaterialPass.TemplateModule => "gbuffer";
+
+    GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
+        => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer");
+
+    bool IMaterialPass<PbrMaterialAsset>.Accepts(PbrMaterialAsset asset)
+        => asset.AlphaMode != MeshAlphaMode.Blend;
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
