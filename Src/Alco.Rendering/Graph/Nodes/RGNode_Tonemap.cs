@@ -147,6 +147,31 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
     }
 
     /// <summary>
+    /// The node's construction data: the plain-copy shader used by the
+    /// <see cref="TonemapType.Linear"/> operator and the six operator shaders.
+    /// Service-type dependencies (the rendering system, graph, chain, output
+    /// layout) are explicit constructor parameters instead — a descriptor is
+    /// pure data.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The plain-copy shader used by the Linear operator.</summary>
+        public required Shader BlitShader { get; init; }
+        /// <summary>The Reinhard operator shader.</summary>
+        public required Shader ReinhardShader { get; init; }
+        /// <summary>The Uncharted 2 operator shader.</summary>
+        public required Shader Uncharted2Shader { get; init; }
+        /// <summary>The filmic operator shader.</summary>
+        public required Shader FilmicShader { get; init; }
+        /// <summary>The ACES operator shader.</summary>
+        public required Shader AcesShader { get; init; }
+        /// <summary>The neutral operator shader.</summary>
+        public required Shader NeutralShader { get; init; }
+        /// <summary>The AgX operator shader.</summary>
+        public required Shader AgxShader { get; init; }
+    }
+
+    /// <summary>
     /// Creates the node with the default Reinhard operator. The shaders stay owned by the
     /// caller; the node creates its materials and buffers lazily per operator.
     /// </summary>
@@ -155,32 +180,25 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
     /// <param name="chain">The content chain the node reads and advances.</param>
     /// <param name="outputLayout">The attachment layout of the node's output transient
     /// (color-only, in the chain's content format).</param>
-    /// <param name="blitShader">The shader used for the plain copy of the
-    /// <see cref="TonemapType.Linear"/> operator.</param>
+    /// <param name="descriptor">The node's construction data.</param>
     public RGNode_Tonemap(
         RenderingSystem rendering,
         RenderGraph graph,
         RenderChain chain,
         GPUAttachmentLayout outputLayout,
-        Shader blitShader,
-        Shader reinhardShader,
-        Shader uncharted2Shader,
-        Shader filmicShader,
-        Shader acesShader,
-        Shader neutralShader,
-        Shader agxShader)
+        in Descriptor descriptor)
         : base(graph, chain, outputLayout, name: "tonemap")
     {
         _rendering = rendering;
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blitMaterial = rendering.CreateGraphicsMaterial(blitShader);
+        _blitMaterial = rendering.CreateGraphicsMaterial(descriptor.BlitShader);
 
-        _reinhardShader = reinhardShader;
-        _uncharted2Shader = uncharted2Shader;
-        _filmicShader = filmicShader;
-        _acesShader = acesShader;
-        _neutralShader = neutralShader;
-        _agxShader = agxShader;
+        _reinhardShader = descriptor.ReinhardShader;
+        _uncharted2Shader = descriptor.Uncharted2Shader;
+        _filmicShader = descriptor.FilmicShader;
+        _acesShader = descriptor.AcesShader;
+        _neutralShader = descriptor.NeutralShader;
+        _agxShader = descriptor.AgxShader;
 
         ApplyCurrentOperator();
     }

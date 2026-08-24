@@ -17,12 +17,12 @@ public readonly record struct GBufferInput(RenderGraphTexture Texture);
 public readonly record struct SceneColorInput(RenderGraphTexture Texture);
 
 /// <summary>
-/// Factory for the screen-space reflections render plugin node: holds the five
-/// shaders (trace / resolve / composite / scene-copy blit / blue-noise bake,
-/// resolved at load time) and the trace-resolution scale. The node's deferred
-/// inputs — the G-buffer and scene color resources, the voxel GI node providing
-/// the off-screen reflection fallback, the camera and the scene environment —
-/// are factory context services the composing code registers (<see
+/// Factory for the screen-space reflections render plugin node: holds the
+/// node's <see cref="RGNode_SSR.Descriptor"/> (shader references resolve
+/// through the shared shader system at load time). The node's deferred inputs —
+/// the G-buffer and scene color resources, the voxel GI node providing the
+/// off-screen reflection fallback, the camera and the scene environment — are
+/// factory context services the composing code registers (<see
 /// cref="GBufferInput"/>, <see cref="SceneColorInput"/>,
 /// <see cref="RGNode_VoxelGI"/>, <see cref="CameraPerspectiveBuffer"/>,
 /// <see cref="PBRSceneEnvironment"/>, plus the post <see cref="RenderChain"/>);
@@ -31,24 +31,14 @@ public readonly record struct SceneColorInput(RenderGraphTexture Texture);
 /// </summary>
 public class RGNodeFactory_SSR : RenderNodeFactory
 {
-    /// <summary>The reflection trace shader.</summary>
-    public required Shader TraceShader { get; set; }
-    /// <summary>The temporal/spatial resolve shader.</summary>
-    public required Shader ResolveShader { get; set; }
-    /// <summary>The composite shader.</summary>
-    public required Shader CompositeShader { get; set; }
-    /// <summary>The plain scene-copy shader.</summary>
-    public required Shader SceneCopyShader { get; set; }
-    /// <summary>The blue-noise tile bake shader.</summary>
-    public required Shader BlueNoiseShader { get; set; }
-
-    /// <summary>The trace resolution relative to the viewport (0.25 - 1.0).</summary>
-    public float TraceResolutionScale { get; set; } = 0.5f;
+    /// <summary>The node's construction data.</summary>
+    public required RGNode_SSR.Descriptor Descriptor { get; set; }
 
     /// <inheritdoc />
     public override IRenderNode Create(RenderNodeFactoryContext context)
     {
         RenderNodeFactoryServices services = context.Services;
+        RGNode_SSR.Descriptor descriptor = Descriptor;
         return new RGNode_SSR(
             context.Rendering,
             context.Graph,
@@ -58,13 +48,8 @@ public class RGNodeFactory_SSR : RenderNodeFactory
             services.Get<RGNode_VoxelGI>(),
             services.Get<CameraPerspectiveBuffer>(),
             services.Get<PBRSceneEnvironment>(),
-            TraceShader,
-            ResolveShader,
-            CompositeShader,
-            SceneCopyShader,
-            BlueNoiseShader,
             context.Graph.Width,
             context.Graph.Height,
-            traceResolutionScale: TraceResolutionScale);
+            in descriptor);
     }
 }

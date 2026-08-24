@@ -2,14 +2,17 @@
 // resolve (and validate) through the shared shader system at load time.
 {
     "$type": "Alco.Rendering.RGNodeFactory_Bloom",
-    "blitShader": "bloom-blit",
-    "clampShader": "bloom-clamp",
-    "downsampleShader": "bloom-downsample",
-    "upsampleShader": "bloom-upsample",
-    "sceneCopyShader": "blit",
-    "threshold": 1.0,
-    "intensity": 0.35,
-    "spread": 1.0,
-    "gamma": 2.2,
+    "descriptor": {
+        "blitShader": "bloom-blit",
+        "clampShader": "bloom-clamp",
+        "downsampleShader": "bloom-downsample",
+        "upsampleShader": "bloom-upsample",
+        "sceneCopyShader": "blit",
+        "targetDownsampleHeight": 11,
+        "threshold": 1.0,
+        "intensity": 0.35,
+        "spread": 1.0,
+        "gamma": 2.2
+    },
     "enabled": true
 }

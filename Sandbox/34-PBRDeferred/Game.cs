@@ -432,19 +432,20 @@ public class Game : GameEngine
         // templates compose with each material asset's surface through the
         // MaterialCompiler — the renderers register their passes on it.
         _materialCompiler = World3DAssetPipeline.CreateMaterialCompiler(RenderingSystem);
-        var pipelineShaders = LoadRenderNodeFactory<RGNodeFactory_PipelineShaders>("RenderNodes/PipelineShaders.rnfact");
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
+        // The composition's own shaders are hardcoded here — game code may name
+        // modules directly (only the engine forbids hardcoded module names).
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            pipelineShaders.LightingShader,
-            pipelineShaders.BlitShader,
+            RenderingSystem.ShaderSystem.GetShader("deferred-lighting"),
+            RenderingSystem.ShaderSystem.GetShader("blit"),
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            volumetricLightShader: pipelineShaders.VolumetricLightShader);
+            volumetricLightShader: RenderingSystem.ShaderSystem.GetShader("volumetric-light"));
         _environment = _preset.Environment;
-        _environment.VolumetricLightEnabled = pipelineShaders.VolumetricLightShader != null;
+        _environment.VolumetricLightEnabled = true;
 
         // The render node factory context carries the composition's shared
         // services (post chain + content format, material compiler, camera,

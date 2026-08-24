@@ -70,40 +70,70 @@ public class Game : GameEngine
         MainView.Position = new Vector2(276, 258);
         _window2.Position = new Vector2(889, 410);
 
-        _bloomNode1 = new RGNode_Bloom(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout, RenderingSystem.CreateBloom(
-            BuiltInAssets.Shader_BloomBlit,
-            BuiltInAssets.Shader_BloomClamp,
-            BuiltInAssets.Shader_BloomDownsample,
-            BuiltInAssets.Shader_BloomUpsample,
-            11), BuiltInAssets.Shader_Blit);
+        _bloomNode1 = new RGNode_Bloom(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Bloom.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_BloomBlit,
+                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
+                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
+                TargetDownsampleHeight = 11,
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+            });
         _mainPipeline.Use(_bloomNode1);
 
-        _bloomNode2 = new RGNode_Bloom(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout, RenderingSystem.CreateBloom(
-            BuiltInAssets.Shader_BloomBlit,
-            BuiltInAssets.Shader_BloomClamp,
-            BuiltInAssets.Shader_BloomDownsample,
-            BuiltInAssets.Shader_BloomUpsample,
-            11), BuiltInAssets.Shader_Blit);
+        _bloomNode2 = new RGNode_Bloom(
+            RenderingSystem,
+            _pipeline2.Graph,
+            _pipeline2.Chain,
+            _pipeline2.PostProcessLayout,
+            new RGNode_Bloom.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_BloomBlit,
+                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
+                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
+                TargetDownsampleHeight = 11,
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+            });
         _pipeline2.Use(_bloomNode2);
 
-        _tonemapNode1 = new RGNode_Tonemap(RenderingSystem, _mainPipeline.Graph, _mainPipeline.Chain, _mainPipeline.PostProcessLayout,
-            BuiltInAssets.Shader_Blit,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_AcesTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgxTonemap);
+        _tonemapNode1 = new RGNode_Tonemap(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
         _mainPipeline.Use(_tonemapNode1);
 
-        _tonemapNode2 = new RGNode_Tonemap(RenderingSystem, _pipeline2.Graph, _pipeline2.Chain, _pipeline2.PostProcessLayout,
-            BuiltInAssets.Shader_Blit,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_AcesTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgxTonemap);
+        _tonemapNode2 = new RGNode_Tonemap(
+            RenderingSystem,
+            _pipeline2.Graph,
+            _pipeline2.Chain,
+            _pipeline2.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
         _pipeline2.Use(_tonemapNode2);
 
         

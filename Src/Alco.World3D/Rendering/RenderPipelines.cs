@@ -181,7 +181,7 @@ public static class RenderPipelines
             },
         };
         var chain = new RenderChain();
-        var blitNode = new RGNode_Blit(rendering, graph, chain, blitShader);
+        var blitNode = new RGNode_Blit(rendering, graph, chain, new RGNode_Blit.Descriptor { BlitShader = blitShader });
 
         // Volumetric light pass (optional). Created eagerly so no runtime
         // recompilation is needed; controlled at runtime via

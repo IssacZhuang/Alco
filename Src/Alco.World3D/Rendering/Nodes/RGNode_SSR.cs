@@ -177,16 +177,53 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     /// <param name="voxelGi">The voxel GI renderer providing the fallback reflection
     /// and the debug view mode.</param>
     /// <param name="camera">The camera the reflection tracing runs from.</param>
+    /// <summary>
+    /// The node's construction data: the five shaders (trace / resolve /
+    /// composite / scene-copy blit / blue-noise bake) and the trace-resolution
+    /// scale. Service-type dependencies (the rendering system, graph, chain, the
+    /// G-buffer and scene color resources, the voxel GI fallback node, camera
+    /// and scene environment) are explicit constructor parameters or factory
+    /// context services instead — a descriptor is pure data.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The SSR trace shader.</summary>
+        public required Shader TraceShader { get; init; }
+        /// <summary>The temporal/spatial resolve shader.</summary>
+        public required Shader ResolveShader { get; init; }
+        /// <summary>The composite shader.</summary>
+        public required Shader CompositeShader { get; init; }
+        /// <summary>The plain blit shader (scene copy).</summary>
+        public required Shader BlitShader { get; init; }
+        /// <summary>
+        /// The blue-noise bake shader filling the trace pass's stochastic-sample
+        /// lookup once at runtime.
+        /// </summary>
+        public required Shader BlueNoiseShader { get; init; }
+
+        /// <summary>The trace resolution relative to the viewport (0.25 - 1.0).</summary>
+        public float TraceResolutionScale { get; init; } = 0.5f;
+
+        /// <summary>Required so the property initializers run (C# struct rule).</summary>
+        public Descriptor() { }
+    }
+
+    /// <summary>
+    /// Creates the SSR renderer from its descriptor's shaders. The persistent
+    /// temporal history is allocated up front; the scene copy and raw trace
+    /// target are graph transients created by <see cref="Attach"/>.
+    /// </summary>
+    /// <param name="rendering">The rendering system used to create GPU resources.</param>
+    /// <param name="graph">The render graph driving the frame.</param>
+    /// <param name="chain">The post chain the composition resets per frame.</param>
+    /// <param name="gbuffer">The G-buffer resource read by the trace and composite.</param>
+    /// <param name="sceneColor">The HDR scene color resource copied before the trace.</param>
+    /// <param name="voxelGi">The voxel GI node providing the off-screen reflection fallback.</param>
+    /// <param name="camera">The camera buffer providing view parameters.</param>
     /// <param name="environment">The shared scene environment (specular GI strength).</param>
-    /// <param name="traceShader">The SSR trace shader.</param>
-    /// <param name="resolveShader">The temporal/spatial resolve shader.</param>
-    /// <param name="compositeShader">The composite shader.</param>
-    /// <param name="blitShader">The plain blit shader (scene copy).</param>
-    /// <param name="blueNoiseShader">The blue-noise bake shader filling the
-    /// trace pass's stochastic-sample lookup once at runtime.</param>
     /// <param name="width">The initial viewport width in pixels.</param>
     /// <param name="height">The initial viewport height in pixels.</param>
-    /// <param name="traceResolutionScale">The trace resolution relative to the viewport.</param>
+    /// <param name="descriptor">The node's construction data.</param>
     public RGNode_SSR(
         RenderingSystem rendering,
         RenderGraph graph,
@@ -196,17 +233,12 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         RGNode_VoxelGI voxelGi,
         CameraPerspectiveBuffer camera,
         PBRSceneEnvironment environment,
-        Shader traceShader,
-        Shader resolveShader,
-        Shader compositeShader,
-        Shader blitShader,
-        Shader blueNoiseShader,
         uint width,
         uint height,
-        float traceResolutionScale = 0.5f)
+        in Descriptor descriptor)
     {
-        ValidateTraceResolutionScale(traceResolutionScale);
-        ArgumentNullException.ThrowIfNull(blueNoiseShader);
+        ValidateTraceResolutionScale(descriptor.TraceResolutionScale);
+        ArgumentNullException.ThrowIfNull(descriptor.BlueNoiseShader);
         _rendering = rendering;
         _graph = graph;
         _chain = chain;
@@ -216,13 +248,13 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _camera = camera;
         _environment = environment;
         _fullScreenMesh = rendering.MeshFullScreen;
-        _copyMaterial = rendering.CreateGraphicsMaterial(blitShader, "ssr_scene_copy");
-        _traceMaterial = rendering.CreateGraphicsMaterial(traceShader, "ssr_trace");
-        _resolveMaterial = rendering.CreateGraphicsMaterial(resolveShader, "ssr_resolve");
-        _compositeMaterial = rendering.CreateGraphicsMaterial(compositeShader, "ssr_composite");
-        _blueNoiseMaterial = rendering.CreateGraphicsMaterial(blueNoiseShader, "ssr_blue_noise_bake");
+        _copyMaterial = rendering.CreateGraphicsMaterial(descriptor.BlitShader, "ssr_scene_copy");
+        _traceMaterial = rendering.CreateGraphicsMaterial(descriptor.TraceShader, "ssr_trace");
+        _resolveMaterial = rendering.CreateGraphicsMaterial(descriptor.ResolveShader, "ssr_resolve");
+        _compositeMaterial = rendering.CreateGraphicsMaterial(descriptor.CompositeShader, "ssr_composite");
+        _blueNoiseMaterial = rendering.CreateGraphicsMaterial(descriptor.BlueNoiseShader, "ssr_blue_noise_bake");
         _dataBuffer = rendering.CreateGraphicsValueBuffer<SsrData>("ssr_post_data");
-        _traceResolutionScale = traceResolutionScale;
+        _traceResolutionScale = descriptor.TraceResolutionScale;
         _historyLayout = rendering.GraphicsDevice.CreateAttachmentLayout(
             new AttachmentLayoutDescriptor(
                 [

@@ -2,8 +2,10 @@
 // inside the node; wiring happens in code through RGNode_VolumetricClouds.Attach.
 {
     "$type": "Alco.World3D.RGNodeFactory_VolumetricClouds",
-    "marchShader": "volumetric-clouds",
-    "compositeShader": "volumetric-clouds-composite",
-    "shadowShader": "volumetric-cloud-shadow",
-    "marchResolutionScale": 0.5
+    "descriptor": {
+        "marchShader": "volumetric-clouds",
+        "compositeShader": "volumetric-clouds-composite",
+        "shadowShader": "volumetric-cloud-shadow",
+        "marchResolutionScale": 0.5
+    }
 }

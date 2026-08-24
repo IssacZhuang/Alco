@@ -21,22 +21,33 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
     private RenderGraphTexture? _input;
 
     /// <summary>
+    /// The node's construction data: the shader of the plain copy. Service-type
+    /// dependencies (the rendering system, graph, chain) are explicit constructor
+    /// parameters instead — a descriptor is pure data.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The shader used for the plain copy.</summary>
+        public required Shader BlitShader { get; init; }
+    }
+
+    /// <summary>
     /// Creates the blit node, including its blit material.
     /// </summary>
     /// <param name="rendering">The rendering system, for GPU resources.</param>
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
     /// <param name="chain">The content chain whose tail is blitted.</param>
-    /// <param name="blitShader">The shader used for the plain copy.</param>
-    public RGNode_Blit(RenderingSystem rendering, RenderGraph graph, RenderChain chain, Shader blitShader)
+    /// <param name="descriptor">The node's construction data.</param>
+    public RGNode_Blit(RenderingSystem rendering, RenderGraph graph, RenderChain chain, in Descriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(chain);
-        ArgumentNullException.ThrowIfNull(blitShader);
+        ArgumentNullException.ThrowIfNull(descriptor.BlitShader);
         _graph = graph;
         _chain = chain;
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blitMaterial = rendering.CreateGraphicsMaterial(blitShader);
+        _blitMaterial = rendering.CreateGraphicsMaterial(descriptor.BlitShader);
     }
 
     /// <inheritdoc />

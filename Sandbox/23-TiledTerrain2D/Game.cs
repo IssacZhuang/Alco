@@ -74,8 +74,12 @@ public class Game : GameEngine
 
         AddSystem(new ImGUISystem(this));
 
-        var fxaaNode = new RGNode_FXAA(MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, RenderingSystem.CreateFXAA(
-            BuiltInAssets.Shader_Blit));
+        var fxaaNode = new RGNode_FXAA(
+            RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
+            new RGNode_FXAA.Descriptor { SceneCopyShader = BuiltInAssets.Shader_Blit });
         MainPipeline.Use(fxaaNode);
 
         var tonemapNode = new RGNode_Tonemap(
@@ -83,13 +87,16 @@ public class Game : GameEngine
             MainPipeline.Graph,
             MainPipeline.Chain,
             MainPipeline.PostProcessLayout,
-            BuiltInAssets.Shader_Blit,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_AcesTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgxTonemap);
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
         MainPipeline.Use(tonemapNode);
 
         int width = 64;

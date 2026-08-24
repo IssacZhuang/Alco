@@ -30,17 +30,46 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     }
 
     /// <summary>
-    /// Creates the node wrapping the FXAA effect. The node takes ownership.
+    /// The node's construction data: the scene-copy shader and the effect's
+    /// tunables (the quality axis resolves inside the effect as a generic value
+    /// specialization of the fxaa module, one specialized shader per preset).
+    /// Service-type dependencies (the rendering system, graph, chain, output
+    /// layout) are explicit constructor parameters instead — a descriptor is
+    /// pure data.
     /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The scene-copy shader used for the final blit.</summary>
+        public required Shader SceneCopyShader { get; init; }
+
+        /// <summary>The quality preset; changing it selects a different specialized shader.</summary>
+        public FXAAQuality Quality { get; init; } = FXAAQuality.Medium;
+        /// <summary>The edge detection threshold (0.063 - 0.333).</summary>
+        public float Threshold { get; init; } = 0.125f;
+
+        /// <summary>Required so the property initializers run (C# struct rule).</summary>
+        public Descriptor() { }
+    }
+
+    /// <summary>
+    /// Creates the node wrapping a FXAA effect built from the descriptor's
+    /// scene-copy shader; the node takes ownership of the effect.
+    /// </summary>
+    /// <param name="rendering">The rendering system.</param>
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
     /// <param name="chain">The content chain the node reads and advances.</param>
     /// <param name="outputLayout">The attachment layout of the node's output transient
     /// (color-only, in the chain's content format).</param>
-    /// <param name="fxaa">The FXAA effect implementation.</param>
-    public RGNode_FXAA(RenderGraph graph, RenderChain chain, GPUAttachmentLayout outputLayout, FXAA fxaa)
+    /// <param name="descriptor">The node's construction data.</param>
+    public RGNode_FXAA(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+        GPUAttachmentLayout outputLayout, in Descriptor descriptor)
         : base(graph, chain, outputLayout, name: "FXAA")
     {
-        _fxaa = fxaa;
+        _fxaa = new FXAA(rendering, descriptor.SceneCopyShader)
+        {
+            Quality = descriptor.Quality,
+            Threshold = descriptor.Threshold,
+        };
     }
 
     /// <inheritdoc />

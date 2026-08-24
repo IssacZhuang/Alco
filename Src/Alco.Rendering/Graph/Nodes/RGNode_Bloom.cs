@@ -50,23 +50,68 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
     }
 
     /// <summary>
-    /// Creates the node wrapping the bloom effect. The node takes ownership of
-    /// <paramref name="bloom"/>; <paramref name="blitShader"/> stays owned by the caller.
+    /// The node's construction data: the bloom effect's four shaders, the chain
+    /// node's scene-copy shader and the effect's tunables. Service-type
+    /// dependencies (the rendering system, graph, chain, output layout) are
+    /// explicit constructor parameters instead — a descriptor is pure data.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The bloom pyramid's plain-copy shader.</summary>
+        public required Shader BlitShader { get; init; }
+        /// <summary>The threshold pre-pass shader.</summary>
+        public required Shader ClampShader { get; init; }
+        /// <summary>The pyramid downsample shader.</summary>
+        public required Shader DownsampleShader { get; init; }
+        /// <summary>The pyramid upsample shader.</summary>
+        public required Shader UpsampleShader { get; init; }
+        /// <summary>The chain node's scene-copy shader.</summary>
+        public required Shader SceneCopyShader { get; init; }
+
+        /// <summary>The pyramid's target downsample height in pixels.</summary>
+        public uint TargetDownsampleHeight { get; init; } = 11;
+        /// <summary>Only pixels above this brightness contribute to the bloom effect.</summary>
+        public float Threshold { get; init; } = 1f;
+        /// <summary>The final output strength of the bloom effect.</summary>
+        public float Intensity { get; init; } = 0.35f;
+        /// <summary>How far the bloom spreads across the pyramid.</summary>
+        public float Spread { get; init; } = 1f;
+        /// <summary>The gamma correction value for bloom blending.</summary>
+        public float Gamma { get; init; } = 2.2f;
+
+        /// <summary>Required so the property initializers run (C# struct rule).</summary>
+        public Descriptor() { }
+    }
+
+    /// <summary>
+    /// Creates the node wrapping a bloom effect built from the descriptor's
+    /// shaders; the node takes ownership of the effect.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
     /// <param name="chain">The content chain the node reads and advances.</param>
     /// <param name="outputLayout">The attachment layout of the node's output transient
     /// (color-only, in the chain's content format).</param>
-    /// <param name="bloom">The bloom effect implementation.</param>
-    /// <param name="blitShader">The shader used for the plain copy of the input.</param>
+    /// <param name="descriptor">The node's construction data.</param>
     public RGNode_Bloom(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
-        GPUAttachmentLayout outputLayout, Bloom bloom, Shader blitShader)
+        GPUAttachmentLayout outputLayout, in Descriptor descriptor)
         : base(graph, chain, outputLayout, name: "bloom")
     {
-        _bloom = bloom;
+        _bloom = new Bloom(
+            rendering,
+            descriptor.BlitShader,
+            descriptor.ClampShader,
+            descriptor.DownsampleShader,
+            descriptor.UpsampleShader,
+            descriptor.TargetDownsampleHeight)
+        {
+            Threshold = descriptor.Threshold,
+            Intensity = descriptor.Intensity,
+            Spread = descriptor.Spread,
+            Gamma = descriptor.Gamma,
+        };
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blitMaterial = rendering.CreateGraphicsMaterial(blitShader);
+        _blitMaterial = rendering.CreateGraphicsMaterial(descriptor.SceneCopyShader);
     }
 
     /// <inheritdoc />

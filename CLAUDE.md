@@ -57,6 +57,21 @@
 - Objects should be ready for use immediately after construction without requiring additional setup calls.
 - For mutable value types or mutable references, recommend using getter/setter properties instead of public fields, and they don't need to be passed in the constructor.
 
+## Render Node Construction Guidelines
+- Render node constructors take `(services..., in Descriptor)`: service-type dependencies
+  (the rendering system, graph, chain, graph resources, sibling nodes) are explicit
+  constructor parameters; everything constructible from data (shader references, tunable
+  scalars) lives in a nested `readonly struct Descriptor` on the node class with
+  `required` properties for shaders and property initializers for defaults. A descriptor
+  never holds services — it is pure (serializable) data.
+- `RenderNodeFactory` classes (`RGNodeFactory_*`) load from `.rnfact` jsonc assets
+  (camelCase, `$type` = CLR full name); they hold the node's descriptor plus factory-level
+  flags, resolve shader module names through the shader system at load time, and create
+  the node in `Create(RenderNodeFactoryContext)`. Runtime overrides go to the created
+  node's properties — loaded factories are shared cached assets and must not be mutated.
+  Pipeline-shape dependencies come from the context's `RenderNodeFactoryServices`
+  type-keyed blackboard, never from feature-specific context members.
+
 ## Interaction Guidelines
 - When writing code, if there are any ambiguities or unclear requirements, always ask for the user's intent and wait for confirmation before proceeding. Do not guess or make assumptions.
 

@@ -41,26 +41,36 @@ public class Game : GameEngine
 
         _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
-        Bloom bloom = RenderingSystem.CreateBloom(
-            BuiltInAssets.Shader_BloomBlit,
-            BuiltInAssets.Shader_BloomClamp,
-            BuiltInAssets.Shader_BloomDownsample,
-            BuiltInAssets.Shader_BloomUpsample,
-            11);
-        MainPipeline.Use(new RGNode_Bloom(RenderingSystem, MainPipeline.Graph, MainPipeline.Chain, MainPipeline.PostProcessLayout, bloom, BuiltInAssets.Shader_Blit));
+        MainPipeline.Use(new RGNode_Bloom(
+            RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
+            new RGNode_Bloom.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_BloomBlit,
+                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
+                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
+                TargetDownsampleHeight = 11,
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+            }));
 
         var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             MainPipeline.Graph,
             MainPipeline.Chain,
             MainPipeline.PostProcessLayout,
-            BuiltInAssets.Shader_Blit,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_AcesTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgxTonemap);
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
         MainPipeline.Use(tonemapNode);
 
         _shader = BuiltInAssets.Shader_Unlit;

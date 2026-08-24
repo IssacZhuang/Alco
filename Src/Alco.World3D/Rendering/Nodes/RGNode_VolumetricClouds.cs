@@ -196,21 +196,38 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Creates the volumetric clouds renderer with its shaders. The 3D
-    /// noise textures are created here and baked by a compute dispatch on the
-    /// first <see cref="Execute"/>; no GPU work is submitted eagerly. The noise
-    /// bake module's base/detail variants are requested as generic
-    /// specializations (MainCS&lt;let IsDetail&gt;), not defines permutations.
+    /// The node's construction data: the march, composite and cloud-shadow
+    /// coverage shaders, plus the march resolution scale. The noise-bake
+    /// module's base/detail variants resolve inside the node as generic value
+    /// specializations (MainCS&lt;let IsDetail&gt;), not configuration.
+    /// Service-type dependencies (the rendering system) are explicit constructor
+    /// parameters instead — a descriptor is pure data.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The cloud march shader (volumetric-clouds.slang).</summary>
+        public required Shader MarchShader { get; init; }
+        /// <summary>The composite shader (volumetric-clouds-composite.slang).</summary>
+        public required Shader CompositeShader { get; init; }
+        /// <summary>The shadow coverage bake compute shader (volumetric-cloud-shadow.slang).</summary>
+        public required Shader ShadowShader { get; init; }
+
+        /// <summary>The ray-march resolution relative to the graph viewport
+        /// (0.5 = half resolution).</summary>
+        public float MarchResolutionScale { get; init; } = 0.5f;
+
+        /// <summary>Required so the property initializers run (C# struct rule).</summary>
+        public Descriptor() { }
+    }
+
+    /// <summary>
+    /// Creates the volumetric clouds renderer from its descriptor's shaders. The
+    /// 3D noise textures are created here and baked by a compute dispatch on the
+    /// first <see cref="Execute"/>; no GPU work is submitted eagerly.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="marchShader">The cloud march shader (volumetric-clouds.slang).</param>
-    /// <param name="compositeShader">The composite shader (volumetric-clouds-composite.slang).</param>
-    /// <param name="shadowShader">The shadow coverage bake compute shader (volumetric-cloud-shadow.slang).</param>
-    public RGNode_VolumetricClouds(
-        RenderingSystem rendering,
-        Shader marchShader,
-        Shader compositeShader,
-        Shader shadowShader)
+    /// <param name="descriptor">The node's construction data.</param>
+    public RGNode_VolumetricClouds(RenderingSystem rendering, in Descriptor descriptor)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
@@ -248,19 +265,19 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         _noiseDetailMaterial = rendering.CreateComputeMaterial(
             rendering.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudNoise, "1"));
         _noiseDetailMaterial.SetTexture3DStorage("_noiseOut", _detailNoise, 0);
-        _shadowBakeMaterial = rendering.CreateComputeMaterial(shadowShader);
+        _shadowBakeMaterial = rendering.CreateComputeMaterial(descriptor.ShadowShader);
         _shadowBakeMaterial.SetBuffer("_cloudData", _dataBuffer);
         _shadowBakeMaterial.SetTexture("_cloudBaseNoise", _baseNoise);
         _shadowBakeMaterial.SetTexture2DStorage("_shadowOut", _shadowCoverage, 0);
 
-        _marchMaterial = rendering.CreateGraphicsMaterial(marchShader);
+        _marchMaterial = rendering.CreateGraphicsMaterial(descriptor.MarchShader);
         _marchMaterial.DepthStencilState = DepthStencilState.Default;
         _marchMaterial.RasterizerState = RasterizerState.CullNone;
         _marchMaterial.SetBuffer("_cloudData", _dataBuffer);
         _marchMaterial.SetTexture3D("_cloudBaseNoise", _baseNoise);
         _marchMaterial.SetTexture3D("_cloudDetailNoise", _detailNoise);
 
-        _compositeMaterial = rendering.CreateGraphicsMaterial(compositeShader);
+        _compositeMaterial = rendering.CreateGraphicsMaterial(descriptor.CompositeShader);
         _compositeMaterial.DepthStencilState = DepthStencilState.Default;
         _compositeMaterial.RasterizerState = RasterizerState.CullNone;
         _compositeMaterial.BlendState = BlendState.PremultipliedAlpha;

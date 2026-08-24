@@ -4,10 +4,12 @@
 // happens in code through RGNode_SSR.Attach.
 {
     "$type": "Alco.World3D.RGNodeFactory_SSR",
-    "traceShader": "screen-space-reflection-trace",
-    "resolveShader": "screen-space-reflection-resolve",
-    "compositeShader": "screen-space-reflection-composite",
-    "sceneCopyShader": "blit",
-    "blueNoiseShader": "screen-space-reflection-blue-noise",
-    "traceResolutionScale": 0.5
+    "descriptor": {
+        "traceShader": "screen-space-reflection-trace",
+        "resolveShader": "screen-space-reflection-resolve",
+        "compositeShader": "screen-space-reflection-composite",
+        "blitShader": "blit",
+        "blueNoiseShader": "screen-space-reflection-blue-noise",
+        "traceResolutionScale": 0.5
+    }
 }

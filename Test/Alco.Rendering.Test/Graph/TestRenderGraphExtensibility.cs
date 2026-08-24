@@ -231,7 +231,7 @@ public sealed class TestRenderGraphExtensibility
 
         var content = new CustomSceneNode(graph, chain);
         var effect = new CustomEffectNode(graph, chain, _postProcessLayout, "effect");
-        var blit = new RGNode_Blit(_rendering, graph, chain, _blitShader);
+        var blit = new RGNode_Blit(_rendering, graph, chain, new RGNode_Blit.Descriptor { BlitShader = _blitShader });
         graph.Use(new RGNode_Clear(scene, [new ClearColorData(0, Vector4.Zero)], 1.0f));
         graph.Use(content);
         graph.Use(effect);

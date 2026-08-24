@@ -74,7 +74,7 @@ public sealed class RenderPipeline : AutoDisposable
         }
 
         _clearNode = new RGNode_Clear(_sceneResource, clearColors, clearDepth: 1.0f);
-        _blitNode = new RGNode_Blit(rendering, _graph, _chain, blitShader);
+        _blitNode = new RGNode_Blit(rendering, _graph, _chain, new RGNode_Blit.Descriptor { BlitShader = blitShader });
 
         _graph.Use(_clearNode);
         _graph.Use(_blitNode);

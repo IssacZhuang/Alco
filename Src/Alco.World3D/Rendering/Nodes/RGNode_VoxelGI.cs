@@ -126,13 +126,15 @@ public enum VoxelGiDebugMode
 }
 
 /// <summary>
-/// The complete set of shaders required by <see cref="RGNode_VoxelGI"/>.
-/// Load each from its Slang module and pass it to the constructor. The triangle
-/// voxelization shader is not part of this set: it composes per material surface
-/// through the <see cref="MaterialCompiler"/> (the <c>voxelize.slang</c> template ×
-/// each registered asset's surface).
+/// The node's construction data: the complete set of compute/graphics shaders
+/// plus the clipmap and trace parameters — everything a voxel GI needs except
+/// service-type dependencies (the rendering system, material compiler, graph
+/// wiring), which are explicit constructor parameters instead, so a descriptor
+/// is pure data. The triangle voxelization shader is not part of the set: it
+/// composes per material surface through the <see cref="MaterialCompiler"/> (the
+/// <c>voxelize.slang</c> template × each registered asset's surface).
 /// </summary>
-public readonly struct VoxelGiShaders
+public readonly struct VoxelGiDescriptor
 {
     /// <summary>The voxel clear shader (voxel-clear.slang).</summary>
     public required Shader Clear { get; init; }
@@ -155,6 +157,20 @@ public readonly struct VoxelGiShaders
     public required Shader BlueNoise { get; init; }
     /// <summary>The full-resolution upsample shader (voxel-gi-upsample.slang), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
+
+    /// <summary>The voxel resolution of each clipmap level (power of two).</summary>
+    public int Resolution { get; init; } = 128;
+    /// <summary>
+    /// The voxel size of the finest level in world units (default 0.25m, tuned
+    /// on the Bistro scenes and fixed regardless of scene scale; with 128³
+    /// voxels per level the 4-level clipmap covers 32/64/128/256m).
+    /// </summary>
+    public float BaseVoxelSize { get; init; } = 0.25f;
+    /// <summary>Screen-space cone-trace resolution relative to the G-buffer (0.25..1.0).</summary>
+    public float TraceResolutionScale { get; init; } = 0.5f;
+
+    /// <summary>Required so the property initializers run (C# struct rule).</summary>
+    public VoxelGiDescriptor() { }
 }
 
 /// <summary>
@@ -738,61 +754,53 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         ?? throw new InvalidOperationException("The voxel GI renderer is not attached to a graph (call Attach first).");
 
     /// <summary>
-    /// Create the voxel GI renderer.
+    /// Create the voxel GI renderer from its descriptor.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="compiler">The material compiler composing the voxelize feed per registered material surface.</param>
-    /// <param name="shaders">The complete set of voxel GI compute shaders.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
-    /// <param name="resolution">The voxel resolution of each clipmap level (power of two).</param>
-    /// <param name="baseVoxelSize">The voxel size of the finest level in world units
-    /// (default 0.25m, tuned on the Bistro scenes and fixed regardless of scene scale;
-    /// with 128³ voxels per level the 4-level clipmap covers 32/64/128/256m).</param>
-    /// <param name="traceResolutionScale">Screen-space cone-trace resolution relative to the G-buffer (0.25..1.0).</param>
+    /// <param name="descriptor">The node's construction data.</param>
     /// <exception cref="ArgumentException">The voxel resolution or trace-resolution scale is invalid.</exception>
     public RGNode_VoxelGI(
         RenderingSystem rendering,
         MaterialCompiler compiler,
-        VoxelGiShaders shaders,
         uint width,
         uint height,
-        int resolution = 128,
-        float baseVoxelSize = 0.25f,
-        float traceResolutionScale = 0.5f)
+        in VoxelGiDescriptor descriptor)
     {
-        if (resolution < 16 || (resolution & (resolution - 1)) != 0)
+        if (descriptor.Resolution < 16 || (descriptor.Resolution & (descriptor.Resolution - 1)) != 0)
         {
-            throw new ArgumentException("The voxel resolution must be a power of two and at least 16.", nameof(resolution));
+            throw new ArgumentException("The voxel resolution must be a power of two and at least 16.", nameof(descriptor));
         }
-        ValidateTraceResolutionScale(traceResolutionScale);
+        ValidateTraceResolutionScale(descriptor.TraceResolutionScale);
 
         _rendering = rendering;
         _materialCompiler = compiler;
         _device = rendering.GraphicsDevice;
-        _resolution = resolution;
-        _mipCount = (int)MathF.Log2(resolution) + 1;
-        _baseVoxelSize = baseVoxelSize;
+        _resolution = descriptor.Resolution;
+        _mipCount = (int)MathF.Log2(descriptor.Resolution) + 1;
+        _baseVoxelSize = descriptor.BaseVoxelSize;
         _gbufferWidth = Math.Max(width, 1);
         _gbufferHeight = Math.Max(height, 1);
-        _traceResolutionScale = traceResolutionScale;
-        _clipmap = new VoxelGiClipmap(resolution, BrickSize, baseVoxelSize, LevelCount);
+        _traceResolutionScale = descriptor.TraceResolutionScale;
+        _clipmap = new VoxelGiClipmap(descriptor.Resolution, BrickSize, descriptor.BaseVoxelSize, LevelCount);
 
         _commandBuffer = _device.CreateCommandBuffer("voxel_gi");
-        _clearMaterial = rendering.CreateComputeMaterial(shaders.Clear);
-        _injectMaterial = rendering.CreateComputeMaterial(shaders.Inject);
-        _mipMaterial = rendering.CreateComputeMaterial(shaders.Mip);
-        _mipChainMaterial = rendering.CreateComputeMaterial(shaders.MipChain);
-        _propagateMaterial = rendering.CreateComputeMaterial(shaders.Propagate);
-        _traceMaterial = rendering.CreateComputeMaterial(shaders.Trace);
-        _demosaicMaterial = rendering.CreateComputeMaterial(shaders.Demosaic);
+        _clearMaterial = rendering.CreateComputeMaterial(descriptor.Clear);
+        _injectMaterial = rendering.CreateComputeMaterial(descriptor.Inject);
+        _mipMaterial = rendering.CreateComputeMaterial(descriptor.Mip);
+        _mipChainMaterial = rendering.CreateComputeMaterial(descriptor.MipChain);
+        _propagateMaterial = rendering.CreateComputeMaterial(descriptor.Propagate);
+        _traceMaterial = rendering.CreateComputeMaterial(descriptor.Trace);
+        _demosaicMaterial = rendering.CreateComputeMaterial(descriptor.Demosaic);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
 
         // Persistent blue-noise lookup for the cone-march jitter (the same
         // tile the SSR trace samples): baked once on the first rendered frame
         // by a graphics pass, reused by the compute trace afterwards.
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blueNoiseMaterial = rendering.CreateGraphicsMaterial(shaders.BlueNoise, "voxel_gi_blue_noise_bake");
+        _blueNoiseMaterial = rendering.CreateGraphicsMaterial(descriptor.BlueNoise, "voxel_gi_blue_noise_bake");
         _blueNoiseLayout = _device.CreateAttachmentLayout(
             new AttachmentLayoutDescriptor(
                 [new ColorAttachment(PixelFormat.RGBA8Unorm)],
@@ -822,12 +830,12 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // requeue bricks forever (no eviction frees pages while the camera is
         // still). Dynamic data shares one complete level across its nearest
         // levels; the per-frame rebuild drops far bricks beyond it.
-        int bricksPerAxis = resolution / BrickSize;
+        int bricksPerAxis = descriptor.Resolution / BrickSize;
         int pagesPerLevel = bricksPerAxis * bricksPerAxis * bricksPerAxis;
         int staticPageCapacity = pagesPerLevel * LevelCount;
         int dynamicPageCapacity = pagesPerLevel;
-        _staticPagePool = new VoxelGiPagePool(staticPageCapacity, LevelCount, resolution, BrickSize);
-        _dynamicPagePool = new VoxelGiPagePool(dynamicPageCapacity, LevelCount, resolution, BrickSize);
+        _staticPagePool = new VoxelGiPagePool(staticPageCapacity, LevelCount, descriptor.Resolution, BrickSize);
+        _dynamicPagePool = new VoxelGiPagePool(dynamicPageCapacity, LevelCount, descriptor.Resolution, BrickSize);
         uint staticAttributeBytes = checked((uint)(_staticPagePool.VoxelCapacity * 16L));
         uint dynamicAttributeBytes = checked((uint)(_dynamicPagePool.VoxelCapacity * 16L));
         uint pageTableBytes = checked((uint)(pagesPerLevel * sizeof(uint)));
@@ -856,18 +864,18 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // Double-buffered radiance: two RGBA16Float Texture3Ds with full mip
         // chains; all clipmap levels are stacked along the depth axis. Propagate
         // reads one and writes the other, alternating per bounce — no copy-back.
-        _radiance[0] = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+        _radiance[0] = rendering.CreateTexture3D((uint)descriptor.Resolution, (uint)descriptor.Resolution, (uint)(descriptor.Resolution * LevelCount),
             PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance_a");
-        _radiance[1] = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+        _radiance[1] = rendering.CreateTexture3D((uint)descriptor.Resolution, (uint)descriptor.Resolution, (uint)(descriptor.Resolution * LevelCount),
             PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_radiance_b");
 
         // Directional opacity volume: xyz = |normal components| (anisotropic
         // occlusion), w = coverage. Full mip chain for cone-traced projection.
         // Single-buffered — propagate does not modify opacity.
-        _opacity = rendering.CreateTexture3D((uint)resolution, (uint)resolution, (uint)(resolution * LevelCount),
+        _opacity = rendering.CreateTexture3D((uint)descriptor.Resolution, (uint)descriptor.Resolution, (uint)(descriptor.Resolution * LevelCount),
             PixelFormat.RGBA16Float, (uint)_mipCount, name: "voxel_opacity");
 
-        _radianceMemoryBytes = 2 * CalculateMipChainBytes(resolution, resolution, resolution * LevelCount, 8, _mipCount);
+        _radianceMemoryBytes = 2 * CalculateMipChainBytes(descriptor.Resolution, descriptor.Resolution, descriptor.Resolution * LevelCount, 8, _mipCount);
 
         // Initial bindings (rebound per-bounce in Render for propagate/trace):
         // Inject always writes to radiance[0] mip 0 at the start of each frame.
@@ -900,9 +908,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // are graph transients created by Attach.
 
         // Create the upsample compute pass eagerly when the shader is supplied.
-        if (shaders.Upsample != null)
+        if (descriptor.Upsample != null)
         {
-            InitUpsample(shaders.Upsample);
+            InitUpsample(descriptor.Upsample);
         }
 
         // Bind the RSM fallback until Attach supplies a real RSM map.

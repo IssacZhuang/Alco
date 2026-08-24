@@ -2,7 +2,9 @@
 // specialization of the fxaa module, one specialized shader per preset.
 {
     "$type": "Alco.Rendering.RGNodeFactory_FXAA",
-    "sceneCopyShader": "blit",
-    "quality": "Medium",
-    "threshold": 0.125
+    "descriptor": {
+        "sceneCopyShader": "blit",
+        "quality": "Medium",
+        "threshold": 0.125
+    }
 }

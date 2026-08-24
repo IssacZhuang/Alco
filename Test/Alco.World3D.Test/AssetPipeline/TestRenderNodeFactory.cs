@@ -67,18 +67,20 @@ public class TestRenderNodeFactory
         {
             "$type": "Alco.Rendering.RGNodeFactory_FXAA",
             // jsonc: comments and trailing commas are author-friendly,
-            "sceneCopyShader": "test_fxaa",
-            "quality": "High",
+            "descriptor": {
+                "sceneCopyShader": "test_fxaa",
+                "quality": "High",
+            }
         }
         """);
 
         var fxaa = (RGNodeFactory_FXAA)factory;
         Assert.Multiple(() =>
         {
-            Assert.That(fxaa.SceneCopyShader, Is.Not.Null);
-            Assert.That(fxaa.SceneCopyShader.Name, Is.EqualTo("test_fxaa"),
+            Assert.That(fxaa.Descriptor.SceneCopyShader, Is.Not.Null);
+            Assert.That(fxaa.Descriptor.SceneCopyShader.Name, Is.EqualTo("test_fxaa"),
                 "The reference resolves through the shader system at load time.");
-            Assert.That(fxaa.Quality, Is.EqualTo(FXAAQuality.High));
+            Assert.That(fxaa.Descriptor.Quality, Is.EqualTo(FXAAQuality.High));
         });
     }
 
@@ -87,7 +89,7 @@ public class TestRenderNodeFactory
     {
         using GameEngine engine = CreateEngine();
         Assert.That(() => Parse(engine, """
-            { "$type": "Alco.Rendering.RGNodeFactory_FXAA", "sceneCopyShader": "no_such_module" }
+            { "$type": "Alco.Rendering.RGNodeFactory_FXAA", "descriptor": { "sceneCopyShader": "no_such_module" } }
             """),
             Throws.TypeOf<JsonException>(),
             "A typoed module name fails at load, not at node creation.");
@@ -100,26 +102,29 @@ public class TestRenderNodeFactory
         RenderNodeFactory factory = Parse(engine, """
         {
             "$type": "Alco.World3D.RGNodeFactory_VoxelGI",
-            "clearShader": "test_fxaa",
-            "injectShader": "test_fxaa",
-            "mipShader": "test_fxaa",
-            "mipChainShader": "test_fxaa",
-            "propagateShader": "test_fxaa",
-            "traceShader": "test_fxaa",
-            "demosaicShader": "test_fxaa",
-            "blueNoiseShader": "test_fxaa",
-            "resolution": 64,
-            "traceResolutionScale": 0.75
+            "descriptor": {
+                "clear": "test_fxaa",
+                "inject": "test_fxaa",
+                "mip": "test_fxaa",
+                "mipChain": "test_fxaa",
+                "propagate": "test_fxaa",
+                "trace": "test_fxaa",
+                "demosaic": "test_fxaa",
+                "blueNoise": "test_fxaa",
+                "resolution": 64,
+                "traceResolutionScale": 0.75
+            }
         }
         """);
 
         var gi = (RGNodeFactory_VoxelGI)factory;
         Assert.Multiple(() =>
         {
-            Assert.That(gi.ClearShader.Name, Is.EqualTo("test_fxaa"));
-            Assert.That(gi.UpsampleShader, Is.Null, "An omitted optional shader slot stays null.");
-            Assert.That(gi.Resolution, Is.EqualTo(64));
-            Assert.That(gi.TraceResolutionScale, Is.EqualTo(0.75f));
+            Assert.That(gi.Descriptor.Clear.Name, Is.EqualTo("test_fxaa"));
+            Assert.That(gi.Descriptor.Upsample, Is.Null, "An omitted optional shader slot stays null.");
+            Assert.That(gi.Descriptor.Resolution, Is.EqualTo(64));
+            Assert.That(gi.Descriptor.TraceResolutionScale, Is.EqualTo(0.75f));
+            Assert.That(gi.Descriptor.BaseVoxelSize, Is.EqualTo(0.25f), "Descriptor defaults survive JSON population.");
         });
     }
 
@@ -154,8 +159,9 @@ public class TestRenderNodeFactory
     public void ParseRejectsUnknownFields()
     {
         using GameEngine engine = CreateEngine();
-        Assert.That(() => Parse(engine,
-                """{ "$type": "Alco.World3D.RGNodeFactory_HBAO", "hbaoShader": "test_fxaa", "noSuchField": 1 }"""),
+        Assert.That(() => Parse(engine, """
+            { "$type": "Alco.World3D.RGNodeFactory_HBAO", "descriptor": { "hbaoShader": "test_fxaa", "noSuchField": 1 } }
+            """),
             Throws.TypeOf<JsonException>());
     }
 
@@ -170,8 +176,7 @@ public class TestRenderNodeFactory
                 {
                     // FXAA node shader binding
                     "$type": "Alco.Rendering.RGNodeFactory_FXAA",
-                    "sceneCopyShader": "test_fxaa",
-                    "threshold": 0.2
+                    "descriptor": { "sceneCopyShader": "test_fxaa", "threshold": 0.2 }
                 }
                 """);
 
@@ -185,7 +190,7 @@ public class TestRenderNodeFactory
             Assert.Multiple(() =>
             {
                 Assert.That(first, Is.TypeOf<RGNodeFactory_FXAA>());
-                Assert.That(((RGNodeFactory_FXAA)first).Threshold, Is.EqualTo(0.2f));
+                Assert.That(((RGNodeFactory_FXAA)first).Descriptor.Threshold, Is.EqualTo(0.2f));
                 Assert.That(second, Is.SameAs(first), "The asset system must cache factory assets per file.");
             });
         }
@@ -248,14 +253,14 @@ public class TestRenderNodeFactory
                 .Add(layout));
 
         var fxaa = (RGNodeFactory_FXAA)Parse(engine, """
-            { "$type": "Alco.Rendering.RGNodeFactory_FXAA", "sceneCopyShader": "test_fxaa" }
+            { "$type": "Alco.Rendering.RGNodeFactory_FXAA", "descriptor": { "sceneCopyShader": "test_fxaa" } }
             """);
         RGNode_FXAA node = fxaa.CreateNode<RGNode_FXAA>(context);
 
         Assert.Multiple(() =>
         {
             Assert.That(node, Is.Not.Null);
-            Assert.That(node.Quality, Is.EqualTo(FXAAQuality.Medium), "Tunable defaults flow into the node.");
+            Assert.That(node.Quality, Is.EqualTo(FXAAQuality.Medium), "Descriptor defaults flow into the node.");
         });
     }
 
@@ -266,11 +271,13 @@ public class TestRenderNodeFactory
         var ssr = (RGNodeFactory_SSR)Parse(engine, """
             {
                 "$type": "Alco.World3D.RGNodeFactory_SSR",
-                "traceShader": "test_fxaa",
-                "resolveShader": "test_fxaa",
-                "compositeShader": "test_fxaa",
-                "sceneCopyShader": "test_fxaa",
-                "blueNoiseShader": "test_fxaa"
+                "descriptor": {
+                    "traceShader": "test_fxaa",
+                    "resolveShader": "test_fxaa",
+                    "compositeShader": "test_fxaa",
+                    "blitShader": "test_fxaa",
+                    "blueNoiseShader": "test_fxaa"
+                }
             }
             """);
         var context = new RenderNodeFactoryContext(engine.RenderingSystem,

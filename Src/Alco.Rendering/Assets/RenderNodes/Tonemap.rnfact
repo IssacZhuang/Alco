@@ -2,11 +2,13 @@
 // the node switches operators at runtime.
 {
     "$type": "Alco.Rendering.RGNodeFactory_Tonemap",
-    "blitShader": "blit",
-    "reinhardShader": "reinhard-luminance-tonemap",
-    "uncharted2Shader": "uncharted2-tonemap",
-    "filmicShader": "filmic-tonemap",
-    "acesShader": "aces-tonemap",
-    "neutralShader": "neutral-tonemap",
-    "agxShader": "agx-tonemap"
+    "descriptor": {
+        "blitShader": "blit",
+        "reinhardShader": "reinhard-luminance-tonemap",
+        "uncharted2Shader": "uncharted2-tonemap",
+        "filmicShader": "filmic-tonemap",
+        "acesShader": "aces-tonemap",
+        "neutralShader": "neutral-tonemap",
+        "agxShader": "agx-tonemap"
+    }
 }

@@ -111,18 +111,31 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         ?? throw new InvalidOperationException("The HBAO renderer is not attached to a graph (call Attach first).");
 
     /// <summary>
-    /// Create the HBAO+ renderer with the given compute shaders. No GPU textures are
-    /// allocated here — the AO textures are graph transients created by <see cref="Attach"/>.
+    /// The node's construction data: the raw AO shader and the bilateral blur
+    /// shader. Service-type dependencies (the rendering system) are explicit
+    /// constructor parameters instead — a descriptor is pure data. No GPU
+    /// textures are allocated at construction — the AO textures are graph
+    /// transients created by <see cref="Attach"/>.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The raw AO shader (hbao.slang).</summary>
+        public required Shader HbaoShader { get; init; }
+        /// <summary>The bilateral blur shader (hbao-blur.slang).</summary>
+        public required Shader BlurShader { get; init; }
+    }
+
+    /// <summary>
+    /// Create the HBAO+ renderer from its descriptor's compute shaders.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="hbaoShader">The raw AO shader (hbao.slang).</param>
-    /// <param name="blurShader">The bilateral blur shader (hbao-blur.slang).</param>
-    public RGNode_HBAO(RenderingSystem rendering, Shader hbaoShader, Shader blurShader)
+    /// <param name="descriptor">The node's construction data.</param>
+    public RGNode_HBAO(RenderingSystem rendering, in Descriptor descriptor)
     {
         _rendering = rendering;
         _device = rendering.GraphicsDevice;
-        _hbaoMaterial = rendering.CreateComputeMaterial(hbaoShader);
-        _blurMaterial = rendering.CreateComputeMaterial(blurShader);
+        _hbaoMaterial = rendering.CreateComputeMaterial(descriptor.HbaoShader);
+        _blurMaterial = rendering.CreateComputeMaterial(descriptor.BlurShader);
         _dataBuffer = rendering.CreateGraphicsValueBuffer<HbaoData>("hbao_data");
         _hbaoMaterial.SetBuffer("_data", _dataBuffer);
         _blurMaterial.SetBuffer("_data", _dataBuffer);
