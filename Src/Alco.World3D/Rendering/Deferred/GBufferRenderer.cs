@@ -265,7 +265,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
 
     string IMaterialPass.Id => PassId;
 
-    string IMaterialPass.TemplateModule => "gbuffer";
+    ShaderLibrary IMaterialPass.Template => _rendering.ShaderSystem.GetLibrary("gbuffer");
 
     GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
         => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer");

@@ -18,8 +18,8 @@ public interface IMaterialPass
     /// <summary>The unique material-pass identifier ("gbuffer", "shadow", ...), unique within its compiler.</summary>
     string Id { get; }
 
-    /// <summary>The pass-template slang module name (composes with each material's surface module).</summary>
-    string TemplateModule { get; }
+    /// <summary>The pass-template shader library (composes with each material's surface library).</summary>
+    ShaderLibrary Template { get; }
 
     /// <summary>
     /// Create the pass's GPU material for one asset from the composed template shader:

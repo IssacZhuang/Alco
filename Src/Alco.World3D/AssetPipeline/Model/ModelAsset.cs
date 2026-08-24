@@ -30,10 +30,10 @@ public readonly struct ModelMaterialSlot
 /// mesh slot. The mesh itself never references materials (its submeshes are named slots);
 /// this asset is where the binding happens. Pure orchestration: loading resolves the
 /// referenced <c>.amsh</c>/<c>.amat</c> files through the asset system as cheap meta loads —
-/// no geometry and no textures are resident — and this object holds no GPU resources.
-/// Geometry streams per LOD via <see cref="Mesh.LoadLodAsync"/>; textures warm up through
-/// <see cref="EnumerateTexturePaths"/> + the asset system, then bind into compiled
-/// materials via <see cref="MaterialCompiler.BindTextures"/>.
+/// no geometry is resident, and material textures load with their material — and this
+/// object holds no GPU resources. Geometry streams per LOD via <see cref="Mesh.LoadLodAsync"/>;
+/// streamed texture sources (e.g. a glTF scene) bind into compiled materials via
+/// <see cref="MaterialCompiler.BindTextures"/>.
 /// </summary>
 public sealed class ModelAsset
 {
@@ -147,18 +147,4 @@ public sealed class ModelAsset
 
     /// <summary>The distinct materials referenced by this model (bindings, then the default), in reference order.</summary>
     public IReadOnlyList<MaterialAsset> EnumerateMaterials() => _materials;
-
-    /// <summary>The distinct texture paths referenced by the bound materials, in first-seen order.</summary>
-    public IReadOnlyList<string> EnumerateTexturePaths()
-    {
-        List<string> paths = new();
-        foreach (string texturePath in _materials.SelectMany(material => material.EnumerateTexturePaths()))
-        {
-            if (!paths.Contains(texturePath))
-            {
-                paths.Add(texturePath);
-            }
-        }
-        return paths;
-    }
 }

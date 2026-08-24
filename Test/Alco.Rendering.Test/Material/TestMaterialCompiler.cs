@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Numerics;
 using System.Text;
 using Alco.Graphics;
 using Alco.ShaderCompiler;
@@ -41,7 +42,7 @@ public class TestMaterialCompiler
         : IMaterialPass<TestMaterialAsset>
     {
         public string Id => id;
-        public string TemplateModule => templateModule;
+        public ShaderLibrary Template => rendering.ShaderSystem.GetLibrary(templateModule);
         public virtual bool Accepts(TestMaterialAsset asset) => true;
         public GraphicsMaterial CreateMaterial(TestMaterialAsset asset, Shader shader)
             => rendering.CreateMaterial(shader, $"{asset.Name}_{id}");
@@ -245,7 +246,11 @@ public class TestMaterialCompiler
         using MaterialCompiler compiler = new(host.RenderingSystem);
         compiler.RegisterPass(new StubPass("main", "test_lit_template", host.RenderingSystem));
 
-        TestMaterialAsset asset = new() { Name = "a", SurfaceShader = "test-compiler-surface.slang" };
+        TestMaterialAsset asset = new()
+        {
+            Name = "a",
+            Surface = host.RenderingSystem.ShaderSystem.GetLibrary("test_compiler_surface"),
+        };
         GraphicsMaterial material = compiler.Get(asset, "main");
 
         Assert.Multiple(() =>
@@ -268,13 +273,14 @@ public class TestMaterialCompiler
         using MaterialCompiler compiler = new(host.RenderingSystem);
         compiler.RegisterPass(new StubPass("main", "test_lit_template", host.RenderingSystem));
 
-        // Declared slot and parameter pass validation (paths are never loaded).
+        // Declared slot and parameter pass validation.
+        ShaderLibrary surface = host.RenderingSystem.ShaderSystem.GetLibrary("test_compiler_surface");
         TestMaterialAsset valid = new()
         {
             Name = "valid",
-            SurfaceShader = "test-compiler-surface.slang",
-            Textures = new Dictionary<string, string> { ["albedoTexture"] = "wall.png" },
-            Parameters = new Dictionary<string, float[]> { ["pulseSpeed"] = [2.0f] },
+            Surface = surface,
+            Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = host.RenderingSystem.TextureWhite },
+            Parameters = new Dictionary<string, Vector4> { ["pulseSpeed"] = new Vector4(2.0f, 0.0f, 0.0f, 0.0f) },
         };
         Assert.That(() => compiler.Get(valid, "main"), Throws.Nothing);
 
@@ -283,14 +289,14 @@ public class TestMaterialCompiler
         TestMaterialAsset typoSlot = new()
         {
             Name = "typoSlot",
-            SurfaceShader = "test-compiler-surface.slang",
-            Textures = new Dictionary<string, string> { ["albedo"] = "wall.png" },
+            Surface = surface,
+            Textures = new Dictionary<string, Texture2D> { ["albedo"] = host.RenderingSystem.TextureWhite },
         };
         TestMaterialAsset typoParam = new()
         {
             Name = "typoParam",
-            SurfaceShader = "test-compiler-surface.slang",
-            Parameters = new Dictionary<string, float[]> { ["nonsense"] = [1.0f] },
+            Surface = surface,
+            Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new Vector4(1.0f, 0.0f, 0.0f, 0.0f) },
         };
         Assert.Multiple(() =>
         {
@@ -322,25 +328,24 @@ public class TestMaterialCompiler
     }
 
     [Test]
-    public void SurfaceModuleNameRequiresASurfaceOrADefault()
+    public void SurfaceRequiresASurfaceOrADefault()
     {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using DummyRenderingSystemHost host = CreateRenderingSystem();
+        ShaderLibrary surface = host.RenderingSystem.ShaderSystem.GetLibrary("test_compiler_surface");
         using MaterialCompiler noDefault = new(host.RenderingSystem);
-        using MaterialCompiler withDefault = new(host.RenderingSystem, "Shaders/Materials/pbr-standard.slang");
+        using MaterialCompiler withDefault = new(host.RenderingSystem, surface);
         MaterialAsset unnamed = new() { Name = "unnamed" };
-        MaterialAsset named = new() { Name = "named", SurfaceShader = "Shaders/my-surface.slang" };
+        MaterialAsset named = new() { Name = "named", Surface = surface };
 
         Assert.Multiple(() =>
         {
-            Assert.That(() => noDefault.SurfaceModuleName(unnamed), Throws.TypeOf<InvalidDataException>(),
+            Assert.That(() => noDefault.SurfaceOf(unnamed), Throws.TypeOf<InvalidDataException>(),
                 "No asset surface and no compiler default is an authoring error.");
-            Assert.That(() => noDefault.SurfaceModuleName(null), Throws.TypeOf<InvalidDataException>());
-            Assert.That(noDefault.SurfaceModuleName(named), Is.EqualTo("my_surface"),
-                "The module name is the file stem with module-name characters.");
-            Assert.That(withDefault.SurfaceModuleName(unnamed), Is.EqualTo("pbr_standard"),
+            Assert.That(() => noDefault.SurfaceOf(null), Throws.TypeOf<InvalidDataException>());
+            Assert.That(noDefault.SurfaceOf(named), Is.SameAs(surface));
+            Assert.That(withDefault.SurfaceOf(unnamed), Is.SameAs(surface),
                 "The compiler's default surface composes when the asset names none.");
-            Assert.That(withDefault.SurfaceModuleName(null), Is.EqualTo("pbr_standard"));
-            Assert.That(MaterialCompiler.ToModuleName("Shaders/Materials/pbr-standard.slang"), Is.EqualTo("pbr_standard"));
+            Assert.That(withDefault.SurfaceOf(null), Is.SameAs(surface));
         });
     }
 }

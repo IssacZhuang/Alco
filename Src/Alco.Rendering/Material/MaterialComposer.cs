@@ -1,3 +1,4 @@
+using System.Numerics;
 using Alco.Graphics;
 using Alco.ShaderCompiler;
 
@@ -5,20 +6,20 @@ namespace Alco.Rendering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MaterialComposer: the pipeline-agnostic material-composition primitive. A
-// "pass template" slang module owns generic [shader] entry points over a
-// surface contract (interface); a "surface" module exports the concrete surface
+// "pass template" shader library owns generic [shader] entry points over a
+// surface contract (interface); a "surface" library exports the concrete surface
 // type. Composition is slang's own component system (composite + link-time
 // specialization) — no generated wrapper modules, no preprocessor stitching:
 //
-//   shader = composer.ComposeGraphics("gbuffer", "my_surface");
+//   shader = composer.ComposeGraphics(gbufferLibrary, mySurfaceLibrary);
 //
 // Every generic entry point takes the surface type as its first specialization
 // argument; value specialization arguments (e.g. the shadow template's
 // <let AlphaTest : bool>) feed the entries' value parameters in entry order.
 // Composed shaders are cached per (template, surface, type, args, kind), ride
-// the module system's disk caches, and hot-reload with it: when either module
-// is invalidated the shader's caches are cleared and ShaderInvalidated fires so
-// consumers can re-record static render bundles.
+// the module system's disk caches, and hot-reload with it: when either library's
+// module is invalidated the shader's caches are cleared and ShaderInvalidated
+// fires so consumers can re-record static render bundles.
 //
 // The composer also owns the material-parameter convention: a surface marks its
 // parameter cbuffers with the [MaterialParams] user attribute (free names, any
@@ -27,7 +28,7 @@ namespace Alco.Rendering;
 // compile) and packs uniform buffers from named values (PackParamsBuffers).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// <summary>Composes pass-template and surface slang modules into cached, hot-reloadable shaders.</summary>
+/// <summary>Composes pass-template and surface shader libraries into cached, hot-reloadable shaders.</summary>
 public sealed class MaterialComposer : IDisposable
 {
     /// <summary>The surface type name every surface module exports by convention.</summary>
@@ -41,8 +42,8 @@ public sealed class MaterialComposer : IDisposable
     public const string ParamsMarkerAttribute = "MaterialParams";
 
     private readonly record struct CompositionKey(
-        string TemplateModule,
-        string SurfaceModule,
+        ShaderLibrary Template,
+        ShaderLibrary Surface,
         string SurfaceType,
         string Specialization,
         string Defines,
@@ -78,22 +79,21 @@ public sealed class MaterialComposer : IDisposable
     /// The composed graphics (vertex+fragment) shader of one (template, surface) pair;
     /// created on first request, then cached. The composer owns the returned shader.
     /// </summary>
-    /// <param name="templateModule">The pass-template module name (owns the generic entry points).</param>
-    /// <param name="surfaceModule">The surface module name (exports the surface type).</param>
+    /// <param name="template">The pass-template library (owns the generic entry points).</param>
+    /// <param name="surface">The surface library (exports the surface type).</param>
     /// <param name="valueSpecArgs">Value specialization arguments in entry order (e.g. ["true"] for the shadow template's AlphaTest).</param>
     /// <param name="surfaceType">The companion type name; <see cref="DefaultSurfaceTypeName"/> by convention.</param>
-    /// <param name="name">Debug name; defaults to "template+surface[args]".</param>
     /// <param name="defines">
     /// Composition-static preprocessor defines (a material asset's surface feature
     /// toggles): baked into the composition identity and applied to every permutation,
     /// unlike the runtime defines a material may still select per pipeline.
     /// </param>
     public Shader ComposeGraphics(
-        string templateModule, string surfaceModule,
+        ShaderLibrary template, ShaderLibrary surface,
         IReadOnlyList<string>? valueSpecArgs = null,
-        string surfaceType = DefaultSurfaceTypeName, string? name = null,
+        string surfaceType = DefaultSurfaceTypeName,
         IReadOnlyList<string>? defines = null)
-        => Compose(templateModule, surfaceModule, valueSpecArgs, surfaceType, name, compute: false, defines);
+        => Compose(template, surface, valueSpecArgs, surfaceType, compute: false, defines);
 
     /// <summary>
     /// The composed compute shader of one (template, surface) pair — e.g. the voxel-GI
@@ -101,14 +101,14 @@ public sealed class MaterialComposer : IDisposable
     /// </summary>
     /// <inheritdoc cref="ComposeGraphics"/>
     public Shader ComposeCompute(
-        string templateModule, string surfaceModule,
+        ShaderLibrary template, ShaderLibrary surface,
         IReadOnlyList<string>? valueSpecArgs = null,
-        string surfaceType = DefaultSurfaceTypeName, string? name = null,
+        string surfaceType = DefaultSurfaceTypeName,
         IReadOnlyList<string>? defines = null)
-        => Compose(templateModule, surfaceModule, valueSpecArgs, surfaceType, name, compute: true, defines);
+        => Compose(template, surface, valueSpecArgs, surfaceType, compute: true, defines);
 
     /// <summary>
-    /// The material-parameter blocks of a surface module — every cbuffer marked
+    /// The material-parameter blocks of a surface library — every cbuffer marked
     /// <c>[<see cref="ParamsMarkerAttribute"/>]</c>, with its scalar/vector float
     /// members — from slang's module-level reflection (no entry points, no link).
     /// Cached per (module, defines); empty means the module marks no parameter
@@ -116,39 +116,40 @@ public sealed class MaterialComposer : IDisposable
     /// render data) carry no marker and are never reported.
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> GetParamsLayouts(
-        string surfaceModule, IReadOnlyList<string>? defines = null)
+        ShaderLibrary surface, IReadOnlyList<string>? defines = null)
     {
         string definesKey = defines == null ? "" : string.Join("|", defines);
         lock (_lock)
         {
-            if (_paramLayouts.TryGetValue((surfaceModule, definesKey),
+            if (_paramLayouts.TryGetValue((surface.Name, definesKey),
                     out Dictionary<string, IReadOnlyList<SlangUniformMember>>? cached))
             {
                 return cached;
             }
             Dictionary<string, IReadOnlyList<SlangUniformMember>> lookup = new(StringComparer.Ordinal);
             foreach ((string blockName, List<SlangUniformMember> members) in
-                     _shaderSystem.Modules.GetModuleMarkedUniformBlocks(surfaceModule, ParamsMarkerAttribute, defines))
+                     _shaderSystem.Modules.GetModuleMarkedUniformBlocks(surface.Name, ParamsMarkerAttribute, defines))
             {
                 lookup.Add(blockName, members);
             }
-            _paramLayouts.Add((surfaceModule, definesKey), lookup);
+            _paramLayouts.Add((surface.Name, definesKey), lookup);
             return lookup;
         }
     }
 
     /// <summary>
     /// Packs a uniform buffer from a parameter-block layout and named values: members
-    /// the value table leaves out read zero; an unknown name is a typo and fails
-    /// listing the valid members. The buffer is laid out at the offsets slang
-    /// reflected (scalars and vectors may mix), 16-byte aligned.
+    /// the value table leaves out read zero; a value reads as many leading components
+    /// as the member takes; an unknown name is a typo and fails listing the valid
+    /// members. The buffer is laid out at the offsets slang reflected (scalars and
+    /// vectors may mix), 16-byte aligned.
     /// </summary>
     /// <param name="layout">The block members (<see cref="GetParamsLayouts"/>).</param>
     /// <param name="values">The values by member name.</param>
     /// <param name="name">The owner name (error context and buffer label).</param>
     public GraphicsBuffer PackParamsBuffer(
         IReadOnlyList<SlangUniformMember> layout,
-        IReadOnlyDictionary<string, float[]> values,
+        IReadOnlyDictionary<string, Vector4> values,
         string name)
     {
         foreach (string key in values.Keys)
@@ -170,18 +171,18 @@ public sealed class MaterialComposer : IDisposable
         float[] data = new float[sizeBytes / sizeof(float)];
         foreach (SlangUniformMember member in layout)
         {
-            if (!values.TryGetValue(member.Name, out float[]? components))
+            if (!values.TryGetValue(member.Name, out Vector4 value))
             {
                 continue;
             }
-            if (components.Length > member.FloatComponentCount)
+            if (member.FloatComponentCount > 4)
             {
                 throw new InvalidDataException(
-                    $"Parameter '{member.Name}' of '{name}' has {components.Length} components, but the surface member takes {member.FloatComponentCount}.");
+                    $"Parameter '{member.Name}' of '{name}' takes {member.FloatComponentCount} components; material parameters support at most 4.");
             }
-            for (int i = 0; i < components.Length; i++)
+            for (int i = 0; i < member.FloatComponentCount; i++)
             {
-                data[member.OffsetBytes / sizeof(float) + i] = components[i];
+                data[member.OffsetBytes / sizeof(float) + i] = value[i];
             }
         }
 
@@ -201,7 +202,7 @@ public sealed class MaterialComposer : IDisposable
     /// <returns>The packed buffer of each block, keyed by block name.</returns>
     public IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(
         IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts,
-        IReadOnlyDictionary<string, float[]> values,
+        IReadOnlyDictionary<string, Vector4> values,
         string name)
     {
         List<string> allMembers = [];
@@ -232,12 +233,12 @@ public sealed class MaterialComposer : IDisposable
         {
             foreach (KeyValuePair<string, IReadOnlyList<SlangUniformMember>> block in layouts)
             {
-                Dictionary<string, float[]> blockValues = new(StringComparer.Ordinal);
+                Dictionary<string, Vector4> blockValues = new(StringComparer.Ordinal);
                 foreach (SlangUniformMember member in block.Value)
                 {
-                    if (values.TryGetValue(member.Name, out float[]? components))
+                    if (values.TryGetValue(member.Name, out Vector4 value))
                     {
-                        blockValues[member.Name] = components;
+                        blockValues[member.Name] = value;
                     }
                 }
                 buffers.Add(block.Key, PackParamsBuffer(block.Value, blockValues, $"{name}:{block.Key}"));
@@ -274,15 +275,15 @@ public sealed class MaterialComposer : IDisposable
     }
 
     private Shader Compose(
-        string templateModule, string surfaceModule,
-        IReadOnlyList<string>? valueSpecArgs, string surfaceType, string? name, bool compute,
+        ShaderLibrary template, ShaderLibrary surface,
+        IReadOnlyList<string>? valueSpecArgs, string surfaceType, bool compute,
         IReadOnlyList<string>? defines)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         string[] specArgs = valueSpecArgs == null ? [] : [.. valueSpecArgs];
         string[] staticDefines = defines == null ? [] : [.. defines];
         string specKey = string.Join("|", specArgs);
-        CompositionKey key = new(templateModule, surfaceModule, surfaceType, specKey,
+        CompositionKey key = new(template, surface, surfaceType, specKey,
             string.Join("|", staticDefines), compute);
         lock (_lock)
         {
@@ -291,10 +292,9 @@ public sealed class MaterialComposer : IDisposable
                 return cached;
             }
 
-            string shaderName = name
-                ?? (specArgs.Length == 0
-                    ? $"{templateModule}+{surfaceModule}"
-                    : $"{templateModule}+{surfaceModule}[{specKey}]");
+            string shaderName = specArgs.Length == 0
+                ? $"{template.Name}+{surface.Name}"
+                : $"{template.Name}+{surface.Name}[{specKey}]";
             Shader shader = _rendering.CreateShader(
                 shaderName,
                 runtimeDefines => CompilePermutation(key, specArgs, staticDefines, runtimeDefines, shaderName));
@@ -313,7 +313,7 @@ public sealed class MaterialComposer : IDisposable
             ? []
             : [.. staticDefines, .. runtimeDefines];
         SlangProgram program = modules.GetComposedProgram(
-            key.TemplateModule, key.SurfaceModule, key.SurfaceType, specArgs, defines);
+            key.Template.Name, key.Surface.Name, key.SurfaceType, specArgs, defines);
 
         // Programs stay pinned: ShaderModule structs reference the code arrays.
         lock (_lock)
@@ -350,8 +350,8 @@ public sealed class MaterialComposer : IDisposable
             affectedShaders =
             [
                 .. _shaders.Where(pair =>
-                        affectedModules.Contains(pair.Key.TemplateModule) ||
-                        affectedModules.Contains(pair.Key.SurfaceModule))
+                        affectedModules.Contains(pair.Key.Template.Name) ||
+                        affectedModules.Contains(pair.Key.Surface.Name))
                            .Select(pair => pair.Value),
             ];
         }

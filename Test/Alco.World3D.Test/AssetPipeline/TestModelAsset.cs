@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Numerics;
 using NUnit.Framework;
 using Alco.Engine;
@@ -9,9 +11,10 @@ namespace Alco.World3D.Test;
 
 /// <summary>
 /// The composition layer (.amdl): loading a model asset resolves its mesh stream and the
-/// bound material assets through the asset system, with slot lookup, default fallback and
-/// texture path collection working on top. The mesh asset is written by the real cooker;
-/// the mesh asset stays header-only (no GPU device).
+/// bound material assets through the asset system, with slot lookup and default fallback
+/// working on top. The mesh asset is written by the real cooker; the mesh asset stays
+/// header-only (no GPU device). Materials load through the engine's material loader
+/// (a NoGPU engine; textures are dummies there).
 /// </summary>
 public class TestModelAsset
 {
@@ -80,42 +83,40 @@ public class TestModelAsset
             MeshAssetWriter.Write(CreateQuadBuildData(), meshFile);
         }
 
-        File.WriteAllText(Path.Combine(directory, "wall.amat"), """
-            { "version": "1.0", "name": "wall", "roughnessFactor": 0.9, "textures": { "albedo": "wall.png" } }
-            """);
-        File.WriteAllText(Path.Combine(directory, "shared.amat"), """
-            { "version": "1.0", "name": "shared", "textures": { "albedo": "wall.png", "normal": "detail.png" } }
-            """);
-        File.WriteAllText(Path.Combine(directory, "default.amat"), """
-            { "version": "1.0", "name": "default" }
-            """);
+        const string pbrType = "\"$type\": \"Alco.World3D.PbrMaterialAsset\"";
+        File.WriteAllText(Path.Combine(directory, "wall.amat"),
+            $$"""{ {{pbrType}}, "version": "1.0", "name": "wall", "roughnessFactor": 0.9 }""");
+        File.WriteAllText(Path.Combine(directory, "shared.amat"),
+            $$"""{ {{pbrType}}, "version": "1.0", "name": "shared" }""");
+        File.WriteAllText(Path.Combine(directory, "default.amat"),
+            $$"""{ {{pbrType}}, "version": "1.0", "name": "default" }""");
 
         return directory;
     }
 
     /// <summary>
-    /// Runs the test body against a fresh asset system over the temp directory, then tears
-    /// down: the mesh stream keeps the .amsh open for positional LOD reads, so it is
-    /// unloaded (disposing its reader) before the directory is deleted.
+    /// Runs the test body against a fresh NoGPU engine over the temp directory, then
+    /// tears down: the mesh stream keeps the .amsh open for positional LOD reads, so it
+    /// is unloaded (disposing its reader) before the directory is deleted.
     /// </summary>
     private static void RunWithAssets(Action<AssetSystem, string> test)
     {
         string directory = CreateAssetDirectory();
-        TestAssetHost host = new();
-        AssetSystem assets = new(host);
+        GameEngine? engine = null;
         try
         {
+            engine = new GameEngine(GameEngineSetting.CreateNoGPU());
+            AssetSystem assets = engine.AssetSystem;
             assets.AddFileSource(new DirectoryFileSource(directory));
-            World3DAssetPipeline.RegisterLoaders(assets);
-            // The material loader is engine infrastructure (GameEngine's default
-            // loaders); this raw AssetSystem registers it directly.
-            assets.RegisterAssetLoader(new AssetLoaderMaterialAsset());
+            // Mesh/model loaders are the pipeline family's; the material loader is
+            // engine infrastructure (GameEngine's default loaders).
+            World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
             test(assets, directory);
         }
         finally
         {
-            assets.Unload("house.amsh");
-            host.Dispose();
+            engine?.AssetSystem.Unload("house.amsh");
+            engine?.Dispose();
             Directory.Delete(directory, true);
         }
     }
@@ -158,9 +159,8 @@ public class TestModelAsset
 
                 Assert.That(model.GetUnboundSlotNames(), Is.EqualTo(new[] { "roof" }));
 
-                // Distinct materials and texture paths across bindings + default.
+                // Distinct materials across bindings + default.
                 Assert.That(model.EnumerateMaterials().Count, Is.EqualTo(3));
-                Assert.That(model.EnumerateTexturePaths(), Is.EqualTo(new[] { "wall.png", "detail.png" }));
             });
         });
     }

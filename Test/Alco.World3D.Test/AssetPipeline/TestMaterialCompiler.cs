@@ -1,4 +1,5 @@
 using System.IO;
+using System.Numerics;
 #nullable enable
 
 using NUnit.Framework;
@@ -25,9 +26,9 @@ public class TestMaterialCompiler
     /// <c>_globalRenderData</c>. The surface contract (ISurface)
     /// resolves from the engine's own asset source, so the temp source carries only
     /// the surface file; every uncustomized attribute rides the interface defaults.
-    /// Returns the surface's asset path;
-    /// <paramref name="directory"/> receives the temp directory to delete when the
-    /// test ends.
+    /// Returns the surface's module name (what <see cref="MaterialAsset.Surface"/>
+    /// references); <paramref name="directory"/> receives the temp directory to delete
+    /// when the test ends.
     /// </summary>
     private static string WriteTestSurface(AssetSystem assets, out string directory)
     {
@@ -68,15 +69,13 @@ public class TestMaterialCompiler
             }
             """);
         assets.AddFileSource(new DirectoryFileSource(directory));
-        return "test-surface.slang";
+        return "test_surface";
     }
 
     [Test]
     public void GBufferMaterialsCompileCacheAndInvalidate()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
         // The renderer's constructor registers itself as the "gbuffer" pass: the
         // template composes with each asset's surface, the renderer factory applies
@@ -124,8 +123,6 @@ public class TestMaterialCompiler
     public void PassAcceptsRoutesAndRejects()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The glass pass participates only for blend materials — the routing that
@@ -150,8 +147,6 @@ public class TestMaterialCompiler
     public void ShadowPassSpecializesAlphaTestFromTheAsset()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The shadow pass feeds its template's <let AlphaTest : bool> parameter
@@ -175,18 +170,16 @@ public class TestMaterialCompiler
     public void TextureSlotsValidateAgainstTheSurface()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
-        // A declared slot of the built-in surface passes validation (the texture
-        // path itself is never loaded by the compiler).
+        // A declared slot of the built-in surface passes validation.
         PbrMaterialAsset textured = new()
         {
             Name = "textured",
-            Textures = new Dictionary<string, string> { ["albedoTexture"] = "wall.png" },
+            Textures = new Dictionary<string, Texture2D>
+                { ["albedoTexture"] = engine.RenderingSystem.TextureWhite },
         };
         Assert.That(() => compiler.Get(textured, "gbuffer"), Throws.Nothing);
 
@@ -195,7 +188,8 @@ public class TestMaterialCompiler
         PbrMaterialAsset typo = new()
         {
             Name = "typo",
-            Textures = new Dictionary<string, string> { ["albedo"] = "wall.png" },
+            Textures = new Dictionary<string, Texture2D>
+                { ["albedo"] = engine.RenderingSystem.TextureWhite },
         };
         Assert.That(() => compiler.Get(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
     }
@@ -204,18 +198,19 @@ public class TestMaterialCompiler
     public void CustomSurfaceComposesIntoThePassTemplate()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        string surfacePath = WriteTestSurface(assets, out string directory);
+        string surfaceModule = WriteTestSurface(engine.AssetSystem, out string directory);
         try
         {
-            World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
-
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
             // A procedural surface: composed into the G-buffer template, declaring no
             // texture slots at all (nothing to stream).
-            PbrMaterialAsset checker = new() { Name = "checker", SurfaceShader = surfacePath };
+            PbrMaterialAsset checker = new()
+            {
+                Name = "checker",
+                Surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule),
+            };
             GraphicsMaterial material = compiler.Get(checker, "gbuffer");
 
             Assert.Multiple(() =>
@@ -239,14 +234,12 @@ public class TestMaterialCompiler
     public void SurfaceParametersBindIntoTheComposedShader()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        string surfacePath = WriteTestSurface(assets, out string directory);
+        string surfaceModule = WriteTestSurface(engine.AssetSystem, out string directory);
         try
         {
-            World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
-
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
+            ShaderLibrary surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule);
 
             // The test surface declares one [MaterialParams] block member; the
             // asset's parameter binds as the block's buffer resource, addressed by
@@ -254,8 +247,8 @@ public class TestMaterialCompiler
             PbrMaterialAsset scaled = new()
             {
                 Name = "scaled",
-                SurfaceShader = surfacePath,
-                Parameters = new Dictionary<string, float[]> { ["scale"] = [4.0f] },
+                Surface = surface,
+                Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             GraphicsMaterial material = compiler.Get(scaled, "gbuffer");
             Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
@@ -265,8 +258,8 @@ public class TestMaterialCompiler
             PbrMaterialAsset typo = new()
             {
                 Name = "typo",
-                SurfaceShader = surfacePath,
-                Parameters = new Dictionary<string, float[]> { ["nonsense"] = [4.0f] },
+                Surface = surface,
+                Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             Assert.That(() => compiler.Get(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
 
@@ -275,7 +268,7 @@ public class TestMaterialCompiler
             PbrMaterialAsset builtinParams = new()
             {
                 Name = "builtin",
-                Parameters = new Dictionary<string, float[]> { ["scale"] = [4.0f] },
+                Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             Assert.That(() => compiler.Get(builtinParams, "gbuffer"), Throws.TypeOf<InvalidDataException>());
         }
@@ -288,7 +281,7 @@ public class TestMaterialCompiler
     /// <summary>
     /// Write the minimal surface module — a bare <c>public struct Surface : ISurface {}</c>
     /// with zero overrides; every attribute rides the interface defaults. Returns the
-    /// surface's asset path; <paramref name="directory"/> receives the temp directory
+    /// surface's module name; <paramref name="directory"/> receives the temp directory
     /// to delete when the test ends.
     /// </summary>
     private static string WriteMinimalSurface(AssetSystem assets, out string directory)
@@ -303,26 +296,27 @@ public class TestMaterialCompiler
             public struct Surface : ISurface {}
             """);
         assets.AddFileSource(new DirectoryFileSource(directory));
-        return "minimal-surface.slang";
+        return "minimal_surface";
     }
 
     [Test]
     public void MinimalSurfaceReliesOnInterfaceDefaults()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        string surfacePath = WriteMinimalSurface(assets, out string directory);
+        string surfaceModule = WriteMinimalSurface(engine.AssetSystem, out string directory);
         try
         {
-            World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
-
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
             // The zero-override surface composes into the G-buffer template like any
             // other: the pass bindings come from the template, and the surface
             // declares no texture slots of its own.
-            PbrMaterialAsset minimal = new() { Name = "minimal", SurfaceShader = surfacePath };
+            PbrMaterialAsset minimal = new()
+            {
+                Name = "minimal",
+                Surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule),
+            };
             GraphicsMaterial material = compiler.Get(minimal, "gbuffer");
             Assert.Multiple(() =>
             {
@@ -334,7 +328,8 @@ public class TestMaterialCompiler
 
             // The compute feed composes too: the voxelize template's pass resources
             // and the shared GI data buffer are all present, surface textures absent.
-            Shader voxelFeed = compiler.ComposeSurfaceComputeShader(minimal, "voxelize");
+            Shader voxelFeed = compiler.ComposeSurfaceComputeShader(
+                minimal, engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize"));
             ShaderReflectionInfo feedReflection = voxelFeed.GetShaderModules().ReflectionInfo;
             Assert.Multiple(() =>
             {
@@ -348,7 +343,8 @@ public class TestMaterialCompiler
 
             // The built-in surface's explicit bindings stay visible across the fold
             // (specialization folds code, not bindings).
-            Shader builtinFeed = compiler.ComposeSurfaceComputeShader(null, "voxelize");
+            Shader builtinFeed = compiler.ComposeSurfaceComputeShader(
+                null, engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize"));
             Assert.That(builtinFeed.GetShaderModules().ReflectionInfo
                 .TryGetResourceLocation("_albedoTexture", out _), Is.True);
         }

@@ -39,6 +39,40 @@ public sealed class ShaderSystem : IDisposable
     /// <summary>The headless module system (module cache, dependency graph, disk caches).</summary>
     public SlangModuleSystem Modules => _modules;
 
+    private readonly Dictionary<string, ShaderLibrary> _libraries = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Gets (or creates) the interned <see cref="ShaderLibrary"/> reference of one module,
+    /// validating that the module name resolves to a source (the same probing
+    /// <c>GetOrLoadModule</c> uses) without compiling anything. Library references are
+    /// the typed identity the material system composes with; they stay valid across
+    /// hot reloads (the module re-resolves by name on the next use after a session
+    /// rebuild). Resolver-backed modules only — modules registered from explicit
+    /// source (<see cref="GetShaderFromModule"/>) are not addressable this way.
+    /// </summary>
+    /// <param name="moduleName">The module name (e.g. <c>pbr_standard</c>).</param>
+    /// <exception cref="InvalidDataException">The name resolves to no module source.</exception>
+    public ShaderLibrary GetLibrary(string moduleName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(moduleName);
+        lock (_lock)
+        {
+            if (_libraries.TryGetValue(moduleName, out ShaderLibrary? cached))
+            {
+                return cached;
+            }
+            if (_modules.GetModuleSource(moduleName) == null)
+            {
+                throw new InvalidDataException(
+                    $"Shader library '{moduleName}' resolves to no module source; check the module name " +
+                    "(it must match the source file's module declaration, e.g. 'pbr_standard').");
+            }
+            ShaderLibrary library = new(moduleName);
+            _libraries.Add(moduleName, library);
+            return library;
+        }
+    }
+
     /// <summary>Gets (or creates) the shader of one module with its default specialization.</summary>
     public Shader GetShader(string moduleName)
         => GetShader(moduleName, ReadOnlySpan<string>.Empty);

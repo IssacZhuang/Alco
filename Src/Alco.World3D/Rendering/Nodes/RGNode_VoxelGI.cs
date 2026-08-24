@@ -1132,7 +1132,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             return cached;
         }
 
-        Shader shader = _materialCompiler.ComposeSurfaceComputeShader(asset, "voxelize");
+        Shader shader = _materialCompiler.ComposeSurfaceComputeShader(
+            asset, _rendering.ShaderSystem.GetLibrary("voxelize"));
         ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
         var material = _rendering.CreateComputeMaterial(shader);
         material.SetBuffer("_data", _dataBuffer);
@@ -1149,13 +1150,13 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // block is an asset error).
         if (asset != null)
         {
-            string moduleName = _materialCompiler.SurfaceModuleName(asset);
+            ShaderLibrary surface = _materialCompiler.SurfaceOf(asset);
             IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
-                _materialCompiler.Composer.GetParamsLayouts(moduleName, defines: asset.Defines);
+                _materialCompiler.Composer.GetParamsLayouts(surface, defines: asset.Defines);
             if (layouts.Count == 0 && asset.Parameters.Count > 0)
             {
                 throw new InvalidDataException(
-                    $"Material '{asset.Name}' has parameters, but its surface '{asset.SurfaceShader}' " +
+                    $"Material '{asset.Name}' has parameters, but its surface '{surface.Name}' " +
                     $"declares no [{MaterialComposer.ParamsMarkerAttribute}] parameter block.");
             }
             if (layouts.Count > 0)

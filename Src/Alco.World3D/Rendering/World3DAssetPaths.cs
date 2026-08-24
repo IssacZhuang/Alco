@@ -8,33 +8,19 @@ namespace Alco.World3D;
 /// module's content is copied into the application's output <c>Assets</c> folder
 /// automatically when it is referenced). The asset loader derives each module's
 /// identity from the file name and compiles it through the shared ShaderSystem.
-/// <br/>The four material-pass templates (GBuffer, ShadowDepth, Rsm, ForwardGlass)
-/// are generic over the surface type and define no directly loadable entry points —
-/// they compose through the <see cref="MaterialCompiler"/>
-/// (see <see cref="MaterialCompiler.ComposeSurfaceShader"/>), never by direct asset load.
+/// <br/>The material-pass templates (gbuffer, shadow_depth, rsm, glass) are generic
+/// over the surface type and define no directly loadable entry points — they compose
+/// through the <see cref="MaterialCompiler"/> from their <see cref="ShaderLibrary"/>
+/// references (see <see cref="MaterialCompiler.ComposeSurfaceShader"/>), never by
+/// direct asset load.
 /// </summary>
 public static class World3DAssetPaths
 {
     /// <summary>The asset folder all module shader modules live under.</summary>
     public const string Folder = "Shaders/Pipelines/Rendering/PBR/";
 
-    /// <summary>The asset folder of the material pass templates (surface-generic, no entry points).</summary>
-    public const string TemplateFolder = "Shaders/Pipelines/";
-
-    /// <summary>Deferred G-buffer pass template: composes with a surface (MaterialCompiler).</summary>
-    public const string Shader_GBuffer = TemplateFolder + "gbuffer.slang";
-
     /// <summary>Deferred lighting pass: resolves the G-buffer into scene color.</summary>
     public const string Shader_DeferredLighting = Folder + "deferred-lighting.slang";
-
-    /// <summary>Cascaded shadow map depth pass template: composes with a surface (MaterialCompiler).</summary>
-    public const string Shader_ShadowDepth = TemplateFolder + "shadow-depth.slang";
-
-    /// <summary>Reflective shadow map pass template: composes with a surface (MaterialCompiler).</summary>
-    public const string Shader_Rsm = TemplateFolder + "rsm.slang";
-
-    /// <summary>Forward transparency pass template (glass): composes with a surface (MaterialCompiler).</summary>
-    public const string Shader_ForwardGlass = TemplateFolder + "glass.slang";
 
     /// <summary>Volumetric light (god rays) additive overlay pass.</summary>
     public const string Shader_VolumetricLight = Folder + "volumetric-light.slang";

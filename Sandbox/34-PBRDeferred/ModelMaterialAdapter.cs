@@ -16,7 +16,7 @@ internal static class ModelMaterialAdapter
 {
     /// <summary>
     /// The material asset descriptor of one glTF material. The material evaluates the
-    /// built-in PbrStandard surface (no <see cref="MaterialAsset.SurfaceShader"/>), so
+    /// built-in PbrStandard surface (no <see cref="MaterialAsset.Surface"/>), so
     /// the descriptor carries only the flat factors and routing fields.
     /// <br/>glTF alpha routing: only BLEND materials whose name contains "Glass" are
     /// true transparency (forward glass pass); the remaining BLEND materials (Bistro's

@@ -9,8 +9,9 @@ namespace Alco.World3D;
 /// Alco.World3D — applications wire this module in themselves (engine startup, then this call).
 /// <br/>The 3D asset chain: <c>.amsh</c> meshes expose named material slots (never
 /// materials), <c>.amat</c> files are data-only material descriptions (loaded by the
-/// engine's <c>AssetLoaderMaterialAsset</c>; this call registers the <c>"pbr"</c> type
-/// discriminator selecting <see cref="PbrMaterialAsset"/>), and <c>.amdl</c> model assets
+/// engine's <c>AssetLoaderMaterialAsset</c>; the family asset type
+/// <see cref="PbrMaterialAsset"/> is selected by the file's <c>$type</c> discriminator
+/// and discovered by assembly scan — no registration), and <c>.amdl</c> model assets
 /// are the composition layer binding materials to mesh slots.
 /// </summary>
 public static class World3DAssetPipeline
@@ -25,7 +26,9 @@ public static class World3DAssetPipeline
     /// Register the module's asset loaders with the engine's asset system. Call once after
     /// engine startup, before loading any World3D assets. A bound rendering system enables GPU
     /// residency (<see cref="MeshAsset.LoadLodAsync"/>); without one, mesh assets load
-    /// header-only. Material and model assets are pure data and never need a device.
+    /// header-only. Material assets resolve their textures and surface library at load
+    /// time, so the engine's material loader (an engine default loader) needs the
+    /// engine's asset and shader systems.
     /// </summary>
     /// <param name="assetSystem">The asset system to register with.</param>
     /// <param name="renderingSystem">The rendering system, or null for header-only mesh assets.</param>
@@ -33,7 +36,6 @@ public static class World3DAssetPipeline
     {
         assetSystem.RegisterAssetLoader(new AssetLoaderMeshAsset(renderingSystem));
         assetSystem.RegisterAssetLoader(new AssetLoaderModelAsset());
-        MaterialAssetJson.RegisterType<PbrMaterialAssetJson>("pbr");
     }
 
     /// <summary>
@@ -43,5 +45,5 @@ public static class World3DAssetPipeline
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     public static MaterialCompiler CreateMaterialCompiler(RenderingSystem rendering)
-        => new(rendering, PbrMaterialAsset.DefaultSurfacePath);
+        => new(rendering, rendering.ShaderSystem.GetLibrary(PbrMaterialAsset.DefaultSurfaceModule));
 }

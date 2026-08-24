@@ -1,10 +1,10 @@
 #nullable enable
 
 using System.IO;
+using System.Numerics;
 using NUnit.Framework;
 using Alco.Engine;
 using Alco.Graphics;
-using Alco.IO;
 using Alco.Rendering;
 using Alco.ShaderCompiler;
 
@@ -22,7 +22,12 @@ namespace Alco.World3D.Test;
 /// </summary>
 public class TestSlangMaterialCompiler
 {
-    private const string ParameterizedSurfacePath = "Shaders/Materials/parameterized-surface.slang";
+    /// <summary>The module name of this fixture's test surface (Files/Assets/Shaders/Materials/parameterized-surface.slang).</summary>
+    private const string ParameterizedSurfaceModule = "parameterized_surface";
+
+    /// <summary>The interned library reference of one module, as assets and passes hold it.</summary>
+    private static ShaderLibrary Library(GameEngine engine, string moduleName)
+        => engine.RenderingSystem.ShaderSystem.GetLibrary(moduleName);
 
     [Test]
     public void TrivialShaderCompilesFromRegisteredSource()
@@ -63,7 +68,7 @@ public class TestSlangMaterialCompiler
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
 
-        Shader shader = compiler.ComposeSurfaceShader(null, "gbuffer");
+        Shader shader = compiler.ComposeSurfaceShader(null, Library(engine, "gbuffer"));
         ShaderModulesInfo modules = shader.GetShaderModules();
         ShaderReflectionInfo info = modules.ReflectionInfo;
 
@@ -94,8 +99,8 @@ public class TestSlangMaterialCompiler
 
         // The real composition the material compiler produces for the G-buffer
         // template with the test surface (mixed-type parameter block).
-        MaterialAsset asset = new() { Name = "parameterized", SurfaceShader = ParameterizedSurfacePath };
-        Shader shader = compiler.ComposeSurfaceShader(asset, "gbuffer");
+        MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
+        Shader shader = compiler.ComposeSurfaceShader(asset, Library(engine, "gbuffer"));
         ShaderReflectionInfo info = shader.GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>
@@ -133,7 +138,7 @@ public class TestSlangMaterialCompiler
             // of a pass template. The unmarked _globalRenderData block is engine
             // data and stays out.
             IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
-                compiler.Composer.GetParamsLayouts("parameterized_surface");
+                compiler.Composer.GetParamsLayouts(Library(engine, ParameterizedSurfaceModule));
             Assert.That(layouts.Keys, Is.EqualTo(new[] { "PulseParams" }));
             IReadOnlyList<SlangUniformMember> members = layouts["PulseParams"];
             Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.FloatComponentCount)),
@@ -156,9 +161,9 @@ public class TestSlangMaterialCompiler
         // The shadow template's alpha test is a value specialization parameter of
         // its fragment entry (<let AlphaTest : bool>) — the SHADOW_CUTOUT define's
         // replacement. Distinct values are distinct composed shaders.
-        MaterialAsset asset = new() { Name = "parameterized", SurfaceShader = ParameterizedSurfacePath };
-        Shader opaque = compiler.ComposeSurfaceShader(asset, "shadow_depth", ["false"]);
-        Shader cutout = compiler.ComposeSurfaceShader(asset, "shadow_depth", ["true"]);
+        MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
+        Shader opaque = compiler.ComposeSurfaceShader(asset, Library(engine, "shadow_depth"), ["false"]);
+        Shader cutout = compiler.ComposeSurfaceShader(asset, Library(engine, "shadow_depth"), ["true"]);
         ShaderModulesInfo plain = opaque.GetShaderModules();
         ShaderModulesInfo alphaTested = cutout.GetShaderModules();
 
@@ -192,25 +197,24 @@ public class TestSlangMaterialCompiler
     public void SlangSurfaceComposesThroughTheMaterialCompiler()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        AssetSystem assets = engine.AssetSystem;
-        World3DAssetPipeline.RegisterLoaders(assets, engine.RenderingSystem);
 
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The renderer's constructor registers itself as the "gbuffer" pass (template
         // × asset surface, the renderer's factory as the pass state).
         using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
 
-        // The test surface with all four mixed-type parameters set.
+        // The test surface with all four mixed-type parameters set (a Vector4 reads
+        // as many leading components as the reflected member takes).
         PbrMaterialAsset parameterized = new()
         {
             Name = "parameterized",
-            SurfaceShader = ParameterizedSurfacePath,
-            Parameters = new Dictionary<string, float[]>
+            Surface = Library(engine, ParameterizedSurfaceModule),
+            Parameters = new Dictionary<string, Vector4>
             {
-                ["pulseSpeed"] = [1.5f],
-                ["pulseIntensity"] = [2.0f],
-                ["pulseColor"] = [1.0f, 0.6f, 0.2f],
-                ["bandFrequency"] = [4.0f],
+                ["pulseSpeed"] = new(1.5f, 0.0f, 0.0f, 0.0f),
+                ["pulseIntensity"] = new(2.0f, 0.0f, 0.0f, 0.0f),
+                ["pulseColor"] = new(1.0f, 0.6f, 0.2f, 0.0f),
+                ["bandFrequency"] = new(4.0f, 0.0f, 0.0f, 0.0f),
             },
         };
         GraphicsMaterial material = compiler.Get(parameterized, "gbuffer");
@@ -232,19 +236,10 @@ public class TestSlangMaterialCompiler
         PbrMaterialAsset typo = new()
         {
             Name = "typo",
-            SurfaceShader = ParameterizedSurfacePath,
-            Parameters = new Dictionary<string, float[]> { ["nonsense"] = [1.0f] },
+            Surface = Library(engine, ParameterizedSurfaceModule),
+            Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(1.0f, 0.0f, 0.0f, 0.0f) },
         };
         Assert.That(() => compiler.Get(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
-
-        // A parameter wider than its reflected member is a mismatch, not padding.
-        PbrMaterialAsset tooWide = new()
-        {
-            Name = "tooWide",
-            SurfaceShader = ParameterizedSurfacePath,
-            Parameters = new Dictionary<string, float[]> { ["pulseSpeed"] = [1.0f, 2.0f] },
-        };
-        Assert.That(() => compiler.Get(tooWide, "gbuffer"), Throws.TypeOf<InvalidDataException>());
 
         // A game-registered pass composes like the built-in ones: open registration
         // is the extension point (here: a minimal materializing factory).
@@ -252,7 +247,7 @@ public class TestSlangMaterialCompiler
         PbrMaterialAsset glass = new()
         {
             Name = "glass",
-            SurfaceShader = ParameterizedSurfacePath,
+            Surface = Library(engine, ParameterizedSurfaceModule),
         };
         GraphicsMaterial glassMaterial = compiler.Get(glass, "glass");
         Assert.That(glassMaterial.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,

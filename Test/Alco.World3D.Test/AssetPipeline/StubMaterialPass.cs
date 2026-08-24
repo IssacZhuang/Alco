@@ -15,7 +15,7 @@ internal class StubMaterialPass(string id, string templateModule, RenderingSyste
 {
     public string Id => id;
 
-    public string TemplateModule => templateModule;
+    public ShaderLibrary Template => rendering.ShaderSystem.GetLibrary(templateModule);
 
     public virtual bool Accepts(PbrMaterialAsset asset) => true;
 

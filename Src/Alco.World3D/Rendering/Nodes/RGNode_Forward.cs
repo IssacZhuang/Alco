@@ -345,7 +345,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<P
 
     string IMaterialPass.Id => PassId;
 
-    string IMaterialPass.TemplateModule => "glass";
+    ShaderLibrary IMaterialPass.Template => _rendering.ShaderSystem.GetLibrary("glass");
 
     GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
         => CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass");

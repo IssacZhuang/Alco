@@ -277,7 +277,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 
     string IMaterialPass.Id => PassId;
 
-    string IMaterialPass.TemplateModule => "shadow_depth";
+    ShaderLibrary IMaterialPass.Template => _rendering.ShaderSystem.GetLibrary("shadow_depth");
 
     GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
         => CreateShadowMaterial(shader, asset.DoubleSided, $"{asset.Name}_shadow");
@@ -293,7 +293,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     {
         public string Id => RsmPassId;
 
-        public string TemplateModule => "rsm";
+        public ShaderLibrary Template => renderer._rendering.ShaderSystem.GetLibrary("rsm");
 
         public GraphicsMaterial CreateMaterial(PbrMaterialAsset asset, Shader shader)
             => renderer.CreateRsmMaterial(shader, asset.DoubleSided, $"{asset.Name}_rsm");

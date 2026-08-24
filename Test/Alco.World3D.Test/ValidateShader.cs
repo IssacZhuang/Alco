@@ -98,7 +98,8 @@ public class ValidateShader
         // material resources set 2 — and compiler-assigned bindings inside
         // each block, resolved by name.
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-        ShaderReflectionInfo gbuffer = compiler.ComposeSurfaceShader(null, "gbuffer")
+        ShaderReflectionInfo gbuffer = compiler.ComposeSurfaceShader(null,
+                engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"))
             .GetShaderModules().ReflectionInfo;
         ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader("HBAO")
             .GetShaderModules().ReflectionInfo;
