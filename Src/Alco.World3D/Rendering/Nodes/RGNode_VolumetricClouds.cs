@@ -243,10 +243,10 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         // The bake kind is a generic value specialization of the noise module:
         // 0 = base shape bake, 1 = detail bake.
         _noiseBaseMaterial = rendering.CreateComputeMaterial(
-            rendering.ShaderSystem.GetShader("volumetric-cloud-noise", "0"));
+            rendering.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudNoise, "0"));
         _noiseBaseMaterial.SetTexture3DStorage("_noiseOut", _baseNoise, 0);
         _noiseDetailMaterial = rendering.CreateComputeMaterial(
-            rendering.ShaderSystem.GetShader("volumetric-cloud-noise", "1"));
+            rendering.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudNoise, "1"));
         _noiseDetailMaterial.SetTexture3DStorage("_noiseOut", _detailNoise, 0);
         _shadowBakeMaterial = rendering.CreateComputeMaterial(shadowShader);
         _shadowBakeMaterial.SetBuffer("_cloudData", _dataBuffer);

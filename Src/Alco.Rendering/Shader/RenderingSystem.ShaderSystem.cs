@@ -6,8 +6,8 @@ namespace Alco.Rendering;
 // ─────────────────────────────────────────────────────────────────────────────
 // RenderingSystem × ShaderSystem (plan §4.2): the engine-owned module shader
 // factory. The host (GameEngine) installs the module resolver — backed by the
-// asset system — before the first GetShader; ".slang" assets load through
-// AssetLoaderShaderSlang, which lands here.
+// asset system as a plain file provider — before the first GetShader; callers
+// load shaders by module name through here, never through asset loads.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public partial class RenderingSystem

@@ -7,7 +7,7 @@ using Alco.IO;
 namespace Alco.Engine;
 
 /// <summary>
-/// Represents an asset loader for shader meta files.
+/// Represents an asset loader for asset meta files.
 /// </summary>
 public class AssetLoaderMeta : IAssetLoader
 {

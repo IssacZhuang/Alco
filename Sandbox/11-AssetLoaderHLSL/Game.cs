@@ -57,7 +57,7 @@ public class Game : GameEngine
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
-        _shader = AssetSystem.Load<Shader>("shader.slang");
+        _shader = RenderingSystem.ShaderSystem.GetShader("sandbox11-shader");
         _pipelineInfo = _shader.GetGraphicsPipeline(
             RenderingSystem.PreferredHDRPass,
             DepthStencilState.Default,

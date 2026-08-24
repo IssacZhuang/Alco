@@ -22,14 +22,14 @@ public class ValidateShader
     public void ValidateAllShaders()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
-        var assets = engine.AssetSystem;
-        // Query every entry-point module shipped by Alco.Rendering. Import-only
-        // libraries live under Shaders/Libs and are compiled by their importers.
-        // Generic modules (fxaa, texture-compress-bc3) cannot be loaded
+        // Query every entry-point module shipped by Alco.Rendering through the
+        // asset list (the module sources live under the engine's asset root).
+        // Import-only libraries live under Shaders/Libs and are compiled by their
+        // importers. Generic modules (fxaa, texture-compress-bc3) cannot be loaded
         // unspecialized — ValidateSlangModules (Alco.Rendering.Test) covers them
         // through their specialization argument table.
         string[] genericModules = ["fxaa.slang", "texture-compress-bc3.slang"];
-        var files = assets.AllAssetNames
+        var files = engine.AssetSystem.AllAssetNames
             .Where(x => x.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
             .Where(x => !x.Contains("Shaders/Libs/", StringComparison.OrdinalIgnoreCase))
             .Where(x => !genericModules.Contains(Path.GetFileName(x), StringComparer.OrdinalIgnoreCase))
@@ -38,25 +38,24 @@ public class ValidateShader
         Assert.That(files, Is.Not.Empty,
             "No Slang shader modules were found; built-in shader assets failed to reach the test output.");
 
-        List<Task<Shader>> tasks = new();
-
-        foreach (string file in files)
-        {
-            tasks.Add(assets.LoadAsync<Shader>(file));
-        }
-
+        // The load name is the dashed file stem (docs/SlangCodingStandard.md) —
+        // the same GetShader route every runtime caller uses.
+        List<Shader> shaders = new(files.Length);
         try
         {
-            Task.WaitAll(tasks);
+            foreach (string file in files)
+            {
+                string moduleName = Path.GetFileNameWithoutExtension(file).Replace('_', '-');
+                shaders.Add(engine.RenderingSystem.ShaderSystem.GetShader(moduleName));
+            }
         }
         catch (Exception e)
         {
             Assert.Fail($"Failed to load shader: {e}");
         }
 
-        Parallel.ForEach(tasks, task =>
+        Parallel.ForEach(shaders, shader =>
         {
-            var shader = task.Result;
             shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
         });
 

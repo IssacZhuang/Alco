@@ -427,20 +427,20 @@ public class Game : GameEngine
         _camera.ReverseInfiniteDepth = true;
 
         // Every World3D shader below is a slang module compiled through the
-        // shared ShaderSystem; plain modules load through the asset system and
-        // the material-pass templates compose with each material asset's surface
+        // shared ShaderSystem; plain modules load by name and the
+        // material-pass templates compose with each material asset's surface
         // through the MaterialCompiler — the renderers register their passes on it.
         _materialCompiler = World3DAssetPipeline.CreateMaterialCompiler(RenderingSystem);
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            AssetSystem.Load<Shader>(World3DAssetPaths.Shader_DeferredLighting),
+            RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.DeferredLighting),
             BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            volumetricLightShader: AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricLight));
+            volumetricLightShader: RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricLight));
         _environment = _preset.Environment;
         _environment.VolumetricLightEnabled = true;
 
@@ -487,8 +487,8 @@ public class Game : GameEngine
         {
             _hbaoRenderer = new RGNode_HBAO(
                 RenderingSystem,
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_HBAO),
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_HBAOBlur));
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.HBAO),
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.HBAOBlur));
             _hbaoRenderer.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
         }
 
@@ -517,9 +517,9 @@ public class Game : GameEngine
                 : 0.5f;
             _clouds = new RGNode_VolumetricClouds(
                 RenderingSystem,
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricClouds),
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudsComposite),
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VolumetricCloudShadow))
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricClouds),
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudsComposite),
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudShadow))
             {
                 MarchResolutionScale = cloudResolutionScale,
             };
@@ -643,15 +643,15 @@ public class Game : GameEngine
                 _materialCompiler,
                 new VoxelGiShaders
                 {
-                    Clear = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelClear),
-                    Inject = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelInject),
-                    Mip = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelMip),
-                    MipChain = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelMipChain),
-                    Propagate = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelPropagate),
-                    Trace = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelTrace),
-                    Demosaic = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelDemosaic),
-                    BlueNoise = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrBlueNoise),
-                    Upsample = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelGiUpsample),
+                    Clear = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelClear),
+                    Inject = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelInject),
+                    Mip = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelMip),
+                    MipChain = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelMipChain),
+                    Propagate = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelPropagate),
+                    Trace = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelTrace),
+                    Demosaic = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelDemosaic),
+                    BlueNoise = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrBlueNoise),
+                    Upsample = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelGiUpsample),
                 },
                 width: (uint)MainView.Size.X,
                 height: (uint)MainView.Size.Y,
@@ -693,11 +693,11 @@ public class Game : GameEngine
                 _voxelGI,
                 _camera,
                 _environment,
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrTrace),
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrResolve),
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrComposite),
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrTrace),
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrResolve),
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrComposite),
                 BuiltInAssets.Shader_Blit,
-                AssetSystem.Load<Shader>(World3DAssetPaths.Shader_SsrBlueNoise),
+                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrBlueNoise),
                 (uint)MainView.Size.X,
                 (uint)MainView.Size.Y,
                 traceResolutionScale: GiTraceResolutionScales[_ssrResolutionPreset]);

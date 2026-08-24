@@ -142,7 +142,8 @@ public class Game : GameEngine
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
 
-        _wallMaterial = RenderingSystem.CreateGraphicsMaterial(AssetSystem.Load<Shader>("Shaders/tile-connectable.slang"));
+        _wallMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("tile-connectable"));
         _wallMaterial.BlendState = BlendState.Opaque;
         _wallMaterial.DepthStencilState = DepthStencilState.Write;
         _wallMaterial.SetTexture(ShaderResourceId.Texture, textureWall);

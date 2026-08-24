@@ -50,7 +50,8 @@ public class Game : GameEngine
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
-        GraphicsMaterial blitMaterial = RenderingSystem.CreateGraphicsMaterial(AssetSystem.Load<Shader>("inverser-gamma.slang"));
+        GraphicsMaterial blitMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("inverser-gamma"));
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _material = blitMaterial.CreateInstance();

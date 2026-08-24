@@ -12,9 +12,6 @@ public partial class GameEngine
         var jsonConverters = CreateDefaultJsonConverters();
         var jsonConvertersList = jsonConverters.ToList();
 
-        // shader
-        yield return new AssetLoaderShaderSlang(RenderingSystem);
-
         // material
         yield return new AssetLoaderMaterialAsset(AssetSystem, RenderingSystem.ShaderSystem);
 
@@ -79,7 +76,6 @@ public partial class GameEngine
         yield return new JsonConverterQuaternion();
         yield return new JsonConverterColor32();
         yield return new JsonConverterColorFloat();
-        yield return new JsonConverterShader(AssetSystem);
         yield return new JsonConverterTexture2D(AssetSystem);
         yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterDepthStencilState();

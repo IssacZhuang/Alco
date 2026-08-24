@@ -10,8 +10,8 @@ namespace Alco.World3D.Test;
 /// Compiles every shader module shipped with the Alco.World3D module through the
 /// shared slang module system (the same compiler path used at runtime). The
 /// module's shader modules flow into the test output's <c>Assets</c> folder, so
-/// the default engine asset source serves them; the asset loader derives each
-/// module's identity from its file name. The four material-pass templates
+/// the default engine asset source serves them; each file's dashed stem is its
+/// load name. The four material-pass templates
 /// (gbuffer/shadow_depth/rsm/glass) are surface-generic and define no entry
 /// points — <see cref="TestSlangMaterialCompiler"/> covers their composition.
 /// </summary>
@@ -32,59 +32,35 @@ public class ValidateShader
     public void ValidateAllWorld3DShaders()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
-        var assets = engine.AssetSystem;
         // Query every entry-point-owning .slang module of the module's shader tree.
-        var files = assets.AllAssetNames
-            .Where(x => x.EndsWith(".slang") && x.StartsWith(World3DAssetPaths.Folder))
+        var files = engine.AssetSystem.AllAssetNames
+            .Where(x => x.EndsWith(".slang") && x.StartsWith(World3DShaderModules.Folder))
             .Where(IsEntryPointModule)
             .ToArray();
 
         Assert.That(files, Is.Not.Empty, "No World3D shader modules were found; the module assets failed to flow into the test output.");
 
-        List<Task<Shader>> tasks = new();
-
-        foreach (string file in files)
-        {
-            tasks.Add(assets.LoadAsync<Shader>(file));
-        }
-
+        // The module-name keyed lookup path: the same route hot reload and the
+        // material composition use (name → resolver → module system). The load
+        // name is the dashed file stem (docs/SlangCodingStandard.md).
+        List<Shader> shaders = new(files.Length);
         try
         {
-            Task.WaitAll(tasks);
+            foreach (string file in files)
+            {
+                string moduleName = Path.GetFileNameWithoutExtension(file);
+                shaders.Add(engine.RenderingSystem.ShaderSystem.GetShader(moduleName));
+            }
         }
         catch (Exception e)
         {
             Assert.Fail($"Failed to load shader: {e}");
         }
 
-        Parallel.ForEach(tasks, task =>
+        Parallel.ForEach(shaders, shader =>
         {
-            var shader = task.Result;
             shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
         });
-    }
-
-    [Test(Description = "Validate all Alco.World3D shader modules through direct module-system loads")]
-    public void ValidateAllWorld3DShadersByModule()
-    {
-        using ShaderValidator engine = new ShaderValidator(Setting);
-        var assets = engine.AssetSystem;
-        string[] files = assets.AllAssetNames
-            .Where(x => x.EndsWith(".slang") && x.StartsWith(World3DAssetPaths.Folder))
-            .Where(IsEntryPointModule)
-            .ToArray();
-
-        Assert.That(files, Is.Not.Empty,
-            "No World3D shader modules were found; the module assets failed to flow into the test output.");
-
-        // The module-name keyed lookup path: the same route hot reload and the
-        // material composition use (name → resolver → module system).
-        foreach (string file in files)
-        {
-            string moduleName = Path.GetFileNameWithoutExtension(file);
-            Shader shader = engine.RenderingSystem.ShaderSystem.GetShader(moduleName);
-            shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
-        }
     }
 
     [Test]
@@ -101,7 +77,7 @@ public class ValidateShader
         ShaderReflectionInfo gbuffer = compiler.ComposeSurfaceShader(null,
                 engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"))
             .GetShaderModules().ReflectionInfo;
-        ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader("HBAO")
+        ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.HBAO)
             .GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>
