@@ -199,6 +199,84 @@ public class SlangModuleSystemTest
     }
 
     [Test]
+    public void ModuleIRDiskCache_NameKeyedModules_RestoreAcrossSystems()
+    {
+        // Name-keyed loads (the engine's GetShader route) probe the module by
+        // name→file conventions; the probe candidate must become the module's
+        // path identity. The extension-less module name previously used as the
+        // identity resolved to nothing through the resolver, so cache writes
+        // succeeded while every read missed — each run re-parsed the module.
+        Dictionary<string, string> files = new()
+        {
+            ["shaders/name-keyed.slang"] = MainModule,
+            ["alco_sys_lib.slang"] = LibModule,
+        };
+        string cache = TempCache();
+        try
+        {
+            using (SlangModuleSystem system = new(OptionsFor(files), cache))
+            {
+                system.GetOrLoadModule("name-keyed");
+                using SlangProgram program = system.GetProgramAllEntries("name-keyed", []);
+                Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
+            }
+
+            using SlangModuleSystem restored = new(OptionsFor(files), cache);
+            restored.GetOrLoadModule("name-keyed");
+            using SlangProgram cached = restored.GetProgramAllEntries("name-keyed", []);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(restored.IsModuleLoadedFromCache("name-keyed"), Is.True,
+                    "the name-keyed module must restore from the IR cache");
+                Assert.That(cached.EntryCode[0].Length, Is.GreaterThan(4));
+            });
+        }
+        finally
+        {
+            Directory.Delete(cache, true);
+        }
+    }
+
+    [Test]
+    public void ModuleIRDiskCache_DefinePermutations_RestoreAcrossSystems()
+    {
+        // A permutation's own path identity is a disambiguated name no resolver
+        // can address; its staleness must come from the hashed permutation
+        // source instead of resolver lookups of the fabricated path.
+        Dictionary<string, string> files = new() { ["shaders/define_permuted.slang"] = DefinePermutedModule };
+        string cache = TempCache();
+        try
+        {
+            using (SlangModuleSystem system = new(OptionsFor(files), cache))
+            {
+                system.GetOrLoadModule("define_permuted");
+                system.GetOrLoadModule("define_permuted", ["NOISE_DETAIL"]);
+                using SlangProgram plain = system.GetProgramAllEntries("define_permuted", []);
+                using SlangProgram detailed = system.GetProgramAllEntries("define_permuted", [], ["NOISE_DETAIL"]);
+                Assert.That(plain.EntryCode[0].Length, Is.GreaterThan(4));
+                Assert.That(detailed.EntryCode[0].Length, Is.GreaterThan(4));
+            }
+
+            using SlangModuleSystem restored = new(OptionsFor(files), cache);
+            restored.GetOrLoadModule("define_permuted");
+            restored.GetOrLoadModule("define_permuted", ["NOISE_DETAIL"]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(restored.IsModuleLoadedFromCache("define_permuted"), Is.True,
+                    "the base module must restore from the IR cache");
+                Assert.That(restored.IsModuleLoadedFromCache("define_permuted|NOISE_DETAIL"), Is.True,
+                    "the define permutation must restore from the IR cache");
+            });
+        }
+        finally
+        {
+            Directory.Delete(cache, true);
+        }
+    }
+
+    [Test]
     public void ModuleIRDiskCache_StaleWhenSourceChanges()
     {
         Dictionary<string, string> files = DefaultFiles();

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Hashing;
 using System.Text.RegularExpressions;
@@ -12,10 +13,15 @@ namespace Alco.ShaderCompiler;
 // disk-cache layers that replace ShaderCache:
 //
 //   (a) modules/<hash>.slang-module + .meta — serialized module IR. The meta
-//       sidecar stamps the slang build tag, the session's code target and
-//       every dependency's content hash, because isBinaryModuleUpToDate
-//       accepts source-less blobs without validation (the plan's explicit
-//       caveat).
+//       sidecar stamps the slang build tag, the session's code target, the
+//       hash of the EXACT source the module was built from (a file's content
+//       or its define-prefixed permutation) and every FILE dependency's
+//       content hash. The module's own path identity is deliberately not a
+//       recorded dependency: an extension-less module name and a permutation's
+//       disambiguated path both resolve to nothing through the file resolver,
+//       and validating them through it made every cache read miss. For the
+//       same reason isBinaryModuleUpToDate is bypassed — it accepts
+//       source-less blobs without validation (the plan's explicit caveat).
 //   (b) programs/<hash>.bin — linked programs (per-entry target code +
 //       materialized reflection + uniform members), keyed by module IR hash,
 //       entry set, specialization, code target and build tag.
@@ -30,7 +36,7 @@ namespace Alco.ShaderCompiler;
 /// <summary>Owns slang modules, their dependency graph and the shader disk caches.</summary>
 public sealed partial class SlangModuleSystem : IDisposable
 {
-    private const int MetaVersion = 2;
+    private const int MetaVersion = 3;
     private const int ProgramCacheKeyVersion = 4;
 
     private readonly SlangCompilerOptions _options;
@@ -164,10 +170,15 @@ public sealed partial class SlangModuleSystem : IDisposable
             }
 
             // Probe the module's source through the name→file conventions the
-            // resolver implements, then load from that source.
-            string? source = ResolveModuleSource(moduleName);
-            if (source == null)
+            // resolver implements, then load from that source. The candidate
+            // that hit becomes the module's path identity: slang reports it
+            // back as a dependency path and the disk cache validates those
+            // through the resolver — the extension-less module name used as
+            // the identity before resolves to nothing, so writes succeeded
+            // while every read missed and each run re-parsed the module.
+            if (ResolveModuleSource(moduleName) is not { } probe)
                 throw new ShaderCompilationException($"slang module '{moduleName}' not found through the resolver.");
+            string source = probe.Source;
             if (defines is { Count: > 0 })
             {
                 string suffix = string.Concat(defines.Select(define => "_" + define));
@@ -179,7 +190,7 @@ public sealed partial class SlangModuleSystem : IDisposable
                 source = ModuleDeclarationRegex().Replace(
                     source, m => $"{m.Groups[1].Value}module {m.Groups[2].Value}{suffix};");
             }
-            ModuleEntry entry = LoadModuleLocked(key, moduleName, source);
+            ModuleEntry entry = LoadModuleLocked(key, probe.Candidate, source);
             _modules[key] = entry;
             IndexDependenciesLocked(key, entry);
             return entry.Module;
@@ -286,14 +297,21 @@ public sealed partial class SlangModuleSystem : IDisposable
             if (_programs.TryGetValue(key, out SlangProgram? cached))
                 return cached;
 
-            if (_cacheDirectory != null && TryReadProgram(key, out SlangCachedProgram? payload))
+            if (_cacheDirectory != null)
             {
-                SlangProgram restored = SlangProgram.FromCache(logicalName, payload);
-                TrackProgramLocked(restored);
-                _programs[key] = restored;
-                return restored;
+                long readStart = Stopwatch.GetTimestamp();
+                if (TryReadProgram(key, out SlangCachedProgram? payload))
+                {
+                    SlangProgram restored = SlangProgram.FromCache(logicalName, payload);
+                    TrackProgramLocked(restored);
+                    _programs[key] = restored;
+                    _options.Log?.Invoke(
+                        $"slang program '{logicalName}' restored from disk cache in {ElapsedMs(readStart)}ms");
+                    return restored;
+                }
             }
 
+            long linkStart = Stopwatch.GetTimestamp();
             SlangProgram program = _session.CompileComposed(
                 template, companion, companionTypeName, valueSpecializationArgs);
             HarvestUniformMembers(program);
@@ -303,6 +321,8 @@ public sealed partial class SlangModuleSystem : IDisposable
 
             if (_cacheDirectory != null)
                 WriteProgram(key, program);
+            _options.Log?.Invoke(
+                $"slang program '{logicalName}' linked in {ElapsedMs(linkStart)}ms");
             return program;
         }
     }
@@ -340,14 +360,21 @@ public sealed partial class SlangModuleSystem : IDisposable
         if (_programs.TryGetValue(key, out SlangProgram? cached))
             return cached;
 
-        if (_cacheDirectory != null && TryReadProgram(key, out SlangCachedProgram? payload))
+        if (_cacheDirectory != null)
         {
-            SlangProgram restored = SlangProgram.FromCache(moduleName, payload);
-            TrackProgramLocked(restored);
-            _programs[key] = restored;
-            return restored;
+            long readStart = Stopwatch.GetTimestamp();
+            if (TryReadProgram(key, out SlangCachedProgram? payload))
+            {
+                SlangProgram restored = SlangProgram.FromCache(moduleName, payload);
+                TrackProgramLocked(restored);
+                _programs[key] = restored;
+                _options.Log?.Invoke(
+                    $"slang program '{moduleName}' restored from disk cache in {ElapsedMs(readStart)}ms");
+                return restored;
+            }
         }
 
+        long linkStart = Stopwatch.GetTimestamp();
         SlangProgram program = compile(specializationArgs);
         HarvestUniformMembers(program);
         program.Owner = this;
@@ -356,6 +383,7 @@ public sealed partial class SlangModuleSystem : IDisposable
 
         if (_cacheDirectory != null)
             WriteProgram(key, program);
+        _options.Log?.Invoke($"slang program '{moduleName}' linked in {ElapsedMs(linkStart)}ms");
         return program;
     }
 
@@ -410,28 +438,37 @@ public sealed partial class SlangModuleSystem : IDisposable
 
     private void TrackProgramLocked(SlangProgram program) => _livePrograms.Add(program);
 
-    private ModuleEntry LoadModuleLocked(string key, string moduleName, string source)
+    private ModuleEntry LoadModuleLocked(string key, string pathIdentity, string source)
     {
-        if (_cacheDirectory != null && TryReadModuleCache(key, out ModuleEntry? cached))
-            return cached!;
+        if (_cacheDirectory != null)
+        {
+            long readStart = Stopwatch.GetTimestamp();
+            if (TryReadModuleCache(key, pathIdentity, source, out ModuleEntry? cached))
+            {
+                _options.Log?.Invoke(
+                    $"slang module '{key}' restored from IR cache in {ElapsedMs(readStart)}ms");
+                return cached!;
+            }
+        }
 
         // slang keys root-loaded modules by PATH identity: a second module made
         // from the same file (a define permutation registered under a distinct
         // name) must enter under a distinct one, or slang's dictionary assert
         // fires on the duplicate add.
         string loadName = key.Replace('|', '_');
-        string pathIdentity = moduleName;
-        if (_rootLoadedPaths.Contains(pathIdentity))
+        string modulePath = pathIdentity;
+        if (_rootLoadedPaths.Contains(modulePath))
         {
-            string directory = Path.GetDirectoryName(moduleName) ?? "";
-            string stem = Path.GetFileNameWithoutExtension(moduleName);
-            string extension = Path.GetExtension(moduleName);
+            string directory = Path.GetDirectoryName(pathIdentity) ?? "";
+            string stem = Path.GetFileNameWithoutExtension(pathIdentity);
+            string extension = Path.GetExtension(pathIdentity);
             string disambiguator = Convert.ToHexString(XxHash3.Hash(
                 System.Text.Encoding.UTF8.GetBytes(key)))[..8];
-            pathIdentity = Path.Combine(directory, $"{stem}_{disambiguator}{extension}");
+            modulePath = Path.Combine(directory, $"{stem}_{disambiguator}{extension}");
         }
-        _rootLoadedPaths.Add(pathIdentity);
-        SlangModuleHandle module = _session.LoadModuleFromSource(loadName, pathIdentity, source);
+        _rootLoadedPaths.Add(modulePath);
+        long parseStart = Stopwatch.GetTimestamp();
+        SlangModuleHandle module = _session.LoadModuleFromSource(loadName, modulePath, source);
         byte[]? ir = module.Serialize();
         ModuleEntry entry = new()
         {
@@ -443,15 +480,17 @@ public sealed partial class SlangModuleSystem : IDisposable
             SerializedIR = ir,
             IrHash = ir != null ? Convert.ToHexString(XxHash3.Hash(ir)) : "",
         };
-        if (pathIdentity != moduleName && !entry.Dependencies.Contains(moduleName))
+        string normalizedIdentity = SlangPathUtility.NormalizePath(pathIdentity);
+        if (modulePath != pathIdentity && !entry.Dependencies.Contains(normalizedIdentity))
         {
             // The entry's path identity was disambiguated, so record the ORIGINAL
             // path as a dependency too — file invalidation must reach the
             // permutation together with its base module.
-            entry.Dependencies.Add(moduleName);
+            entry.Dependencies.Add(normalizedIdentity);
         }
         if (_cacheDirectory != null)
-            WriteModuleCache(key, moduleName, entry);
+            WriteModuleCache(key, modulePath, entry, source);
+        _options.Log?.Invoke($"slang module '{key}' parsed from source in {ElapsedMs(parseStart)}ms");
         return entry;
     }
 
@@ -459,15 +498,15 @@ public sealed partial class SlangModuleSystem : IDisposable
 
     // The cache file identity includes the code target: one machine may switch
     // graphics backends (Vulkan ↔ D3D12) and both targets' IR must coexist.
-    private string ModuleCachePath(string moduleName, string extension) =>
+    private string ModuleCachePath(string moduleKey, string extension) =>
         Path.Combine(_cacheDirectory!, "modules",
-            $"{Convert.ToHexString(XxHash3.Hash(System.Text.Encoding.UTF8.GetBytes($"{moduleName}|{(int)_options.Target}")))}.{extension}");
+            $"{Convert.ToHexString(XxHash3.Hash(System.Text.Encoding.UTF8.GetBytes($"{moduleKey}|{(int)_options.Target}")))}.{extension}");
 
-    private bool TryReadModuleCache(string moduleName, out ModuleEntry? entry)
+    private bool TryReadModuleCache(string key, string pathIdentity, string source, out ModuleEntry? entry)
     {
         entry = null;
-        string blobPath = ModuleCachePath(moduleName, "slang-module");
-        string metaPath = ModuleCachePath(moduleName, "meta");
+        string blobPath = ModuleCachePath(key, "slang-module");
+        string metaPath = ModuleCachePath(key, "meta");
         if (!File.Exists(blobPath) || !File.Exists(metaPath))
             return false;
         try
@@ -483,23 +522,35 @@ public sealed partial class SlangModuleSystem : IDisposable
             // compiled under one target must not be restored into another's session.
             if (reader.ReadInt32() != (int)_options.Target)
                 return false;
+            // Own-source staleness: the exact source this entry was built from —
+            // the resolved file content or the define-prefixed permutation
+            // derived from it — hashes equal without a resolver round-trip.
+            if (reader.ReadString() != HashContent(source))
+                return false;
             int depCount = reader.ReadInt32();
-            List<string> dependencies = new(depCount);
+            List<string> dependencies = new(depCount + 1);
             for (int i = 0; i < depCount; i++)
             {
                 string depPath = reader.ReadString();
                 string depHash = reader.ReadString();
-                // Staleness: every dependency must still hash to the recorded value.
-                string? content = _options.Resolver?.Invoke(depPath);
+                // Staleness: every recorded file dependency must still resolve to
+                // the recorded content (virtual modules first, then the resolver).
+                string? content = ResolveDependency(depPath);
                 if (content == null || HashContent(content) != depHash)
                     return false;
                 dependencies.Add(depPath);
             }
+            // The module's own path is not a recorded dependency (its content is
+            // the hashed source above); re-add it so file invalidation still
+            // reaches the restored module.
+            string normalizedIdentity = SlangPathUtility.NormalizePath(pathIdentity);
+            if (!dependencies.Contains(normalizedIdentity))
+                dependencies.Add(normalizedIdentity);
 
-            SlangModuleHandle module = _session.LoadModuleFromIRBlob(moduleName.Replace('|', '_'), blobPath, ir);
+            SlangModuleHandle module = _session.LoadModuleFromIRBlob(key.Replace('|', '_'), blobPath, ir);
             entry = new ModuleEntry
             {
-                LogicalName = moduleName.Split('|')[0],
+                LogicalName = key.Split('|')[0],
                 Module = module,
                 Dependencies = dependencies,
                 SerializedIR = ir,
@@ -514,25 +565,31 @@ public sealed partial class SlangModuleSystem : IDisposable
         }
     }
 
-    private void WriteModuleCache(string moduleName, string path, ModuleEntry entry)
+    private void WriteModuleCache(string key, string modulePath, ModuleEntry entry, string source)
     {
-        if (entry.SerializedIR == null || _options.Resolver == null)
+        if (entry.SerializedIR == null)
             return;
         try
         {
-            string blobPath = ModuleCachePath(moduleName, "slang-module");
-            string metaPath = ModuleCachePath(moduleName, "meta");
+            // File deps exclude the module's own path identity — the plain
+            // candidate or a permutation's disambiguated variant: neither is
+            // validated through the resolver (the source hash covers both).
+            string ownPath = SlangPathUtility.NormalizePath(modulePath);
+            List<string> fileDeps = entry.Dependencies.Where(dep => dep != ownPath).ToList();
+            string blobPath = ModuleCachePath(key, "slang-module");
+            string metaPath = ModuleCachePath(key, "meta");
             File.WriteAllBytes(blobPath, entry.SerializedIR);
             using FileStream stream = File.Create(metaPath);
             using var writer = new System.IO.BinaryWriter(stream);
             writer.Write(MetaVersion);
             writer.Write(BuildTag);
             writer.Write((int)_options.Target);
-            writer.Write(entry.Dependencies.Count);
-            foreach (string dep in entry.Dependencies)
+            writer.Write(HashContent(source));
+            writer.Write(fileDeps.Count);
+            foreach (string dep in fileDeps)
             {
                 writer.Write(dep);
-                writer.Write(HashContent(_options.Resolver(dep) ?? ""));
+                writer.Write(HashContent(ResolveDependency(dep) ?? ""));
             }
         }
         catch
@@ -664,20 +721,21 @@ public sealed partial class SlangModuleSystem : IDisposable
         program.UniformMembers = members;
     }
 
-    /// <summary>Resolves a module by slang's name→file conventions ('a.b' → 'a/b.slang', 'a-b.slang', …).</summary>
     /// <summary>
-    /// The resolved source of a module name (the same probing GetOrLoadModule
-    /// uses), or null — e.g. for permutation enumeration on the shader side.
+    /// The probed source of a module name (the same probing GetOrLoadModule
+    /// uses): the candidate path that hit and its content. The candidate is the
+    /// module's path identity — resolver-addressable, unlike the extension-less
+    /// module name — so dependency records and cache validation round-trip.
     /// </summary>
     public string? GetModuleSource(string moduleName)
     {
         lock (_lock)
         {
-            return _options.Resolver == null ? null : ResolveModuleSource(moduleName);
+            return _options.Resolver == null ? null : ResolveModuleSource(moduleName)?.Source;
         }
     }
 
-    private string? ResolveModuleSource(string moduleName)
+    private (string Candidate, string Source)? ResolveModuleSource(string moduleName)
     {
         string dotted = moduleName.Replace('.', '/');
         string dashed = moduleName.Replace('.', '-');
@@ -689,13 +747,29 @@ public sealed partial class SlangModuleSystem : IDisposable
         {
             string? content = _options.Resolver!(candidate);
             if (content != null)
-                return content;
+                return (candidate, content);
         }
         return null;
     }
 
+    /// <summary>
+    /// Content of a dependency path: virtual modules first, then the file
+    /// resolver — the same order session resolution uses, so cache validation
+    /// sees what the compiler saw.
+    /// </summary>
+    private string? ResolveDependency(string path)
+    {
+        if (_virtualSources.TryGetValue(SlangPathUtility.NormalizePath(path), out string? virtualSource))
+            return virtualSource;
+        return _options.Resolver?.Invoke(path);
+    }
+
     private static string HashContent(string content) =>
         Convert.ToHexString(XxHash3.Hash(System.Text.Encoding.UTF8.GetBytes(content)));
+
+    /// <summary>Whole milliseconds since a <see cref="Stopwatch.GetTimestamp"/> snapshot, without allocating a Stopwatch.</summary>
+    private static long ElapsedMs(long startTimestamp) =>
+        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
 
     private void IndexDependenciesLocked(string moduleKey, ModuleEntry entry)
     {

@@ -51,6 +51,9 @@ public partial class RenderingSystem
                     {
                         Resolver = _moduleResolver,
                         Target = SlangCodeTargetFor(GraphicsDevice.Backend),
+                        // Cache/compile events (hit/miss with timings) — the old
+                        // DXC ShaderCache logged these; the slang path stayed silent.
+                        Log = message => Log.Info(message),
                     }, ShaderModuleCacheDirectory);
                 }
                 return _shaderSystem;

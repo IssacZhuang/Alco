@@ -53,6 +53,13 @@ public sealed class SlangCompilerOptions
     /// </summary>
     public string? TargetProfile { get; init; }
 
+    /// <summary>
+    /// Optional diagnostics sink for module/program cache events (hit/miss with
+    /// timings). Keeps the headless compiler free of engine logging references;
+    /// null stays silent.
+    /// </summary>
+    public Action<string>? Log { get; init; }
+
     /// <summary>The effective profile name for the target (its default unless overridden).</summary>
     public string EffectiveTargetProfile =>
         TargetProfile ?? Target switch
